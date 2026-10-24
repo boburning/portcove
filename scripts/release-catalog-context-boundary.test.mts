@@ -330,7 +330,7 @@ void test("actual context getter checks renewed maintenance only after delayed s
     remaining: () => {
       assert.ok(now < owned.deadline);
     },
-    requireControllerCatalogPublicationAuthorities: async () => ({ configuration_sha256: "fixed" }),
+    requireControllerCatalogJobAuthorities: async () => ({ configuration_sha256: "fixed" }),
     requireActualCatalogInspection: async () => ({
       bundle: "controlled",
       tools_receipt: tools,
@@ -413,7 +413,7 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
         events.push("tools");
       },
       requireRetainedCatalogSigningContext: async () => {},
-      requireControllerCatalogPublicationAuthorities: async () => ({
+      requireControllerCatalogJobAuthorities: async () => ({
         configuration_sha256: "fixed",
       }),
       readRemoteCoordinatorSnapshot: async () => {

@@ -213,7 +213,7 @@ void test("injected recovery join verifies existing public bytes and original ro
             deadline: performance.now() + 30000,
           }),
         },
-        requireControllerCatalogPublicationAuthorities: async () => ({
+        requireControllerCatalogJobAuthorities: async () => ({
           configuration_sha256: descriptor.publisher_configuration_sha256,
           catalog: {
             public_source: {

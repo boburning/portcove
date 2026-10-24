@@ -35,7 +35,7 @@ import {
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
-  requireControllerCatalogPublicationAuthorities,
+  requireControllerCatalogJobAuthorities,
   assertControllerCatalogPublisherScope,
 } from "./release-authority-configuration.mts";
 import { authenticateCatalogReleaseControlRound } from "./release-live-control-admission.mts";
@@ -58,7 +58,6 @@ import {
   readIndependentCatalogSemanticReview,
   releaseControlRefQuery,
 } from "./release-control-inputs.mts";
-import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
@@ -124,7 +123,7 @@ function fixedApi(directory: string, deadline: number) {
  * context. They do not import or pretend to reconstruct the producer capture. */
 export function recheckCatalogSemanticProof(
   api: Parameters<typeof readIndependentCatalogSemanticReview>[0],
-  authorities: { apps: { semantic: { app_id: number }; classification: { app_id: number } } },
+  authorities: { semantic_producer: unknown },
   rawFacts: unknown,
   rawBinding: unknown,
   prior: unknown,
@@ -132,12 +131,7 @@ export function recheckCatalogSemanticProof(
   const { facts } = inspectCatalogSigningBinding(rawFacts, rawBinding, prior);
   const proof = readIndependentCatalogSemanticReview(
     api,
-    {
-      schema_version: 1,
-      review_app_id: authorities.apps.semantic.app_id,
-      writer_app_id: authorities.apps.classification.app_id,
-      review_check_name: semanticReviewCheckName,
-    },
+    authorities.semantic_producer,
     facts.semantic_opportunity,
     facts.semantic_check_id,
   );
@@ -158,7 +152,7 @@ async function admittedContext(
   const tools = await verifiedControllerToolPaths(toolsReceipt),
     context = await requireReceivedCatalogSigningContext(contextReceipt, deadline),
     manifest = context.manifest,
-    authorities = await requireControllerCatalogPublicationAuthorities(phase);
+    authorities = await requireControllerCatalogJobAuthorities(phase);
   if (
     !isRecord(manifest.controller) ||
     !isRecord(manifest.control_facts) ||
@@ -194,7 +188,7 @@ async function admittedContext(
       ),
       bundle,
     );
-  assertControllerCatalogPublisherScope(authorities, report, bundle);
+  assertControllerCatalogPublisherScope(authorities.configuration, report, bundle);
   const manifest_sha256 = hash(
     await readControllerToolFile(
       path.join(context.directory, "signing-context-manifest.json"),
@@ -286,7 +280,7 @@ async function runRole(
     identity.controller_ref !== tools.identity.controller_ref ||
     identity.run_id !== tools.identity.run_id ||
     identity.run_attempt !== tools.identity.run_attempt ||
-    identity.actor_id !== authorities.apps.dispatch.actor_id ||
+    identity.actor_id !== authorities.dispatch_actor_id ||
     identity.audience !== "portcove-capacity-executor"
   )
     throw new Error("catalog actual executor/tool identity differs");
@@ -361,7 +355,7 @@ async function runRole(
       await requireRetainedCatalogSigningContext(contextReceipt, deadline);
       for (const dependency of dependencies)
         await requireRetainedCatalogRoleArtifact(dependency, deadline);
-      const currentAuthorities = await requireControllerCatalogPublicationAuthorities(phase);
+      const currentAuthorities = await requireControllerCatalogJobAuthorities(phase);
       if (currentAuthorities.configuration_sha256 !== authorities.configuration_sha256)
         throw new Error("catalog role authority changed");
       reservation(

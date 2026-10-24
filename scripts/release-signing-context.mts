@@ -34,7 +34,7 @@ import {
   requirePublishedCompleteSite,
   materializePublishedCompleteSite,
 } from "./release-site-readback.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import {
   inspectPublishedMetadata,
@@ -213,7 +213,7 @@ export async function prepareControllerReleaseSigningContext(
   };
   withinBudget();
   const payload = await requirePreparedPayloadSignatures(payloadReceipt);
-  const authorities = await requireControllerPublicationAuthorities("payload");
+  const authorities = await requireControllerApplicationJobPublicationAuthorities("payload");
   if (
     !isRecord(payload.context.facts.configuration) ||
     payload.context.facts.configuration.namespace !== authorities.namespace

@@ -15,7 +15,7 @@ import {
 } from "./acquire-release-admission.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 import { collectConfiguredNativeReleaseQualificationPair } from "./release-native-admission.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobAuthorities } from "./release-authority-configuration.mts";
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidence.mts";
 import {
@@ -585,7 +585,7 @@ export async function runPayloadSigningController(
   )
     throw new Error("payload signer and verified fixed tools differ");
   const selected = inspectPayloadPreparationConfiguration(config);
-  const authorities = await requireControllerReleaseAuthorities("payload");
+  const authorities = await requireControllerApplicationJobAuthorities("payload");
   if (authorities.namespace !== selected.admission_configuration.namespace)
     throw new Error("payload authority and actual coordinator namespace differ");
   if (

@@ -14,7 +14,7 @@ import {
   receiveControllerTools,
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobAuthorities } from "./release-authority-configuration.mts";
 import {
   advanceActualCandidateToBuilding,
   requireActualCandidatePhaseAdvance,
@@ -114,7 +114,7 @@ export async function runFixedAdmittedAggregateConfiguration(
         !path.isAbsolute(root)
       )
         throw new Error("fixed admitted aggregate fields differ");
-      const authorities = await requireControllerReleaseAuthorities("admission");
+      const authorities = await requireControllerApplicationJobAuthorities("admission");
       const directory = await mkdtemp(path.join(root, "admitted-aggregate-"));
       const toolsReceipt = await receiveControllerTools(
         directory,

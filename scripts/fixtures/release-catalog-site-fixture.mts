@@ -123,7 +123,7 @@ try {
   });
   install("release-authority-configuration", {
     ...config,
-    requireControllerCatalogPublicationAuthorities: async () => ({
+    requireControllerCatalogJobAuthorities: async () => ({
       configuration_sha256: descriptor.publisher_configuration_sha256,
       catalog: {
         public_source: {

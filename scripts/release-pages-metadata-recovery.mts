@@ -8,7 +8,7 @@ import {
   readBootstrapPublicSource,
   bootstrapPreimageCatalogPins,
 } from "./release-bootstrap-public-inputs.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import {
@@ -191,7 +191,8 @@ export async function recoverPublishedPagesMetadata(
           );
           const site = await requirePublishedCompleteSite(acquired.receipt);
           if (!handoff.seed) {
-            const authority = await requireControllerPublicationAuthorities("coordinator");
+            const authority =
+              await requireControllerApplicationJobPublicationAuthorities("coordinator");
             const descriptor = inspectMetadataBootstrapDescriptor(current.input.metadata_bootstrap);
             if (
               descriptor.initial_site_preimage_sha256 !==

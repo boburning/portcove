@@ -12,7 +12,7 @@ import {
   catalogCoordinatorMaintenanceIdentity,
 } from "./release-coordinator-driver.mts";
 import {
-  requireControllerCatalogPublicationAuthorities,
+  requireControllerCatalogJobAuthorities,
   assertControllerCatalogPublisherScope,
 } from "./release-authority-configuration.mts";
 import {
@@ -238,7 +238,7 @@ async function prepareContext(session: Session, parent: string) {
   await mkdir(directory, { mode: 0o700 });
   const partial = { work, directory, deadline },
     api = apiFor(partial),
-    authorities = await requireControllerCatalogPublicationAuthorities("coordinator"),
+    authorities = await requireControllerCatalogJobAuthorities("coordinator"),
     pins = authorities.catalog.public_source;
   if (
     session.namespace !== authorities.namespace ||
@@ -248,7 +248,11 @@ async function prepareContext(session: Session, parent: string) {
     throw new Error("catalog context ratified authority differs");
   const files = readCatalogPublicAnchors(api, pins, deadline),
     bundle = await readCatalogPublicationBundle(session.inspection.bundle, deadline);
-  assertControllerCatalogPublisherScope(authorities, session.inspection.inspection, bundle);
+  assertControllerCatalogPublisherScope(
+    authorities.configuration,
+    session.inspection.inspection,
+    bundle,
+  );
   for (const [name, bytes] of bundle) files.set(`bundle/${name}`, bytes);
   const manifest = await readControllerToolFile(
     path.join(session.inspection.directory, "inspection.json"),
@@ -509,7 +513,7 @@ async function readContext(receipt: object) {
   const owned = contexts.get(receipt);
   if (!owned) throw new Error("actual same-process catalog context required");
   remaining(owned);
-  const authorities = await requireControllerCatalogPublicationAuthorities("coordinator"),
+  const authorities = await requireControllerCatalogJobAuthorities("coordinator"),
     inspection = await requireActualCatalogInspection(
       owned.session.inputs.inspection,
       owned.deadline,
@@ -517,7 +521,7 @@ async function readContext(receipt: object) {
     bundle = await readCatalogPublicationBundle(inspection.bundle, owned.deadline);
   if (authorities.configuration_sha256 !== owned.configuration_sha256)
     throw new Error("catalog protected authority changed");
-  assertControllerCatalogPublisherScope(authorities, inspection.inspection, bundle);
+  assertControllerCatalogPublisherScope(authorities.configuration, inspection.inspection, bundle);
   const api = apiFor(owned),
     semantic = await owned.session.recheck_semantic(owned.deadline);
   if (
@@ -587,7 +591,7 @@ export async function completeCoordinatorCatalogSigningContext(
     deadline = context.deadline;
   return withCoordinatorDeadline(deadline, async () => {
     remaining({ deadline });
-    const authorities = await requireControllerCatalogPublicationAuthorities("coordinator"),
+    const authorities = await requireControllerCatalogJobAuthorities("coordinator"),
       identity = {
         audience: "portcove-capacity-executor",
         subject: controllerOidcSubject(
@@ -598,7 +602,7 @@ export async function completeCoordinatorCatalogSigningContext(
         controller_ref: context.tools.identity.controller_ref,
         run_id: context.tools.identity.run_id,
         run_attempt: context.tools.identity.run_attempt,
-        actor_id: authorities.apps.dispatch.actor_id,
+        actor_id: authorities.dispatch_actor_id,
       };
     const executor = await authenticateCapacityExecutor("coordinator", identity, parent, deadline),
       artifact = await prepareCatalogSigningContextArtifact(receipt, parent);

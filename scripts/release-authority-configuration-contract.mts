@@ -5,6 +5,7 @@ import { isRecord } from "./runtime-values.mts";
 import { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
 import {
   inspectReleaseControlPhase,
+  inspectControllerPurposePhase,
   releaseControlPhaseProfile,
   semanticReviewCheckName,
 } from "./release-control-phases.mts";
@@ -508,6 +509,7 @@ export function requireFixedControllerJobSourceConfiguration(
   phase: ReturnType<typeof inspectReleaseControlPhase>,
   purpose: "application" | "catalog-publication",
 ) {
+  inspectControllerPurposePhase(phase, purpose);
   requireAdmittedProductionSource(source, releaseControlPhaseProfile(phase).reader_job, purpose);
   const selected =
     isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1");
@@ -530,25 +532,18 @@ export function requireFixedControllerJobSourceConfiguration(
     run_attempt: source.run_attempt,
   });
 }
-/** Inert coordinator inputs only. Retain the complete original configuration
+/** Inert fixed-job inputs only. Retain the complete original configuration
  * for publisher assertions; a view never supplies executor/control/key authority. */
-export function requireCoordinatorAuthorityConfiguration(
+export function requireControllerJobAuthorityConfiguration(
   raw: unknown,
   source: unknown,
+  rawPhase: unknown,
   purpose: "application" | "catalog-publication",
 ) {
-  requireAdmittedProductionSource(
-    source,
-    releaseControlPhaseProfile("coordinator").reader_job,
-    purpose,
-  );
+  const phase = inspectControllerPurposePhase(rawPhase, purpose);
+  requireAdmittedProductionSource(source, releaseControlPhaseProfile(phase).reader_job, purpose);
   const admitted = source;
-  const binding = requireFixedControllerJobSourceConfiguration(
-    raw,
-    admitted,
-    "coordinator",
-    purpose,
-  );
+  const binding = requireFixedControllerJobSourceConfiguration(raw, admitted, phase, purpose);
   const selected =
     isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1");
   if (selected) {
@@ -613,6 +608,14 @@ export function requireCoordinatorAuthorityConfiguration(
       review_check_name: semanticReviewCheckName,
     },
   };
+}
+
+export function requireCoordinatorAuthorityConfiguration(
+  raw: unknown,
+  source: unknown,
+  purpose: "application" | "catalog-publication",
+) {
+  return requireControllerJobAuthorityConfiguration(raw, source, "coordinator", purpose);
 }
 
 /** Local routing-byte linkage only, never an imported grant or executor. The

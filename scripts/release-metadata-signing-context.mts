@@ -23,7 +23,7 @@ import {
   readPublicApplicationSiteMarker,
 } from "./release-site-readback.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
@@ -199,7 +199,7 @@ export async function prepareCoordinatorSigningContext(
         : await inspectPreparedMetadataBootstrap(session.preparation),
     site =
       session.mode === "renewal" ? await requirePublishedCompleteSite(session.complete_site) : null,
-    authorities = await requireControllerPublicationAuthorities("coordinator");
+    authorities = await requireControllerApplicationJobPublicationAuthorities("coordinator");
   if (
     session.namespace !== authorities.namespace ||
     prepared.verifier_sha256 !== hash(await readControllerToolFile(tools.rust)) ||

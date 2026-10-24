@@ -7,7 +7,8 @@ import type { GitHubRestReader } from "./github-api.mts";
 import {
   inspectPublicationAuthorities,
   inspectCatalogAuthorityConfiguration,
-  requireControllerCatalogPublicationAuthorities,
+  inspectSelectedPublicationAuthorityConfiguration,
+  requireControllerCatalogJobAuthorities,
 } from "./release-authority-configuration.mts";
 import {
   inspectRemoteCommitObject,
@@ -230,7 +231,14 @@ export function readCatalogBootstrapPublicSource(
   generatedAt: string,
   deadline: number,
 ) {
-  const authorities = inspectCatalogAuthorityConfiguration(rawAuthorities);
+  const authorities =
+    isRecord(rawAuthorities) &&
+    (rawAuthorities.schema_version === 4 || rawAuthorities.kind === "two-app-fixed-jobs-v1")
+      ? inspectSelectedPublicationAuthorityConfiguration(rawAuthorities)
+      : inspectCatalogAuthorityConfiguration(rawAuthorities);
+  if ("purpose" in authorities && authorities.purpose !== "catalog-publication")
+    throw new Error("catalog bootstrap requires catalog purpose");
+  if (!("catalog" in authorities)) throw new Error("complete catalog bootstrap scope required");
   const pins = authorities.catalog.public_source;
   if (!pins.initial_site_preimage)
     throw new Error("explicit catalog historical whole-site preimage locator required");
@@ -328,10 +336,13 @@ export async function readConfiguredCatalogBootstrapSite(
 ) {
   check(phaseDeadline);
   const authorities = await withCoordinatorDeadline(phaseDeadline, () =>
-    requireControllerCatalogPublicationAuthorities("site-publication"),
+    requireControllerCatalogJobAuthorities("site-publication"),
   );
   check(phaseDeadline);
-  const { configuration_sha256, ...configuration } = authorities;
+  const { configuration_sha256 } = authorities;
+  const configuration = Object.fromEntries(
+    Object.entries(authorities.configuration).filter(([key]) => key !== "configuration_sha256"),
+  );
   const source = readCatalogBootstrapPublicSource(api, configuration, generatedAt, phaseDeadline);
   const current = await readConfiguredBootstrapSite(api, phaseDeadline);
   check(phaseDeadline);
