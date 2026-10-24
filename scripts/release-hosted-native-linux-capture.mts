@@ -284,7 +284,7 @@ async function tool(filename: string, owners: readonly number[], active: () => v
 async function prepare(actual: ActualRequest, parent: Parent, controllerRoot = root) {
   assert.ok(parent.configuration.purpose === "application");
   const request = actual.prepared.request;
-  assert.equal(request.stage, "payload-signing");
+  assert.ok(request.stage === "payload-signing" || request.stage === "release-publication");
   assert.equal(request.platform_label, "linux-x86_64");
   const selected = request.expected.producer;
   hostedLinuxCaptureLifetime(parent.deadline, performance.now(), Date.now());
@@ -381,13 +381,40 @@ async function prepare(actual: ActualRequest, parent: Parent, controllerRoot = r
     bytes: request.candidate.package.bytes,
     sha256: request.candidate.package.sha256,
   };
+  const postSign = request.stage === "release-publication";
+  const predecessor = actual.predecessor ?? null;
+  if (postSign && request.journey && "predecessor" in request.journey) {
+    assert.ok(predecessor);
+    assert.equal(predecessor.bytes, request.journey.predecessor.package.bytes);
+    assert.equal(predecessor.sha256, request.journey.predecessor.package.sha256);
+  } else assert.equal(predecessor, null);
+  if (postSign) {
+    assert.ok(actual.payload_crypto);
+    assert.equal(
+      actual.payload_crypto.signed_context_sha256,
+      request.journey?.signed_context_sha256,
+    );
+    assert.equal(actual.payload_crypto.signatures_sha256, request.journey?.signatures_sha256);
+  }
   const plan = Buffer.from(
     JSON.stringify({
-      schema_version: 1,
+      schema_version: postSign ? 2 : 1,
       invocation_id: invocation,
-      stage: "payload-signing",
+      stage: request.stage,
       stage_request_sha256: actual.prepared.request_sha256,
       binding: { ...binding, application },
+      ...(postSign
+        ? {
+            stage_request: request,
+            predecessor: predecessor
+              ? {
+                  bytes: predecessor.bytes,
+                  sha256: predecessor.sha256,
+                  version: predecessor.version,
+                }
+              : null,
+          }
+        : {}),
     }),
   );
   const outer = Buffer.from(
@@ -438,11 +465,21 @@ async function prepare(actual: ActualRequest, parent: Parent, controllerRoot = r
     stage_request_sha256: actual.prepared.request_sha256,
     packages: [
       {
-        entry: "application",
+        entry: postSign ? "candidate" : "application",
         path: actual.package_path,
         bytes: application.bytes,
         sha256: application.sha256,
       },
+      ...(predecessor
+        ? [
+            {
+              entry: "predecessor",
+              path: predecessor.path,
+              bytes: predecessor.bytes,
+              sha256: predecessor.sha256,
+            },
+          ]
+        : []),
     ],
   };
   inspectHostedLinuxDriverPlan(driver);
@@ -483,7 +520,7 @@ export async function captureActualHostedNativeLinuxInvocation(
   assert.equal(process.arch, "x64");
   assert.equal(String(process.getuid?.()), actual.host.projection.account.broker);
   assert.equal(parent.platform_label, "linux-x86_64");
-  assert.equal(parent.stage, "payload-signing");
+  assert.equal(parent.stage, actual.prepared.request.stage);
   const files = new Map<string, { bytes: number; sha256: string }>();
   const put = async (name: string, bytes: Buffer) => {
     assert.ok(bytes.length > 0 && bytes.length <= 128 * 1024);
