@@ -60,6 +60,10 @@ void test("inconclusive, stale, and retained evidence never claims recovery", ()
   assert.match(conditionEvidence(incident()), /not checked in this run/u);
   assert.match(conditionEvidence(incident({ observed_this_run: true })), /bytes unverified/u);
   assert.match(
+    conditionEvidence(incident({ observed_this_run: true, classification: "reviewed-condition" })),
+    /operation safety unassessed/u,
+  );
+  assert.match(
     conditionEvidence(incident({ observed_this_run: true, accounted_for: false })),
     /Unaccounted/u,
   );
