@@ -235,6 +235,10 @@ function currentPublicationJobDeadline(
 
 export async function runFixedPublicationEntry(filename: string, phaseDeadline?: number) {
   const raw: unknown = JSON.parse((await readControllerToolFile(filename, 65536)).toString("utf8"));
+  return runFixedPublicationConfiguration(raw, phaseDeadline);
+}
+export async function runFixedPublicationConfiguration(input: unknown, phaseDeadline?: number) {
+  const raw: unknown = structuredClone(input);
   if (
     !isRecord(raw) ||
     Object.keys(raw).sort().join(",") !== "configuration,context,identity,roles,tools" ||

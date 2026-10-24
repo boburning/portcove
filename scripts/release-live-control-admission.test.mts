@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile, mkdtemp, rm, appendFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -62,6 +63,7 @@ import {
 import { requireCurrentClassificationRequest } from "./release-classification-request.mts";
 import { releaseControlPhaseProfile, type ReleaseControlPhase } from "./release-control-phases.mts";
 import { retainProtectionObservationOutputs } from "./release-reviewed-inputs.mts";
+import { requireControllerJobSourceConfiguration } from "./release-authority-configuration.mts";
 
 void test("observer output transport refuses expiry after every awaited write and retains partial effects", async (t) => {
   for (const delayed of ["output", "observation", "receipt", "none"]) {
@@ -1111,4 +1113,86 @@ void test("only selected online metadata roles may read pause/capacity without i
     assert.throws(() => source.readMaintenance(control.api), /fresh/);
     assert.equal(control.mutations(), 0);
   }
+});
+
+void test("actual selected catalog entry retains default signed OIDC/provider verification before source routing", async (t) => {
+  const runtime = liveControlRuntimeFixture(
+    protectionFixture("a".repeat(40)),
+    undefined,
+    "coordinator",
+    true,
+  );
+  const configuration = selectedPublicationAuthoritiesFixture("catalog-publication");
+  const workflow = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  const profile = releaseControlPhaseProfile("coordinator");
+  const provider = assemblerIdentityFixture(
+    {
+      aud: profile.reader_audience,
+      sub: controllerOidcSubject(runtime.policy.execution_ref, profile.reader_environment),
+      environment: profile.reader_environment,
+    },
+    {},
+    { workflow: productionControllerWorkflow, job: profile.reader_name, runAttempt: 1 },
+  );
+  const environment = {
+    ...runtime.environment,
+    PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+    PORTCOVE_CATALOG_AUTHORITIES: JSON.stringify(configuration),
+    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify({
+      ...runtime.policy,
+      mode: "bounded-catalog-publication",
+      workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+      authority_configuration_sha256: capacityDigest(configuration),
+    }),
+    ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token?fixture=1",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-fixture-control-bearer",
+  };
+  const before = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  const actualSpawn = childProcess.spawnSync;
+  t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0]) => {
+    const url = new URL(
+      input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+    );
+    if (url.hostname === "fixture.actions.githubusercontent.com") {
+      assert.equal(url.searchParams.get("audience"), profile.reader_audience);
+      return new Response(JSON.stringify({ value: provider.token }));
+    }
+    assert.equal(url.hostname, "token.actions.githubusercontent.com");
+    return new Response(JSON.stringify({ keys: [jwk] }));
+  });
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (
+      command: string,
+      args: readonly string[],
+      options: childProcess.SpawnSyncOptionsWithStringEncoding,
+    ) =>
+      command === "gh"
+        ? provider.transport.spawn(command, args, options)
+        : actualSpawn(command, args, options),
+  );
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    for (const [key, value] of before) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  const actual = await requireControllerJobSourceConfiguration("coordinator");
+  assert.equal(actual.binding.purpose, "catalog-publication");
+  assert.equal(actual.binding.actor_id, runtime.policy.actor_id);
+  assert.equal(actual.binding.namespace, configuration.journal.namespace);
+  assert.ok(
+    provider.counts().requests > 0,
+    "default named verifier used controlled provider readback",
+  );
+  actual.recheck();
+  provider.faults.value = "job-completed";
+  await assert.rejects(requireControllerJobSourceConfiguration("coordinator"));
 });

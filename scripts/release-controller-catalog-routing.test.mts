@@ -1,16 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile, mkdtemp, mkdir, writeFile, lstat, rm, rename, symlink } from "node:fs/promises";
+import {
+  readFile,
+  mkdtemp,
+  mkdir,
+  writeFile,
+  lstat,
+  rm,
+  rename,
+  symlink,
+  appendFile,
+} from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { prepareFixedControllerConfiguration } from "./release-controller-configuration.mts";
+import {
+  fixedControllerConfigurationSource,
+  requireFixedControllerConfigurationSource,
+} from "./release-authority-configuration-contract.mts";
 import { projectFixedControllerJobOutputs } from "./release-controller-job-output.mts";
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import {
@@ -519,6 +536,28 @@ void test("actual fixed coordinator entry creates one fresh private work parent 
           tools: { artifact: "inert", bundle: "inert" },
         };
       await writeFile(filename, JSON.stringify(configuration), { flag: "wx", mode: 0o600 });
+      const binding = {
+        purpose: purpose as "application" | "catalog-publication",
+        namespace: "portcove-fixture",
+        actor_id: "1234",
+        authority_configuration_sha256: "a".repeat(64),
+        grant_sha256: "b".repeat(64),
+        controller_revision: "c".repeat(40),
+        controller_ref: "refs/tags/portcove-production-controller-fixture",
+        run_id: "12345",
+        run_attempt: 1,
+      };
+      await writeFile(
+        path.join(privateRoot, "controller-coordinator-source.json"),
+        JSON.stringify(
+          fixedControllerConfigurationSource(
+            "coordinator",
+            binding,
+            Buffer.from(JSON.stringify(configuration)),
+          ),
+        ),
+        { flag: "wx", mode: 0o600 },
+      );
       let calls = 0;
       const factory = async (raw: unknown, work: string, deadline: number) => {
         calls++;
@@ -546,7 +585,8 @@ void test("actual fixed coordinator entry creates one fresh private work parent 
           assert.equal(role, "coordinator");
           return role;
         },
-        authority: async () => ({}),
+        authority: async () => ({ binding, recheck: () => {} }),
+        requireFixedControllerConfigurationSource,
         temporary: () => privateRoot,
         configPath: () => filename,
         readControllerToolFile: (file: string) => readFile(file),
@@ -577,5 +617,97 @@ void test("actual fixed coordinator entry creates one fresh private work parent 
     }
   } finally {
     await rm(parent, { recursive: true, force: true });
+  }
+});
+
+void test("actual fixed output source function refuses a late append and retains partial routing bytes", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "fixed-output-source-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const source = await readFile(
+    new URL("./release-controller-job-output.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function finishFixedControllerJobOutputs(");
+  const end = source.indexOf("if (process.argv[1]", start);
+  assert.ok(start >= 0 && end > start);
+  const body = stripTypeScriptTypes(source.slice(start, end).replace("export ", ""));
+  for (const delayed of [false, true]) {
+    const root = path.join(parent, String(delayed));
+    await mkdir(root);
+    const output = path.join(root, "output");
+    const binding = {
+      purpose: "application" as const,
+      namespace: "portcove-fixture",
+      actor_id: "1234",
+      authority_configuration_sha256: "a".repeat(64),
+      grant_sha256: "b".repeat(64),
+      controller_revision: "c".repeat(40),
+      controller_ref: "refs/tags/portcove-production-controller-fixture",
+      run_id: "12345",
+      run_attempt: 1,
+    };
+    const configuration = Buffer.from("{}");
+    await writeFile(path.join(root, "controller-coordinator.json"), configuration);
+    await writeFile(
+      path.join(root, "controller-coordinator-source.json"),
+      JSON.stringify(fixedControllerConfigurationSource("coordinator", binding, configuration)),
+    );
+    await writeFile(
+      path.join(root, "controller-job-settlement-coordinator.json"),
+      JSON.stringify({ exit_code: 0, requires_attestation: false }),
+    );
+    await writeFile(
+      path.join(root, "controller-coordinator-result.json"),
+      JSON.stringify({ decision: "held" }),
+    );
+    let expired = false;
+    const entry = runInNewContext(body + "\nfinishFixedControllerJobOutputs", {
+      path,
+      performance,
+      Buffer,
+      assertOwnedUnlinkedPath,
+      requireFixedControllerConfigurationSource,
+      projectFixedControllerJobOutputs,
+      withCoordinatorDeadline,
+      randomBytes,
+      process: { env: { RUNNER_TEMP: root, GITHUB_OUTPUT: output } },
+      role: (value: unknown) => {
+        assert.equal(value, "coordinator");
+        return "coordinator";
+      },
+      record: (value: unknown) => {
+        assert.ok(isRecord(value));
+        return value;
+      },
+      requireControllerJobSourceConfiguration: async () => ({
+        binding,
+        recheck: () => {
+          assert.equal(expired, false, "controlled original phase/source expired after append");
+        },
+      }),
+      currentControllerJobDeadline: () => performance.now() + 10000,
+      readControllerToolFile: (file: string) => readFile(file),
+      appendFile: async (file: string, bytes: string) => {
+        await appendFile(file, bytes);
+        expired = delayed;
+      },
+    }) as (role: unknown) => Promise<unknown>;
+    if (delayed) await assert.rejects(entry("coordinator"), /expired after append/);
+    else
+      assert.deepEqual(JSON.parse(JSON.stringify(await entry("coordinator"))), {
+        mode: "held",
+        stage: "held",
+      });
+    const retained = await readFile(output, "utf8");
+    assert.match(retained, /mode<</);
+    assert.equal(
+      retained.includes("stage<<"),
+      !delayed,
+      "later output is absent after late refusal",
+    );
+    assert.equal(
+      await readFile(path.join(root, "controller-coordinator-result.json"), "utf8"),
+      '{"decision":"held"}',
+    );
   }
 });

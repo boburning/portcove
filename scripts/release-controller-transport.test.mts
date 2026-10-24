@@ -565,6 +565,16 @@ void test("always-retained diagnostics select bounded public markers and preserv
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-diagnostics-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const marker = "controller-job-settlement-payload.json";
+  const sourceMarker = "controller-payload-source.json";
+  await writeFile(
+    path.join(root, sourceMarker),
+    JSON.stringify({
+      schema_version: 1,
+      operation: "payload",
+      configuration_sha256: "a".repeat(64),
+      source: { authority_configuration_sha256: "b".repeat(64), purpose: "application" },
+    }),
+  );
   await writeFile(
     path.join(root, marker),
     JSON.stringify({ exit_code: 1, requires_attestation: false }),
@@ -587,7 +597,11 @@ void test("always-retained diagnostics select bounded public markers and preserv
   assert.equal(manifest.authority, "none");
   assert.deepEqual(
     manifest.files.map((file: { path: string }) => file.path).sort(),
-    [marker, "controller-transport-payload-slot-40.json"].sort(),
+    [marker, sourceMarker, "controller-transport-payload-slot-40.json"].sort(),
+  );
+  assert.deepEqual(
+    await readFile(path.join(output, sourceMarker)),
+    await readFile(path.join(root, sourceMarker)),
   );
   assert.equal(
     manifest.unavailable.find((file: { path: string }) => file.path.endsWith("-clock.json"))

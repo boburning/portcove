@@ -9,6 +9,7 @@ import {
   inspectBoundCatalogControllerAuthorities,
   requireControllerCatalogPublicationAuthorities,
   assertControllerCatalogPublisherScope,
+  requireFixedControllerJobSourceConfiguration,
 } from "./release-authority-configuration.mts";
 import {
   admitProductionCatalogInputReader,
@@ -95,6 +96,41 @@ function runtime(catalogCoverage = true) {
   };
   return { actual, config, policy, environment, control, observation };
 }
+void test("fixed legacy catalog source routing retains configured dispatch-actor equality", () => {
+  const f = runtime();
+  const source = admitProductionCatalogInputReader(
+    JSON.stringify(f.policy),
+    f.environment,
+    f.actual.workflow,
+    "coordinator",
+  );
+  const binding = requireFixedControllerJobSourceConfiguration(
+    f.config,
+    source,
+    "coordinator",
+    "catalog-publication",
+  );
+  assert.equal(binding.actor_id, f.config.apps.dispatch.actor_id);
+  const changed = structuredClone(f.config);
+  changed.apps.dispatch.actor_id = "999";
+  const changedPolicy = { ...f.policy, authority_configuration_sha256: digest(changed) };
+  const changedSource = admitProductionCatalogInputReader(
+    JSON.stringify(changedPolicy),
+    f.environment,
+    f.actual.workflow,
+    "coordinator",
+  );
+  assert.throws(
+    () =>
+      requireFixedControllerJobSourceConfiguration(
+        changed,
+        changedSource,
+        "coordinator",
+        "catalog-publication",
+      ),
+    /configuration\/dispatch changed/,
+  );
+});
 void test("catalog configuration appoints only distinct minimal roles and never application authorities", () => {
   const config = configuration();
   const parsed = inspectCatalogAuthorityConfiguration(config);

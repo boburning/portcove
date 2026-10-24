@@ -6,7 +6,10 @@ import {
 } from "./release-control-phases.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import { performance } from "node:perf_hooks";
-import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import {
   admitProductionInputReader,
   admitProductionCatalogInputReader,
@@ -22,8 +25,70 @@ import {
   inspectBoundControllerAuthorities,
   inspectBoundCatalogControllerAuthorities,
   inspectNativePrepublicationAuthorities,
+  requireFixedControllerJobSourceConfiguration,
 } from "./release-authority-configuration-contract.mts";
 export * from "./release-authority-configuration-contract.mts";
+
+/** Source-bound entry routing, not an executor/control/signing capability. The
+ * catalog path retains its existing actual named OIDC check before routing. */
+export async function requireControllerJobSourceConfiguration(rawPhase: unknown) {
+  const environment = { ...process.env };
+  const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
+  const phase = inspectReleaseControlPhase(rawPhase);
+  const raw =
+    purpose === "application"
+      ? environment.PORTCOVE_RELEASE_AUTHORITIES
+      : environment.PORTCOVE_CATALOG_AUTHORITIES;
+  if (!raw || Buffer.byteLength(raw) > 32768)
+    throw new Error("complete fixed job source configuration unavailable");
+  const configuration: unknown = JSON.parse(raw);
+  const deadline = performance.now() + coordinatorCommandTimeout(15000);
+  const workflow = await readProductionControllerWorkflowBytes();
+  let source;
+  if (purpose === "catalog-publication") {
+    const { authenticateCatalogControlReaderJob } =
+      await import("./release-live-control-admission.mts");
+    const actual = await authenticateCatalogControlReaderJob(environment, workflow, {
+      phase,
+      deadline,
+    });
+    if (actual.identity.evidence_scope !== "github.com")
+      throw new Error("actual catalog OIDC identity required");
+    source = actual.admitted;
+  } else {
+    source = admitProductionInputReader(
+      environment.PORTCOVE_CONTROLLER_ADMISSION,
+      environment,
+      workflow,
+      phase,
+    );
+  }
+  const binding = requireFixedControllerJobSourceConfiguration(
+    configuration,
+    source,
+    phase,
+    purpose,
+  );
+  const recheck = () => {
+    const keys = new Set([...Object.keys(environment), ...Object.keys(process.env)]);
+    for (const key of keys) {
+      if (
+        (key.startsWith("GITHUB_") ||
+          key.startsWith("PORTCOVE_") ||
+          key === "RUNNER_TEMP" ||
+          key === "RUNNER_ENVIRONMENT") &&
+        environment[key] !== process.env[key]
+      )
+        throw new Error("fixed job environment changed after source admission");
+    }
+    requireFixedControllerJobSourceConfiguration(configuration, source, phase, purpose);
+    checkCoordinatorDeadline();
+  };
+  recheck();
+  if (performance.now() >= deadline)
+    throw new Error("fixed job source original collection deadline exhausted");
+  return { binding, recheck };
+}
 /** Actual source-bound role reader. The existing OIDC executor must separately
  * match this source; token availability and environment claims alone grant no
  * signing, protection, capacity, history or publication acceptance. */

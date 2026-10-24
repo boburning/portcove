@@ -6,10 +6,10 @@ import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { prepareFixedControllerConfiguration } from "./release-controller-configuration.mts";
 import {
-  requireControllerReleaseAuthorities,
-  requireControllerCatalogPublicationAuthorities,
-} from "./release-authority-configuration.mts";
-import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
+  fixedControllerConfigurationSource,
+  requireFixedControllerConfigurationSource,
+} from "./release-authority-configuration-contract.mts";
+import { requireControllerJobSourceConfiguration } from "./release-authority-configuration.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
@@ -39,32 +39,31 @@ function operation(raw: unknown) {
   return raw;
 }
 const root = fileURLToPath(new URL("..", import.meta.url));
-function temporary() {
-  const value = process.env.RUNNER_TEMP;
+function temporary(environment: NodeJS.ProcessEnv = process.env) {
+  const value = environment.RUNNER_TEMP;
   if (!value || !path.isAbsolute(value) || /[\r\n]/u.test(value))
     throw new Error("private fixed runner root unavailable");
   return value;
 }
-function configPath(role: ReturnType<typeof operation>) {
-  return path.join(temporary(), `controller-${role}.json`);
+function configPath(
+  role: ReturnType<typeof operation>,
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  return path.join(temporary(environment), `controller-${role}.json`);
 }
 async function authority(role: ReturnType<typeof operation>) {
-  return (
-    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
-      "catalog-publication"
-      ? requireControllerCatalogPublicationAuthorities
-      : requireControllerReleaseAuthorities
-  )(role === "building" ? "admission" : role);
+  return requireControllerJobSourceConfiguration(role === "building" ? "admission" : role);
 }
 export async function configureFixedControllerJob(rawRole: unknown) {
+  const environment = { ...process.env };
   const role = operation(rawRole),
-    selected = await authority(role);
-  const rawNeeds = process.env.PORTCOVE_FIXED_NEEDS,
+    source = await authority(role),
+    selected = source.binding;
+  const rawNeeds = environment.PORTCOVE_FIXED_NEEDS,
     rawAdmission =
-      inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
-      "catalog-publication"
+      selected.purpose === "catalog-publication"
         ? JSON.stringify({ namespace: selected.namespace })
-        : process.env.PORTCOVE_COORDINATOR_CONFIGURATION;
+        : environment.PORTCOVE_COORDINATOR_CONFIGURATION;
   if (
     !rawNeeds ||
     Buffer.byteLength(rawNeeds) > 256 * 1024 ||
@@ -76,7 +75,7 @@ export async function configureFixedControllerJob(rawRole: unknown) {
     needs: unknown = JSON.parse(rawNeeds);
   if (!isRecord(admission) || admission.namespace !== selected.namespace)
     throw new Error("ratified coordinator namespace differs");
-  const commit = process.env.GITHUB_SHA;
+  const commit = environment.GITHUB_SHA;
   if (
     !commit ||
     !isRecord(needs) ||
@@ -87,96 +86,128 @@ export async function configureFixedControllerJob(rawRole: unknown) {
     throw new Error("fixed tool tree output unavailable");
   const configuration = prepareFixedControllerConfiguration({
     operation: role,
-    publication_purpose: inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE),
+    publication_purpose: selected.purpose,
     fixed: {
       controller_revision: commit,
       source_tree: needs.tool_bootstrap.outputs.source_tree,
-      controller_ref: process.env.GITHUB_REF ?? "",
-      run_id: process.env.GITHUB_RUN_ID ?? "",
-      run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
-      actor_id: selected.apps.dispatch.actor_id,
+      controller_ref: environment.GITHUB_REF ?? "",
+      run_id: environment.GITHUB_RUN_ID ?? "",
+      run_attempt: Number(environment.GITHUB_RUN_ATTEMPT),
+      actor_id: selected.actor_id,
     },
     needs,
     admission_configuration: admission,
     native_locators: null,
-    payload_public_key_sha256: process.env.PORTCOVE_PAYLOAD_PUBLIC_KEY_SHA256,
+    payload_public_key_sha256: environment.PORTCOVE_PAYLOAD_PUBLIC_KEY_SHA256,
   });
   const encoded = JSON.stringify(configuration);
   if (Buffer.byteLength(encoded) > 65536) throw new Error("fixed job configuration exceeds bound");
-  await writeFile(configPath(role), encoded, { flag: "wx", mode: 0o600 });
-  return { operation: role, configuration: configPath(role), authority: "none" };
+  const sourceEncoded = JSON.stringify(
+    fixedControllerConfigurationSource(role, selected, Buffer.from(encoded)),
+  );
+  if (Buffer.byteLength(sourceEncoded) > 4096)
+    throw new Error("fixed job source linkage exceeds bound");
+  source.recheck();
+  await writeFile(configPath(role, environment), encoded, { flag: "wx", mode: 0o600 });
+  source.recheck();
+  await writeFile(
+    path.join(temporary(environment), `controller-${role}-source.json`),
+    sourceEncoded,
+    { flag: "wx", mode: 0o600 },
+  );
+  source.recheck();
+  return { operation: role, configuration: configPath(role, environment), authority: "none" };
 }
 export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: number) {
+  const environment = { ...process.env };
   const role = operation(rawRole);
-  await authority(role);
-  const privateRoot = temporary(),
-    filename = configPath(role);
-  const configuration: unknown = JSON.parse(
-    (await readControllerToolFile(filename, 65536)).toString("utf8"),
+  const source = await authority(role);
+  const privateRoot = temporary(environment),
+    filename = configPath(role, environment);
+  const bytes = await readControllerToolFile(filename, 65536);
+  source.recheck();
+  const retained: unknown = JSON.parse(
+    (
+      await readControllerToolFile(path.join(privateRoot, `controller-${role}-source.json`), 4096)
+    ).toString("utf8"),
   );
+  source.recheck();
+  requireFixedControllerConfigurationSource(retained, role, source.binding, bytes);
+  const configuration: unknown = JSON.parse(bytes.toString("utf8"));
   let result: unknown;
   if (role === "building") {
     const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
     const deadline = currentBuildingJobDeadline(
       {
-        run_id: process.env.GITHUB_RUN_ID ?? "",
+        run_id: environment.GITHUB_RUN_ID ?? "",
         run_attempt: 1,
-        controller_revision: process.env.GITHUB_SHA ?? "",
-        controller_ref: process.env.GITHUB_REF ?? "",
+        controller_revision: environment.GITHUB_SHA ?? "",
+        controller_ref: environment.GITHUB_REF ?? "",
       },
       root,
       Math.min(performance.now() + 525000, phaseDeadline ?? Infinity),
     );
-    result = await (
-      await import("./release-admitted-aggregate-controller.mts")
-    ).runFixedAdmittedAggregateConfiguration(configuration, privateRoot, deadline);
-  } else if (role === "payload")
-    result = await (
-      await import("./release-signing-controller.mts")
-    ).runFixedPayloadContextConfiguration(
+    const worker = await import("./release-admitted-aggregate-controller.mts");
+    source.recheck();
+    result = await worker.runFixedAdmittedAggregateConfiguration(
+      configuration,
+      privateRoot,
+      deadline,
+    );
+  } else if (role === "payload") {
+    const worker = await import("./release-signing-controller.mts");
+    source.recheck();
+    result = await worker.runFixedPayloadContextConfiguration(
       configuration,
       privateRoot,
       phaseDeadline ?? performance.now() + 570000,
     );
-  else if (role.startsWith("catalog-"))
-    result = await (
-      await import("./release-catalog-signing.mts")
-    ).runFixedCatalogRoleConfiguration(configuration, privateRoot, phaseDeadline);
-  else if (role.startsWith("tuf-"))
-    result = await (
-      await import("./release-tuf-controller.mts")
-    ).runFixedTufRoleConfiguration(configuration, privateRoot, phaseDeadline);
-  else if (
-    role === "site-publication" &&
-    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
-      "catalog-publication"
-  )
-    result = await (
-      await import("./release-catalog-site-controller.mts")
-    ).runFixedCatalogSiteConfiguration(configuration, privateRoot, phaseDeadline);
-  else if (role === "site-publication")
-    result = await (
-      await import("./release-site-controller.mts")
-    ).runFixedSiteConfiguration(configuration, privateRoot, phaseDeadline);
-  else if (role === "release-publication")
-    result = await (
-      await import("./release-publication-controller.mts")
-    ).runFixedPublicationEntry(filename, phaseDeadline);
-  else {
+  } else if (role.startsWith("catalog-")) {
+    const worker = await import("./release-catalog-signing.mts");
+    source.recheck();
+    result = await worker.runFixedCatalogRoleConfiguration(
+      configuration,
+      privateRoot,
+      phaseDeadline,
+    );
+  } else if (role.startsWith("tuf-")) {
+    const worker = await import("./release-tuf-controller.mts");
+    source.recheck();
+    result = await worker.runFixedTufRoleConfiguration(configuration, privateRoot, phaseDeadline);
+  } else if (role === "site-publication" && source.binding.purpose === "catalog-publication") {
+    const worker = await import("./release-catalog-site-controller.mts");
+    source.recheck();
+    result = await worker.runFixedCatalogSiteConfiguration(
+      configuration,
+      privateRoot,
+      phaseDeadline,
+    );
+  } else if (role === "site-publication") {
+    const worker = await import("./release-site-controller.mts");
+    source.recheck();
+    result = await worker.runFixedSiteConfiguration(configuration, privateRoot, phaseDeadline);
+  } else if (role === "release-publication") {
+    const worker = await import("./release-publication-controller.mts");
+    source.recheck();
+    result = await worker.runFixedPublicationConfiguration(configuration, phaseDeadline);
+  } else {
     if (!isRecord(configuration)) throw new Error("fixed coordinator configuration unavailable");
     const work = path.join(root, "work");
     // Both named factories require an existing private parent. Create it only
     // once inside the verified fresh tool root; EEXIST also refuses links.
     await mkdir(work, { mode: 0o700 });
-    if (
-      inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
-      "catalog-publication"
-    ) {
-      result = await (
-        await import("./release-catalog-coordinator.mts")
-      ).runFixedCatalogCoordinatorConfiguration(configuration, work, phaseDeadline);
+    source.recheck();
+    if (source.binding.purpose === "catalog-publication") {
+      const worker = await import("./release-catalog-coordinator.mts");
+      source.recheck();
+      result = await worker.runFixedCatalogCoordinatorConfiguration(
+        configuration,
+        work,
+        phaseDeadline,
+      );
     } else {
       const driver = await import("./release-coordinator-driver.mts");
+      source.recheck();
       // The fixed same-bundle factory is supplied by the genuine bootstrap join.
       const entry: unknown = driver;
       if (!isRecord(entry) || typeof entry.runFixedCoordinatorConfiguration !== "function")
@@ -218,6 +249,7 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
     JSON.stringify(result),
     { flag: "wx", mode: 0o600 },
   );
+  source.recheck();
   if (!positive) throw new Error("actual fixed job remained held");
   return result;
 }

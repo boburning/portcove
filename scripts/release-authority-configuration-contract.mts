@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /** Closed configuration/source contracts only. No environment reads or live controller execution. */
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -497,6 +498,60 @@ export function requireControllerInputRoleConfiguration(
 ) {
   requireAdmittedProductionSource(source, "admission", purpose);
   return boundInputRoles(raw, source, purpose);
+}
+/** Fixed entry routing only. The original source and complete purpose record
+ * are mandatory even when a caller needs only namespace and actor locators. */
+export function requireFixedControllerJobSourceConfiguration(
+  raw: unknown,
+  source: unknown,
+  phase: ReturnType<typeof inspectReleaseControlPhase>,
+  purpose: "application" | "catalog-publication",
+) {
+  requireAdmittedProductionSource(source, releaseControlPhaseProfile(phase).reader_job, purpose);
+  const selected =
+    isRecord(raw) && (raw.schema_version === 4 || raw.kind === "two-app-fixed-jobs-v1");
+  const namespace = selected
+    ? inspectBoundSelectedPublicationAuthorities(raw, source, purpose).configuration.journal
+        .namespace
+    : (purpose === "application"
+        ? inspectBoundControllerAuthorities(JSON.stringify(raw), source)
+        : inspectBoundCatalogControllerAuthorities(raw, source)
+      ).namespace;
+  return Object.freeze({
+    purpose,
+    namespace,
+    actor_id: source.actor_id,
+    authority_configuration_sha256: source.authority_configuration_sha256!,
+    grant_sha256: source.grant_sha256!,
+    controller_revision: source.revision,
+    controller_ref: source.execution_ref,
+    run_id: source.run_id,
+    run_attempt: source.run_attempt,
+  });
+}
+/** Local routing-byte linkage only, never an imported grant or executor. The
+ * caller must supply its freshly validated original full source binding. */
+export function fixedControllerConfigurationSource(
+  operation: string,
+  source: ReturnType<typeof requireFixedControllerJobSourceConfiguration>,
+  bytes: Uint8Array,
+) {
+  return {
+    schema_version: 1,
+    operation,
+    source,
+    configuration_sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
+}
+export function requireFixedControllerConfigurationSource(
+  raw: unknown,
+  operation: string,
+  source: ReturnType<typeof requireFixedControllerJobSourceConfiguration>,
+  bytes: Uint8Array,
+) {
+  const expected = fixedControllerConfigurationSource(operation, source, bytes);
+  if (releaseCanonicalDigest(raw) !== releaseCanonicalDigest(expected))
+    throw new Error("fixed job configuration differs from its original full source binding");
 }
 /** Rechecked by the observer before mint readiness and by its collector. */
 export function requireProtectionObserverSourceConfiguration(
