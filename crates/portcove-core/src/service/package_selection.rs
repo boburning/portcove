@@ -195,7 +195,7 @@ pub(super) fn recommend_packages(
         .iter()
         .filter_map(|(assessment, score)| score.map(|score| (score, assessment.asset_id)))
         .collect::<Vec<_>>();
-    ranked.sort_by(|a, b| b.0.cmp(&a.0));
+    ranked.sort_by_key(|item| std::cmp::Reverse(item.0));
     let recommended = if complete
         && ranked
             .first()

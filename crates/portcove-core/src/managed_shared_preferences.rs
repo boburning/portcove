@@ -134,18 +134,17 @@ pub(crate) fn require_artifact(
     {
         return crate::managed_runtime_policy::require_artifact(port, version, artifact, platform);
     }
-    if port.managed_shared_preferences.is_some() || artifact.sha256.eq_ignore_ascii_case(SHA) {
-        if port.managed_shared_preferences.is_none()
+    if (port.managed_shared_preferences.is_some() || artifact.sha256.eq_ignore_ascii_case(SHA))
+        && (port.managed_shared_preferences.is_none()
             || version != "v0.4.1"
             || platform != Some(crate::Platform::WindowsX86_64)
             || artifact.sha256 != SHA
             || artifact.size != 33_085_815
-            || artifact.asset_name != NAME
-        {
-            return Err(PortcoveError::verification(
-                "shared-preferences acceptance requires the actual reviewed ReGaiden Windows package",
-            ));
-        }
+            || artifact.asset_name != NAME)
+    {
+        return Err(PortcoveError::verification(
+            "shared-preferences acceptance requires the actual reviewed ReGaiden Windows package",
+        ));
     }
     Ok(())
 }

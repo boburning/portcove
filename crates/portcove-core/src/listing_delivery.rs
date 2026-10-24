@@ -242,16 +242,15 @@ impl Library {
         if let Some(floor) = &floor {
             candidate.provenance.check_advance(floor)?;
         }
-        if let Some(previous) = AuthenticatedListings::stored(&transaction)? {
-            if previous.provenance.anchor_sha256 != candidate.provenance.anchor_sha256
+        if let Some(previous) = AuthenticatedListings::stored(&transaction)?
+            && (previous.provenance.anchor_sha256 != candidate.provenance.anchor_sha256
                 || candidate.document.revision < previous.document.revision
                 || (candidate.document.revision == previous.document.revision
-                    && candidate.bytes != previous.bytes)
-            {
-                return Err(PortcoveError::verification(
-                    "listing revision replay, equivocation or authority change",
-                ));
-            }
+                    && candidate.bytes != previous.bytes))
+        {
+            return Err(PortcoveError::verification(
+                "listing revision replay, equivocation or authority change",
+            ));
         }
         let now = Self::now();
         let (baseline, provenance) =
