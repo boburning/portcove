@@ -191,7 +191,9 @@ export function admitProductionInputReader(
 export function productionHostedNativeJob(platform: unknown, stage: unknown) {
   if (platform !== "windows-x86_64" && platform !== "linux-x86_64") refuse("fixed native platform");
   if (stage !== "payload-signing" && stage !== "release-publication") refuse("fixed native stage");
-  return `native_${stage === "payload-signing" ? "payload" : "publication"}_${platform === "windows-x86_64" ? "windows" : "linux"}`;
+  // Both signed stages stay on the same actual job/VM. Stage remains closed in
+  // parent admission, report/signature and controls; never spoof GITHUB_JOB.
+  return `native_${platform === "windows-x86_64" ? "windows" : "linux"}`;
 }
 export function admitProductionNativeParent(
   rawPolicy: string | undefined,
