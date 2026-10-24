@@ -19,7 +19,12 @@ import { inspectHostedNativeCustodyBundle } from "./release-hosted-native-proof-
 import {
   collectHistoricalHostedNativeQualification,
   verifiedHistoricalHostedNativeQualification,
+  collectHostedNativeReleaseQualification,
+  verifiedHostedNativeReleaseQualification,
 } from "./release-hosted-native-acceptance.mts";
+import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
+import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
+import { createHash } from "node:crypto";
 import {
   inspectNativeCheckpointLocator,
   nativeCheckpointEvidenceId,
@@ -29,6 +34,62 @@ import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-enviro
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 type Custody = ReturnType<typeof inspectHostedNativeCustodyBundle>;
+
+/** Selection only. The caller must obtain these records from the authenticated
+ * Tough baseline and source from the original admitted consumer, never a report. */
+export function selectHostedNativePredecessorScope(
+  records: readonly unknown[],
+  source: { run_id: unknown; run_attempt: unknown },
+) {
+  if (
+    typeof source.run_id !== "string" ||
+    !/^[1-9][0-9]{0,15}$/u.test(source.run_id) ||
+    !Number.isSafeInteger(source.run_attempt) ||
+    Number(source.run_attempt) < 1 ||
+    records.length !== 2
+  )
+    throw new Error("original native predecessor run/pair required");
+  const platforms = new Set<unknown>();
+  const current = records.map((record) => {
+    if (
+      !isRecord(record) ||
+      !Array.isArray(record.evidence_ids) ||
+      !["windows-x86_64", "linux-x86_64"].includes(String(record.target)) ||
+      platforms.has(record.target)
+    )
+      throw new Error("native predecessor platform pair differs");
+    platforms.add(record.target);
+    const ids = record.evidence_ids.filter(
+      (id: unknown) => typeof id === "string" && id.startsWith("native-job:"),
+    );
+    const id = ids[0];
+    const match =
+      typeof id === "string"
+        ? /^native-job:([1-9][0-9]{0,15}):([1-9][0-9]{0,6}):([1-9][0-9]{0,15}):([1-9][0-9]{0,15}):([a-f0-9]{64})$/u.exec(
+            id,
+          )
+        : null;
+    if (ids.length !== 1 || !match) throw new Error("one exact native predecessor job required");
+    // A different attempt of this same run is not current and cannot be mixed
+    // into its original live job. Both foreign records retain historical rules.
+    return match[1] === source.run_id && Number(match[2]) === source.run_attempt;
+  });
+  if (current[0] !== current[1])
+    throw new Error("mixed current/historical native predecessors refused");
+  return current[0] ? ("current-run" as const) : ("completed-history" as const);
+}
+
+async function currentHostedPredecessorSource() {
+  const view = await requireControllerApplicationJobPublicationAuthorities("release-publication");
+  if (view.configuration.schema_version !== 4 || view.configuration.purpose !== "application")
+    throw new Error("selected current native predecessor source required");
+  const workflow = await readProductionControllerWorkflowBytes();
+  return {
+    source: view.source,
+    configuration: view.configuration,
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+  };
+}
 function checkpointPin(record: Record<string, unknown>) {
   if (!Array.isArray(record.evidence_ids)) throw new Error("historical native evidence missing");
   const matches = record.evidence_ids.filter(
@@ -108,7 +169,31 @@ export function inspectHostedNativePredecessorRecord(raw: unknown, custody: Cust
 /** The records are selected by the actual authenticated Tough baseline caller,
  * not from a supplied native report. No current authority/config is inferred
  * from an old job, and successful history cannot enter the current WeakMap. */
-export async function collectHistoricalHostedNativePredecessors(
+type PredecessorArguments = [
+  parent: string,
+  rawRecords: readonly unknown[],
+  rawConfiguration: unknown,
+  deadline: number,
+  api: CoordinatorRemoteApi,
+  options?: {
+    checkpoint?: Parameters<typeof authenticateCoordinatorCheckpointEvidence>[6];
+    native?: Parameters<typeof collectHistoricalHostedNativeQualification>[5];
+  },
+];
+
+export function collectHistoricalHostedNativePredecessors(...args: PredecessorArguments) {
+  return collectHostedNativePredecessors(undefined, ...args);
+}
+
+/** Select current-run stage custody or completed history from BOTH records and
+ * the actual admitted consumer. No failed-current fallback or terminal credit.
+ * Actual source is reacquired here; caller-supplied flags cannot appoint it. */
+export function collectConfiguredHostedNativePredecessors(...args: PredecessorArguments) {
+  return collectHostedNativePredecessors(currentHostedPredecessorSource, ...args);
+}
+
+async function collectHostedNativePredecessors(
+  readCurrent: typeof currentHostedPredecessorSource | undefined,
   parent: string,
   rawRecords: readonly unknown[],
   rawConfiguration: unknown,
@@ -191,6 +276,14 @@ export async function collectHistoricalHostedNativePredecessors(
     new Set(records.map((record) => (isRecord(record) ? record.target : null))).size !== 2
   )
     throw new Error("bounded historical native platform pair required");
+  // Snapshot all supplied bytes/transports above before the first await.
+  const originalConsumer = readCurrent ? await readCurrent() : undefined;
+  active();
+  const current =
+    originalConsumer &&
+    selectHostedNativePredecessorScope(records, originalConsumer.source) === "current-run"
+      ? originalConsumer
+      : undefined;
   const selected = records.map((record) => {
     if (!isRecord(record)) throw new Error("historical release record unavailable");
     return checkpointPin(record);
@@ -248,6 +341,40 @@ export async function collectHistoricalHostedNativePredecessors(
       );
       if (custody.configuration.journal.namespace !== namespace)
         throw new Error("original native custody namespace differs");
+      const assertCurrent = async () => {
+        active();
+        if (
+          originalConsumer &&
+          digest(await currentHostedPredecessorSource()) !== digest(originalConsumer)
+        )
+          throw new Error("current native predecessor consumer source changed");
+        active();
+      };
+      if (current) {
+        if (digest(custody.configuration) !== digest(current.configuration))
+          throw new Error("current native predecessor full configuration differs");
+        const expected = {
+          controller_revision: current.source.controller_revision,
+          controller_ref: current.source.controller_ref,
+          actor_id: current.source.actor_id,
+          run_id: current.source.run_id,
+          run_attempt: current.source.run_attempt,
+          configuration_sha256: current.source.authority_configuration_sha256,
+          grant_sha256: current.source.grant_sha256,
+          setup_sha256: current.configuration.journal.setup_plan_sha256,
+          workflow_sha256: current.workflow_sha256,
+        };
+        for (const proof of custody.proofs) {
+          const actual = Object.fromEntries(
+            Object.keys(expected).map((key) => [
+              key,
+              proof.producer[key as keyof typeof proof.producer],
+            ]),
+          );
+          if (digest(actual) !== digest(expected))
+            throw new Error("current native predecessor original producer differs");
+        }
+      }
       phase = "record-association";
       const associated = records.map((record) =>
         inspectHostedNativePredecessorRecord(record, custody),
@@ -277,8 +404,15 @@ export async function collectHistoricalHostedNativePredecessors(
       );
       let injected = authenticated.evidence_scope !== "github.com";
       phase = "original-native-authentication";
+      const originals: object[] = [];
       for (const { proof, candidate } of associated) {
-        const original = await collectHistoricalHostedNativeQualification(
+        const collect = current
+          ? collectHostedNativeReleaseQualification
+          : collectHistoricalHostedNativeQualification;
+        const read = current
+          ? verifiedHostedNativeReleaseQualification
+          : verifiedHistoricalHostedNativeQualification;
+        const original = await collect(
           directory,
           custody.configuration,
           {
@@ -293,18 +427,22 @@ export async function collectHistoricalHostedNativePredecessors(
           nativeOptions,
         );
         injected ||= original.evidence_scope !== "github.com";
-        const verified = await verifiedHistoricalHostedNativeQualification(original);
+        const verified = await read(original);
         if (
           original.evidence_scope === "github.com" &&
           (!verified || digest(verified.candidate) !== digest(candidate))
         )
           throw new Error("original historical native private binding unavailable");
+        originals.push(original);
+        await assertCurrent();
         active();
       }
       requireAuthenticatedCheckpointEvidence(authenticated, pin.checkpoint, configuration);
       active();
       const result = Object.freeze({
-        kind: "verified-hosted-native-predecessors",
+        kind: current
+          ? "verified-current-run-native-predecessors"
+          : "verified-hosted-native-predecessors",
         evidence_scope: injected ? "injected-provider" : "github.com",
         capture_directory: directory,
         checkpoint: pin,
@@ -315,11 +453,20 @@ export async function collectHistoricalHostedNativePredecessors(
           candidate,
         })),
         authority: "none",
+        journey_completion: "not-established",
       });
       await writeFile(path.join(directory, "association.json"), JSON.stringify(result), {
         flag: "wx",
         mode: 0o600,
       });
+      if (current) {
+        for (const original of originals) {
+          if (!injected && !(await verifiedHostedNativeReleaseQualification(original)))
+            throw new Error("original current native predecessor expired before handoff");
+          active();
+        }
+      }
+      await assertCurrent();
       active();
       return result;
     });
