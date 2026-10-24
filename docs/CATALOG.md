@@ -1306,6 +1306,20 @@ explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailab
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
 
+For a proposed `native-portable` record, the completion receipt also shows literal
+package-hint matches for each declared platform, whether each matching asset has
+a published SHA-256, and whether the selected release's asset enumeration is
+complete. Resolve missing or ambiguous matches before acquisition review. This is
+authoring feedback, not a second package selector or a capability certificate.
+Review the executable headers and launch folder, then the runtime's actual writes
+and update behavior. Include compatible original inputs, generated data, mods,
+settings and relevant logs in the declared preservation contract. An empty
+contract is useful when evidence establishes external storage; describe that
+location and its backup limits. A self-updater or a setup kit that regenerates
+version-dependent runtime code needs the appropriate existing integration or
+non-owning handoff. Keep the player's installed contract unchanged when adding a
+new route.
+
 The owned output directory is a resumable preparation checkpoint. Reuse it for
 several IDs sharing a repository to reuse endpoint observations. Collection is
 bounded to 12 HTTP requests including redirects, 8 MiB and two minutes per call.

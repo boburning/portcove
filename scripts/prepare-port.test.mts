@@ -16,10 +16,60 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
-import { preparePort, prepareArtworkBatch } from "./prepare-port.mts";
+import { preparePort, prepareArtworkBatch, portablePreparationFeedback } from "./prepare-port.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import type { ListingReceipt } from "./catalog-authoring-inspector.mts";
+import type { AuthoredPort } from "./catalog-authoring.mts";
+
+void test("portable preparation separates complete hint observations from lifecycle qualification", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "fixture",
+      name: "Fixture",
+      summary: "Fixture",
+      project_url: "https://github.com/example/fixture",
+    },
+    integration: {
+      adapter: "native-portable",
+      platforms: ["windows-x86-64"],
+      release: { asset_hints: { "windows-x86-64": ["windows", "x64", ".zip"] } },
+      persistent_paths: [],
+    },
+  };
+  const asset = {
+    id: 1,
+    name: "game-windows-x64.zip",
+    size: 42,
+    browser_download_url: "https://github.com/example/fixture/releases/download/v1/game.zip",
+    digest: `sha256:${"a".repeat(64)}`,
+  };
+  const partial = portablePreparationFeedback(record, { assets_complete: false, assets: [asset] })!;
+  assert.match(partial.platforms[0]!.next, /incomplete/);
+  assert.equal(partial.platforms[0]!.hint_matches[0]!.published_sha256, true);
+  const ambiguous = portablePreparationFeedback(record, {
+    assets_complete: true,
+    assets: [asset, { ...asset, id: 2, name: "other-windows-x64.zip", digest: null }],
+  })!;
+  assert.match(ambiguous.platforms[0]!.next, /exactly one/);
+  assert.equal(ambiguous.platforms[0]!.hint_matches[1]!.published_sha256, false);
+  const unique = portablePreparationFeedback(record, {
+    assets_complete: true,
+    assets: [asset, { ...asset, name: "game-windows-arm64.zip" }],
+  })!;
+  assert.equal(unique.platforms[0]!.hint_matches.length, 1);
+  assert.match(unique.platforms[0]!.next, /does not establish fit/);
+  assert.deepEqual(unique.persistence, []);
+  assert.match(unique.data_review, /empty contract needs evidence/);
+  assert.equal(
+    portablePreparationFeedback(
+      { format_version: 1, listing: record.listing },
+      { assets_complete: true, assets: [] },
+    ),
+    undefined,
+  );
+});
 
 const catalogRoot = join(
   dirname(dirname(fileURLToPath(import.meta.url))),

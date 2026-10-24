@@ -51,6 +51,55 @@ interface PrepareOptions {
   artwork?: Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage">;
 }
 const owner = { format_version: 1, tool: "portcove-prepare-port" };
+
+/** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
+export function portablePreparationFeedback(
+  record: AuthoredPort,
+  facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "assets" | "assets_complete">,
+) {
+  if (record.integration?.adapter !== "native-portable") return undefined;
+  const release = record.integration.release;
+  const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
+  const platforms = Array.isArray(record.integration.platforms)
+    ? record.integration.platforms.filter((value): value is string => typeof value === "string")
+    : [];
+  return {
+    assets_complete: facts.assets_complete,
+    platforms: platforms.map((platform) => {
+      const values = hints[platform];
+      const needles = Array.isArray(values)
+        ? values.filter((value): value is string => typeof value === "string" && Boolean(value))
+        : [];
+      const matches = facts.assets.filter(
+        (asset): asset is Record<string, unknown> & { name: string } => {
+          if (!isRecord(asset) || typeof asset.name !== "string" || !needles.length) return false;
+          const name = asset.name.toLowerCase();
+          return needles.every((hint) => name.includes(hint.toLowerCase()));
+        },
+      );
+      return {
+        platform,
+        hint_matches: matches.map((asset) => ({
+          name: asset.name,
+          published_sha256:
+            typeof asset.digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(asset.digest),
+        })),
+        next: !facts.assets_complete
+          ? "Resolve incomplete selected-release assets before assessing package uniqueness."
+          : matches.length !== 1
+            ? "Review discriminating package hints; the selected release does not have exactly one literal match."
+            : "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition.",
+      };
+    }),
+    persistence: Array.isArray(record.integration.persistent_paths)
+      ? record.integration.persistent_paths
+      : [],
+    data_review:
+      "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route.",
+    scope:
+      "Authoring observations only; Core retains package selection, trust and mutation authority.",
+  };
+}
 function openCheckpoint(directory: string) {
   try {
     mkdirSync(directory);
@@ -403,6 +452,7 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
+      portable_preparation: portablePreparationFeedback(record, facts),
       ...prepared,
       files: { ...prepared.files, upstream: immutableJson(root, "upstream", facts) },
       preparation_costs: preparationCosts(started),
