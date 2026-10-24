@@ -83,6 +83,9 @@ void test("a completed 404 observation remains visible and repeated incidents re
     first.report.collection.port_health[0]!.canonical_incidents[0]!.first_seen,
   );
   assert.match(repeated.summary, /\*\*1 continuing\*\*/u);
+  assert.match(repeated.summary, /2 observation\(s\); 1d 0h observed span/u);
+  assert.match(repeated.summary, /github:owner\/port-1/u);
+  assert.match(repeated.summary, /Unaccounted observation; investigate exact scope/u);
 });
 
 void test("inconclusive failures retain missing-incident history without reporting it as current", async () => {
@@ -99,6 +102,7 @@ void test("inconclusive failures retain missing-incident history without reporti
   );
   assert.equal(failed.checkpoint?.incident_history[0]?.canonical_incidents.length, 2);
   assert.deepEqual(failed.report.collection.resolved_incidents, []);
+  assert.match(failed.summary, /Partial collection; outcome not established/u);
   const stillMissing = await advanceHealthMonitor(
     catalog(),
     failed.checkpoint,
