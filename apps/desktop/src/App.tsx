@@ -732,7 +732,7 @@ function Workspace({
             !model.status?.external_runtime && (
               <details className="mt-6 border-t border-pc-border pt-4">
                 <summary data-focusable className="cursor-pointer font-medium">
-                  Other setup options
+                  Use an existing installation · Installation options
                 </summary>
                 <div className="mt-4">
                   <SelfServiceSetup

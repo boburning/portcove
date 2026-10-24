@@ -21189,6 +21189,138 @@
         "SNESRECOMP_TIER2_MANIFEST": "diagnostics/tier2_dkc2.json",
         "SNESRECOMP_TIER2_JOURNAL": "diagnostics/tier2_dkc2.jsonl"
       }
+    },
+    {
+      "id": "corsixth-corsixth",
+      "name": "CorsixTH",
+      "summary": "Play Theme Hospital with CorsixTH. Portcove maintains the portable runtime; CorsixTH asks for your original game files on first launch.",
+      "project_url": "https://github.com/CorsixTH/CorsixTH",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "CorsixTH/CorsixTH",
+        "asset_hints": {
+          "windows-x86-64": [
+            "windows",
+            "x64",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "CorsixTH.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first launch, CorsixTH asks you to locate your original Theme Hospital data. Keep those files outside the managed runtime. CorsixTH normally stores configuration and saves in its own AppData folder, which remains available to replacement versions and is outside Portcove backups. Portcove updates the portable runtime only. Runtime rollback does not restore older saves or guarantee their compatibility. Use an external registration for customized or self-updating installations.",
+        "original_game_title": "Theme Hospital",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or use the upstream installer."
+            },
+            {
+              "title": "Complete upstream setup",
+              "instruction": "Select the data from your copy of Theme Hospital when CorsixTH asks for the original game files."
+            },
+            {
+              "title": "Launch and keep up to date",
+              "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy or upstream launcher instead, choose its executable and keep its current update workflow."
+            }
+          ],
+          "warnings": [
+            "This project has not been verified for play through Portcove."
+          ],
+          "help_url": "https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/README.md"
+        },
+        "artwork": {
+          "game_id": 127904,
+          "cover_id": 87792,
+          "image_id": "co1vqo",
+          "image_sha256": "85d8be21323ee5747b4316fbffc8045bff5916899e2746958c8beca93f894f2e",
+          "game_slug": "corsixth",
+          "match_kind": "port"
+        }
+      }
+    },
+    {
+      "id": "fragglet-sdl-sopwith",
+      "name": "SDL Sopwith",
+      "summary": "Fly SDL Sopwith from an upstream portable package. Portcove can maintain the runtime; upstream owns its settings and high scores.",
+      "project_url": "https://github.com/fragglet/sdl-sopwith",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "fragglet/sdl-sopwith",
+        "asset_hints": {
+          "windows-x86-64": [
+            "win64",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "sopwith.exe"
+        ]
+      },
+      "persistent_paths": [
+        "sopwith.cfg",
+        "hiscores.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "No original game data is required. Portcove installs and updates the portable runtime. SDL Sopwith normally stores settings and high scores in its upstream preference folder, outside Portcove backups. Declared in-folder fallback files are preserved. Runtime rollback does not roll back those settings.",
+        "original_game_title": "Sopwith",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Install or keep your existing copy",
+              "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or download an upstream package to a folder you own."
+            },
+            {
+              "title": "Complete upstream setup",
+              "instruction": "Extract the game package and follow the included instructions. This upstream package does not require a separate commercial game installation."
+            },
+            {
+              "title": "Launch and keep up to date",
+              "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy instead, choose its executable and keep its current update workflow."
+            }
+          ],
+          "warnings": [
+            "This project has not been verified for play through Portcove."
+          ],
+          "help_url": "https://github.com/fragglet/sdl-sopwith/blob/sdl-sopwith-2.9.0/README.md"
+        },
+        "artwork": {
+          "game_id": 24424,
+          "cover_id": 571515,
+          "image_id": "coc8zf",
+          "image_sha256": "4308b7dc47bea686b498f8e5788fcf5e7230177e982bd6d3e2e17f4e325d7587",
+          "game_slug": "sopwith",
+          "match_kind": "underlying-game"
+        }
+      }
     }
   ]
 }

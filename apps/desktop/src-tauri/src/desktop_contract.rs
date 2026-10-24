@@ -449,6 +449,7 @@ pub fn export_transport_schemas() -> Value {
             "external_runtime_removal_preview": output::<portcove_core::ExternalRuntimeRemovalPreview>(),
             "external_runtime_record": output::<portcove_core::ExternalRuntimeRecord>(),
             "catalog_download_candidates": output::<portcove_core::CatalogDownloadCandidates>(),
+            "setup_launch_targets": output::<portcove_core::SetupLaunchTargets>(),
             "catalog_download_preview": output::<portcove_core::CatalogDownloadPreview>(),
             "pending_setup_record": output::<portcove_core::PendingSetupRecord>(),
             "steam_entry_review": output::<SteamEntryReview>(),

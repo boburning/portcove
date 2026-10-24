@@ -106,17 +106,26 @@ For a GitHub-hosted upstream project:
 
 ```sh
 portcove setup candidates PORT_ID
+portcove setup candidates PORT_ID --release-id RELEASE_ID
+portcove setup candidates PORT_ID --channel beta
 portcove setup preview PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract
 portcove setup download PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract --expected-preview PREVIEW_SHA256 --yes
 portcove setup pending
+portcove setup targets PORT_ID --pending-id RECORD_ID
 ```
 
-Choose IDs returned by `setup candidates`; the command examines a bounded recent
-release window. Review the actual package name, source, size, checksum evidence
+Choose IDs returned by `setup candidates`; Core selects a release by channel and
+assesses its packages for this host. The response includes the selected release,
+recommendation, reasons, alternatives, coverage and a read-only default download
+parent. Explicit release inspection does not require complete older history.
+Review the actual package name, source, size, checksum evidence
 and new destination. It does not infer that every upstream asset is a playable
 package for this computer. Omit `--extract` for an installer or unsupported
 archive that the player will handle using upstream instructions. Acquisition
-does not run an installer or select an executable automatically.
+does not run an installer. `setup targets` inspects a completed download for
+bounded native launch suggestions without executing files. Registration remains
+explicit and may select an executable outside the download folder after upstream
+setup; retain its working directory and literal arguments.
 
 Core re-reads the selected release/asset and binds the review to the destination.
 A supplied checksum must match. Without an upstream checksum the observed
@@ -145,6 +154,14 @@ and `external select-relink` with the matching `--expected-preview` and `--yes`.
 Use `--arg=VALUE` for every reviewed argument. The registration identity and old
 external files remain intact. The player or upstream launcher remains the
 runtime-replacement owner.
+
+For an eligible managed portable definition, use the ordinary `plan`, `install`,
+`check`, `update`, `activate`, `rollback` and `policy` commands. Portcove owns
+runtime replacement through the same lifecycle as deeper integrations. Upstream
+first-launch setup can remain responsible for original-file selection. Declared
+player data follows the retained persistence contract; outside data remains
+outside managed backups. Removing a setup reminder or external registration never
+transfers managed replacement/removal rights.
 
 `catalog inspect-listings --path FILE` validates an inert format-1 listing
 projection before opening a Library. Validation neither installs an integration

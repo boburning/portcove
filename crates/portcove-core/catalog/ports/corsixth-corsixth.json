@@ -3,10 +3,9 @@
   "listing": {
     "id": "corsixth-corsixth",
     "name": "CorsixTH",
-    "summary": "CorsixTH offers upstream packages for Theme Hospital. Follow upstream setup before registering your executable.",
+    "summary": "Play Theme Hospital with CorsixTH. Portcove maintains the portable runtime; CorsixTH asks for your original game files on first launch.",
     "project_url": "https://github.com/CorsixTH/CorsixTH",
     "issue_number": 1807,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/CorsixTH/CorsixTH/blob/v0.70.1/README.md",
     "original_game_title": "Theme Hospital",
@@ -14,16 +13,16 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Get the upstream package",
-          "instruction": "Choose the release and package for your computer. Download and extract a portable archive, or use the upstream installer yourself."
+          "title": "Install or keep your existing copy",
+          "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or use the upstream installer."
         },
         {
           "title": "Complete upstream setup",
           "instruction": "Select the data from your copy of Theme Hospital when CorsixTH asks for the original game files."
         },
         {
-          "title": "Select your executable",
-          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+          "title": "Launch and keep up to date",
+          "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy or upstream launcher instead, choose its executable and keep its current update workflow."
         }
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
@@ -36,6 +35,24 @@
       "image_sha256": "85d8be21323ee5747b4316fbffc8045bff5916899e2746958c8beca93f894f2e",
       "game_slug": "corsixth",
       "match_kind": "port"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "CorsixTH/CorsixTH",
+      "asset_hints": { "windows-x86-64": ["windows", "x64", ".zip"] }
+    },
+    "executable_hints": { "windows-x86-64": ["CorsixTH.exe"] },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first launch, CorsixTH asks you to locate your original Theme Hospital data. Keep those files outside the managed runtime. CorsixTH normally stores configuration and saves in its own AppData folder, which remains available to replacement versions and is outside Portcove backups. Portcove updates the portable runtime only. Runtime rollback does not restore older saves or guarantee their compatibility. Use an external registration for customized or self-updating installations."
     }
   }
 }

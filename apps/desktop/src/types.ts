@@ -26,6 +26,7 @@ export type {
 } from "./transport-types.generated";
 export type CatalogDownloadCandidates =
   Generated.TransportOutputs["desktop_catalog_download_candidates"];
+export type SetupLaunchTargets = Generated.TransportOutputs["desktop_setup_launch_targets"];
 export type CatalogDownloadPreview = Generated.TransportOutputs["desktop_catalog_download_preview"];
 export type CapabilityDocument = Generated.TransportOutputs["capabilities"];
 export type DefinitionCapabilityReport = Generated.TransportOutputs["definition_capability_report"];

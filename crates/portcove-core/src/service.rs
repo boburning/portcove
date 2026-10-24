@@ -40,11 +40,17 @@ use crate::{
 };
 
 mod backups;
+use crate::AdapterKind;
 mod catalog_download;
+mod native_portable;
+pub(crate) mod package_selection;
+mod setup_discovery;
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
 };
+pub use package_selection::{CatalogDownloadRelease, CatalogPackageAssessment};
+pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};
 mod external_relink;
 mod ghostship_compatibility;
 #[cfg(test)]
@@ -2920,6 +2926,14 @@ impl PortcoveService {
             port,
             DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
         )?;
+        if port.adapter == AdapterKind::NativePortable {
+            if let Some(active) = &status.active {
+                self.require_portable_runtime_unchanged(active)?;
+            }
+        }
+        if let Some(active) = &status.active {
+            self.require_portable_transition(active, port)?;
+        }
         let runtime = crate::runtime::required(port, Platform::current()?);
         let active_matches = status
             .active
@@ -3001,7 +3015,8 @@ impl PortcoveService {
                 &mut *reporter.emit,
             )
             .await?;
-        Installer::with_faults(self.library.clone(), self.faults.clone())?
+        let portable = port.adapter == AdapterKind::NativePortable;
+        let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install(
                 InstallRequest {
                     port_id: port.id.clone(),
@@ -3009,14 +3024,19 @@ impl PortcoveService {
                     output_root: self
                         .output_location(&port.id, overrides.output_directory)?
                         .effective_output_directory,
-                    activate,
+                    activate: activate && !portable,
                     managed,
                     qualification,
                 },
                 reporter.operation,
                 &mut *reporter.emit,
             )
-            .await
+            .await?;
+        if portable && activate {
+            self.activate_staged_locked(&port.id, &Uuid::new_v4().to_string())
+        } else {
+            Ok(installed)
+        }
     }
 
     pub async fn reconcile<F>(&self, port_id: &str, mut emit: F) -> Result<ReconcileResult>
@@ -3371,6 +3391,9 @@ impl PortcoveService {
             let (port, qualification) = self
                 .rollback_target(port_id, &previous, status.active.as_ref())
                 .map_err(|failure| failure.error)?;
+            if let Some(active) = &status.active {
+                self.require_portable_transition(active, &port)?;
+            }
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(&port, &previous.path)?;
             Installer::new(self.library.clone())?.verify_critical(&previous, &qualification)?;
@@ -3509,6 +3532,9 @@ impl PortcoveService {
                 .map(|install| install.version.as_str()),
         )?;
         let port = self.installed_port(&staged)?;
+        if let Some(active) = &status.active {
+            self.require_portable_transition(active, &port)?;
+        }
         self.require_installed_shared_preferences(&staged)?;
         let qualification = self.installed_mutability_qualification(&staged)?;
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
@@ -3928,6 +3954,7 @@ impl PortcoveService {
             )));
         }
         for install in &installs {
+            self.require_portable_runtime_unchanged(install)?;
             let paths = crate::output_root::removal_paths(
                 &self.library,
                 port_id,
@@ -5322,10 +5349,12 @@ impl PortcoveService {
         let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
             return Ok(Vec::new());
         };
-        if !active.path.join(LAUNCH_MARKER).is_file() {
+        let port = self.installed_mutability_port(&active)?;
+        if port.adapter == AdapterKind::NativePortable {
+            self.require_portable_runtime_unchanged(&active)?;
+        } else if !active.path.join(LAUNCH_MARKER).is_file() {
             return Ok(Vec::new());
         }
-        let port = self.installed_mutability_port(&active)?;
         self.collect_user_data_from(&port, &active.path)
     }
 

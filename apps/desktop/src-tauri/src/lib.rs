@@ -2688,6 +2688,7 @@ pub fn run() -> std::process::ExitCode {
             external_runtime_commands::preview_user_selected_runtime_relink,
             external_runtime_commands::relink_user_selected_runtime,
             catalog_download::catalog_download_candidates,
+            catalog_download::discover_setup_launch_targets,
             catalog_download::preview_catalog_download,
             catalog_download::download_catalog_package,
             catalog_download::forget_pending_setup,

@@ -47,6 +47,12 @@ Existing Alpha 1 libraries can be carried forward with the documented
   observation; setup and launch still use their ordinary reviews.
 - Keep managed versions side by side so updates can be saved for later, installed,
   checked, or rolled back.
+- Install suitable upstream portable packages with the same managed update and
+  recovery lifecycle. Upstream software can handle its own first-launch setup;
+  installation review explains who updates the runtime and where player data lives.
+- Get a recommended upstream release, package and download folder for simpler
+  setup routes, or register an existing installation while keeping its files and
+  update workflow under your control.
 - Adopt an existing installation by copying it into Portcove without changing the original.
 
 ### Library safety

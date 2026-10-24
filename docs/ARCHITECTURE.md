@@ -129,7 +129,9 @@ actions. `service/catalog_download.rs` owns explicit upstream asset review,
 bounded transfer, safe optional extraction and durable pending setup. It reuses
 the existing GitHub provider and archive checks. A download publishes into a new
 user-owned child folder outside the Library and managed outputs; it never runs
-an installer or guesses an executable. The final artifact-policy check and
+an installer. Shared release/package suitability and bounded native executable
+discovery supply suggestions; explicit registration and launch revalidate them.
+The final artifact-policy check and
 handoff commit share the policy-admission transaction. Recorded publication
 intent and receipts support restart recovery without adopting or deleting an
 unproven destination.
@@ -149,6 +151,25 @@ identity, including a retained pending setup or registration after its current
 listing disappears. The first directory is bundled with the client. Delivery to
 an unchanged client remains with the existing protected definition-delivery
 boundary in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md), not a second feed.
+
+`service/package_selection.rs` separates release choice from native asset ranking.
+The provider selects a channel or explicit release, inventories that release's
+assets within its existing bounds, and reports coverage independently of older
+history. Recommendations are suitability observations, never artifact admission
+or execution permission. `service/setup_discovery.rs` inspects native headers and
+processor information with entry, depth and candidate bounds; helpers and setup
+programs are deprioritized. It never executes a discovered file, traverses links,
+or converts an outside executable into an owned installation.
+
+The `native-portable` adapter uses the existing managed transaction and retained
+manifest, not `catalog_downloads`. Its release selection shares native suitability
+with downloads, while requiring the managed route's expected digest and reviewed
+package hints. Installation stages first and uses the existing journaled activation
+after restoring declared player data. Complete immutable inventory checks and
+retained persistence-coordinate compatibility protect replacement/removal. Setup
+can happen in the upstream game's first launch when its output follows that
+contract; this does not certify gameplay. External setup reminders/registrations
+retain their non-owning interpretation. See [portable authoring](CATALOG.md#managed-native-portable-packages).
 
 ## Source import journal interpretation
 

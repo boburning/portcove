@@ -311,8 +311,24 @@ export const desktopApi = {
     invoke<WorkspaceSnapshot>("get_workspace_snapshot", { generation }),
   workspaceChanged: (generation: number) =>
     invoke<boolean>("get_workspace_changed", { generation }),
-  catalogDownloadCandidates: (portId: string, generation: number) =>
-    invoke<CatalogDownloadCandidates>("catalog_download_candidates", { portId, generation }),
+  catalogDownloadCandidates: (
+    portId: string,
+    generation: number,
+    selectedReleaseId?: number,
+    channel = "stable",
+  ) =>
+    invoke<CatalogDownloadCandidates>("catalog_download_candidates", {
+      portId,
+      generation,
+      selectedReleaseId,
+      channel,
+    }),
+  discoverSetupLaunchTargets: (portId: string, pendingId: string, generation: number) =>
+    invoke<import("./types").SetupLaunchTargets>("discover_setup_launch_targets", {
+      portId,
+      pendingId,
+      generation,
+    }),
   previewCatalogDownload: (request: CatalogDownloadRequest, generation: number) =>
     invoke<CatalogDownloadPreview>("preview_catalog_download", { request, generation }),
   downloadCatalogPackage: (

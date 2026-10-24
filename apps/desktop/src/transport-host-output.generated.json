@@ -1146,6 +1146,52 @@
           "candidates_complete"
         ],
         "type": "object"
+      },
+      "CatalogDownloadRelease": {
+        "properties": {
+          "assets_complete": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "preview": {
+            "type": "boolean"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tag",
+          "preview",
+          "assets_complete"
+        ],
+        "type": "object"
+      },
+      "CatalogPackageAssessment": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "suitability": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "suitability",
+          "reason"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1176,12 +1222,43 @@
           "null"
         ]
       },
+      "packages": {
+        "items": {
+          "$ref": "#/$defs/CatalogPackageAssessment"
+        },
+        "type": "array"
+      },
       "port_id": {
         "type": "string"
       },
       "reason": {
         "type": [
           "string",
+          "null"
+        ]
+      },
+      "recommendation_reason": {
+        "type": "string"
+      },
+      "recommended_asset_id": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "releases": {
+        "items": {
+          "$ref": "#/$defs/CatalogDownloadRelease"
+        },
+        "type": "array"
+      },
+      "selected_release_id": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
           "null"
         ]
       },
@@ -1196,7 +1273,12 @@
       "candidates",
       "coverage",
       "default_destination_parent",
-      "upstream_url"
+      "upstream_url",
+      "releases",
+      "selected_release_id",
+      "recommended_asset_id",
+      "packages",
+      "recommendation_reason"
     ],
     "title": "CatalogDownloadCandidates",
     "type": "object"
@@ -4408,6 +4490,76 @@
     "title": "BatchOutcome",
     "type": "object"
   },
+  "setup_launch_targets": {
+    "$defs": {
+      "SetupLaunchTarget": {
+        "properties": {
+          "executable": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "supporting_program": {
+            "type": "boolean"
+          },
+          "working_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "executable",
+          "working_directory",
+          "supporting_program",
+          "reason"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "candidates": {
+        "items": {
+          "$ref": "#/$defs/SetupLaunchTarget"
+        },
+        "type": "array"
+      },
+      "complete": {
+        "type": "boolean"
+      },
+      "entries_checked": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "explanation": {
+        "type": "string"
+      },
+      "pending_id": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "recommended_executable": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "port_id",
+      "pending_id",
+      "candidates",
+      "recommended_executable",
+      "complete",
+      "entries_checked",
+      "explanation"
+    ],
+    "title": "SetupLaunchTargets",
+    "type": "object"
+  },
   "source_verification_outcome": {
     "$defs": {
       "CatalogAdmissionMode": {
@@ -7508,16 +7660,25 @@
         "type": "string"
       },
       "AdapterKind": {
-        "enum": [
-          "libultraship-portable",
-          "n64-recomp-portable",
-          "staged-source-portable",
-          "referenced-disc",
-          "generated-cache",
-          "upstream-managed-setup",
-          "psx-recomp-managed"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "libultraship-portable",
+              "n64-recomp-portable",
+              "staged-source-portable",
+              "referenced-disc",
+              "generated-cache",
+              "upstream-managed-setup",
+              "psx-recomp-managed"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "native-portable",
+            "description": "Generic managed portable runtime; game-specific setup remains upstream.",
+            "type": "string"
+          }
+        ]
       },
       "ArtifactIdentity": {
         "properties": {

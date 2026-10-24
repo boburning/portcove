@@ -89,6 +89,11 @@ pub struct CatalogDownloadCandidates {
     pub coverage: Option<CatalogDownloadCoverage>,
     pub default_destination_parent: Option<PathBuf>,
     pub upstream_url: String,
+    pub releases: Vec<crate::CatalogDownloadRelease>,
+    pub selected_release_id: Option<u64>,
+    pub recommended_asset_id: Option<u64>,
+    pub packages: Vec<crate::CatalogPackageAssessment>,
+    pub recommendation_reason: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -382,6 +387,16 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<CatalogDownloadCandidates> {
+        self.catalog_download_options(port_id, None, ReleaseChannel::Stable)
+            .await
+    }
+
+    pub async fn catalog_download_options(
+        &self,
+        port_id: &str,
+        selected_release_id: Option<u64>,
+        channel: ReleaseChannel,
+    ) -> Result<CatalogDownloadCandidates> {
         let listing = self.catalog.listing(port_id)?;
         let upstream_url = listing
             .release_url
@@ -396,6 +411,11 @@ impl PortcoveService {
             coverage: None,
             default_destination_parent: None,
             upstream_url: upstream_url.clone(),
+            releases: Vec::new(),
+            selected_release_id: None,
+            recommended_asset_id: None,
+            packages: Vec::new(),
+            recommendation_reason: String::new(),
         };
         if let Err(error) = self.require_download_available(port_id) {
             result.reason = Some(error.message);
@@ -409,9 +429,46 @@ impl PortcoveService {
             }
         };
         let provider = GithubReleaseProvider::for_library(&self.library)?;
-        let (candidates, coverage) = provider.catalog_release_candidates(&repository).await?;
+        let definition = self
+            .catalog
+            .port(port_id)
+            .ok()
+            .filter(|port| port.release.repository.eq_ignore_ascii_case(&repository));
+        let rolling_tag = definition.and_then(|port| port.release.rolling_tag.as_deref());
+        let (candidates, coverage, releases, selected) = provider
+            .catalog_download_options(&repository, selected_release_id, channel, rolling_tag)
+            .await?;
+        result.releases = releases;
+        result.selected_release_id = selected;
+        let platform = Platform::current()?;
+        let hints = definition
+            .and_then(|port| port.release.asset_hints.get(&platform))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let (packages, recommended) = super::package_selection::recommend_packages(
+            &candidates,
+            platform,
+            hints,
+            coverage.candidates_complete,
+        );
+        result.packages = packages;
+        result.recommended_asset_id = recommended;
+        result.recommendation_reason = if selected.is_none() {
+            "No release for this channel was found in the recent history. Choose a release or open upstream releases.".into()
+        } else if recommended.is_some() {
+            "Recommended for this host. Suitability is not authenticity or gameplay verification."
+                .into()
+        } else if result
+            .packages
+            .iter()
+            .any(|package| package.suitability == "suitable")
+        {
+            "Several plausible packages remain. Choose the build you want from this release.".into()
+        } else {
+            "No native package could be recommended. Check other downloads or follow upstream setup instructions.".into()
+        };
         result.candidates = candidates;
-        result.allowed = !result.candidates.is_empty();
+        result.allowed = true;
         result.reason = coverage.reason(result.candidates.is_empty());
         result.coverage = Some(coverage);
         result.default_destination_parent = directories::UserDirs::new().and_then(|directories| {
