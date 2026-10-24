@@ -18,9 +18,42 @@ import { resolveDesktopSelection } from "../../../scripts/desktop-scenarios.mts"
 import {
   assertPreparationReviewSummary,
   assertPreparedLibrarySummary,
+  overflowUpdateFocusPoint,
   rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
 } from "./desktop-preparation-test.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+
+for (const mode of [
+  "focused",
+  "disconnected",
+  "hidden",
+  "inert",
+  "disabled",
+  "unrelated",
+  "legacy",
+])
+  test(`native overflow focus observer handles ${mode} without changing focus`, () => {
+    const target = {
+      id: mode === "legacy" ? "detail-updates" : "detail-section-versions",
+      tagName: "H2",
+      isConnected: mode !== "disconnected",
+      closest: () => (mode === "hidden" || mode === "inert" ? {} : null),
+      matches: () => mode === "disabled",
+    };
+    const other = { id: "unrelated-control", tagName: "BUTTON" };
+    const document = { activeElement: mode === "unrelated" ? other : target };
+    const activeBefore = document.activeElement;
+    const point: unknown = runTypeScriptInNewContext(
+      `(${overflowUpdateFocusPoint.toString()})(target)`,
+      { target, document },
+    );
+    assert.ok(isRecord(point));
+    assert.equal(point.matches, mode === "focused");
+    assert.equal(point.target_id, target.id);
+    assert.equal(point.active_id, activeBefore.id);
+    assert.equal(document.activeElement, activeBefore);
+  });
 
 const currentPreparationSummary = `Prepare game data
 Selected game files E:/owned.iso

@@ -162,6 +162,30 @@ export function assertPreparationReviewSummary(text: string) {
     assert.ok(normalized.includes(expected), `preparation review omitted ${expected}`);
 }
 
+/** Read-only observation of the current overflow-navigation destination. */
+export function overflowUpdateFocusPoint(target: Element) {
+  const active = document.activeElement;
+  const connected = target.isConnected;
+  const hidden = Boolean(target.closest("[hidden], [inert]"));
+  const disabled = target.matches(":disabled, [aria-disabled=true]");
+  return {
+    matches:
+      connected &&
+      !hidden &&
+      !disabled &&
+      target.id === "detail-section-versions" &&
+      target.tagName === "H2" &&
+      active === target,
+    target_id: target.id,
+    target_tag: target.tagName,
+    connected,
+    hidden,
+    disabled,
+    active_id: active?.id ?? null,
+    active_tag: active?.tagName ?? null,
+  };
+}
+
 // Qualification witness guard only; Core retains filesystem ownership and symlink authority.
 export function rollbackWitnessWithinLibrary(library: string, owned: string) {
   if (!path.isAbsolute(library) || !path.isAbsolute(owned)) return false;
@@ -1630,19 +1654,47 @@ export async function preparationScenarios({
       )
       .click();
     const updatesHeading = await browser.wait(
-      until.elementLocated(By.css("#detail-updates")),
+      until.elementLocated(By.css("#detail-section-versions")),
       5000,
     );
-    await browser.wait(
-      () =>
-        executeBrowserScript(
-          browser,
-          (element) => document.activeElement === element,
-          updatesHeading,
-        ),
-      5000,
-      "Overflow update navigation must focus its detail heading",
-    );
+    let overflowFocus: ReturnType<typeof overflowUpdateFocusPoint> | undefined;
+    let focusFailure: { error: unknown } | undefined;
+    try {
+      await browser.wait(
+        async () => {
+          overflowFocus = await executeBrowserScript(
+            browser,
+            overflowUpdateFocusPoint,
+            updatesHeading,
+          );
+          return overflowFocus.matches;
+        },
+        5000,
+        "Overflow update navigation must focus its Versions heading",
+      );
+    } catch (error) {
+      focusFailure = { error };
+    }
+    let captureFailure: { error: unknown } | undefined;
+    try {
+      const focusPath = path.join(output, "overflow-update-navigation-focus.json");
+      await writeFile(focusPath, JSON.stringify({ latest: overflowFocus ?? null }, null, 2), {
+        flag: "wx",
+      });
+      artifacts.push(focusPath);
+    } catch (error) {
+      captureFailure = { error };
+    }
+    if (focusFailure) {
+      if (captureFailure) {
+        console.warn(
+          "Could not retain overflow focus observation:",
+          errorMessage(captureFailure.error),
+        );
+      }
+      throw focusFailure.error;
+    }
+    if (captureFailure) throw captureFailure.error;
     await browser.findElement(By.css(".detail-back")).click();
     const returnMore = await browser.wait(
       until.elementLocated(By.css(`button[data-detail-origin="library:card-more:${port.id}"]`)),
