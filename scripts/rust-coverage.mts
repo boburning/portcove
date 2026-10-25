@@ -399,6 +399,7 @@ export async function runRustCoverage() {
   const inputFiles = [
     pins.module,
     "crates/portcove-core/src/path_property_tests.rs",
+    "crates/portcove-core/src/path_read_tests.rs",
     "crates/portcove-core/Cargo.toml",
     "Cargo.toml",
     "Cargo.lock",
