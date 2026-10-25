@@ -550,6 +550,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-tuf-controller",
     "release-controller-job",
     "release-hosted-native-runner",
+    "release-hosted-native-worker",
     "release-native-keyless-assembly",
   ]);
 });

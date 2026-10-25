@@ -771,3 +771,56 @@ at its ten-second test-harness bound. The analyzer-acquisition contract keeps
 all eight pin/import/gate assertions and now allows thirty seconds per private
 PowerShell invocation. This is finite harness calibration, not a product or
 release deadline change; it does not relabel the original failure as passing.
+
+## Fixed same-job Linux upload handoff (October 24)
+
+The prepared `release-native-linux` composite runs fixed pre-sign and post-sign
+calls on one original native job. Its source helper claims a no-replace intent
+before starting the worker, records the actual PID and creation identity, and
+requires that same identity, source/configuration binding and original clock
+before each handoff. A missing or partial start cannot retry. The driver sends
+no signing or observer credential; it inherits only the fixed native job's
+environment. Worker output stays in the existing bounded stage records rather
+than an unbounded background log.
+
+Before another process receives that environment, the helper receives and
+authenticates the existing full tool artifact/attestation into a private no-reuse
+directory. The fixed inventory now includes the opaque worker bundle and fixed
+bootstrap child, with no external package imports left in either bundle. It
+rechecks the original tool receipt and complete executable custody immediately
+before spawning the authenticated private Node; the shared setup-node pathname
+is never selected for this child. This adds one bounded tool receiver (the
+existing320MiB archive/1MiB attestation limits and expanded inventory), plus two
+at-most8192-byte startup records. Its storage and transfer must enter the final
+whole-job fit; no current headroom or capacity reservation is inferred.
+
+The ordinary hosted fixture exercises real file/PID continuity and the existing
+public request/ACK readers with source, attestation and native-worker peers
+explicitly controlled. Tool-build qualification separately loads the actual
+opaque worker and bootstrap and checks their credential-free source/usage
+refusals. These observations do not execute the authenticated packaged two-stage
+native opportunity; that remains part of the held runnable graph's qualification.
+
+Readiness exposes only the existing four bounded public proof files. The pinned
+Actions upload retains seven days, no overwrite, zero compression and failure
+for absent files. Its response enters the fixed ACK operation only through
+environment data and binds the exact request digest. The original private
+producer alone performs provider readback. A failed or ambiguous Actions result
+does not receive a fabricated ACK or another upload attempt. The original worker
+retains effects and expires inside its existing clock; normal job cleanup does
+not supply positive native acceptance.
+
+Pre-sign settlement requires the original live supervisor and actual stage/tree
+settlement. Post-sign settlement additionally requires its original final row
+and observed original-process exit. Late refusal rows, changed source/clock/PID,
+missing final state or incomplete tree evidence hold for recovery. Routing and
+settlement remain public correlation data with no native acceptance authority.
+
+This composite is prepared but not installed in the held application workflow.
+The future same-job caller must establish actual signed/TUF prerequisites
+between its pre-sign and post-sign calls; the producer independently authenticates
+them again. The Windows counterpart, whole-graph resource fit, final reviewed
+runnable source/digest, actual authority/custody/protection/reservation and real
+protected/native/public observations remain required. No new job, spend,
+credential, privileged setup or manual step is introduced. Qualification and
+independent review belong to the owning receipt; all existing holds remain.

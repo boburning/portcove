@@ -335,6 +335,7 @@ async function main() {
           "release-payload-preparation",
           "release-signing-controller",
           "release-hosted-native-runner",
+          "release-hosted-native-worker",
         ].includes(name)
           ? 2
           : 1,
@@ -343,6 +344,15 @@ async function main() {
       assert.ok(result.stderr.trim(), name);
       assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
     }
+    phase = "actual-fixed-native-worker-source-refusal";
+    const nativeWorkerRefusal = invoke(node, [
+      path.join(built.tools, "scripts/release-hosted-native-worker.bundle.mjs"),
+      "run",
+    ]);
+    assert.equal(nativeWorkerRefusal.error, undefined);
+    assert.equal(nativeWorkerRefusal.status, 2);
+    assert.match(nativeWorkerRefusal.stderr, /fixed hosted native supervision refused/u);
+    assert.doesNotMatch(nativeWorkerRefusal.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
     phase = "actual-fixed-native-child-refusal";
     for (const filename of controllerToolChildren) {
       const result = spawnSync(node, [path.join(built.tools, filename)], {
@@ -353,7 +363,13 @@ async function main() {
         maxBuffer: 65536,
       });
       assert.equal(result.error, undefined);
-      assert.equal(result.status, filename.endsWith("rust-test-tree-supervisor.mts") ? 2 : 1);
+      assert.equal(
+        result.status,
+        filename.endsWith("rust-test-tree-supervisor.mts") ||
+          filename.endsWith("release-hosted-native-bootstrap.mts")
+          ? 2
+          : 1,
+      );
       assert.ok(result.stderr.trim());
       assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
     }
