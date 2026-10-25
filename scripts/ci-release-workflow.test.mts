@@ -92,7 +92,7 @@ void test("Windows updater rehearsal adopts manifest-pinned prebuilt tools befor
     reader,
     /run: node scripts\/quality-tools\.mts --github-output >> \$env:GITHUB_OUTPUT/,
   );
-  assert.match(prebuilt, /uses: taiki-e\/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177/);
+  assert.match(prebuilt, /uses: taiki-e\/install-action@1e29709c0ec63babbe8f266397a465f29a825f91/);
   assert.match(
     prebuilt,
     /tool: \$\{\{ steps\.windows-quality-pins\.outputs\.required_prebuilt \}\}/,
