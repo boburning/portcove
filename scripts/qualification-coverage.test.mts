@@ -75,6 +75,7 @@ void test("qualification reporter callers cannot change mode, partition, runtime
               step.run.startsWith("node scripts/qualification-nextest.mts "),
           ),
         );
+        assert.ok(typeof caller.run === "string");
         if (mutation === "disabled") caller.if = false;
         if (mutation === "ignored-failure") caller["continue-on-error"] = true;
         if (mutation === "wrong-mode")
