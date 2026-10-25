@@ -128,23 +128,29 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         .collect();
     assert_eq!(pairs.len(), templates.len());
     let adapters = capabilities["data"]["adapters"].as_array().unwrap();
+    let mut expected = std::collections::HashSet::new();
     for adapter in adapters {
-        assert!(pairs.contains(&(adapter.as_str().unwrap(), 1)));
+        assert!(expected.insert((adapter.as_str().unwrap(), 1)));
     }
-    assert!(pairs.contains(&("n64-recomp-portable", 2)));
-    assert!(pairs.contains(&("n64-recomp-portable", 3)));
-    assert!(pairs.contains(&("psx-recomp-managed", 2)));
-    assert!(pairs.contains(&("native-portable", 2)));
+    for capability in [
+        ("n64-recomp-portable", 2),
+        ("n64-recomp-portable", 3),
+        ("n64-recomp-portable", 4),
+        ("psx-recomp-managed", 2),
+        ("native-portable", 2),
+    ] {
+        assert!(expected.insert(capability));
+    }
     let staged_versions = [
         2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
     ];
     for version in staged_versions {
-        assert!(pairs.contains(&("staged-source-portable", version)));
+        assert!(expected.insert(("staged-source-portable", version)));
     }
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }
-    assert_eq!(templates.len(), adapters.len() + 4 + staged_versions.len());
+    assert_eq!(pairs, expected);
     let requirements = temporary.path().join("prepared-directory.json");
     std::fs::write(&requirements, serde_json::to_vec(&json!({
         "capability_contract_schema": 1,
