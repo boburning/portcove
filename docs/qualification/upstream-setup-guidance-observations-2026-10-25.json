@@ -1,0 +1,332 @@
+{
+  "format_version": 1,
+  "generated_at": "2026-10-25T06:20:07.141807+00:00",
+  "kind": "Dated partial rollout evidence; not a live registry",
+  "parent_owner": 2510,
+  "delivery_owner": 2926,
+  "source_preservation_commit": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "before_snapshot_source": "9316d54124ab372ada42c318bdf95d315d213b10",
+  "before_snapshot_relation": "Catalog tree equality to delivered59c9afe4 already verified after3031 merge",
+  "ports": 7,
+  "entries": [
+    {
+      "id": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+      "canonical_issue": 2553,
+      "path": "crates/portcove-core/catalog/ports/3d-pinball-for-windows-space-cadet-spacecadetpinball.json",
+      "before_sha256": "6497de6f407c80c3294c5cf09bee91454b65e6ca4ab94ca44d1604880837f255",
+      "preserved_record_sha256": "1c8127356fcc1f1762c196da5f8d20b00a06cca10e4c933bab6f64d8cf48a556",
+      "candidate_sha256": "1c8127356fcc1f1762c196da5f8d20b00a06cca10e4c933bab6f64d8cf48a556",
+      "route": "download",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-3d-pinball-for-windows-space-cadet-spacecadetpinball\\completion-06a5c7558d536e26612612c070ee76b031fe9fbfced95239ecbab277b1f76ef3.json",
+      "report_sha256": "06a5c7558d536e26612612c070ee76b031fe9fbfced95239ecbab277b1f76ef3",
+      "preparation_validation": {
+        "status": "unchanged-operational-projection",
+        "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+      },
+      "operational_declaration_changed": false,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI.",
+      "upstream_receipt": {
+        "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-3d-pinball-for-windows-space-cadet-spacecadetpinball\\upstream-2daed14967060a4e0dae86c74ae92542748cd47fc2ab54db29db8ff6fd064784.json",
+        "sha256": "2daed14967060a4e0dae86c74ae92542748cd47fc2ab54db29db8ff6fd064784",
+        "assets_complete": true,
+        "assets": [
+          {
+            "id": 130801712,
+            "name": "SpaceCadetPinballMac.zip",
+            "size": 5392736,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballMac.zip"
+          },
+          {
+            "id": 130961994,
+            "name": "SpaceCadetPinballx64Win.zip",
+            "size": 1495776,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballx64Win.zip"
+          },
+          {
+            "id": 130961991,
+            "name": "SpaceCadetPinballx86Win.zip",
+            "size": 1346928,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballx86Win.zip"
+          },
+          {
+            "id": 130961993,
+            "name": "SpaceCadetPinballx86WinXP.zip",
+            "size": 1346931,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballx86WinXP.zip"
+          }
+        ],
+        "publisher_integrity": "No independent publisher digest or checksum sidecar; computed local inspection hash does not authenticate package"
+      }
+    },
+    {
+      "id": "hybrid-heaven-ogdanimal",
+      "canonical_issue": 2546,
+      "path": "crates/portcove-core/catalog/ports/hybrid-heaven-ogdanimal.json",
+      "before_sha256": null,
+      "preserved_record_sha256": "2f9f4a2664cf80826a9255cd2ca426d0ae6b84850d06538a64fe180833771a4d",
+      "candidate_sha256": "2f9f4a2664cf80826a9255cd2ca426d0ae6b84850d06538a64fe180833771a4d",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-hybrid-heaven-ogdanimal\\completion-7a84cdf711ed5d9a1fc021bf275220f7296f9af156b0a330979d6e26f780df6d.json",
+      "report_sha256": "7a84cdf711ed5d9a1fc021bf275220f7296f9af156b0a330979d6e26f780df6d",
+      "preparation_validation": {
+        "status": "unchanged-operational-projection",
+        "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+      },
+      "operational_declaration_changed": false,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "re-volt-rvgl",
+      "canonical_issue": 2705,
+      "path": "crates/portcove-core/catalog/ports/re-volt-rvgl.json",
+      "before_sha256": "f25dc3d02155f5ace4d79014ab7057b9ef15b3a3bc1cc2574568ef3db120793a",
+      "preserved_record_sha256": "caf44284021344836dd8f8d842f6caa8fee84682581e3cc9d237c1aefb67da57",
+      "candidate_sha256": "caf44284021344836dd8f8d842f6caa8fee84682581e3cc9d237c1aefb67da57",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-re-volt-rvgl\\completion-4005a57d958d63b10d969973b9578dc071e35fd9a58510510a86aae2e9d05353.json",
+      "report_sha256": "4005a57d958d63b10d969973b9578dc071e35fd9a58510510a86aae2e9d05353",
+      "preparation_validation": {
+        "status": "unchanged-operational-projection",
+        "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+      },
+      "operational_declaration_changed": false,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "openpete",
+      "canonical_issue": 113,
+      "path": "crates/portcove-core/catalog/ports/openpete.json",
+      "before_sha256": "7acafd72a96d412a5066d4dbd16116fc91df0447aacaf78933917402e6287fcc",
+      "preserved_record_sha256": "4d4f2593adeb46d2906f4f915c58d1509c88a2203bdd8a223b8c179aeff47ad8",
+      "candidate_sha256": "4d4f2593adeb46d2906f4f915c58d1509c88a2203bdd8a223b8c179aeff47ad8",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-openpete\\completion-a5ca4554b18db87463e5b6ea1aba0a0e7e08ddaa1698c2d36067751651085992.json",
+      "report_sha256": "a5ca4554b18db87463e5b6ea1aba0a0e7e08ddaa1698c2d36067751651085992",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "4e1a5d2e658f0171bb6c67b69fe9876e5218bac0e0bb8b4fc6c404cb363a5b8d",
+        "input_bytes": 929645,
+        "catalog_schema": 2,
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "ports_checked": 156,
+        "selected_port": {
+          "port_id": "openpete",
+          "definition_sha256": "ced9399dab430b235b91a68dde2c7340efe807051b0cea1695666ae1db1e480f",
+          "check": "catalog-declared-contract-validation"
+        }
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "sonic-the-hedgehog-recomp",
+      "canonical_issue": 152,
+      "path": "crates/portcove-core/catalog/ports/sonic-the-hedgehog-recomp.json",
+      "before_sha256": "ae4e60a2ecfd579cdff949aa879f6358ede9d1301bd05037e84a02864a0a8628",
+      "preserved_record_sha256": "9a1ee8502367e9e3d71da314c02adee1c75a80852f4af9f8e8e357efd86890c4",
+      "candidate_sha256": "9a1ee8502367e9e3d71da314c02adee1c75a80852f4af9f8e8e357efd86890c4",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-sonic-the-hedgehog-recomp\\completion-c95a3a2079ac67b1d4968953a052252ad15538f4158497bf9c216f29a0971cf4.json",
+      "report_sha256": "c95a3a2079ac67b1d4968953a052252ad15538f4158497bf9c216f29a0971cf4",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "934149b75aacc285762cf8c9a1e4fc860bd2a7c620963a4d9a575080744e0f7b",
+        "input_bytes": 927726,
+        "catalog_schema": 2,
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "ports_checked": 156,
+        "selected_port": {
+          "port_id": "sonic-the-hedgehog-recomp",
+          "definition_sha256": "80ec3d9b8c31e8848e4c380ff028740fe03d9e72eb1e516a5e2466f8425e7895",
+          "check": "catalog-declared-contract-validation"
+        }
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "super-metroid-recomp",
+      "canonical_issue": 164,
+      "path": "crates/portcove-core/catalog/ports/super-metroid-recomp.json",
+      "before_sha256": "e9ec0fa7bdca03b548025132876137637152f599a1ca5426c081b7e1650a9234",
+      "preserved_record_sha256": "7d70d686cb83490654457f338bad7a3b329be37706a917c63c6e96bd9a8e4622",
+      "candidate_sha256": "752c3ed5b3f8eec4f4d283b7ab1c0d6697fd51e88e925f61031ee867cf0cc848",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-super-metroid-recomp\\completion-e81467278d6390ecf19c6438146bb50b776d0f1032d72e54ad8d4bed74e1486d.json",
+      "report_sha256": "e81467278d6390ecf19c6438146bb50b776d0f1032d72e54ad8d4bed74e1486d",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "657fa2ee0448781f3129f914d1e2e48ed1597b1043d38750ce1956433625e69d",
+        "input_bytes": 927629,
+        "catalog_schema": 2,
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "ports_checked": 156,
+        "selected_port": {
+          "port_id": "super-metroid-recomp",
+          "definition_sha256": "d5943e52a4597b304bc11b5f8df6922288e71e69e98fa08690496201ca71d5bc",
+          "check": "catalog-declared-contract-validation"
+        }
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "mega-man-x2-snes-recomp",
+      "canonical_issue": 165,
+      "path": "crates/portcove-core/catalog/ports/mega-man-x2-snes-recomp.json",
+      "before_sha256": "b5d6c818d96b033efb0c548475b051595e26eb1b3e204b98cfe800d2989845e6",
+      "preserved_record_sha256": "71268ecd3dc56baf6dc7196aa69a5cdeb7314d9cd8f5eceb4c4f502c3ba55065",
+      "candidate_sha256": "51c9e83f398c18c70307b677d330a7367281d5eadd6be2216f1c57c2a75b0eb7",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-mega-man-x2-snes-recomp\\completion-ca8a87b4367d20ace604ce82c1410db73fc68b63fb8c1cbe09e86afa75c71ac1.json",
+      "report_sha256": "ca8a87b4367d20ace604ce82c1410db73fc68b63fb8c1cbe09e86afa75c71ac1",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "e4ee82eaad4887f57962973e2949ff4c65535508579285dda8e218737df62c8c",
+        "input_bytes": 927629,
+        "catalog_schema": 2,
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "ports_checked": 156,
+        "selected_port": {
+          "port_id": "mega-man-x2-snes-recomp",
+          "definition_sha256": "ca662815591f9b35c60b2fc8256fdcdb37e7c22114278ea21afd3d7816abfb37",
+          "check": "catalog-declared-contract-validation"
+        }
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    }
+  ],
+  "retained_evidence": [
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\spacecadet-upstream-guide-preparation.json",
+      "sha256": "90a4c739ab699198208de6573baaec548b400a37d2e1961d28414e20b8e524be",
+      "bytes": 1664
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\spacecadet-runtime-config\\receipt.json",
+      "sha256": "c72678a57a9dec7d55dae1de27acaf1d69b72e398efbaf15ffd2a380843b6e42",
+      "bytes": 1247
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\3d-pinball-for-windows-space-cadet-spacecadetpinball.json",
+      "sha256": "e5925bec3c05bf0ee6820cd929de0c22a675a893559344d8ddb74a2670506e6f",
+      "bytes": 208702
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\spacecadet-package.json",
+      "sha256": "5dc39901fd22190abb57304529ab8e119723422497367193547d4dc9f28f1eeb",
+      "bytes": 19439
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\spacecadet-package-contents.json",
+      "sha256": "89b2e066f675689c60c82405b194f1a5260bc8d3821bdc9b2b98468e3f790ac1",
+      "bytes": 799
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\hybrid-heaven-ogdanimal.json",
+      "sha256": "7e363a0359aad02663e92217fba7ba087b9646501a9095bb509cb4a636318115",
+      "bytes": 107318
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\hybrid-heaven-ogdanimal-package.json",
+      "sha256": "a6e113c3ae4234ade7c9c923f0705d9b090c1226506921e1317ebc3163973565",
+      "bytes": 135844
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\hybrid-heaven-ogdanimal-package-contents.json",
+      "sha256": "b886a410a3b812a89cf0a3ee59bf6baac21306f752e3696548035e307f8440f4",
+      "bytes": 21311
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\hybrid-heaven-font-notices.json",
+      "sha256": "0de50626ebe31a190487daa9894940b83d62fe6b5f953c6d64b5c6bcfc9e2b9b",
+      "bytes": 7357
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\rvgl-upstream-guide-preparation.json",
+      "sha256": "59d66564e50c7f5da839e0b57e668134bcbc00791f7616df3d6bad0c10852cc6",
+      "bytes": 1314
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\rvgl-website-contract\\receipt.json",
+      "sha256": "4407e1e18c219fac88b50be5d072c36ef0c47c7d77690f84cd894616866013f7",
+      "bytes": 2458
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\remaining-direct-review\\assessment.json",
+      "sha256": "5bb99ca1ddbd52140593dca3b44610dbcabebb4be95e3f3b8531922691c00e52",
+      "bytes": 11197
+    }
+  ],
+  "remaining_direct_assessments": [
+    {
+      "id": "sonic-the-hedgehog-recomp",
+      "issue": 152,
+      "retained_release": "v0.6.0",
+      "observed_release": "v0.7.1",
+      "source_commit": "cb898070c9bd408786e8956fd0162ec51d899f0f",
+      "framework_commit": "d694c2736a2dd287f4c20506f1a3ddb95d3a3128",
+      "disposition": "Existing exact-build pin remains justified for retained whole-host-state data; do not substitute Sonic3 GRHOST2 semantics.",
+      "operation": "Automatic replacement carrying native_save_1..9.bin",
+      "evidence": [
+        "GameSpec sonic1_spec.c omits state_size/state_build_id callbacks.",
+        "runner_main.c1072-1080 explicitly calls GROWNS2 raw-struct format private to a build.1089/1119 only choose guarded host_state if state_size exists;1144-1148 otherwise mutate glue/RAM/machine/chips before a complete-read result."
+      ],
+      "reconsideration": "Upstream Sonic1 opts into preflighted producer/build-compatible states, or an existing supported explicit preservation transition keeps build-local states separate while retaining the current runtime. Current missing .thumb and other write metadata still needs route-specific review before a fresh revised contract; a pin is not new qualification."
+    },
+    {
+      "id": "super-metroid-recomp",
+      "issue": 164,
+      "retained_release": "v0.3.12",
+      "observed_release": "v0.3.15",
+      "source_commit": "b59876e75d2cafc6a05a63f68a865b92b80740f0",
+      "framework_commit": "53bc03e5eafff8cea292cdae4316c62de5237fb6",
+      "disposition": "Retain existing intentional exact-build pin while whole saves/ includes host snapshots; ordinary compatible successor selection is not established by the inspected contract.",
+      "operation": "Automatic replacement carrying host snapshots inside saves/",
+      "evidence": [
+        "README141-145 says preserve settings/saves on updating but specifically restricts host snapshots to matching runtime builds; guest SRAM is the upgrade path.",
+        "src/sm_cpu_infra.c28-44 has state extras but no snapshot_guard_identity/snapshot_preflight. Framework common_rtl.c964-976 applies guest state after only magic/version checks, then game extra validation occurs. RtlSaveExecutionState1295-1302 writes sized/versioned native-layout residue with CPU pointer nulled; no serialized fiber/stack claim is made.",
+        "Current README59-73 newly documents automatic logs/replay sidecars; those need accurate runtime-write treatment if a revised package contract is offered."
+      ],
+      "reconsideration": "Upstream preflight rejects incompatible host-state ABI before any guest mutation and documents producer compatibility, or a supported scoped migration separates SRAM/config from retained same-build snapshots without silently discarding the richer contract. Do not claim all optional save states inherently require pins."
+    },
+    {
+      "id": "mega-man-x2-snes-recomp",
+      "issue": 165,
+      "retained_release": "v0.1.4",
+      "observed_release": "v0.1.4",
+      "source_commit": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
+      "framework_commit": "f68aa0fe8edae75cbc7d4b9473c71687b45ce702",
+      "disposition": "Retain existing documented exact-build pin; current release is already the accepted baseline.",
+      "operation": "Automatic future replacement carrying host snapshots inside saves/",
+      "evidence": [
+        "docs/SAVE_STATES.md explicitly says states intended for matching runtime builds, with earlier compatibility path for old states.",
+        "src/x2_cpu_infra.c6-15 has no snapshot_guard_identity/snapshot_preflight. common_rtl applies guest state before X2StateLoadExtra975-1003 reads native X2LleSaveChunk/CPU registers and execution residue. Framework does have a general guard implementation but the title does not opt into it."
+      ],
+      "reconsideration": "Same producer/preflight or supported explicit SRAM/state separation condition as the actual title contract, with packaged mod-state coordinate review preserved. The absence of a newer release is not itself the pin reason."
+    },
+    {
+      "id": "openpete",
+      "issue": 113,
+      "retained_release": "v0.1.4",
+      "observed_release": "v0.4.2",
+      "disposition": "Preserve existing accepted legacy contract; current managed replacement remains unresolved rather than assumed unsupported or compatible. A current upstream-owned separate-copy handoff is useful within existing capabilities.",
+      "operation": "Current/successor runtime replacement carrying library/ generated code and states/",
+      "evidence": [
+        "Official homepage publishes Windows v0.4.2, versioned URL and SHA25653c7c4a5925fb64937b951a968a15d02ce36b1a2834e7aaa2f2666614e965619. Source is coming soon. First run copies disc into library/ and writes compiled code alongside; current mod C/shader source also compiles at launch. Ordinary memory cards use .mcr; this is separate from host states/generated code.",
+        "Existing facts/openpete.json has zero observations/assets_complete=false; readmes/openpete.json mistakenly points to unrelated GitLab ladxhd_updated and cannot support the prior guide-review claim.",
+        "No machine-readable progression feed or producer-bound library regeneration/invalidation contract was established by the inspected homepage; direct-manifest can retain exact releases but does not follow HTML automatically."
+      ],
+      "reconsideration": "Obtain exact current package/setup/storage docs and an attributable generated-library regeneration/ABI contract plus a supported release-discovery channel. Until then preserve old managed installs and offer the current official runtime in a separate user-owned folder with external update/data ownership; do not call the entire current port unsupported."
+    }
+  ],
+  "qualification_scope": "Pinned primary sources/docs and inert package/header/name-table inspection; no program/font/helper/original execution, new gameplay, packaged Desktop or real-save acceptance. No support-stage promotion or completed-fit classification follows from guide delivery.",
+  "delivery_status": "Candidate implementation; independent complete-candidate review, exact-head hosted checks and guarded merge pending at source checkpoint",
+  "base": "2f78978ad4bd5b40383502427d7ab82743cb132d",
+  "before_record_reconciliation": "All seven unchanged/absent preimages verified against delivered2f78978a before application; preparation snapshot remains genuine prior delivered59c9afe4 catalog, with six unrelated provider conversions since then"
+}
