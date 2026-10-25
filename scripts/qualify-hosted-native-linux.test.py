@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import collections
 import re
 import stat
 import subprocess
@@ -21,6 +22,22 @@ spec.loader.exec_module(readiness)
 
 
 class HostedReadiness(unittest.TestCase):
+    def test_controller_primitive_pins_bind_admitted_tool_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "scripts").mkdir()
+            names = ("qualify-hosted-native-linux.py", "native-qualification-linux-supervisor.py")
+            for name in names:
+                (root / "scripts" / name).write_bytes(b"inert controller source")
+            admitted = dict.fromkeys(names, hashlib.sha256(b"inert controller source").hexdigest())
+            self.assertEqual(readiness.controller_pins(root, admitted), admitted)
+            for altered in ({**admitted, "extra.py": "a" * 64}, {**admitted, names[0]: "b" * 64}):
+                with self.assertRaisesRegex(RuntimeError, "admitted tools"):
+                    readiness.controller_pins(root, altered)
+            (root / "scripts" / names[1]).write_bytes(b"changed controller source")
+            with self.assertRaisesRegex(RuntimeError, "admitted tools"):
+                readiness.controller_pins(root, admitted)
+
     def root_functions(self, names, scope):
         nodes = [node for node in ast.parse(readiness.ROOT_SETUP).body if isinstance(node, ast.FunctionDef) and node.name in names]
         self.assertEqual(len(nodes), len(names))
@@ -42,7 +59,7 @@ class HostedReadiness(unittest.TestCase):
                 for name in wanted:
                     (source / name).write_bytes(payload + (b"changed" if altered else b""))
                 scope = {"src": source, "target": target, "wanted": wanted,
-                         "hashlib": hashlib, "json": json, "stat": stat, "re": re}
+                         "hashlib": hashlib, "json": json, "stat": stat, "re": re, "original_fence": lambda: None}
                 self.root_functions({"digest", "profile_summary"}, scope)
                 code = compile(ast.Module(body=loops, type_ignores=[]), "actual-root-source-handoff", "exec")
                 if altered:
@@ -253,7 +270,7 @@ class HostedReadiness(unittest.TestCase):
 
     def test_actual_profile_evidence_collection_refuses_missing_changed_and_foreign_inputs(self):
         module = ast.parse(Path(readiness.__file__).read_text())
-        function = next(node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == "prepare")
+        function = next(node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == "prepare_for_original_hosted_parent")
         outer = next(node for node in function.body if isinstance(node, ast.Try))
         for condition in ("accepted", "missing-intent", "foreign-context", "missing-binary", "changed-binary"):
             with tempfile.TemporaryDirectory() as temporary:
@@ -466,33 +483,48 @@ class HostedReadiness(unittest.TestCase):
             self.assertTrue((guest / "invocations" / invocation / "capture/release.json").exists())
 
     def root_runner(self, child):
-        # Execute the actual embedded function, not a second implementation.
-        # Privileged outer setup and every OS/process/clock effect are inert.
-        nodes = [node for node in ast.parse(readiness.ROOT_SETUP).body if isinstance(node, ast.FunctionDef) and node.name == "run"]
-        self.assertEqual(len(nodes), 1)
+        # Actual embedded streaming runner, with every OS/provider effect inert.
+        streams = {7: collections.deque([b"observed", b""]), 8: collections.deque([b""])}
+        child.stdout = SimpleNamespace(fileno=lambda: 7, close=Mock())
+        child.stderr = SimpleNamespace(fileno=lambda: 8, close=Mock())
+        class InertSelector:
+            def __init__(self): self.entries = {}
+            def register(self, stream, _events, name): self.entries[stream.fileno()] = (stream, name)
+            def get_map(self): return self.entries
+            def select(self, _seconds):
+                return [(SimpleNamespace(fd=fd, fileobj=stream, data=name), 1)
+                        for fd, (stream, name) in list(self.entries.items())]
+            def unregister(self, stream): del self.entries[stream.fileno()]
+            def close(self): pass
+        selector = InertSelector()
         scope = {
             "deadline": 20, "result": {}, "time": SimpleNamespace(monotonic=Mock(return_value=10)),
-            "os": SimpleNamespace(killpg=Mock()), "signal": SimpleNamespace(SIGKILL=9),
-            "subprocess": SimpleNamespace(Popen=Mock(return_value=child), DEVNULL=subprocess.DEVNULL,
-                                          PIPE=subprocess.PIPE, TimeoutExpired=subprocess.TimeoutExpired),
+            "original_fence": Mock(), "selectors": SimpleNamespace(DefaultSelector=lambda: selector, EVENT_READ=1),
+            "os": SimpleNamespace(killpg=Mock(), set_blocking=Mock(), read=lambda fd, _size: streams[fd].popleft()),
+            "signal": SimpleNamespace(SIGKILL=9),
+            "subprocess": SimpleNamespace(Popen=Mock(return_value=child), DEVNULL=subprocess.DEVNULL, PIPE=subprocess.PIPE),
+            "selector": selector,
         }
-        exec(compile(ast.Module(body=nodes, type_ignores=[]), "actual-embedded-root-runner", "exec"), scope)
+        self.root_functions({"run"}, scope)
         return scope
 
     def test_actual_root_runner_uses_original_budget_and_one_owned_session(self):
-        child = SimpleNamespace(pid=42, returncode=0, communicate=Mock(return_value=(b"observed", b"")))
+        child = SimpleNamespace(pid=42, returncode=0, wait=Mock(return_value=0))
         scope = self.root_runner(child)
         arguments = ["/usr/sbin/useradd", "fixed-inert-arguments"]
         self.assertEqual(scope["run"](arguments, 30), b"observed")
-        child.communicate.assert_called_once_with(timeout=10)
+        child.wait.assert_called_once_with(timeout=10)
         scope["subprocess"].Popen.assert_called_once_with(arguments, stdin=subprocess.DEVNULL,
                                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
         scope["os"].killpg.assert_not_called()
+        child.stdout.close.assert_called_once()
+        child.stderr.close.assert_called_once()
 
     def test_actual_root_timeout_signals_original_group_and_preserves_original_failure(self):
         original = subprocess.TimeoutExpired(["/usr/sbin/useradd"], 10)
-        child = SimpleNamespace(pid=42, returncode=None, communicate=Mock(side_effect=[original, (b"", b"")]))
+        child = SimpleNamespace(pid=42, returncode=None, wait=Mock(return_value=0))
         scope = self.root_runner(child)
+        scope["selector"].select = Mock(side_effect=original)
         with self.assertRaises(subprocess.TimeoutExpired) as caught:
             scope["run"](["/usr/sbin/useradd"], 30)
         self.assertIs(caught.exception, original)
@@ -505,11 +537,10 @@ class HostedReadiness(unittest.TestCase):
     def test_actual_root_timeout_retains_unknown_kill_or_reap_without_retry(self):
         for fault in ("kill", "reap"):
             original = subprocess.TimeoutExpired(["/usr/sbin/useradd"], 10)
-            child = SimpleNamespace(pid=42, returncode=None,
-                                    communicate=Mock(side_effect=[original, RuntimeError("inert reap unavailable")]))
+            child = SimpleNamespace(pid=42, returncode=None, wait=Mock(side_effect=RuntimeError("inert reap unavailable")))
             scope = self.root_runner(child)
-            if fault == "kill":
-                scope["os"].killpg.side_effect = PermissionError("inert signal refused")
+            scope["selector"].select = Mock(side_effect=original)
+            if fault == "kill": scope["os"].killpg.side_effect = PermissionError("inert signal refused")
             with self.subTest(fault=fault), self.assertRaises(subprocess.TimeoutExpired) as caught:
                 scope["run"](["/usr/sbin/useradd"], 30)
             self.assertIs(caught.exception, original)
@@ -520,12 +551,34 @@ class HostedReadiness(unittest.TestCase):
             self.assertEqual(scope["subprocess"].Popen.call_count, 1)
 
     def test_actual_root_runner_refuses_late_success_without_signalling_a_finished_child(self):
-        child = SimpleNamespace(pid=42, returncode=0, communicate=Mock(return_value=(b"observed", b"")))
+        child = SimpleNamespace(pid=42, returncode=0, wait=Mock(return_value=0))
         scope = self.root_runner(child)
-        scope["time"].monotonic.side_effect = [10, 21]
+        def finished(**_keywords):
+            scope["time"].monotonic.return_value = 21
+            return 0
+        child.wait.side_effect = finished
         with self.assertRaisesRegex(AssertionError, "original setup deadline expired"):
             scope["run"](["/usr/sbin/useradd"], 30)
         scope["os"].killpg.assert_not_called()
+
+    def test_actual_root_runner_refuses_changed_parent_and_excess_output(self):
+        for refusal in ("parent", "output"):
+            child = SimpleNamespace(pid=42, returncode=None, wait=Mock(return_value=0))
+            scope = self.root_runner(child)
+            if refusal == "parent":
+                scope["original_fence"].side_effect = [None, AssertionError("original parent generation changed")]
+            else:
+                scope["os"].read = Mock(return_value=b"x" * 8193)
+            with self.subTest(refusal=refusal), self.assertRaisesRegex(AssertionError, "generation changed|output exceeds"):
+                scope["run"](["fixed-inert-command"], 30)
+            scope["os"].killpg.assert_called_once_with(42, 9)
+
+    def test_original_parent_expiry_prevents_any_setup_effect(self):
+        lifetime = {"broker_uid": 1001, "broker_pid": 42, "broker_identity": "unused", "deadline_ns": "1"}
+        with patch.object(readiness, "LIFETIME", lifetime), patch.object(readiness.subprocess, "Popen") as launch:
+            with self.assertRaisesRegex(AssertionError, "deadline expired"):
+                readiness.command(["must-not-start"])
+            launch.assert_not_called()
 
     def test_actual_root_final_readback_cannot_promote_late_or_replace_prior_failure(self):
         nodes = [node for node in ast.parse(readiness.ROOT_SETUP).body if isinstance(node, ast.Try)]
