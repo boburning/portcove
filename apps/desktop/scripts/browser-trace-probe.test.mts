@@ -149,6 +149,27 @@ test("hosted screenshot acceptance refuses missing jobs, tolerated steps and unr
     ],
   };
   verifyScreenshotJobs(value, context);
+  // Actual run40187877714/a1 retained this optional, disabled-cache post hook
+  // after all three required producer/upload paths completed successfully.
+  const cacheSkipped = structuredClone(value);
+  for (const job of cacheSkipped.jobs.slice(0, 3))
+    job.steps.push({
+      name: "Post Install pinned dependencies",
+      number: 5,
+      status: "completed",
+      conclusion: "skipped",
+    });
+  verifyScreenshotJobs(cacheSkipped, context);
+  for (const patch of [
+    { name: "Post unknown setup hook" },
+    { conclusion: "failure" },
+    { conclusion: "cancelled" },
+    { status: "in_progress" },
+  ]) {
+    const changed = structuredClone(cacheSkipped);
+    Object.assign(changed.jobs[0]!.steps[4]!, patch);
+    assert.throws(() => verifyScreenshotJobs(changed, context));
+  }
   for (const total_count of [0, 3, 5, 100, 101])
     assert.throws(() => verifyScreenshotJobs({ ...value, total_count }, context));
   assert.throws(() => verifyScreenshotJobs({ ...value, jobs: value.jobs.slice(1) }, context));
