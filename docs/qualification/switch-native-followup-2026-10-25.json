@@ -7,16 +7,19 @@
   "scope": "Dated manual Switch-origin to desktop-native follow-up. Upstream documentation/release/social claims; no game files, keys, firmware, upstream scripts, packages or gameplay executed. Not scheduled discovery acceptance or runtime support. Live issues/Project remain planning authority.",
   "counts": {
     "existing_port_records_reused": 4,
-    "new_canonical_port_issues_created": 65,
+    "new_canonical_port_issues_created": 66,
     "new_framework_issues_created": 1,
     "new_catalog_listings_created": 41,
     "existing_records_materially_updated": 4,
     "dated_owner_evidence_comments": 5,
-    "research_watch_items": 24,
+    "research_watch_items": 25,
     "excluded_plan_projects": 4,
     "mobile_title_profiles_retained_outside_desktop_intake": 60,
     "unresolved_unowned_intake_rows": 0,
-    "new_listing_covers": 40
+    "new_listing_covers": 40,
+    "additional_source_relationships": 41,
+    "games_with_multiple_implementation_or_research_identities": 13,
+    "records_in_multiple_implementation_groups": 38
   },
   "plans": [
     {
@@ -30,6 +33,10 @@
     {
       "file": "social-intake-plan.json",
       "sha256": "d04d243211295c8b710318c4d524dbd03a4fd3378046f47ba6d7fd4a3cd04155"
+    },
+    {
+      "file": "coverage-final-intake-plan.json",
+      "sha256": "7c86384f44387a854ef433b146c2f4be618352a3cb6e645bd63963139ae8ad06"
     }
   ],
   "rows": [
@@ -4460,6 +4467,41 @@
       "artwork_status": "not-listed",
       "artwork_evidence": null,
       "listing_sha256": null
+    },
+    {
+      "id": "tomodachi-life-living-the-dream-tomodachi-life-ios-herrtenma",
+      "game": "Tomodachi Life: Living the Dream",
+      "implementation": "tomodachi-life-ios (herrtenma)",
+      "upstream": "https://github.com/herrtenma/tomodachi-life-ios",
+      "repository_id": 1431530868,
+      "commit": "0f9a7b064d277ae4608a6bafee928ab299fe445a",
+      "reuse": [],
+      "decision": "retain-research-provenance-hold",
+      "listing_eligible": false,
+      "classification": "Native compatibility-runtime layer",
+      "architecture": "Original ARM64 game code with offline patching and Horizon services/NVN-to-Metal replacement; an AppKit Mac development host is documented. No independent desktop execution or generic static recompilation is established.",
+      "data": "The iOS-only profile accepts an owned Tomodachi Life: Living the Dream 1.0.0 cartridge XCI without updates (title ID010051F0207B2000, title version0) and own prod.keys; NSP is unsupported there. The Mac command takes already-patched NSOs. Exact Mac accepted game revision, region/build IDs, original container/extraction, keys, font and firmware requirements remain Unknown; iOS acceptance is not a proven Mac acquisition contract.",
+      "platform_summary": "Apple Silicon ARM64 macOS source/build host is documented, including an AppKit development runtime with mouse/keyboard; exact minimum CPU model/macOS/GPU feature level and tested desktop matrix remain Unknown. iOS16.4+,6GB RAM and iPhone14 observations are upstream mobile claims and do not qualify Mac gameplay.",
+      "maturity": "Public source and an iOSv0.1.0 port pack/release exist. README documents the Mac runtime build and patched-NSO command while promising a future Mac release. No Mac boot, gameplay, package, save/persistence or full-game validation is established.",
+      "acquisition": "No Mac package established. Local make -C runtime and runtime/build/nxrt with already-patched NSOs are documented development commands; exact desktop preparation/dependency/input contract is unqualified. The iOS packager/port pack is a separate mobile route; no desktop acquisition is offered by this watch.",
+      "limitations": "README broadly claims no game content in the repository/releases, while its credits disclose launcher soundtrack tracks under ios/music. No package contents were independently inspected; clarify source/package content and its use/distribution basis before acquisition. Genealogy/independence from kuosuko/tomodachi-native #2981 remains Unknown; distinct repository ID is not proof of independent lineage.",
+      "question": "Resolve lineage against #2981 and framework #2936, exact Mac source/input profile, reproducible own-file build/boot/scene/persistence, and disclosed soundtrack/content basis. Resume listing or integration only after these source/provenance and usable desktop-route questions are resolved.",
+      "evidence": [
+        "https://github.com/herrtenma/tomodachi-life-ios/blob/0f9a7b064d277ae4608a6bafee928ab299fe445a/README.md#L106",
+        "https://github.com/herrtenma/tomodachi-life-ios/blob/0f9a7b064d277ae4608a6bafee928ab299fe445a/README.md#L118",
+        "https://github.com/herrtenma/tomodachi-life-ios/releases"
+      ],
+      "evidence_date": "2026-10-25T04:04:03.024Z",
+      "review": "remaining-primary-dispositions-review.json",
+      "aliases": [],
+      "plan_file": "coverage-final-intake-plan.json",
+      "plan_sha256": "7c86384f44387a854ef433b146c2f4be618352a3cb6e645bd63963139ae8ad06",
+      "canonical_issue": 3073,
+      "intake_status": "verified",
+      "listing_status": "none",
+      "artwork_status": "not-listed",
+      "artwork_evidence": null,
+      "listing_sha256": null
     }
   ],
   "frameworks": [
@@ -6651,6 +6693,7 @@
           "repository_id": 1415436686,
           "issue": 2935,
           "architecture": "AArch64 to C/x64 static code plus system runtime, Vulkan with OpenGL fallback. Partial fighter script recovery is not whole-game recovered source.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6659,6 +6702,7 @@
           "repository_id": 1423873803,
           "issue": 2937,
           "architecture": "AArch64/NEON to C then x64; D3D11/HLSL runtime. Experimental Linux DXVK/Vulkan; Apple Silicon own Metal renderer.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6667,6 +6711,7 @@
           "repository_id": 1428182133,
           "issue": 2938,
           "architecture": "Explicit independently maintained OpenSmash fork: AArch64 to C, Windows native runtime/Vulkan, own competitive relay/rollback.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6675,10 +6720,11 @@
           "repository_id": 1196577101,
           "issue": 2961,
           "architecture": "AArch64 matching objects/ELF targeting13.0.4; compiler target aarch64-none-elf, not host game execution.",
+          "classification": "Research project without a player route",
           "listing": "none"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "Super Mario Bros. Wonder",
@@ -6689,6 +6735,7 @@
           "repository_id": 1422271900,
           "issue": 2941,
           "architecture": "AArch64 to C++ with NVN to Vulkan/MoltenVK; not direct ARM execution just because Apple host.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6697,10 +6744,11 @@
           "repository_id": 1423948699,
           "issue": 2969,
           "architecture": "Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "Super Mario Odyssey",
@@ -6711,6 +6759,7 @@
           "repository_id": 1422377656,
           "issue": 2944,
           "architecture": "AArch64 to C game DLL plus own Windows native runtime/Vulkan; no interpreter/JIT or running firmware claimed.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6719,6 +6768,7 @@
           "repository_id": 385371793,
           "issue": 2962,
           "architecture": "Original AArch64 source recovery/matching research, not Coz native host runtime.",
+          "classification": "Research project without a player route",
           "listing": "none"
         },
         {
@@ -6727,6 +6777,7 @@
           "repository_id": 585682903,
           "issue": 2963,
           "architecture": "AArch64 matching objects; research only, incomplete binary.",
+          "classification": "Research project without a player route",
           "listing": "none"
         },
         {
@@ -6735,6 +6786,7 @@
           "repository_id": 1423948699,
           "issue": 2971,
           "architecture": "Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         },
         {
@@ -6743,6 +6795,7 @@
           "repository_id": null,
           "issue": 3023,
           "architecture": "Author-claimed static recompilation; source unavailable for verification.",
+          "classification": "Research project without a player route",
           "listing": "none"
         },
         {
@@ -6751,10 +6804,11 @@
           "repository_id": 1423689866,
           "issue": 3024,
           "architecture": "Game-specific native ARM64 rewriting/compatibility host on Apple Silicon; community port with its own runtime.",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         }
       ],
-      "note": "Distinct project/watch identities; independence or genealogy partly unresolved. Do not count private previews or matching-only research as proven independent runtimes."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "Mario Kart 8 Deluxe",
@@ -6765,6 +6819,7 @@
           "repository_id": 1365334008,
           "issue": 2945,
           "architecture": "Current native integration uses static CPU modules/native Vulkan/services. Older suyu hybrid AOT+JIT tracks explicitly historical and retired.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6773,6 +6828,7 @@
           "repository_id": 1431547686,
           "issue": 2946,
           "architecture": "Documented strict AOT via SUYU_NO_JIT=ON, native Vulkan. Emulator-derived ancestry alone does not prove runtime CPU JIT; strict coverage remains unexecuted.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6781,10 +6837,11 @@
           "repository_id": 1423948699,
           "issue": 2970,
           "architecture": "Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "The Legend of Zelda: Echoes of Wisdom",
@@ -6795,6 +6852,7 @@
           "repository_id": 1425726581,
           "issue": 2947,
           "architecture": "AArch64 to C ahead of time with LAS-derived Horizon/NVN runtime Vulkan/MoltenVK.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6803,10 +6861,11 @@
           "repository_id": 1431493153,
           "issue": 3026,
           "architecture": "Source-vendored nxrt static runtime/recompiler consumer, per-game EoW hooks/patches; no established EoW native boot.",
+          "classification": "Research project without a player route",
           "listing": "none"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "Animal Crossing: New Horizons",
@@ -6817,6 +6876,7 @@
           "repository_id": 1428836020,
           "issue": 2957,
           "architecture": "AArch64 main/sdk/subsdk0 to C++ native Vulkan from Wonder framework.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6825,10 +6885,11 @@
           "repository_id": 1417048001,
           "issue": 2958,
           "architecture": "Explicit ARM64-to-C/x64 automatic recompilation plus service/GPU compatibility and ARM64 interpreter fallback. Manual recovery only3whole entries plus partial/guarded regions.",
+          "classification": "Research project without a player route",
           "listing": "none"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "Pokémon Legends: Z-A",
@@ -6839,6 +6900,7 @@
           "repository_id": 1429177873,
           "issue": 2959,
           "architecture": "AArch64 to C/x64 static runtime NVN/Vulkan, LAS-derived; no runtime emulator claimed.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         },
         {
@@ -6847,10 +6909,11 @@
           "repository_id": null,
           "issue": 3020,
           "architecture": "Author-claimed static recompilation; source unavailable for verification.",
+          "classification": "Research project without a player route",
           "listing": "none"
         }
       ],
-      "note": "Distinct project/watch identities; independence or genealogy partly unresolved. Do not count private previews or matching-only research as proven independent runtimes."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "The Legend of Zelda: Breath of the Wild — Switch edition",
@@ -6861,6 +6924,25 @@
           "repository_id": 1422474621,
           "issue": 2960,
           "architecture": "LAS-derived static code generated locally; native Windows/Linux Vulkan runtime.",
+          "classification": "Static recompilation",
+          "listing": "metadata-only"
+        },
+        {
+          "id": "the-legend-of-zelda-breath-of-the-wild-nxport",
+          "upstream": "https://github.com/nxporting/nxport",
+          "repository_id": 1423948699,
+          "issue": 2972,
+          "architecture": "Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features",
+          "classification": "Native compatibility-runtime layer",
+          "listing": "metadata-only"
+        },
+        {
+          "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
+          "upstream": "https://github.com/ly05010419/MacNativeGames",
+          "repository_id": 1423689866,
+          "issue": 2974,
+          "architecture": "Game-specific Apple ARM64 NSO rewrite/Horizon/NVN-Metal compatibility implementations sharing builder",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         },
         {
@@ -6869,10 +6951,35 @@
           "repository_id": 288736599,
           "issue": 3016,
           "architecture": "Decompilation/source reconstruction research without a desktop player route.",
+          "classification": "Research project without a player route",
           "listing": "none"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
+    },
+    {
+      "game": "Super Mario3D World + Bowser’s Fury",
+      "implementations": [
+        {
+          "id": "super-mario3d-world-bowser-s-fury-redcarpet-s",
+          "upstream": "https://github.com/fruityloops1/RedCarpet-S",
+          "repository_id": 615387867,
+          "issue": 2964,
+          "architecture": "README only title/credit/progress image; no native desktop architecture established.",
+          "classification": "Research project without a player route",
+          "listing": "none"
+        },
+        {
+          "id": "super-mario-3d-world-bowser-s-fury-switchrecomp-mz-labs",
+          "upstream": "https://www.reddit.com/r/decomps/comments/1wrvus1/switchrecomp_a_tool_that_turns_switch_games_into/",
+          "repository_id": null,
+          "issue": 3022,
+          "architecture": "Author-claimed static recompilation; source unavailable for verification.",
+          "classification": "Research project without a player route",
+          "listing": "none"
+        }
+      ],
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
       "game": "Hyrule Warriors: Definitive Edition",
@@ -6883,6 +6990,7 @@
           "repository_id": 1418176562,
           "issue": 2965,
           "architecture": "AArch64 matching C++ objects for update1.0.1 main, not demonstrated host game execution.",
+          "classification": "Research project without a player route",
           "listing": "none"
         },
         {
@@ -6891,20 +6999,31 @@
           "repository_id": 1403679770,
           "issue": 1827,
           "architecture": "AArch64 to C then Windows x64 native executable; custom kernel/services/GPU Vulkan. Runtime reads original NSO segments/data from owned package; no CPU JIT claimed.",
+          "classification": "Static recompilation",
           "listing": "metadata-only"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
-      "game": "The Legend of Zelda: Tears of the Kingdom",
+      "game": "The Legend of Zelda: Tears of the Kingdom — Switch edition",
       "implementations": [
+        {
+          "id": "the-legend-of-zelda-tears-of-the-kingdom-switch-edition-totk-recomp",
+          "upstream": "https://github.com/Muhammad1259-sigma/totk-recomp",
+          "repository_id": 1426858058,
+          "issue": 2966,
+          "architecture": "Documented AArch64 main and parts of SDK translated ahead of time to C++ for Linux x86-64, native Switch services/NVN-on-Vulkan runtime. Not a zeldaret matching-decomp playable route by association.",
+          "classification": "Static recompilation",
+          "listing": "metadata-only"
+        },
         {
           "id": "the-legend-of-zelda-tears-of-the-kingdom-nxport",
           "upstream": "https://github.com/nxporting/nxport",
           "repository_id": 1423948699,
           "issue": 2967,
           "architecture": "Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         },
         {
@@ -6913,6 +7032,7 @@
           "repository_id": 1423689866,
           "issue": 2973,
           "architecture": "Game-specific Apple ARM64 NSO rewrite/Horizon/NVN-Metal compatibility implementations sharing builder",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         },
         {
@@ -6921,6 +7041,7 @@
           "repository_id": 1425384851,
           "issue": 3028,
           "architecture": "Upstream explicitly describes direct execution of the game’s ARM64 code on Apple silicon, an ARM64 module rewriter, a host reimplementing Horizon/system services, and NVN graphics commands translated to Metal. Shared Mac/iOS core. This is a title-specific native-code compatibility adaptation, not a generic framework, Windows recompilation or original standalone game. This classification is based on documented behavior, not repository name/language.",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         },
         {
@@ -6929,32 +7050,59 @@
           "repository_id": null,
           "issue": 3029,
           "architecture": "Author says recompiled Windows plus web port, FSR/frame interpolation/ultrawide. Translation method, native host CPU, browser execution technology and fallback/interpreter/runtime design remain Unknown; screenshots/text do not prove static compilation or full native runtime.",
+          "classification": "Research project without a player route",
           "listing": "none"
         }
       ],
-      "note": "Distinct project/watch identities; independence or genealogy partly unresolved. Do not count private previews or matching-only research as proven independent runtimes."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     },
     {
-      "game": "The Legend of Zelda: Breath of the Wild",
+      "game": "Tomodachi Life: Living the Dream",
       "implementations": [
         {
-          "id": "the-legend-of-zelda-breath-of-the-wild-nxport",
-          "upstream": "https://github.com/nxporting/nxport",
-          "repository_id": 1423948699,
-          "issue": 2972,
-          "architecture": "Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features",
+          "id": "tomodachi-life-living-the-dream-tomodachi-native",
+          "upstream": "https://github.com/kuosuko/tomodachi-native",
+          "repository_id": 1421445048,
+          "issue": 2981,
+          "architecture": "Tomodachi-specific nxnative-derived AppleARM64 rewrite/Horizon/Metal4 adaptation",
+          "classification": "Native compatibility-runtime layer",
           "listing": "metadata-only"
         },
         {
-          "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
-          "upstream": "https://github.com/ly05010419/MacNativeGames",
-          "repository_id": 1423689866,
-          "issue": 2974,
-          "architecture": "Game-specific Apple ARM64 NSO rewrite/Horizon/NVN-Metal compatibility implementations sharing builder",
-          "listing": "metadata-only"
+          "id": "tomodachi-life-living-the-dream-tomodachi-life-ios-herrtenma",
+          "upstream": "https://github.com/herrtenma/tomodachi-life-ios",
+          "repository_id": 1431530868,
+          "issue": 3073,
+          "architecture": "Original ARM64 game code with offline patching and Horizon services/NVN-to-Metal replacement; an AppKit Mac development host is documented. No independent desktop execution or generic static recompilation is established.",
+          "classification": "Native compatibility-runtime layer",
+          "listing": "none"
         }
       ],
-      "note": "Separate implementation identities retained; forks/alternative frameworks do not supersede one another automatically."
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
+    },
+    {
+      "game": "The Legend of Zelda: Link's Awakening",
+      "implementations": [
+        {
+          "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
+          "upstream": "https://github.com/peiikai/LASRecomp",
+          "repository_id": 1411026273,
+          "issue": 2617,
+          "architecture": "Static recompilation; see pinned upstream contract.",
+          "classification": "Static recompilation",
+          "listing": "metadata-only"
+        },
+        {
+          "id": "the-legend-of-zelda-link-s-awakening-2019-owen-splat-las-decomp",
+          "upstream": "https://github.com/Owen-Splat/las-decomp",
+          "repository_id": 816746221,
+          "issue": 2987,
+          "architecture": "Decompilation/source reconstruction research without a desktop player route.",
+          "classification": "Research project without a player route",
+          "listing": "none"
+        }
+      ],
+      "note": "Separate canonical project identities; research-only, private and related/fork projects are not automatically proven independent player runtimes. Exact game/edition remains in each source row."
     }
   ],
   "github_search_manifests": [
@@ -7188,9 +7336,33 @@
   "manual_receipts": "External frozen evidence: E:/Codex-Evidence/switch-followup-audit-20261024. GitHub-visible canonical issues and pinned primary links preserve the reviewable factual record; local raw API/README captures are not published.",
   "validation": {
     "repeat_reconciliation": {
-      "status": "matched-both-runs",
+      "status": "matched-both-final-runs",
       "tests": 17,
       "proof": [
+        {
+          "pass": 3,
+          "sha256": "96d86d8b335ee2086cc561b405d90f05e4e26c013582bc832ae90a6de2c94f36",
+          "observed_at": "2026-10-25T06:01:42.617Z",
+          "canonical_rows": 70,
+          "feature": 2936,
+          "new_issues": 0,
+          "updates": 0,
+          "issues_sha256": "52b0900dd1351dc636fde993e2f160579dfb1a95b73b441c190ba5f91f110db5",
+          "projects_sha256": "8cb993847f3598c9515a223cc103d47df9dc02bf7374bb8ea74f01b6675d80e9"
+        },
+        {
+          "pass": 4,
+          "sha256": "05c8d74c4a827b19cb615a90f9f5236ceb9ee9602e668717324269fc373c1489",
+          "observed_at": "2026-10-25T06:02:31.059Z",
+          "canonical_rows": 70,
+          "feature": 2936,
+          "new_issues": 0,
+          "updates": 0,
+          "issues_sha256": "3bd084db38d8377c232f5f0c76e7140e4df9312f162477828348b6ddd1eed318",
+          "projects_sha256": "3c7cd99a8d833eecbbe850200f7d72310613bb454ef641b25ee052e0b9f5c0b0"
+        }
+      ],
+      "previous_73_row_proofs": [
         {
           "pass": 1,
           "sha256": "e6bd28e1d271933538d7e6e0487c5090286a23861277f549cfd0ee6632d54b7c",
@@ -7213,7 +7385,8 @@
           "issues_sha256": "2805df8ffa7d5b9e9334324a1adb09ae41cc438656d050db84ec0cd730ada8aa",
           "projects_sha256": "b8a7366e1ea9c7519d366eae308678a39777f6882e2ffb43dbd2bc2cbc33698f"
         }
-      ]
+      ],
+      "retained_failure": "A later REST complete read was refused for concurrent inventory change before final GraphQL passes3/4. No incomplete inventory was reused."
     },
     "batch_roadmap_doctor": {
       "status": "passed",
@@ -7232,6 +7405,2268 @@
       "catalog_sha256": "2aab79bc8be9d698461c3a4e9d55effa52366dc28d41b32942508df944a5b3e0",
       "source_head": "b5efaf0c908569453c0b76a2fced653ec1fc7547"
     },
-    "delivery": "Independent final metadata/discovery review CLEAR. Applicable exact-head hosted CI and merge/readback are recorded on the linked delivery PR/owning issue; this dated audit does not claim runtime/scheduled acceptance."
+    "delivery": "Independent final metadata/discovery review CLEAR. Applicable exact-head hosted CI and merge/readback are recorded on the linked delivery PR/owning issue; this dated audit does not claim runtime/scheduled acceptance.",
+    "final_roadmap": {
+      "global": {
+        "status": "failed",
+        "coverage": "complete",
+        "failure_kind": "planning_findings",
+        "findings": [
+          "Catalog port lacks a canonical Project issue: ace-combat-6-recomp",
+          "Catalog port lacks a canonical Project issue: alariq-mc2",
+          "Catalog port lacks a canonical Project issue: alexbeav-medievil-ii-recomp",
+          "Catalog port lacks a canonical Project issue: alistert-openjazz",
+          "Catalog port lacks a canonical Project issue: banjo-tooie-recompiled-some-scurvy-dog",
+          "Catalog port lacks a canonical Project issue: battletanx-global-assault-pc-port",
+          "Catalog port lacks a canonical Project issue: brawmario-infinite-mario-64-ever",
+          "Catalog port lacks a canonical Project issue: bvschaik-julius",
+          "Catalog port lacks a canonical Project issue: citrongames-dora64",
+          "Catalog port lacks a canonical Project issue: colin-mcrae-rally-2-opencmr2",
+          "Catalog port lacks a canonical Project issue: craigshaw-fzerorecomp",
+          "Catalog port lacks a canonical Project issue: crash-team-racing-ctr-native",
+          "Catalog port lacks a canonical Project issue: dethrace-labs-dethrace",
+          "Catalog port lacks a canonical Project issue: djultra64-blocksphere",
+          "Catalog port lacks a canonical Project issue: dkc1-recomp",
+          "Catalog port lacks a canonical Project issue: elliotttate-dkc2recomp",
+          "Catalog port lacks a canonical Project issue: gearhead-garage-opengg",
+          "Catalog port lacks a canonical Project issue: gladiator-openglad",
+          "Catalog port lacks a canonical Project issue: ico-pc-nathanialf",
+          "Catalog port lacks a canonical Project issue: infinite-undiscovery-doc-haz",
+          "Catalog port lacks a canonical Project issue: insanitybringer-piccuengine",
+          "Catalog port lacks a canonical Project issue: interkarma-daggerfall-unity",
+          "Catalog port lacks a canonical Project issue: isledecomp-isle-portable",
+          "Catalog port lacks a canonical Project issue: jgrennison-openttd-patches",
+          "Catalog port lacks a canonical Project issue: knuckles-chaotix-recompiled",
+          "Catalog port lacks a canonical Project issue: mdk-sdl-nemo22",
+          "Catalog port lacks a canonical Project issue: noahvl-birdman64",
+          "Catalog port lacks a canonical Project issue: omf2097-openomf",
+          "Catalog port lacks a canonical Project issue: openapoc-openapoc",
+          "Catalog port lacks a canonical Project issue: openloco-openloco",
+          "Catalog port lacks a canonical Project issue: openrct2-openrct2",
+          "Catalog port lacks a canonical Project issue: opentyrian-opentyrian",
+          "Catalog port lacks a canonical Project issue: re-rac-rerac",
+          "Catalog port lacks a canonical Project issue: rise-of-the-triad-barrett-lunarmeadow",
+          "Catalog port lacks a canonical Project issue: rocket-robot-on-wheels-rocket-r",
+          "Catalog port lacks a canonical Project issue: sdw-community-sheep-dog-n-wolf-rewooled",
+          "Catalog port lacks a canonical Project issue: sonic-cd-2011-rsdkv3",
+          "Catalog port lacks a canonical Project issue: sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+          "Catalog port lacks a canonical Project issue: sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+          "Catalog port lacks a canonical Project issue: starlancer-openreliant",
+          "Catalog port lacks a canonical Project issue: thatguymcd-glover-r"
+        ],
+        "evidence_sha256": "3d45b9c75dc64716716a1fb76d845c41bf4a6cf9ae6c07cafd238f200c9fa492",
+        "context": {
+          "root": "E:\\Codex-Worktrees\\missing-ports-audit\\Portcove-Development",
+          "head": "506f33abdc784ec742db116a99c8e9ad532e52a6",
+          "branch": "feature/switch-native-followup-audit",
+          "catalog": "E:\\Codex-Worktrees\\missing-ports-audit\\Portcove-Development\\crates\\portcove-core\\catalog\\catalog.json",
+          "catalog_sha256": "d8ae6f482d25e895b156973e5a4e1c556e102144d10ef1ea5ce530dbb0b948d4",
+          "configuration_sha256": "90545d76a0ccf16022dff8a5ef09536a97cfedac45dea87b741fc96cdc2f859b",
+          "input_dirty": false
+        }
+      },
+      "owner": {
+        "status": "passed",
+        "scope": {
+          "kind": "issues",
+          "issues": [2930],
+          "checked_issues": [2930]
+        },
+        "coverage": "complete",
+        "evidence_sha256": "230d6faf73c7eb5d4c1db090b75520b42b9859cc54a334da5958a552d2cc28e3",
+        "context": {
+          "root": "E:\\Codex-Worktrees\\missing-ports-audit\\Portcove-Development",
+          "head": "506f33abdc784ec742db116a99c8e9ad532e52a6",
+          "branch": "feature/switch-native-followup-audit",
+          "catalog": "E:\\Codex-Worktrees\\missing-ports-audit\\Portcove-Development\\crates\\portcove-core\\catalog\\catalog.json",
+          "catalog_sha256": "d8ae6f482d25e895b156973e5a4e1c556e102144d10ef1ea5ce530dbb0b948d4",
+          "configuration_sha256": "90545d76a0ccf16022dff8a5ef09536a97cfedac45dea87b741fc96cdc2f859b",
+          "input_dirty": false
+        }
+      },
+      "switch_catalog_findings": 0,
+      "scope_note": "The complete final global doctor has41 non-Switch catalog-to-Project mapping findings, retained as failed; none matches this Switch reconciliation. Owner2930 scoped doctor passed, and exact70 game-owner plus framework bindings passed twice. No global healthy claim."
+    }
+  },
+  "source_relationships": {
+    "scope": "All41remaining frozen primary roots; rootREADME/repository/complete release metadata pluspriorreviews/currentreport/baseline only. No newnetwork/upstreamcommands/sourceorremote mutation. Rawtokenlikebadgesnotexported.",
+    "review_sha256": "fa978dd6ea3f340c0bb3051604a235f110df33ae79539ccde13c2587b8e6b7a6",
+    "records": [
+      {
+        "index": 0,
+        "repository": "Acid236/ssbu-recomp-ldnOnline",
+        "repository_id": 1422205620,
+        "commit": "48b5ed60b2330636031ec2acf1dd7335cc4b1c30",
+        "evidence_clock": "2026-10-25T04:28:32.442Z",
+        "primary_file": "primary/acid236--ssbu-recomp-ldnonline.json",
+        "primary_sha256": "52f6bd0c2f0e27322bb62e220c1efd5c87e29e1dbf68c402cc908200d3e97e78",
+        "readme_blob": "fed9d6eafb61b41137577d088093a7e8dd7d819c",
+        "readme_line_count": 186,
+        "github_parent": "OpenSmash-Ultimate/ssbu-recomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Super Smash Bros. Ultimate",
+        "decision": "parent-network-enhancement-relationship-no-new-owner",
+        "relationship": "ID1422205620 differs from Arena1428182133 and has explicit OpenSmash parent1415436686. Same author is not alias proof; cannot merge stable repo IDs. Arena is already separately accepted for its attributable runtime/competitive route.",
+        "data": "Own SSBU13.0.4 or13.0.5 dump; exact key/firmware contract not established in this captured root. Original outputs generated locally; do not borrow Arena firmware contract as fact.",
+        "platform_summary": "Root Windows10/11x64 Vulkan1.3; Linux/Deck explicitly not started in this older root. Parent current Linux progress does not automatically update fork evidence.",
+        "maturity": "Repository description claims ldnOnline tunnelling for online local play, while captured root table says offline services, online unavailable and rollback planned/not started. No separate ldn end-to-end success shown; do not equate it to Arena rollback.",
+        "acquisition": "No releases; root source setup requires Python/LLVM/MSVC/SDL3/Vulkan and own dump; no fork package established.",
+        "next_step": "Attach exact-ID historical/parallel network fork relationship to Acid Arena and OpenSmash canonical owners; no additional owner/listing solely network feature. Resolve ldn source implementation/maturity and its maintenance relationship to Arena before further independence claim.",
+        "architecture": "AArch64 ahead-of-time C/C++ host runtime, with the exact frozen fork additions and no independent testing asserted.",
+        "anchors": ["3-14", "18-44", "124-131"],
+        "related_canonical_owner": [2935, 2938],
+        "implementation": "Acid236/ssbu-recomp-ldnOnline",
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-186",
+          "specific_prior_review": "supplemental-late-leads-review.json"
+        }
+      },
+      {
+        "index": 1,
+        "repository": "akari-sora/totk-recomp",
+        "repository_id": 1432777227,
+        "commit": "196c73af6757103fa938df7757236c7a4d113e0e",
+        "evidence_clock": "2026-10-25T04:27:58.788Z",
+        "primary_file": "primary/akari-sora--totk-recomp.json",
+        "primary_sha256": "f07d8ac49b6f0092ccf274d20e2d0e3ff63fa7b343f3b91f72ea87e34bfbaca4",
+        "readme_blob": "fd82891699df07e34ad2e97bf7c2836d61e99626",
+        "readme_line_count": 92,
+        "github_parent": "Muhammad1259-sigma/totk-recomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "The Legend of Zelda: Tears of the Kingdom",
+        "decision": "parent-mod-platform-relationship-no-new-owner",
+        "relationship": "Distinct ID1432777227, explicit parent1426858058. Actual fork-specific adaptations, not alias, but same game+core implementation/mod target.",
+        "data": "Own TOTK1.0.0 XCI, title0100F2C0115B6000, main082CE09B06E33A12, prod.keys master-key revision0x0E; local private extraction/codegen. Separate firmware not stated. No other version support.",
+        "platform_summary": "Linuxx64 AVX2 source; adds Zen4 znver4 option withoutAVX512 and ROGAlly LinuxIIOgyro integration. Device branding does not establish Windows route.",
+        "maturity": "README explicitly fork highlights: Chinese language/sharedfonts, DRSfix, button overlays, gyro and build targeting. Parent SteamDeck outdoor62–64fps walk claim is inherited; no separate fork end-to-end/device measurement established.",
+        "acquisition": "No releases; own-file build_from_xci.sh CLI; launcher build step remains unwired. Generated code/assets private.",
+        "next_step": "Attach named maintained enhancement fork to canonical Muhammad1259-sigma TOTK owner. No separate new-game owner/listing now; revisit if independently distributed/validated player route develops.",
+        "architecture": "AArch64 ahead-of-time C/C++ host runtime, with the exact frozen fork additions and no independent testing asserted.",
+        "anchors": ["3-15", "17-29", "31-43"],
+        "related_canonical_owner": 2966,
+        "implementation": "akari-sora/totk-recomp",
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-92",
+          "specific_prior_review": "supplemental-late-leads-review.json"
+        }
+      },
+      {
+        "index": 2,
+        "repository": "andyshaw2028/BOTW",
+        "repository_id": 1430861495,
+        "commit": "e227d7323b019e2fc6e9d9c5c0421c60e4d8e3a0",
+        "evidence_clock": "2026-10-25T03:53:25.584Z",
+        "primary_file": "primary/andyshaw2028--botw.json",
+        "primary_sha256": "2ad403c05e1a1d1054fe4c0a7d43f05a0c2c540f3177da8e03713c1518e16808",
+        "readme_blob": "8a3f9491d77fa18399ec0b019dd4bffa7e8869e8",
+        "readme_line_count": 71,
+        "github_parent": "bgyss/SwitchRecomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "No BOTW implementation established",
+        "implementation": "andyshaw2028/BOTW",
+        "architecture": "Draft Switch static pipeline/specification/Rust scaffolding",
+        "data": "No game-specific accepted version/region/input; research provenance.toml required",
+        "maturity": "No releases; hypothetical/macOS/mockXCI tools, no game runtime established",
+        "acquisition": "Frozen root source/build/release observation only: No releases; hypothetical/macOS/mockXCI tools, no game runtime established",
+        "decision": "framework-spec-fork-not-game",
+        "related_canonical_owner": 2936,
+        "next_step": "Show actual BOTW profile/compiler/runtime and original-input contract, not repository name.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-71",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 3,
+        "repository": "AwayCoast23465/SwRecomp",
+        "repository_id": 1432766313,
+        "commit": "4303073684910339a21ec74b845ca9c95fdeb2e8",
+        "evidence_clock": "2026-10-25T04:28:27.425Z",
+        "primary_file": "primary/awaycoast23465--swrecomp.json",
+        "primary_sha256": "44a65eecef3b8044b9f5c7a9178d15f65a074da6632c5ac719cd7b62f580a23a",
+        "readme_blob": "868063e8be174d79644b53b91d1292ebb384c4bc",
+        "readme_line_count": 280,
+        "github_parent": "peiikai/LASRecomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Unestablished game (SwRecomp name only)",
+        "decision": "exclude-name-only-fork",
+        "relationship": "Distinct ID1432766313, explicit LAS fork; no stable-ID alias claim and no fabricated retail identity.",
+        "data": "Root actually requires Link's Awakening2019 v1.0.0/v1.0.1/v1.1.0 extracted ExeFS/RomFS. Sw does not establish a particular game; exact new-game files/revision Unknown.",
+        "platform_summary": "Inherited LAS AppleSiliconMac/Windowsx64/Linuxx64/experimentalARM64 are not new-game platform evidence.",
+        "maturity": "Unchanged LAS identity/status/setup; no attributable separate game profile or boot.",
+        "acquisition": "No releases; inherited LAS source/local setup only.",
+        "next_step": "No new game issue/listing and no expansion of Sw into Sword/Skyward/another title. Resume with explicit original game and implemented profile/source contract.",
+        "architecture": "AArch64 ahead-of-time C/C++ host runtime, with the exact frozen fork additions and no independent testing asserted.",
+        "anchors": ["1", "11-28", "36-50"],
+        "related_canonical_owner": 2617,
+        "implementation": "AwayCoast23465/SwRecomp",
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-280",
+          "specific_prior_review": "supplemental-late-leads-review.json"
+        }
+      },
+      {
+        "index": 4,
+        "repository": "bigcreativejourney/natives",
+        "repository_id": 1430733308,
+        "commit": "aea97ec65fa719f912a1a4dca7f43b7538a171aa",
+        "evidence_clock": "2026-10-25T04:28:30.876Z",
+        "primary_file": "primary/bigcreativejourney--natives.json",
+        "primary_sha256": "fa00d50ed4ca9d514af1c8905323b17107fe47932367ff7cd4c64d407c7664ea",
+        "readme_blob": "1a05aabfe293209c398f0c5ab3c1593a19d563f2",
+        "readme_line_count": 114,
+        "github_parent": "seedds/nxnative",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Multiple nxnative inherited title profiles",
+        "implementation": "bigcreativejourney/natives",
+        "architecture": "Direct AppleARM64 NSO rewrite/HorizonHLE/NVNMetal",
+        "data": "Own NSP/base+optionalupdate/DLC and prod.keys; per-title tests differ",
+        "maturity": "SourceIPA pipeline; iPhone title table and generic Mac development link, no fork-specific desktop title route in root",
+        "acquisition": "Frozen root source/build/release observation only: SourceIPA pipeline; iPhone title table and generic Mac development link, no fork-specific desktop title route in root",
+        "decision": "framework-fork-relationship",
+        "related_canonical_owner": 2936,
+        "next_step": "Compare actual per-title fork divergence before independent owner; generic Mac mention does not qualify all mobile profiles.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-114",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 5,
+        "repository": "gbcmikeblue/d2r-mobile",
+        "repository_id": 1418723892,
+        "commit": "685d3ddef8bf75768fd4c51228566f2e8d2a5182",
+        "evidence_clock": "2026-10-25T04:09:31.642Z",
+        "primary_file": "primary/gbcmikeblue--d2r-mobile.json",
+        "primary_sha256": "3c584cba543c7d95381c25731822df4439bb0bf2bb17b19eb773f9903170ee2c",
+        "readme_blob": "547109e1ea115ecfa918879245c89ce8638151c5",
+        "readme_line_count": 327,
+        "github_parent": "jhaizhou-ops/d2r-mobile",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "DiabloIIResurrected ReignoftheWarlock",
+        "implementation": "gbcmikeblue/d2r-mobile",
+        "architecture": "Direct AppleARM64 code rewrite and Metal host",
+        "data": "Own expansion Switch1.0.34.0/PC3.3.94012; program/resources/shaders local",
+        "maturity": "No releases; inherited firstMac/olderAPI and mobileclaims, not independently demonstrated fork result",
+        "acquisition": "Frozen root source/build/release observation only: No releases; inherited firstMac/olderAPI and mobileclaims, not independently demonstrated fork result",
+        "decision": "parent-fork-relationship",
+        "related_canonical_owner": 2978,
+        "next_step": "Establish independently maintained desktop changes/selected output; preserve parent input/provenance boundaries.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-327",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 6,
+        "repository": "GloriousArrow/Pizza-Tower-Switch-Port-DECOMP",
+        "repository_id": 862767512,
+        "commit": "fe116e57ad388c4e0d3fad6be4100ca29ce28ac9",
+        "evidence_clock": "2026-10-25T04:27:55.488Z",
+        "primary_file": "primary/gloriousarrow--pizza-tower-switch-port-decomp.json",
+        "primary_sha256": "cb9b7ef324100290c22d70f6e89b44bb50beb1fe597b165f5c68e5c183dc83f6",
+        "readme_blob": "4e7bf156f483d6eaea09e9e85174650c08d06c9a",
+        "readme_line_count": 16,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "PizzaTower unofficial Switch port",
+        "implementation": "GloriousArrow/Pizza-Tower-Switch-Port-DECOMP",
+        "architecture": "GameMaker2023.2 decompilation of D Switch port",
+        "data": "Switch port SR5Fix1; exact original input/license unresolved",
+        "maturity": "No releases; author says compilation still needs work and will not do it",
+        "acquisition": "Frozen root source/build/release observation only: No releases; author says compilation still needs work and will not do it",
+        "decision": "out-of-scope-reverse-port-research",
+        "related_canonical_owner": 2936,
+        "next_step": "Not Switch-exclusive-origin desktop recreation; no independent functional desktop route; resolve derived source rights before adoption.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-16",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 7,
+        "repository": "GRAnimated/Hagi",
+        "repository_id": 1068208397,
+        "commit": "a1d1740e23fa9770da0952523ef47ba59a0ee143",
+        "evidence_clock": "2026-10-25T03:50:47.743Z",
+        "primary_file": "primary/granimated--hagi.json",
+        "primary_sha256": "8a5721344764551b90829bd5e5a34aec0a86a0545ae37d66f71c7a8bfdeda5f7",
+        "readme_blob": "a95d15c35896924f8f2a10d0781f0e00f9274569",
+        "readme_line_count": 22,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Hagi emulator component in SM3DAllStars Sunshine",
+        "implementation": "GRAnimated/Hagi",
+        "architecture": "GameCube/Wii emulator executable matching decompilation",
+        "data": "Own SM3DAllStars1.0.0 Sunshine Hagi executable",
+        "maturity": "Source reconstruction/build research, no standalone desktop Sunshine game established",
+        "acquisition": "Frozen root source/build/release observation only: Source reconstruction/build research, no standalone desktop Sunshine game established",
+        "decision": "emulator-component-research",
+        "related_canonical_owner": 2936,
+        "next_step": "Hagi-only emulator recovery is not commercial game native port; require distinct maintained title implementation.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-22",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 8,
+        "repository": "HDR-Development/HDR-Releases",
+        "repository_id": 468024371,
+        "commit": "8f9e595710c277fbb64a3610436f8d41c062b8ed",
+        "evidence_clock": "2026-10-25T04:34:31.317Z",
+        "primary_file": "primary/hdr-development--hdr-releases.json",
+        "primary_sha256": "7100dcc4ffc822de58d638271ffebfbf1059078b3b701554688681dfa86ddefe",
+        "readme_blob": "f325ef9c7911320b3eb4d0aff574787dff5b6eeb",
+        "readme_line_count": 40,
+        "github_parent": null,
+        "public_releases": 51,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "SuperSmashBrosUltimate HewDrawRemix",
+        "implementation": "HDR-Development/HDR-Releases",
+        "architecture": "Skyline/Atmosphere console gameplay overhaul mod",
+        "data": "Own SSBU; exactversion not established root; moddedSwitch/compatibleemulator required",
+        "maturity": "Stable mod release channel; SwitchSD files and Ryujinx modsupport, not nativePCplayer",
+        "acquisition": "Frozen root source/build/release observation only: Stable mod release channel; SwitchSD files and Ryujinx modsupport, not nativePCplayer",
+        "decision": "mod-not-native-game-owner",
+        "related_canonical_owner": [2935, 2937, 2938],
+        "next_step": "Attach mod relationship if useful; native host integration needs explicit actual plugin compatibility.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-40",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 9,
+        "repository": "herrtenma/tomodachi-life-ios",
+        "repository_id": 1431530868,
+        "commit": "0f9a7b064d277ae4608a6bafee928ab299fe445a",
+        "evidence_clock": "2026-10-25T04:04:03.024Z",
+        "primary_file": "primary/herrtenma--tomodachi-life-ios.json",
+        "primary_sha256": "a737cef4a35984ae3c4b888c7f72566312605901ab7ae04c9ec2a920b60d6bda",
+        "readme_blob": "fff897b4a97a782b6131480b84e6c43b78e51bb0",
+        "readme_line_count": 119,
+        "github_parent": null,
+        "public_releases": 1,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "TomodachiLife LivingtheDream",
+        "implementation": "herrtenma/tomodachi-life-ios",
+        "architecture": "DirectARM64 offline patch/embed plus HorizonHLE/NVNMetal; actual AppKit Mac development host",
+        "data": "iOS-only accepted profile: own TomodachiLifeLivingtheDream1.0.0 title010051F0207B2000 cartridgeXCI withoutupdates plus prod.keys; NSP unsupported there. Mac command consumes already-patched NSOs, but exact Mac accepted gameversion/region/buildIDs, originalcontainer/extraction/key/font/firmware requirements are Unknown. Do not inherit iOS XCI/key/version acceptance as a proven Mac acquisition contract.",
+        "maturity": "iOSv0.1.0 tomodachi.nxport+packager/iPhone14test; Macruntime source command+mouse/keyboard concrete, no Macboot/play/package proved; soundtrack bundled in ios/music by root",
+        "acquisition": "Frozen root source/build/release observation only: iOSv0.1.0 tomodachi.nxport+packager/iPhone14test; Macruntime source command+mouse/keyboard concrete, no Macboot/play/package proved; soundtrack bundled in ios/music by root",
+        "decision": "genuine-unowned-desktop-research/provenance-watch",
+        "related_canonical_owner": [3073, 2981, 2936],
+        "next_step": "One finite research owner linking kuosuko#2981 and framework#2936; no listing/acquisition. Resolve lineage, exact Macinputs/boot and soundtrack/gamecontent distribution basis.",
+        "anchors": [
+          "README18-21 iOS-only input/device requirements",
+          "README52 futureMacrelease",
+          "README89-107 architecture and explicit Mac development source route",
+          "README111-119 license and disclosed soundtrack"
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-119",
+          "specific_prior_review": null
+        },
+        "related_existing_owners": [
+          {
+            "number": 2981,
+            "relationship": "kuosuko independent Tomodachi profile; genealogy Unknown"
+          },
+          {
+            "number": 2936,
+            "relationship": "framework research watch; not proof of same implementation"
+          }
+        ]
+      },
+      {
+        "index": 10,
+        "repository": "iHaiDeeZ/SMW",
+        "repository_id": 1424470431,
+        "commit": "2e8c2adfac0675a960192336ca26249019eca489",
+        "evidence_clock": "2026-10-25T04:34:33.720Z",
+        "primary_file": "primary/ihaideez--smw.json",
+        "primary_sha256": "83cdf71381b4f9962d5c7acb0870f77787f6ff778faf549b7ca84f007e8c7b53",
+        "readme_blob": "4bcda9da0f94496c804c09ba250c86bcc70b9307",
+        "readme_line_count": 216,
+        "github_parent": null,
+        "public_releases": 8,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "SuperMarioBrosWonder",
+        "implementation": "iHaiDeeZ/SMW",
+        "architecture": "AArch64-toC++ compiled for PS4, VulkanMesaRADV",
+        "data": "Own Wonder dumps; exact game revision/key/firmware not inferred from parent",
+        "maturity": "PS4 homebrew package/player claims; no desktoproute of this fork",
+        "acquisition": "Frozen root source/build/release observation only: PS4 homebrew package/player claims; no desktoproute of this fork",
+        "decision": "outside-desktop-PS4-fork",
+        "related_canonical_owner": 2941,
+        "next_step": "Retain historicalBelmanteGu relationship without same-ID alias; qualify desktop divergence only if actual route added.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-216",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 11,
+        "repository": "iHaiDeeZ/SSBU",
+        "repository_id": 1429576537,
+        "commit": "86d9a0fe9ba1bf8af3cca217d155738871994895",
+        "evidence_clock": "2026-10-25T04:04:04.713Z",
+        "primary_file": "primary/ihaideez--ssbu.json",
+        "primary_sha256": "c0b86f749e0fe8a621b296cdee22fa0baaab7552a2f8a1fd57b4af1497f7ae0f",
+        "readme_blob": "24b8155e74b7aef0c42566d5a95bfab9b76eb92b",
+        "readme_line_count": 240,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "SuperSmashBrosUltimate",
+        "implementation": "iHaiDeeZ/SSBU",
+        "architecture": "WindowSmash AArch64-toC PS4 with D3D11/DXVK/RADV",
+        "data": "Own SSBU; source-built own-dump package, exactrevision inspectpinnedguide",
+        "maturity": "No releases; experimentalPS4 matches upstreamclaims, no desktopfork route",
+        "acquisition": "Frozen root source/build/release observation only: No releases; experimentalPS4 matches upstreamclaims, no desktopfork route",
+        "decision": "outside-desktop-PS4-fork",
+        "related_canonical_owner": 2937,
+        "next_step": "Related WindowSmash stable parent, no independent desktop issue.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-240",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 12,
+        "repository": "JorgeDev-Es/botw-decomp-windows",
+        "repository_id": 1422496455,
+        "commit": "593c3bc8af775d05804ae33eb9492ca745167ca8",
+        "evidence_clock": "2026-10-25T03:53:19.697Z",
+        "primary_file": "primary/jorgedev-es--botw-decomp-windows.json",
+        "primary_sha256": "f889bf529ca536a110680cdbadc68788c156d352a1c1228c40af54698f60e1bc",
+        "readme_blob": "fe5514a82f6af6c6bc651fe3c706a2cb3e7046ef",
+        "readme_line_count": 36,
+        "github_parent": "zeldaret/botw",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "BreathoftheWild Switch",
+        "implementation": "JorgeDev-Es/botw-decomp-windows",
+        "architecture": "zeldaret matching C++/AArch64 reconstruction",
+        "data": "Own1.5.0 research binary; noRomFS/assets",
+        "maturity": "No releases; explicitly cannotplay, Windows name merelydevelopment tooling",
+        "acquisition": "Frozen root source/build/release observation only: No releases; explicitly cannotplay, Windows name merelydevelopment tooling",
+        "decision": "matching-research-fork-relationship",
+        "related_canonical_owner": 3016,
+        "next_step": "Existing zeldaret research owner; show distinct maintained actualdesktop game route before new issue.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-36",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 13,
+        "repository": "JUSTMAZZO/o.b.d.c",
+        "repository_id": 1417985499,
+        "commit": "0a4076587ea6280533356cde070976f1e9d1c74b",
+        "evidence_clock": "2026-10-25T03:53:28.849Z",
+        "primary_file": "primary/justmazzo--o.b.d.c.json",
+        "primary_sha256": "9fddc1018501848d992ea6e7b29768160713b632eba25adacacc52761b6b8e80",
+        "readme_blob": "092079dcd3624e954627c7150ec86ec22d76db7e",
+        "readme_line_count": 565,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "No commercial game profile; Switch homebrew",
+        "implementation": "JUSTMAZZO/o.b.d.c",
+        "architecture": "AArch64-toAArch64 AndroidBionic compiler/ABI research with Ghidra/lifter/C synthesis",
+        "data": "Own/open-source libnx ELF/NRO/NSO homebrew; no commercial files/keys/firmware",
+        "maturity": "GalaxyA56Exynos1580/Xclipse540 target; dashboardpercentages are not gameboot proof",
+        "acquisition": "Frozen root source/build/release observation only: GalaxyA56Exynos1580/Xclipse540 target; dashboardpercentages are not gameboot proof",
+        "decision": "mobile-homebrew-framework-research",
+        "related_canonical_owner": 2936,
+        "next_step": "Generic Android compiler framework note; no fabricated title owner.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-565",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 14,
+        "repository": "mamcjr/BOTWRecompAndroid",
+        "repository_id": 1431690119,
+        "commit": "a0c858090e3ada1befafb365ee29a15e356944e1",
+        "evidence_clock": "2026-10-25T04:04:01.413Z",
+        "primary_file": "primary/mamcjr--botwrecompandroid.json",
+        "primary_sha256": "75e104ba6e3a76b0b2a469862004426f033626f5a26f63746e425938544b30b4",
+        "readme_blob": "6fa625267c50eadab23bdef916066087973c0011",
+        "readme_line_count": 92,
+        "github_parent": null,
+        "public_releases": 8,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "BreathoftheWild Switch",
+        "implementation": "mamcjr/BOTWRecompAndroid",
+        "architecture": "LAS-derived AArch64-toC AndroidVulkan",
+        "data": "Own1.0.0/1.6.0/1.8.2 extractedgames, exactinputdetails inown guide",
+        "maturity": "OnePOCOF7Ultra upstreamworld/save claims; desktop application targets explicitlydiscontinued2026-10-22",
+        "acquisition": "Frozen root source/build/release observation only: OnePOCOF7Ultra upstreamworld/save claims; desktop application targets explicitlydiscontinued2026-10-22",
+        "decision": "mobile-only-related-implementation",
+        "related_canonical_owner": 2960,
+        "next_step": "Retain distinct Androidsource ID/relationship, not native desktop owner; revisit desktop only if restored.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-92",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 15,
+        "repository": "mamcjr/LASRecompAndroid",
+        "repository_id": 1420530986,
+        "commit": "4dff09abc0a34f9785b68c074a6378a95e2ebf60",
+        "evidence_clock": "2026-10-25T04:11:19.187Z",
+        "primary_file": "primary/mamcjr--lasrecompandroid.json",
+        "primary_sha256": "6bda330db49c61e3bc8e3d431f5a509dceb67462a9f4addaceade5d7dc341431",
+        "readme_blob": "ddbdb35578874bed1f0f111cfc3411407e45e10c",
+        "readme_line_count": 432,
+        "github_parent": "peiikai/LASRecomp",
+        "public_releases": 20,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "LinkAwakening2019Switch",
+        "implementation": "mamcjr/LASRecompAndroid",
+        "architecture": "LAS-derived static nativeARM64 AndroidVulkan",
+        "data": "Own extracted1.0.0/1.0.1/1.1.0 files; no gamecontents",
+        "maturity": "ExperimentalAPK locallygeneratesgamecode; originalLASdesktoplinked; Nycolazs improvementsmergedbyagreement",
+        "acquisition": "Frozen root source/build/release observation only: ExperimentalAPK locallygeneratesgamecode; originalLASdesktoplinked; Nycolazs improvementsmergedbyagreement",
+        "decision": "mobile-only-functional-fork",
+        "related_canonical_owner": 2617,
+        "next_step": "Preserve functional Android fork rather than call mirror; no new desktopowner.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-432",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 16,
+        "repository": "Manurocker95/uDPR",
+        "repository_id": 1421774439,
+        "commit": "4d4916b9477ba16adf3d826640443b041532b43d",
+        "evidence_clock": "2026-10-25T04:33:50.098Z",
+        "primary_file": "primary/manurocker95--udpr.json",
+        "primary_sha256": "93d4dbeff33ff5891a75d0564dc8693ac41bf5382484281a3b94cdb7d4222617",
+        "readme_blob": "370484557619e3065e4697b252402f1cae98a0d4",
+        "readme_line_count": 184,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "PokémonBrilliantDiamond",
+        "implementation": "uDPR precursor",
+        "architecture": "RecoveredC# fromIL2CPPgameexecutable rebuiltUnity2019.4WindowsIL2CPP",
+        "data": "OwnBD1.3.0 exefs/main+romfs/Data; Unity2019.4.27f1/Wwise2019.2.5.7349/VS2022, notPearl",
+        "maturity": "Betaeditor/Windowsboot/play/save, largepartsunplayed; recoveredC#/shadersinrepository",
+        "acquisition": "Sourceprojectsetup, ownassetexport; noreleases; playergamecodeusebasis unresolved",
+        "decision": "precursor-related-existing-provenance-watch",
+        "related_canonical_owner": 3027,
+        "next_step": "OneuDPRE#3027watch coversprecursorlineage/provenance; no duplicateprecursorlisting/owner. Preserve distinctstableIDs and unresolvedpkdecclonepath.",
+        "anchors": ["README119-122,148-158,175-184; udpre-review.json"],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-184",
+          "specific_prior_review": "udpre-review.json"
+        }
+      },
+      {
+        "index": 17,
+        "repository": "mm2srv/smm2recomp-ocw",
+        "repository_id": 1429528680,
+        "commit": "599557080b08c1fed8d1793863151ead70807568",
+        "evidence_clock": "2026-10-25T04:27:48.762Z",
+        "primary_file": "primary/mm2srv--smm2recomp-ocw.json",
+        "primary_sha256": "4fa3d45dea9e7c02bda666f21e4d0d7362280207a909939545df8b5666371dfe",
+        "readme_blob": "5fbc0adb247de20a8f019a3c85c78673e0be2645",
+        "readme_line_count": 252,
+        "github_parent": "smm2recomp/smm2recomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Super Mario Maker 2",
+        "decision": "parent-mod-relationship-no-new-owner",
+        "relationship": "Distinct ID1429528680, explicit smm2recomp/smm2recomp fork; not stable-ID alias/transfer, same underlying implementation with mods.",
+        "data": "Own SMM2 base plus3.0.3 update, NSP/XCI or extracted ExeFS/RomFS, own prod.keys and firmware systemNCAs for fonts/Mii; optional own WiiU SMM1 for its mods.",
+        "platform_summary": "Inherited parent Windows10/11x64 x86-64-v2/Vulkan1.3; Linuxx64/ARM64; macOS15+AppleSilicon, IntelMacsourceAVX2. These do not establish independently tested OCW fork packages.",
+        "maturity": "OCW integration and SMM1/co-op/course changes are additions to same SMM2 implementation. README downloads/issues link parent, fork has no releases; inherited platform/gameplay table is not fork testing.",
+        "acquisition": "Parent releases are linked. Fork source/local generation may be investigated; do not label parent assets as fork releases.",
+        "next_step": "Attach finite OCW fork/mod relationship to existing SMM2 canonical owner. Do not create separate SMM1 game or independent fork listing; revisit only if maintained separately attributable player route materially diverges.",
+        "architecture": "AArch64 ahead-of-time C/C++ host runtime, with the exact frozen fork additions and no independent testing asserted.",
+        "anchors": ["8-22", "24-50", "53-66", "100-109"],
+        "related_canonical_owner": 2943,
+        "implementation": "mm2srv/smm2recomp-ocw",
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-252",
+          "specific_prior_review": "supplemental-late-leads-review.json"
+        }
+      },
+      {
+        "index": 18,
+        "repository": "MrPurple666/DamonSwitch_decomp",
+        "repository_id": 611130378,
+        "commit": "9bc4f38a6b027af1dc7609088eceeb3185d66f38",
+        "evidence_clock": "2026-10-25T04:27:57.074Z",
+        "primary_file": "primary/mrpurple666--damonswitch_decomp.json",
+        "primary_sha256": "26100bc0ba42814fa18b149a59f04722263b8ab6f146839a0dc81bdc52839cab",
+        "readme_blob": "94260923f45be6f38fb0c6224ae70728f23974e2",
+        "readme_line_count": 3,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "DamonSwitch emulator",
+        "implementation": "MrPurple666/DamonSwitch_decomp",
+        "architecture": "Sparse APK/decomp study; emulator architecture not established by three-line root",
+        "data": "DamonSwitch1.0preview VersionCode25; no specificgame/inputcontract",
+        "maturity": "No releases; no independent native commercial game demonstrated",
+        "acquisition": "Frozen root source/build/release observation only: No releases; no independent native commercial game demonstrated",
+        "decision": "emulator-study-not-game",
+        "related_canonical_owner": 2936,
+        "next_step": "No title issue; source/license/runtime evidence required before any framework/adoption claim.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-3",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 19,
+        "repository": "ness557/totk-recomp",
+        "repository_id": 1426995943,
+        "commit": "a32f709e1e6a0d19160323e57e96d7701ad0d5ed",
+        "evidence_clock": "2026-10-25T04:28:00.365Z",
+        "primary_file": "primary/ness557--totk-recomp.json",
+        "primary_sha256": "b0095a44b1a6a90b696ded9fa92552adfb6804ef3db2f92e1fca1f8971291c58",
+        "readme_blob": "16314587b67a3368d565d530528df7fbf077d3bd",
+        "readme_line_count": 78,
+        "github_parent": "Muhammad1259-sigma/totk-recomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "The Legend of Zelda: Tears of the Kingdom",
+        "decision": "same-parent-snapshot-no-new-owner",
+        "relationship": "Distinct ID1426995943 but identical captured commit and README to parent1426858058; not transfer/alias.",
+        "data": "Own TOTK1.0.0 XCI, title0100F2C0115B6000, main082CE09B06E33A12, prod.keys master-key revision0x0E; local private extraction/codegen. Separate firmware not stated. No other version support.",
+        "platform_summary": "Inherited Linuxx64 AVX2/SteamDeck source route. No independently established Ness platform.",
+        "maturity": "Frozen commit a32f709e1e6a0d19160323e57e96d7701ad0d5ed exactly equals captured Muhammad parent; decoded README SHA also identical. No fork-specific progress established.",
+        "acquisition": "No releases, same parent local-generation CLI; no independent package.",
+        "next_step": "Record fork relationship on canonical parent if useful; no separate intake. Resume only with concrete independently maintained divergence/player route.",
+        "architecture": "AArch64 ahead-of-time C/C++ host runtime, with the exact frozen fork additions and no independent testing asserted.",
+        "anchors": ["3-5", "17-38"],
+        "related_canonical_owner": 2966,
+        "implementation": "ness557/totk-recomp",
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-78",
+          "specific_prior_review": "supplemental-late-leads-review.json"
+        }
+      },
+      {
+        "index": 20,
+        "repository": "nsmbu-recomp/decomp",
+        "repository_id": 1421362919,
+        "commit": "1cf3b5d1a9d66fb257f318348d8f0fa2e641fde0",
+        "evidence_clock": "2026-10-25T04:28:34.360Z",
+        "primary_file": "primary/nsmbu-recomp--decomp.json",
+        "primary_sha256": "012a943158272e06caf59dc78e85e64492b262188d29488b16e1b1ab794f4faf",
+        "readme_blob": "2b5bba43535311a8aa5b492f679116a7807c8cc7",
+        "readme_line_count": 8,
+        "github_parent": "aboood40091/red-pro2",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "NewSuperMarioBrosU WiiU",
+        "implementation": "nsmbu-recomp/decomp",
+        "architecture": "REDPRO2 source matching/graphics research dependency",
+        "data": "USv1.3.0 research, sead/agl/ffl dependencies",
+        "maturity": "No player releases; incomplete reconstruction, WiiU notSwitch original",
+        "acquisition": "Frozen root source/build/release observation only: No player releases; incomplete reconstruction, WiiU notSwitch original",
+        "decision": "existing-WiiU-dependency",
+        "related_canonical_owner": 1712,
+        "next_step": "Attach source/research dependency to existingNSMBU owner; no Switchgame.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-8",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 21,
+        "repository": "nsmbu-recomp/headers",
+        "repository_id": 1421514730,
+        "commit": "4592ad3b03703049b1820ab48496d425a4a54028",
+        "evidence_clock": "2026-10-25T04:28:36.033Z",
+        "primary_file": "primary/nsmbu-recomp--headers.json",
+        "primary_sha256": "8c5d76b1c7c266ba45e348a865d3b2b0dda9667ae74410d8ad8112c3b7f969d3",
+        "readme_blob": null,
+        "readme_line_count": 0,
+        "github_parent": "aboood40091/NSMBU-Headers",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "NewSuperMarioBrosU headers",
+        "implementation": "nsmbu-recomp/headers",
+        "architecture": "Custom-code/decomp headers only",
+        "data": "Version/input contract Unknown in absent root README",
+        "maturity": "No releases/playerroute; repositorydescription only",
+        "acquisition": "Frozen root source/build/release observation only: No releases/playerroute; repositorydescription only",
+        "decision": "headers-helper",
+        "related_canonical_owner": 1712,
+        "next_step": "Preserve helper dependency; do not create gameowner or infer runtime.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "README unavailable; repository metadata only",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 22,
+        "repository": "nsmbu-recomp/Nintendo-File-Formats",
+        "repository_id": 1426317969,
+        "commit": "f4110829a60d2131d34f933ee72402f581ee11a2",
+        "evidence_clock": "2026-10-25T04:28:37.725Z",
+        "primary_file": "primary/nsmbu-recomp--nintendo-file-formats.json",
+        "primary_sha256": "a7818d5298a5f12c5257cb6b081da7edbb4b683c9354818cefe922e318446058",
+        "readme_blob": "9f84adc8e93ce10a4326259af9357e2a2d87925a",
+        "readme_line_count": 27,
+        "github_parent": "kinnay/Nintendo-File-Formats",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Nintendo file formats",
+        "implementation": "nsmbu-recomp/Nintendo-File-Formats",
+        "architecture": "Documentation/helper, no CPU execution",
+        "data": "No player original-data contract; crossNintendoformat documentation",
+        "maturity": "No releases/gameplayer",
+        "acquisition": "Frozen root source/build/release observation only: No releases/gameplayer",
+        "decision": "documentation-helper",
+        "related_canonical_owner": 1712,
+        "next_step": "Link helper/source docs if useful; no candidate gameissue.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-27",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 23,
+        "repository": "nsmbu-recomp/nsmbu-recomp",
+        "repository_id": 1410990118,
+        "commit": "acb74fca192e332276ca94129407570b301b698a",
+        "evidence_clock": "2026-10-25T04:28:39.433Z",
+        "primary_file": "primary/nsmbu-recomp--nsmbu-recomp.json",
+        "primary_sha256": "94b2ee457d34adc755b9bc55a7d4e3fa960f4237d4f74230ca20559f270228c5",
+        "readme_blob": "71b3afd2764d63480289386636cfda384b327623",
+        "readme_line_count": 206,
+        "github_parent": null,
+        "public_releases": 10,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "NewSuperMarioBrosU WiiU",
+        "implementation": "nsmbu-recomp/nsmbu-recomp",
+        "architecture": "WiiU-origin native runtime/recompilation, notSwitchtitle",
+        "data": "Own gamefiles/discimage/keys; precise establishedsource table stays existingowner",
+        "maturity": "10releaseentries; documentedhostruntime/setup; knownexisting#1712",
+        "acquisition": "Frozen root source/build/release observation only: 10releaseentries; documentedhostruntime/setup; knownexisting#1712",
+        "decision": "existing-owner-outside-Switch-origin",
+        "related_canonical_owner": 1712,
+        "next_step": "Reuse exactcanonicalowner; no duplicateSwitch entry.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-206",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 24,
+        "repository": "Nycolazs/LASRecomp-Android-Plus",
+        "repository_id": 1422853212,
+        "commit": "cca791a3e7218e1dac95e7d4a11b8f97dba3ea51",
+        "evidence_clock": "2026-10-25T04:11:21.298Z",
+        "primary_file": "primary/nycolazs--lasrecomp-android-plus.json",
+        "primary_sha256": "4624553f109cc07787b3408098f3f233e8d27b70398cbe11d6d1305d168340aa",
+        "readme_blob": "976bccfe76e96959b47f2e4d4947a69ddedb7c52",
+        "readme_line_count": 276,
+        "github_parent": "peiikai/LASRecomp",
+        "public_releases": 5,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "LinkAwakening2019Switch",
+        "implementation": "Nycolazs/LASRecomp-Android-Plus",
+        "architecture": "LASderived staticnativeARM64 AndroidVulkan",
+        "data": "Own1.0.0XCI/NSP+prod.keys or extracted1.0/1.0.1/1.1.0",
+        "maturity": "Functional mobilefork5releaseentries, localphonecodegen; Galaxyrender/framegen changes do not establish desktoproute",
+        "acquisition": "Frozen root source/build/release observation only: Functional mobilefork5releaseentries, localphonecodegen; Galaxyrender/framegen changes do not establish desktoproute",
+        "decision": "mobile-only-functional-fork",
+        "related_canonical_owner": 2617,
+        "next_step": "Keep distinctAndroidPlus relationship incl mergedchanges to mamcjr; no new desktopowner.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-276",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 25,
+        "repository": "Omeruno/switch-recompiler",
+        "repository_id": 1426044157,
+        "commit": "508e685f5e08896db4120e3e2ab3de07ec0a01cb",
+        "evidence_clock": "2026-10-25T04:27:50.326Z",
+        "primary_file": "primary/omeruno--switch-recompiler.json",
+        "primary_sha256": "8198bda84e27639270765654abd6d9930abd89646001a9cbeef696e41a7e0c04",
+        "readme_blob": "49046fa5c63343e26b9b7eda1de68960eee47be3",
+        "readme_line_count": 71,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "WindowsXP Minesweeper/Paint running ON Switch",
+        "implementation": "Omeruno/switch-recompiler",
+        "architecture": "x86-32 interpreter+Win32/MFC HLE on libnx",
+        "data": "Own WindowsXPwinmine.exe/paint.exe; noSwitchcommercialgame",
+        "maturity": "HomebrewdevkitA64build; Minesweeperworks/Paintpartial perauthor",
+        "acquisition": "Frozen root source/build/release observation only: HomebrewdevkitA64build; Minesweeperworks/Paintpartial perauthor",
+        "decision": "reverse-direction-emulator",
+        "related_canonical_owner": 2936,
+        "next_step": "NotSwitch-to-desktop; no titleowner for thisaudit.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-71",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 26,
+        "repository": "onerag90/fe3h-recomp",
+        "repository_id": 1431178776,
+        "commit": "466fee615a94e56cb17b7acb88bf474e2d20a093",
+        "evidence_clock": "2026-10-25T04:28:24.122Z",
+        "primary_file": "primary/onerag90--fe3h-recomp.json",
+        "primary_sha256": "1c07e3b2ba29bd35d552113f17cf81a9385ff79868d63a1829f8ef74215cce7e",
+        "readme_blob": "9635f1e496e415d0beeea6e3b8da300590b3795d",
+        "readme_line_count": 275,
+        "github_parent": "peiikai/LASRecomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Fire Emblem: Three Houses (name-only claim)",
+        "decision": "exclude-name-only-fork",
+        "relationship": "Distinct ID1431178776, LAS fork; repo name alone does not establish new game implementation.",
+        "data": "Root actually requires Link's Awakening2019 v1.0.0 without updates, extracted ExeFS/RomFS. No FE3H source revision/title/input/keys/firmware established.",
+        "platform_summary": "Inherited LAS AppleSiliconMac/Windowsx64/Linuxx64 and experimentalARM64 are not FE3H platforms.",
+        "maturity": "README title/body/screenshots/bug links remain LAS; no FE3H profile or boot evidence.",
+        "acquisition": "No releases; inherited LAS local build/setup only, not FE3H acquisition.",
+        "next_step": "No FE3H issue/listing. Preserve lead and resume only with actual FE3H accepted files, profile/code/address work and attributable build/boot evidence.",
+        "architecture": "AArch64 ahead-of-time C/C++ host runtime, with the exact frozen fork additions and no independent testing asserted.",
+        "anchors": ["1", "11-28", "36-51"],
+        "related_canonical_owner": 2617,
+        "implementation": "onerag90/fe3h-recomp",
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-275",
+          "specific_prior_review": "supplemental-late-leads-review.json"
+        }
+      },
+      {
+        "index": 27,
+        "repository": "open-ead/agl",
+        "repository_id": 287605539,
+        "commit": "07eeda769154528bfbc0a266b22a84ebbeef9539",
+        "evidence_clock": "2026-10-25T04:02:43.272Z",
+        "primary_file": "primary/open-ead--agl.json",
+        "primary_sha256": "b0fbad8d533105937570b0a224c15c5d276b253410ded214323119a69e66b9e3",
+        "readme_blob": "fff97715fd8200dd269c3906b4912aa9b252fbf2",
+        "readme_line_count": 5,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "agl library",
+        "implementation": "open-ead/agl",
+        "architecture": "Graphics/lighting/AAMP C++library matching decompilation",
+        "data": "Original linked library sourceinputs notplayergameprofile",
+        "maturity": "No releases/standaloneplayer; dependency on sead goals",
+        "acquisition": "Frozen root source/build/release observation only: No releases/standaloneplayer; dependency on sead goals",
+        "decision": "library-helper",
+        "related_canonical_owner": 2936,
+        "next_step": "Libraryrelationshiponly; game-specificruntime needed.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-5",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 28,
+        "repository": "open-ead/EventFlow",
+        "repository_id": 323417525,
+        "commit": "556793186c3065e7b25a51247d0560d7ff401b81",
+        "evidence_clock": "2026-10-25T04:02:46.700Z",
+        "primary_file": "primary/open-ead--eventflow.json",
+        "primary_sha256": "d1cc031854355e68aa6ee6d04995a83ad23119e603e7c0af7f0982d24002f0db",
+        "readme_blob": null,
+        "readme_line_count": 0,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "EventFlow library",
+        "implementation": "open-ead/EventFlow",
+        "architecture": "evfl matchingdecomp library perrepositorydescription",
+        "data": "Input/version unspecified; retainedroot absent",
+        "maturity": "No releases or player evidence",
+        "acquisition": "Frozen root source/build/release observation only: No releases or player evidence",
+        "decision": "library-helper",
+        "related_canonical_owner": 2936,
+        "next_step": "Do not infercommercialgame fromlibrary; requirepergameprofile.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "README unavailable; repository metadata only",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 29,
+        "repository": "open-ead/sead",
+        "repository_id": 271391066,
+        "commit": "f4178a21e21235830357dc27c26a2c29956972ed",
+        "evidence_clock": "2026-10-25T04:02:44.994Z",
+        "primary_file": "primary/open-ead--sead.json",
+        "primary_sha256": "53118a5fff64b88b66e3c767fb2ce2b93175d649bfb42059c8121cb84dd57e8e",
+        "readme_blob": "1f7047ce235b6d27d9f447e30aef894ab88df5d1",
+        "readme_line_count": 112,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "sead library",
+        "implementation": "open-ead/sead",
+        "architecture": "Nintendo standard C++ library reconstruction",
+        "data": "Own symbolbearingSMO1.0.0/Splatoon2<=3.1.0/Labo suggested; libraryinputs notsupportedgame list",
+        "maturity": "SeveralSwitchmodulesfailbuild; no standalonegame",
+        "acquisition": "Frozen root source/build/release observation only: SeveralSwitchmodulesfailbuild; no standalonegame",
+        "decision": "library-helper",
+        "related_canonical_owner": 2936,
+        "next_step": "Reconstructiondependency only, nottitlequalification.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-112",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 30,
+        "repository": "realskyrin/ns-game-apple-arm-port",
+        "repository_id": 1423983390,
+        "commit": "4d2986e3b759224a2a41fd67a051b690a9d78d03",
+        "evidence_clock": "2026-10-25T04:05:09.865Z",
+        "primary_file": "primary/realskyrin--ns-game-apple-arm-port.json",
+        "primary_sha256": "8f4d89c2fcb3c2a8f67d8fd3f0278bd6f09bce2769b487a1bdad14f3e3ff948e",
+        "readme_blob": "adc7b75b6651dea46dcf91f65eb15d3046a9a89b",
+        "readme_line_count": 54,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Generic Switch-toApple porting playbook",
+        "implementation": "realskyrin/ns-game-apple-arm-port",
+        "architecture": "Skill/documentation describes Rustcompatibility/ARM64rewrite/Metal, supplies no runtimeimplementation",
+        "data": "No game/keys/firmware/buildproducts included; titleinputs delegated",
+        "maturity": "No releases; referencesmush8/D2R/MacNativeGames localpractice, notpublicgame",
+        "acquisition": "Frozen root source/build/release observation only: No releases; referencesmush8/D2R/MacNativeGames localpractice, notpublicgame",
+        "decision": "skill-helper-not-runtime",
+        "related_canonical_owner": 2936,
+        "next_step": "Record reference notinstallauthority; no novelBOTWowner from anecdotal localpractice.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-54",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 31,
+        "repository": "RussoPhone/tomodachi-ltd-recomp",
+        "repository_id": 1409541669,
+        "commit": "3759b244c6112fd2d545bb7abf2b2d5782150668",
+        "evidence_clock": "2026-10-25T03:50:28.828Z",
+        "primary_file": "primary/russophone--tomodachi-ltd-recomp.json",
+        "primary_sha256": "d19b771ec812a70e8a6be0db1e8f658f64decdc4b3ace11d0e3b4d32b1be47bc",
+        "readme_blob": "87e903bc8065a3ab8b387ed69ecb9671f7f2d54c",
+        "readme_line_count": 252,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "TomodachiLife LivingtheDream",
+        "implementation": "RussoPhone/tomodachi-ltd-recomp",
+        "architecture": "Experimental AOTx64 executable with suyu-derived emulation/runtimegraphics/audio/services",
+        "data": "Own1.0.0baseNSP/no updates+prod.keys",
+        "maturity": "LinuxArch/Endeavour tested/Fedora reported; Windowsexperimental no fullgameinstall; nativeindependentportfuture",
+        "acquisition": "Frozen root source/build/release observation only: LinuxArch/Endeavour tested/Fedora reported; Windowsexperimental no fullgameinstall; nativeindependentportfuture",
+        "decision": "emulator-backed-desktop-intermediate-exclusion",
+        "related_canonical_owner": 2936,
+        "next_step": "Real functional research, notname-only; retain boundedemulator-backed disposition and relationship to#2981; nativeindependentroute required before native-listing.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-252",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 32,
+        "repository": "ryderclanky/BotW-Native",
+        "repository_id": 1431576025,
+        "commit": "2b3c8da82b82c2c368d3ea8ed85a288a338a76b2",
+        "evidence_clock": "2026-10-25T04:11:17.493Z",
+        "primary_file": "primary/ryderclanky--botw-native.json",
+        "primary_sha256": "8028d9061846ef429347f9008fd5bb09be0f58389bec20ed690a9397a1177e30",
+        "readme_blob": "78b9ebe7abf2880ecc686c79220482f89befeddd",
+        "readme_line_count": 198,
+        "github_parent": null,
+        "public_releases": 1,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "BreathoftheWild WiiU",
+        "implementation": "ryderclanky/BotW-Native",
+        "architecture": "PowerPC-toC++ Cafe runtime/CemuLatteGPUlayerVulkan, noJITclaimed",
+        "data": "Own USAWiiU v208/1.5.0 extractedcode/content/meta U-King.rpx",
+        "maturity": "Windows10/11source+one release; NVIDIAopening/save/combat/Hatenoclaims, notfullgame",
+        "acquisition": "Frozen root source/build/release observation only: Windows10/11source+one release; NVIDIAopening/save/combat/Hatenoclaims, notfullgame",
+        "decision": "credible-desktop-but-WiiU-origin-outside-task",
+        "related_canonical_owner": null,
+        "next_step": "Do not alias toSwitchSavageWind orTOTK. Retain out-of-scope WiiUfollow-up evidence; futureuserauthorizedWiiUintake needsfreshduplicate/input/package review.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-198",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 33,
+        "repository": "sumicke-gif/snprecomp_nx",
+        "repository_id": 1431645076,
+        "commit": "6193166ebae936640ef84682768f66c58ef90a63",
+        "evidence_clock": "2026-10-25T04:28:25.756Z",
+        "primary_file": "primary/sumicke-gif--snprecomp_nx.json",
+        "primary_sha256": "bf9ba6af483f0386a09f30f078399ea06a2eaecf8690798867af0b7b0d01db38",
+        "readme_blob": "350413ba7ba1449b50982c018f0fcaf8c207defc",
+        "readme_line_count": 126,
+        "github_parent": "wootbeer/snprecomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "SinandPunishment2000 N64",
+        "implementation": "sumicke-gif/snprecomp_nx",
+        "architecture": "N64Recomp/N64ModernRuntime/RT64 nativeport; nxname doesnotchangeorigin",
+        "data": "OwnJapaneseROM orEnglishtranslation; acceptedSHA1table, z64/n64/v64",
+        "maturity": "Windowsclaimed/LinuxDeckuntested; forkno releases",
+        "acquisition": "Frozen root source/build/release observation only: Windowsclaimed/LinuxDeckuntested; forkno releases",
+        "decision": "N64-origin-parent-fork-outside-task",
+        "related_canonical_owner": null,
+        "next_step": "Relate wootbeer/snprecomp, notSwitchgame; no freshSwitchissue.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-126",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 34,
+        "repository": "suyu-emu/suyu-v0.0.4",
+        "repository_id": 1357482133,
+        "commit": "c0dd2ff554327657f0c6318f29b740ac7e329ea0",
+        "evidence_clock": "2026-10-25T04:04:08.290Z",
+        "primary_file": "primary/suyu-emu--suyu-v0.0.4.json",
+        "primary_sha256": "1810ad18751cbaf251089090997a080f04d06d702ec1be8a6d42d9f683375ca7",
+        "readme_blob": "2f843589438deec0be022f6c660f7df221da88e4",
+        "readme_line_count": 91,
+        "github_parent": null,
+        "public_releases": 1,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Multi-title suyu/Eden emulator",
+        "implementation": "suyu-emu/suyu-v0.0.4",
+        "architecture": "CPU/GPU emulator plus AOTx64 mode bundled withsuyuHLEbackend",
+        "data": "Own decryptedSwitchgames; exact pertitleinputUnknown",
+        "maturity": "Finalarchivev0.04 fixesfoldedin; Windows/Linux/Androidassets, noMac/iOS",
+        "acquisition": "Frozen root source/build/release observation only: Finalarchivev0.04 fixesfoldedin; Windows/Linux/Androidassets, noMac/iOS",
+        "decision": "emulator/framework-not-title",
+        "related_canonical_owner": 2936,
+        "next_step": "Preserve sharedemulator lineage; no automaticgameowners or nativequalifiedsupport.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-91",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 35,
+        "repository": "sydeEvans/d2r-android",
+        "repository_id": 1421503931,
+        "commit": "5d8e32210b6d54bc0f8140865332a8616766779f",
+        "evidence_clock": "2026-10-25T04:09:38.103Z",
+        "primary_file": "primary/sydeevans--d2r-android.json",
+        "primary_sha256": "e07fba6ee7f87b77df3833d2f0644168c1af5cfba427ce61f26bc41a781f358c",
+        "readme_blob": "81e650465690a28346bb6538168d0dc2fc916656",
+        "readme_line_count": 80,
+        "github_parent": null,
+        "public_releases": 3,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "DiabloIIResurrected",
+        "implementation": "sydeEvans/d2r-android",
+        "architecture": "NativeARM64 Androidcompatibilityfork; localpatchedmodules/Vulkan",
+        "data": "Own gameNSZ/NSP/XCI+prod.keys; exactedition/revision mustinspectAndroidguide",
+        "maturity": "AndroidAPK+packagingkit releases; OPPOAdreno830campclaim notdesktop; Linuxx64buildhost",
+        "acquisition": "Frozen root source/build/release observation only: AndroidAPK+packagingkit releases; OPPOAdreno830campclaim notdesktop; Linuxx64buildhost",
+        "decision": "mobile-only-functional-fork",
+        "related_canonical_owner": 2978,
+        "next_step": "Related D2RcommunityAndroid route; no desktopnewowner. External skillinstructions are evidence, notexecute/installauthority.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-80",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 36,
+        "repository": "vickwv/d2r-mobile",
+        "repository_id": 1420630891,
+        "commit": "afad65c895386a96dfb863f2317e41d61222a5a9",
+        "evidence_clock": "2026-10-25T04:09:40.134Z",
+        "primary_file": "primary/vickwv--d2r-mobile.json",
+        "primary_sha256": "3596fbf796e03cf8c4e94a9d9bcf4d859e1211d9abed9283c9b0f49297b3cc23",
+        "readme_blob": "ea86dd8a2bb5bca7b7a83ba98d89d73a6206d44e",
+        "readme_line_count": 345,
+        "github_parent": "jhaizhou-ops/d2r-mobile",
+        "public_releases": 1,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "DiabloIIResurrected ReignoftheWarlock",
+        "implementation": "vickwv/d2r-mobile",
+        "architecture": "DirectAppleARM64 rewrite/MetalHLE fork",
+        "data": "Own Switchexpansion1.0.34.0/PC3.3.94012; privategeneratedprogram/assets/shaders",
+        "maturity": "Oneassets-only release ofscreenshots; inheritedMac/mobile/tabletTVclaims do notshowdistinctforkplayerpackage",
+        "acquisition": "Frozen root source/build/release observation only: Oneassets-only release ofscreenshots; inheritedMac/mobile/tabletTVclaims do notshowdistinctforkplayerpackage",
+        "decision": "parent-fork-relationship",
+        "related_canonical_owner": 2978,
+        "next_step": "Retain distinctstableID/link, establish maintaineddesktopdivergence beyondsnapshot beforeowner; no artifactpermissioninheritance.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-345",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 37,
+        "repository": "xruanzin/scarlet_pc",
+        "repository_id": 1423826850,
+        "commit": "55437e0d9b7fead5b281c00c852272d7cbffed0e",
+        "evidence_clock": "2026-10-25T03:53:15.891Z",
+        "primary_file": "primary/xruanzin--scarlet_pc.json",
+        "primary_sha256": "0ff8bf73b0ddf262c5971acc464cafbe60a283507d69633be3e06aed8588acfd",
+        "readme_blob": "fb44dc11166a27ce6584a4ef4a10507f99c2aa98",
+        "readme_line_count": 412,
+        "github_parent": "raulzrrs/letsgo-recomp",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "LetsGoEevee/Pikachu, notScarlet",
+        "implementation": "xruanzin/scarlet_pc",
+        "architecture": "Parent LetsGo AArch64-toC WindowsVulkan runtime",
+        "data": "Own extractedExeFS/RomFS1.0/1.0.1/1.0.2; noScarletacceptanceprofile",
+        "maturity": "No releases; READMEstillLetsGo screenshots/tests/parentissue links; noScarletimplementationdemonstrated",
+        "acquisition": "Frozen root source/build/release observation only: No releases; READMEstillLetsGo screenshots/tests/parentissue links; noScarletimplementationdemonstrated",
+        "decision": "renamed-parent-fork-not-new-game",
+        "related_canonical_owner": [2939, 2940],
+        "next_step": "RequireactualScarletprofile/code/input/boot; noScarletissue/name-derived title.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-412",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 38,
+        "repository": "yokeyhh/switch-port-to-apple",
+        "repository_id": 1423458781,
+        "commit": "8e1d2afa9782e2a23a26d09e0ef726f2290e88a2",
+        "evidence_clock": "2026-10-25T04:05:11.452Z",
+        "primary_file": "primary/yokeyhh--switch-port-to-apple.json",
+        "primary_sha256": "c478918acd283f641691dae05d426f72d627ba9daaa5e23a32f863bbd8ce942c",
+        "readme_blob": "ce21e43643e6204e5da48e67907b20b5e597865b",
+        "readme_line_count": 129,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Generic Switch-toApple playbook",
+        "implementation": "yokeyhh/switch-port-to-apple",
+        "architecture": "OfflineARM64rewrite/HorizonHLE/NVNMetal skill/reference",
+        "data": "No acceptedindependentgamefileprofile; referencesD2R/OJZen",
+        "maturity": "No executablegameimplementation/releases; instructiontext notauthority",
+        "acquisition": "Frozen root source/build/release observation only: No executablegameimplementation/releases; instructiontext notauthority",
+        "decision": "skill-helper",
+        "related_canonical_owner": 2936,
+        "next_step": "Referenceonly; D2R#2978/OJZen#3028 remainactualprojects.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-129",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 39,
+        "repository": "yungloof/portspc",
+        "repository_id": 1423570630,
+        "commit": "6da64d9b3df72360f3fecce5f2de42b5c27d3fb4",
+        "evidence_clock": "2026-10-25T04:27:51.844Z",
+        "primary_file": "primary/yungloof--portspc.json",
+        "primary_sha256": "ef971c04cf9502faf22d0129cada574de0f2e58eea5811d595b1f9bc92b074a7",
+        "readme_blob": "880cec60ade93c781742a73be5af0d11e2c489ae",
+        "readme_line_count": 355,
+        "github_parent": null,
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "PortsPC directory/launcher",
+        "implementation": "yungloof/portspc",
+        "architecture": "Downloads officialotherprojects; notanunderlyinggameengine",
+        "data": "Perthirdpartytitlecontracts, launcherlist notqualifiedgameinputs",
+        "maturity": "258cards/Windowslauncherclaims; sourceofleads notindependentgame",
+        "acquisition": "Frozen root source/build/release observation only: 258cards/Windowslauncherclaims; sourceofleads notindependentgame",
+        "decision": "directory-launcher-helper",
+        "related_canonical_owner": 2936,
+        "next_step": "Keep discoverycoverage/reference; noblankettitleintake or installationauthorization.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-355",
+          "specific_prior_review": null
+        }
+      },
+      {
+        "index": 40,
+        "repository": "Yvesyal/NintendoSwitchGameToNative",
+        "repository_id": 429670928,
+        "commit": "90dee5e3b24325f781ee3adf0f3ce083c47bf13d",
+        "evidence_clock": "2026-10-25T04:27:53.562Z",
+        "primary_file": "primary/yvesyal--nintendoswitchgametonative.json",
+        "primary_sha256": "abc991a1dd3bd1a34cc22f034782b3226818a4af1f7afd7a8094bfd4860a3a20",
+        "readme_blob": "9e5ce69349be68c20d245b56f31f8399c1644e33",
+        "readme_line_count": 7,
+        "github_parent": "TheGreatRambler/NintendoSwitchGameToNative",
+        "public_releases": 0,
+        "new_listing_eligible": false,
+        "baseline_exact_path_matches": [],
+        "game": "Generic Switch-native theory",
+        "implementation": "Yvesyal/NintendoSwitchGameToNative",
+        "architecture": "Remill-based theoreticaltranslation pipeline",
+        "data": "No exactSMM2acceptanceprofile beyondresearchprocess",
+        "maturity": "Explicitlyonholdfor missingARMv8instructions; nofunctionalnativeplayer",
+        "acquisition": "Frozen root source/build/release observation only: Explicitlyonholdfor missingARMv8instructions; nofunctionalnativeplayer",
+        "decision": "framework-theory-fork",
+        "related_canonical_owner": 2936,
+        "next_step": "ParentTheGreatRambler relationship; noSMM2gameowner fromtheoreticaltiming.",
+        "anchors": [
+          "Frozen root README and complete release metadata; exact SHA/blob bound above."
+        ],
+        "primary_anchor_scope": {
+          "decoded_root_readme_lines": "1-7",
+          "specific_prior_review": null
+        }
+      }
+    ]
+  },
+  "upstream_activity": {
+    "observed_scope": "Frozen primary observations, not a new source refresh or status authority.",
+    "rows": [
+      {
+        "id": "metroid-dread-metroid-dread-recomp",
+        "game": "Metroid Dread",
+        "issue": 2934,
+        "repository": "yozander2009-stack/Metroid-Dread-Recomp",
+        "evidence_date": "2026-10-25T03:49:26.082Z",
+        "repository_pushed_at": "2026-10-24T16:18:21Z",
+        "archived": false,
+        "commit": "c5dfcf0b91cc941b3d0e5a9cd898940f9bc53cd7",
+        "public_releases": 5,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-smash-bros-ultimate-ssbu-recomp",
+        "game": "Super Smash Bros. Ultimate",
+        "issue": 2935,
+        "repository": "OpenSmash-Ultimate/ssbu-recomp",
+        "evidence_date": "2026-10-25T03:49:29.649Z",
+        "repository_pushed_at": "2026-10-21T18:31:37Z",
+        "archived": false,
+        "commit": "fea28c18b785372b5024ece0a2ea52e860b1fa04",
+        "public_releases": 61,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-smash-bros-ultimate-windowsmash",
+        "game": "Super Smash Bros. Ultimate",
+        "issue": 2937,
+        "repository": "OpenSmash-Ultimate/WindowSmash",
+        "evidence_date": "2026-10-25T03:49:33.274Z",
+        "repository_pushed_at": "2026-10-22T11:09:01Z",
+        "archived": false,
+        "commit": "8025b483b0443adb5668395eca31f9250e8c8efb",
+        "public_releases": 2,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-smash-bros-ultimate-ssbu-arena",
+        "game": "Super Smash Bros. Ultimate",
+        "issue": 2938,
+        "repository": "Acid236/ssbu-arena",
+        "evidence_date": "2026-10-25T03:49:34.968Z",
+        "repository_pushed_at": "2026-10-23T13:01:27Z",
+        "archived": false,
+        "commit": "709b6d3c2f3ebb8e213eb38e574e2e548f85d985",
+        "public_releases": 8,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-let-s-go-eevee-letsgo-recomp",
+        "game": "Pokémon: Let’s Go, Eevee!",
+        "issue": 2939,
+        "repository": "raulzrrs/letsgo-recomp",
+        "evidence_date": "2026-10-25T03:49:37.279Z",
+        "repository_pushed_at": "2026-10-24T22:05:19Z",
+        "archived": false,
+        "commit": "60b8bdf6a81033988e0b6d35cb2fd760f15a8cf6",
+        "public_releases": 18,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-let-s-go-pikachu-letsgo-recomp",
+        "game": "Pokémon: Let’s Go, Pikachu!",
+        "issue": 2940,
+        "repository": "raulzrrs/letsgo-recomp",
+        "evidence_date": "2026-10-25T03:49:37.279Z",
+        "repository_pushed_at": "2026-10-24T22:05:19Z",
+        "archived": false,
+        "commit": "60b8bdf6a81033988e0b6d35cb2fd760f15a8cf6",
+        "public_releases": 18,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-bros-wonder-supermariowonderrecomp",
+        "game": "Super Mario Bros. Wonder",
+        "issue": 2941,
+        "repository": "BluetufieBugado/SuperMarioWonderRecomp",
+        "evidence_date": "2026-10-25T03:49:38.903Z",
+        "repository_pushed_at": "2026-10-16T13:32:09Z",
+        "archived": false,
+        "commit": "9ecad0cef164008a474b5ff0fa50e6ef55edba60",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-maker-2-smm2recomp",
+        "game": "Super Mario Maker 2",
+        "issue": 2943,
+        "repository": "smm2recomp/smm2recomp",
+        "evidence_date": "2026-10-25T03:49:40.404Z",
+        "repository_pushed_at": "2026-10-24T22:37:40Z",
+        "archived": false,
+        "commit": "4e9245cb2156fc3bd434e73c57f7b2a9ff7fc686",
+        "public_releases": 17,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-odyssey-smo-recomp",
+        "game": "Super Mario Odyssey",
+        "issue": 2944,
+        "repository": "Coz-0/smo-recomp",
+        "evidence_date": "2026-10-25T03:49:42.011Z",
+        "repository_pushed_at": "2026-10-23T07:47:30Z",
+        "archived": false,
+        "commit": "09c61399c5609342b1b427e66a21495daea93aaa",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "mario-kart-8-deluxe-mk8-recomp",
+        "game": "Mario Kart 8 Deluxe",
+        "issue": 2945,
+        "repository": "dougchansan/mk8-recomp",
+        "evidence_date": "2026-10-25T03:49:43.618Z",
+        "repository_pushed_at": "2026-10-24T23:03:57Z",
+        "archived": false,
+        "commit": "7690b2d1cbe8096d6ec826723fa5601c8e7d0d9e",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "mario-kart-8-deluxe-directory-association-game-specific-target-unestablished-mk8d-recomp",
+        "game": "Mario Kart 8 Deluxe (directory association; game-specific target unestablished)",
+        "issue": null,
+        "repository": "Ammar-Sadaoui/MK8D-recomp",
+        "evidence_date": "2026-10-25T03:53:17.716Z",
+        "repository_pushed_at": "2026-09-13T15:30:43Z",
+        "archived": false,
+        "commit": "99fb1b05de4da34e267b0422b77aa54e49a4c9ad",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "mario-kart-8-deluxe-racing-8-dx-recomp",
+        "game": "Mario Kart 8 Deluxe",
+        "issue": 2946,
+        "repository": "galarianpikachu2021-hue/Racing-8-DX-Recomp",
+        "evidence_date": "2026-10-25T03:49:45.180Z",
+        "repository_pushed_at": "2026-10-25T03:19:54Z",
+        "archived": false,
+        "commit": "acf0dc95c6f72ed9949fd62d58ebc08ebeee97e5",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-echoes-of-wisdom-eowrecomp",
+        "game": "The Legend of Zelda: Echoes of Wisdom",
+        "issue": 2947,
+        "repository": "Nycolazs/EoWRecomp",
+        "evidence_date": "2026-10-25T03:49:46.722Z",
+        "repository_pushed_at": "2026-10-21T10:01:17Z",
+        "archived": false,
+        "commit": "dd9c79d6c01d9eaddafc1fc5a07b6658bfc56505",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-bros-35-sm35recomp",
+        "game": "Super Mario Bros. 35",
+        "issue": 2948,
+        "repository": "sm35recomp/sm35recomp",
+        "evidence_date": "2026-10-25T03:53:01.891Z",
+        "repository_pushed_at": "2026-10-21T11:34:16Z",
+        "archived": false,
+        "commit": "b000777bb293675aadc5e18dcb6659d10a030301",
+        "public_releases": 7,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "dark-souls-remastered-switch-edition-lordran-native",
+        "game": "Dark Souls: Remastered — Switch edition",
+        "issue": 2949,
+        "repository": "Nishikori-Yui/lordran-native",
+        "evidence_date": "2026-10-25T03:49:48.298Z",
+        "repository_pushed_at": "2026-10-24T15:08:59Z",
+        "archived": false,
+        "commit": "85220ca07ca73258ffcfce5da6c30829793273e2",
+        "public_releases": 3,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "monster-hunter-generations-ultimate-mhgurecomp",
+        "game": "Monster Hunter Generations Ultimate",
+        "issue": 2950,
+        "repository": "morerokk/MHGURecomp",
+        "evidence_date": "2026-10-25T03:49:49.917Z",
+        "repository_pushed_at": "2026-10-24T18:27:15Z",
+        "archived": false,
+        "commit": "803c1b8dbc6c837b81e205ea8fe7165d961817b0",
+        "public_releases": 8,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "metroid-prime-remastered-switch-edition-metroidprimeremasteredrecomp",
+        "game": "Metroid Prime Remastered — Switch edition",
+        "issue": 2951,
+        "repository": "drakolordx7/MetroidPrimeRemasteredRecomp",
+        "evidence_date": "2026-10-25T03:50:17.185Z",
+        "repository_pushed_at": "2026-10-25T01:58:16Z",
+        "archived": false,
+        "commit": "ee703f979d7d39de3ff5d5055061b54cb7a666db",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "yo-kai-watch-4-yw4recomp",
+        "game": "Yo-kai Watch 4++",
+        "issue": 2952,
+        "repository": "ILFforever/YW4Recomp",
+        "evidence_date": "2026-10-25T03:50:19.050Z",
+        "repository_pushed_at": "2026-10-24T20:13:20Z",
+        "archived": false,
+        "commit": "6a64e38a3abf529579fd2fe52bbb0041bc08c634",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "final-fantasy-resonance-ffresonancerecomp",
+        "game": "FINAL FANTASY RESONANCE",
+        "issue": 2953,
+        "repository": "tomasvivaldi/FFResonanceRecomp",
+        "evidence_date": "2026-10-25T03:50:20.512Z",
+        "repository_pushed_at": "2026-10-24T11:31:27Z",
+        "archived": false,
+        "commit": "8632d6bbd29731d6c66e6f2e3e31284e37bee639",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-sword-swsh-recomp",
+        "game": "Pokémon Sword",
+        "issue": 2954,
+        "repository": "raulzrrs/swsh-recomp",
+        "evidence_date": "2026-10-25T03:50:22.554Z",
+        "repository_pushed_at": "2026-10-22T20:50:34Z",
+        "archived": false,
+        "commit": "d8bc2ec05189907840aa1de026bc633700d47e00",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-shield-swsh-recomp",
+        "game": "Pokémon Shield",
+        "issue": 2955,
+        "repository": "raulzrrs/swsh-recomp",
+        "evidence_date": "2026-10-25T03:50:22.554Z",
+        "repository_pushed_at": "2026-10-22T20:50:34Z",
+        "archived": false,
+        "commit": "d8bc2ec05189907840aa1de026bc633700d47e00",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "astral-chain-ac-recomp",
+        "game": "Astral Chain",
+        "issue": 2956,
+        "repository": "swaymun/AC-Recomp",
+        "evidence_date": "2026-10-25T03:50:24.112Z",
+        "repository_pushed_at": "2026-10-22T18:41:19Z",
+        "archived": false,
+        "commit": "80c50158e51a9fe1d0ba9d4827bfd9e54c795a2d",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "animal-crossing-new-horizons-acnhrecomp",
+        "game": "Animal Crossing: New Horizons",
+        "issue": 2957,
+        "repository": "Nycolazs/ACNHRecomp",
+        "evidence_date": "2026-10-25T03:50:25.742Z",
+        "repository_pushed_at": "2026-10-25T03:37:59Z",
+        "archived": false,
+        "commit": "bcb1963f8525fc39f603ccc519ffb8f836ce3887",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "animal-crossing-new-horizons-name-claim-unestablished-acnh-recomp",
+        "game": "Animal Crossing: New Horizons (name claim unestablished)",
+        "issue": null,
+        "repository": "geno55/acnh-recomp",
+        "evidence_date": "2026-10-25T03:53:14.219Z",
+        "repository_pushed_at": "2026-10-14T20:14:00Z",
+        "archived": false,
+        "commit": "6b45a0c23649786eac1fc39e01ae4a90769c8221",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "animal-crossing-new-horizons-acnh-decomp",
+        "game": "Animal Crossing: New Horizons",
+        "issue": 2958,
+        "repository": "Jpkovas/ACNH-Decomp",
+        "evidence_date": "2026-10-25T03:50:27.230Z",
+        "repository_pushed_at": "2026-10-14T00:44:29Z",
+        "archived": false,
+        "commit": "2131d5ae15eaa05ab2bdf61093b7b4efa601e94d",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-legends-z-a-pokez-arecomp",
+        "game": "Pokémon Legends: Z-A",
+        "issue": 2959,
+        "repository": "Hexveil404/PokeZ-ARecomp",
+        "evidence_date": "2026-10-25T04:04:06.290Z",
+        "repository_pushed_at": "2026-10-25T03:16:28Z",
+        "archived": false,
+        "commit": "e33e9342de98d7b06be0a11139327b0ebf17da47",
+        "public_releases": 6,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-breath-of-the-wild-switch-edition-savagewindrecomp",
+        "game": "The Legend of Zelda: Breath of the Wild — Switch edition",
+        "issue": 2960,
+        "repository": "Revivedx/SavageWindRecomp",
+        "evidence_date": "2026-10-25T03:50:49.452Z",
+        "repository_pushed_at": "2026-10-24T22:46:05Z",
+        "archived": false,
+        "commit": "5173d273dafa2e085d645afda33e36b541d7eaf0",
+        "public_releases": 3,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-smash-bros-ultimate-ssbu-decomp",
+        "game": "Super Smash Bros. Ultimate",
+        "issue": 2961,
+        "repository": "sbergeron42/ssbu-decomp",
+        "evidence_date": "2026-10-25T03:50:37.994Z",
+        "repository_pushed_at": "2026-04-13T02:49:17Z",
+        "archived": false,
+        "commit": "d55c91c94d18ee476bd7ffb596cedc3259c5e9f0",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-odyssey-odysseydecomp-monsterdruide1",
+        "game": "Super Mario Odyssey",
+        "issue": 2962,
+        "repository": "MonsterDruide1/OdysseyDecomp",
+        "evidence_date": "2026-10-25T03:50:34.901Z",
+        "repository_pushed_at": "2026-10-12T00:46:01Z",
+        "archived": false,
+        "commit": "696db2ff5ed558b053c753de420504b8682f24b0",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-odyssey-odysseydecomp-gota7",
+        "game": "Super Mario Odyssey",
+        "issue": 2963,
+        "repository": "Gota7/OdysseyDecomp",
+        "evidence_date": "2026-10-25T03:50:36.400Z",
+        "repository_pushed_at": "2023-01-05T20:07:51Z",
+        "archived": false,
+        "commit": "d28646997beb2b92f1548a53e6f53cc887dd7f62",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "steven-universe-save-the-light-quartz-recomp-android",
+        "game": "Steven Universe: Save the Light",
+        "issue": null,
+        "repository": "BluetufieBugado/Quartz-Recomp-Android",
+        "evidence_date": "2026-10-25T03:50:31.836Z",
+        "repository_pushed_at": "2026-10-25T03:47:44Z",
+        "archived": false,
+        "commit": "36d0b31c52d1d1d47ea9f3c24a0810c35e26a74e",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario3d-world-bowser-s-fury-redcarpet-s",
+        "game": "Super Mario3D World + Bowser’s Fury",
+        "issue": 2964,
+        "repository": "fruityloops1/RedCarpet-S",
+        "evidence_date": "2026-10-25T04:02:41.462Z",
+        "repository_pushed_at": "2024-10-15T07:23:06Z",
+        "archived": false,
+        "commit": "744996b335f053ed2a04d0251b4b431ae6d560b6",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "hyrule-warriors-definitive-edition-hwde-decomp",
+        "game": "Hyrule Warriors: Definitive Edition",
+        "issue": 2965,
+        "repository": "MusohSlop/HWDE-decomp",
+        "evidence_date": "2026-10-25T04:02:50.062Z",
+        "repository_pushed_at": "2026-10-15T19:39:14Z",
+        "archived": false,
+        "commit": "1cdc26bc26c9a6552fe0264cc43c27e5fa2069cf",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-breath-of-the-wild-switch1-5-0-botw",
+        "game": "The Legend of Zelda: Breath of the Wild — Switch1.5.0",
+        "issue": null,
+        "repository": "snrubrm/botw",
+        "evidence_date": "2026-10-25T04:02:51.966Z",
+        "repository_pushed_at": "2026-10-24T14:44:44Z",
+        "archived": false,
+        "commit": "8d9436de0611bdf1c77282beb38aa4fb476e5e1e",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "sonsegajp-hwder",
+        "game": "Hyrule Warriors: Definitive Edition",
+        "issue": 1827,
+        "repository": "sonsegajp/HWDER",
+        "evidence_date": "2026-10-25T03:49:24.490Z",
+        "repository_pushed_at": "2026-10-14T02:46:43Z",
+        "archived": false,
+        "commit": "2a85d50b21e1278c6f421b268f2591c16f974724",
+        "public_releases": 4,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-tears-of-the-kingdom-switch-edition-totk-recomp",
+        "game": "The Legend of Zelda: Tears of the Kingdom — Switch edition",
+        "issue": 2966,
+        "repository": "Muhammad1259-sigma/totk-recomp",
+        "evidence_date": "2026-10-25T04:04:59.045Z",
+        "repository_pushed_at": "2026-10-20T11:33:39Z",
+        "archived": false,
+        "commit": "a32f709e1e6a0d19160323e57e96d7701ad0d5ed",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-tears-of-the-kingdom-nxport",
+        "game": "The Legend of Zelda: Tears of the Kingdom",
+        "issue": 2967,
+        "repository": "nxporting/nxport",
+        "evidence_date": "2026-10-25T03:50:07.000Z",
+        "repository_pushed_at": "2026-10-25T02:46:11Z",
+        "archived": false,
+        "commit": "3a5d23c67f23346a9bca0a03d4e03b01375090c4",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "kirby-and-the-forgotten-land-nxport",
+        "game": "Kirby and the Forgotten Land",
+        "issue": 2968,
+        "repository": "nxporting/nxport",
+        "evidence_date": "2026-10-25T03:50:07.000Z",
+        "repository_pushed_at": "2026-10-25T02:46:11Z",
+        "archived": false,
+        "commit": "3a5d23c67f23346a9bca0a03d4e03b01375090c4",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-bros-wonder-nxport",
+        "game": "Super Mario Bros. Wonder",
+        "issue": 2969,
+        "repository": "nxporting/nxport",
+        "evidence_date": "2026-10-25T03:50:07.000Z",
+        "repository_pushed_at": "2026-10-25T02:46:11Z",
+        "archived": false,
+        "commit": "3a5d23c67f23346a9bca0a03d4e03b01375090c4",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "mario-kart-8-deluxe-nxport",
+        "game": "Mario Kart 8 Deluxe",
+        "issue": 2970,
+        "repository": "nxporting/nxport",
+        "evidence_date": "2026-10-25T03:50:07.000Z",
+        "repository_pushed_at": "2026-10-25T02:46:11Z",
+        "archived": false,
+        "commit": "3a5d23c67f23346a9bca0a03d4e03b01375090c4",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-odyssey-nxport",
+        "game": "Super Mario Odyssey",
+        "issue": 2971,
+        "repository": "nxporting/nxport",
+        "evidence_date": "2026-10-25T03:50:07.000Z",
+        "repository_pushed_at": "2026-10-25T02:46:11Z",
+        "archived": false,
+        "commit": "3a5d23c67f23346a9bca0a03d4e03b01375090c4",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-breath-of-the-wild-nxport",
+        "game": "The Legend of Zelda: Breath of the Wild",
+        "issue": 2972,
+        "repository": "nxporting/nxport",
+        "evidence_date": "2026-10-25T03:50:07.000Z",
+        "repository_pushed_at": "2026-10-25T02:46:11Z",
+        "archived": false,
+        "commit": "3a5d23c67f23346a9bca0a03d4e03b01375090c4",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-tears-of-the-kingdom-macnativegames",
+        "game": "The Legend of Zelda: Tears of the Kingdom",
+        "issue": 2973,
+        "repository": "ly05010419/MacNativeGames",
+        "evidence_date": "2026-10-25T03:50:15.730Z",
+        "repository_pushed_at": "2026-10-23T23:51:29Z",
+        "archived": false,
+        "commit": "5281186af56bdcce6ae9b3bb9daa9791bc02994e",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
+        "game": "The Legend of Zelda: Breath of the Wild",
+        "issue": 2974,
+        "repository": "ly05010419/MacNativeGames",
+        "evidence_date": "2026-10-25T03:50:15.730Z",
+        "repository_pushed_at": "2026-10-23T23:51:29Z",
+        "archived": false,
+        "commit": "5281186af56bdcce6ae9b3bb9daa9791bc02994e",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "phoenix-wright-ace-attorney-trilogy-nxnative-aa-port",
+        "game": "Phoenix Wright: Ace Attorney Trilogy",
+        "issue": 2975,
+        "repository": "armyja/nxnative-aa-port",
+        "evidence_date": "2026-10-25T03:50:30.364Z",
+        "repository_pushed_at": "2026-10-19T20:11:11Z",
+        "archived": false,
+        "commit": "df997faee14356e33b3bd8602ca39aed20beb5f5",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "apollo-justice-ace-attorney-trilogy-nxnative-aa-port",
+        "game": "Apollo Justice: Ace Attorney Trilogy",
+        "issue": 2976,
+        "repository": "armyja/nxnative-aa-port",
+        "evidence_date": "2026-10-25T03:50:30.364Z",
+        "repository_pushed_at": "2026-10-19T20:11:11Z",
+        "archived": false,
+        "commit": "df997faee14356e33b3bd8602ca39aed20beb5f5",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "ace-attorney-investigations-collection-nxnative-aa-port",
+        "game": "Ace Attorney Investigations Collection",
+        "issue": 2977,
+        "repository": "armyja/nxnative-aa-port",
+        "evidence_date": "2026-10-25T03:50:30.364Z",
+        "repository_pushed_at": "2026-10-19T20:11:11Z",
+        "archived": false,
+        "commit": "df997faee14356e33b3bd8602ca39aed20beb5f5",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "diablo-ii-resurrected-reign-of-the-warlock-d2r-mobile",
+        "game": "Diablo II: Resurrected — Reign of the Warlock",
+        "issue": 2978,
+        "repository": "jhaizhou-ops/d2r-mobile",
+        "evidence_date": "2026-10-25T03:53:09.994Z",
+        "repository_pushed_at": "2026-10-23T19:16:10Z",
+        "archived": false,
+        "commit": "195ae11dc70f1ba7735c6063e1ed81102e1dbf52",
+        "public_releases": 21,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "blade-ii-the-return-of-evil-blade2-mobile",
+        "game": "Blade II: The Return of Evil",
+        "issue": 2979,
+        "repository": "ha7rock/blade2-mobile",
+        "evidence_date": "2026-10-25T03:53:08.333Z",
+        "repository_pushed_at": "2026-10-23T03:27:08Z",
+        "archived": false,
+        "commit": "286114a30c3244e7a02023c162c849f2a12793de",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom-macnativeports",
+        "game": "Doraemon Story of Seasons: Friends of the Great Kingdom",
+        "issue": 2980,
+        "repository": "colonnellotong/MacNativePorts",
+        "evidence_date": "2026-10-25T04:05:02.545Z",
+        "repository_pushed_at": "2026-10-21T07:11:41Z",
+        "archived": false,
+        "commit": "d2e1e6df2fd80215b2aa0b1858af25ee173b6991",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "tomodachi-life-living-the-dream-tomodachi-native",
+        "game": "Tomodachi Life: Living the Dream",
+        "issue": 2981,
+        "repository": "kuosuko/tomodachi-native",
+        "evidence_date": "2026-10-25T04:09:29.383Z",
+        "repository_pushed_at": "2026-10-18T12:44:24Z",
+        "archived": false,
+        "commit": "5587d1bd8e311b5508ed4e8d5310796523d06ed6",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "k0nl-b2recomp",
+        "game": "Bayonetta 2",
+        "issue": 2755,
+        "repository": "K0NL/B2recomp",
+        "evidence_date": "2026-10-25T03:49:21.176Z",
+        "repository_pushed_at": "2026-10-23T22:47:32Z",
+        "archived": false,
+        "commit": "bec514e9fd8e45f3f1d813dc0b24fc8c2542ebec",
+        "public_releases": 24,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-skyward-sword-hd-sky-recomp",
+        "game": "The Legend of Zelda: Skyward Sword HD",
+        "issue": 2901,
+        "repository": "Apolinario-coder/SkyRecomp",
+        "evidence_date": "2026-10-25T03:49:22.894Z",
+        "repository_pushed_at": "2026-10-22T04:04:44Z",
+        "archived": false,
+        "commit": "b3e22edb4fc55a1e998def4c9e32389c7b0ecc5d",
+        "public_releases": 6,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
+        "game": "The Legend of Zelda: Link's Awakening",
+        "issue": 2617,
+        "repository": "peiikai/LASRecomp",
+        "evidence_date": "2026-10-25T03:49:19.610Z",
+        "repository_pushed_at": "2026-10-25T03:44:01Z",
+        "archived": false,
+        "commit": "59b61fd3c65dcabd0feb62d5d5706240cb3f5bb9",
+        "public_releases": 7,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "minecraft-nintendo-switch-edition-granimated-minecraftlce",
+        "game": "Minecraft: Nintendo Switch Edition",
+        "issue": 2982,
+        "repository": "GRAnimated/MinecraftLCE",
+        "evidence_date": "2026-10-25T03:50:33.400Z",
+        "repository_pushed_at": "2026-10-03T09:29:52Z",
+        "archived": false,
+        "commit": "959e1503b7b26d6821cfa98b3b05ef9089675195",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "captain-toad-treasure-tracker-switch-edition-granimated-cttt-decomp",
+        "game": "Captain Toad: Treasure Tracker — Switch edition",
+        "issue": 2983,
+        "repository": "GRAnimated/cttt-decomp",
+        "evidence_date": "2026-10-25T03:50:41.040Z",
+        "repository_pushed_at": "2022-01-22T02:19:49Z",
+        "archived": false,
+        "commit": "d13e4ecc7e7805ee32d854263018dc88b5ac52ee",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "xenoblade-chronicles-2-kevinbonnoron-xc2-decomp",
+        "game": "Xenoblade Chronicles 2",
+        "issue": 2984,
+        "repository": "KevinBonnoron/xc2-decomp",
+        "evidence_date": "2026-10-25T03:50:42.589Z",
+        "repository_pushed_at": "2026-10-24T21:39:03Z",
+        "archived": false,
+        "commit": "23c8d0b67e49ae24bf5fd32968cfa202a5ad8d9c",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "lego-city-undercover-switch-edition-nintendocustom-lego-city-undercover-decompilation",
+        "game": "LEGO City Undercover — Switch edition",
+        "issue": 2985,
+        "repository": "Nintendocustom/Lego-City-Undercover-Decompilation",
+        "evidence_date": "2026-10-25T03:50:44.501Z",
+        "repository_pushed_at": "2026-10-24T20:44:47Z",
+        "archived": false,
+        "commit": "2b45c422e2e3a8697372f6f25692a7793d118e06",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "scott-pilgrim-vs-the-world-the-game-complete-edition-jwfeniello-scott-pilgrim-switch-decomp",
+        "game": "Scott Pilgrim vs. the World: The Game — Complete Edition",
+        "issue": 2986,
+        "repository": "jwfeniello/scott-pilgrim-switch-decomp",
+        "evidence_date": "2026-10-25T03:50:46.142Z",
+        "repository_pushed_at": "2026-10-25T01:51:00Z",
+        "archived": false,
+        "commit": "602f24c6cb01124ad2abc3baa24db4ad50a502d2",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-link-s-awakening-2019-owen-splat-las-decomp",
+        "game": "The Legend of Zelda: Link’s Awakening (2019)",
+        "issue": 2987,
+        "repository": "Owen-Splat/las-decomp",
+        "evidence_date": "2026-10-25T03:50:39.466Z",
+        "repository_pushed_at": "2026-03-21T23:50:04Z",
+        "archived": false,
+        "commit": "72cbe70e1319a369a5a5cb06fc864913e44fe069",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-breath-of-the-wild-switch-edition-zeldaret-botw",
+        "game": "The Legend of Zelda: Breath of the Wild — Switch edition",
+        "issue": 3016,
+        "repository": "zeldaret/botw",
+        "evidence_date": "2026-10-25T03:53:21.539Z",
+        "repository_pushed_at": "2026-10-23T01:39:35Z",
+        "archived": false,
+        "commit": "8f0334acf0d348bcf48787038d0a0ba63f740ee4",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-legends-arceus-lz-a-recomp-mrwifi1143",
+        "game": "Pokémon Legends: Arceus",
+        "issue": 3018,
+        "repository": null,
+        "evidence_date": "2026-10-25",
+        "repository_pushed_at": "Unknown: no attributable public repository snapshot",
+        "archived": null,
+        "commit": null,
+        "public_releases": null,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-legends-z-a-lz-a-recomp-mrwifi1143",
+        "game": "Pokémon Legends: Z-A",
+        "issue": 3020,
+        "repository": null,
+        "evidence_date": "2026-10-25",
+        "repository_pushed_at": "Unknown: no attributable public repository snapshot",
+        "archived": null,
+        "commit": null,
+        "public_releases": null,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-kirby-clash-switchrecomp-mz-labs",
+        "game": "Super Kirby Clash",
+        "issue": 3021,
+        "repository": null,
+        "evidence_date": "2026-10-25",
+        "repository_pushed_at": "Unknown: no attributable public repository snapshot",
+        "archived": null,
+        "commit": null,
+        "public_releases": null,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-3d-world-bowser-s-fury-switchrecomp-mz-labs",
+        "game": "Super Mario 3D World + Bowser’s Fury",
+        "issue": 3022,
+        "repository": null,
+        "evidence_date": "2026-10-25",
+        "repository_pushed_at": "Unknown: no attributable public repository snapshot",
+        "archived": null,
+        "commit": null,
+        "public_releases": null,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-odyssey-switchrecomp-mz-labs",
+        "game": "Super Mario Odyssey",
+        "issue": 3023,
+        "repository": null,
+        "evidence_date": "2026-10-25",
+        "repository_pushed_at": "Unknown: no attributable public repository snapshot",
+        "archived": null,
+        "commit": null,
+        "public_releases": null,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "super-mario-odyssey-macnativegames",
+        "game": "Super Mario Odyssey",
+        "issue": 3024,
+        "repository": "ly05010419/MacNativeGames",
+        "evidence_date": "2026-10-25T03:50:15.730Z",
+        "repository_pushed_at": "2026-10-23T23:51:29Z",
+        "archived": false,
+        "commit": "5281186af56bdcce6ae9b3bb9daa9791bc02994e",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "xenoblade-chronicles-3-xc3recomp",
+        "game": "Xenoblade Chronicles 3",
+        "issue": 3025,
+        "repository": "yopzman/XC3Recomp",
+        "evidence_date": "2026-10-25T04:27:47.099Z",
+        "repository_pushed_at": "2026-10-25T02:50:17Z",
+        "archived": false,
+        "commit": "e4c41447bf7ed37123079582eadde406eba81abe",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-echoes-of-wisdom-eowrecomp-fedebuonco-nxrt",
+        "game": "The Legend of Zelda: Echoes of Wisdom",
+        "issue": 3026,
+        "repository": "fedebuonco/EoWRecomp",
+        "evidence_date": "2026-10-25T04:28:29.195Z",
+        "repository_pushed_at": "2026-10-23T22:21:39Z",
+        "archived": false,
+        "commit": "63e0aa0d664f8efd77f2414f348c55855ff8e3d9",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "pokemon-brilliant-diamond-udpre",
+        "game": "Pokémon Brilliant Diamond (Nintendo Switch)",
+        "issue": 3027,
+        "repository": "u2-bot/uDPRE",
+        "evidence_date": "2026-10-25T03:53:27.249Z",
+        "repository_pushed_at": "2026-10-23T13:51:35Z",
+        "archived": false,
+        "commit": "415ddb3bab99aa7f34fc75eac35607866a2db60c",
+        "public_releases": 3,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-tears-of-the-kingdom-totk-mobile-ojzen",
+        "game": "The Legend of Zelda: Tears of the Kingdom",
+        "issue": 3028,
+        "repository": "OJZen/totk-mobile",
+        "evidence_date": "2026-10-25T04:33:48.565Z",
+        "repository_pushed_at": "2026-10-21T01:59:36Z",
+        "archived": false,
+        "commit": "6d4c1d36c67c71fa303404c475c4c7ba4a7f2823",
+        "public_releases": 0,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "the-legend-of-zelda-tears-of-the-kingdom-remarkable-net6962-private",
+        "game": "The Legend of Zelda: Tears of the Kingdom",
+        "issue": 3029,
+        "repository": null,
+        "evidence_date": "2026-10-25T04:51:51.372613+00:00",
+        "repository_pushed_at": "Unknown: no attributable public repository snapshot",
+        "archived": null,
+        "commit": null,
+        "public_releases": null,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "bayonetta-3-yakiritzhaki-private",
+        "game": "Bayonetta 3",
+        "issue": 3030,
+        "repository": null,
+        "evidence_date": "2026-10-25T04:51:51.372613+00:00",
+        "repository_pushed_at": "Unknown: no attributable public repository snapshot",
+        "archived": null,
+        "commit": null,
+        "public_releases": null,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      },
+      {
+        "id": "tomodachi-life-living-the-dream-tomodachi-life-ios-herrtenma",
+        "game": "Tomodachi Life: Living the Dream",
+        "issue": 3073,
+        "repository": "herrtenma/tomodachi-life-ios",
+        "evidence_date": "2026-10-25T04:04:03.024Z",
+        "repository_pushed_at": "2026-10-23T20:45:33Z",
+        "archived": false,
+        "commit": "0f9a7b064d277ae4608a6bafee928ab299fe445a",
+        "public_releases": 1,
+        "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
+      }
+    ]
   }
 }
