@@ -25,11 +25,104 @@ import {
   prepareArtworkBatch,
   portablePreparationFeedback,
   downloadPreparationFeedback,
+  canonicalPreparationFeedback,
 } from "./prepare-port.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import type { ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+
+void test("canonical preparation exposes the exact specification without deriving acquisition authority", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "fixture",
+      name: "Fixture",
+      summary: "Fixture",
+      project_url: "https://github.com/example/fixture",
+      issue_number: 156,
+      download_block_reason: "Retain the reviewed exact acquisition condition.",
+    },
+  };
+  const before = structuredClone(record);
+  const body =
+    "## Scope\nExisting acquisition condition remains unresolved.\nDo not infer a grant from a published archive.\n";
+  const feedback = canonicalPreparationFeedback(record, {
+    observations: [
+      {
+        endpoint: "https://api.github.com/repos/boburning/portcove/issues/156",
+        status: "reused",
+        observed_at: "2026-10-25T00:00:00Z",
+        body: { body },
+      },
+    ],
+  })!;
+  assert.equal(feedback.specification.status, "observed");
+  assert.equal(feedback.specification.body_sha256, createHash("sha256").update(body).digest("hex"));
+  assert.equal(feedback.specification.observed_at, "2026-10-25T00:00:00Z");
+  assert.match(feedback.specification.location, /files.upstream/);
+  assert.equal(feedback.authored_acquisition_condition, before.listing.download_block_reason);
+  assert.match(feedback.next, /complete retained canonical specification/);
+  assert.match(feedback.scope, /No prose is classified/);
+  assert.deepEqual(record, before);
+  const changed = canonicalPreparationFeedback(record, {
+    observations: [
+      {
+        endpoint: "https://api.github.com/repos/boburning/portcove/issues/156",
+        status: "observed",
+        body: { body: body + "Changed condition." },
+      },
+    ],
+  })!;
+  assert.notEqual(changed.specification.body_sha256, feedback.specification.body_sha256);
+  assert.equal(changed.authored_acquisition_condition, feedback.authored_acquisition_condition);
+});
+
+void test("canonical preparation keeps absent, unrelated and unavailable context explicit", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "fixture",
+      name: "Fixture",
+      summary: "Fixture",
+      project_url: "https://github.com/example/fixture",
+      issue_number: 156,
+    },
+  };
+  for (const observations of [
+    [],
+    [
+      {
+        endpoint: "https://api.github.com/repos/boburning/portcove/issues/157",
+        status: "observed" as const,
+        body: { body: "unrelated" },
+      },
+    ],
+    [
+      {
+        endpoint: "https://api.github.com/repos/boburning/portcove/issues/156",
+        status: "unavailable" as const,
+        reason: "provider-backoff",
+      },
+    ],
+    [
+      {
+        endpoint: "https://api.github.com/repos/boburning/portcove/issues/156",
+        status: "observed" as const,
+        body: { body: "PR", pull_request: {} },
+      },
+    ],
+  ]) {
+    const feedback = canonicalPreparationFeedback(record, { observations })!;
+    assert.equal(feedback.specification.status, "not-observed");
+    assert.equal(feedback.specification.body_sha256, null);
+    assert.equal(feedback.authored_acquisition_condition, null);
+    assert.match(feedback.next, /Roadmap context or prepare with --issue/);
+  }
+  const unowned = structuredClone(record);
+  delete unowned.listing.issue_number;
+  assert.equal(canonicalPreparationFeedback(unowned, { observations: [] }), undefined);
+});
 
 void test("portable preparation separates complete hint observations from lifecycle qualification", () => {
   const record: AuthoredPort = {
@@ -844,6 +937,20 @@ void test("preparation resolves related downloads from stable ID and canonical i
         },
       });
       assert.equal(result.report.port_id, record.listing.id);
+      if (route === "issue") {
+        const feedback = result.report.canonical_preparation!;
+        assert.equal(feedback.specification.status, "observed");
+        assert.equal(
+          feedback.specification.facts_endpoint,
+          `https://api.github.com/repos/boburning/portcove/issues/${record.listing.issue_number}`,
+        );
+        const specification = `<!-- portcove-port-key: ${record.listing.id} -->\n<!-- portcove-upstream: ${record.listing.project_url} -->`;
+        assert.equal(
+          feedback.specification.body_sha256,
+          createHash("sha256").update(specification).digest("hex"),
+        );
+      }
+
       const facts = JSON.parse(readFileSync(result.report.files.upstream, "utf8")) as {
         repository: string;
         release_repository: string;

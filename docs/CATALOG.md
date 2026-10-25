@@ -1522,6 +1522,17 @@ explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailab
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
 
+When a record names a canonical issue, `canonical_preparation` points to its exact
+retained specification in `files.upstream`, with the observed timestamp and UTF-8
+body SHA-256, or explicitly says that it was not observed. Read the complete
+specification and relevant Roadmap context before deciding route, lineage,
+acquisition conditions or deferrals. `--issue` uses the existing bounded issue
+read; record/project preparation does not gain a new request or approval gate.
+This feedback does not infer permission, a hold, support or ownership from prose.
+An already published package and technical fit do not resolve an existing named
+condition. Carry a reviewed operation condition through the existing
+`download_block_reason` contract where applicable.
+
 For a proposed `native-portable` record, the completion receipt also shows literal
 package-hint matches among the supported ZIP/tar.gz/tgz archives for each declared platform, whether each matching asset has
 a published SHA-256, and whether the selected release's asset enumeration is
