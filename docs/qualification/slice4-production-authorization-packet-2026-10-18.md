@@ -1,5 +1,7 @@
 # Slice 4 protected execution and custody decision packet
 
+The [Windows controller-tool bootstrap preparation](slice4-hosted-observations-2026-10-22.md#windows-controller-tool-bootstrap-preparation-october-25) adds explicit Windows build/inventory and ordinary credential-free hosted qualification. Existing Linux/default protected receivers remain closed to Windows; platform-bound producer/runtime/capture integration and actual protected resource fit remain prerequisites. This changes no protected job, resource ceiling, authority or execution grant; production stays held.
+
 The [attested Linux WebDriver preparation](slice4-hosted-observations-2026-10-22.md#attested-linux-webdriver-preparation-october25) adds the existing maintained driver pin to the closed trusted-tool build and admitted archive, with actual pinned-build/help/refusal verification before delivery. It selects no new authority, job, resource allowance or execution grant. Native runtime installation/capture composition and actual acceptance remain pending; production stays held.
 
 ## October25 selected standard Windows evidence boundary

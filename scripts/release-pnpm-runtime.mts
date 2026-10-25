@@ -14,13 +14,23 @@ export const nativePnpmArchive = Object.freeze({
   integrity:
     "sha512-F6K8e/jWxiuEYJaQtRRUG9ynBSTEHa+t7Lf86MKuOO5UA7WVVMbi+oB8nY6iKW++ncWS2yG6T9faXZGxqNsfoQ==",
 });
+export const nativeWindowsPnpmArchive = Object.freeze({
+  url: "https://registry.npmjs.org/@pnpm/exe.win32-x64/-/exe.win32-x64-12.14.0.tgz",
+  integrity:
+    "sha512-/LSX6mew/sLf08XqcjemuklNKf1K/Ftpgj4//hK/HKzI2dKbmxDB27a/2OaQ5a0O3/3OFzlssXDziZsi+yVBwQ==",
+});
+export type NativePnpmPlatform = "linux-x86_64" | "windows-x86_64";
+function packageProfile(platform: NativePnpmPlatform) {
+  assert.ok(platform === "linux-x86_64" || platform === "windows-x86_64");
+  return platform === "linux-x86_64"
+    ? { archive: nativePnpmArchive, name: "@pnpm/exe.linux-x64", binary: "package/pnpm" }
+    : {
+        archive: nativeWindowsPnpmArchive,
+        name: "@pnpm/exe.win32-x64",
+        binary: "package/pnpm.exe",
+      };
+}
 const maximum = 64 * 1024 ** 2;
-const names = [
-  "package/LICENSE",
-  "package/pnpm",
-  "package/package.json",
-  "package/THIRD-PARTY-NOTICES.md",
-];
 export function inspectNativeDependencyWorkspace(bytes: Buffer) {
   assert.ok(bytes.length > 0 && bytes.length <= 65536);
   const doc = parseDocument(new TextDecoder("utf-8", { fatal: true }).decode(bytes), {
@@ -126,7 +136,17 @@ function octal(bytes: Buffer) {
 
 /** Raw headers are validated before reading any payload. No TAR library can
  * preprocess extension/PAX/long-name/link records before these bounds. */
-export function inspectNativePnpmTar(decoded: Buffer) {
+export function inspectNativePnpmTar(
+  decoded: Buffer,
+  platform: NativePnpmPlatform = "linux-x86_64",
+) {
+  const profile = packageProfile(platform);
+  const names = [
+    "package/LICENSE",
+    profile.binary,
+    "package/package.json",
+    "package/THIRD-PARTY-NOTICES.md",
+  ];
   assert.ok(decoded.length <= maximum && decoded.length >= 1536 && decoded.length % 512 === 0);
   const files = new Map<string, Buffer>();
   let offset = 0;
@@ -155,8 +175,11 @@ export function inspectNativePnpmTar(decoded: Buffer) {
     assert.equal(checksum, octal(header.subarray(148, 156)), "pnpm TAR checksum differs");
     const size = octal(header.subarray(124, 136)),
       mode = octal(header.subarray(100, 108));
-    assert.ok(size > 0 && size <= (name === "package/pnpm" ? maximum - 16384 : 65536));
-    assert.ok(mode <= 0o777 && (name !== "package/pnpm" || (mode & 0o100) !== 0));
+    assert.ok(size > 0 && size <= (name === profile.binary ? maximum - 16384 : 65536));
+    assert.ok(
+      mode <= 0o777 &&
+        (platform !== "linux-x86_64" || name !== profile.binary || (mode & 0o100) !== 0),
+    );
     const start = offset + 512,
       end = start + size,
       padded = start + Math.ceil(size / 512) * 512;
@@ -176,15 +199,28 @@ export function inspectNativePnpmTar(decoded: Buffer) {
   );
   const metadata: unknown = JSON.parse(files.get("package/package.json")!.toString("utf8"));
   assert.ok(
-    isRecord(metadata) &&
-      metadata.name === "@pnpm/exe.linux-x64" &&
-      metadata.version === nativePnpmVersion,
+    isRecord(metadata) && metadata.name === profile.name && metadata.version === nativePnpmVersion,
   );
-  const binary = files.get("package/pnpm")!;
-  assert.ok(
-    binary.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])),
-    "pnpm ELF route differs",
-  );
+  const binary = files.get(profile.binary)!;
+  if (platform === "linux-x86_64") {
+    assert.ok(
+      binary.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])),
+      "pnpm ELF route differs",
+    );
+  } else {
+    assert.ok(
+      binary.length >= 64 && binary.subarray(0, 2).toString("ascii") === "MZ",
+      "pnpm PE route differs",
+    );
+    const offset = binary.readUInt32LE(60);
+    assert.ok(offset >= 64 && offset <= binary.length - 26, "pnpm PE header exceeds bound");
+    assert.ok(
+      binary.subarray(offset, offset + 4).equals(Buffer.from([0x50, 0x45, 0, 0])) &&
+        binary.readUInt16LE(offset + 4) === 0x8664 &&
+        binary.readUInt16LE(offset + 24) === 0x20b,
+      "pnpm Windows x64 image differs",
+    );
+  }
   return {
     binary,
     license: files.get("package/LICENSE")!,
@@ -192,25 +228,30 @@ export function inspectNativePnpmTar(decoded: Buffer) {
   };
 }
 
-export function inspectNativePnpmArchive(archive: Buffer) {
+export function inspectNativePnpmArchive(
+  archive: Buffer,
+  platform: NativePnpmPlatform = "linux-x86_64",
+) {
+  const profile = packageProfile(platform);
   assert.ok(
     archive.length > 0 && archive.length <= 32 * 1024 ** 2,
     "pnpm compressed archive exceeds bound",
   );
   assert.equal(
     `sha512-${createHash("sha512").update(archive).digest("base64")}`,
-    nativePnpmArchive.integrity,
+    profile.archive.integrity,
     "pinned pnpm archive differs",
   );
-  return inspectNativePnpmTar(gunzipSync(archive, { maxOutputLength: maximum }));
+  return inspectNativePnpmTar(gunzipSync(archive, { maxOutputLength: maximum }), platform);
 }
 
 /** One fixed GET, no redirects, credentials, retry or ambient registry config. */
-export async function acquireNativePnpm() {
+export async function acquireNativePnpm(platform: NativePnpmPlatform = "linux-x86_64") {
+  const profile = packageProfile(platform);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
-    const response = await fetch(nativePnpmArchive.url, {
+    const response = await fetch(profile.archive.url, {
       redirect: "error",
       signal: controller.signal,
       headers: { "accept-encoding": "identity" },
@@ -227,7 +268,7 @@ export async function acquireNativePnpm() {
       assert.ok(size <= 32 * 1024 ** 2, "pnpm download exceeds bound");
       chunks.push(Buffer.from(value));
     }
-    return inspectNativePnpmArchive(Buffer.concat(chunks, size));
+    return inspectNativePnpmArchive(Buffer.concat(chunks, size), platform);
   } finally {
     controller.abort();
     clearTimeout(timer);
@@ -243,12 +284,19 @@ export async function qualifyNativePnpmRuntime(
   await mkdir(directory, { mode: 0o700 });
   const environment = {
     HOME: directory,
+    USERPROFILE: directory,
+    TEMP: directory,
+    TMP: directory,
     TMPDIR: directory,
-    PATH: `${nodeDirectory}:/usr/bin:/bin`,
+    SystemRoot: process.platform === "win32" ? process.env.SystemRoot : undefined,
+    PATH:
+      process.platform === "win32"
+        ? `${nodeDirectory};${process.env.SystemRoot}\\System32`
+        : `${nodeDirectory}:/usr/bin:/bin`,
     CI: "true",
     COREPACK_ENABLE_NETWORK: "0",
-    npm_config_userconfig: "/dev/null",
-    npm_config_globalconfig: "/dev/null",
+    npm_config_userconfig: process.platform === "win32" ? "NUL" : "/dev/null",
+    npm_config_globalconfig: process.platform === "win32" ? "NUL" : "/dev/null",
   };
   const version = spawnSync(executable, ["--version"], {
     cwd: directory,
