@@ -6,6 +6,8 @@
     "scripts/container-entry.{mjs,mts}",
     "scripts/container-build-entry.{mjs,mts}",
     "scripts/rust-test-tree-supervisor.{mjs,mts}",
+    "scripts/rust-coverage.mts",
+    "scripts/qualification-nextest.mts",
     "scripts/viteplus-renovate-probe.{mjs,mts}",
     "scripts/generate-catalog.{mjs,mts}",
     "scripts/prepare-port.mts",
