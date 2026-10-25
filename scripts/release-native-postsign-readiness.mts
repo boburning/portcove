@@ -12,16 +12,17 @@ export function inspectNativePostSignReadiness(raw: unknown, run: string, revisi
   assert.match(run, /^[1-9][0-9]{0,15}$/u);
   assert.match(revision, /^[a-f0-9]{40}$/u);
   assert.ok(isRecord(raw) && Array.isArray(raw.jobs));
+  const jobs: unknown[] = raw.jobs;
   assert.ok(Number.isSafeInteger(raw.total_count) && Number(raw.total_count) > 0);
-  assert.ok(Number(raw.total_count) <= 100 && raw.jobs.length === raw.total_count);
+  assert.ok(Number(raw.total_count) <= 100 && jobs.length === raw.total_count);
   const ids = new Set<number>();
-  for (const job of raw.jobs) {
+  for (const job of jobs) {
     assert.ok(isRecord(job) && Number.isSafeInteger(job.id) && Number(job.id) > 0);
     assert.ok(!ids.has(Number(job.id)), "duplicate native prerequisite job identity");
     ids.add(Number(job.id));
   }
   return requiredNames.map((name) => {
-    const matches = raw.jobs.filter((job) => isRecord(job) && job.name === name);
+    const matches = jobs.filter((job) => isRecord(job) && job.name === name);
     assert.ok(matches.length <= 1, "ambiguous native prerequisite job");
     if (!matches.length) return { name, status: "not-yet-observed" };
     const job = matches[0];
