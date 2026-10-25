@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-legends-z-a-pokez-arecomp",
+    "name": "Pokémon Legends: Z-A (PokeZ-ARecomp)",
+    "summary": "Experimental AArch64 to C/x64 static runtime NVN/Vulkan, LAS-derived; no runtime emulator claimed. Upstream maturity: Only Windows/NVIDIA observed; partial Lumiose exploration/battles, no full completion established; black flashes/night wall stripes. Save version conversion caveat. Acquisition: Actual Windows ZIP launcher contains game-free runtime/generator/importer/compiler by root claim; own package locally imported/recompiled once. Platforms: Windows10v1903+/11 x64 Vulkan1.3, AVX2 preferred; SSE4.2 older CPU slower fallback. Linux/Mac inherited builds untested for Z-A. Original data: Own baseXCI/NSP1.0.0, optional2.0.0update and owned DLC, prod.keys/title.keys. Firmware fonts optional: Windows fallback font otherwise missing button icons.2.0.0 saves do not load on1.0.0; back up before conversion. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Pokémon Legends: Z-A",
+    "project_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
+    "artwork": {
+      "game_id": 288327,
+      "cover_id": 462648,
+      "image_id": "co9wzc",
+      "image_sha256": "b731dd3b6d01317ffbc27d55c098d05ef340f5c6305a4fd46cc9d39bdc703866",
+      "game_slug": "pokemon-legends-z-a",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2959
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-legends-z-a-pokez-arecomp",
+    "origin": {
+      "project_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429177873"
+      }
+    },
+    "decisions": []
+  }
+}

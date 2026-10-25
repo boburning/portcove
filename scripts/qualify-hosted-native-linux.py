@@ -77,6 +77,10 @@ def bounded_process(arguments, timeout, environment=None):
         settled = True
         original_fence()
         return subprocess.CompletedProcess(arguments, code, bytes(streams["out"]), bytes(streams["err"]))
+    except BaseException as error:
+        error.hosted_stdout = bytes(streams["out"])
+        error.hosted_stderr = bytes(streams["err"])
+        raise
     finally:
         selector.close()
         if not settled:
@@ -774,7 +778,55 @@ def probe(lifetime=None):
 
 
 def prepare():
-    return prepare_for_original_hosted_parent(Path(__file__).resolve().parent.parent, hosted_context(os.environ))
+    root = Path(__file__).resolve().parent.parent
+    context = hosted_context(os.environ)
+    prepare_runtime_inputs_for_fixture(root, context)
+    return prepare_for_original_hosted_parent(root, context)
+
+
+def prepare_runtime_inputs_for_fixture(root, context):
+    """Actual fixed input preparation, with ordinary diagnostic scope only."""
+    git = verified_diagnostic_source(root, context)
+    source = root / "scripts/prepare-hosted-native-linux-installation.py"
+    expected = git("show", context["GITHUB_SHA"] + ":scripts/prepare-hosted-native-linux-installation.py", binary=True)
+    need(len(expected) <= 65536, "committed runtime input helper exceeds bound")
+    wanted = hashlib.sha256(expected).hexdigest()
+    need(file_hash(source) == wanted, "runtime input helper differs from exact committed source")
+    with source.open("rb") as handle:
+        code = handle.read(65537)
+    need(len(code) <= 65536 and hashlib.sha256(code).hexdigest() == wanted,
+         "runtime input helper changed or exceeds bound")
+    pid = os.getpid()
+    fields = Path(f"/proc/{pid}/stat").read_text().rpartition(") ")[2].split()
+    boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    plan = {"schema_version": 1, "binding": hashlib.sha256(encode({"context": context,
+            "source_sha256": wanted, "scope": "ordinary-hosted-runtime-input-fixture"})).hexdigest(),
+            "broker_uid": os.getuid(), "broker_pid": pid, "broker_identity": f"linux:{boot}:{pid}:{fields[19]}",
+            "deadline_ns": str(time.monotonic_ns() + 90_000_000_000), "context": context}
+    work = root / "work"
+    work.mkdir(mode=0o700, exist_ok=True)
+    info = work.lstat()
+    need(work.resolve(strict=True) == work and stat.S_ISDIR(info.st_mode) and info.st_uid == os.getuid()
+         and not info.st_mode & 0o022, "fixed fixture work parent differs")
+    retain(work / "hosted-linux-runtime-input-fixture-intent.json", {"source_sha256": wanted, "plan": plan,
+           "scope": "ordinary-hosted-runtime-input-fixture", "authority": "none", "automatic_retry": False})
+    try:
+        reply = bounded_process(["/usr/bin/sudo", "-n", "--", "/usr/bin/python3", "-I", "-S", "-B", "-c",
+                                 code.decode("utf-8"), "--runtime-packages", json.dumps(plan)], 95)
+    except BaseException as error:
+        retain(work / "hosted-linux-runtime-input-fixture.json", {
+            "scope": "ordinary-hosted-runtime-input-fixture", "source_sha256": wanted, "context": context,
+            "failure": str(error)[:1024], "prepared": None, "partial_effects": "unknown",
+            "stdout": getattr(error, "hosted_stdout", b"").decode("utf-8", "replace"),
+            "stderr": getattr(error, "hosted_stderr", b"").decode("utf-8", "replace"),
+            "authority": "none", "automatic_retry": False})
+        raise
+    retain(root / "work/hosted-linux-runtime-input-fixture.json", {
+        "scope": "ordinary-hosted-runtime-input-fixture", "source_sha256": wanted, "context": context,
+        "exit_code": reply.returncode, "stdout": reply.stdout.decode("utf-8", "replace"),
+        "stderr": reply.stderr.decode("utf-8", "replace"), "authority": "none", "automatic_retry": False})
+    need(reply.returncode == 0 and json.loads(reply.stdout).get("prepared") is True,
+         "actual fixed runtime inputs refused; retain partial effects and original result")
 
 
 def controller_pins(root, source_pins=None):
@@ -787,6 +839,19 @@ def controller_pins(root, source_pins=None):
     return pins
 
 
+def verified_diagnostic_source(root, context):
+    need(os.getuid() > 0, "ordinary hosted broker required")
+    env = {**ENV, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_NO_REPLACE_OBJECTS": "1",
+           "GIT_NO_LAZY_FETCH": "1", "GIT_TERMINAL_PROMPT": "0"}
+    def git(*arguments, binary=False):
+        data = command(["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+                        "-c", "protocol.allow=never", "-C", str(root), *arguments], environment=env)
+        return data if binary else data.decode().strip()
+    need(git("rev-parse", "HEAD") == context["GITHUB_SHA"] and not git("status", "--porcelain", "--untracked-files=no"),
+         "exact clean diagnostic source required")
+    return git
+
+
 def prepare_for_original_hosted_parent(root, context, lifetime=None, source_pins=None):
     """Inert primitives only. The external authenticated parent owns provenance.
 
@@ -796,15 +861,9 @@ def prepare_for_original_hosted_parent(root, context, lifetime=None, source_pins
     global LIFETIME
     LIFETIME = lifetime
     original_fence()
-    need(os.getuid() > 0, "ordinary hosted broker required")
     root = Path(root)
     context = dict(context)
-    env = {**ENV, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_NO_REPLACE_OBJECTS": "1"}
-    def git(*arguments):
-        return command(["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
-                        "-C", str(root), *arguments], environment=env).decode().strip()
-    need(git("rev-parse", "HEAD") == context["GITHUB_SHA"] and not git("status", "--porcelain", "--untracked-files=no"),
-         "exact clean diagnostic source required")
+    git = verified_diagnostic_source(root, context)
     need('ID=ubuntu' in Path("/etc/os-release").read_text()
          and 'VERSION_ID="24.04"' in Path("/etc/os-release").read_text(), "actual Ubuntu24.04 required")
     pins = controller_pins(root, source_pins)

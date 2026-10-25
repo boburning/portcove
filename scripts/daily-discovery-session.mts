@@ -58,11 +58,20 @@ import {
   parseLeadState,
   pendingLeads,
   leadPageSize,
+  leadFamilyIds,
+  advanceLeadFamily,
+  leadSearchFamilyCount,
   retainLeadResults,
   LeadSearchChanged,
   restartLeadSlice,
 } from "./discovery-leads.mts";
 import type { LeadState } from "./discovery-leads.mts";
+import { ecosystemBursts } from "./discovery-ecosystems.mts";
+import { readCatalogSource } from "./catalog-authoring.mts";
+import type { AuthoredPort } from "./catalog-authoring.mts";
+import { fileURLToPath } from "node:url";
+import { assertDiscoveryIntakeIdentity, discoveryGameKey } from "./discovery-intake-identity.mts";
+import type { ReviewedDiscoveryIdentity } from "./discovery-reconciliation.mts";
 
 interface Candidate {
   id: string;
@@ -70,6 +79,8 @@ interface Candidate {
   title: string;
   upstream: string;
   portKey: string;
+  game?: string;
+  identity_kind?: ReviewedDiscoveryIdentity["kind"];
   issue?: number;
   body: string;
   body_sha256: string;
@@ -158,6 +169,8 @@ const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =
     selected: v.fingerprint,
     releases: releaseFingerprint(v.releases),
     readme_blob: v.readme.blob,
+    manifest: v.manifest ?? null,
+    manifest_evidence: v.manifest_evidence,
   });
 const material = discoveryMaterial;
 export function discoveryInventoryCost(inventory: RoadmapInventory) {
@@ -237,6 +250,7 @@ export function validateDiscoveryIntakeBody(body: string, upstream: string, port
     );
 }
 export class DiscoverySession {
+  private intakeRecords?: AuthoredPort[];
   inventory!: RoadmapInventory;
   checkpoint: DiscoveryCheckpoint;
   readonly journal: Journal;
@@ -625,6 +639,8 @@ export class DiscoverySession {
         throw new Error("Lead repository relocation needs continuity review");
       lead.status = "researched";
       lead.research = { evidence_id: id, file, material: fingerprint };
+      if (data.manifest) lead.manifest = data.manifest;
+      else delete lead.manifest;
       if (!this.knownLeadUrls().has(lead.url.toLowerCase())) this.researchedLeads.add(lead.id);
     }
     this.persist();
@@ -667,6 +683,7 @@ export class DiscoverySession {
     const pending = this.inventory ? pendingLeads(this.leads, this.knownLeadUrls()) : undefined;
     return {
       searched_pages: this.leadPages,
+      pending_families: leadFamilyIds.filter((id) => !this.leadFamilies?.has(id)),
       observed_families: [...(this.leadFamilies ?? [])],
       deferred_families: [...(this.deferredLeadFamilies ?? [])],
       investigated: [...this.researchedLeads],
@@ -674,6 +691,7 @@ export class DiscoverySession {
       pending: pending?.length ?? null,
       next: pending?.slice(0, 12) ?? [],
       continuations: this.leads.slices,
+      ecosystem_bursts: ecosystemBursts(Object.values(this.leads.records), this.journal.started_at),
       scope: "Bounded GitHub lead searches; not complete community discovery",
     };
   }
@@ -682,15 +700,15 @@ export class DiscoverySession {
     this.leadCollectionAttempted = true;
     this.leadFamilies ??= new Set();
     this.deferredLeadFamilies ??= new Set();
-    for (let turn = 0; turn < 6 && this.searches < 6; turn++) {
+    for (let turn = 0; turn < leadSearchFamilyCount * 6 && this.searches < 6; turn++) {
       const plan = nextLeadPage(this.leads, this.journal.started_at);
       if (this.deferredLeadFamilies.has(plan.family)) {
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         continue;
       }
       if (plan.current) {
         this.leadFamilies.add(plan.family);
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         continue;
       }
       if (plan.capped) {
@@ -702,7 +720,7 @@ export class DiscoverySession {
           resume:
             "Narrow this capped time slice before a fresh bounded search; no complete coverage claim",
         });
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         this.persist();
         continue;
       }
@@ -719,10 +737,16 @@ export class DiscoverySession {
       this.budget.admit(1, 1);
       const response = this.source.api.request(
         "GET",
-        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}`,
+        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}${plan.sort ? `&sort=${plan.sort}&order=desc` : ""}`,
       );
       const name = `lead-search-${++this.searches}`;
-      this.save(name, { ...object(response.body), query: plan.query, page: plan.page });
+      this.save(name, {
+        ...object(response.body),
+        query: plan.query,
+        sort: plan.sort ?? "best-match",
+        order: plan.sort ? "desc" : undefined,
+        page: plan.page,
+      });
       try {
         this.leads = acceptLeadPage(
           this.leads,
@@ -739,11 +763,12 @@ export class DiscoverySession {
           object(response.body).items as unknown[],
           this.journal.started_at,
           path.join(this.runDir, `${name}.json`),
+          plan.family,
         );
         this.leads = restartLeadSlice(this.leads, plan, errorMessage(error));
         this.leadFamilies.add(plan.family);
         this.deferredLeadFamilies.add(plan.family);
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         this.journal.notes.push({
           phase: "lead-search",
           status: "partial",
@@ -882,15 +907,32 @@ export class DiscoverySession {
     const key = text(v.portKey);
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(key) || key.length > 100)
       throw new Error("Invalid durable target key");
+    if (
+      v.game !== undefined &&
+      (typeof v.game !== "string" || !v.game.trim() || v.game.length > 256)
+    )
+      throw new Error("Invalid reviewed game identity");
+    if (
+      v.identity_kind !== undefined &&
+      (typeof v.identity_kind !== "string" ||
+        !["implementation", "helper", "framework"].includes(v.identity_kind))
+    )
+      throw new Error("Invalid reviewed architecture disposition");
     const id = observationHash({
       kind: v.kind,
       upstream: upstream.href,
       key,
       evidence: evidenceHash,
       issue: v.issue,
+      game: v.game,
+      identity_kind: v.identity_kind,
     });
     if (this.journal.candidates[id]) return this.journal.candidates[id];
-    const marked = `<!-- portcove-discovery-${v.kind}:${id} -->\n\n${body}`;
+    const identityMarker =
+      v.kind === "intake"
+        ? `\n<!-- portcove-discovery-identity:${observationHash({ game: v.game ?? null, kind: v.identity_kind ?? "implementation" })} -->`
+        : "";
+    const marked = `<!-- portcove-discovery-${v.kind}:${id} -->${identityMarker}\n\n${body}`;
     if (v.kind === "intake") {
       validateDiscoveryIntakeBody(marked, upstream.href, key);
     }
@@ -905,6 +947,10 @@ export class DiscoverySession {
       evidence_ids: evidenceIds,
       evidence_sha256: evidenceHash,
       status: "needs-review",
+      ...(typeof v.game === "string" ? { game: v.game } : {}),
+      ...(v.identity_kind !== undefined
+        ? { identity_kind: v.identity_kind as ReviewedDiscoveryIdentity["kind"] }
+        : {}),
     };
     if (v.pending_ids !== undefined) {
       if (
@@ -927,6 +973,7 @@ export class DiscoverySession {
       )
     )
       throw new Error("Candidate upstream is not bound to investigated identity");
+    if (candidate.kind === "intake") this.assertIntakeIdentity(candidate);
     const reserve = discoveryDeliveryCost(
       this.inventory,
       [
@@ -969,6 +1016,60 @@ export class DiscoverySession {
     this.save(`candidate-${id}`, candidate);
     this.persist();
     return candidate;
+  }
+  assertIntakeIdentity(
+    candidate: Candidate,
+    records = (this.intakeRecords ??= readCatalogSource(
+      fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+    ).records),
+  ) {
+    const markers = candidate.body.match(/<!-- portcove-discovery-identity:[^>]*-->/gu) ?? [];
+    const expected = `<!-- portcove-discovery-identity:${observationHash({ game: candidate.game ?? null, kind: candidate.identity_kind ?? "implementation" })} -->`;
+    if (
+      markers.length > 1 ||
+      (markers.length === 1 && markers[0] !== expected) ||
+      (!markers.length && (candidate.game !== undefined || candidate.identity_kind !== undefined))
+    )
+      throw new Error(
+        "Reviewed body does not bind the game/architecture identity; propose and review again",
+      );
+    const primary = candidate.evidence_ids
+      .map((id) => this.journal.evidence[id])
+      .filter(
+        (value) =>
+          value &&
+          !value.url &&
+          value.repository.toLowerCase() ===
+            new URL(candidate.upstream).pathname.slice(1).toLowerCase(),
+      )
+      .map((value) => object(JSON.parse(readFileSync(value!.file, "utf8"))));
+    if (
+      primary.some(
+        (value) =>
+          repoName(object(value.metadata).full_name).toLowerCase() !==
+          new URL(candidate.upstream).pathname.slice(1).toLowerCase(),
+      )
+    )
+      throw new Error("Primary repository identity no longer matches reviewed upstream");
+    const ids = [...new Set(primary.map((value) => object(value.metadata).id))];
+    if (
+      ids.length !== 1 ||
+      typeof ids[0] !== "number" ||
+      !Number.isSafeInteger(ids[0]) ||
+      ids[0] <= 0
+    )
+      throw new Error("Intake needs a primary-researched immutable repository identity");
+    return assertDiscoveryIntakeIdentity(
+      {
+        repository: new URL(candidate.upstream).pathname.slice(1),
+        repository_id: ids[0],
+        kind: candidate.identity_kind ?? "implementation",
+        ...(candidate.game ? { game_key: discoveryGameKey(candidate.game) } : {}),
+      },
+      this.inventory.issues,
+      records,
+      Object.values(this.leads.records),
+    );
   }
   review(raw: unknown) {
     const v = object(raw),
@@ -1318,7 +1419,8 @@ export class DiscoverySession {
       new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
     );
     return (
-      (this.leadPages >= 4 || this.leadFamilies?.size === 4) &&
+      (this.leadPages >= 4 ||
+        (this.leadFamilies?.size ?? 0) >= Math.min(6, leadSearchFamilyCount)) &&
       this.researchedLeads.size >= required
     );
   }
@@ -1432,6 +1534,7 @@ export class DiscoverySession {
               this.persist();
             }
           } else {
+            this.assertIntakeIdentity(c);
             if (matches.length)
               throw new Error(
                 "Canonical duplicate or independent-implementation conflict; capture held",

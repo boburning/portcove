@@ -78,7 +78,7 @@ jobs:
           FIXTURE_SOURCE_SHA: ${{ github.sha }}
         run: node scripts/qualify-controller-tool-build.mts
       - name: Exercise actual job-local disposable role channel and native runtime contracts on Linux
-        run: node --experimental-test-module-mocks --test --test-timeout=45000 scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-hosted-native-linux-capture.test.mts
+        run: node --experimental-test-module-mocks --test --test-timeout=45000 scripts/release-role-key-channel.test.mts scripts/release-hosted-native-runner.test.mts scripts/release-hosted-native-linux-capture.test.mts scripts/release-hosted-native-installation.test.mts
       - name: Retain only bounded public fixture evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

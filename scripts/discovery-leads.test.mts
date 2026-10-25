@@ -7,6 +7,8 @@ import {
   pendingLeads,
   restartLeadSlice,
   LeadSearchChanged,
+  leadSearchFamilyCount,
+  leadFamilyIds,
 } from "./discovery-leads.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
@@ -25,6 +27,218 @@ const page = (items: ReturnType<typeof item>[], total_count = items.length) => (
   total_count,
   incomplete_results: false,
   items,
+});
+void test("Switch searches preserve old pagination and carry their supported ordering contract", () => {
+  assert.deepEqual(leadFamilyIds.slice(0, 24), [
+    "new-recompiled",
+    "new-recomp",
+    "changed-recompilation",
+    "changed-native-port",
+    "ps2recomp",
+    "xboxrecomp",
+    "rexglue",
+    "ps3recomp",
+    "ps4-runtime",
+    "psprecomp",
+    "gcn-recomp",
+    "dolrecomp",
+    "psxrecomp",
+    "static-topic",
+    "xenonrecomp",
+    "psp-web-recomp",
+    "gcrecomp",
+    "nwii-recomp",
+    "xbox-xbe-recomp",
+    "rexglue-org",
+    "sp00nznet-owner",
+    "xbox-xbe-hyphen",
+    "rexglue-topic",
+    "xboxrecomp-topic",
+  ]);
+  let state = parseLeadState(undefined);
+  state = acceptLeadPage(
+    state,
+    nextLeadPage(state, now),
+    page(
+      Array.from({ length: 50 }, (_, i) => item(i + 1)),
+      51,
+    ),
+    now,
+    "old-page",
+  );
+  const retained = structuredClone(state.slices["new-recompiled"]);
+  const expected = [
+    "switch recomp",
+    '"Nintendo Switch" native',
+    "SwitchRecomp",
+    "topic:nintendo-switch topic:static-recompilation",
+  ];
+  for (let index = 24; index < leadSearchFamilyCount; index++) {
+    state.next_family = index;
+    const plan = nextLeadPage(state, now);
+    assert.match(plan.query, /pushed:.*fork:true$/u);
+    assert.ok(plan.query.startsWith(expected[index - 24]!));
+    assert.equal(plan.sort, "updated");
+    assert.match(plan.slice.terms!, /\[updated desc\] \[fork:true\]$/u);
+    // Same provider ID from multiple families remains one neutral research lead.
+    state = acceptLeadPage(
+      state,
+      plan,
+      page([item(900, "nxporting/nxport")]),
+      now,
+      `switch-${index}`,
+    );
+  }
+  assert.deepEqual(state.slices["new-recompiled"], retained);
+  assert.equal(Object.values(state.records).filter((r) => r.id === 900).length, 1);
+  assert.equal(state.records["900"]?.status, "pending");
+  assert.equal(parseLeadState(JSON.parse(JSON.stringify(state))).next_family, 0);
+  assert.equal(leadFamilyIds.length, 28);
+});
+void test("six-page runs rotate all 28 families across five runs and preserve pending windows and HTTP ordering", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-switch-rotation-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  let state = parseLeadState(undefined);
+  const requests: { family: string; page: number }[] = [];
+  for (let run = 0; run < 5; run++) {
+    const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+    const budget = new DiscoveryBudget("ordinary");
+    Object.assign(session, {
+      stateDir: root,
+      runDir: root,
+      journalFile: path.join(root, "journal.json"),
+      checkpoint: {},
+      checkpointPreimage: "fixture",
+      inventory: { issues: [] },
+      journal: {
+        format: 1,
+        started_at: new Date(Date.parse(now) + run * 86400000).toISOString(),
+        notes: [],
+        candidates: {},
+        evidence: {},
+      },
+      leads: state,
+      budget,
+      leadPages: 0,
+      searches: 0,
+      leadCollectionAttempted: false,
+      researchedLeads: new Set<number>(),
+      source: {
+        api: {
+          request: (_method: string, endpoint: string) => {
+            budget.charge("GET", endpoint, 1, 100, "200");
+            if (endpoint.includes("/releases?")) return { body: [] };
+            const plan = nextLeadPage(session.leads, session.journal.started_at);
+            const params = new URL(endpoint, "https://api.github.com/").searchParams;
+            assert.equal(params.get("q"), plan.query);
+            assert.equal(params.get("sort"), plan.sort ?? null);
+            assert.equal(params.get("order"), plan.sort ? "desc" : null);
+            assert.equal(params.get("per_page"), "50");
+            requests.push({ family: plan.family, page: plan.page });
+            const start = leadFamilyIds.indexOf(plan.family) * 1000 + (plan.page - 1) * 50 + 1;
+            return {
+              body: page(
+                Array.from({ length: 50 }, (_, i) => item(start + i)),
+                150,
+              ),
+            };
+          },
+        },
+      },
+    });
+    session.discover();
+    assert.equal(session.searches, 6);
+    const evidence = JSON.parse(readFileSync(path.join(root, "lead-search-1.json"), "utf8")) as {
+      sort: string;
+      query: string;
+    };
+    assert.equal(evidence.sort, run === 4 ? "updated" : "best-match");
+    state = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
+    assert.deepEqual(
+      session.leadSummary().pending_families,
+      leadFamilyIds.filter(
+        (id) => !requests.slice(run * 6, (run + 1) * 6).some((r) => r.family === id),
+      ),
+    );
+  }
+  assert.deepEqual(
+    requests.map((r) => r.family),
+    [...leadFamilyIds, ...leadFamilyIds.slice(0, 2)],
+  );
+  assert.deepEqual(
+    requests.slice(28).map((r) => r.page),
+    [2, 2],
+  );
+  assert.equal(state.slices["new-recompiled"]?.until, now);
+});
+void test("current, capped and typed-drift skips cannot hide a due Switch topic tail", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-switch-skips-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  let leads = parseLeadState(undefined);
+  leads = acceptLeadPage(
+    leads,
+    nextLeadPage(leads, now),
+    page(
+      Array.from({ length: 50 }, (_, i) => item(i + 1)),
+      51,
+    ),
+    now,
+    "prior",
+  );
+  for (let index = 1; index < leadSearchFamilyCount - 1; index++)
+    leads = acceptLeadPage(leads, nextLeadPage(leads, now), page([]), now, "current");
+  const capped = leads.slices[leadFamilyIds[2]!]!;
+  delete capped.completed_at;
+  capped.capped = true;
+  leads.next_family = 0;
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const requested: string[] = [];
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+    leads,
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: false,
+    researchedLeads: new Set<number>(),
+    source: {
+      api: {
+        request: (_method: string, endpoint: string) => {
+          budget.charge("GET", endpoint, 1, 100, "200");
+          if (endpoint.includes("/releases?")) return { body: [] };
+          const plan = nextLeadPage(session.leads, now);
+          requested.push(plan.family);
+          if (plan.family === "new-recompiled") return { body: page([item(99999)], 52) };
+          return {
+            body: page(
+              Array.from({ length: 50 }, (_, i) => item(1000 + (plan.page - 1) * 50 + i)),
+              300,
+            ),
+          };
+        },
+      },
+    },
+  });
+  session.discover();
+  assert.deepEqual(requested, [
+    "new-recompiled",
+    ...Array<string>(5).fill("changed-switch-topics"),
+  ]);
+  assert.equal(session.searches, 6);
+  assert.equal(session.leadPages, 5, "drifting page is never validated pagination");
+  assert.ok(session.deferredLeadFamilies.has("new-recompiled"));
+  assert.equal(session.leads.slices["new-recompiled"]?.page, 1);
+  assert.equal(session.leads.slices["changed-switch-topics"]?.page, 6);
+  assert.ok(session.leads.records["1"], "retained prior identity survives");
+  assert.ok(session.leads.records["99999"], "positive lead survives refused pagination");
+  assert.deepEqual(session.leads.records["99999"]?.search_families, ["new-recompiled"]);
 });
 for (const driftingFamilies of [1, 2, 4])
   void test(`${driftingFamilies} drifting search families cannot starve healthy searches and rotation`, (t) => {
@@ -79,13 +293,13 @@ for (const driftingFamilies of [1, 2, 4])
       },
     });
     session.discover();
-    assert.equal(requests.length, 4, "attempt all four independent families once");
+    assert.equal(requests.length, 6, "spend the six-page bound across independent families");
     assert.equal(
       requests.filter((r) => decodeURIComponent(r).includes("recompiled in:")).length,
       1,
       "never retry the drifting family in this session",
     );
-    assert.equal(session.leadPages, 4 - driftingFamilies, "refused page is not validated coverage");
+    assert.equal(session.leadPages, 6 - driftingFamilies, "refused page is not validated coverage");
     assert.equal(session.leads.slices["new-recompiled"]?.page, 1);
     assert.equal(session.leads.slices["new-recompiled"]?.completed_at, undefined);
     assert.equal(session.leads.records["1"]?.id, 1, "prior lead survives discarded pagination");
@@ -120,7 +334,7 @@ void test("Brawl missed by newest-ten remains discoverable and queued across pag
     now,
     "page1.json",
   );
-  for (let n = 0; n < 3; n++)
+  for (let n = 0; n < leadSearchFamilyCount - 1; n++)
     state = acceptLeadPage(state, nextLeadPage(state, now), page([]), now, "other.json");
   state = parseLeadState(JSON.parse(JSON.stringify(state)));
   const second = nextLeadPage(state, "2026-10-24T13:00:00Z");
@@ -189,11 +403,11 @@ void test("failed, truncated, drifting and duplicate search pages preserve the l
         now,
         "bad",
       ),
-    /relocation needs continuity/,
-    "count drift must not mask a provider identity relocation",
+    /count changed/,
+    "a same-ID rename does not excuse incomplete pagination",
   );
 });
-void test("query overlap deduplicates provider identities, preserves disposition and refuses relocation", () => {
+void test("query overlap deduplicates IDs, preserves disposition and requeues same-ID relocation", () => {
   let state = parseLeadState(undefined);
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "first");
   state.records["1"]!.status = "held";
@@ -201,17 +415,18 @@ void test("query overlap deduplicates provider identities, preserves disposition
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "second");
   assert.equal(Object.keys(state.records).length, 1);
   assert.equal(state.records["1"]!.status, "held");
-  assert.throws(
-    () =>
-      acceptLeadPage(
-        state,
-        nextLeadPage(state, now),
-        page([item(1, "other/game")]),
-        now,
-        "renamed",
-      ),
-    /relocation/,
+  const renamed = acceptLeadPage(
+    state,
+    nextLeadPage(state, now),
+    page([item(1, "other/game")]),
+    now,
+    "renamed",
   );
+  assert.equal(Object.keys(renamed.records).length, 1);
+  assert.equal(renamed.records["1"]?.repository, "other/game");
+  assert.deepEqual(renamed.records["1"]?.aliases, ["ports/game-1"]);
+  assert.equal(renamed.records["1"]?.status, "pending", "renew primary evidence after transfer");
+  assert.equal(state.records["1"]?.status, "held", "previous state is immutable");
   assert.throws(
     () =>
       acceptLeadPage(
@@ -381,8 +596,8 @@ void test("runner charges complementary pages, guards rotation and retains queue
   assert.equal("status" in session.recheck() ? "deferred" : "unexpected", "deferred");
   assert.equal(calls, 0);
   session.discover();
-  assert.equal(calls, 4);
-  assert.equal(budget.usage.requests, 8);
+  assert.equal(calls, 6);
+  assert.equal(budget.usage.requests, 10);
   assert.equal(
     session.leadWorkComplete(),
     false,
@@ -449,7 +664,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
   assert.equal(recovered.leads.records["2"]?.status, "held");
   assert.equal(recovered.leads.records["2"]?.research?.evidence_id, "retained-2");
   const restored = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
-  assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, 1);
+  assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, 3);
   const constrained = new DiscoveryBudget("ordinary");
   constrained.reserveDelivery(190, 1024);
   Object.assign(session, {
@@ -462,7 +677,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
     leads: parseLeadState(undefined),
   });
   session.discover();
-  assert.equal(calls, 4, "reserve refusal must happen before HTTP");
+  assert.equal(calls, 6, "reserve refusal must happen before HTTP");
   assert.equal(session.leadWorkComplete(), false);
 });
 void test("new window overlaps the completed interval and hints do not claim package usability", () => {
@@ -487,4 +702,65 @@ void test("new window overlaps the completed interval and hints do not claim pac
   state.next_family = 0;
   const next = nextLeadPage(state, "2026-10-24T13:00:00Z");
   assert.equal(next.slice.since, "2026-10-21T12:56:46.011Z");
+});
+
+void test("pre-integration Switch fork scope retires page two while published family cursors retain meaning", () => {
+  const state = parseLeadState(undefined);
+  state.next_family = 23;
+  assert.equal(
+    nextLeadPage(parseLeadState(JSON.parse(JSON.stringify(state))), now).family,
+    "xboxrecomp-topic",
+  );
+  state.next_family = 24;
+  const first = nextLeadPage(state, now);
+  state.slices[first.family] = {
+    ...first.slice,
+    page: 2,
+    seen: [111],
+    terms: first.slice.terms!.replace(" [fork:true]", ""),
+  };
+  const plan = nextLeadPage(parseLeadState(JSON.parse(JSON.stringify(state))), now);
+  assert.equal(plan.retired, true);
+  assert.equal(plan.page, 1);
+  assert.deepEqual(plan.slice.seen, []);
+  assert.match(plan.query, /fork:true$/u);
+  const accepted = acceptLeadPage(state, plan, page([]), now, "new-fork-scope");
+  assert.equal(accepted.retired_slices?.[first.family]?.page, 2);
+  assert.deepEqual(accepted.retired_slices?.[first.family]?.seen, [111]);
+  assert.equal(accepted.slices[first.family]?.completed_at, now);
+});
+void test("partial family effort requires six observed families and the same primary investigations", () => {
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  let leads = parseLeadState(undefined);
+  leads = acceptLeadPage(leads, nextLeadPage(leads, now), page([item(1), item(2)]), now, "pending");
+  Object.assign(session, {
+    inventory: { issues: [] },
+    journal: { started_at: now },
+    leads,
+    leadCollectionAttempted: true,
+    leadPages: 0,
+    leadFamilies: new Set(leadFamilyIds.slice(0, 5)),
+    researchedLeads: new Set([1, 2]),
+  });
+  assert.equal(
+    session.leadWorkComplete(),
+    false,
+    "five observed families do not spend the six-family partial effort",
+  );
+  session.leadFamilies.add(leadFamilyIds[5]!);
+  assert.equal(session.leadWorkComplete(), true);
+  session.researchedLeads.delete(2);
+  assert.equal(
+    session.leadWorkComplete(),
+    false,
+    "family effort does not replace primary investigation",
+  );
+  session.leadPages = 4;
+  session.leadFamilies.clear();
+  session.researchedLeads.add(2);
+  assert.equal(
+    session.leadWorkComplete(),
+    true,
+    "four validated pages remain the original alternate bound",
+  );
 });

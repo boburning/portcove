@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-zelda-tears-of-the-kingdom-totk-mobile-ojzen",
+    "name": "The Legend of Zelda: Tears of the Kingdom (Zelda-Mobile (OJZen/totk-mobile))",
+    "summary": "Experimental Upstream explicitly describes direct execution of the game’s ARM64 code on Apple silicon, an ARM64 module rewriter, a host reimplementing Horizon/system services, and NVN graphics commands translated to Metal. Shared Mac/iOS core. This is a title-specific native-code compatibility adaptation, not a generic framework, Windows recompilation or original standalone game. This classification is based on documented behavior, not repository name/language. Upstream maturity: Upstream Mac save loading/scene play/audio/cutscenes and keyboard/Xbox control; full playthrough unvalidated, first-visit shader stutters and variable FPS. Mobile results are separate and bounded. Portcove testing Not run. Acquisition: Source build and upstream preparation on Apple silicon Mac; no official release package observed. The player’s own base game, v1.4.3 update and keys generate the local runtime/resources/shaders. Platforms: Apple silicon Mac M1+ with full Xcode/CLT and Homebrew; exact macOS/Metal minimum Unknown. Intel unsupported. iPad M1+ limited play/import evidence; iPhone15Pro title-only, gameplay unmeasured. No other desktop route. Original data: Own Switch Tears of the Kingdom base plus v1.4.3 .nsz update and matching prod.keys; exactly one base/update in local/games/. Module fingerprint checks reject other versions. Accepted base format, region/title ID, actual hashes and firmware/font/ticket requirements remain Unknown in the retained README. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+    "project_url": "https://github.com/OJZen/totk-mobile",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OJZen/totk-mobile",
+    "artwork": {
+      "game_id": 119388,
+      "cover_id": 274264,
+      "image_id": "co5vmg",
+      "image_sha256": "43c1ab5bea6d4e2ec8805820d75b62a954275e30a69acb2967377e56bd2eceda",
+      "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 3028
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-legend-of-zelda-tears-of-the-kingdom-totk-mobile-ojzen",
+    "origin": {
+      "project_url": "https://github.com/OJZen/totk-mobile",
+      "repository": {
+        "host": "github.com",
+        "id": "1425384851"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -7979,6 +7979,7 @@ mod tests {
     }
 
     fn assert_conflicting_publication_phases(conflict: ConflictingPublicationIntent) {
+        let started = std::time::Instant::now();
         for kind in [
             LifecycleOperationKind::Install,
             LifecycleOperationKind::Adopt,
@@ -7989,7 +7990,15 @@ mod tests {
                 LifecyclePhase::PayloadPublished,
                 LifecyclePhase::CleanupPending,
             ] {
+                eprintln!(
+                    "publication recovery {kind:?}/{phase:?}: start at {:?}",
+                    started.elapsed()
+                );
                 assert_publication_retains_family_intent(kind, phase, conflict, false);
+                eprintln!(
+                    "publication recovery {kind:?}/{phase:?}: complete at {:?}",
+                    started.elapsed()
+                );
             }
         }
     }

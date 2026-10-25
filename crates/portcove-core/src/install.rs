@@ -846,16 +846,15 @@ impl Installer {
                 PortcoveError::verification("dynamic runtime policy requires an exact provider resolution before acquisition")
             })?.require_selection(port, request.qualification.platform, request.release.channel)?;
         }
-        if let Some(resolution) = &request.qualification.acquisition {
-            if resolution.release.asset != request.release.asset
+        if let Some(resolution) = &request.qualification.acquisition
+            && (resolution.release.asset != request.release.asset
                 || resolution.release.version != request.release.version
                 || resolution.release.channel != request.release.channel
-                || resolution.release.published_at != request.release.published_at
-            {
-                return Err(PortcoveError::conflict(
-                    "installation acquisition proof changed",
-                ));
-            }
+                || resolution.release.published_at != request.release.published_at)
+        {
+            return Err(PortcoveError::conflict(
+                "installation acquisition proof changed",
+            ));
         }
         let current = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
