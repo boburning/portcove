@@ -73,6 +73,9 @@ For starting or resuming work in a healthy checkout, use the
 [warm single-session workflow](DEVELOPMENT-TOOLS.md#warm-single-session-workflow),
 including its compact task/reviewer handoff and ownership-first diagnosis.
 
+Use the [opt-in coverage reference](reference/test-coverage.md) to investigate
+measured Node, frontend unit, or Chromium branches with retained source mappings.
+
 ## Actual application journeys
 
 - [First installation and real game launch](media/first-play/README.md): isolated

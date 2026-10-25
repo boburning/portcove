@@ -170,6 +170,13 @@ void test("shared browser trace runtime selects required frontend coverage", () 
   assert.ok(plan([change(file)]).groups.includes("frontend"));
 });
 
+void test("opt-in coverage configuration and remapper retain shared frontend ownership", () => {
+  for (const file of ["scripts/test-coverage-config.mts", "scripts/coverage-maps.mts"]) {
+    assert.ok(validationOwnershipForPath(file).groups.includes("frontend"), file);
+    assert.ok(plan([change(file)]).groups.includes("frontend"), file);
+  }
+});
+
 void test("frontend outcome reporter selects the full maintained frontend consumer", () => {
   const file = "scripts/frontend-case-observations.ts";
   const ownership = validationOwnershipForPath(file);

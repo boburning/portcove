@@ -2,6 +2,8 @@ import { resourceEntrypoint } from "./resource-command.mts";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createCiMetrics } from "./ci-metrics.mts";
+import { retainFrontendCoverageMaps } from "./coverage-maps.mts";
+import { readCoveragePacket, frontendCoverageOptions } from "./test-coverage-config.mts";
 import {
   resolveUiSelection,
   reconcileUiSelection,
@@ -38,6 +40,7 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
       config: path.join(root, "vite.config.ts"),
       watch: false,
       run: true,
+      ...frontendCoverageOptions(root),
       ...(mode === "related" ? { related: files } : {}),
       ...(seed === undefined ? {} : { sequence: { shuffle: true, seed } }),
     }),
@@ -46,6 +49,11 @@ process.exitCode = await resourceEntrypoint("browser", async () => {
     process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file);
   try {
     await metrics.measureAsync("ui-project-initialization", () => runner.standalone());
+    if (process.env.PORTCOVE_UI_COVERAGE_PACKET)
+      await retainFrontendCoverageMaps(
+        readCoveragePacket(root, process.env.PORTCOVE_UI_COVERAGE_PACKET),
+        runner,
+      );
     const specifications = await metrics.measureAsync("ui-specification-selection", async () => {
       if (selectionMode === "exact") {
         const expected = new Set(files.map(key));
