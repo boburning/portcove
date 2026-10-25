@@ -261,6 +261,7 @@ it("keeps a healthy sibling visible when another current inspection fails", asyn
     id === "bios" ? Promise.resolve(biosReport) : Promise.reject(failure),
   );
   await root.rerender(createElement(Fixture, { sources: [source, bios] }));
+  await act(async () => state.inspectAll());
   expect(row().textContent).toContain(failure.presentation.summary);
   const healthy = container.querySelector('[data-source-profile="bios"]')!;
   expect(healthy.textContent).toContain(biosReport.summary);

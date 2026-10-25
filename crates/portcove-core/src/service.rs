@@ -15171,8 +15171,8 @@ fn main() {
         assert_eq!(install_action.reason, PortActionReason::MissingSource);
         assert_eq!(
             status.readiness.unwrap().source,
-            Some(SourceHealth::Current),
-            "launch still uses the retained source contract"
+            Some(SourceHealth::NotChecked),
+            "status retains the source contract without claiming current contents"
         );
         let mut current_record = registered.clone();
         current_record.profile_id = "majoras-mask".into();
