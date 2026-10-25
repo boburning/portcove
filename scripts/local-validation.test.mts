@@ -2611,6 +2611,9 @@ void test("Roadmap test families preserve shared owners and narrow the New Port 
   const { buildValidationPlan } = await import("./validation-plan.mts");
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const broad = [
+    "scripts/roadmap-authoring.test.mts",
+    "scripts/roadmap-report.test.mts",
+    "scripts/roadmap-publish.test.mts",
     "scripts/roadmap-execution.test.mts",
     "scripts/roadmap.test.mts",
     "scripts/roadmap-intake.test.mts",

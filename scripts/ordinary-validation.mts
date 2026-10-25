@@ -303,6 +303,9 @@ const selectionContractTests = [
 ];
 
 const roadmapFeatureTests = [
+  "scripts/roadmap-authoring.test.mts",
+  "scripts/roadmap-report.test.mts",
+  "scripts/roadmap-publish.test.mts",
   "scripts/roadmap-execution.test.mts",
   "scripts/roadmap-intake.test.mts",
   "scripts/roadmap-views.test.mts",

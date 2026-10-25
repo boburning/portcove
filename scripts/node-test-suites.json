@@ -2266,6 +2266,13 @@
       ]
     },
     {
+      "file": "scripts/roadmap-authoring.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9710],
+        ["roadmap-check", 210]
+      ]
+    },
+    {
       "file": "scripts/roadmap-execution.test.mts",
       "memberships": [
         ["catalog-full-2", 9610],
@@ -2308,6 +2315,13 @@
       ]
     },
     {
+      "file": "scripts/roadmap-publish.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9730],
+        ["roadmap-check", 230]
+      ]
+    },
+    {
       "file": "scripts/roadmap-qualification.test.mts",
       "memberships": [
         ["catalog-full-2", 9660],
@@ -2319,6 +2333,13 @@
       "memberships": [
         ["catalog-full-2", 9640],
         ["roadmap-check", 140]
+      ]
+    },
+    {
+      "file": "scripts/roadmap-report.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9720],
+        ["roadmap-check", 220]
       ]
     },
     {
