@@ -1,0 +1,77 @@
+{
+  "format_version": 1,
+  "baseline": "34954b7358c4d8c73e4ec5b5dd2cbe7fdf6376dc",
+  "workflow_blob": "95e8fb3651efe13d94744928fa484ea5d2347957",
+  "workflow_sha256": "0290fee42f5d579e716514d1bd70d7df0ec905feb65fb9ed2f962be25f2333f3",
+  "profile": "default",
+  "workers": [
+    {
+      "name": "core-service-1",
+      "arguments": [["--locked", "-p", "portcove-core", "--partition", "hash:1/2", "service::"]]
+    },
+    {
+      "name": "core-service-2",
+      "arguments": [["--locked", "-p", "portcove-core", "--partition", "hash:2/2", "service::"]]
+    },
+    {
+      "name": "core-recovery",
+      "arguments": [
+        ["--locked", "-p", "portcove-core", "cancellation::"],
+        ["--locked", "-p", "portcove-core", "database::"],
+        ["--locked", "-p", "portcove-core", "import_execution::"],
+        ["--locked", "-p", "portcove-core", "library_move::"]
+      ]
+    },
+    {
+      "name": "core-other-1",
+      "arguments": [
+        [
+          "--locked",
+          "-p",
+          "portcove-core",
+          "--partition",
+          "hash:1/2",
+          "--",
+          "--skip",
+          "service::",
+          "--skip",
+          "cancellation::",
+          "--skip",
+          "database::",
+          "--skip",
+          "import_execution::",
+          "--skip",
+          "library_move::"
+        ]
+      ]
+    },
+    {
+      "name": "core-other-2",
+      "arguments": [
+        [
+          "--locked",
+          "-p",
+          "portcove-core",
+          "--partition",
+          "hash:2/2",
+          "--",
+          "--skip",
+          "service::",
+          "--skip",
+          "cancellation::",
+          "--skip",
+          "database::",
+          "--skip",
+          "import_execution::",
+          "--skip",
+          "library_move::"
+        ]
+      ]
+    }
+  ],
+  "core_shell_source": "function Invoke-CargoTest([string[]] $Arguments) {\n  & cargo nextest run --locked @Arguments\n  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n}\n\nswitch ($env:TEST_SHARD) {\n  \"core-service-1\" {\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"--partition\", \"hash:1/2\", \"service::\")\n  }\n  \"core-service-2\" {\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"--partition\", \"hash:2/2\", \"service::\")\n  }\n  \"core-recovery\" {\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"cancellation::\")\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"database::\")\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"import_execution::\")\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"library_move::\")\n  }\n  \"core-other-1\" {\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"--partition\", \"hash:1/2\", \"--\", \"--skip\", \"service::\", \"--skip\", \"cancellation::\", \"--skip\", \"database::\", \"--skip\", \"import_execution::\", \"--skip\", \"library_move::\")\n  }\n  \"core-other-2\" {\n    Invoke-CargoTest @(\"-p\", \"portcove-core\", \"--partition\", \"hash:2/2\", \"--\", \"--skip\", \"service::\", \"--skip\", \"cancellation::\", \"--skip\", \"database::\", \"--skip\", \"import_execution::\", \"--skip\", \"library_move::\")\n  }\n  default { throw \"Unknown Rust test shard: $env:TEST_SHARD\" }\n}\n",
+  "workspace_other": {
+    "arguments": ["--locked", "--workspace", "--exclude", "portcove-core"],
+    "public_cli_source": "cargo build --locked -p portcove-cli\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n$env:PORTCOVE_PREFERENCES = Join-Path $env:RUNNER_TEMP 'playnite-contract-preferences.json'\n./integrations/playnite/check.ps1 -Cli (Join-Path $PWD 'target/debug/portcove.exe') -Library (Join-Path $env:RUNNER_TEMP 'playnite-contract-library')\n"
+  }
+}

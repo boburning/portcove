@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
 
 import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 
@@ -509,27 +510,32 @@ void test("CI toolchain caches retain exact repository version authorities", asy
 });
 
 void test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
+  assert.equal(
+    workflowStep("rust_workspace_tests", "Build and test the public Playnite reference consumer")
+      .run,
+    qualificationOracle.workspace_other.public_cli_source,
+  );
+  const workspace = workflowJob("rust_workspace_tests");
+  assert.ok(Array.isArray(workspace.steps));
+  assert.ok(
+    workspace.steps.some(
+      (step: unknown) =>
+        isRecord(step) &&
+        step.run === `cargo nextest run ${qualificationOracle.workspace_other.arguments.join(" ")}`,
+    ),
+  );
   assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
   assert.match(rustTests, /runs-on: windows-latest/);
   assert.match(
     rustTests,
     /shard:\s*\[\s*core-service-1,\s*core-service-2,\s*core-recovery,\s*core-other-1,\s*core-other-2,?\s*\]/,
   );
-  for (const shard of [
-    "service::",
-    "cancellation::",
-    "database::",
-    "import_execution::",
-    "library_move::",
-  ]) {
-    assert.match(rustTests, new RegExp(`"${shard.replaceAll("::", "::")}"`));
-  }
+  assert.match(rustTests, /needs: \[classify, qualification_core_archive\]/u);
+  assert.match(rustTests, /windows-rust-tests\.mts run-qualification \$\{\{ matrix\.shard \}\}/u);
   assert.match(
     rustTests,
-    /"--skip", "service::", "--skip", "cancellation::", "--skip", "database::", "--skip", "import_execution::", "--skip", "library_move::"/,
+    /PORTCOVE_WINDOWS_MANIFEST_SHA256: \$\{\{ needs\.qualification_core_archive\.outputs\.manifest_sha256 \}\}/u,
   );
-  assert.equal((rustTests.match(/"hash:1\/2"/g) ?? []).length, 2);
-  assert.equal((rustTests.match(/"hash:2\/2"/g) ?? []).length, 2);
   assert.doesNotMatch(rustTests, /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/);
 
   assert.match(rustWorkspaceTests, /^ {4}name: rust-test \(workspace-other\)$/m);
@@ -572,6 +578,7 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
   for (const dependency of [
     "classify",
     "prose_checks",
+    "qualification_core_archive",
     "rust_tests",
     "rust_workspace_tests",
     "rust_clippy",
@@ -583,6 +590,7 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
   ])
     assert.match(rust, new RegExp(`^ {8}${dependency},?$`, "m"));
   for (const dependency of [
+    "qualification_core_archive",
     "rust_tests",
     "rust_workspace_tests",
     "rust_clippy",
@@ -1098,6 +1106,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & (test(/^import_execution::tests::late_credentials_hold_import_before_the_open_gate$/) | test(/^library_move::tests::late_credentials_hold_move_before_authority_or_destination_activation$/))",
     "package(portcove-core) & (test(/^service::tests::tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent$/) | test(/^service::tests::tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal$/))",
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
+    "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
   ];
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
@@ -1209,7 +1218,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     assert.ok(Number.isSafeInteger(timeout["terminate-after"]));
     assert.ok(typeof timeout["terminate-after"] === "number" && timeout["terminate-after"] > 0);
   }
-  assert.match(rustTests, /cargo nextest run --locked @Arguments/);
+  assert.match(rustTests, /windows-rust-tests\.mts run-qualification/u);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
   assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
   assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);

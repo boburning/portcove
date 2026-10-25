@@ -157,6 +157,17 @@ profile's entire slot count. See [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci
 for provenance checks and measurement boundaries. This changes ordinary test
 scheduling without replacing qualification coverage.
 
+Windows qualification shares one Core-only test archive across its five existing
+Core workers. It retains the default nextest profile, two test slots, zero retries,
+the original hash partitions and the recovery worker's four ordered invocations.
+The producer compares every original command's selected identities with reused
+metadata; each consumer verifies its extracted complete inventory and exact phase
+selection before execution. Source, plan, compiler/target, run/attempt and archive
+digests bind the transfer. The workspace-other worker retains its independent
+build and public CLI/Playnite consumer, and Clippy remains independent. Archive
+sharing removes per-worker Core test builds; it does not establish an elapsed-time
+improvement or replace full qualification evidence.
+
 Retain failures, diagnose the smallest useful reproduction, and repeat only
 invalidated obligations. Preserve assertions, coverage, cleanup and finite
 termination; an unchanged later pass does not establish a causal repair.

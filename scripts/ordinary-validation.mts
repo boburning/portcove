@@ -1246,17 +1246,23 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mts", "scripts/local-validation.test.mts"],
   ],
-  ...["scripts/windows-rust-tests.mts", ".config/rust-test-timing-hints.json"].map(
-    (file): [string, string[]] => [
-      file,
-      [
-        "scripts/ci-workflow.test.mts",
-        "scripts/ci-result-gate.test.mts",
-        "scripts/ci-baseline.test.mts",
-        "scripts/rust-test-impact.test.mts",
-      ],
+  ...[
+    "scripts/windows-rust-tests.mts",
+    "scripts/windows-qualification-rust.mts",
+    "scripts/fixtures/windows-qualification-selection.json",
+    ".config/rust-test-timing-hints.json",
+  ].map((file): [string, string[]] => [
+    file,
+    [
+      "scripts/windows-rust-tests.test.mts",
+      "scripts/qualification-coverage.test.mts",
+      "scripts/ci-rust-workflow.test.mts",
+      "scripts/ci-workflow.test.mts",
+      "scripts/ci-result-gate.test.mts",
+      "scripts/ci-baseline.test.mts",
+      "scripts/rust-test-impact.test.mts",
     ],
-  ),
+  ]),
   [
     "scripts/ci-baseline.mts",
     ["scripts/ci-baseline.test.mts", "scripts/local-validation.test.mts"],
@@ -1970,6 +1976,8 @@ function classifyOnePath(
     file === "deny.toml" ||
     file === ".config/rust-test-timing-hints.json" ||
     file === "scripts/windows-rust-tests.mts" ||
+    file === "scripts/windows-qualification-rust.mts" ||
+    file === "scripts/fixtures/windows-qualification-selection.json" ||
     file === "scripts/nextest-outcomes.mts" ||
     (file === ".config/nextest.toml" && !options.nextestUnchanged)
   ) {

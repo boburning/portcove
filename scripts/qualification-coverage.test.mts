@@ -153,6 +153,47 @@ function steps(job: unknown) {
 void test("disabled expressions, missing consumer partitions and fake platform labels cannot satisfy qualification", () => {
   const mutations: ((jobs: Record<string, unknown>) => void)[] = [
     (jobs) => {
+      record(jobs.rust_tests).needs = ["classify"];
+    },
+    (jobs) => {
+      record(jobs.qualification_core_archive)["continue-on-error"] = true;
+    },
+    (jobs) => {
+      record(record(jobs.qualification_core_archive).outputs).manifest_sha256 =
+        "${{ steps.foreign.outputs.manifest_sha256 }}";
+    },
+    (jobs) => {
+      record(record(jobs.rust_tests).env).PORTCOVE_WINDOWS_MANIFEST_SHA256 = "unbound";
+    },
+    (jobs) => {
+      record(record(jobs.rust_tests).strategy)["fail-fast"] = true;
+    },
+    ...["qualification_core_archive", "rust_tests"].flatMap((id) => [
+      (jobs: Record<string, unknown>) => {
+        record(record(jobs[id]).env).PORTCOVE_PLAN_GZIP_BASE64 =
+          "${{ needs.foreign.outputs.plan_gzip_base64 }}";
+      },
+      (jobs: Record<string, unknown>) => {
+        record(
+          requiredFixture(
+            steps(jobs[id]).find((step) => step.uses === "./.github/actions/setup-rust"),
+          ).with,
+        )["test-fixtures"] = false;
+      },
+      (jobs: Record<string, unknown>) => {
+        record(
+          requiredFixture(
+            steps(jobs[id]).find(
+              (step) =>
+                isRecord(step.with) &&
+                typeof step.with.name === "string" &&
+                step.with.name.startsWith("windows-qualification-core-"),
+            ),
+          ).with,
+        ).name = "windows-qualification-core-${{ github.run_id }}";
+      },
+    ]),
+    (jobs) => {
       record(jobs.classify).if = false;
     },
     (jobs) => {
@@ -233,10 +274,12 @@ void test("disabled expressions, missing consumer partitions and fake platform l
     },
     (jobs) => {
       const dispatcher = requiredFixture(
-        steps(jobs.rust_tests).find((step) => isRecord(step.env) && "TEST_SHARD" in step.env),
+        steps(jobs.rust_tests).find(
+          (step) => typeof step.run === "string" && step.run.includes("run-qualification"),
+        ),
       );
       assert.ok(typeof dispatcher.run === "string");
-      dispatcher.run = dispatcher.run.replace('"core-service-1" {', '"never-selected" {');
+      dispatcher.run = dispatcher.run.replace("matrix.shard", "matrix.missing");
     },
   ];
   for (const mutate of mutations)
