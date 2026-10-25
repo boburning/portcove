@@ -24,6 +24,7 @@ import {
   readControllerToolFile,
   inspectControllerToolManifest,
   controllerCompilerSourceAsset,
+  controllerNativeDriverVersion,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
  * replacement. Resolve the canonical path to avoid Windows junction long paths. */
@@ -255,6 +256,46 @@ export async function buildControllerTools(
       { cwd: sourceRoot, environment: env },
     );
     if (status !== 0) throw new Error(`fixed controller tool build refused; retain ${directory}`);
+    phase = "fixed-native-webdriver-build";
+    const bootstrap: unknown = JSON.parse(
+      (
+        await readControllerToolFile(path.join(sourceRoot, ".config/tool-bootstrap.json"), 65536)
+      ).toString("utf8"),
+    );
+    if (
+      !isRecord(bootstrap) ||
+      !isRecord(bootstrap.desktop) ||
+      bootstrap.desktop.tauri_driver !== controllerNativeDriverVersion
+    )
+      throw new Error("maintained native driver pin differs");
+    const driverRoot = path.join(directory, "native-driver");
+    // Public registry acquisition occurs only in this unprivileged, credential-
+    // free source bootstrap. No role job runs Cargo or discovers a PATH driver.
+    const driverStatus = await runResourceCommand(
+      "rust",
+      "cargo",
+      [
+        "install",
+        "tauri-driver",
+        "--locked",
+        "--version",
+        `=${controllerNativeDriverVersion}`,
+        "--profile",
+        "dev",
+        "--jobs",
+        "2",
+        "--no-track",
+        "--root",
+        driverRoot,
+      ],
+      {
+        cwd: sourceRoot,
+        environment: { ...env, CARGO_NET_RETRY: "0", CARGO_PROFILE_DEV_DEBUG: "0" },
+      },
+    );
+    if (driverStatus !== 0)
+      throw new Error(`fixed native driver build refused; retain ${directory}`);
+    guard();
     phase = "tool-inventory";
     await mkdir(path.join(tools, "bin"), { mode: 0o700 });
     const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
@@ -273,6 +314,7 @@ export async function buildControllerTools(
       ["portcove", path.join(target, "controller-tools", "portcove")],
       ["portcove-release-tools", path.join(target, "controller-tools", "portcove-release-tools")],
       ["tauri-addon.node", addon],
+      ["tauri-driver", path.join(driverRoot, "bin", "tauri-driver")],
     ])
       await writeFile(path.join(tools, "bin", name!), await readControllerToolFile(filename!), {
         flag: "wx",

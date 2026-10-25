@@ -967,26 +967,28 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     );
   }
 });
-void test("Core CLI is mandatory opaque tool content and changed or missing CLI bytes refuse", () => {
+void test("Core CLI and native WebDriver are mandatory content; changed or missing bytes refuse", () => {
   const f = fixture();
-  assert.ok(controllerToolPaths.includes("bin/portcove"));
-  assert.deepEqual(
-    inspectControllerToolArchive(f.archive, f.manifest).files.get("bin/portcove"),
-    f.bytes.get("bin/portcove"),
-  );
-  for (const files of [
-    [...f.bytes].filter(([name]) => name !== "bin/portcove"),
-    [...f.bytes].map(
-      ([name, bytes]) =>
-        [name, name === "bin/portcove" ? Buffer.from("substituted candidate CLI") : bytes] as const,
-    ),
-  ])
-    assert.throws(() =>
-      inspectControllerToolArchive(
-        createAuditZip([["manifest.json", JSON.stringify(f.manifest)], ...files]),
-        f.manifest,
-      ),
+  for (const tool of ["bin/portcove", "bin/tauri-driver"]) {
+    assert.ok(controllerToolPaths.includes(tool));
+    assert.deepEqual(
+      inspectControllerToolArchive(f.archive, f.manifest).files.get(tool),
+      f.bytes.get(tool),
     );
+    for (const files of [
+      [...f.bytes].filter(([name]) => name !== tool),
+      [...f.bytes].map(
+        ([name, bytes]) =>
+          [name, name === tool ? Buffer.from("substituted candidate executable") : bytes] as const,
+      ),
+    ])
+      assert.throws(() =>
+        inspectControllerToolArchive(
+          createAuditZip([["manifest.json", JSON.stringify(f.manifest)], ...files]),
+          f.manifest,
+        ),
+      );
+  }
 });
 void test("tool acquisition retains the phase deadline before outputs and after provider reads", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-deadline-"));
