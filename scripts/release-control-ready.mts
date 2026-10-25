@@ -63,7 +63,7 @@ async function main() {
   const phaseDeadline = isSharedApplicationProtectionObserverSource(admitted)
     ? currentSharedProtectionJobDeadline(
         {
-          run_id: admitted.run_id,
+          run_id: String(admitted.run_id),
           run_attempt: 1,
           controller_revision: admitted.revision,
           controller_ref: admitted.execution_ref,

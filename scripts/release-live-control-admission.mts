@@ -198,7 +198,6 @@ async function authenticateControlSource(
   remaining();
   const env = { ...environment };
   const phase = inspectReleaseControlPhase(options.phase);
-  const profile = releaseControlPhaseProfile(phase);
   const { admitted, identity } = await authenticateControlReaderJobForPurpose(
     purpose,
     env,
