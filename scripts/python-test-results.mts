@@ -149,6 +149,10 @@ export function runPythonSuite(
   context: Pick<TestContext, "name" | "diagnostic">,
   timeout = 30_000,
 ): PythonReport {
+  assert.ok(
+    Number.isSafeInteger(timeout) && timeout > 0,
+    "Python suite timeout must be a positive finite integer",
+  );
   const filename = suite instanceof URL ? fileURLToPath(suite) : path.resolve(suite);
   const result = spawnSync(
     process.platform === "win32" ? "python" : "python3",
