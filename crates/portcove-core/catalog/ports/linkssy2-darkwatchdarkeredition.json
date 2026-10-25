@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "linkssy2-darkwatchdarkeredition",
+    "name": "Darkwatch (Darkwatch: Darker Edition)",
+    "summary": "Upstream route: Windows 0.5 ZIP contains runtime/setup: ImportISO validates own disc and prepares assets/shaders, then PlayDarkwatch.exe starts directly. Linux 0.5.5 compatibility archive runs Windowsruntime throughProton. Upstream owns import/setup; local game compilation not inferred from developer source. Limits: Upstream only: Upstream describes Windows 0.5 and bounded Linux compatibility testing. Source validation covers 23 files; no native Linux or full-game proof follows. Windows 0.5 runtime/setup; latest 0.5.5 is a Linux Proton compatibility test with no new Windows asset. Do not select globally newest tag for every platform. Upstream platforms: Windows 10 v1903+/11 x64 D3D12. Linux/Steam Deck use Proton Experimental; 0.5.5 is a compatibility test, not native Linux. Original data: Original Xbox Darkwatch supported North American revision; full/trimmed ISO; exact default.xbe validation. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Darkwatch",
+    "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
+    "issue_number": 2736
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "linkssy2-darkwatchdarkeredition",
+    "origin": {
+      "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
+      "repository": {
+        "host": "github.com",
+        "id": "1424386873"
+      }
+    },
+    "decisions": []
+  }
+}

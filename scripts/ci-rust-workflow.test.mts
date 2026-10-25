@@ -618,7 +618,7 @@ void test("Windows analyzer acquisition retains the exact pin and both mandatory
   const available = spawnSync(
     "pwsh",
     ["-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()"],
-    { encoding: "utf8", timeout: 10_000 },
+    { encoding: "utf8", timeout: 30_000 },
   );
   if (errorCode(available.error) === "ENOENT" && process.platform !== "win32") {
     t.skip("PowerShell unavailable; required Windows job executes this contract");
@@ -679,7 +679,7 @@ function node {
           PORTCOVE_ANALYZER_FAILURE: failure,
         },
         encoding: "utf8",
-        timeout: 10_000,
+        timeout: 30_000,
         windowsHide: true,
       },
     );

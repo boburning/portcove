@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "perimeter-emperor-s-testament-perimeter-community-engine",
+    "name": "Perimeter: Emperor's Testament (Perimeter community engine)",
+    "summary": "Research listing. Upstream route: Open-source engine supports both games and original data; current source development. Limits: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Upstream platforms: Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research. Original data: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Portcove setup/gameplay not verified.",
+    "original_game_title": "Perimeter: Emperor's Testament",
+    "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+    "artwork": {
+      "game_id": 10692,
+      "cover_id": 95179,
+      "image_id": "co21fv",
+      "image_sha256": "5334cd9ade8fe1471f9af4c5a6c83b95b044b6d21aaed774ee21d53276f6f913",
+      "game_slug": "perimeter-emperors-testament",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2890
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "perimeter-emperor-s-testament-perimeter-community-engine",
+    "origin": {
+      "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+      "repository": {
+        "host": "github.com",
+        "id": "373844177"
+      }
+    },
+    "decisions": []
+  }
+}

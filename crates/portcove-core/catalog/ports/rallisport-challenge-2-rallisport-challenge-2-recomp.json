@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rallisport-challenge-2-rallisport-challenge-2-recomp",
+    "name": "RalliSport Challenge 2 (RalliSport Challenge 2 Recomp)",
+    "summary": "Upstream route: Linux v0.7.0 package; separate Windows v0.6.0-windows package Limits: Linux main route; Windows package is separately versioned and Wine-tested. Upstream runtime reports not Portcove testing. Upstream platforms: Linux x86-64 v0.7.0 and Windows x86-64 v0.6.0-windows package channels. Linux binary needs glibc2.43+ and documented graphics libraries; Windows testing was under Wine. Original data: Own RalliSport Challenge 2 NTSC original Xbox data, title 4D530039. Player packages expect all extracted files in game/ beside the program. Source builds use RalliSport2/ plus default.xbe copied to xboxrecomp/game_files/. Exact regional revision/XBE fingerprint beyond NTSC/title is unestablished in reviewed README. Portcove setup/gameplay not verified.",
+    "original_game_title": "RalliSport Challenge 2",
+    "project_url": "https://github.com/Mortify7612/RallisportChallenge2-decomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Mortify7612/RallisportChallenge2-decomp",
+    "artwork": {
+      "game_id": 5997,
+      "cover_id": 193278,
+      "image_id": "co454u",
+      "image_sha256": "20361248164cddfbbb1dd5332e737f1b35cb3f2c3caefd90c1d2ff57cfee86ac",
+      "game_slug": "rallisport-challenge-2",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2704
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "rallisport-challenge-2-rallisport-challenge-2-recomp",
+    "origin": {
+      "project_url": "https://github.com/Mortify7612/RallisportChallenge2-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421064396"
+      }
+    },
+    "decisions": []
+  }
+}

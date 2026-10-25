@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gothic-ii-night-of-the-raven-opengothic",
+    "name": "Gothic II: Night of the Raven (OpenGothic)",
+    "summary": "Upstream route: Main quest and addon completable according to upstream; desktop prerelease packages. Limits: Upstream says Gothic II plus Night of the Raven completable; Gothic I is not officially supported. Upstream platforms: Windows DX12/Vulkan, Linux Vulkan and macOS Metal package/build routes documented. Selected package CPU architectures unknown; Windows-only32-bit Union plugins are unsupported. Original data: Gothic I explicitly not officially supported; original Gothic II Night of the Raven files needed. Portcove setup/gameplay not verified.",
+    "original_game_title": "Gothic II: Night of the Raven",
+    "project_url": "https://github.com/Try/OpenGothic",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Try/OpenGothic",
+    "artwork": {
+      "game_id": 2481,
+      "cover_id": 94549,
+      "image_id": "co20yd",
+      "image_sha256": "8812ce12f59cc45ddcf21c68e7441266adfb7ef5b8896a542659a368ee1adcbe",
+      "game_slug": "gothic-ii-the-night-of-the-raven--1",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2578
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gothic-ii-night-of-the-raven-opengothic",
+    "origin": {
+      "project_url": "https://github.com/Try/OpenGothic",
+      "repository": {
+        "host": "github.com",
+        "id": "165291205"
+      }
+    },
+    "decisions": []
+  }
+}

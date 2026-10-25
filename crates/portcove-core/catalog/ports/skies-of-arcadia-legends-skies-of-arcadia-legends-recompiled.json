@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "skies-of-arcadia-legends-skies-of-arcadia-legends-recompiled",
+    "name": "Skies of Arcadia Legends (Skies of Arcadia Legends: Recompiled)",
+    "summary": "Research listing. Upstream route: Native translated game plus Dolphin hardware code; select user-facing beta rather than assume newest perf-test artifact is recommended. Limits: Beta0.83 user route; perftest artifact is not necessarily recommended. Native translated game uses Dolphin hardware code. Upstream platforms: Windows x86-64 package, Linux x86-64 AppImage/archive, macOS Apple-Silicon ARM64 archive; Android APK separate, ABI unknown in frozen research. Recommended beta differs from perftest channel. Original data: Own original USA GEAE8P / Europe GEAP8P / Japan GEAJ8P disc; multiple disc container formats. Portcove setup/gameplay not verified.",
+    "original_game_title": "Skies of Arcadia Legends",
+    "project_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
+    "artwork": {
+      "game_id": 4152,
+      "cover_id": 125182,
+      "image_id": "co2ola",
+      "image_sha256": "034d28a9cb384a0747339a6ec6c6830b9a6fb8bafcb7e5b3c2814e70ffe7518c",
+      "game_slug": "skies-of-arcadia-legends",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2895
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "skies-of-arcadia-legends-skies-of-arcadia-legends-recompiled",
+    "origin": {
+      "project_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1414989149"
+      }
+    },
+    "decisions": []
+  }
+}

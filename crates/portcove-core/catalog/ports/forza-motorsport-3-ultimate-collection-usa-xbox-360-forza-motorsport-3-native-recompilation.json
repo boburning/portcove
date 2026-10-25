@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "forza-motorsport-3-ultimate-collection-usa-xbox-360-forza-motorsport-3-native-recompilation",
+    "name": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360) (Forza Motorsport 3 Native Recompilation)",
+    "summary": "Upstream route: Windows package; own original game data Limits: Work in progress: menus/Free Play/races work upstream; full Career and multiplayer need testing, XboxLive unavailable. Upstream platforms: Windows10/11 x86-64 package and source-build route, D3D12; no other documented player platform. Original data: Own Ultimate Collection USA discs 1 and 2; Title ID 4D53084D, Media ID 6F74359D, default.xex version 0.0.0.8; upstream exact image MD5s are identity hints, not security authentication. Portcove setup/gameplay not verified.",
+    "original_game_title": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360)",
+    "project_url": "https://github.com/0herculabs/hl360-forza3",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/0herculabs/hl360-forza3",
+    "issue_number": 2675
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "forza-motorsport-3-ultimate-collection-usa-xbox-360-forza-motorsport-3-native-recompilation",
+    "origin": {
+      "project_url": "https://github.com/0herculabs/hl360-forza3",
+      "repository": {
+        "host": "github.com",
+        "id": "1419902438"
+      }
+    },
+    "decisions": []
+  }
+}

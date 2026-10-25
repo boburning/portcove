@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "south-park-tenorman-s-revenge-south-park-tr-recompiled",
+    "name": "South Park: Tenorman's Revenge (South Park TR Recompiled)",
+    "summary": "Upstream route: Windows ZIP and Linux AppImage Limits: Official packages observed; owned XBLA data required. Early v0.1.0. Upstream platforms: Windows x86-64 ZIP and native Linux x86-64 AppImage, Vulkan on Linux. Upstream updater owns runtime replacement. Original data: Own South Park: Tenorman's Revenge XBLA package, title 58410B80. Its default.xex must be version 0.0.0.1 (2012-03-08), 3,870,720 bytes, SHA-1 A0E831E4B49A08E5EE8B24BB08EE3B0231FC6E04. Upstream checks title and executable; package header/license differences make container hashes owner-specific. Portcove setup/gameplay not verified.",
+    "original_game_title": "South Park: Tenorman's Revenge",
+    "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
+    "artwork": {
+      "game_id": 1261,
+      "cover_id": 501973,
+      "image_id": "coarbp",
+      "image_sha256": "fdde414c8d9304b27465da9eeb429ce3bb1a04e2724fbf7de3b3e12e1a4ea263",
+      "game_slug": "south-park-tenorman-s-revenge",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2710
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "south-park-tenorman-s-revenge-south-park-tr-recompiled",
+    "origin": {
+      "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1422951796"
+      }
+    },
+    "decisions": []
+  }
+}

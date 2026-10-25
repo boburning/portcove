@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blast-corps-power-dozer",
+    "name": "Blast Corps (Power Dozer)",
+    "summary": "Upstream route: Treat separately from SlaveOfIDO/blastcorps-recomp unless lineage review proves same identity. Limits: Native beta candidate v0.84; retained upstream attract/runtime checks are not a Portcove gameplay pass. Upstream platforms: Windows x86-64 ZIP and Linux x86-64 tar.gz; Vulkan and SSSE3/SSE4.1 required, Linux glibc2.38+. Original data: Own USA Rev 1 ROM; z64/v64/n64 or single-ROM ZIP. Linux x64, glibc2.38+, Vulkan; Windows x64 VC++ runtime. Portcove setup/gameplay not verified.",
+    "original_game_title": "Blast Corps",
+    "project_url": "https://github.com/djultra64/Power-Dozer",
+    "issue_number": 2557,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/djultra64/Power-Dozer",
+    "artwork": {
+      "game_id": 3424,
+      "cover_id": 104010,
+      "image_id": "co2896",
+      "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
+      "game_slug": "blast-corps",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blast-corps-power-dozer",
+    "origin": {
+      "project_url": "https://github.com/djultra64/Power-Dozer",
+      "repository": {
+        "host": "github.com",
+        "id": "1413479537"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-team-racing-ctr-recompiled",
+    "name": "Crash Team Racing (CTR Recompiled)",
+    "summary": "Research listing. Upstream route: Upstream Generate & Build; packages on Windows, Linux, macOS Limits: Critical post-race/ChangeLevel failures explicitly reported upstream; retain research status. Upstream platforms: Windows/Linux/macOS Generate & Build setup packages; exact package host CPU architectures unknown in frozen audit. Critical post-race failures remain. Original data: Own Crash Team Racing USA PS1 disc SCUS-94426 as CUE/BIN. Current game.toml pins data track 1 to 605,698,800 bytes, SHA-1 1bb785082def3fe25f6b46be06d4eaf33c5bc772; boot executable SCUS_944.26. Generate & Build uses OpenBIOS unless the player supplies a local SCPH BIOS. Original images and proprietary BIOS are not distributed. Portcove setup/gameplay not verified.",
+    "original_game_title": "Crash Team Racing",
+    "project_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
+    "issue_number": 2879
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crash-team-racing-ctr-recompiled",
+    "origin": {
+      "project_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1327081203"
+      }
+    },
+    "decisions": []
+  }
+}

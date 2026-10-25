@@ -249,6 +249,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-hosted-native-runner.mts",
   "scripts/release-hosted-native-bootstrap.mts",
   "scripts/release-hosted-native-launcher.mts",
+  "scripts/release-hosted-native-worker.mts",
   "scripts/release-hosted-native-runtime.mts",
   "scripts/release-native-runtime-custody.mts",
   "scripts/release-native-runtime-support.mts",

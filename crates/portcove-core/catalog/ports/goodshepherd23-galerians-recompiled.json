@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goodshepherd23-galerians-recompiled",
+    "name": "Galerians (Galerians Recompiled)",
+    "summary": "Upstream route: ReleaseZIP is a setup/bootstrapper, not a ready-made complete game. Galerians_Recompiled wizard selects disc1 then Generate&rebuild compiles locally; Windows can fetch portable tools, otherhosts require compiler tools. Upstream owns preparation. Limits: Upstream only: Upstream reports local generation/build and BIOS/FMV/title progress. Some blocks use interpreter fallback; complete three-disc playthrough Unknown. Generate and rebuild from disc on first setup; static compilation misses some blocks and falls back to interpreter. Keep incomplete playthrough claims separate from package availability. Upstream platforms: Windows/Linux/macOS setup ZIPs. Windows may fetch tools; Linux/macOS need CMake, Ninja, Python and a compiler. Exact host architecture Unknown. Original data: Own all three Galerians USA discs: SLUS00986,SLUS01098,SLUS01099. Data-track MD5s217885a22fbb0f3092f8405ce42419ea,5bc6de661cb074cd5218ac0b9daecda2,992e16e5164febd23c8242ede1fc0d8c. Bundled OpenBIOS replaces retail BIOS. Setup generates/builds game code locally; some blocks fall back to interpreter. Portcove setup/gameplay not verified.",
+    "original_game_title": "Galerians",
+    "project_url": "https://github.com/goodshepherd23/Galerians-Recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/goodshepherd23/Galerians-Recompiled",
+    "artwork": {
+      "game_id": 54552,
+      "cover_id": 220251,
+      "image_id": "co4py3",
+      "image_sha256": "55a63b62e83d29cc69f8394f5e2d07dce4f010203ec327b9e1377c8f7662e42d",
+      "game_slug": "galerians",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2734
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "goodshepherd23-galerians-recompiled",
+    "origin": {
+      "project_url": "https://github.com/goodshepherd23/Galerians-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1427889910"
+      }
+    },
+    "decisions": []
+  }
+}

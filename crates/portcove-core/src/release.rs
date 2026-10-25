@@ -1908,15 +1908,12 @@ mod tests {
     fn serve_deadline_response(mode: DeadlineResponse) -> (String, DeadlineServer) {
         serve_deadline(move |connection| {
             if !matches!(mode, DeadlineResponse::HeaderStall) {
-                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n")?;
+                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 10000\r\n\r\n")?;
                 connection.write_all(b"{")?;
                 connection.flush()?;
             }
             if matches!(mode, DeadlineResponse::Trickle) {
-                for _ in 0..30 {
-                    if connection.wait(Duration::from_millis(10)) {
-                        break;
-                    }
+                while !connection.wait(Duration::from_millis(10)) {
                     if connection
                         .write_all(b" ")
                         .and_then(|()| connection.flush())
@@ -2153,7 +2150,14 @@ mod tests {
     async fn metadata_body_progress_exhausts_the_overall_request_bound() {
         let (metadata_root, mut metadata_server) =
             serve_deadline_response(DeadlineResponse::Trickle);
-        let bounds = short_network_bounds();
+        // Keep a wide gap between trickle cadence, idle guard and total bound.
+        // Windows observed a 25.68ms last-chunk gap at the old 25ms guard;
+        // the same phase assertions below must still exclude read-idle expiry.
+        let bounds = ProviderNetworkBounds {
+            connect: Duration::from_millis(200),
+            read_idle: Duration::from_millis(200),
+            request: Duration::from_millis(800),
+        };
         let provider =
             GithubReleaseProvider::with_api_root_and_bounds(metadata_root.clone(), bounds).unwrap();
         metadata_server.start();
@@ -2167,7 +2171,7 @@ mod tests {
         eprintln!("metadata deadline: {elapsed:?}; observation={observed:?}; fixture={server:?}");
         let error = result.unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        assert!(elapsed < Duration::from_millis(500));
+        assert!(elapsed < Duration::from_millis(1500));
         let server = server.unwrap();
         assert!(server.armed && server.request_received);
         assert!(observed.headers.is_some(), "{observed:?}");

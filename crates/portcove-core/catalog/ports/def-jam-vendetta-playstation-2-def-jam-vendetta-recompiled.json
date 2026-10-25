@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+    "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
+    "summary": "Upstream route: Windows ZIP contains settings/bootstrap program, portable Python and source; local game compilation on first run (20–30 minutes upstream estimate). Limits: Playable upstream release with full-game completion unestablished; first-run local compilation and prerequisite installation remain explicit. Upstream platforms: Windows10/11 x86-64 setup/source ZIP; local compilation, Vulkan1.3 GPU. This is a builder/bootstrap package. Original data: User-owned USA SLUS-20639 ISO or CHD. Portcove setup/gameplay not verified.",
+    "original_game_title": "Def Jam Vendetta (PlayStation 2)",
+    "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
+    "issue_number": 2561,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jcsix694/def-jam-vendetta-recomp"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+    "origin": {
+      "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1408004425"
+      }
+    },
+    "decisions": []
+  }
+}

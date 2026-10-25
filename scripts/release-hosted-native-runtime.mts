@@ -3,15 +3,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { lstat, realpath } from "node:fs/promises";
-import {
-  closeSync,
-  fsyncSync,
-  lstatSync,
-  openSync,
-  readFileSync,
-  realpathSync,
-  writeFileSync,
-} from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
@@ -23,6 +14,7 @@ import { requireActualHostedNativeParentSource } from "./release-hosted-native-p
 import {
   nativeRuntimeSupport,
   inspectNativeRuntimeSupport,
+  preparedNativeSupportDependencies,
 } from "./release-native-runtime-support.mts";
 import { rustSupportInputIdentity } from "./rust-support-cache.mts";
 import type { RustRunDependencies } from "./run-rust-tests.mts";
@@ -222,53 +214,19 @@ export async function hostedNativeSupportDependencies(
       throw error;
     }
   };
-  return {
-    rustSupportCompilerIdentity: () => {
-      active();
-      return structuredClone(state.metadata.compiler);
+  const sourceFile = path.join(state.root, nativeRuntimeSupport.source);
+  return preparedNativeSupportDependencies(
+    {
+      caller_root: state.root + path.sep,
+      output_parent: outputParent,
+      source_file: sourceFile,
+      source: await readControllerToolFile(sourceFile, 65536),
+      binary: state.binary,
+      metadata: state.metadata,
     },
-    prepareSupportArtifact: (options) => {
-      try {
-        active();
-        assert.equal(options.root, state.root + path.sep);
-        assert.equal(options.product, nativeRuntimeSupport.product);
-        assert.equal(options.source, nativeRuntimeSupport.source);
-        assert.deepEqual(options.rustcArgs, nativeRuntimeSupport.arguments);
-        assert.deepEqual(options.compiler, state.metadata.compiler);
-        assert.equal(options.platform, "linux");
-        assert.equal(options.architecture, "x64");
-        const directory = path.dirname(options.output);
-        assert.equal(path.dirname(directory), outputParent);
-        assert.match(path.basename(directory), /^portcove-host-tool-fixture-[A-Za-z0-9]{6}$/u);
-        assert.equal(path.basename(options.output), "portcove-linux-process-tree-reaper");
-        assert.equal(realpathSync(directory), directory);
-        const owner = lstatSync(directory);
-        assert.ok(
-          owner.isDirectory() &&
-            !owner.isSymbolicLink() &&
-            owner.uid === process.getuid?.() &&
-            (owner.mode & 0o077) === 0,
-        );
-        const source = readFileSync(path.join(state.root, nativeRuntimeSupport.source));
-        assert.equal(source.length, state.metadata.source.bytes);
-        assert.equal(hash(source), state.metadata.source.sha256);
-        const fd = openSync(options.output, "wx", 0o700);
-        try {
-          writeFileSync(fd, state.binary);
-          fsyncSync(fd);
-        } finally {
-          closeSync(fd);
-        }
-        const copied = lstatSync(options.output);
-        assert.ok(copied.isFile() && copied.nlink === 1 && copied.uid === process.getuid?.());
-        assert.equal(copied.mode & 0o777, state.metadata.output.mode);
-        assert.equal(hash(readFileSync(options.output)), state.metadata.output.sha256);
-        active();
-        return { outcome: "hit", fingerprint: state.metadata.input_fingerprint, elapsed_ms: 0 };
-      } catch (error) {
-        state.stopped = true;
-        throw error;
-      }
+    active,
+    () => {
+      state.stopped = true;
     },
-  };
+  );
 }

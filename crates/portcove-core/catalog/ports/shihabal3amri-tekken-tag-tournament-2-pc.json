@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shihabal3amri-tekken-tag-tournament-2-pc",
+    "name": "Tekken Tag Tournament 2 (tekken-tag-tournament-2-pc)",
+    "summary": "Upstream route: ttt2_setup.exe is bootstrapper/installer: checks own disc+TU3, builds PCversion and prepares shaders. Separate ttt2-server packages are hosting utilities. Upstream installer/server maintainers own runtime preparation; Portcove does not. Limits: Upstream only: Upstream advertises 59 fighters, rollback and ranked play. Installer/TU3 preparation and dedicated-server coverage remain distinct; gameplay untested here. Player installer ttt2_setup.exe differs from server Linux/ARM64 packages. Do not label dedicated server assets as Linux player runtime. Upstream 59-fighter/rollback/ranked claims untested here. Upstream platforms: Windows 10/11 player installer. Windows/Linux amd64 and Linux ARM64 server packages are not Linux player runtimes. Original data: Xbox 360 Tekken Tag Tournament 2 own game and supported title update. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Tekken Tag Tournament 2",
+    "project_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
+    "issue_number": 2748
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "shihabal3amri-tekken-tag-tournament-2-pc",
+    "origin": {
+      "project_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1416152559"
+      }
+    },
+    "decisions": []
+  }
+}

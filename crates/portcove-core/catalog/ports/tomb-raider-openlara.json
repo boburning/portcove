@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tomb-raider-openlara",
+    "name": "Tomb Raider (OpenLara)",
+    "summary": "Research listing. Upstream route: Classic Tomb Raider engine with Windows/Linux/macOS standalone artifacts. Limits: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Upstream platforms: Windows/Linux/macOS standalone release artifacts/source builds. Exact selected artifact CPU architectures unknown in frozen research. Original data: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Portcove setup/gameplay not verified.",
+    "original_game_title": "Tomb Raider",
+    "project_url": "https://github.com/XProger/OpenLara",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/XProger/OpenLara",
+    "issue_number": 2904
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tomb-raider-openlara",
+    "origin": {
+      "project_url": "https://github.com/XProger/OpenLara",
+      "repository": {
+        "host": "github.com",
+        "id": "65638810"
+      }
+    },
+    "decisions": []
+  }
+}

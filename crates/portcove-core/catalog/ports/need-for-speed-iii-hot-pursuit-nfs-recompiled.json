@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
+    "name": "Need for Speed III: Hot Pursuit (NFS Recompiled)",
+    "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects. Portcove setup/gameplay not verified.",
+    "original_game_title": "Need for Speed III: Hot Pursuit",
+    "project_url": "https://github.com/motor-dev/nfs-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/motor-dev/nfs-recompiled",
+    "artwork": {
+      "game_id": 92,
+      "cover_id": 93643,
+      "image_id": "co2097",
+      "image_sha256": "edfb275397b71a8625b3b1cfd107fb6368de0e9934b9914fe4b64b3ed6edd199",
+      "game_slug": "need-for-speed-iii-hot-pursuit",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2888
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
+    "origin": {
+      "project_url": "https://github.com/motor-dev/nfs-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1170238547"
+      }
+    },
+    "decisions": []
+  }
+}

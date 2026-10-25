@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ssx-3-playstation-2-ssx-3-native-rust-port",
+    "name": "SSX 3 (PlayStation 2) (SSX 3 native Rust port)",
+    "summary": "Upstream route: Source only, Python setup translates own disc followed by Cargo build. No GitHub releases. Limits: Upstream says races/events/campaign playable; macOS tested, Linux build/tests pass but gameplay untested. Source only. Upstream platforms: Source only. macOS Apple-Silicon ARM64 developed/tested upstream; Ubuntu24.04 Linux x86-64 setup/build/tests work, gameplay untested. Windows native tooling documented; selected Windows CPU target unestablished. Original data: User-owned SSX 3 USA SLUS-20772 ISO, executable hash checked. Portcove setup/gameplay not verified.",
+    "original_game_title": "SSX 3 (PlayStation 2)",
+    "project_url": "https://github.com/andersfischernielsen/ssx3-decomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/andersfischernielsen/ssx3-decomp",
+    "issue_number": 2711
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ssx-3-playstation-2-ssx-3-native-rust-port",
+    "origin": {
+      "project_url": "https://github.com/andersfischernielsen/ssx3-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421265630"
+      }
+    },
+    "decisions": []
+  }
+}

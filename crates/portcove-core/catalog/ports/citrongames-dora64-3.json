@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "citrongames-dora64-3",
+    "name": "Doraemon 3: Nobita no Machi SOS! (Dora3-64)",
+    "summary": "Upstream route: Upstream runtime package for Dora3-64; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream advertises gameplay, translations and autosave. Complete playthrough evidence Unknown; inspect Android ZIP layout before describing its install route. Linux glibc 2.43 minimum; Android README calls an APK but actual release supplies Android ZIP. Select verified asset and inspect its layout before configuring route. Upstream platforms: Windows x64, Linux x86-64 (glibc 2.43+, Vulkan), Android ARM64. Android release ZIP differs from README APK name. Original data: N64 Doraemon 3 Japan N3DJ revision 0, 16 MiB big-endian ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Doraemon 3: Nobita no Machi SOS!",
+    "project_url": "https://github.com/citrongames/Dora64-3",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/citrongames/Dora64-3",
+    "artwork": {
+      "game_id": 3474,
+      "cover_id": 322305,
+      "image_id": "co6wox",
+      "image_sha256": "029f0465ccbf4b910b4c99acf84fbf2a6acd6f3351ad645e234f66d48139bca5",
+      "game_slug": "doraemon-3-nobita-no-machi-sos",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2724
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "citrongames-dora64-3",
+    "origin": {
+      "project_url": "https://github.com/citrongames/Dora64-3",
+      "repository": {
+        "host": "github.com",
+        "id": "1390619197"
+      }
+    },
+    "decisions": []
+  }
+}

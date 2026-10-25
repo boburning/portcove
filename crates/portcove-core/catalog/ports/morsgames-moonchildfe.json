@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "morsgames-moonchildfe",
+    "name": "Moon Child (Moon Child FE)",
+    "summary": "Upstream route: Upstream runtime package for Moon Child FE; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream modern source port with autosaves/controls and restored1997content. MIT code/CC-BY-NC4assets documented; no independent full gameplay qualification. Windowsx86/x64Linuxx64/macOSuniversal binaries and browser route; LinuxARM64 source-build explicitly untested. LICENSE explicitly grants MIT code and CC BY-NC4 assets with original authors named; no player-supplied input required by README, respect noncommercial asset scope. Upstream platforms: Windows x86/x64, Linux x64, macOS universal and browser. Linux ARM64 source build expressly untested. Original data: No owner-supplied original game input specified for MoonChildFE. Port uses lateriOS code with restored1997Windows95 content. UpstreamLICENSE names original creators and grants MITcode plus CC-BY-NC4noncode assets. Respect noncommercial asset terms; source/license evidence establishes no managed gameplay/support qualification. Portcove setup/gameplay not verified.",
+    "original_game_title": "Moon Child",
+    "project_url": "https://github.com/MorsGames/MoonChildFE",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MorsGames/MoonChildFE",
+    "artwork": {
+      "game_id": 108279,
+      "cover_id": 557475,
+      "image_id": "coby5f",
+      "image_sha256": "888390ee2e96d4f6d598a556e5266249ec1a4040e27fe46bcefca70cc613dd39",
+      "game_slug": "moon-child",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2865
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "morsgames-moonchildfe",
+    "origin": {
+      "project_url": "https://github.com/MorsGames/MoonChildFE",
+      "repository": {
+        "host": "github.com",
+        "id": "1217339898"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-ironwail",
+    "name": "Quake (Ironwail)",
+    "summary": "Upstream route: Native Quake implementation with desktop packages. Limits: Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Upstream platforms: Windows/Linux native desktop packages/source builds, exact selected CPUs unknown in frozen evidence. macOS explicitly unsupported due to OpenGL4.3 requirements. Original data: Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Portcove setup/gameplay not verified.",
+    "original_game_title": "Quake",
+    "project_url": "https://github.com/andrei-drexler/ironwail",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/andrei-drexler/ironwail",
+    "issue_number": 2698
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "quake-ironwail",
+    "origin": {
+      "project_url": "https://github.com/andrei-drexler/ironwail",
+      "repository": {
+        "host": "github.com",
+        "id": "425296682"
+      }
+    },
+    "decisions": []
+  }
+}

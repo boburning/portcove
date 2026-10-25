@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killer-instinct-2-arcade-ultracombo",
+    "name": "Killer Instinct 2 (arcade) (UltraCombo)",
+    "summary": "Upstream route: Distinct implementation from kilnan/ki-recomp #2246. Requires two game+implementation canonical records despite single Quiver row; preserve disk/saves distinctions. Limits: Prerelease1.1.0 supports two distinct arcade games; startup prepares game/sound code. Independent of ki-recomp. Upstream platforms: Windows x86-64 ZIP (MinGW-w64 build documented), Linux archive/AppImage. Selected Linux artifact CPU unknown in frozen release research. Original data: Own Killer Instinct2 arcade kinst2 boot/sound ROM set and matching CHD or raw disk image. UltraCombo prepares selected game/sound code on first launch; original Killer Instinct kinst files do not substitute. Portcove setup/gameplay not verified.",
+    "original_game_title": "Killer Instinct 2 (arcade)",
+    "project_url": "https://github.com/thefixinhixon/UltraCombo",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/thefixinhixon/UltraCombo",
+    "issue_number": 2585
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "killer-instinct-2-arcade-ultracombo",
+    "origin": {
+      "project_url": "https://github.com/thefixinhixon/UltraCombo",
+      "repository": {
+        "host": "github.com",
+        "id": "1424440481"
+      }
+    },
+    "decisions": []
+  }
+}

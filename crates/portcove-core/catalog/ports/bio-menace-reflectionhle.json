@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bio-menace-reflectionhle",
+    "name": "Bio Menace (ReflectionHLE)",
+    "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+    "original_game_title": "Bio Menace",
+    "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "artwork": {
+      "game_id": 8491,
+      "cover_id": 233543,
+      "image_id": "co507b",
+      "image_sha256": "bf8c15da4d0048d0d40c6386a6a59e784a46fc7e230b7a2815e10ba2ac8f85e5",
+      "game_slug": "bio-menace",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2692
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bio-menace-reflectionhle",
+    "origin": {
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "repository": {
+        "host": "github.com",
+        "id": "24228275"
+      }
+    },
+    "decisions": []
+  }
+}

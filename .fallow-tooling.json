@@ -33,6 +33,7 @@
     "scripts/precommit.mts",
     "scripts/resource-status.{mjs,mts}",
     "scripts/test-duration-reporter.{mjs,mts}",
+    "scripts/required-node-test-reporter.{mjs,mts}",
     "scripts/upstream-observer.{mjs,mts}",
     "scripts/viteplus-cli.{mjs,mts}",
     "scripts/daily-discovery.mts",

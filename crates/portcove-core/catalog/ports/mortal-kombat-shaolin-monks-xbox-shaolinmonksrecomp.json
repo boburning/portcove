@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mortal-kombat-shaolin-monks-xbox-shaolinmonksrecomp",
+    "name": "Mortal Kombat: Shaolin Monks (Xbox) (ShaolinMonksRecomp)",
+    "summary": "Upstream route: Windows/Linux packages; own USA/EU Xbox files Limits: Distinct from OGmidway PS2 implementation #1714. Upstream platforms: Windows/Linux packages with Xbox disc import; selected package CPU architectures unknown in frozen research. Original data: Own USA or Europe original Xbox Mortal Kombat: Shaolin Monks data. Upstream selector accepts ISO/XISO, ZIP, extracted game folder, or default.xbe with its companion data. This is the Xbox implementation, not PS2; exact executable revision/hash remains unestablished by reviewed README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Mortal Kombat: Shaolin Monks (Xbox)",
+    "project_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+    "artwork": {
+      "game_id": 1614,
+      "cover_id": 94081,
+      "image_id": "co20ld",
+      "image_sha256": "a132d9784146dac1e62f42c8bf1ae95325200ed6a30b936af160e25ba913fda5",
+      "game_slug": "mortal-kombat-shaolin-monks",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2595
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mortal-kombat-shaolin-monks-xbox-shaolinmonksrecomp",
+    "origin": {
+      "project_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423414457"
+      }
+    },
+    "decisions": []
+  }
+}

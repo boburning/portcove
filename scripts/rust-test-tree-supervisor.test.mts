@@ -267,7 +267,8 @@ type LinuxMode =
   | "wrapper-loss"
   | "reaper-loss"
   | "root-complete-reaper-loss"
-  | "escaped-refusal"
+  | "escaped-closure"
+  | "ignored-sigchld"
   | "init-refusal"
   | "parent-refusal"
   | "pipe-refusal"
@@ -483,10 +484,13 @@ async function linuxInnerCase({
     'const {spawn}=require("node:child_process")',
     'const {writeFileSync,existsSync}=require("node:fs")',
     `writeFileSync(${JSON.stringify(started)},"started")`,
-    `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-refusal"},stdio:"ignore"})`,
+    `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-closure"},stdio:"ignore"})`,
     `writeFileSync(${JSON.stringify(descendant)},String(child.pid))`,
     "child.unref()",
-    ...(mode === "natural" || mode === "receipt-refusal" || mode === "root-complete-reaper-loss"
+    ...(mode === "natural" ||
+    mode === "ignored-sigchld" ||
+    mode === "receipt-refusal" ||
+    mode === "root-complete-reaper-loss"
       ? [`setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`]
       : ["setInterval(()=>{},1000)"]),
   ].join(";");
@@ -523,8 +527,16 @@ async function linuxInnerCase({
   let helper: number | undefined;
   let completion: Promise<ProcessExit> | undefined;
   let escaped: LinuxCapture | undefined;
+  let sibling: ChildProcess | undefined;
+  let siblingIdentity: LinuxCapture | undefined;
+  let siblingCompletion: Promise<ProcessExit> | undefined;
   let primaryFailure: { error: unknown } | undefined;
   async function closeOwnedFixtures() {
+    if (sibling && siblingIdentity) {
+      assert.equal(identity(siblingIdentity.pid).identity, siblingIdentity.identity);
+      sibling.kill("SIGKILL");
+      await required(siblingCompletion);
+    }
     if (managed?.stdin && !managed.stdin.destroyed) required(managed?.stdin).end();
     const ownedEscaped = escaped;
     if (ownedEscaped) {
@@ -558,6 +570,11 @@ async function linuxInnerCase({
     }
   }
   try {
+    if (mode === "ignored-sigchld") {
+      sibling = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { stdio: "ignore" });
+      siblingCompletion = closed(sibling);
+      siblingIdentity = identity(positive(sibling.pid));
+    }
     if (mode === "legacy-sibling-red") {
       managed = spawn(
         process.execPath,
@@ -597,9 +614,20 @@ async function linuxInnerCase({
       helper = Number(readFileSync(helperPid, "utf8"));
       capture(helper);
     } else {
-      managed = spawn(reaper, args, {
-        stdio: mode === "init-refusal" ? "ignore" : ["pipe", "inherit", "inherit"],
-      });
+      managed = spawn(
+        mode === "ignored-sigchld" ? "python3" : reaper,
+        mode === "ignored-sigchld"
+          ? [
+              "-c",
+              "import os,signal,sys; signal.signal(signal.SIGCHLD,signal.SIG_IGN); os.execv(sys.argv[1],sys.argv[1:])",
+              reaper,
+              ...args,
+            ]
+          : args,
+        {
+          stdio: mode === "init-refusal" ? "ignore" : ["pipe", "inherit", "inherit"],
+        },
+      );
       completion = closed(managed);
       helper = positive(managed.pid);
       if (mode !== "init-refusal" && mode !== "parent-refusal") capture(helper);
@@ -630,7 +658,7 @@ async function linuxInnerCase({
       else {
         if (mode === "receipt-refusal")
           writeFileSync(receipt, '{"outcome":"failed:original"}\n', { flag: "wx" });
-        if (mode === "escaped-refusal")
+        if (mode === "escaped-closure")
           writeFileSync(
             path.join(directory, "escaped-coverage.json"),
             JSON.stringify({ state: "unknown", reason: "descendant discovery pending" }),
@@ -639,10 +667,11 @@ async function linuxInnerCase({
         writeFileSync(gate, "registered\n", { flag: "wx" });
         await wait(() => existsSync(descendant));
         const child = capture(Number(readFileSync(descendant, "utf8")), (value) => {
-          if (mode === "escaped-refusal") escaped = value;
+          if (mode === "escaped-closure") escaped = value;
         });
         if (
           mode === "natural" ||
+          mode === "ignored-sigchld" ||
           mode === "receipt-refusal" ||
           mode === "root-complete-reaper-loss"
         )
@@ -665,7 +694,7 @@ async function linuxInnerCase({
         if (mode === "wrapper-loss") required(wrapper).kill("SIGKILL");
         if (mode === "reaper-loss") required(managed).kill("SIGKILL");
         if (mode === "pipe-refusal") required(managed?.stdin).write("unexpected control input");
-        if (mode === "escaped-refusal") required(managed?.stdin).end();
+        if (mode === "escaped-closure") required(managed?.stdin).end();
         if (mode === "reaper-loss" || mode === "root-complete-reaper-loss") {
           await completion;
           await wait(
@@ -678,12 +707,9 @@ async function linuxInnerCase({
         }
       }
       if (mode !== "reaper-loss" && mode !== "root-complete-reaper-loss") {
-        // The old sibling cleaner and escaped-child refusal keep the existing 5s
+        // The old sibling cleaner retains its existing 5s
         // cleanup deadline; the enclosing Node test retains its unchanged 30s guard.
-        await wait(
-          () => existsSync(receipt),
-          mode === "legacy-sibling-red" || mode === "escaped-refusal" ? 6_000 : 5_000,
-        );
+        await wait(() => existsSync(receipt), mode === "legacy-sibling-red" ? 6_000 : 5_000);
         const outcome = json(readFileSync(receipt, "utf8")).outcome;
         if (mode === "legacy-sibling-red") {
           assert.equal(
@@ -699,18 +725,6 @@ async function linuxInnerCase({
         } else if (mode === "pipe-refusal") {
           assert.equal(outcome, "failed:linux-reaper");
           assert.equal((await required(completion)).code, 1);
-        } else if (mode === "escaped-refusal") {
-          assert.equal(outcome, "failed:linux-reaper");
-          assert.equal((await required(completion)).code, 1);
-          const child = required(captured.at(-1));
-          assert.equal(identity(child.pid).start, child.start);
-          const outerNode = identity(process.ppid);
-          assert.equal(
-            identity(child.pid).parent,
-            outerNode.parent,
-            "escaped fixture is not adopted by the test envelope",
-          );
-          // The identity-bound cleanup function closes this deliberately escaped fixture.
         } else {
           assert.equal(outcome, "quiescent");
           if (mode === "wrapper-loss") await completion;
@@ -727,6 +741,15 @@ async function linuxInnerCase({
               false,
               "descendant was not actually reaped",
             );
+          if (siblingIdentity) {
+            const observedSibling = identity(siblingIdentity.pid);
+            assert.equal(observedSibling.identity, siblingIdentity.identity);
+            assert.notEqual(
+              observedSibling.state,
+              "Z",
+              "unrelated sibling was killed by owned cleanup",
+            );
+          }
         }
       }
     }
@@ -759,7 +782,8 @@ for (const mode of [
   "wrapper-loss",
   "reaper-loss",
   "root-complete-reaper-loss",
-  "escaped-refusal",
+  "escaped-closure",
+  "ignored-sigchld",
   "init-refusal",
   "parent-refusal",
   "pipe-refusal",
@@ -854,7 +878,7 @@ for (const mode of [
           await readFile(path.join(directory, "captured.json"), "utf8"),
         );
         assertCapturedProcessesAbsent(captured);
-        if (mode === "escaped-refusal")
+        if (mode === "escaped-closure")
           assert.equal(
             json(await readFile(path.join(directory, "escaped-coverage.json"), "utf8")).state,
             "signal-complete",
@@ -881,7 +905,7 @@ for (const mode of [
                 cleanup,
                 remaining,
                 escapedCoverage:
-                  mode === "escaped-refusal"
+                  mode === "escaped-closure"
                     ? json(await readFile(path.join(directory, "escaped-coverage.json"), "utf8"))
                     : null,
               }),

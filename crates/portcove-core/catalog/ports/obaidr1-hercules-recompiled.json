@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "obaidr1-hercules-recompiled",
+    "name": "Disney's Hercules (Hercules Recompiled)",
+    "summary": "Upstream route: Upstream runtime package for Hercules Recompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream targets five PAL language releases. USA and original PC editions not included by title alone; complete playthrough Unknown here. Windows/Linux packages; not USA game/PC original assumed. Preserve each accepted disc identity and enhancements as upstream claims. Upstream platforms: Windows/Linux native player packages. CPU coverage follows selected player documentation, not the PSX framework. Original data: PS1 DisneyHercules five PAL language editions English/French/German/Italian/Spanish own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Disney's Hercules",
+    "project_url": "https://github.com/obaidr1/hercules-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/obaidr1/hercules-recompiled",
+    "issue_number": 2823
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "obaidr1-hercules-recompiled",
+    "origin": {
+      "project_url": "https://github.com/obaidr1/hercules-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1416734884"
+      }
+    },
+    "decisions": []
+  }
+}

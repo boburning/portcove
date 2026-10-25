@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hayatog-tlg-pc",
+    "name": "The Last Guardian (The Last Guardian — native PC port)",
+    "summary": "Upstream route: Upstream runtime package for The Last Guardian — native PC port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims stable30FPS with sound/saves;60/unlocked experimental. Windows build success is not gameplay evidence; no independent campaign test. Windows automatic build not gameplay tested per README; Linux upstream30FPS claim;60/unlocked experimental. x86-64 direct execution with Vulkan system layer. Upstream platforms: Linux/Windows x86-64 Vulkan. Windows automatic build explicitly not tested in gameplay; other hosts not established. Original data: PS4 LastGuardian CUSA03627 US/CUSA03745 Europe update01.03 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Last Guardian",
+    "project_url": "https://github.com/HayatoG/tlg_pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/HayatoG/tlg_pc",
+    "artwork": {
+      "game_id": 117,
+      "cover_id": 102434,
+      "image_id": "co271e",
+      "image_sha256": "de73a5b901505ee553475f97ab1ed281575be4df5f2c4338f4ee238881c02ad1",
+      "game_slug": "the-last-guardian",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2815
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hayatog-tlg-pc",
+    "origin": {
+      "project_url": "https://github.com/HayatoG/tlg_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1416366647"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elraro-atomic-bomberman",
+    "name": "Atomic Bomberman (Atomic Bomberman — Modern)",
+    "summary": "Upstream route: Upstream runtime package for Atomic Bomberman — Modern; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes original-rule reimplementation with free replacement or optional original assets. Network latency caveats remain; complete gameplay untested here. Windows/Linux x64 runtime and dedicated servers distinct. Native remake of existing game, not excluded solely because replacement assets allow play without commercial data. Upstream platforms: Windows/Linux x86-64 runtimes and separate dedicated servers. SDL3/OpenGL 3.3 source engine. Original data: Atomic Bomberman 1997; optional original PC data; free replacement assets permit standalone play. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Atomic Bomberman",
+    "project_url": "https://github.com/elraro/atomic-bomberman",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/elraro/atomic-bomberman",
+    "artwork": {
+      "game_id": 18153,
+      "cover_id": 430461,
+      "image_id": "co9859",
+      "image_sha256": "4ebc44a0b86464bf4db64cc3cb23d4b7c1c05d3e9928f2106be0652eb2d86cc5",
+      "game_slug": "atomic-bomberman",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2756
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "elraro-atomic-bomberman",
+    "origin": {
+      "project_url": "https://github.com/elraro/atomic-bomberman",
+      "repository": {
+        "host": "github.com",
+        "id": "1404805814"
+      }
+    },
+    "decisions": []
+  }
+}

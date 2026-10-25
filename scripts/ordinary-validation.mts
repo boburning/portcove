@@ -833,6 +833,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-hosted-native-launcher.mts",
     ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
   ],
+  [
+    "scripts/release-hosted-native-worker.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
   ...[
     "scripts/release-hosted-native-runtime.mts",
     "scripts/release-native-runtime-custody.mts",
@@ -1395,6 +1399,13 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["apps/desktop/scripts/desktop-default-cover-test.mts", ["scripts/desktop-scenarios.test.mts"]],
   ["apps/desktop/scripts/desktop-source-dialog-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  ...[
+    "apps/desktop/scripts/desktop-review-controls.mts",
+    "apps/desktop/scripts/desktop-review-presentation.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-execution-plan.test.mts"],
+  ]),
   [
     ".github/quality-tools.json",
     ["scripts/quality-tools.test.mts", "scripts/dependency-automation.test.mts"],

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bitsandbreakpoints-d-psx-pc-recomp",
+    "name": "D (D PC Port)",
+    "summary": "Upstream route: Upstream runtime package for D PC Port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes game logic, pause and save states. v1.0.1 preserves older states; complete three-disc playthrough Unknown here. Windows package includes native game.dll; keep edition/disc set distinct from DOS D. Save states carry across v1.0.0-1.0.1 per upstream. Upstream platforms: Native Windows app documented. Exact CPU architecture beyond selected package/source docs Unknown; no retail BIOS required. Original data: PS1 D USA three discs SLUS-00128/00173/00174, own CUE/BIN images. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "D",
+    "project_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
+    "issue_number": 2741
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bitsandbreakpoints-d-psx-pc-recomp",
+    "origin": {
+      "project_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425989567"
+      }
+    },
+    "decisions": []
+  }
+}

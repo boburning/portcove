@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "marathon-infinity-aleph-one",
+    "name": "Marathon Infinity (Aleph One)",
+    "summary": "Upstream route: Ready-to-run official packages for all three games on desktop. Limits: Official freely distributed ready-to-run Marathon packages; separate games share Aleph One engine. Upstream platforms: Official ready-to-run Windows/Linux/macOS packages; macOS ARM64 and x86-64 source dependency routes documented. Selected Windows/Linux artifact CPU unknown. Original data: Per-game identities; official freely distributed game-data route, do not impose unnecessary ROM requirement. Portcove setup/gameplay not verified.",
+    "original_game_title": "Marathon Infinity",
+    "project_url": "https://github.com/Aleph-One-Marathon/alephone",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Aleph-One-Marathon/alephone",
+    "artwork": {
+      "game_id": 8711,
+      "cover_id": 272196,
+      "image_id": "co5u10",
+      "image_sha256": "4b6eca560d50f80939a5f228be45b3da722ad86ff9b23bf8f43e000d764b1cc3",
+      "game_slug": "marathon-infinity",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2591
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "marathon-infinity-aleph-one",
+    "origin": {
+      "project_url": "https://github.com/Aleph-One-Marathon/alephone",
+      "repository": {
+        "host": "github.com",
+        "id": "39701264"
+      }
+    },
+    "decisions": []
+  }
+}

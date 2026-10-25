@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "josiahg2502-glitch-newsuperpaperbros",
+    "name": "Super Paper Mario (New Super Paper Bros.)",
+    "summary": "Upstream route: Upstream runtime package for New Super Paper Bros.; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream gameplay/enhancement claims; Linux support new. Source packager expects an HQ-music mod locally. Full platform/gameplay coverage unverified here. Windows/Linux packages; Linux glibc2.35 and Vulkan support new. Source packager expects HQ music mod locally: distinguish optional mod/data from runtime engine requirements. Upstream platforms: Windows 10/11 x64 D3D12/Vulkan and Linux 64-bit glibc 2.35+ Vulkan. Linux support new; screenshot names do not prove macOS. Original data: Wii Super Paper Mario own supported disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Super Paper Mario",
+    "project_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
+    "issue_number": 2772
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "josiahg2502-glitch-newsuperpaperbros",
+    "origin": {
+      "project_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
+      "repository": {
+        "host": "github.com",
+        "id": "1423022461"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+    "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
+    "summary": "Upstream route: Official README supports both original games and unmodified retail resources. Limits: Established recreation of two original XCOM games; original vanilla data and separate game identities. Upstream platforms: Official Windows/Linux/macOS download/build routes; no GitHub Release assets. Selected package CPU architectures unknown in frozen research. Original data: Use official downloads; no GitHub Releases returned. Separate game identities, original vanilla data required. Portcove setup/gameplay not verified.",
+    "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
+    "project_url": "https://github.com/OpenXcom/OpenXcom",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenXcom/OpenXcom",
+    "issue_number": 2619
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+    "origin": {
+      "project_url": "https://github.com/OpenXcom/OpenXcom",
+      "repository": {
+        "host": "github.com",
+        "id": "1334924"
+      }
+    },
+    "decisions": []
+  }
+}

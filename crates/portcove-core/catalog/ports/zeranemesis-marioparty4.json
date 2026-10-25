@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zeranemesis-marioparty4",
+    "name": "Mario Party 4 (Party Board (zeranemesis port))",
+    "summary": "Upstream route: UpstreamPartyBoard runtime may be installed/launched/updated throughCubeShelf, or selected platformZIP/AppImage/APKdirectly. Per-game owner-data setup remains upstream. Windowsbatchlauncher and onlinecommands belong to this maintainedfork; no Portcove updateownership. Limits: Upstream only: Upstream native/netplay claims and bounded scripted/human labels. Latest assets cover only some platforms; multi-device qualification not inherited. Multi-platform and MetaQuest packaging; first tag v0.20 assets Linux/Android/Quest only, older/latest-compatible tag needed Windows/macOS. CubeShelf owns launcher path. Upstream platforms: Windows/CubeShelf, Linux AppImage, macOS Intel/AppleSilicon, Android phone/Quest. Switch source build not run on console. Original data: GameCube MarioParty4 own supported USA disc for multiplayer matching. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Mario Party 4",
+    "project_url": "https://github.com/zeranemesis/Marioparty4",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/zeranemesis/Marioparty4",
+    "issue_number": 2850
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "zeranemesis-marioparty4",
+    "origin": {
+      "project_url": "https://github.com/zeranemesis/Marioparty4",
+      "repository": {
+        "host": "github.com",
+        "id": "1343114406"
+      }
+    },
+    "decisions": []
+  }
+}

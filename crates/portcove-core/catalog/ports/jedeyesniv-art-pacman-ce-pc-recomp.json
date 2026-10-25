@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jedeyesniv-art-pacman-ce-pc-recomp",
+    "name": "Pac-Man Championship Edition (Pac-Man Championship Edition (2007): native PC port)",
+    "summary": "Upstream route: Upstream runtime package for Pac-Man Championship Edition (2007): native PC port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes playable 2007 Championship Edition and random mazes. No independent full-game/platform qualification here. Windows 10/11 Vulkan/D3D12 package; Steam Deck uses Proton, not native Linux. ReXGlue retains Xenia-derived GPU/kernel/audio scope. Upstream platforms: Windows 10/11 with Vulkan or D3D12; x86-64 translation. Steam Deck uses Proton, not a documented native Linux player. Original data: Xbox 360 XBLA Pac-Man Championship Edition 2007 own package or default.xex/media/data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Pac-Man Championship Edition",
+    "project_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
+    "issue_number": 2727
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jedeyesniv-art-pacman-ce-pc-recomp",
+    "origin": {
+      "project_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428920908"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "luigi-s-mansion-luigi-s-mansion-recompiled",
+    "name": "Luigi's Mansion (Luigi's Mansion Recompiled)",
+    "summary": "Upstream route: Native local preparation; preserve in-app updater and setup ownership boundaries. Repository renamed from luigis-mansion-pc-port; old robfozz64 account appears in upstream notes, not in Portcove baseline. Limits: Released1.1.4 native local-preparation route; optional two-player mode unfinished. Upstream platforms: Windows/Linux archives with bundled local compiler/setup; selected package CPU architectures unknown in frozen research. Original data: Own USA GLME01 and/or Europe GLMP01 ISO/RVZ/extracted data; bundled compiler builds game during initial setup. Portcove setup/gameplay not verified.",
+    "original_game_title": "Luigi's Mansion",
+    "project_url": "https://github.com/rob646464/luigis-mansion-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/rob646464/luigis-mansion-recompiled",
+    "issue_number": 2587
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "luigi-s-mansion-luigi-s-mansion-recompiled",
+    "origin": {
+      "project_url": "https://github.com/rob646464/luigis-mansion-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1418382875"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midtown-madness-sneak-preview-beta-build-1560-open1560",
+    "name": "Midtown Madness Sneak Preview Beta / Build 1560 (Open1560)",
+    "summary": "Research listing. Upstream route: Partial native rewrite with OpenGL and downloadable build. Limits: Partial native rewrite targets preview build1560, not general retail Midtown Madness. Upstream platforms: Desktop downloadable build/source route for preview1560; exact package OS/CPU matrix unknown in frozen evidence. Do not advertise retail Midtown Madness. Original data: Do not advertise general retail Midtown Madness compatibility; upstream explicitly targets preview build 1560. Portcove setup/gameplay not verified.",
+    "original_game_title": "Midtown Madness Sneak Preview Beta / Build 1560",
+    "project_url": "https://github.com/0x1F9F1/Open1560",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/0x1F9F1/Open1560",
+    "issue_number": 2884
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "midtown-madness-sneak-preview-beta-build-1560-open1560",
+    "origin": {
+      "project_url": "https://github.com/0x1F9F1/Open1560",
+      "repository": {
+        "host": "github.com",
+        "id": "258517128"
+      }
+    },
+    "decisions": []
+  }
+}

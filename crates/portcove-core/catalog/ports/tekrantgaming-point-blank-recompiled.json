@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekrantgaming-point-blank-recompiled",
+    "name": "Point Blank (Point Blank PC Port)",
+    "summary": "Upstream route: UpstreamPointBlankWindowsZIP includes nativegame/runtime and discpicker; supplies ownCUE/BIN and runs withOpenBIOS. Source build.bat generatesC thenclang-clruntime separately. No first-launch compiler requirement is established by player instructions. Limits: Upstream only: Upstream native PSX translation and enhancement claims. All mini-games/lightguns/peripherals not independently qualified by the presence of a package. Windows10/11x64 OpenGL3.3; do not infer arcade PointBlank support from same game title. Keep optional lightgun/device claims separate. Upstream platforms: Windows10/11 x64 OpenGL3.3 ZIP; source clang-cl build. Bundled OpenBIOS replaces Sony BIOS. Original data: PS1 PointBlank USA SLUS00481 CUE/BIN own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Point Blank",
+    "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TekRantGaming/point-blank-recompiled",
+    "issue_number": 2839
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tekrantgaming-point-blank-recompiled",
+    "origin": {
+      "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1404456123"
+      }
+    },
+    "decisions": []
+  }
+}

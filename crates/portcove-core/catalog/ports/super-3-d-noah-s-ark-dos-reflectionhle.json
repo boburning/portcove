@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-3-d-noah-s-ark-dos-reflectionhle",
+    "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
+    "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+    "original_game_title": "Super 3-D Noah's Ark (DOS)",
+    "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "artwork": {
+      "game_id": 11168,
+      "cover_id": 100093,
+      "image_id": "co258d",
+      "image_sha256": "2ea2090639250f50379577d2f83a3bd8bac89ae87de2234e40333b2a534223e2",
+      "game_slug": "super-noahs-ark-3d",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2690
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-3-d-noah-s-ark-dos-reflectionhle",
+    "origin": {
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "repository": {
+        "host": "github.com",
+        "id": "24228275"
+      }
+    },
+    "decisions": []
+  }
+}
