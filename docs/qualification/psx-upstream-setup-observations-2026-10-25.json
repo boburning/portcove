@@ -22,7 +22,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "51b10a2330424c60c19063a510fcc316bc5028c98f26c8f07f78382190c166ec",
-      "prepared_record_sha256": "8b701384d0b967eb215f711829d510dae9ec68a4868774cd7131be3502eeede5",
+      "prepared_record_sha256": "197ae540be92c74a2195b44252ff1dcc0cd1c97bf7377b8247085cadea44ade7",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp.json",
         "sha256": "0b25238634d20c8c90a65d49dc947d10d99387d3f3cd6fe871ccded808d38b0d",
@@ -87,7 +87,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "0c350fb836e128bca2e399a30b3d7351166f24dca751d7c6d9837a1748a340d5"
+      "authored_record_sha256": "0c350fb836e128bca2e399a30b3d7351166f24dca751d7c6d9837a1748a340d5",
+      "proposal_input_sha256": "8b701384d0b967eb215f711829d510dae9ec68a4868774cd7131be3502eeede5",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp\\ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp-197ae540be92c74a2195b44252ff1dcc0cd1c97bf7377b8247085cadea44ade7.json"
     },
     {
       "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
@@ -100,7 +103,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "bef2974e7390f943a76b4b9e250961ca340c22d219eb9a9296bfa7d4c37ebe2c",
-      "prepared_record_sha256": "f0093f3696b8602b53fec07f1f4a368aff52bd31d9af89955fc23c97b4f9ac6d",
+      "prepared_record_sha256": "6cb0acfa47dfa80a17dce541418aadbc875d6b7e4d3c31e7cbfac0e0f0c36915",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-alone-in-the-dark-the-new-nightmare-recomp.json",
         "sha256": "912e4e6ff93a112c8ad1c0503f4a05b013bfe097be444af677fd320a4784d7b6",
@@ -165,7 +168,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "16b845e38fa31237e1713e97c060e5c64f0ea8c9c963d93fde5385d1ad7f183e"
+      "authored_record_sha256": "16b845e38fa31237e1713e97c060e5c64f0ea8c9c963d93fde5385d1ad7f183e",
+      "proposal_input_sha256": "f0093f3696b8602b53fec07f1f4a368aff52bd31d9af89955fc23c97b4f9ac6d",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-alone-in-the-dark-the-new-nightmare-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-retry1-alexbeav-alone-in-the-dark-the-new-nightmare-recomp\\alexbeav-alone-in-the-dark-the-new-nightmare-recomp-6cb0acfa47dfa80a17dce541418aadbc875d6b7e4d3c31e7cbfac0e0f0c36915.json"
     },
     {
       "id": "alexbeav-apocalypse-recomp",
@@ -178,7 +184,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "9421fbf5cfd491d18d654dc0d87cfaa3dbc78fd73fd89188452a5cadefd8552a",
-      "prepared_record_sha256": "711fcce214c882a6e90bcbe03c9d6b8f1d6e7b6068733164b9878191be72ddfe",
+      "prepared_record_sha256": "e249d3649b4f2781fff5e0823b019cfc695735bd88e646ddf5ce69c98961c778",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-apocalypse-recomp.json",
         "sha256": "bc3857a6a4c30b24280fc66d1587169d079979df60e84a7599611901552f8a2e",
@@ -243,7 +249,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "71a2e0a908faf978b4cef5972bbc38221b08f87d76f75f472c0ff0d38870e9fa"
+      "authored_record_sha256": "71a2e0a908faf978b4cef5972bbc38221b08f87d76f75f472c0ff0d38870e9fa",
+      "proposal_input_sha256": "711fcce214c882a6e90bcbe03c9d6b8f1d6e7b6068733164b9878191be72ddfe",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-apocalypse-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-apocalypse-recomp\\alexbeav-apocalypse-recomp-e249d3649b4f2781fff5e0823b019cfc695735bd88e646ddf5ce69c98961c778.json"
     },
     {
       "id": "alexbeav-armored-core-master-of-arena-recomp",
@@ -256,7 +265,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "2e41bb1bf0b04a360ccfba7eb1ab7e80fbfe67d6541f8ca7adf9a689363a899b",
-      "prepared_record_sha256": "e996b32a27e994015bfb067f8af8e2d9a6bf9f2b13a432b2fb31af7b36a9ed8a",
+      "prepared_record_sha256": "a12fbafa8f33ab2ba1f8c38708574fe18b4b88d8b3dba6a85c2193558a4f8280",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-armored-core-master-of-arena-recomp.json",
         "sha256": "0c27c9cdf3a27df827be63325e0f0a6d75c462f5aecd3efcd21ec9b4fb9442f6",
@@ -321,7 +330,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2e04e7659e0aa420562da0645f80f430fbc62980e208135fae7225f4af203a43"
+      "authored_record_sha256": "2e04e7659e0aa420562da0645f80f430fbc62980e208135fae7225f4af203a43",
+      "proposal_input_sha256": "e996b32a27e994015bfb067f8af8e2d9a6bf9f2b13a432b2fb31af7b36a9ed8a",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-armored-core-master-of-arena-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-armored-core-master-of-arena-recomp\\alexbeav-armored-core-master-of-arena-recomp-a12fbafa8f33ab2ba1f8c38708574fe18b4b88d8b3dba6a85c2193558a4f8280.json"
     },
     {
       "id": "alexbeav-armored-core-project-phantasma-recomp",
@@ -334,7 +346,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "e144d4c534c24d1b2dd8f626a9778fd4547393a35580fc54ed5ed0a64dcfd613",
-      "prepared_record_sha256": "988a30380129cb86a9dd378191608342dbc39a1ac42622f316d76235b4ef44c2",
+      "prepared_record_sha256": "ce14969cf71827cb2181e7806723417de11178315efbde6e17f874e0583df727",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-armored-core-project-phantasma-recomp.json",
         "sha256": "2744ec8c9474c198e20a7269853dc916952ca77606276eeebfec20fba0da5dc8",
@@ -399,7 +411,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "0400311a4aadb7413e6cfe2845211bea5bb1b839a978c0c3de4700f86a5e378c"
+      "authored_record_sha256": "0400311a4aadb7413e6cfe2845211bea5bb1b839a978c0c3de4700f86a5e378c",
+      "proposal_input_sha256": "988a30380129cb86a9dd378191608342dbc39a1ac42622f316d76235b4ef44c2",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-armored-core-project-phantasma-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-armored-core-project-phantasma-recomp\\alexbeav-armored-core-project-phantasma-recomp-ce14969cf71827cb2181e7806723417de11178315efbde6e17f874e0583df727.json"
     },
     {
       "id": "alexbeav-azure-dreams-recomp",
@@ -412,7 +427,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "c034d85409ac95782711c048eafa65477050d54681d5f48014ff6be7115532b8",
-      "prepared_record_sha256": "4ec045ba1827a9e7f7cedf770498899bd07f8215731702eee847242ab7c59022",
+      "prepared_record_sha256": "d79c539f2f0d44c9a31d01c13aefac4edfebee9bab10b0f8e120447b27d1f137",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-azure-dreams-recomp.json",
         "sha256": "c439339cea47158a3f3a5351ddf1256c2641a8ae983468a2d2fdb7c04274f9c9",
@@ -477,7 +492,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "845f5fd3ac3fb4466eb40ac72b2dde76e3dbe9281977ad1c6bb590fabd022d3a"
+      "authored_record_sha256": "845f5fd3ac3fb4466eb40ac72b2dde76e3dbe9281977ad1c6bb590fabd022d3a",
+      "proposal_input_sha256": "4ec045ba1827a9e7f7cedf770498899bd07f8215731702eee847242ab7c59022",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-azure-dreams-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-azure-dreams-recomp\\alexbeav-azure-dreams-recomp-d79c539f2f0d44c9a31d01c13aefac4edfebee9bab10b0f8e120447b27d1f137.json"
     },
     {
       "id": "alexbeav-bloody-roar-ii-recomp",
@@ -490,7 +508,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "3ba6a35a57732ad0e60b681f6c277f02b8865b130e7c591512f7dbe100a0ff71",
-      "prepared_record_sha256": "4229cf759d820e23c976dfc7e00048858c3baf7fb38051f23e7a667ad88dee82",
+      "prepared_record_sha256": "a9752c6387f7c6894fe959284a84554c2052cd26d87ae35c20043674320f2a9a",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-bloody-roar-ii-recomp.json",
         "sha256": "e9dba1437e895ad530e44f408b3951ec6220833f34da8f2408380a85adf2aa96",
@@ -555,7 +573,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2d13b218d2a22d6d8bd9cb05f58ea5e2e1b957fcefa1345141f4760636d6e887"
+      "authored_record_sha256": "2d13b218d2a22d6d8bd9cb05f58ea5e2e1b957fcefa1345141f4760636d6e887",
+      "proposal_input_sha256": "4229cf759d820e23c976dfc7e00048858c3baf7fb38051f23e7a667ad88dee82",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-bloody-roar-ii-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-bloody-roar-ii-recomp\\alexbeav-bloody-roar-ii-recomp-a9752c6387f7c6894fe959284a84554c2052cd26d87ae35c20043674320f2a9a.json"
     },
     {
       "id": "alexbeav-bushido-blade-2-recomp",
@@ -568,7 +589,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "824e0ed33dc9b3eeee9e9e5b84c31b9a1099238915f480a4817f8e9c01f0f7e5",
-      "prepared_record_sha256": "f1c7ddafb485d9a9a82bd7c06a31b28359ae9562bfbe603621f38570692fccaa",
+      "prepared_record_sha256": "404ac2cae00a642736e54d24ef472d8bcd69ffa6122368a2342d317e925128b8",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-bushido-blade-2-recomp.json",
         "sha256": "94df47bf403d6161fc6f0523960d1e875fc733dbe33a3fd5881d25bd320df9ee",
@@ -633,7 +654,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2b582554694a8ac7649fa0146ad9b5d4070b084f37b6bca62dd3b75e47df5660"
+      "authored_record_sha256": "2b582554694a8ac7649fa0146ad9b5d4070b084f37b6bca62dd3b75e47df5660",
+      "proposal_input_sha256": "f1c7ddafb485d9a9a82bd7c06a31b28359ae9562bfbe603621f38570692fccaa",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-bushido-blade-2-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-bushido-blade-2-recomp\\alexbeav-bushido-blade-2-recomp-404ac2cae00a642736e54d24ef472d8bcd69ffa6122368a2342d317e925128b8.json"
     },
     {
       "id": "alexbeav-colin-mcrae-rally-2-0-recomp",
@@ -646,7 +670,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "b1168a1c7c259091de243b5316216db71053404894a5752087a9c785c580eb22",
-      "prepared_record_sha256": "d13807560fb4bf1dc40df3c92230d74824b541b129eab3afdeaa86b902ce3adf",
+      "prepared_record_sha256": "36da20ae0594f2b5f51edad1e78be8e8be888acf0ff33c0f904ecf9266f5fa0d",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-colin-mcrae-rally-2-0-recomp.json",
         "sha256": "db299b5c74f679fdc4a808e80430a166ddcb7fca9ee8c4652128f40339a5bae8",
@@ -711,7 +735,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "809e9642f8a74c25189fd48e36e21f39964db2afb19953235fe4a981ff716df2"
+      "authored_record_sha256": "809e9642f8a74c25189fd48e36e21f39964db2afb19953235fe4a981ff716df2",
+      "proposal_input_sha256": "d13807560fb4bf1dc40df3c92230d74824b541b129eab3afdeaa86b902ce3adf",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-colin-mcrae-rally-2-0-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-colin-mcrae-rally-2-0-recomp\\alexbeav-colin-mcrae-rally-2-0-recomp-36da20ae0594f2b5f51edad1e78be8e8be888acf0ff33c0f904ecf9266f5fa0d.json"
     },
     {
       "id": "alexbeav-colony-wars-recomp",
@@ -724,7 +751,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "fafaa607c85be4d239d5ac2d7a79806578c8f8dfd27acedc9177608792ac481f",
-      "prepared_record_sha256": "293d29bbab2a47b983bf1e7434206c10542ed96b4ae3cfa32dc7552a40b89d10",
+      "prepared_record_sha256": "f365774cfe331999a8541e13cc9f02cdb1309394016c32b523445e44ab4178de",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-colony-wars-recomp.json",
         "sha256": "995579d09cc3edc7a27a39a407cf937fbc435f2db247131562d7ddd23f18351c",
@@ -789,7 +816,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "49c82c417fa2f786e0ea254999202265d036d7f11c5ac0fe74a23501d21a8779"
+      "authored_record_sha256": "49c82c417fa2f786e0ea254999202265d036d7f11c5ac0fe74a23501d21a8779",
+      "proposal_input_sha256": "293d29bbab2a47b983bf1e7434206c10542ed96b4ae3cfa32dc7552a40b89d10",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-colony-wars-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-colony-wars-recomp\\alexbeav-colony-wars-recomp-f365774cfe331999a8541e13cc9f02cdb1309394016c32b523445e44ab4178de.json"
     },
     {
       "id": "alexbeav-colony-wars-red-sun-recomp",
@@ -802,7 +832,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "10bffdb2f86c2e8ad9bbb7fdd9145a4a8ea3933afd0ebad6527ab1c4d1d49c9c",
-      "prepared_record_sha256": "faac7cac8f1fde050f2d6936b4d4166d06e826b27110f61ce291070025624277",
+      "prepared_record_sha256": "780ac551f08e54a85f61c24ccbf9fc4e96d921620e1049cb8d49f5922e38e28a",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-colony-wars-red-sun-recomp.json",
         "sha256": "9edc307f52911b28d897e654ffce46cc65afd530a10b619a78c8da9ffff1cdbe",
@@ -867,7 +897,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "a409d616d868979f8b3b2742124a228ca601bb0fc5e21cf777c4f052312b14ec"
+      "authored_record_sha256": "a409d616d868979f8b3b2742124a228ca601bb0fc5e21cf777c4f052312b14ec",
+      "proposal_input_sha256": "faac7cac8f1fde050f2d6936b4d4166d06e826b27110f61ce291070025624277",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-colony-wars-red-sun-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-colony-wars-red-sun-recomp\\alexbeav-colony-wars-red-sun-recomp-780ac551f08e54a85f61c24ccbf9fc4e96d921620e1049cb8d49f5922e38e28a.json"
     },
     {
       "id": "alexbeav-crash-bandicoot-3-warped-recomp",
@@ -880,7 +913,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "1b0beb596016ef44a85973740e1397e672d4a88234e0c089665cee10a735b196",
-      "prepared_record_sha256": "d1c7a3ba61c65a251c23815e09fd2c7c17650e1cc5bd01ce56136e924a256fab",
+      "prepared_record_sha256": "9425daa3cc4623b116e6a528b2730fbacae6299a213a5af253495e08f52e833e",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-crash-bandicoot-3-warped-recomp.json",
         "sha256": "8b3eca1360aff1377e9ff6ffda33c2109c5c39997811b6765be2110c85f61404",
@@ -945,7 +978,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "36adb166e37a80722250cf028771b34633296e24a70f74dba4c69567d115573b"
+      "authored_record_sha256": "36adb166e37a80722250cf028771b34633296e24a70f74dba4c69567d115573b",
+      "proposal_input_sha256": "d1c7a3ba61c65a251c23815e09fd2c7c17650e1cc5bd01ce56136e924a256fab",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-crash-bandicoot-3-warped-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-crash-bandicoot-3-warped-recomp\\alexbeav-crash-bandicoot-3-warped-recomp-9425daa3cc4623b116e6a528b2730fbacae6299a213a5af253495e08f52e833e.json"
     },
     {
       "id": "alexbeav-destruction-derby-2-recomp",
@@ -958,7 +994,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "d77ad8a59b80e3e3252b671044fdea2e989a5c0d3bb8c1f014281e0662d5218f",
-      "prepared_record_sha256": "7d8c626cc63739b39c83c9e7af289e72c560a6bee07c45551f47a374538c1960",
+      "prepared_record_sha256": "b938469d943da8774816ff9aa0dd7c8270805bc5ad59dd289ab828a580c91629",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-destruction-derby-2-recomp.json",
         "sha256": "781a5573919d0e64cd19b16d37f18af019fa7630cb68bb372f3703963720a963",
@@ -1023,7 +1059,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "293212de8cb22e07d1ceda62b18d60aefc6b3943bf9836baa17a240e496fb370"
+      "authored_record_sha256": "293212de8cb22e07d1ceda62b18d60aefc6b3943bf9836baa17a240e496fb370",
+      "proposal_input_sha256": "7d8c626cc63739b39c83c9e7af289e72c560a6bee07c45551f47a374538c1960",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-destruction-derby-2-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-destruction-derby-2-recomp\\alexbeav-destruction-derby-2-recomp-b938469d943da8774816ff9aa0dd7c8270805bc5ad59dd289ab828a580c91629.json"
     },
     {
       "id": "alexbeav-destruction-derby-raw-recomp",
@@ -1036,7 +1075,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "bb8696104a198d6c3068ff6aefe59ac3edec2c285573e305f5e60982dd0a90c8",
-      "prepared_record_sha256": "325a8c644d811bf1778557705d3d620a61900a6d81474e395b2edf2036698ff9",
+      "prepared_record_sha256": "70203636a0409822ad729ab785ee9792297663f536f823c1e437095da4eaa8b8",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-destruction-derby-raw-recomp.json",
         "sha256": "b44d8a4f2f6706c1687d6d936a49a3ba054f92ae67dc9912f4019dabf534a651",
@@ -1101,7 +1140,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "d635c196765cf28a6afac38d9d60f38356e1cfd73d9de2e3ce2fb91f17e272e1"
+      "authored_record_sha256": "d635c196765cf28a6afac38d9d60f38356e1cfd73d9de2e3ce2fb91f17e272e1",
+      "proposal_input_sha256": "325a8c644d811bf1778557705d3d620a61900a6d81474e395b2edf2036698ff9",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-destruction-derby-raw-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-destruction-derby-raw-recomp\\alexbeav-destruction-derby-raw-recomp-70203636a0409822ad729ab785ee9792297663f536f823c1e437095da4eaa8b8.json"
     },
     {
       "id": "alexbeav-devil-dice-recomp",
@@ -1114,7 +1156,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "affc3556c11813ac207fe1e7a4082ea43950a1c034d70b7cb61887d2083d15e8",
-      "prepared_record_sha256": "051af7fbbfeba0f57c3b86ae5478418cdb86bd5c938d64ee6a67c34d838b10db",
+      "prepared_record_sha256": "7fdcb8d5d2fbee97c0d72169508a5b5b98ee7b73640bf01fb889ac88ce3be0a7",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-devil-dice-recomp.json",
         "sha256": "9e2393233bf47d7ae7224d0add2a7a5de82770f9d18aeb8342dcb87a81a57580",
@@ -1179,7 +1221,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "386abded5dfa4abb94bdfdf05937dd1d2972e2617c76a62cc75ffb813f9447a4"
+      "authored_record_sha256": "386abded5dfa4abb94bdfdf05937dd1d2972e2617c76a62cc75ffb813f9447a4",
+      "proposal_input_sha256": "051af7fbbfeba0f57c3b86ae5478418cdb86bd5c938d64ee6a67c34d838b10db",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-devil-dice-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-devil-dice-recomp\\alexbeav-devil-dice-recomp-7fdcb8d5d2fbee97c0d72169508a5b5b98ee7b73640bf01fb889ac88ce3be0a7.json"
     },
     {
       "id": "alexbeav-die-hard-trilogy-recomp",
@@ -1192,7 +1237,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "fd716b2274e969a38718ec0bf481835b10a72ab6c5c0ed1287329ffabdf87cce",
-      "prepared_record_sha256": "efaf40de013b876fd336af2e864893197ff594376efa627ad92b07e8cd73c360",
+      "prepared_record_sha256": "bee5d8c13a996c2b431157a19e249876a2dca0df0942e2dcd5cccbe705982ae3",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-die-hard-trilogy-recomp.json",
         "sha256": "25f4cbfaf7031eb3595d76cf17fe1ccc197e171bf81f4fb371513862584562c3",
@@ -1257,7 +1302,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "5539e40188a8c88ad2c8ae22a0bd7a49f1f031f2b9ccd0d26f328d30a83a4f7d"
+      "authored_record_sha256": "5539e40188a8c88ad2c8ae22a0bd7a49f1f031f2b9ccd0d26f328d30a83a4f7d",
+      "proposal_input_sha256": "efaf40de013b876fd336af2e864893197ff594376efa627ad92b07e8cd73c360",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-die-hard-trilogy-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-die-hard-trilogy-recomp\\alexbeav-die-hard-trilogy-recomp-bee5d8c13a996c2b431157a19e249876a2dca0df0942e2dcd5cccbe705982ae3.json"
     },
     {
       "id": "alexbeav-digimon-world-2-recomp",
@@ -1270,7 +1318,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "3670c9b2e6878dbf2d8fb2cabb027b41b2250837efba0eb6c9321c6763572910",
-      "prepared_record_sha256": "6072bbad079bf766665c711c82691da471b2a7eb7aa089e50073217155fdff8c",
+      "prepared_record_sha256": "e82aeeb46ef2a8cc9e3de972cec0cfd45cec83d15464c6a1a00040effd3c5a60",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-digimon-world-2-recomp.json",
         "sha256": "0e87878f5657de5d342e104eb69904f53c0ff33ff986f3b0d835c2a322e089a2",
@@ -1335,7 +1383,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "11ef6d8deb5d9fd11e69e5ae0f2baf89f98091041befc4e27d69cd3fb5e6fac5"
+      "authored_record_sha256": "11ef6d8deb5d9fd11e69e5ae0f2baf89f98091041befc4e27d69cd3fb5e6fac5",
+      "proposal_input_sha256": "6072bbad079bf766665c711c82691da471b2a7eb7aa089e50073217155fdff8c",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-digimon-world-2-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-digimon-world-2-recomp\\alexbeav-digimon-world-2-recomp-e82aeeb46ef2a8cc9e3de972cec0cfd45cec83d15464c6a1a00040effd3c5a60.json"
     },
     {
       "id": "alexbeav-dragon-ball-z-ultimate-battle-22-recomp",
@@ -1348,7 +1399,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "ecfee40cd46e782f476fc3e6a10a8bfeb84e263a59f4fcff4d5eca01201cde23",
-      "prepared_record_sha256": "d5ff627014b4eb6f8a08e22fdfbd7113c831fdc3b1249ea5b9839c8475d360a4",
+      "prepared_record_sha256": "8b81ee0489ad7068b5b36677afd65d4ac427635f34e9037914503a9a1a331ddc",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-dragon-ball-z-ultimate-battle-22-recomp.json",
         "sha256": "52093286509a4c047b4a82bbc0d6a9077b81195c031b2b7301927f36fce9eb5a",
@@ -1413,7 +1464,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "46b6e589ecb72a49fad7b1ef1ac4f4b27b117ea0ff1cc22c0304d91c2be1c347"
+      "authored_record_sha256": "46b6e589ecb72a49fad7b1ef1ac4f4b27b117ea0ff1cc22c0304d91c2be1c347",
+      "proposal_input_sha256": "d5ff627014b4eb6f8a08e22fdfbd7113c831fdc3b1249ea5b9839c8475d360a4",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-dragon-ball-z-ultimate-battle-22-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-dragon-ball-z-ultimate-battle-22-recomp\\alexbeav-dragon-ball-z-ultimate-battle-22-recomp-8b81ee0489ad7068b5b36677afd65d4ac427635f34e9037914503a9a1a331ddc.json"
     },
     {
       "id": "alexbeav-fear-effect-2-retro-helix-recomp",
@@ -1426,7 +1480,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "d4ab96b3cde7eed1ffac7a21cd70e2dfbb3be4d99120d240db8af5b257b96424",
-      "prepared_record_sha256": "cccb40017614957bd60142cb1d335d1dc0373f9b26d9862775bf960f82ddd502",
+      "prepared_record_sha256": "b2073560f473c7de4f5b7c77fa8bb3498b411a4b818aedc71e7b0b8e863ee6e0",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-fear-effect-2-retro-helix-recomp.json",
         "sha256": "3671ace9f30d2d2262025813cfd0b2781ce8ded921ff79ddb2fd8f5f8bbc02ba",
@@ -1491,7 +1545,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "bcc686f077ba1663a3d270d6930b98df953a608e41e692635a8f08abf1698a33"
+      "authored_record_sha256": "bcc686f077ba1663a3d270d6930b98df953a608e41e692635a8f08abf1698a33",
+      "proposal_input_sha256": "cccb40017614957bd60142cb1d335d1dc0373f9b26d9862775bf960f82ddd502",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-fear-effect-2-retro-helix-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-fear-effect-2-retro-helix-recomp\\alexbeav-fear-effect-2-retro-helix-recomp-b2073560f473c7de4f5b7c77fa8bb3498b411a4b818aedc71e7b0b8e863ee6e0.json"
     },
     {
       "id": "alexbeav-fear-effect-recomp",
@@ -1504,7 +1561,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "2e24edae445bda5273017d67026fd4d21660ff08172e651674cbfe09e5592a40",
-      "prepared_record_sha256": "d42a78c0f1655146dd08c0ca06907223cb5d0b91710325991acf3d769283e8d6",
+      "prepared_record_sha256": "6fdf76b683a614b45b44609d98fc8cdd7ab0d42fd6155630fdc21facb4663848",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-fear-effect-recomp.json",
         "sha256": "7ceaf71f736fccd26d1a6e1aae7658e480bde0c7b78f166ef66bc2da0437b302",
@@ -1569,7 +1626,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "1e746ee9d7ac70c7ae6933d7872ad2577b70bdb5c02d04bcf928b6e445c6cfac"
+      "authored_record_sha256": "1e746ee9d7ac70c7ae6933d7872ad2577b70bdb5c02d04bcf928b6e445c6cfac",
+      "proposal_input_sha256": "d42a78c0f1655146dd08c0ca06907223cb5d0b91710325991acf3d769283e8d6",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-fear-effect-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-fear-effect-recomp\\alexbeav-fear-effect-recomp-6fdf76b683a614b45b44609d98fc8cdd7ab0d42fd6155630fdc21facb4663848.json"
     },
     {
       "id": "alexbeav-fighting-force-recomp",
@@ -1582,7 +1642,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "b8c17f5b793f73461259e79c24ebb9e1b97807c7ac55646343fd7e17cfaede68",
-      "prepared_record_sha256": "0c3a21c55bb8fac84e6c34f960e761f63c24abdc64f4c14694514f7be4d11f1e",
+      "prepared_record_sha256": "a2ec55703041aaddd256d1a72d2412d319610287ef44076f57de34d39e3fc088",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-fighting-force-recomp.json",
         "sha256": "e15f86c819ac5ff61b2a11dc2d916a318734de0ab12399123ca181412cd2f839",
@@ -1647,7 +1707,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "1e7c3f434687736adddf1f7a61c5af49601a3f4830c3a1e72993d72383fc5319"
+      "authored_record_sha256": "1e7c3f434687736adddf1f7a61c5af49601a3f4830c3a1e72993d72383fc5319",
+      "proposal_input_sha256": "0c3a21c55bb8fac84e6c34f960e761f63c24abdc64f4c14694514f7be4d11f1e",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-fighting-force-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-fighting-force-recomp\\alexbeav-fighting-force-recomp-a2ec55703041aaddd256d1a72d2412d319610287ef44076f57de34d39e3fc088.json"
     },
     {
       "id": "alexbeav-final-fantasy-ix-recomp",
@@ -1660,7 +1723,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "cb1c211baea0db553b45c01e217f49b3ef443e7325a1efd0c83d303e4d07df25",
-      "prepared_record_sha256": "b1af9fa0b310e890dd6f7900d6cec540c4159f3b0d0448e7235994b7ca334be7",
+      "prepared_record_sha256": "c05633d28abec5648b0c1b34adf555ffcc3a0786c6919cd1f9eb53832ad22d95",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-final-fantasy-ix-recomp.json",
         "sha256": "d46709c34dcfa0b4b70dceb3ee974dc52d7c7d0b31ab3e03e12a7db5c310eee2",
@@ -1725,7 +1788,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "0ccb7b5f541623f495812722ec28f5710000c0c474511eee316908dfabe9685e"
+      "authored_record_sha256": "0ccb7b5f541623f495812722ec28f5710000c0c474511eee316908dfabe9685e",
+      "proposal_input_sha256": "b1af9fa0b310e890dd6f7900d6cec540c4159f3b0d0448e7235994b7ca334be7",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-final-fantasy-ix-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-final-fantasy-ix-recomp\\alexbeav-final-fantasy-ix-recomp-c05633d28abec5648b0c1b34adf555ffcc3a0786c6919cd1f9eb53832ad22d95.json"
     },
     {
       "id": "alexbeav-final-fantasy-viii-recomp",
@@ -1738,7 +1804,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "7bb3cd5bc34198880b0b378fe28e5204fc716ecc0ebb050a0210b8129a6b9e54",
-      "prepared_record_sha256": "8ba7f1f15fa8a4ed135c37a9d241ebbaab3a007774b1c7236345a431fb1d9e77",
+      "prepared_record_sha256": "942988e674727d5f33f7b0d864202024e02772cfc90df56f5207a51d58bb03bc",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-final-fantasy-viii-recomp.json",
         "sha256": "aeed07ce07785a6989bfe5bf59e090f6a8259302e0e1515ad3dec2ba720d40db",
@@ -1803,7 +1869,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "813091686e33b3e7393533b67004976e9c46e96646d022d5edf8c4aff30e843a"
+      "authored_record_sha256": "813091686e33b3e7393533b67004976e9c46e96646d022d5edf8c4aff30e843a",
+      "proposal_input_sha256": "8ba7f1f15fa8a4ed135c37a9d241ebbaab3a007774b1c7236345a431fb1d9e77",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-final-fantasy-viii-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-final-fantasy-viii-recomp\\alexbeav-final-fantasy-viii-recomp-942988e674727d5f33f7b0d864202024e02772cfc90df56f5207a51d58bb03bc.json"
     },
     {
       "id": "alexbeav-future-cop-lapd-recomp",
@@ -1816,7 +1885,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "0fe3908b445e3e2d837ee42770faee03fc4f6642537bd4da240e17e27eded29a",
-      "prepared_record_sha256": "2d31f04b437a9286e1b2def9a38776c9abaa65be3b15e3e6a9afa81c0bd2a88e",
+      "prepared_record_sha256": "9af8337d370fa58d938aea59c4b62396e9d76474df4c70732bdc081559e925fa",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-future-cop-lapd-recomp.json",
         "sha256": "0ad9b6d4e584760d5966cb6bcd889c535d8f0a03a4046b7731e7569ee5d60204",
@@ -1881,7 +1950,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "c645a95b0aaff876919a17f85e13ccf0201bf8930406da46cbcebf15c3ea632f"
+      "authored_record_sha256": "c645a95b0aaff876919a17f85e13ccf0201bf8930406da46cbcebf15c3ea632f",
+      "proposal_input_sha256": "2d31f04b437a9286e1b2def9a38776c9abaa65be3b15e3e6a9afa81c0bd2a88e",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-future-cop-lapd-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-future-cop-lapd-recomp\\alexbeav-future-cop-lapd-recomp-9af8337d370fa58d938aea59c4b62396e9d76474df4c70732bdc081559e925fa.json"
     },
     {
       "id": "alexbeav-g-police-recomp",
@@ -1894,7 +1966,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "dfc7b5bbab7dd646c789703a3e1bfa75cac7390a4204e87b1b0a55a575d94156",
-      "prepared_record_sha256": "23d8e8a79dddc7297dfbddf1b80d13e99397dea0eca7bd5ddd61ec88c27a974a",
+      "prepared_record_sha256": "7639b2fcd97c7dbac18927d97f915b55a6c7164277f4f869b2d831c8d267029a",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-g-police-recomp.json",
         "sha256": "40319d5c35ecae2073a3cf4c0f3e86a3d5cdea2c6ef052702e3be48361ce88b6",
@@ -1959,7 +2031,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "ea40a13bc8c28ba059da48475cf0a620c74c43cbdc7ddbf008a0bca7cd11fb89"
+      "authored_record_sha256": "ea40a13bc8c28ba059da48475cf0a620c74c43cbdc7ddbf008a0bca7cd11fb89",
+      "proposal_input_sha256": "23d8e8a79dddc7297dfbddf1b80d13e99397dea0eca7bd5ddd61ec88c27a974a",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-g-police-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-g-police-recomp\\alexbeav-g-police-recomp-7639b2fcd97c7dbac18927d97f915b55a6c7164277f4f869b2d831c8d267029a.json"
     },
     {
       "id": "alexbeav-g-police-weapons-of-justice-recomp",
@@ -1972,7 +2047,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "1d6f942c6b1aa4aa3c0fa72499323cf4e4806af5788607b7659c691f61871f2c",
-      "prepared_record_sha256": "73152d10f166b09c83af407c7ff37fbb47a2f04fcaedb9bb03858e2c55e65f3b",
+      "prepared_record_sha256": "5855cae2dd5c21912d96ca5cb55af08fa528bb58b875272e0e9f57808eedca11",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-g-police-weapons-of-justice-recomp.json",
         "sha256": "faddfdf9d253697fb77d1358b8a0126c2b4bbf27b4bd800d848adcd15dd8e749",
@@ -2037,7 +2112,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "d107f095863e682b2db22c50bc3db3412ba646a458a4cc7dc802a1b97461048b"
+      "authored_record_sha256": "d107f095863e682b2db22c50bc3db3412ba646a458a4cc7dc802a1b97461048b",
+      "proposal_input_sha256": "73152d10f166b09c83af407c7ff37fbb47a2f04fcaedb9bb03858e2c55e65f3b",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-g-police-weapons-of-justice-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-g-police-weapons-of-justice-recomp\\alexbeav-g-police-weapons-of-justice-recomp-5855cae2dd5c21912d96ca5cb55af08fa528bb58b875272e0e9f57808eedca11.json"
     },
     {
       "id": "alexbeav-galerians-recomp",
@@ -2050,7 +2128,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "8f6b5340a76517368d8e00d3fb4bf1e9e75486be01a6d15fbfe77da8934fa24d",
-      "prepared_record_sha256": "ebabc2bb2d439823d4bd5462199e818c3b10ce06c34fd1df97d7510609a27ca4",
+      "prepared_record_sha256": "80c6d2c5c1423a7af42362276acbb4dd0ae972a50cc98884e9f1da20e5ddec61",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-galerians-recomp.json",
         "sha256": "16e086f752d86a1de41c656eea8220292c8e798c3d85903bd9868c17533c82be",
@@ -2115,7 +2193,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "ab1110107bd421020e0049c1fba4b4eff786230da83ee77a89149b549b8a236f"
+      "authored_record_sha256": "ab1110107bd421020e0049c1fba4b4eff786230da83ee77a89149b549b8a236f",
+      "proposal_input_sha256": "ebabc2bb2d439823d4bd5462199e818c3b10ce06c34fd1df97d7510609a27ca4",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-galerians-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-galerians-recomp\\alexbeav-galerians-recomp-80c6d2c5c1423a7af42362276acbb4dd0ae972a50cc98884e9f1da20e5ddec61.json"
     },
     {
       "id": "alexbeav-ghost-in-the-shell-recomp",
@@ -2128,7 +2209,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "58fd4131377adb0cd38afa025b4537331fb940f2323f45d23e7cb5a0f6da5eb3",
-      "prepared_record_sha256": "fba31aceca3adf00b1a48fe9692418d81bc42da23d889522711d511a0d495e62",
+      "prepared_record_sha256": "b4f898e319f57e9fee59bacfa6ee4611473f55d58a8c4ddfb1e4f07537c9e56f",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-ghost-in-the-shell-recomp.json",
         "sha256": "e7f6820d50cf7ccf38a1502acb0d5d884ff636939c5c2a4290311309e32566b8",
@@ -2193,7 +2274,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "52d4ab899592d3bfc790574e9c896566fdaaa5bf8e81cf69eed4cfcf80b822e1"
+      "authored_record_sha256": "52d4ab899592d3bfc790574e9c896566fdaaa5bf8e81cf69eed4cfcf80b822e1",
+      "proposal_input_sha256": "fba31aceca3adf00b1a48fe9692418d81bc42da23d889522711d511a0d495e62",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-ghost-in-the-shell-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-ghost-in-the-shell-recomp\\alexbeav-ghost-in-the-shell-recomp-b4f898e319f57e9fee59bacfa6ee4611473f55d58a8c4ddfb1e4f07537c9e56f.json"
     },
     {
       "id": "alexbeav-in-cold-blood-recomp",
@@ -2206,7 +2290,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "01b38b2ba5dae049c2a9394224d6f45801b445032f8b706a379318b8ebebb7d3",
-      "prepared_record_sha256": "5818b0209f38ada990e42d00584c51e51c7ed88789517a1816c68bb8d2263387",
+      "prepared_record_sha256": "8807910e7dda268685d2421a60623d2def512db550fe399a0b3da82e040fd76e",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-in-cold-blood-recomp.json",
         "sha256": "361a68c7ef03bcb94e4b2373f7c8bf3699a0c01dcb1f076454700a2796881e7f",
@@ -2271,7 +2355,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "682455f783b6ec95a8becfa48e472d8d523ab9c6bd3c2c24000f18b600e9897c"
+      "authored_record_sha256": "682455f783b6ec95a8becfa48e472d8d523ab9c6bd3c2c24000f18b600e9897c",
+      "proposal_input_sha256": "5818b0209f38ada990e42d00584c51e51c7ed88789517a1816c68bb8d2263387",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-in-cold-blood-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-in-cold-blood-recomp\\alexbeav-in-cold-blood-recomp-8807910e7dda268685d2421a60623d2def512db550fe399a0b3da82e040fd76e.json"
     },
     {
       "id": "alexbeav-incredible-crisis-recomp",
@@ -2284,7 +2371,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "a14a19cf795f8a4c5b3c583d507b7fd63a28aaf234dfdcfa8daadfcb7882ed56",
-      "prepared_record_sha256": "aba57f9bad92903e9152e00f0d51f4cfc260e7c904a9b3bd80c83ad4eb96a7b2",
+      "prepared_record_sha256": "a7c1eeaa0dd591fdab0d4ccb8b6065d71b7208661ca26e13dd6f6d84f1574cee",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-incredible-crisis-recomp.json",
         "sha256": "b4ca39f490d7fc586cd6d55fbd78c8d5d295e75dfd936cbfd4e6982f8ba4318b",
@@ -2349,7 +2436,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "469a81dfb06b30ec166e60a21c6143c63ce7f18e2e8c2a2b197a9b0e96d6c907"
+      "authored_record_sha256": "469a81dfb06b30ec166e60a21c6143c63ce7f18e2e8c2a2b197a9b0e96d6c907",
+      "proposal_input_sha256": "aba57f9bad92903e9152e00f0d51f4cfc260e7c904a9b3bd80c83ad4eb96a7b2",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-incredible-crisis-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-incredible-crisis-recomp\\alexbeav-incredible-crisis-recomp-a7c1eeaa0dd591fdab0d4ccb8b6065d71b7208661ca26e13dd6f6d84f1574cee.json"
     },
     {
       "id": "alexbeav-jackie-chan-stuntmaster-recomp",
@@ -2362,7 +2452,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "cc43d4f4cc2fa48443a690244efe3354e5f679f4662b7368bb789da25be189c6",
-      "prepared_record_sha256": "d3d8f8d4f957903e24ff2766fb67d7e6c13380f9905aac0b42a2fbbc7c2c2217",
+      "prepared_record_sha256": "a92cbab987a9447d447463ee87405914b4726f833857177c07a20ed08bfc6f2e",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-jackie-chan-stuntmaster-recomp.json",
         "sha256": "3afd6c9d9a626e0d26964ff31c6343eb2fee5d38ccc79a40ed9c4066093c530e",
@@ -2427,7 +2517,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "9653023daffb9373a84d1f11250b0a2bc5edf3ff42ab6e2d7980ed44f69a7d33"
+      "authored_record_sha256": "9653023daffb9373a84d1f11250b0a2bc5edf3ff42ab6e2d7980ed44f69a7d33",
+      "proposal_input_sha256": "d3d8f8d4f957903e24ff2766fb67d7e6c13380f9905aac0b42a2fbbc7c2c2217",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-jackie-chan-stuntmaster-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-jackie-chan-stuntmaster-recomp\\alexbeav-jackie-chan-stuntmaster-recomp-a92cbab987a9447d447463ee87405914b4726f833857177c07a20ed08bfc6f2e.json"
     },
     {
       "id": "alexbeav-jade-cocoon-recomp",
@@ -2440,7 +2533,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "07ad2d9c618906ee3b954bbfbe077c7e8cbe0f4682830a5fd5d8787e7791207b",
-      "prepared_record_sha256": "61beb7f94907321d62aa67d447bfdab9bcc9ea361dad5fcb51797602874c3e15",
+      "prepared_record_sha256": "aedb1200a966154066047118ffc812f6d3a25606e5cfdf3f6ab76b6754b53a38",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-jade-cocoon-recomp.json",
         "sha256": "c4e4d177c25b92df768df4fe88d60771297f0141425df2040bea5874dc44cb5c",
@@ -2505,7 +2598,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "4428a864596418a4b9f25817546112da2b5ae87bd76097bdf64d2214a549abe4"
+      "authored_record_sha256": "4428a864596418a4b9f25817546112da2b5ae87bd76097bdf64d2214a549abe4",
+      "proposal_input_sha256": "61beb7f94907321d62aa67d447bfdab9bcc9ea361dad5fcb51797602874c3e15",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-jade-cocoon-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-jade-cocoon-recomp\\alexbeav-jade-cocoon-recomp-aedb1200a966154066047118ffc812f6d3a25606e5cfdf3f6ab76b6754b53a38.json"
     },
     {
       "id": "alexbeav-kartia-recomp",
@@ -2518,7 +2614,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "a3cc4e0d4b23e1ea4688712ed9357774a2fae116b6b6db480bf9383a31d943ac",
-      "prepared_record_sha256": "7af43f4618486bada3143b9e5c0e37faacd79f1b49496f12a82dd1c2bb2fb127",
+      "prepared_record_sha256": "d108acd409a6761092bd0db203884db70f7db850bb3f6d059c4f6b93b24f7cba",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-kartia-recomp.json",
         "sha256": "c749285edc4082e1ddbf3ba30d95bc51b64e64f27bce5b6f2c3868d5c75d4638",
@@ -2583,7 +2679,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "505713b15799eb051c8f1e72c468122e8cb847a67e04819319023141632802cb"
+      "authored_record_sha256": "505713b15799eb051c8f1e72c468122e8cb847a67e04819319023141632802cb",
+      "proposal_input_sha256": "7af43f4618486bada3143b9e5c0e37faacd79f1b49496f12a82dd1c2bb2fb127",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-kartia-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-retry1-alexbeav-kartia-recomp\\alexbeav-kartia-recomp-d108acd409a6761092bd0db203884db70f7db850bb3f6d059c4f6b93b24f7cba.json"
     },
     {
       "id": "alexbeav-kings-field-recomp",
@@ -2596,7 +2695,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "3cba34f8e3fd425a6e35eb26207646a07d063f7febce0a06b3d6122287eb0d08",
-      "prepared_record_sha256": "06c4ef50998dc392be96983a05bcd567710ae1310a58cebecf5c850cbe4c4c2b",
+      "prepared_record_sha256": "ec04aa4a9f0a22d0873f8ee0641aaef370894034666277c3d75c56ed0ec6cd28",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-kings-field-recomp.json",
         "sha256": "0c17ad16545f07a7eab28d9aa421ab618db0271753369ef562e57696fbfe3845",
@@ -2661,7 +2760,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "7476e931a69059f83452c74901dc22c380e37533709901dfd033334d686baa12"
+      "authored_record_sha256": "7476e931a69059f83452c74901dc22c380e37533709901dfd033334d686baa12",
+      "proposal_input_sha256": "06c4ef50998dc392be96983a05bcd567710ae1310a58cebecf5c850cbe4c4c2b",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-kings-field-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-retry2-alexbeav-kings-field-recomp\\alexbeav-kings-field-recomp-ec04aa4a9f0a22d0873f8ee0641aaef370894034666277c3d75c56ed0ec6cd28.json"
     },
     {
       "id": "alexbeav-koudelka-recomp",
@@ -2674,7 +2776,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "9431fb7fb44e404e533c6c6a70d2a6c99b8c0c07b7ad450802ff362d172c29f1",
-      "prepared_record_sha256": "a0d7399e037da9ad23b11b934e5bb582c0a82dd183735230876329007ad03c5b",
+      "prepared_record_sha256": "e93084783f6d06fc5bf6e19cb25a73ecef47c340d18ff7d9e4d928819e41fd43",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-koudelka-recomp.json",
         "sha256": "70a3b9c1d015fa346b58ff1213f0c3b46c0a45d761cfcff74b7e5fd9b40612f2",
@@ -2739,7 +2841,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "ab97f0099534793b07578fd224da5eafb5f52b6889220991c4257fab51975c7a"
+      "authored_record_sha256": "ab97f0099534793b07578fd224da5eafb5f52b6889220991c4257fab51975c7a",
+      "proposal_input_sha256": "a0d7399e037da9ad23b11b934e5bb582c0a82dd183735230876329007ad03c5b",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-koudelka-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-koudelka-recomp\\alexbeav-koudelka-recomp-e93084783f6d06fc5bf6e19cb25a73ecef47c340d18ff7d9e4d928819e41fd43.json"
     },
     {
       "id": "alexbeav-kula-world-recomp",
@@ -2752,7 +2857,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "79e1991fdddeaf5bbc269fa51fc2f752403467a2466ccedea6b0134e1ca46d28",
-      "prepared_record_sha256": "3a9e6e624dc369b62a9182b187a11f21e37a6a4c7666f0fc04e2f1fd90124309",
+      "prepared_record_sha256": "be144cd8fc30384092f2e970f1d483788337fd368c6bf273890aa7ab0f265840",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-kula-world-recomp.json",
         "sha256": "0f6dfb297b2a74d3bd7def5b49bcf1e8917f75f22c56711e840615116eba738c",
@@ -2817,7 +2922,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "4290b94f71e815ef02b5a82f6b381852c5a0f3b252c3b7811ce832f37da446be"
+      "authored_record_sha256": "4290b94f71e815ef02b5a82f6b381852c5a0f3b252c3b7811ce832f37da446be",
+      "proposal_input_sha256": "3a9e6e624dc369b62a9182b187a11f21e37a6a4c7666f0fc04e2f1fd90124309",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-kula-world-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-kula-world-recomp\\alexbeav-kula-world-recomp-be144cd8fc30384092f2e970f1d483788337fd368c6bf273890aa7ab0f265840.json"
     },
     {
       "id": "alexbeav-legacy-of-kain-soul-reaver-recomp",
@@ -2830,7 +2938,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "3d13bd6017e4e11561dbd0114755aaf37cd75947f71855156d47444738b30e4d",
-      "prepared_record_sha256": "f38ff9c9af3d1a6220338e41ff309f4414988fb4e344d53d55db122045baac3e",
+      "prepared_record_sha256": "1c4d2a377e81bf760a125690c612211669f1c665fc5b47bec2af3559e0009f6d",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-legacy-of-kain-soul-reaver-recomp.json",
         "sha256": "4a3aae4ecc1ad915a6af60387ceafb0a653284950d06dbe81e61817b484cfe87",
@@ -2895,7 +3003,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "baf531fd6cf224ae72f738145b87b591521c6781f8f0c227c2cbd2f9092f7d79"
+      "authored_record_sha256": "baf531fd6cf224ae72f738145b87b591521c6781f8f0c227c2cbd2f9092f7d79",
+      "proposal_input_sha256": "f38ff9c9af3d1a6220338e41ff309f4414988fb4e344d53d55db122045baac3e",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-legacy-of-kain-soul-reaver-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-legacy-of-kain-soul-reaver-recomp\\alexbeav-legacy-of-kain-soul-reaver-recomp-1c4d2a377e81bf760a125690c612211669f1c665fc5b47bec2af3559e0009f6d.json"
     },
     {
       "id": "alexbeav-martian-gothic-recomp",
@@ -2908,7 +3019,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "73625b1d647f96c73175da13c39261b88d9d477632e1a02d7cad292753b50c33",
-      "prepared_record_sha256": "2677a7916c6764ef9041aeb5a91d3fb1df87888adec0d1f5112f8d8f240cd085",
+      "prepared_record_sha256": "816969be1211e130c217abd311706ae2d3e5a0d97ed93eb192a1eaffe2fb6a46",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-martian-gothic-recomp.json",
         "sha256": "cc3734681e36d8a0acd7f82f785b1848b0db1ff7ffc9f8116d273c1e72c75c41",
@@ -2973,7 +3084,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "72587086d7e701a60a9a56357ec490949e57b83c0cd1eb3afe5a8f3927bd7cab"
+      "authored_record_sha256": "72587086d7e701a60a9a56357ec490949e57b83c0cd1eb3afe5a8f3927bd7cab",
+      "proposal_input_sha256": "2677a7916c6764ef9041aeb5a91d3fb1df87888adec0d1f5112f8d8f240cd085",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-martian-gothic-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-martian-gothic-recomp\\alexbeav-martian-gothic-recomp-816969be1211e130c217abd311706ae2d3e5a0d97ed93eb192a1eaffe2fb6a46.json"
     },
     {
       "id": "alexbeav-mdk-recomp",
@@ -2986,7 +3100,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "bacd114d73951cb604b2a03b495a495387bfcd30a040e864d07ecefe14cb0860",
-      "prepared_record_sha256": "3bc5d48b5d0583a03f5d3d89dbba0aef52a212852802941c3d0d440e32b4839b",
+      "prepared_record_sha256": "2e9d0ef07f86c337846020e00518e94143b0ba6c2a3aafe86b85f5dd123b68f0",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-mdk-recomp.json",
         "sha256": "b7950ab26d5644c00c598ed054bec58772ba1dd2f39e6848df1cc8c2660948ab",
@@ -3051,7 +3165,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "cf8e100b97cea9b0512f34e4a4a2a4425c22784421b74ff06ef7b16a4f761d2b"
+      "authored_record_sha256": "cf8e100b97cea9b0512f34e4a4a2a4425c22784421b74ff06ef7b16a4f761d2b",
+      "proposal_input_sha256": "3bc5d48b5d0583a03f5d3d89dbba0aef52a212852802941c3d0d440e32b4839b",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-mdk-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-mdk-recomp\\alexbeav-mdk-recomp-2e9d0ef07f86c337846020e00518e94143b0ba6c2a3aafe86b85f5dd123b68f0.json"
     },
     {
       "id": "alexbeav-medievil-recomp",
@@ -3064,7 +3181,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "b254c699e6fa021650e416f8f289d946e47c5549f3d5424233f0b6841241ea78",
-      "prepared_record_sha256": "51026a665ba5baf016bd94e4c6fe6b455736481e6ea4d764af93621e74ce7ebd",
+      "prepared_record_sha256": "320b67acfe5cef6b8a9a8b0cc60d14e7d3b204b2b28a389cbc58e15d043a7ea8",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-medievil-recomp.json",
         "sha256": "86b22ab20e10cd839a3653548b2ebd32f2661cb2f4dd70fdd38796e873713888",
@@ -3129,7 +3246,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "150d32dbd1dc508a9d41a9e9059564caa1dc6c90b69b8d7a1815c1c44e8bcfa1"
+      "authored_record_sha256": "150d32dbd1dc508a9d41a9e9059564caa1dc6c90b69b8d7a1815c1c44e8bcfa1",
+      "proposal_input_sha256": "51026a665ba5baf016bd94e4c6fe6b455736481e6ea4d764af93621e74ce7ebd",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-medievil-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-medievil-recomp\\alexbeav-medievil-recomp-320b67acfe5cef6b8a9a8b0cc60d14e7d3b204b2b28a389cbc58e15d043a7ea8.json"
     },
     {
       "id": "alexbeav-mega-man-legends-2-recomp",
@@ -3142,7 +3262,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "a08f7ced3225b29808037c1417d051882d656ade78254c2b30228a037cd16e0e",
-      "prepared_record_sha256": "8d9b9b68c90563d63776f392d246df1b06d38ca9730494e35f0b4606b019720d",
+      "prepared_record_sha256": "458f7daccf7f24997e0d0a4371217be6a657f6c55d022faa5fada449044b4e0b",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-mega-man-legends-2-recomp.json",
         "sha256": "3c9293ff1ace8380c4dadff32d7aa97767112b7269dfdcf5db46479b67b85567",
@@ -3207,7 +3327,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "c676e1965ac15c51adffa7fc9d71648fc4eae1ab433cbf3982ac84fdc0b57a26"
+      "authored_record_sha256": "c676e1965ac15c51adffa7fc9d71648fc4eae1ab433cbf3982ac84fdc0b57a26",
+      "proposal_input_sha256": "8d9b9b68c90563d63776f392d246df1b06d38ca9730494e35f0b4606b019720d",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-mega-man-legends-2-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-mega-man-legends-2-recomp\\alexbeav-mega-man-legends-2-recomp-458f7daccf7f24997e0d0a4371217be6a657f6c55d022faa5fada449044b4e0b.json"
     },
     {
       "id": "alexbeav-mega-man-legends-recomp",
@@ -3220,7 +3343,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "ad6303186e1e24febbb52a52bf37338392a7e7a57d6f979845a97a327a467a47",
-      "prepared_record_sha256": "1006c34f843b343bc26099d8dd1edef732ca27b5d3486cb5d0b300a102498e0a",
+      "prepared_record_sha256": "545bc176890b1afe6ebb28825888f9db620cce527568ee2b0f7f35d6f49fdc79",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-mega-man-legends-recomp.json",
         "sha256": "72bf2dfcec19672ebbd18380bedcac6d58d4ec7efd78fd1eb418059662a8b935",
@@ -3285,7 +3408,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "78e6002c0ce7d175368232a3170518be3f26b469876b581b5aeb9feb284fa0d7"
+      "authored_record_sha256": "78e6002c0ce7d175368232a3170518be3f26b469876b581b5aeb9feb284fa0d7",
+      "proposal_input_sha256": "1006c34f843b343bc26099d8dd1edef732ca27b5d3486cb5d0b300a102498e0a",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-mega-man-legends-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-mega-man-legends-recomp\\alexbeav-mega-man-legends-recomp-545bc176890b1afe6ebb28825888f9db620cce527568ee2b0f7f35d6f49fdc79.json"
     },
     {
       "id": "alexbeav-men-in-black-the-game-recomp",
@@ -3298,7 +3424,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "94dbe3c9592412b37b61988b181c02f6b954c886815fab9fd292c536eff564a1",
-      "prepared_record_sha256": "bd5847fdde7cb5582f05ff0392fd40bd278c6c4bbee53641b863e6622d173bc8",
+      "prepared_record_sha256": "9275de580391fd200a6e4608369e3ad6b17772e65013258fba888dac80404296",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-men-in-black-the-game-recomp.json",
         "sha256": "1608f82b05709f5658a1439dfa3346cd62d8106410f7da37b714d9f8883c66c5",
@@ -3363,7 +3489,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "cd9c5297fb1aa3efb37382eb855647e73578bd284dd2ca5606b5f52074f4f341"
+      "authored_record_sha256": "cd9c5297fb1aa3efb37382eb855647e73578bd284dd2ca5606b5f52074f4f341",
+      "proposal_input_sha256": "bd5847fdde7cb5582f05ff0392fd40bd278c6c4bbee53641b863e6622d173bc8",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-men-in-black-the-game-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-men-in-black-the-game-recomp\\alexbeav-men-in-black-the-game-recomp-9275de580391fd200a6e4608369e3ad6b17772e65013258fba888dac80404296.json"
     },
     {
       "id": "alexbeav-metal-gear-solid-recomp",
@@ -3376,7 +3505,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "511240199e5c998670a82a7ef55c5b99c95d915510094c6c605960e2f42b4a58",
-      "prepared_record_sha256": "e94cd63a285012f031334f0ee242d2b925dc18bcd08e1854c6b0e87c7c9bc5b1",
+      "prepared_record_sha256": "d92aa0afb7aca9ccf685dc01c97c367ebdcfd6f904080b6ec2df7bd2f2b35fd9",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-metal-gear-solid-recomp.json",
         "sha256": "1d0a6ab85ffe0bac2db3f362329598901c25a254e17af515d7c6f01ef2ad8b38",
@@ -3441,7 +3570,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "a0a646274f4329142a6f82657baf73385bc81b85f5e0c56f82d01e15785faaa8"
+      "authored_record_sha256": "a0a646274f4329142a6f82657baf73385bc81b85f5e0c56f82d01e15785faaa8",
+      "proposal_input_sha256": "e94cd63a285012f031334f0ee242d2b925dc18bcd08e1854c6b0e87c7c9bc5b1",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-metal-gear-solid-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-metal-gear-solid-recomp\\alexbeav-metal-gear-solid-recomp-d92aa0afb7aca9ccf685dc01c97c367ebdcfd6f904080b6ec2df7bd2f2b35fd9.json"
     },
     {
       "id": "alexbeav-metal-slug-x-recomp",
@@ -3454,7 +3586,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "d28e92966f57320cd007f2a982478730dc2eb6fcaf0954df90a265a07f708dee",
-      "prepared_record_sha256": "947b581200caf56ed3967d186e669dd4704a38b3d31192b40e34ec89a4f7f25f",
+      "prepared_record_sha256": "96c21c8418b4a94d651e8bb96a79d69ff17155b193834347be1e177500da9262",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-metal-slug-x-recomp.json",
         "sha256": "2528a14e19f6cd7a3cf5f05da02eb6b0329a479e9c137c45574dc63e258ba556",
@@ -3519,7 +3651,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "82b967927e9267582809e004603563ea955bf51b40200af7f651c7017ce4c418"
+      "authored_record_sha256": "82b967927e9267582809e004603563ea955bf51b40200af7f651c7017ce4c418",
+      "proposal_input_sha256": "947b581200caf56ed3967d186e669dd4704a38b3d31192b40e34ec89a4f7f25f",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-metal-slug-x-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-metal-slug-x-recomp\\alexbeav-metal-slug-x-recomp-96c21c8418b4a94d651e8bb96a79d69ff17155b193834347be1e177500da9262.json"
     },
     {
       "id": "alexbeav-misadventures-of-tron-bonne-recomp",
@@ -3532,7 +3667,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "21bae484ca67b8b60ddd25f78221455a607fe3eae9584b906f0f99cba409259a",
-      "prepared_record_sha256": "cc8e8e36ed9d3c620b00c72f561fe84b315ca5dfc76f66fff0eb9f47d0618d64",
+      "prepared_record_sha256": "ae13b8c0867f6e758e992ecc3c1dc75e434132122e274a11845c210c454fc06e",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-misadventures-of-tron-bonne-recomp.json",
         "sha256": "1c1df9dbc31c0ab9ee313512ca3e8ab0c1ca27cb6d8dca54d64740dcdaf67dfa",
@@ -3597,7 +3732,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "83cb4844c4a142de672ec6b4e8dc342a1a5e07c3bc1fd6525bfe38f971d5d536"
+      "authored_record_sha256": "83cb4844c4a142de672ec6b4e8dc342a1a5e07c3bc1fd6525bfe38f971d5d536",
+      "proposal_input_sha256": "cc8e8e36ed9d3c620b00c72f561fe84b315ca5dfc76f66fff0eb9f47d0618d64",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-misadventures-of-tron-bonne-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-misadventures-of-tron-bonne-recomp\\alexbeav-misadventures-of-tron-bonne-recomp-ae13b8c0867f6e758e992ecc3c1dc75e434132122e274a11845c210c454fc06e.json"
     },
     {
       "id": "alexbeav-monster-rancher-2-recomp",
@@ -3610,7 +3748,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "7a7575abb2baee0f9b4e67b78aefb38f97d4f5bf97f0ae31b0f9ddde33d52197",
-      "prepared_record_sha256": "2dbd7c7440e7fffa3b1bd5da55a4486e4f58891391ec0fc16b1e1856af249689",
+      "prepared_record_sha256": "50d9a68d987d2da4a0249670c2a54422167405c1fa84b0d07ce04cc83caf2e7b",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-monster-rancher-2-recomp.json",
         "sha256": "6161e9a4987d444e70fd481d27430933434a7f3bb845c1d0749af1b0056ccba0",
@@ -3675,7 +3813,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "d7f7b8978ba1f2a34660e2eb671d6905a41ddb4b0d0698c6a8d5d50384a9bd6d"
+      "authored_record_sha256": "d7f7b8978ba1f2a34660e2eb671d6905a41ddb4b0d0698c6a8d5d50384a9bd6d",
+      "proposal_input_sha256": "2dbd7c7440e7fffa3b1bd5da55a4486e4f58891391ec0fc16b1e1856af249689",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-monster-rancher-2-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-monster-rancher-2-recomp\\alexbeav-monster-rancher-2-recomp-50d9a68d987d2da4a0249670c2a54422167405c1fa84b0d07ce04cc83caf2e7b.json"
     },
     {
       "id": "alexbeav-monster-rancher-recomp",
@@ -3688,7 +3829,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "2d72a41d6468cc61e0fb07b43c38a7c231aadab9551f0bf64b7ebe8b616ca51a",
-      "prepared_record_sha256": "ec144d0c8702feeaf66229bf70511954c1e771e04321505ac2f673d043a7940d",
+      "prepared_record_sha256": "03fb1862f463a2869f18e885a451c21f70ea3c64db96bc1f64765146f6ba78b3",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-monster-rancher-recomp.json",
         "sha256": "6a2a1eead3ba4ec4333a0835f54ee01b0aed1f614a36f311f9c12901a44a31fd",
@@ -3753,7 +3894,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "3840573b140602c75ff3659937b31089d0c00bee46a7085c9451b905e3674c5f"
+      "authored_record_sha256": "3840573b140602c75ff3659937b31089d0c00bee46a7085c9451b905e3674c5f",
+      "proposal_input_sha256": "ec144d0c8702feeaf66229bf70511954c1e771e04321505ac2f673d043a7940d",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-monster-rancher-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-monster-rancher-recomp\\alexbeav-monster-rancher-recomp-03fb1862f463a2869f18e885a451c21f70ea3c64db96bc1f64765146f6ba78b3.json"
     },
     {
       "id": "alexbeav-mortal-kombat-trilogy-recomp",
@@ -3766,7 +3910,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "c663744426d1109fb1dc14964d583fcdef0af0cba36a95dbab40134c9c4497cd",
-      "prepared_record_sha256": "5e526a9dde3c9a05ec4d9806d1655614889288f8115f7b5f09ee26c4cebfd2b0",
+      "prepared_record_sha256": "d32143bfda92e2ae35d61d4695acbe9b31ddd48e9223942fab22d2347ce81434",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-mortal-kombat-trilogy-recomp.json",
         "sha256": "cbd4753f69ca03400f2328315260421570f99d0ca8a3c037a57b21c9b90498d5",
@@ -3831,7 +3975,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "40cdf1581559aab78d6c8d7910b3cc2918f4132e41f3591f7ba930a450bb6de2"
+      "authored_record_sha256": "40cdf1581559aab78d6c8d7910b3cc2918f4132e41f3591f7ba930a450bb6de2",
+      "proposal_input_sha256": "5e526a9dde3c9a05ec4d9806d1655614889288f8115f7b5f09ee26c4cebfd2b0",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-mortal-kombat-trilogy-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-mortal-kombat-trilogy-recomp\\alexbeav-mortal-kombat-trilogy-recomp-d32143bfda92e2ae35d61d4695acbe9b31ddd48e9223942fab22d2347ce81434.json"
     },
     {
       "id": "alexbeav-nightmare-creatures-ii-recomp",
@@ -3844,7 +3991,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "184905e708b52a25edf24a552e134a6106f37164c5d6f57143446246cdf22e3e",
-      "prepared_record_sha256": "5ada2369f60c9aaa35702fdd91a3814c9e287b699486c364c80b1fa672848d3c",
+      "prepared_record_sha256": "e41fd382f61af5280bced5273b833c411c9c7c955207e22a388ad5a4697c76d6",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-nightmare-creatures-ii-recomp.json",
         "sha256": "1bba9e2e1c9b11ecdef439a86c6ae8239461d27f91201c57256b59262ec00418",
@@ -3909,7 +4056,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "95d677a05a18ac1363eb8931f832c1f694a6350d00680b8d220b4775187354c7"
+      "authored_record_sha256": "95d677a05a18ac1363eb8931f832c1f694a6350d00680b8d220b4775187354c7",
+      "proposal_input_sha256": "5ada2369f60c9aaa35702fdd91a3814c9e287b699486c364c80b1fa672848d3c",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-nightmare-creatures-ii-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-nightmare-creatures-ii-recomp\\alexbeav-nightmare-creatures-ii-recomp-e41fd382f61af5280bced5273b833c411c9c7c955207e22a388ad5a4697c76d6.json"
     },
     {
       "id": "alexbeav-nightmare-creatures-recomp",
@@ -3922,7 +4072,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "4eb7ad04263b72a7ba690939a417a69bcae60231c4e885c26ffb1f56761307ca",
-      "prepared_record_sha256": "2416a47300683121ae899f2c89481afb8b647013e475d2ba42ac1a02e4a8ccd2",
+      "prepared_record_sha256": "fe110cd0fa9c64957ac61432a38a03c9aea141eddb9dca309625fd49bc10396f",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-nightmare-creatures-recomp.json",
         "sha256": "c8dceb846ce16311dbae464892d918c1596ce8fa5345c19130ac3aff6f5dc25d",
@@ -3987,7 +4137,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "33fb96be9c32a01f70ef6fc9f87c3b6ebb7ecf658f0490e5f6750d773e19da42"
+      "authored_record_sha256": "33fb96be9c32a01f70ef6fc9f87c3b6ebb7ecf658f0490e5f6750d773e19da42",
+      "proposal_input_sha256": "2416a47300683121ae899f2c89481afb8b647013e475d2ba42ac1a02e4a8ccd2",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-nightmare-creatures-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-nightmare-creatures-recomp\\alexbeav-nightmare-creatures-recomp-fe110cd0fa9c64957ac61432a38a03c9aea141eddb9dca309625fd49bc10396f.json"
     },
     {
       "id": "alexbeav-oddworld-abe-s-oddysee-recomp",
@@ -4000,7 +4153,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "2080830d041620c804ce5d895851d428688f8993554af2cf461d0d6eac44658e",
-      "prepared_record_sha256": "59f0df87c3f84d54df92dab70616522eefe5bf2b3c87e0aa4614612629f30f92",
+      "prepared_record_sha256": "5d4e8ea1a5ab432db6db68a580f944ff72d44181c7473c8cd6c75441867bad43",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-oddworld-abe-s-oddysee-recomp.json",
         "sha256": "840dbf46c1c349af7c15fc99b703807bc9656b2232e6326a33f0fffc813c21cb",
@@ -4065,7 +4218,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "1b19327b6ca7a84efd24ad357cbd444d9f116ce416b406e68b952ebeec2663ad"
+      "authored_record_sha256": "1b19327b6ca7a84efd24ad357cbd444d9f116ce416b406e68b952ebeec2663ad",
+      "proposal_input_sha256": "59f0df87c3f84d54df92dab70616522eefe5bf2b3c87e0aa4614612629f30f92",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-oddworld-abe-s-oddysee-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-oddworld-abe-s-oddysee-recomp\\alexbeav-oddworld-abe-s-oddysee-recomp-5d4e8ea1a5ab432db6db68a580f944ff72d44181c7473c8cd6c75441867bad43.json"
     },
     {
       "id": "alexbeav-parasite-eve-recomp",
@@ -4078,7 +4234,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "5637dcdff2c37a7bcd35996f3219e764aace1b3b458c396654ce4278c2174794",
-      "prepared_record_sha256": "28f7033b27d1aa6cc7068c1b4d45c33dcda26fef09f41d87155bb4f85d15db84",
+      "prepared_record_sha256": "7e477973337f93cfb5e8e792bdfa91968e499eaf8c3fd510c852a789664c90e7",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-parasite-eve-recomp.json",
         "sha256": "8c10300b9be7ff1fb600858a9220175b785db3581827d43dda5c59c7fe78cc7b",
@@ -4143,7 +4299,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "a1d46844073a8484349f33313cc644bd56fad2c499630b1479ed43ac5349e57e"
+      "authored_record_sha256": "a1d46844073a8484349f33313cc644bd56fad2c499630b1479ed43ac5349e57e",
+      "proposal_input_sha256": "28f7033b27d1aa6cc7068c1b4d45c33dcda26fef09f41d87155bb4f85d15db84",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-parasite-eve-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-parasite-eve-recomp\\alexbeav-parasite-eve-recomp-7e477973337f93cfb5e8e792bdfa91968e499eaf8c3fd510c852a789664c90e7.json"
     },
     {
       "id": "alexbeav-pro-pinball-timeshock-recomp",
@@ -4156,7 +4315,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "3196e837a9a1e80c4482e684eaccbde1e2973a4ff0afc1ce14668ac9137743ce",
-      "prepared_record_sha256": "ca448ddd52370d02efdc918afe5dbcdb458abf5bd0732b3ddefd4a5ac73f6cb7",
+      "prepared_record_sha256": "eaa38b575103d364929f936594078f653c8333db4697b23b992f008d31ba8024",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-pro-pinball-timeshock-recomp.json",
         "sha256": "52b8359f99c1a02e6ce74ef3e0b86e5f3374bb0c413e1e042974ef27b750f685",
@@ -4221,7 +4380,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "a686d012ee32cfeeb75c528ae02aa48589f54a90834cfe829cdd7e62714e75df"
+      "authored_record_sha256": "a686d012ee32cfeeb75c528ae02aa48589f54a90834cfe829cdd7e62714e75df",
+      "proposal_input_sha256": "ca448ddd52370d02efdc918afe5dbcdb458abf5bd0732b3ddefd4a5ac73f6cb7",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-pro-pinball-timeshock-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-pro-pinball-timeshock-recomp\\alexbeav-pro-pinball-timeshock-recomp-eaa38b575103d364929f936594078f653c8333db4697b23b992f008d31ba8024.json"
     },
     {
       "id": "alexbeav-quake-ii-recomp",
@@ -4234,7 +4396,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "a28a07c037c63d27c1da4ee079cdfdd4bb4e0ac76699c8269b38ff102792a5c6",
-      "prepared_record_sha256": "732d6af64ef8ae73edcf593086ba712cceda1f12bb019827a10bb2a2dbf78198",
+      "prepared_record_sha256": "cf748424608569caf9df9c308a33f6c3ec74bcd4d1a8a5f62d3f0f2834807cc1",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-quake-ii-recomp.json",
         "sha256": "8c2d61779205f2b970fcf0b4d197e2b722e1290ca2bd66ecb08672f50a0ce41b",
@@ -4299,7 +4461,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "cbd5e74dd8d7f95602279346cfce414ca5c59fb10a69ae918755261e10f9cd86"
+      "authored_record_sha256": "cbd5e74dd8d7f95602279346cfce414ca5c59fb10a69ae918755261e10f9cd86",
+      "proposal_input_sha256": "732d6af64ef8ae73edcf593086ba712cceda1f12bb019827a10bb2a2dbf78198",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-quake-ii-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-quake-ii-recomp\\alexbeav-quake-ii-recomp-cf748424608569caf9df9c308a33f6c3ec74bcd4d1a8a5f62d3f0f2834807cc1.json"
     },
     {
       "id": "alexbeav-r-type-delta-recomp",
@@ -4312,7 +4477,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "430637fd76c49098ba4f8ec8d8989b4d290b83bb0cb0574f0fda7e73e4cee53f",
-      "prepared_record_sha256": "550d3a2e8ca84d9bd0a57f818f1eeafa09ea798bc6bca8f23a9ea06d4eb2e496",
+      "prepared_record_sha256": "082e032d00fd472678a3beffcbdbe8eb4a1db2dd2a41adc3bcf014942e25c687",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-r-type-delta-recomp.json",
         "sha256": "1f5f43d141348577d9eca468419cef7daea70f18f0d03d04261e11a1cc54ae09",
@@ -4377,7 +4542,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2bca8150bdb5e2e122f0ae77fd498037981c48e5ecb78e393a407f3ef5dc01a6"
+      "authored_record_sha256": "2bca8150bdb5e2e122f0ae77fd498037981c48e5ecb78e393a407f3ef5dc01a6",
+      "proposal_input_sha256": "550d3a2e8ca84d9bd0a57f818f1eeafa09ea798bc6bca8f23a9ea06d4eb2e496",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-r-type-delta-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-r-type-delta-recomp\\alexbeav-r-type-delta-recomp-082e032d00fd472678a3beffcbdbe8eb4a1db2dd2a41adc3bcf014942e25c687.json"
     },
     {
       "id": "alexbeav-resident-evil-3-recomp",
@@ -4390,7 +4558,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "d61239200815bc0feffaaf79b2650d712ceec09e0537fcb37430771ec50cf831",
-      "prepared_record_sha256": "bd4c0a4a892e9a70f518f7aaabb021edffbab1ae675fbe9c0769f1d0bd56e5ad",
+      "prepared_record_sha256": "f6afa83fa3fd151d966e108a3980ff84f86d3b9ce049b3efdcfdcb0fb06e0e9f",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-resident-evil-3-recomp.json",
         "sha256": "c718f4939fa6c19274f0fa279b8805f10846ac05822b3fc03674a207e1756554",
@@ -4455,7 +4623,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2e1aef4e888ad1562cff202c50515bda6cf148e8b2554a9fed9041d90bb2375c"
+      "authored_record_sha256": "2e1aef4e888ad1562cff202c50515bda6cf148e8b2554a9fed9041d90bb2375c",
+      "proposal_input_sha256": "bd4c0a4a892e9a70f518f7aaabb021edffbab1ae675fbe9c0769f1d0bd56e5ad",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-resident-evil-3-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-resident-evil-3-recomp\\alexbeav-resident-evil-3-recomp-f6afa83fa3fd151d966e108a3980ff84f86d3b9ce049b3efdcfdcb0fb06e0e9f.json"
     },
     {
       "id": "alexbeav-rival-schools-evolution-recomp",
@@ -4468,7 +4639,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "a73487f3ed855a0ee878b9d237262d951d723128b6a47da2ccbafef01bd60f79",
-      "prepared_record_sha256": "2cf0045d3aea10018ac647a81690e5497628138bbb80b975d3a6a8b2c35f6615",
+      "prepared_record_sha256": "fe2c708f81817994b78532d2b18700fd6ff5193835a0765e4ade0f43dcb1973e",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-rival-schools-evolution-recomp.json",
         "sha256": "c18e75c4dd6e5df6c062d868402f9b20c7904c876baac707af54a39719799a26",
@@ -4533,7 +4704,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "d9773575ff52b1eccd9f8863eca490a18ac5f9048fbe9d10d5789f6a0bd42189"
+      "authored_record_sha256": "d9773575ff52b1eccd9f8863eca490a18ac5f9048fbe9d10d5789f6a0bd42189",
+      "proposal_input_sha256": "2cf0045d3aea10018ac647a81690e5497628138bbb80b975d3a6a8b2c35f6615",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-rival-schools-evolution-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-rival-schools-evolution-recomp\\alexbeav-rival-schools-evolution-recomp-fe2c708f81817994b78532d2b18700fd6ff5193835a0765e4ade0f43dcb1973e.json"
     },
     {
       "id": "alexbeav-rival-schools-recomp",
@@ -4546,7 +4720,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "bae42e7601254283c20e6b21960db020d5471a4459a1b3ef031c641eee0a3cd6",
-      "prepared_record_sha256": "2095d4d83a69d7c430e43eb150cef73d0fc0dc135f08678dd1be458e5f3ba642",
+      "prepared_record_sha256": "37295b968b34886e92b75eab157fee4acd0793a06c60e3afedbb634d93c90348",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-rival-schools-recomp.json",
         "sha256": "7a87b2cfdd8864afd6e58824c49b1dfc5b9e118d8e74e381840dadb052b5c06e",
@@ -4611,7 +4785,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2a40fd124fef71807bb0465b72f8b606c159a7f4d56bdd1d576ced67efa13b72"
+      "authored_record_sha256": "2a40fd124fef71807bb0465b72f8b606c159a7f4d56bdd1d576ced67efa13b72",
+      "proposal_input_sha256": "2095d4d83a69d7c430e43eb150cef73d0fc0dc135f08678dd1be458e5f3ba642",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-rival-schools-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-rival-schools-recomp\\alexbeav-rival-schools-recomp-37295b968b34886e92b75eab157fee4acd0793a06c60e3afedbb634d93c90348.json"
     },
     {
       "id": "alexbeav-rollcage-stage-ii-recomp",
@@ -4624,7 +4801,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "ad89cba33b4849ee5b560e427a0ff0d7e5eaa64af466cf12a8e764ce38f5d7f1",
-      "prepared_record_sha256": "b6efe5a5aa85ea2156982025b80d30b35212181b067dd10e3346ab7f06f3c523",
+      "prepared_record_sha256": "3fdf1bd581409776ad6668f0d8c520672d8bd9668b989af7333aadb35a5bbc54",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-rollcage-stage-ii-recomp.json",
         "sha256": "85cf67626cd1c6060fbdd6ee17813480565ca7c4c8dfa581d1bffe9a6d2b5fb7",
@@ -4689,7 +4866,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "c3b450c797870650804b3b512395adbbf4b01e13df76c37116a32ad7b9efee8c"
+      "authored_record_sha256": "c3b450c797870650804b3b512395adbbf4b01e13df76c37116a32ad7b9efee8c",
+      "proposal_input_sha256": "b6efe5a5aa85ea2156982025b80d30b35212181b067dd10e3346ab7f06f3c523",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-rollcage-stage-ii-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-rollcage-stage-ii-recomp\\alexbeav-rollcage-stage-ii-recomp-3fdf1bd581409776ad6668f0d8c520672d8bd9668b989af7333aadb35a5bbc54.json"
     },
     {
       "id": "alexbeav-silent-bomber-recomp",
@@ -4702,7 +4882,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "5bd78cfbc69e9ac353e5d482ec6b10a445daf1ca698c3cfc3543dc1904f8c982",
-      "prepared_record_sha256": "31878571785465de4160e99219e380474ebe880711b5678ccbe66614c4e16da2",
+      "prepared_record_sha256": "d536e768ee3219e139eedd76fdcd1e3ae14e0a9a4f8d0dc08ddc42ac98e12aa7",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-silent-bomber-recomp.json",
         "sha256": "db447cd1e7a8efdfd498aa562ac7877027c91380d78b48d9d0234c0013599310",
@@ -4767,7 +4947,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "b5b79f2746fe62f7b387eaaa08dea943f06cb910205fada8a2d6b6e8f0188ccf"
+      "authored_record_sha256": "b5b79f2746fe62f7b387eaaa08dea943f06cb910205fada8a2d6b6e8f0188ccf",
+      "proposal_input_sha256": "31878571785465de4160e99219e380474ebe880711b5678ccbe66614c4e16da2",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-silent-bomber-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-silent-bomber-recomp\\alexbeav-silent-bomber-recomp-d536e768ee3219e139eedd76fdcd1e3ae14e0a9a4f8d0dc08ddc42ac98e12aa7.json"
     },
     {
       "id": "alexbeav-spider-man-2-enter-electro-recomp",
@@ -4780,7 +4963,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "6ae550633b1190e07f1bb0f904fef66ec27e26054e8359eaa6ccbe1f383ccd63",
-      "prepared_record_sha256": "d6519efb390d53e4cfd36576b70b7cb22a3c1fddfb22be05a9319a06eea6e726",
+      "prepared_record_sha256": "0bf6ef14f6bc2f3edf83e3864e8163cf8acd0d37ab4650108e329be3ad137ee1",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-spider-man-2-enter-electro-recomp.json",
         "sha256": "bc71956ea8199f15ebd0a3de780e859eaf3f15e24171648149f0035d7a2d07ba",
@@ -4845,7 +5028,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "cd8d14b8875d82d0bef58f5f6e8408cc80721d465be138a22ef76db7ec982502"
+      "authored_record_sha256": "cd8d14b8875d82d0bef58f5f6e8408cc80721d465be138a22ef76db7ec982502",
+      "proposal_input_sha256": "d6519efb390d53e4cfd36576b70b7cb22a3c1fddfb22be05a9319a06eea6e726",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-spider-man-2-enter-electro-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-spider-man-2-enter-electro-recomp\\alexbeav-spider-man-2-enter-electro-recomp-0bf6ef14f6bc2f3edf83e3864e8163cf8acd0d37ab4650108e329be3ad137ee1.json"
     },
     {
       "id": "alexbeav-spider-man-recomp",
@@ -4858,7 +5044,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "c5277f48ee909518068ae9840bbf2d1cb610c2ba14dc4b90666e63b309906ab6",
-      "prepared_record_sha256": "4c868135131c37fd475268df81cb63c66fed5d7e73131d7b4225487b63dfe7cf",
+      "prepared_record_sha256": "b76b1cfc9c7f99f5aff3a3581c4149fe2c6daefd35a74f27e5db4f565d26eb4c",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-spider-man-recomp.json",
         "sha256": "62f2a1971901ef8adcbfc54cff7073d7aa7ca5ebfd19b9ea6937b8e002070ec6",
@@ -4923,7 +5109,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2bf01449b2925c4d39de7228de1b8ce473e7732ec618bba7328e1e4f042e9c96"
+      "authored_record_sha256": "2bf01449b2925c4d39de7228de1b8ce473e7732ec618bba7328e1e4f042e9c96",
+      "proposal_input_sha256": "4c868135131c37fd475268df81cb63c66fed5d7e73131d7b4225487b63dfe7cf",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-spider-man-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-spider-man-recomp\\alexbeav-spider-man-recomp-b76b1cfc9c7f99f5aff3a3581c4149fe2c6daefd35a74f27e5db4f565d26eb4c.json"
     },
     {
       "id": "alexbeav-spyro-the-dragon-recomp",
@@ -4936,7 +5125,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "158acdf3dc44e6d5f2a54dc766eef9f9a2206b17c3b5ce41391ef76f73d944c7",
-      "prepared_record_sha256": "62be61d9c2cdb2df00668c7672ca5473d82ccd8979facf2172d6c142e70c12ba",
+      "prepared_record_sha256": "7ff126bda16b57181ad28fe6a5b8b5d5da428d5bda8ba325ffc011409c243609",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-spyro-the-dragon-recomp.json",
         "sha256": "e81c0f4f56f721a80349e517e1a361db25382106790fd011be11de324e4879a2",
@@ -5001,7 +5190,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "6450f4f13d50e027a815e5ffc2b38b30ac955275834c9fcac09a83fa82372b02"
+      "authored_record_sha256": "6450f4f13d50e027a815e5ffc2b38b30ac955275834c9fcac09a83fa82372b02",
+      "proposal_input_sha256": "62be61d9c2cdb2df00668c7672ca5473d82ccd8979facf2172d6c142e70c12ba",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-spyro-the-dragon-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-spyro-the-dragon-recomp\\alexbeav-spyro-the-dragon-recomp-7ff126bda16b57181ad28fe6a5b8b5d5da428d5bda8ba325ffc011409c243609.json"
     },
     {
       "id": "alexbeav-star-wars-episode-i-the-phantom-menace-recomp",
@@ -5014,7 +5206,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "3c389f09b09bd2332616a9c5c9bbc1f2d350864ab321733ef6a3d4215c4af0bb",
-      "prepared_record_sha256": "d6a431a612eda29b85f1b7653eb3483c2a7ec2a43a1021c00d5a502830916cf8",
+      "prepared_record_sha256": "18f8f1802056cccdebf29efdf794be42b88eb70a616d48feec211f7790973cd5",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-star-wars-episode-i-the-phantom-menace-recomp.json",
         "sha256": "73fa41ef79b8b1f87038cf6e57397a20cb19c52f0c019dd7c5953ee1f2356b3c",
@@ -5079,7 +5271,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2787280f32e07b4ea3c790d28f2ec09cc79aee3605fd048277c88b57095c0250"
+      "authored_record_sha256": "2787280f32e07b4ea3c790d28f2ec09cc79aee3605fd048277c88b57095c0250",
+      "proposal_input_sha256": "d6a431a612eda29b85f1b7653eb3483c2a7ec2a43a1021c00d5a502830916cf8",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-star-wars-episode-i-the-phantom-menace-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-star-wars-episode-i-the-phantom-menace-recomp\\alexbeav-star-wars-episode-i-the-phantom-menace-recomp-18f8f1802056cccdebf29efdf794be42b88eb70a616d48feec211f7790973cd5.json"
     },
     {
       "id": "alexbeav-suikoden-ii-recomp",
@@ -5092,7 +5287,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "5acd9547f77d1f3598957f40c2ee8b675aab63b7694c16c1214ec61f3b20d36c",
-      "prepared_record_sha256": "825d2752ea9cee6cb82edb9b50cdca8f97a60ca9131214eefc18a0e53eec4a18",
+      "prepared_record_sha256": "42a4fa81ae5306007df6a0cd0c5ee6b6a373a8f41da78d199d65b55bd4893276",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-suikoden-ii-recomp.json",
         "sha256": "26f092c9192676b1c56ee70a65419c82815a37b3437d3ec92ae4d6a7d8cdee80",
@@ -5157,7 +5352,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "ebcbc850e7afb69b1e2d1b439d56bde15aa90072065c6dbfa9974a63b73ee9b6"
+      "authored_record_sha256": "ebcbc850e7afb69b1e2d1b439d56bde15aa90072065c6dbfa9974a63b73ee9b6",
+      "proposal_input_sha256": "825d2752ea9cee6cb82edb9b50cdca8f97a60ca9131214eefc18a0e53eec4a18",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-suikoden-ii-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-suikoden-ii-recomp\\alexbeav-suikoden-ii-recomp-42a4fa81ae5306007df6a0cd0c5ee6b6a373a8f41da78d199d65b55bd4893276.json"
     },
     {
       "id": "alexbeav-suikoden-recomp",
@@ -5170,7 +5368,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "e88857d0fa9c1e711a65d9e5de6052f6e927fa5ec9fe63b4f4d81401f083e5bb",
-      "prepared_record_sha256": "8c26f7edf8d4f93d0605e71ba92ae512718b5a433c0c7685eedba67142c762a9",
+      "prepared_record_sha256": "b262c6f9d812ab08d653234ce90a60266ae4c4b010bea2dae3a8cfbd52924b42",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-suikoden-recomp.json",
         "sha256": "54f7f81368822d384fce51089975ad0606acc4211bfdd07cf40088a9ca2f61a0",
@@ -5235,7 +5433,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "2b70ed3c3517e33e5d21943c074a5d45f3595c43f2972177d14acd028999b804"
+      "authored_record_sha256": "2b70ed3c3517e33e5d21943c074a5d45f3595c43f2972177d14acd028999b804",
+      "proposal_input_sha256": "8c26f7edf8d4f93d0605e71ba92ae512718b5a433c0c7685eedba67142c762a9",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-suikoden-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-suikoden-recomp\\alexbeav-suikoden-recomp-b262c6f9d812ab08d653234ce90a60266ae4c4b010bea2dae3a8cfbd52924b42.json"
     },
     {
       "id": "alexbeav-syphon-filter-3-recomp",
@@ -5248,7 +5449,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "9abd23fa8871110515a578d0e009e856d959b90aadd6a18088430591bb3419ab",
-      "prepared_record_sha256": "fec33dd06ef27444cf61ae468336b7876534ae5ec1d76624dab3de17f66195bf",
+      "prepared_record_sha256": "cdee2db34ecb5c2fce43dd664d333cdac94f1ab42313948d74563af5007a3139",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-syphon-filter-3-recomp.json",
         "sha256": "4c52b0a153667c53257fdf9fafada52dafb9229105a54b030b20d0f60b01e7ae",
@@ -5313,7 +5514,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "731efcde5ecc8b5bba7051ac7aefeb79464645f94a5903eb2fa38962d32200d7"
+      "authored_record_sha256": "731efcde5ecc8b5bba7051ac7aefeb79464645f94a5903eb2fa38962d32200d7",
+      "proposal_input_sha256": "fec33dd06ef27444cf61ae468336b7876534ae5ec1d76624dab3de17f66195bf",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-syphon-filter-3-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-syphon-filter-3-recomp\\alexbeav-syphon-filter-3-recomp-cdee2db34ecb5c2fce43dd664d333cdac94f1ab42313948d74563af5007a3139.json"
     },
     {
       "id": "alexbeav-tail-concerto-recomp",
@@ -5326,7 +5530,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "c0f65a219273eb87853c1d9315662a2549f5d17a9d0d9601e9f0833e2fa89227",
-      "prepared_record_sha256": "e8b02c450c505ce95a628c8b77352562e4d101a10210c6ec04a8998903db558b",
+      "prepared_record_sha256": "9c53d56db224664751e852622292f91d0ef0cf965062cf712e35e159ffabd896",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-tail-concerto-recomp.json",
         "sha256": "d7e7dacf48cac09f6da7afbd2974815c80b5fe45c9d77355f78a48e50229a80f",
@@ -5391,7 +5595,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "02c1ab737738627ced08558b51ee483c20dd1920e9571ab04f4186f0d87e344d"
+      "authored_record_sha256": "02c1ab737738627ced08558b51ee483c20dd1920e9571ab04f4186f0d87e344d",
+      "proposal_input_sha256": "e8b02c450c505ce95a628c8b77352562e4d101a10210c6ec04a8998903db558b",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-tail-concerto-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-tail-concerto-recomp\\alexbeav-tail-concerto-recomp-9c53d56db224664751e852622292f91d0ef0cf965062cf712e35e159ffabd896.json"
     },
     {
       "id": "alexbeav-team-buddies-recomp",
@@ -5404,7 +5611,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "bd32153c512bca9f06ad6e6d549710d2f16b43ab306e8d9edc969d50192f6ca0",
-      "prepared_record_sha256": "82638bc516600009c3249dc621da51f0a30e46128c623059612a08771ba792ee",
+      "prepared_record_sha256": "c99fcbb6b8813f4b5a1c28d1d52cf95c2fb479d6efbc5a367d7e336b53657c46",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-team-buddies-recomp.json",
         "sha256": "510152a341e458b0766ec019dca51e7eb029ebe1a187eef0677f065a967e48af",
@@ -5469,7 +5676,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "0463d2c18d13cd8544153953141e872c30c6f3676a86fa0be9866340d1976e4b"
+      "authored_record_sha256": "0463d2c18d13cd8544153953141e872c30c6f3676a86fa0be9866340d1976e4b",
+      "proposal_input_sha256": "82638bc516600009c3249dc621da51f0a30e46128c623059612a08771ba792ee",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-team-buddies-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-team-buddies-recomp\\alexbeav-team-buddies-recomp-c99fcbb6b8813f4b5a1c28d1d52cf95c2fb479d6efbc5a367d7e336b53657c46.json"
     },
     {
       "id": "alexbeav-tenchu-stealth-assassins-recomp",
@@ -5482,7 +5692,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "f920e0217ae1f8ecc4bb8c609a4ddd7bc41f7e4be0377c986e19b8ccf6a652cc",
-      "prepared_record_sha256": "49424f6d41fe75967d7eb2f43359c36e2fc6876ce026a8312beb8bfb3b6318e8",
+      "prepared_record_sha256": "3daa59cb92356ea43540f1c61345b696e96c02a1ccd5208fb02c1d295ddc071e",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-tenchu-stealth-assassins-recomp.json",
         "sha256": "b2a3637fe506d63cf0fc0ad0dd5ff8e330d3d96c3f9fdb6e63460b33a198c5fc",
@@ -5547,7 +5757,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "31a94865c1ecbd1daa749ba95846bd82d5f642ec81cf6a574b8680f9095203fa"
+      "authored_record_sha256": "31a94865c1ecbd1daa749ba95846bd82d5f642ec81cf6a574b8680f9095203fa",
+      "proposal_input_sha256": "49424f6d41fe75967d7eb2f43359c36e2fc6876ce026a8312beb8bfb3b6318e8",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-tenchu-stealth-assassins-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-tenchu-stealth-assassins-recomp\\alexbeav-tenchu-stealth-assassins-recomp-3daa59cb92356ea43540f1c61345b696e96c02a1ccd5208fb02c1d295ddc071e.json"
     },
     {
       "id": "alexbeav-the-fifth-element-recomp",
@@ -5560,7 +5773,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "fe6e2ad87e753b5cd4811403b2dae7759c91e37275f62c66e39655d7a30a6db1",
-      "prepared_record_sha256": "5187920389d190fa9d865998f15cf5c777a31e56e0e0144a7d5f63894086a8d4",
+      "prepared_record_sha256": "34041379da6cf7395efa90cf9e9adfffddd5f58df01963d1b491f37b0bd23d2f",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-the-fifth-element-recomp.json",
         "sha256": "79dd68a76aea0bf5d1d27544421e33df4b9c15d8d7c9f4c2125f7657057d8f29",
@@ -5625,7 +5838,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "5331aea3d1db3e8664641412053ea974ba54ac0dacdb4f289b53b01b8b1c1ab4"
+      "authored_record_sha256": "5331aea3d1db3e8664641412053ea974ba54ac0dacdb4f289b53b01b8b1c1ab4",
+      "proposal_input_sha256": "5187920389d190fa9d865998f15cf5c777a31e56e0e0144a7d5f63894086a8d4",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-the-fifth-element-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-the-fifth-element-recomp\\alexbeav-the-fifth-element-recomp-34041379da6cf7395efa90cf9e9adfffddd5f58df01963d1b491f37b0bd23d2f.json"
     },
     {
       "id": "alexbeav-the-lost-world-jurassic-park-special-edition-recomp",
@@ -5638,7 +5854,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "fba2b9b696231565528a62f472f51aa110f6fc1a9cf4e5c8876e17d20bfda25a",
-      "prepared_record_sha256": "c0f5f76d00adcff11ac2bafbff923ee3573f9db5d34073ee5e562f0ef3072e98",
+      "prepared_record_sha256": "9f7ee2f98ce89f71d5c73d32c5639c68ed8214f8205f279bba5218d3ddd98ee3",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-the-lost-world-jurassic-park-special-edition-recomp.json",
         "sha256": "1098583064d1c4b83a5e3f8cc4ccf88e14fd9d153126b009d913c17b97529968",
@@ -5703,7 +5919,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "1ac62dbf2ec3c86270e7063749891be181c3f4cf3d1381332d378d5ddc969685"
+      "authored_record_sha256": "1ac62dbf2ec3c86270e7063749891be181c3f4cf3d1381332d378d5ddc969685",
+      "proposal_input_sha256": "c0f5f76d00adcff11ac2bafbff923ee3573f9db5d34073ee5e562f0ef3072e98",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-the-lost-world-jurassic-park-special-edition-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-the-lost-world-jurassic-park-special-edition-recomp\\alexbeav-the-lost-world-jurassic-park-special-edition-recomp-9f7ee2f98ce89f71d5c73d32c5639c68ed8214f8205f279bba5218d3ddd98ee3.json"
     },
     {
       "id": "alexbeav-the-mummy-recomp",
@@ -5716,7 +5935,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "0a1b7d30f64bb6b35e27e36ebdf6ca9337bf1bce7174bfef768b91f8e1939728",
-      "prepared_record_sha256": "90a9266ad826aad658983a1ffd6e394e9c3b2d204c1c2baf667224c7dc5ce1c7",
+      "prepared_record_sha256": "e27da19b1381aa185d5e6ddccfd18574b1f9eed57e3e1d040c3265a2e81daac6",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-the-mummy-recomp.json",
         "sha256": "dd7e9eaf451534d9f73d8f459d6dad0d6fdea5a6b67397972ee9c8d988e62f64",
@@ -5781,7 +6000,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "be573e99f4973f57b8100925841ced0c3ee156de404576ebc22ed5a05b7fd1c9"
+      "authored_record_sha256": "be573e99f4973f57b8100925841ced0c3ee156de404576ebc22ed5a05b7fd1c9",
+      "proposal_input_sha256": "90a9266ad826aad658983a1ffd6e394e9c3b2d204c1c2baf667224c7dc5ce1c7",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-the-mummy-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-the-mummy-recomp\\alexbeav-the-mummy-recomp-e27da19b1381aa185d5e6ddccfd18574b1f9eed57e3e1d040c3265a2e81daac6.json"
     },
     {
       "id": "alexbeav-threads-of-fate-recomp",
@@ -5794,7 +6016,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "bb510f1dcbac45a47b3ac8e8f76e28934a3d9402277bc87c6cb789a4f16d036a",
-      "prepared_record_sha256": "351e6050c8b1d340c282a78533d1c79e0e1ec5c9c82a04a8c0a52c2b7b459548",
+      "prepared_record_sha256": "249bb1b8a5b6ca36dc7cc9d10deb3b2197666f33271b905e6fc3fbeb17230a41",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-threads-of-fate-recomp.json",
         "sha256": "45ead4b091d24ffaee5d3757a50d1b576bde36caa04ba22a6c772202e992f59a",
@@ -5859,7 +6081,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "d18f0a7d40c034479c5f7bb1ea7252987d8635d8ab3c366fd19a35b33be7f3bb"
+      "authored_record_sha256": "d18f0a7d40c034479c5f7bb1ea7252987d8635d8ab3c366fd19a35b33be7f3bb",
+      "proposal_input_sha256": "351e6050c8b1d340c282a78533d1c79e0e1ec5c9c82a04a8c0a52c2b7b459548",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-threads-of-fate-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-threads-of-fate-recomp\\alexbeav-threads-of-fate-recomp-249bb1b8a5b6ca36dc7cc9d10deb3b2197666f33271b905e6fc3fbeb17230a41.json"
     },
     {
       "id": "alexbeav-tokyo-highway-battle-recomp",
@@ -5872,7 +6097,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "ed3eba0eda93d5de20afbd5649bbc082aaf15c36537a4a1a6dd7e99ce1d81c16",
-      "prepared_record_sha256": "648aeeac36e5c42e51091ea3bd519fd46990c5e4d5e2512a19cf864b4e2ce408",
+      "prepared_record_sha256": "23d23746570437cf7fddf0c1993cdfbe6e05056e625126bb6fe32b83be68d25a",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-tokyo-highway-battle-recomp.json",
         "sha256": "d54baf540b9897a47b2688ef8b4780ef50dd71adce5b4e5c19960479a90e41dd",
@@ -5937,7 +6162,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "44f6e3dfff9135f0a373d4c8cbd3f21453756f430de20da8da2b8e38e8de46a5"
+      "authored_record_sha256": "44f6e3dfff9135f0a373d4c8cbd3f21453756f430de20da8da2b8e38e8de46a5",
+      "proposal_input_sha256": "648aeeac36e5c42e51091ea3bd519fd46990c5e4d5e2512a19cf864b4e2ce408",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-tokyo-highway-battle-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-tokyo-highway-battle-recomp\\alexbeav-tokyo-highway-battle-recomp-23d23746570437cf7fddf0c1993cdfbe6e05056e625126bb6fe32b83be68d25a.json"
     },
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-2-recomp",
@@ -5950,7 +6178,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "4a8156d96783c314c5430df0483138097ac284d0fd0346ee54c2bd8b415b5d8c",
-      "prepared_record_sha256": "c349c1afe5b1206055b45f3a5760938f4599ab6a9466b96f585d2afe286160fe",
+      "prepared_record_sha256": "3add54552233b26010ff2027599e40b49eda1127d07cd3bc75d74ab41b2dbd7b",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-tony-hawk-s-pro-skater-2-recomp.json",
         "sha256": "aac069d8b5ccbdd8e262b810a255c35116763bf82bc7836713d368d3fcbf0b95",
@@ -6015,7 +6243,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "8ec5ca195a31a6396638299667b3af28510db2dffca839d25c4ba44a95e0b172"
+      "authored_record_sha256": "8ec5ca195a31a6396638299667b3af28510db2dffca839d25c4ba44a95e0b172",
+      "proposal_input_sha256": "c349c1afe5b1206055b45f3a5760938f4599ab6a9466b96f585d2afe286160fe",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-tony-hawk-s-pro-skater-2-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-tony-hawk-s-pro-skater-2-recomp\\alexbeav-tony-hawk-s-pro-skater-2-recomp-3add54552233b26010ff2027599e40b49eda1127d07cd3bc75d74ab41b2dbd7b.json"
     },
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-3-recomp",
@@ -6028,7 +6259,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "b95e8a980916cf77cb580888a96328b929fc0d1b0964144814c2ac2fdabf8d21",
-      "prepared_record_sha256": "348dc578d96b49de439b1203a0c8bbcc2dbddff112562149571fa20cae0b8c24",
+      "prepared_record_sha256": "8b26aa99e534460520b78bb61d0d987bfd4dbd70a202a434adbaf74d719ff47a",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-tony-hawk-s-pro-skater-3-recomp.json",
         "sha256": "7b6c38dba725ceeaf004146379ecf3d40c780d10e7c28d82c5b5fbe8e03ec332",
@@ -6093,7 +6324,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "0700858ce34255334f956c7b58ffce6a307e68d58d786dd69dc237c7a8cd74f3"
+      "authored_record_sha256": "0700858ce34255334f956c7b58ffce6a307e68d58d786dd69dc237c7a8cd74f3",
+      "proposal_input_sha256": "348dc578d96b49de439b1203a0c8bbcc2dbddff112562149571fa20cae0b8c24",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-tony-hawk-s-pro-skater-3-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-tony-hawk-s-pro-skater-3-recomp\\alexbeav-tony-hawk-s-pro-skater-3-recomp-8b26aa99e534460520b78bb61d0d987bfd4dbd70a202a434adbaf74d719ff47a.json"
     },
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-4-recomp",
@@ -6106,7 +6340,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "30b5f0987d38c5961e34d6b4a0dd7c4009f3bf898a17bc9867fa699e3217eafd",
-      "prepared_record_sha256": "3d80105c882499faf7e611a32a87aa24815d899a0d50567f6f38607009a657d2",
+      "prepared_record_sha256": "553dbc765058e256da7815103d280112aaea5570a6446e71c5366ef6b6796e98",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-tony-hawk-s-pro-skater-4-recomp.json",
         "sha256": "3b5e1e5c25c86d1652efe9aad057fce8d8fdb6fe0dc6a5700f0e1184f6c1707c",
@@ -6171,7 +6405,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "8e329c73848b9d79dad2f92613a41c165bac8737d398f65b700d766faa42a0f3"
+      "authored_record_sha256": "8e329c73848b9d79dad2f92613a41c165bac8737d398f65b700d766faa42a0f3",
+      "proposal_input_sha256": "3d80105c882499faf7e611a32a87aa24815d899a0d50567f6f38607009a657d2",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-tony-hawk-s-pro-skater-4-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-tony-hawk-s-pro-skater-4-recomp\\alexbeav-tony-hawk-s-pro-skater-4-recomp-553dbc765058e256da7815103d280112aaea5570a6446e71c5366ef6b6796e98.json"
     },
     {
       "id": "alexbeav-tony-hawk-s-pro-skater-recomp",
@@ -6184,7 +6421,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "7d59995333c0f1f7f5cd2621d309d6f56ca22798a53994bda1ead19a1d3b2c6f",
-      "prepared_record_sha256": "75c80127d8e167f00c971b7639585ef9c3dc500f43ca6594a5b93c3430088e26",
+      "prepared_record_sha256": "b8f4ac4b96f520d4d0b120ed00caebb2f4a318677e2a042cb3806300e6794ea9",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-tony-hawk-s-pro-skater-recomp.json",
         "sha256": "e1d757d52d27e556831d49b6b6dddd076d7fbfd245ef43224a4faaae2101b758",
@@ -6249,7 +6486,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "c3ac7b42d5a338e7a36f369bb3a50ce2f86c7b983a574354cb0e8d91798c52e9"
+      "authored_record_sha256": "c3ac7b42d5a338e7a36f369bb3a50ce2f86c7b983a574354cb0e8d91798c52e9",
+      "proposal_input_sha256": "75c80127d8e167f00c971b7639585ef9c3dc500f43ca6594a5b93c3430088e26",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-tony-hawk-s-pro-skater-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-tony-hawk-s-pro-skater-recomp\\alexbeav-tony-hawk-s-pro-skater-recomp-b8f4ac4b96f520d4d0b120ed00caebb2f4a318677e2a042cb3806300e6794ea9.json"
     },
     {
       "id": "alexbeav-valkyrie-profile-recomp",
@@ -6262,7 +6502,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "c3f2543205363680e293432e8b548d4daed87a15a926c0b21c268df94be98c36",
-      "prepared_record_sha256": "6d308b7c18b3e7df6b4b5ee1a2e344bf0ea88f09256ba455d99d136d4c11cd39",
+      "prepared_record_sha256": "aa3b839337781b6baf4e15a3aa317f9eb9934757458c59602a0142a575334e30",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-valkyrie-profile-recomp.json",
         "sha256": "dd9c8ba55243757252c887b4e2a951a93083935e2f4cc688eb2f8976c72b3bd6",
@@ -6327,7 +6567,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "706474efca38f5639a54253c59bf2ca12eb25f849a7c381b425cd7778cef226f"
+      "authored_record_sha256": "706474efca38f5639a54253c59bf2ca12eb25f849a7c381b425cd7778cef226f",
+      "proposal_input_sha256": "6d308b7c18b3e7df6b4b5ee1a2e344bf0ea88f09256ba455d99d136d4c11cd39",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-valkyrie-profile-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-valkyrie-profile-recomp\\alexbeav-valkyrie-profile-recomp-aa3b839337781b6baf4e15a3aa317f9eb9934757458c59602a0142a575334e30.json"
     },
     {
       "id": "alexbeav-vampire-hunter-d-recomp",
@@ -6340,7 +6583,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "9b4895e1b47c07468b02388375a9d39ab10464f7bae1b0201039d78a4e72f9d2",
-      "prepared_record_sha256": "4ddd5bda1bfad30a0ba290c1422cfa6078e5ae19f3f6c5ace12650e51b556fcd",
+      "prepared_record_sha256": "5e007dad30be1b6fab7a8a7c36629bed0aaff476a9dfe6eea3541ceab3288bd4",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-vampire-hunter-d-recomp.json",
         "sha256": "19edb7faee4f18f86fe23cbcc2ca3d5d0efbff08afcbb86fb812c7bd1d43a8c0",
@@ -6405,7 +6648,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "e656285ac502d6525a71fafc3f8e510d93de063af8ec8bca4b66bab17fa63534"
+      "authored_record_sha256": "e656285ac502d6525a71fafc3f8e510d93de063af8ec8bca4b66bab17fa63534",
+      "proposal_input_sha256": "4ddd5bda1bfad30a0ba290c1422cfa6078e5ae19f3f6c5ace12650e51b556fcd",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-vampire-hunter-d-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-vampire-hunter-d-recomp\\alexbeav-vampire-hunter-d-recomp-5e007dad30be1b6fab7a8a7c36629bed0aaff476a9dfe6eea3541ceab3288bd4.json"
     },
     {
       "id": "alexbeav-vib-ribbon-recomp",
@@ -6418,7 +6664,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "71ff83c14c510e5e3f619e7aa8d973045fb083518d5809c7a0051e8052e2ebaf",
-      "prepared_record_sha256": "5dc59b455ab2c3073302a729c35282f7ab277075deeb7a9b23f44ec0346f2537",
+      "prepared_record_sha256": "3feedbb33edabc9ff7b918c7c7fcac3e2bbb634d9fdd2ed86b95f0b038a21684",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-vib-ribbon-recomp.json",
         "sha256": "433c189be24a8c169de4bd4e9583b2b00b21edbc06c6507014f1b734c55c13d7",
@@ -6483,7 +6729,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "25c032fbd7ce15e8bd0ebccfbe36c9b4206ad13e1f890041e3bd4d0103d80a59"
+      "authored_record_sha256": "25c032fbd7ce15e8bd0ebccfbe36c9b4206ad13e1f890041e3bd4d0103d80a59",
+      "proposal_input_sha256": "5dc59b455ab2c3073302a729c35282f7ab277075deeb7a9b23f44ec0346f2537",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-vib-ribbon-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-vib-ribbon-recomp\\alexbeav-vib-ribbon-recomp-3feedbb33edabc9ff7b918c7c7fcac3e2bbb634d9fdd2ed86b95f0b038a21684.json"
     },
     {
       "id": "alexbeav-vigilante-8-recomp",
@@ -6496,7 +6745,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "94de790cef6d120922d602f73fd95475453c6b6f4dcbb11b59939664d1dbda68",
-      "prepared_record_sha256": "cb6d7302c3130e15122c9b2499a959e5f2d6d76255ed2bbf93a3ddf54c2e19a4",
+      "prepared_record_sha256": "1385e75a20666e0bf81fa318bfebfa897c2876603df224ec4de0617ef84975a6",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-vigilante-8-recomp.json",
         "sha256": "d2414d8bc7606161d0f66bee75c2cc1d533ba1b1f7aab542377152a3cc92421f",
@@ -6561,7 +6810,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "0e25b27b22590f7189518a1cb2cca516e46309ae1723e2d55e789246655524a7"
+      "authored_record_sha256": "0e25b27b22590f7189518a1cb2cca516e46309ae1723e2d55e789246655524a7",
+      "proposal_input_sha256": "cb6d7302c3130e15122c9b2499a959e5f2d6d76255ed2bbf93a3ddf54c2e19a4",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-vigilante-8-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-vigilante-8-recomp\\alexbeav-vigilante-8-recomp-1385e75a20666e0bf81fa318bfebfa897c2876603df224ec4de0617ef84975a6.json"
     },
     {
       "id": "alexbeav-wild-arms-recomp",
@@ -6574,7 +6826,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "9a871a31b839dd92302bf241302f9a4a2fac3ef5255c30a31b33bce7a6ea4d72",
-      "prepared_record_sha256": "3cff11508126cd60e5ea2f987077989ba02f4775f36bf75cf0e4a75c708e5b0a",
+      "prepared_record_sha256": "6fd969888c3f30efe24ee38bea3044864a486d8830fb23eb81c8aa13c67ae159",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-wild-arms-recomp.json",
         "sha256": "bbdd4221413c0c5b33d740002f962867f6743b3836a4493a4023c99521c3694a",
@@ -6639,7 +6891,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "1dca290f8b89e7e3b41aad4b0f53ef19e9ccf848fe964db2632dee47e5feea8b"
+      "authored_record_sha256": "1dca290f8b89e7e3b41aad4b0f53ef19e9ccf848fe964db2632dee47e5feea8b",
+      "proposal_input_sha256": "3cff11508126cd60e5ea2f987077989ba02f4775f36bf75cf0e4a75c708e5b0a",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-wild-arms-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-wild-arms-recomp\\alexbeav-wild-arms-recomp-6fd969888c3f30efe24ee38bea3044864a486d8830fb23eb81c8aa13c67ae159.json"
     },
     {
       "id": "alexbeav-wipeout-recomp",
@@ -6652,7 +6907,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "0f1f30edef5eeb5ac52130c529662d7cf8ea96f7ee0ec31a8a32a238b233d926",
-      "prepared_record_sha256": "26a4a7e55d6f8c4382570a48826f291757a6149c06413b194eefbd503452695e",
+      "prepared_record_sha256": "ee0eaa55e537fb8f1cdc8a28ac2d4cc86c75820a57b593db5cfe943abb4ef79c",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-wipeout-recomp.json",
         "sha256": "a34c2ddfb25f73393aec90ebb9b3f6e602726731a50eb20d0667468166cd976c",
@@ -6717,7 +6972,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "5594be562b7c1396bd4d41a62cfab147cd1390735827c3ab0f8261031c642463"
+      "authored_record_sha256": "5594be562b7c1396bd4d41a62cfab147cd1390735827c3ab0f8261031c642463",
+      "proposal_input_sha256": "26a4a7e55d6f8c4382570a48826f291757a6149c06413b194eefbd503452695e",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-wipeout-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-wipeout-recomp\\alexbeav-wipeout-recomp-ee0eaa55e537fb8f1cdc8a28ac2d4cc86c75820a57b593db5cfe943abb4ef79c.json"
     },
     {
       "id": "alexbeav-wipeout-xl-recomp",
@@ -6730,7 +6988,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "407664650c2d115fbca2db30d3228f89d0d906104a5e9f76ec24b9c2494a182a",
-      "prepared_record_sha256": "c0af30bef64c4574a717e55d31627a2767043fe7f31b9b83b89df4f0d7969168",
+      "prepared_record_sha256": "a40200bb160dd54759138929064b94d8a7ee6773eea450085a90af22b5432b01",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\alexbeav-wipeout-xl-recomp.json",
         "sha256": "365aa38db93a23386d364c3c02bedb05136dea40821b1c25edcaf4dfd98be851",
@@ -6795,7 +7053,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "5e91480285e22fd6b5713982c7203421709efa3c120f7f379bc6bd45f945c589"
+      "authored_record_sha256": "5e91480285e22fd6b5713982c7203421709efa3c120f7f379bc6bd45f945c589",
+      "proposal_input_sha256": "c0af30bef64c4574a717e55d31627a2767043fe7f31b9b83b89df4f0d7969168",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/alexbeav-wipeout-xl-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-alexbeav-wipeout-xl-recomp\\alexbeav-wipeout-xl-recomp-a40200bb160dd54759138929064b94d8a7ee6773eea450085a90af22b5432b01.json"
     },
     {
       "id": "xena-warrior-princess-xena-recomp",
@@ -6808,7 +7069,7 @@
       "change": "Stable official release feed and discriminating native ZIP hints; concrete setup and external ownership instructions",
       "fit_status": "Download/setup candidate; full managed-fit assessment remains open pending complete exact source/build/output/persistence/update facts",
       "before_sha256": "59458522a1235dcf5a53c75e9ad2da12bc58b2fce8dbf3ab36b1da262fb0ddce",
-      "prepared_record_sha256": "737aeefcfc399de4147d4bd0078f3f72fdb68bccaf31da9c15e36dc1a8fc1d11",
+      "prepared_record_sha256": "78744eddcf37fc288c4500983686b1e4a626cd69c23024d61d0828083c19b109",
       "readme": {
         "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\readmes\\xena-warrior-princess-xena-recomp.json",
         "sha256": "9c5bbf1140054a42d5479e19a8e6be169874fbf175741a47253e8e06f08647a0",
@@ -6873,7 +7134,10 @@
         }
       },
       "delivery_status": "Prepared, application and final exact-head review/CI/guarded merge pending at source checkpoint",
-      "authored_record_sha256": "e3ab70455c8b104b8bc7827d438cc6638d8e77b4bbceeb40a79fdc6a454cce6c"
+      "authored_record_sha256": "e3ab70455c8b104b8bc7827d438cc6638d8e77b4bbceeb40a79fdc6a454cce6c",
+      "proposal_input_sha256": "737aeefcfc399de4147d4bd0078f3f72fdb68bccaf31da9c15e36dc1a8fc1d11",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/psx-guidance-batch5/xena-warrior-princess-xena-recomp.json",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-guidance-batch5\\prepare-both-xena-warrior-princess-xena-recomp\\xena-warrior-princess-xena-recomp-78744eddcf37fc288c4500983686b1e4a626cd69c23024d61d0828083c19b109.json"
     }
   ],
   "validation_scope": "88 listing authoring structure/unchanged operational projection preparations with complete official release metadata and independent Windows/Linux publisher digests. Final Core/catalog CI remains separate. No archive download/extraction or execution, native setup, gameplay, managed replacement, packaged Desktop or real-save acceptance is established.",
