@@ -697,6 +697,12 @@ mod tests {
             )
             .is_err()
         );
+        assert!(
+            refuse_adoption(&port)
+                .unwrap_err()
+                .message
+                .contains("exact official package")
+        );
         let temp = tempfile::tempdir().unwrap();
         let library = crate::Library::open(temp.path().join("library")).unwrap();
         let service = crate::PortcoveService::new(library).unwrap();
@@ -707,13 +713,18 @@ mod tests {
             b"arbitrary executable",
         )
         .unwrap();
-        assert!(
-            service
-                .preview_adoption(&external, Some(&port.id))
-                .unwrap_err()
-                .message
-                .contains("exact official package")
-        );
+        let preview_error = service
+            .preview_adoption(&external, Some(&port.id))
+            .unwrap_err();
+        let platform = crate::Platform::current().unwrap();
+        if platform == crate::Platform::WindowsX86_64 {
+            assert!(preview_error.message.contains("exact official package"));
+        } else {
+            // This Windows-only package has no host executable to detect first.
+            assert_eq!(preview_error.code, crate::ErrorCode::Verification);
+            assert!(preview_error.message.contains("has no declared executable"));
+            assert!(preview_error.message.contains(&format!("{platform:?}")));
+        }
         assert!(
             service
                 .adopt(&external, Some(&port.id), "ungranted")

@@ -1,4 +1,7 @@
-//! Synthetic string-only cases: no filesystem access or installation fixtures.
+//! Synthetic string-only properties, with bounded filesystem controls in a companion module.
+#[path = "path_read_tests.rs"]
+mod bounded_reads;
+
 use std::path::Path;
 
 use proptest::{

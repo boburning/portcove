@@ -373,6 +373,8 @@ const workflowFeatureTests = [
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/rust-coverage.mts", ["scripts/rust-coverage.test.mts"]],
+  [".config/rust-coverage.json", ["scripts/rust-coverage.test.mts"]],
   ["scripts/ci-workflow.test.mts", workflowContractTests],
   ["scripts/ci-workflow-fixture.mts", workflowContractTests],
   ...workflowFeatureTests.map((file): [string, string[]] => [
@@ -606,7 +608,13 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-site-launch.mts", ["scripts/release-site-controller.test.mts"]],
   ["scripts/release-control-step-bridge.mts", ["scripts/release-control-step-bridge.test.mts"]],
   ["scripts/release-controller-transport.mts", ["scripts/release-controller-transport.test.mts"]],
-  ["scripts/release-controller-diagnostics.mts", ["scripts/release-controller-transport.test.mts"]],
+  [
+    "scripts/release-controller-diagnostics.mts",
+    [
+      "scripts/release-controller-transport.test.mts",
+      "scripts/release-hosted-native-runner.test.mts",
+    ],
+  ],
   [
     "docs/qualification/application-update-production.complete.yml",
     ["scripts/release-production-dag.test.mts"],
@@ -1686,6 +1694,19 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     ...coordinatorStateContractTests,
+  ]);
+}
+
+for (const file of [
+  "scripts/test-coverage-config.mts",
+  "scripts/quality-tools.mts",
+  "scripts/resource-command.mts",
+  "scripts/resource-capacity.mts",
+  "scripts/runtime-values.mts",
+]) {
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/rust-coverage.test.mts",
   ]);
 }
 

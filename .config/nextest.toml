@@ -7,6 +7,17 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Qualification40167856307/a1 retained these Linux30.010-30.012s cutoffs.
+# Both preparation cases finished setup at27.959/28.310s before fresh-status
+# and launch observations. Give these complete lifecycle fixtures finite90s
+# headroom, retaining assertions, cleanup, two workers and zero retries.
+# Runtime-diagnostic phase output separates fixture, lifecycle and flush work.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40164185374/a1 retained this complete authenticated staging/rollback case
 # at the Windows30.232s harness cutoff. Keep all durable operations/assertions,
 # phase diagnostics, cleanup, active worker slots and zero retries. Exact60s

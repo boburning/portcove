@@ -1,0 +1,11 @@
+{
+  "format_version": 1,
+  "toolchain": "nightly-2026-09-02",
+  "compiler_release": "1.100.0-nightly",
+  "compiler_commit": "5db7f4be8a36c1b8ae19299469e2be2b0f052c21",
+  "llvm_version": "23.1.0",
+  "target": "x86_64-pc-windows-msvc",
+  "package": "portcove-core",
+  "test_filter": "path::",
+  "module": "crates/portcove-core/src/path.rs"
+}

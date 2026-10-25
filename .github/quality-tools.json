@@ -54,6 +54,14 @@
       "ci_install": "local"
     },
     {
+      "id": "cargo-llvm-cov",
+      "crate": "cargo-llvm-cov",
+      "version": "0.9.1",
+      "command": ["cargo", "llvm-cov", "--version"],
+      "tier": "deep",
+      "ci_install": "local"
+    },
+    {
       "id": "cargo-nextest",
       "crate": "cargo-nextest",
       "version": "0.9.100",

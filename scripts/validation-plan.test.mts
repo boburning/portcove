@@ -18,6 +18,22 @@ import {
 import { discoverCiPlan } from "./select-ci-plan.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 const sha = (c: string) => c.repeat(40);
+
+void test("opt-in Rust coverage inputs retain hosted contracts across lifecycle and rename edits", () => {
+  for (const file of ["scripts/rust-coverage.mts", ".config/rust-coverage.json"]) {
+    for (const values of [
+      {},
+      { status: "A", oldMode: "000000" },
+      { status: "D", newMode: "000000" },
+      { status: "R100", newPath: "docs/moved.md" },
+      { status: "R100", oldPath: "docs/moved.md" },
+    ]) {
+      const selected = plan([change(file, values)]);
+      assert.ok(selected.groups.includes("catalog"), JSON.stringify({ file, values }));
+      assert.ok(selected.groups.includes("rust-quality"), JSON.stringify({ file, values }));
+    }
+  }
+});
 const change = (file: string, values: Partial<ValidationChangeInput> = {}) => ({
   status: "M",
   oldMode: "100644",

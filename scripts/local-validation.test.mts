@@ -95,6 +95,31 @@ void test("native input observation and its fixed oracle retain direct consumers
     }
 });
 
+void test("opt-in Rust coverage inputs retain contracts across lifecycle and rename edits", () => {
+  for (const input of [
+    "scripts/rust-coverage.mts",
+    ".config/rust-coverage.json",
+    "scripts/test-coverage-config.mts",
+    "scripts/quality-tools.mts",
+    "scripts/resource-command.mts",
+    "scripts/resource-capacity.mts",
+    "scripts/runtime-values.mts",
+  ]) {
+    for (const change of [
+      { status: "M", path: input },
+      { status: "A", path: input },
+      { status: "D", path: input },
+      { status: "R100", previousPath: input, path: "docs/moved.md" },
+      { status: "R100", previousPath: "docs/moved.md", path: input },
+    ]) {
+      const selected = classifyChanges([change], { fileExists: () => false });
+      assert.ok(selected.nodeTests.has("scripts/rust-coverage.test.mts"), JSON.stringify(change));
+      if (input === "scripts/test-coverage-config.mts")
+        assert.ok(selected.nodeTests.has("scripts/ui-test-selection.test.mts"));
+    }
+  }
+});
+
 void test("qualification archive helper and oracle retain surviving contracts without sibling inference", () => {
   for (const file of [
     "scripts/windows-qualification-rust.mts",
