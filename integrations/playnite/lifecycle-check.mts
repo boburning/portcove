@@ -360,7 +360,13 @@ async function checkReviewedExternal(
   );
   assert.equal((await status()).external_runtime?.id, registered.id);
   const original = path.join(workspace, "owned original.n64");
-  await writeFile(original, "synthetic original source");
+  // Exercise incompatible source format after structural N64 admission, rather
+  // than failing earlier on an invalid byte-order header. These are synthetic
+  // bytes, not an original game or gameplay qualification.
+  const originalBytes = Buffer.alloc(64);
+  originalBytes.set([0x40, 0x12, 0x37, 0x80]);
+  originalBytes.write("synthetic original source", 4, "ascii");
+  await writeFile(original, originalBytes);
   await run(cli, ["--library", library, "--json", "source", "add", "star-fox-64", original], {
     env,
     echo: false,
@@ -381,7 +387,7 @@ async function checkReviewedExternal(
     /requires uncompressed \.z64 original file/u,
   );
   await run(contract, ["qualification-source-guidance", cli, library, port, original], { env });
-  assert.equal(await readFile(original, "utf8"), "synthetic original source");
+  assert.deepEqual(await readFile(original), originalBytes);
   const removal = await read("external_runtime_removal_preview", "removal-preview", port);
   assert.equal(removal.external_files_will_be_preserved, true);
   assert.equal(
