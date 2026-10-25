@@ -792,6 +792,19 @@ critical-path time. The complete Rust feedback goal of less than ten minutes is
 a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes and zero automatic test retries remain in force.
 
+The remaining full-workspace native/Intel and Windows workspace-other qualification
+jobs use `scripts/qualification-nextest.mts` with their original package scope,
+partitions, default profile and archive/remap inputs. It verifies pinned Node and
+nextest, retains complete compiled and selected inventories, and joins original
+libtest JSON outcomes to selected case identities through the shared reporter.
+Each fresh `work/test-results/qualification-*` packet retains raw inventories,
+request context, outcome stream, hashes and separate inventory/execution timings.
+Always-run artifacts retain these packets after failure. Ignored/filter-match
+records and whole-binary exclusions remain dispositions rather than executions;
+source declarations absent from a platform's compiled inventory remain unknown.
+No cold-cache, speedup or additional native-product acceptance follows from these
+reporting records.
+
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 Browser bootstrap records executable presence before provisioning, the installed
 Playwright package manifest digest/version and its exact relative Chromium

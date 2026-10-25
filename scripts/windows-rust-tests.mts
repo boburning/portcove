@@ -14,12 +14,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCiMetrics } from "./ci-metrics.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
-import { nextestOutcomeSelection, runNextestWithOutcomes } from "./nextest-outcomes.mts";
 import {
-  readRustTestImpactMap,
-  runnableWorkspaceImpactTests,
-  selectWorkspaceRustImpact,
-} from "./rust-test-impact.mts";
+  nextestOutcomeSelection,
+  runNextestWithOutcomes,
+  runnableNextestTests,
+} from "./nextest-outcomes.mts";
+import { readRustTestImpactMap, selectWorkspaceRustImpact } from "./rust-test-impact.mts";
 import { readValidationPlanInput, validateValidationPlan } from "./validation-plan.mts";
 import {
   qualificationCoreScope,
@@ -401,24 +401,7 @@ function currentContext() {
 }
 
 export function runnableWindowsRustTests(inventory: unknown, { allowSkipped = false } = {}) {
-  // Pinned nextest distinguishes whole-binary default-filter exclusions from
-  // explicit -E exclusions. Both are empty skipped suites in a narrowed list;
-  // complete lists must still reject either status. Reuse all identity, count
-  // and empty-skipped-suite validation without altering the retained inventory.
-  if (allowSkipped && isRecord(inventory) && isRecord(inventory["rust-suites"])) {
-    inventory = {
-      ...inventory,
-      "rust-suites": Object.fromEntries(
-        Object.entries(inventory["rust-suites"]).map(([binary, suite]) => [
-          binary,
-          isRecord(suite) && suite.status === "skipped-default-filter"
-            ? { ...suite, status: "skipped" }
-            : suite,
-        ]),
-      ),
-    };
-  }
-  return runnableWorkspaceImpactTests(inventory, { allowSkipped });
+  return runnableNextestTests(inventory, { allowSkipped, allowDefaultSkipped: allowSkipped });
 }
 
 function listInventory(args: string[]): unknown {

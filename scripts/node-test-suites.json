@@ -989,6 +989,14 @@
       ]
     },
     {
+      "file": "scripts/qualification-nextest.test.mts",
+      "memberships": [
+        ["windows-storage-3", 109],
+        ["catalog-full-2", 6352],
+        ["repository-tools-2", 2352]
+      ]
+    },
+    {
       "file": "scripts/nextest-outcomes.test.mts",
       "memberships": [
         ["catalog-full-2", 6351],

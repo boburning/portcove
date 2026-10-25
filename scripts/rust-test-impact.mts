@@ -8,7 +8,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
-import { nextestOutcomeSelection, runNextestWithOutcomes } from "./nextest-outcomes.mts";
+import {
+  nextestOutcomeSelection,
+  runNextestWithOutcomes,
+  runnableNextestTests,
+} from "./nextest-outcomes.mts";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 export const rustTestImpactPath = path.join(projectRoot, ".config", "rust-test-impact.json");
@@ -579,47 +583,7 @@ export function selectWorkspaceRustImpact(
 }
 
 export function runnableWorkspaceImpactTests(inventory: unknown, { allowSkipped = false } = {}) {
-  if (
-    !isRecord(inventory) ||
-    typeof inventory["test-count"] !== "number" ||
-    !Number.isSafeInteger(inventory["test-count"]) ||
-    inventory["test-count"] < 0 ||
-    !isRecord(inventory["rust-suites"])
-  )
-    throw new Error("Incomplete nextest workspace inventory");
-  let total = 0;
-  const matched = new Set<string>();
-  for (const [binaryId, suite] of Object.entries(inventory["rust-suites"])) {
-    if (
-      !isRecord(suite) ||
-      typeof suite["package-name"] !== "string" ||
-      !/^[a-z0-9][a-z0-9-]*$/u.test(suite["package-name"]) ||
-      suite["binary-id"] !== binaryId ||
-      (suite.status !== "listed" && !(allowSkipped && suite.status === "skipped")) ||
-      !isRecord(suite.testcases)
-    )
-      throw new Error("Unexpected nextest workspace suite identity or coverage");
-    if (suite.status === "skipped" && Object.keys(suite.testcases).length)
-      throw new Error("Skipped nextest suite contained test records");
-    for (const [name, detail] of Object.entries(suite.testcases)) {
-      total++;
-      const status =
-        isRecord(detail) && isRecord(detail["filter-match"])
-          ? detail["filter-match"].status
-          : undefined;
-      if (
-        !name ||
-        !isRecord(detail) ||
-        typeof detail.ignored !== "boolean" ||
-        (status !== "matches" && status !== "mismatch")
-      )
-        throw new Error("Invalid nextest workspace test record");
-      if (status === "matches" && !detail.ignored)
-        matched.add(JSON.stringify([suite["package-name"], binaryId, name]));
-    }
-  }
-  if (total !== inventory["test-count"]) throw new Error("Truncated nextest workspace inventory");
-  return matched;
+  return runnableNextestTests(inventory, { allowSkipped });
 }
 
 export function runWorkspaceRustImpact(

@@ -1287,13 +1287,36 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     file,
     ["scripts/ci-baseline-execution.test.mts"],
   ]),
-  ["scripts/rust-test-impact.mts", ["scripts/rust-test-impact.test.mts"]],
+  [
+    "scripts/rust-test-impact.mts",
+    ["scripts/rust-test-impact.test.mts", "scripts/nextest-outcomes.test.mts"],
+  ],
+  [
+    "scripts/qualification-nextest.mts",
+    [
+      "scripts/qualification-nextest.test.mts",
+      "scripts/nextest-outcomes.test.mts",
+      "scripts/ci-rust-workflow.test.mts",
+      "scripts/qualification-coverage.test.mts",
+      "scripts/audit.test.mts",
+      "scripts/precommit-check.test.mts",
+    ],
+  ],
+  [
+    "scripts/fixtures/nextest-inventory-baseline.json",
+    ["scripts/nextest-outcomes.test.mts", "scripts/qualification-nextest.test.mts"],
+  ],
   [
     "scripts/nextest-outcomes.mts",
     [
       "scripts/nextest-outcomes.test.mts",
+      "scripts/qualification-nextest.test.mts",
+      "scripts/windows-rust-tests.test.mts",
       "scripts/rust-test-impact.test.mts",
+      "scripts/ci-rust-workflow.test.mts",
       "scripts/ci-workflow.test.mts",
+      "scripts/audit.test.mts",
+      "scripts/precommit-check.test.mts",
     ],
   ],
   ...["passed.jsonl", "failing.jsonl", "ignored.jsonl", "inventory.json", "provenance.json"].map(
@@ -1483,11 +1506,19 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ]),
   [
     ".github/quality-tools.json",
-    ["scripts/quality-tools.test.mts", "scripts/dependency-automation.test.mts"],
+    [
+      "scripts/quality-tools.test.mts",
+      "scripts/dependency-automation.test.mts",
+      "scripts/qualification-nextest.test.mts",
+    ],
   ],
   [
     ".node-version",
-    ["scripts/dependency-automation.test.mts", "scripts/ci-baseline-execution.test.mts"],
+    [
+      "scripts/dependency-automation.test.mts",
+      "scripts/ci-baseline-execution.test.mts",
+      "scripts/qualification-nextest.test.mts",
+    ],
   ],
   ["Cargo.toml", ["scripts/dependency-automation.test.mts"]],
   ["rust-toolchain.toml", ["scripts/dependency-automation.test.mts"]],
@@ -1709,6 +1740,14 @@ for (const file of [
     "scripts/rust-coverage.test.mts",
   ]);
 }
+explicitNodeTests.set("scripts/runtime-values.mts", [
+  ...(explicitNodeTests.get("scripts/runtime-values.mts") ?? []),
+  "scripts/qualification-nextest.test.mts",
+  "scripts/nextest-outcomes.test.mts",
+  "scripts/qualification-coverage.test.mts",
+  "scripts/audit.test.mts",
+  "scripts/precommit-check.test.mts",
+]);
 
 const releaseContractTests = Object.freeze([
   "scripts/hosted-native-continuity.test.mts",
