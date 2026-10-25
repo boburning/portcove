@@ -26,22 +26,11 @@
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.1.4",
-          "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
-          "size": 29909581,
-          "sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
-          "published_at": "2026-10-02T15:44:22Z"
-        },
-        "linux-x86-64": {
-          "version": "v0.1.4",
-          "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip",
-          "size": 27803391,
-          "sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
-          "published_at": "2026-10-02T15:44:22Z"
-        }
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/diablo-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["diablo-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["diablo-recomp-", "-linux-x64.zip"]
       }
     },
     "source_profile": "diablo-europe-psx",
