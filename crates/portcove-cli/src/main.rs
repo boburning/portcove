@@ -1506,7 +1506,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "preparation.cleanup",
                 service.cleanup_preparation(&operation_id, &authorization.token)?,
-                |result| human_adapters::preparation_cleaned(result),
+                human_adapters::preparation_cleaned,
             )?;
         }
         Commands::Paths { port_id } => {
