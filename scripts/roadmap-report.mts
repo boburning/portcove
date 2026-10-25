@@ -151,7 +151,7 @@ export function observationFromReceipt(
     "transport",
     "provider_inconsistent",
   ].includes(kind)
-    ? `${kind}:${String(provider.status ?? "")}:${String(rate.resetAt ?? "")}`
+    ? `${kind}:${typeof provider.status === "number" ? provider.status : ""}:${typeof rate.resetAt === "string" ? rate.resetAt : ""}`
     : "";
   return (
     scope.kind === "global" ? ["global"] : (issues as number[]).map((issue) => `issue:${issue}`)
@@ -260,7 +260,12 @@ export function replayRoadmapRuns(
   };
   let cursor = until,
     downloaded = 0;
-  for (const run of runs.toSorted(
+  const latest = new Map<number, RoadmapReplayRun>();
+  for (const run of runs) {
+    const existing = latest.get(run.run);
+    if (!existing || run.attempt > existing.attempt) latest.set(run.run, run);
+  }
+  for (const run of [...latest.values()].toSorted(
     (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.run - b.run,
   )) {
     const key = `${run.run}/${run.attempt}`;

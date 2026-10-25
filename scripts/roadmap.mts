@@ -5014,7 +5014,7 @@ function isDoctorClient(client: unknown): client is DoctorClient {
 type LoadedQualificationCatalog = QualificationCatalogObservation & {
   ports: QualificationPortObservation[];
 };
-function qualificationCatalogObservation(value: unknown): LoadedQualificationCatalog {
+export function qualificationCatalogObservation(value: unknown): LoadedQualificationCatalog {
   if (!isRecord(value) || !Array.isArray(value.ports))
     throw new Error("catalog diagnostic input requires a port array");
   const ports: unknown[] = value.ports;

@@ -75,16 +75,34 @@ function existing(transport: PublicationApi = api) {
   return found[0];
 }
 
-export function writeMaintainedRoadmapReport(body: string, previous: unknown, transport: PublicationApi = api) {
+export function writeMaintainedRoadmapReport(
+  body: string,
+  previous: unknown,
+  transport: PublicationApi = api,
+) {
+  if (!body.startsWith(reportMarker) || Buffer.byteLength(body) > 60000)
+    throw new Error("Invalid maintained report candidate");
   const before = existing(transport);
-  if (JSON.stringify(before ? { id: before.id, body: before.body } : null) !== JSON.stringify(previous))
-    throw new Error("Maintained report changed outside the serialized publisher; refresh before writing");
+  if (
+    JSON.stringify(before ? { id: before.id, body: before.body } : null) !==
+    JSON.stringify(previous)
+  )
+    throw new Error(
+      "Maintained report changed outside the serialized publisher; refresh before writing",
+    );
   if (before?.body === body) return numeric(before.id);
-  const result = record(before
-    ? transport.request("PATCH", `${prefix}/issues/comments/${numeric(before.id)}`, { body }).body
-    : transport.request("POST", `${prefix}/issues/2414/comments`, { body }).body);
-  const observed = record(transport.request("GET", `${prefix}/issues/comments/${numeric(result.id)}`).body);
-  if (observed.body !== body) throw new Error("Maintained report readback differs; reconcile before any retry");
+  const result = record(
+    before
+      ? transport.request("PATCH", `${prefix}/issues/comments/${numeric(before.id)}`, { body }).body
+      : transport.request("POST", `${prefix}/issues/2414/comments`, { body }).body,
+  );
+  if (before && result.id !== before.id)
+    throw new Error("Maintained report mutation identity differs; reconcile before retrying");
+  const observed = record(
+    transport.request("GET", `${prefix}/issues/comments/${numeric(result.id)}`).body,
+  );
+  if (observed.id !== result.id || observed.body !== body)
+    throw new Error("Maintained report readback differs; reconcile before any retry");
   return numeric(result.id);
 }
 function download(run: number, name: string) {
@@ -288,4 +306,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   mkdirSync(directory, { recursive: true });
   try {
     if (process.argv[2] === "prepare") await prepare();
-    else if (process.argv[2] === "publish"
+    else if (process.argv[2] === "publish") publish();
+    else
+      throw new Error(
+        "Usage: roadmap-publish.mts prepare|publish inside the serialized hosted publisher",
+      );
+  } catch (error) {
+    const diagnostic = sanitizeOperationError(error);
+    writeFileSync(path.join(directory, "error.json"), JSON.stringify(diagnostic));
+    console.error(diagnostic.message);
+    process.exitCode = 1;
+  }
+}

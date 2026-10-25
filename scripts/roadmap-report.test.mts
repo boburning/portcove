@@ -102,6 +102,27 @@ void test("queued or cancelled publisher journal entries recover reruns of old c
     /Untrusted/u,
   );
 });
+
+void test("a verified newer collector attempt resolves an interrupted artifact gap without relabeling the old run", () => {
+  const rows = [
+    { run: 1, attempt: 1, created_at: "2026-10-24T01:00:00Z", completed: true },
+    { run: 1, attempt: 2, created_at: "2026-10-24T02:00:00Z", completed: true },
+  ];
+  const attempts: number[] = [];
+  const state = replayRoadmapRuns(blank(), rows, "2026-10-24T04:00:00Z", ({ run, attempt }) => {
+    attempts.push(attempt);
+    assert.equal(attempt, 2, "The failed/interrupted prior attempt stays in Actions history");
+    return observationFromReceipt(
+      receipt(1, "passed", "2026-10-24T03:00:00Z"),
+      run,
+      attempt,
+      repository,
+    );
+  });
+  assert.deepEqual(attempts, [2]);
+  assert.equal(state.observations["issue:1"]?.status, "passed");
+  assert.deepEqual(state.publication_gaps, []);
+});
 const receipt = (
   issue: number,
   status = "failed",

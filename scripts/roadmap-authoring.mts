@@ -1,5 +1,10 @@
 import { readFileSync } from "node:fs";
-import { RoadmapClient, validateConfig, validateDurableIssueBody } from "./roadmap.mts";
+import {
+  RoadmapClient,
+  validateConfig,
+  validateDurableIssueBody,
+  qualificationCatalogObservation,
+} from "./roadmap.mts";
 import type {
   RoadmapIssueItem,
   RoadmapConfig,
@@ -16,7 +21,7 @@ export function isRoadmapSpecification(issue: RoadmapIssueItem) {
 function canonicalMarkers(body: string) {
   return [
     ...body.matchAll(
-      /<!--\s*portcove-(?:port|upstream|catalog-id|port-key|ux-audit-origins|plan-origins)\b[^>]*-->/gu,
+      /<!--\s*portcove-(?:port|upstream|catalog-id|port-key|ux-audit-origins|plan-origins|origins|discovery-intake)\b[^>]*-->/gu,
     ),
   ]
     .map((match) => match[0].replace(/\s+/gu, " ").trim())
@@ -55,8 +60,13 @@ export function validateLiveRoadmapReplacement(number: number, previousBody: str
   const client = new RoadmapClient(config);
   const observed = client.executionIssue(number);
   const item = scopedIssueWithBlockers(observed.item, observed.relationships.blockedBy);
-  const catalog: QualificationCatalogObservation = JSON.parse(
-    readFileSync(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
+  const catalog = qualificationCatalogObservation(
+    JSON.parse(
+      readFileSync(
+        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+        "utf8",
+      ),
+    ),
   );
   validateRoadmapReplacement(config, catalog, item, previousBody, body);
 }
