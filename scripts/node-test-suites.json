@@ -1787,6 +1787,20 @@
       ]
     },
     {
+      "file": "scripts/release-pnpm-runtime.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15148],
+        ["release-check", 13448]
+      ]
+    },
+    {
+      "file": "scripts/release-native-presign-readiness.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15901],
+        ["release-check", 16101]
+      ]
+    },
+    {
       "file": "scripts/release-hosted-native-runner.test.mts",
       "memberships": [
         ["catalog-full-2", 15145],
@@ -2648,6 +2662,20 @@
       "memberships": [
         ["catalog-full-2", 6350],
         ["repository-tools-2", 2350]
+      ]
+    },
+    {
+      "file": "scripts/discovery-ecosystems.test.mts",
+      "memberships": [
+        ["catalog-full", 1100],
+        ["roadmap-check", 1100]
+      ]
+    },
+    {
+      "file": "scripts/discovery-reconciliation.test.mts",
+      "memberships": [
+        ["catalog-full", 1200],
+        ["roadmap-check", 1200]
       ]
     }
   ]

@@ -2121,49 +2121,58 @@ mod tests {
             (
                 "dkc3-recomp",
                 "dkc3.sfc",
-                "v0.0.6",
+                None,
                 "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
             ),
             (
                 "super-mario-world-recomp",
                 "smw.sfc",
-                "v0.12.0",
+                None,
                 "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "zelda.sfc",
-                "v0.6.1",
+                None,
                 "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
             ),
             (
                 "sonic-the-hedgehog-recomp",
                 "game.bin",
-                "v0.6.0",
+                Some("v0.6.0"),
                 "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
             ),
             (
                 "sonic-the-hedgehog-2-recomp",
                 "game.bin",
-                "v0.8.3",
+                None,
                 "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b",
             ),
             (
                 "sonic-3-and-knuckles-recomp",
                 "game.bin",
-                "v0.5.3",
+                Some("v0.5.3"),
                 "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
             ),
         ] {
             let port = catalog.port(id).unwrap();
-            assert_eq!(port.release.provider, ReleaseSource::DirectManifest, "{id}");
+            if let Some(version) = version {
+                assert_eq!(port.release.provider, ReleaseSource::DirectManifest, "{id}");
+                assert_eq!(
+                    port.release.direct[&Platform::WindowsX86_64].version,
+                    version,
+                    "{id}"
+                );
+            } else {
+                assert_eq!(port.release.provider, ReleaseSource::Github, "{id}");
+                assert!(port.release.direct.is_empty(), "{id}");
+                assert!(
+                    !port.release.asset_hints[&Platform::WindowsX86_64].is_empty(),
+                    "{id}"
+                );
+            }
             assert!(port.release.user_prepared.is_empty(), "{id}");
             assert_eq!(port.platforms, [Platform::WindowsX86_64], "{id}");
-            assert_eq!(
-                port.release.direct[&Platform::WindowsX86_64].version,
-                version,
-                "{id}"
-            );
             assert_eq!(
                 port.runtime_source_filename.as_deref(),
                 Some(filename),
@@ -2267,7 +2276,7 @@ mod tests {
     }
 
     #[test]
-    fn f_zero_snes_recomp_pins_a_scoped_managed_windows_route_without_gameplay_claims() {
+    fn f_zero_snes_recomp_keeps_its_scoped_source_and_historical_qualification() {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("f-zero-snes-recomp").unwrap();
         assert_eq!(
@@ -2306,9 +2315,14 @@ mod tests {
         );
         assert!(port.setup_executable_hints.is_empty());
         assert_eq!(port.launch_arguments, ["fzero.sfc"]);
-        assert_eq!(port.release.provider, ReleaseSource::DirectManifest);
+        assert_eq!(port.release.provider, ReleaseSource::Github);
         assert!(port.release.user_prepared.is_empty());
-        assert!(port.release.asset_hints.is_empty());
+        assert!(port.release.direct.is_empty());
+        assert_eq!(port.release.repository, "mstan/FZeroSNESRecomp");
+        assert_eq!(
+            port.release.asset_hints[&Platform::WindowsX86_64],
+            ["FZeroSNESRecomp-", "-windows-x64.zip"]
+        );
         assert_eq!(
             port.runtime_mutable_paths,
             [
@@ -2324,23 +2338,14 @@ mod tests {
                 {"prefix": "crash_minidump_", "suffix": ".dmp"}
             ])
         );
-        let runtime = &port.release.direct[&Platform::WindowsX86_64];
-        assert_eq!(runtime.version, "v1.8.3");
-        assert_eq!(
-            runtime.url,
-            "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip"
-        );
-        assert_eq!(runtime.size, 8_247_843);
-        assert_eq!(
-            runtime.sha256,
-            "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
-        );
         let source_catalog = catalog.source_catalog().unwrap();
         let scope = crate::SourceEvidenceScope {
             port_id: port.id.clone(),
             platform: Platform::WindowsX86_64,
-            artifact_sha256: Some(runtime.sha256.clone()),
-            upstream_ref: Some(runtime.version.clone()),
+            artifact_sha256: Some(
+                "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658".into(),
+            ),
+            upstream_ref: Some("v1.8.3".into()),
             contract_id: Some("f-zero-snes-recomp-game-source".into()),
             variant: crate::SourceVariantScope::Exact {
                 identity: crate::SourceIdentity {

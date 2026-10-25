@@ -20,6 +20,7 @@ import { runRustTests } from "./run-rust-tests.mts";
 import { hostedNativeSupportDependencies } from "./release-hosted-native-runtime.mts";
 import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectNativeDependencyWorkspace } from "./release-pnpm-runtime.mts";
 
 const workspace = "/home/runner/work/portcove/portcove";
 const attempts = new WeakSet<object>();
@@ -56,6 +57,7 @@ export async function prepareActualHostedLinuxInstallation(
     path.join(tools.root, "scripts/qualify-hosted-native-linux.py"),
     path.join(tools.root, "scripts/prepare-hosted-native-linux-installation.py"),
     path.join(tools.root, "scripts/native-qualification-linux-supervisor.py"),
+    tools.pnpm,
   ];
   const custody = inspectNativeRuntimeCustody(files);
   const primitivePins = Object.fromEntries(
@@ -211,7 +213,7 @@ export async function prepareActualHostedLinuxInstallation(
   });
   active();
   const identities = await Promise.all(
-    [tools.node, tools.nativeDriver].map(async (filename) => {
+    [tools.node, tools.nativeDriver, tools.pnpm].map(async (filename) => {
       const bytes = await readControllerToolFile(filename);
       active();
       return { path: filename, bytes: bytes.length, sha256: hash(bytes) };
@@ -250,7 +252,10 @@ export async function prepareActualHostedLinuxInstallation(
   sourceCustody = inspectNativeRuntimeCustody([harness]);
   assert.equal(hash(await readControllerToolFile(harness, 1024 ** 2)), selected.harness.sha256);
   active();
-  const dependencyLifetime = lifetime(20000);
+  const dependencyWorkspace = inspectNativeDependencyWorkspace(
+    await readControllerToolFile(path.join(nativeSource, "pnpm-workspace.yaml"), 65536),
+  );
+  const dependencyLifetime = lifetime(90000);
   const dependencyReadback = await run(
     "hosted-dependency-preflight",
     "/usr/bin/python3",
@@ -259,9 +264,14 @@ export async function prepareActualHostedLinuxInstallation(
       "-S",
       "-B",
       "-c",
-      "import json,runpy,sys; module=runpy.run_path(sys.argv[1]); print(json.dumps(module['read_source_dependencies'](module['inspect_plan'](json.loads(sys.argv[2])))))",
+      "import json,runpy,sys; module=runpy.run_path(sys.argv[1]); print(json.dumps(module['prepare_source_dependencies'](module['inspect_plan'](json.loads(sys.argv[2])),json.loads(sys.argv[3]))))",
       files[3]!,
       JSON.stringify({ ...sourcePlan, ...dependencyLifetime }),
+      JSON.stringify({
+        pnpm: identities[2],
+        workspace_sha256: dependencyWorkspace.sha256,
+        patches: dependencyWorkspace.patches,
+      }),
     ],
     dependencyLifetime,
   );
@@ -269,6 +279,28 @@ export async function prepareActualHostedLinuxInstallation(
   assert.equal(dependencyReadback.dependencies_prepared, true);
   active();
   // The module is attested controller code. Native source is data, never root code.
+  const helper = await readControllerToolFile(files[3]!, 65536);
+  const runtimeLifetime = lifetime(90000);
+  const runtimeInputs = await run(
+    "hosted-runtime-inputs",
+    "/usr/bin/sudo",
+    [
+      "-n",
+      "--",
+      "/usr/bin/python3",
+      "-I",
+      "-S",
+      "-B",
+      "-c",
+      helper.toString("utf8"),
+      "--runtime-packages",
+      JSON.stringify({ schema_version: 1, binding, ...runtimeLifetime, context }),
+    ],
+    runtimeLifetime,
+  );
+  assert.equal(runtimeInputs.binding, binding);
+  assert.equal(runtimeInputs.prepared, true);
+  active();
   const setupLifetime = lifetime(150000);
   const setup = await run(
     "hosted-primitives",
@@ -303,7 +335,6 @@ export async function prepareActualHostedLinuxInstallation(
     tools: { node: identities[0], driver: identities[1] },
     context,
   };
-  const helper = await readControllerToolFile(files[3]!, 65536);
   active();
   const installed = await run(
     "hosted-materialization",

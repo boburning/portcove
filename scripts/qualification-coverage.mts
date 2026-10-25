@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 import { qualificationMatrices } from "./validation-platforms.mts";
 import { isDeepStrictEqual } from "node:util";
-import { createHash } from "node:crypto";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const expectedPlatforms = [
@@ -228,16 +227,86 @@ function validateMatrices(
     "Windows consumer shards missing",
   );
   qualificationAssert(
+    strings(windows.needs).includes("qualification_core_archive"),
+    "Windows Core archive dependency missing",
+  );
+  requireConsumer(
+    windows,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts run-qualification ${{ matrix.shard }}",
+  );
+  const producer = jobs.qualification_core_archive ?? {};
+  qualificationAssert(
+    producer["runs-on"] === "windows-latest",
+    "Core producer must use native Windows",
+  );
+  requireConsumer(
+    producer,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build",
+  );
+  qualificationAssert(
+    isRecord(windows.env) &&
+      binding(windows.env.PORTCOVE_WINDOWS_MANIFEST_SHA256) ===
+        "needs.qualification_core_archive.outputs.manifest_sha256",
+    "Windows Core manifest output binding missing",
+  );
+  qualificationAssert(
+    isRecord(producer.outputs) &&
+      binding(producer.outputs.manifest_sha256) === "steps.archive.outputs.manifest_sha256" &&
+      activeSteps(producer).some(
+        (step) =>
+          step.id === "archive" &&
+          step.run ===
+            "node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build",
+      ),
+    "Core producer manifest output missing",
+  );
+  qualificationAssert(
+    isRecord(windows.strategy) && windows.strategy["fail-fast"] === false,
+    "Core workers must remain independent after a sibling failure",
+  );
+  for (const job of [producer, windows]) {
+    qualificationAssert(
+      isRecord(job.env) &&
+        binding(job.env.PORTCOVE_PLAN_GZIP_BASE64) === "needs.classify.outputs.plan_gzip_base64",
+      "Core transfer plan binding missing",
+    );
+    qualificationAssert(
+      activeSteps(job).some(
+        (step) =>
+          step.uses === "./.github/actions/setup-rust" &&
+          isRecord(step.with) &&
+          step.with["test-fixtures"] === true,
+      ),
+      "Core runtime fixtures missing",
+    );
+  }
+  const artifact = "windows-qualification-core-${{ github.run_id }}-${{ github.run_attempt }}";
+  qualificationAssert(
+    activeSteps(producer).some(
+      (step) =>
+        typeof step.uses === "string" &&
+        step.uses.startsWith("actions/upload-artifact@") &&
+        isRecord(step.with) &&
+        step.with.name === artifact &&
+        step.with["if-no-files-found"] === "error" &&
+        typeof step.with.path === "string" &&
+        isDeepStrictEqual(step.with.path.trim().split(/\r?\n/u), [
+          "work/windows-rust-qualification/tests.tar.zst",
+          "work/windows-rust-qualification/manifest.json",
+        ]),
+    ),
+    "Core archive upload is missing or not bound to this attempt",
+  );
+  qualificationAssert(
     activeSteps(windows).some(
       (step) =>
-        rootRun(windows, step) &&
-        isRecord(step.env) &&
-        binding(step.env.TEST_SHARD) === "matrix.shard" &&
-        typeof step.run === "string" &&
-        createHash("sha256").update(step.run).digest("hex") ===
-          "12b5e234269965e931e02466c2445efc264079f55aedad2a2a504be9defb2a68",
+        typeof step.uses === "string" &&
+        step.uses.startsWith("actions/download-artifact@") &&
+        isRecord(step.with) &&
+        step.with.name === artifact &&
+        step.with.path === "work/windows-rust-qualification",
     ),
-    "Windows shard dispatch changed; review its executable partition oracle",
+    "Core archive download is missing or not bound to this attempt",
   );
   const portability = jobs.frontend_portability ?? {};
   qualificationAssert(
@@ -250,6 +319,7 @@ function validateMatrices(
 function validateAggregates(jobs: Record<string, Record<string, unknown>>) {
   const expected: Record<string, string[]> = {
     rust: [
+      "qualification_core_archive",
       "rust_tests",
       "rust_workspace_tests",
       "rust_clippy",

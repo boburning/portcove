@@ -7,9 +7,11 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 import re
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
@@ -723,6 +725,94 @@ class HostedReadiness(unittest.TestCase):
                            {"GITHUB_EVENT_NAME": "pull_request"}, {"GITHUB_WORKFLOW_REF": "foreign/workflow"}):
                 with self.subTest(change=change), self.assertRaises(RuntimeError):
                     readiness.hosted_context({**environment, **change})
+
+
+@unittest.skipUnless(sys.platform == "linux", "actual original Linux parent identity and filesystem")
+class RuntimeInputFixture(unittest.TestCase):
+    def root(self, directory):
+        root = Path(directory)
+        (root / "scripts").mkdir()
+        (root / "scripts/prepare-hosted-native-linux-installation.py").write_text("# inert fixture, never executed\n")
+        return root
+
+    def context(self):
+        return {"GITHUB_SHA": "a" * 40, "GITHUB_RUN_ID": "12345", "GITHUB_RUN_ATTEMPT": "1",
+                "GITHUB_WORKFLOW_REF": "boburning/portcove/.github/workflows/hosted-native-linux-readiness.yml@refs/heads/main"}
+
+    def test_direct_fixed_child_capture_and_no_second_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.root(temporary)
+            def child(arguments, timeout):
+                self.assertEqual(timeout, 95)
+                self.assertEqual(arguments[:4], ["/usr/bin/sudo", "-n", "--", "/usr/bin/python3"])
+                self.assertEqual(arguments[-2], "--runtime-packages")
+                plan = json.loads(arguments[-1])
+                self.assertEqual(plan["broker_pid"], os.getpid())
+                self.assertEqual(plan["broker_uid"], os.getuid())
+                self.assertEqual(plan["context"], self.context())
+                self.assertTrue((root / "work/hosted-linux-runtime-input-fixture-intent.json").is_file())
+                return subprocess.CompletedProcess(arguments, 0, b'{"prepared":true}', b'')
+            with patch.object(readiness, "verified_diagnostic_source", return_value=lambda *args, **kwargs: b"# inert fixture, never executed\n"), \
+                    patch.object(readiness, "bounded_process", side_effect=child) as invoke:
+                readiness.prepare_runtime_inputs_for_fixture(root, self.context())
+                result = json.loads((root / "work/hosted-linux-runtime-input-fixture.json").read_text())
+                self.assertEqual(result["stdout"], '{"prepared":true}')
+                self.assertEqual(result["authority"], "none")
+                with self.assertRaises(FileExistsError):
+                    readiness.prepare_runtime_inputs_for_fixture(root, self.context())
+                self.assertEqual(invoke.call_count, 1)
+
+    def test_provider_refusal_is_retained_and_does_not_become_success(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.root(temporary)
+            with patch.object(readiness, "verified_diagnostic_source", return_value=lambda *args, **kwargs: b"# inert fixture, never executed\n"), \
+                    patch.object(readiness, "bounded_process", return_value=subprocess.CompletedProcess([], 1, b'{"prepared":false}', b'original refusal')), \
+                    self.assertRaisesRegex(RuntimeError, "runtime inputs refused"):
+                readiness.prepare_runtime_inputs_for_fixture(root, self.context())
+            result = json.loads((root / "work/hosted-linux-runtime-input-fixture.json").read_text())
+            self.assertEqual(result["exit_code"], 1)
+            self.assertEqual(result["stderr"], "original refusal")
+
+    def test_ambiguous_child_exception_keeps_partial_capture_and_unknown_effects(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.root(temporary)
+            error = RuntimeError("original observation expired")
+            error.hosted_stdout, error.hosted_stderr = b'partial stdout', b'partial stderr'
+            with patch.object(readiness, "verified_diagnostic_source", return_value=lambda *args, **kwargs: b"# inert fixture, never executed\n"), \
+                    patch.object(readiness, "bounded_process", side_effect=error), \
+                    self.assertRaisesRegex(RuntimeError, "observation expired"):
+                readiness.prepare_runtime_inputs_for_fixture(root, self.context())
+            result = json.loads((root / "work/hosted-linux-runtime-input-fixture.json").read_text())
+            self.assertIsNone(result["prepared"])
+            self.assertEqual(result["partial_effects"], "unknown")
+            self.assertEqual(result["stdout"], "partial stdout")
+            self.assertEqual(result["stderr"], "partial stderr")
+
+    def test_input_refusal_stops_before_account_or_profile_setup(self):
+        with patch.object(readiness, "hosted_context", return_value=self.context()), \
+                patch.object(readiness, "prepare_runtime_inputs_for_fixture", side_effect=RuntimeError("input refusal")), \
+                patch.object(readiness, "prepare_for_original_hosted_parent") as setup:
+            with self.assertRaisesRegex(RuntimeError, "input refusal"):
+                readiness.prepare()
+            setup.assert_not_called()
+
+    def test_wrong_head_dirty_source_or_changed_helper_refuse_before_sudo(self):
+        for head, dirty, blob in ((b"b" * 40, b"", b""), (b"a" * 40, b" M helper", b""),
+                                  (b"a" * 40, b"", b"different committed helper\n")):
+            with self.subTest(head=head, dirty=dirty), tempfile.TemporaryDirectory() as temporary:
+                root = self.root(temporary)
+                def git(arguments, head=head, dirty=dirty, blob=blob, **kwargs):
+                    if "rev-parse" in arguments:
+                        return head
+                    if "status" in arguments:
+                        return dirty
+                    return blob
+                with patch.object(readiness.os, "getuid", return_value=1001), \
+                        patch.object(readiness, "command", side_effect=git), \
+                        patch.object(readiness, "bounded_process") as sudo, self.assertRaisesRegex(RuntimeError, "source|helper differs"):
+                    readiness.prepare_runtime_inputs_for_fixture(root, self.context())
+                sudo.assert_not_called()
+                self.assertFalse((root / "work").exists())
 
 
 if __name__ == "__main__":

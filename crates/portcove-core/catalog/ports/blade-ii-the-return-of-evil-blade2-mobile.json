@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blade-ii-the-return-of-evil-blade2-mobile",
+    "name": "Blade II: The Return of Evil (blade2-mobile)",
+    "summary": "Experimental BladeII-specific AppleARM64 native-code rewrite/Horizon/NVN-Metal compatibility adaptation Upstream maturity: UpstreamMaclevels1–3+firstBoss60fps/audio/cutscenes/controller/saveclaim; iOSunrun. Performanceisupstreamboundedobservation. Acquisition: Localextract_game.sh,patch_nso on sdk/subsdk0/main,shaderiteration andmac_app_blade.sh produce.app/.dmg. No observedrelease; runtime/resourceproducts derivedlocally. Platforms: AppleSiliconmacOS documented; iOSarm64shellcompilesbutnophysicaldevice validation. NoWindows/Linuxroute. Original data: OwnXCI+prod.keys/extractedExeFS/RomFS. Example01009cc00e224000/updatev131072;exactacceptedrangeUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Blade II: The Return of Evil",
+    "project_url": "https://github.com/ha7rock/blade2-mobile",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ha7rock/blade2-mobile",
+    "artwork": {
+      "game_id": 57547,
+      "cover_id": 38483,
+      "image_id": "s3ntgdgppc61kr1pupy9",
+      "image_sha256": "8e5848cb79d3a91a0ab0deebbb40125ec3250bb4eb9dbf892d1a915063f206c5",
+      "game_slug": "blade-ii-the-return-of-evil",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2979
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blade-ii-the-return-of-evil-blade2-mobile",
+    "origin": {
+      "project_url": "https://github.com/ha7rock/blade2-mobile",
+      "repository": {
+        "host": "github.com",
+        "id": "1421863583"
+      }
+    },
+    "decisions": []
+  }
+}

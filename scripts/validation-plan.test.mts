@@ -57,9 +57,31 @@ const plan = (
   });
 const redigest = <Plan extends object>(p: Plan) => ({ ...p, digest: digestValidationPlan(p) });
 
+void test("qualification archive inputs retain ordinary Rust coverage across every lifecycle operation", () => {
+  for (const file of [
+    "scripts/windows-qualification-rust.mts",
+    "scripts/fixtures/windows-qualification-selection.json",
+  ])
+    for (const input of [
+      change(file),
+      change(file, { status: "A", oldMode: "000000" }),
+      change(file, { status: "D", newMode: "000000" }),
+      change(file, { status: "R100", newPath: "docs/moved.md" }),
+      change(file, { status: "R100", oldPath: "docs/moved.md" }),
+    ]) {
+      const selected = plan([input]);
+      assert.equal(selected.mode, "fast");
+      assert.ok(selected.groups.includes("rust"), JSON.stringify(input));
+      assert.ok(validationOwnershipForPath(file).groups.includes("rust"));
+      validateValidationPlan(selected);
+    }
+});
+
 void test("hosted report source, its actual companion and shared fixtures retain release security ownership", () => {
   for (const file of [
     "scripts/release-native-source-provider.mts",
+    "scripts/release-native-presign-readiness.mts",
+    "scripts/release-native-presign-readiness.test.mts",
     "scripts/release-native-postsign-readiness.mts",
     "scripts/release-native-source-provider.test.mts",
     "scripts/release-hosted-native-linux-report.test.mts",

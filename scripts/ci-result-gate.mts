@@ -130,6 +130,7 @@ export function evaluateCiResults({
         "intel_build",
         "intel_tests",
         "native_rust",
+        "qualification_core_archive",
         "rust_clippy",
         "rust_docs",
         "rust_tests",

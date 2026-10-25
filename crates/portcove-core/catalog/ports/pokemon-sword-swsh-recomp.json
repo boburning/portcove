@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-sword-swsh-recomp",
+    "name": "Pokémon Sword (swsh-recomp)",
+    "summary": "Experimental AArch64 to C static host from LetsGo/LAS, Vulkan. Upstream maturity: Sword1.3.2 plus DLC on onePC; no full playthrough, memory growth,60fps experimental, title flicker; no online/trades/raids. Acquisition: Actual Windows ZIP imports/copies and locally recompiles, about40min on20threads; DLC not automated; no other desktop offer. Platforms: Windows10/11 x64 AVX2/FMA/BMI2, Vulkan1.3; RTX3080 only, AMD/Intel/iGPU untested. Original data: Own Pokémon Sword1.3.2 already-extracted updated exefs/romfs folders; optional matching owned DLC. XCI/NSP must be extracted externally first. No keys input is described in this launcher route; external extraction requirements are separate. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Pokémon Sword",
+    "project_url": "https://github.com/raulzrrs/swsh-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/raulzrrs/swsh-recomp",
+    "artwork": {
+      "game_id": 37382,
+      "cover_id": 92738,
+      "image_id": "co1zk2",
+      "image_sha256": "0b6e1646a1fd74cb464de3281a839059ff1591ce24581228447cdb6941b24dc0",
+      "game_slug": "pokemon-sword",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2954
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-sword-swsh-recomp",
+    "origin": {
+      "project_url": "https://github.com/raulzrrs/swsh-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1430261149"
+      }
+    },
+    "decisions": []
+  }
+}

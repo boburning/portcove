@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "final-fantasy-resonance-ffresonancerecomp",
+    "name": "FINAL FANTASY RESONANCE (FFResonanceRecomp)",
+    "summary": "Experimental Game ARM64 statically rewritten and executed directly on Apple Silicon, nxnative-derived NVN-to-Metal; not x64 C port. Upstream maturity: Early claimed title/story/town/battles60fps;8/73496 shaders fail, missing compute effects, dark night scenes, crash risk. Acquisition: No releases. Source make build, Xcode MetalToolchain/Homebrew/.NET/Python,60GB and first shader build about2h. Platforms: macOS26+ Apple Silicon M1+ ONLY; IntelMac/Windows/Linux explicitly unsupported. Original data: Own baseNSP0100606026F12000 plus1.0.1updateNSP0100606026F12800 v65536, prod.keys. All rewritten code/shaders/icon local. Firmware input not specified; region/hash Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "FINAL FANTASY RESONANCE",
+    "project_url": "https://github.com/tomasvivaldi/FFResonanceRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tomasvivaldi/FFResonanceRecomp",
+    "artwork": {
+      "game_id": 405454,
+      "cover_id": 569884,
+      "image_id": "coc7q4",
+      "image_sha256": "613d72460c0e6fbe5696f1d83ff59d06a2a8947b0c047962e45510a0a45bc04c",
+      "game_slug": "final-fantasy-resonance",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2953
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "final-fantasy-resonance-ffresonancerecomp",
+    "origin": {
+      "project_url": "https://github.com/tomasvivaldi/FFResonanceRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432114525"
+      }
+    },
+    "decisions": []
+  }
+}

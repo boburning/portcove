@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom-macnativeports",
+    "name": "Doraemon Story of Seasons: Friends of the Great Kingdom (MacNativePorts)",
+    "summary": "Experimental Shared AppleARM64 rewrite/Horizon/NVN-Metal host with game overlays Upstream maturity: Upstreamtitle/terms/save/opening/Nobitaexits-house only.3Dworldterrain/shadows/transparency/postprocessing notinspected. Acquisition: Sourceonly: XcodeCLT/Python,makeprepare/runtime/boot GAME=dora. Inputhashmanifests guardmodule/resources. No completeplayerrelease; upstream/player ownsbuild/update. Platforms: AppleSiliconmacOS; noWindows/Linux/iOSplayer established here. Original data: Own title0100F5E0177AC000 game/keys; ownrewrittenmodules,extractedExeFS/RomFS/fonts,pergameexpectedhashmanifest. ExactversionUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Doraemon Story of Seasons: Friends of the Great Kingdom",
+    "project_url": "https://github.com/colonnellotong/MacNativePorts",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/colonnellotong/MacNativePorts",
+    "artwork": {
+      "game_id": 206815,
+      "cover_id": 229672,
+      "image_id": "co4x7s",
+      "image_sha256": "2e7c37a2a76da85a31607995ddfb74298d749844758eebbeee23088d4b3cb091",
+      "game_slug": "doraemon-story-of-seasons-friends-of-the-great-kingdom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2980
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doraemon-story-of-seasons-friends-of-the-great-kingdom-macnativeports",
+    "origin": {
+      "project_url": "https://github.com/colonnellotong/MacNativePorts",
+      "repository": {
+        "host": "github.com",
+        "id": "1428011085"
+      }
+    },
+    "decisions": []
+  }
+}

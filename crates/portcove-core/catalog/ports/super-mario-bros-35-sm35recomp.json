@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-mario-bros-35-sm35recomp",
+    "name": "Super Mario Bros. 35 (sm35recomp)",
+    "summary": "Experimental SMM2-derived AArch64 to C static runtime Metal/Vulkan. Upstream maturity: Two-player Mac+iPad matching-to-ranking tests; long many-player/Windows/Linux hardware untested. One device per internet connection per match limitation. Acquisition: Official launcher/recompiler packages build locally; Nextendo community sign-in/server, not Nintendo. Platforms: Actual Mac15+ Apple Silicon, Windows x64 AVX2, Linux x64 AVX2/aarch64 packages. Windows/Linux real hardware untested. iOS source played; Android source untried. Original data: Own base plus1.0.2 update, prod.keys and firmware; NSP/XCI or extracted ExeFS/RomFS. Version checked. Current legal acquisition availability not established; owned dump only. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Super Mario Bros. 35",
+    "project_url": "https://github.com/sm35recomp/sm35recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sm35recomp/sm35recomp",
+    "artwork": {
+      "game_id": 138235,
+      "cover_id": 157355,
+      "image_id": "co3dez",
+      "image_sha256": "0d8dac8da8263960ad7a40de1fb93f31153a3ab45bb9f6b55e13ec5237817fc8",
+      "game_slug": "super-mario-bros-35",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2948
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-mario-bros-35-sm35recomp",
+    "origin": {
+      "project_url": "https://github.com/sm35recomp/sm35recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1426697486"
+      }
+    },
+    "decisions": []
+  }
+}

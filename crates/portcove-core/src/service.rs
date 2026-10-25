@@ -7979,6 +7979,7 @@ mod tests {
     }
 
     fn assert_conflicting_publication_phases(conflict: ConflictingPublicationIntent) {
+        let started = std::time::Instant::now();
         for kind in [
             LifecycleOperationKind::Install,
             LifecycleOperationKind::Adopt,
@@ -7989,7 +7990,15 @@ mod tests {
                 LifecyclePhase::PayloadPublished,
                 LifecyclePhase::CleanupPending,
             ] {
+                eprintln!(
+                    "publication recovery {kind:?}/{phase:?}: start at {:?}",
+                    started.elapsed()
+                );
                 assert_publication_retains_family_intent(kind, phase, conflict, false);
+                eprintln!(
+                    "publication recovery {kind:?}/{phase:?}: complete at {:?}",
+                    started.elapsed()
+                );
             }
         }
     }
@@ -15498,6 +15507,13 @@ fn main() {
     }
 
     fn assert_catalog_contract_retention(retained_format: u32) {
+        let started = std::time::Instant::now();
+        let phase = |name: &str| {
+            if retained_format == 3 {
+                eprintln!("[authenticated-retention] {name}: {:?}", started.elapsed());
+            }
+        };
+        phase("start");
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("library");
         fs::create_dir_all(&root).unwrap();
@@ -15506,6 +15522,7 @@ fn main() {
         #[cfg(windows)]
         let root = PathBuf::from(root.to_str().unwrap().to_uppercase());
         let library = Library::open(root).unwrap();
+        phase("library-opened");
         let indexed = match retained_format {
             1 => None,
             2 => Some(crate::test_fixture::indexed_catalog(
@@ -15515,12 +15532,14 @@ fn main() {
             3 => Some(authenticated_indexed_catalog(&library)),
             _ => panic!("unsupported retained contract format {retained_format}"),
         };
+        phase("catalog-authenticated");
         let register = |version, active| {
             register_zelda_install_contract(&library, version, active, b"test", indexed.as_ref())
         };
         let first = register("v1", true);
         let second = register("v2", true);
         let staged = register("v3", false);
+        phase("three-versions-registered");
         let manifest: serde_json::Value =
             serde_json::from_slice(&fs::read(first.join(".portcove-manifest.json")).unwrap())
                 .unwrap();
@@ -15533,6 +15552,7 @@ fn main() {
         fs::write(second.join("general.json"), b"version-owned-settings").unwrap();
         fs::write(second.join(LAUNCH_MARKER), b"1").unwrap();
         let mut service = PortcoveService::new(library.clone()).unwrap();
+        phase("service-opened");
         if retained_format == 3 {
             service.replace_catalog_for_test(indexed.as_ref().unwrap().clone());
             let status = service.status("zelda64-recomp").unwrap();
@@ -15563,17 +15583,22 @@ fn main() {
             .retain(|path| path != "general.json");
         changed.persistent_paths.push("future-settings.json".into());
         service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        phase("changed-catalog-loaded");
 
         assert!(service.verify(&original.id).unwrap().valid);
+        phase("retained-install-verified");
         let spec = service.prepare_launch(&original.id, None).unwrap();
         assert!(!format!("{spec:?}").contains("--future-contract"));
+        phase("retained-launch-prepared");
         let rolled_back = service.rollback(&original.id).unwrap();
+        phase("rollback-finished");
         assert_eq!(rolled_back.path, first);
         assert_eq!(
             fs::read(first.join("general.json")).unwrap(),
             b"version-owned-settings"
         );
         let activated = service.activate_staged(&original.id).unwrap();
+        phase("activation-finished");
         assert_eq!(activated.path, staged);
         assert_eq!(
             fs::read(staged.join("general.json")).unwrap(),
@@ -15590,6 +15615,7 @@ fn main() {
                 serde_json::to_value(&original).unwrap()
             );
         }
+        phase("all-retained-contracts-verified");
         if retained_format == 3 {
             let status = service.status(&original.id).unwrap();
             let launch = status
@@ -15631,6 +15657,7 @@ fn main() {
             let error = service.prepare_launch(&original.id, None).unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Conflict);
             assert_eq!(error.details["definition_reason"], "publisher_revoked");
+            phase("revoked-publisher-refused");
         }
     }
 

@@ -16499,7 +16499,26 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "This managed route retains the accepted v0.1.4 runtime and its original setup/data contract. To use the current upstream player, prepare a separate copy through the official OpenPete guide. Keep your working runtime and its generated library and states until your saves work in the new copy. Upstream or you provide updates for that external copy.",
         "original_game_title": "Spyro the Dragon",
+        "manual_setup": {
+          "help_url": "https://openpete.com/",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Choose the accepted managed copy or current upstream player",
+              "instruction": "The managed route retains its accepted v0.1.4 setup and data contract. For the current upstream Windows release, download the complete player from the official OpenPete page and prepare it in a separate writable folder. Compare the download with the checksum published there. Keep your existing working copy intact."
+            },
+            {
+              "title": "Supply your own Spyro disc through upstream setup",
+              "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
+            },
+            {
+              "title": "Keep progress and generated files with their working version",
+              "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 413542,
           "cover_id": 602369,
@@ -17830,15 +17849,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v1.8.3",
-            "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
-            "size": 8247843,
-            "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
-            "published_at": "2026-09-22T03:42:21Z"
-          }
+        "provider": "github",
+        "repository": "mstan/FZeroSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "FZeroSNESRecomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "f-zero-snes-usa",
@@ -18028,15 +18045,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.0.6",
-            "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
-            "size": 6009000,
-            "sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
-            "published_at": "2026-09-13T04:22:33Z"
-          }
+        "provider": "github",
+        "repository": "elliotttate/DKC3Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DKC3Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "dkc3-na-en-fr",
@@ -18056,7 +18071,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. This build has a known game-logic failure during startup. Gameplay, visual correctness and save/load remain unqualified.",
+        "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
         "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
         "artwork": {
           "game_id": 1094,
@@ -19533,15 +19548,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.12.0",
-            "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.12.0/SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
-            "size": 9490376,
-            "sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
-            "published_at": "2026-09-11T08:01:27Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SuperMarioWorldRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SuperMarioWorldRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "super-mario-world-snes-usa",
@@ -19561,7 +19574,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified.",
+        "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
         "original_game_title": "Super Mario World",
         "artwork": {
           "game_id": 1070,
@@ -19624,15 +19637,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.6.1",
-            "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.1/ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
-            "size": 11388312,
-            "sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
-            "published_at": "2026-08-06T01:58:24Z"
-          }
+        "provider": "github",
+        "repository": "mstan/ZeldaAlttPSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ZeldaALttPSNESRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "a-link-to-the-past-snes-usa",
@@ -19652,7 +19663,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Upstream documents prebuilt use but has not declared a project license; the package is downloaded unchanged from its original publisher.",
+        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.5 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms.",
         "original_game_title": "The Legend of Zelda: A Link to the Past",
         "artwork": {
           "game_id": 1026,
@@ -19744,7 +19755,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial.",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Sonic the Hedgehog",
         "artwork": {
           "game_id": 3192,
@@ -20268,15 +20279,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.8.3",
-            "url": "https://github.com/mstan/SonicTheHedgehog2Recomp/releases/download/v0.8.3/SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
-            "size": 7204657,
-            "sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
-            "published_at": "2026-10-18T14:31:39Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SonicTheHedgehog2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SonicTheHedgehog2Recomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "sonic-the-hedgehog-2-genesis-world-reva",
@@ -20296,7 +20305,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged.",
+        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups.",
         "original_game_title": "Sonic the Hedgehog 2",
         "artwork": {
           "game_id": 4438,
@@ -20640,7 +20649,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Super Metroid",
         "artwork": {
           "game_id": 1103,
@@ -20731,7 +20740,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Mega Man X2",
         "artwork": {
           "game_id": 1742,
@@ -21017,15 +21026,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
-            "size": 1245795,
-            "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
-            "published_at": "2026-08-26T16:01:04Z"
-          }
+        "provider": "github",
+        "repository": "elliotttate/BombermanRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BombermanRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "super-bomberman-snes-usa",

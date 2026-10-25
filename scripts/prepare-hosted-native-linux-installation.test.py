@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -27,6 +28,21 @@ def plan():
 
 
 class Installation(unittest.TestCase):
+    def test_runtime_input_context_is_closed_and_cannot_select_paths_or_package_policy(self):
+        raw = plan()
+        runtime = {key: raw[key] for key in ("schema_version", "binding", "broker_uid", "broker_pid", "broker_identity", "deadline_ns", "context")}
+        self.assertEqual(installation.inspect_runtime_inputs_plan(runtime), runtime)
+        diagnostic = copy.deepcopy(runtime)
+        diagnostic["context"]["GITHUB_WORKFLOW_REF"] = "boburning/portcove/.github/workflows/hosted-native-linux-readiness.yml@refs/heads/feature/534-runtime-fixture"
+        self.assertEqual(installation.inspect_runtime_inputs_plan(diagnostic), diagnostic)
+        for change in ({"destination": "/tmp/other"}, {"packages": ["other"]}, {"broker_uid": 0},
+                       {"schema_version": True}, {"deadline_ns": "unbounded"}):
+            with self.subTest(change=change), self.assertRaises(RuntimeError):
+                installation.inspect_runtime_inputs_plan({**runtime, **change})
+        diagnostic["context"]["GITHUB_WORKFLOW_REF"] = "boburning/portcove/.github/workflows/ci.yml@refs/heads/main"
+        with self.assertRaises(RuntimeError):
+            installation.inspect_runtime_inputs_plan(diagnostic)
+
     def test_closed_plan_refuses_supplied_destination_and_source_aliases(self):
         valid = plan()
         self.assertEqual(installation.inspect_plan(valid), valid)
@@ -61,8 +77,281 @@ class Installation(unittest.TestCase):
         self.assertNotIn("GH_TOKEN", installation.ENV)
 
 
+@contextmanager
+def runtime_fixture(root, refuse=False):
+    # Exercise an initially absent work parent. Ownership alone is controlled;
+    # this fixture mocks the original-parent fence and grants no admission.
+    wanted = {**plan(), "broker_uid": os.getuid(), "deadline_ns": str(time.monotonic_ns() + 30_000_000_000)}
+    archive, profile = b"d" * 39592, b"p" * 1935 + b"\n"
+    calls, sources = [], [b"fixed Ubuntu archive sources"]
+    snapshot = {"packages": {"fixture": "1"}, "executables": {"fixture": "digest"}}
+    def read(filename, maximum, owners, check):
+        check()
+        name = str(filename)
+        data = (b'ID=ubuntu\nVERSION_ID="24.04"\n' if name == "/usr/lib/os-release"
+                else sources[0] if name == "/etc/apt/sources.list.d/ubuntu.sources"
+                else Path(filename).read_bytes())
+        if len(data) > maximum:
+            raise RuntimeError("fixture input exceeds bound")
+        return data
+    def invoke(arguments, check, **options):
+        check()
+        calls.append((arguments, options))
+        directory = root / "work/hosted-linux-package-evidence"
+        if "install" in arguments and refuse:
+            (directory / "partial-package-effect").write_text("retained")
+            raise RuntimeError("provider installation refused")
+        if "download" in arguments:
+            (directory / installation.PROFILE_DEB).write_bytes(archive)
+        if arguments[0] == "/bin/bash":
+            return profile
+        return ""
+    with patch.object(installation, "WORKSPACE", root), patch.object(installation, "fence"), \
+            patch.object(installation.os, "getuid", return_value=0), \
+            patch.object(installation, "read_regular", side_effect=read), \
+            patch.object(installation, "command", side_effect=invoke), \
+            patch.object(installation, "runtime_package_snapshot", return_value=snapshot) as observer, \
+            patch.object(installation, "PROFILE_DEB_SHA256", hashlib.sha256(archive).hexdigest()), \
+            patch.object(installation, "PROFILE_SHA256", hashlib.sha256(profile).hexdigest()):
+        yield calls, sources, observer, wanted
+
+
+@unittest.skipUnless(sys.platform == "linux", "actual Linux filesystem/command contracts")
+class RuntimePackages(unittest.TestCase):
+    def test_provider_partial_leaf_removed_between_scan_and_stat_is_not_reopened(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (_, _, _, wanted):
+            scan = os.scandir
+            command = installation.command
+            vanished = []
+            def invoke(arguments, check, **options):
+                if "update" in arguments:
+                    time.sleep(0.26)
+                return command(arguments, check, **options)
+            @contextmanager
+            def changing_scan(directory):
+                directory = Path(directory)
+                if directory.name == "partial" and not vanished:
+                    filename = directory / "provider-transient"
+                    filename.write_bytes(b"partial")
+                    with scan(directory) as entries:
+                        removed = next(entry for entry in entries if entry.name == filename.name)
+                    filename.unlink()
+                    vanished.append(removed.path)
+                    with scan(directory) as entries:
+                        yield iter([removed, *entries])
+                else:
+                    with scan(directory) as entries:
+                        yield entries
+            with patch.object(installation.os, "scandir", side_effect=changing_scan), \
+                    patch.object(installation, "command", side_effect=invoke):
+                self.assertTrue(installation.prepare_runtime_packages(wanted)["prepared"])
+            self.assertEqual(len(vanished), 1)
+            self.assertFalse(Path(vanished[0]).exists())
+
+    def test_apt_leaf_links_are_counted_without_following_and_special_files_refuse(self):
+        for kind in ("link", "fifo"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (_, _, _, wanted):
+                original = installation.command
+                def invoke(arguments, check, kind=kind, original=original, **options):
+                    directory = Path(temporary) / "work/hosted-linux-package-evidence"
+                    if "update" in arguments:
+                        entry = directory / "lists/partial/provider-input"
+                        if kind == "link":
+                            entry.symlink_to("/unavailable-provider-input")
+                        else:
+                            os.mkfifo(entry)
+                        # Force this scan while the provider entry exists.
+                        time.sleep(0.26)
+                    return original(arguments, check, **options)
+                with patch.object(installation, "command", side_effect=invoke):
+                    if kind == "link":
+                        self.assertTrue(installation.prepare_runtime_packages(wanted)["prepared"])
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "runtime input kind differs: lists/partial/provider-input mode=10000"):
+                            installation.prepare_runtime_packages(wanted)
+                        self.assertFalse((Path(temporary) / "work/hosted-linux-package-evidence/runtime.json").exists())
+
+    def test_parent_and_root_refusal_precede_inputs_or_effects(self):
+        with patch.object(installation, "fence", side_effect=RuntimeError("expired")), \
+                patch.object(installation, "read_regular") as read:
+            with self.assertRaisesRegex(RuntimeError, "expired"):
+                installation.prepare_runtime_packages(plan())
+            read.assert_not_called()
+        with patch.object(installation, "fence"), patch.object(installation.os, "getuid", return_value=1001), \
+                patch.object(installation, "command") as command:
+            with self.assertRaisesRegex(RuntimeError, "root-side"):
+                installation.prepare_runtime_packages(plan())
+            command.assert_not_called()
+
+    def test_fixed_authenticated_inputs_retention_and_no_repeat(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (calls, _, _, wanted):
+            self.assertFalse((Path(temporary) / "work").exists())
+            result = installation.prepare_runtime_packages(wanted)
+            self.assertTrue(result["prepared"])
+            self.assertEqual(installation.read_runtime_packages(wanted), result)
+            self.assertEqual([args[0] for args, _ in calls], ["/usr/bin/apt-get"] * 3 + ["/bin/bash"])
+            for args, options in calls[:3]:
+                self.assertIn("Acquire::Retries=0", args)
+                self.assertIn("APT::Get::AllowUnauthenticated=false", args)
+                self.assertIn("Acquire::AllowInsecureRepositories=false", args)
+                self.assertIn("Dir::Etc::sourceparts=-", args)
+                self.assertIn("Dir::Cache::pkgcache=", args)
+                self.assertIn("Dir::Cache::srcpkgcache=", args)
+                self.assertNotIn("GH_TOKEN", options["environment"])
+                self.assertIn("Dir::State::lists=" + temporary + "/work/hosted-linux-package-evidence/lists/", args)
+            self.assertIn("--no-remove", calls[1][0])
+            self.assertEqual(calls[1][0][-len(installation.RUNTIME_PACKAGES):], list(installation.RUNTIME_PACKAGES))
+            self.assertEqual(calls[2][1]["maximum_file_bytes"], 128 * 1024 ** 2)
+            self.assertTrue(calls[3][1]["as_bytes"])
+            before = len(calls)
+            with self.assertRaisesRegex(RuntimeError, "retained runtime input"):
+                installation.prepare_runtime_packages(wanted)
+            self.assertEqual(len(calls), before)
+
+    def test_oversize_profile_archive_refuses_before_extraction_despite_apt_scratch_cap(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (calls, _, _, wanted):
+            command = installation.command
+            def invoke(arguments, check, **options):
+                result = command(arguments, check, **options)
+                if "download" in arguments:
+                    (Path(temporary) / "work/hosted-linux-package-evidence" / installation.PROFILE_DEB).write_bytes(b"x" * 39593)
+                return result
+            with patch.object(installation, "command", side_effect=invoke), \
+                    self.assertRaisesRegex(RuntimeError, "input exceeds bound"):
+                installation.prepare_runtime_packages(wanted)
+            self.assertFalse(any(args[0] == "/bin/bash" for args, _ in calls))
+            self.assertFalse((Path(temporary) / "work/hosted-linux-package-evidence/runtime.json").exists())
+
+    def test_provider_refusal_retains_actual_partial_effect_and_intent(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary), True) as (calls, _, _, wanted):
+            with self.assertRaisesRegex(RuntimeError, "provider installation refused"):
+                installation.prepare_runtime_packages(wanted)
+            directory = Path(temporary) / "work/hosted-linux-package-evidence"
+            self.assertTrue((directory / "intent.json").is_file())
+            self.assertEqual((directory / "partial-package-effect").read_text(), "retained")
+            self.assertFalse((directory / "runtime.json").exists())
+            self.assertEqual(len(calls), 2)
+            with self.assertRaisesRegex(RuntimeError, "explicit recovery"):
+                installation.prepare_runtime_packages(wanted)
+            self.assertEqual(len(calls), 2)
+
+    def test_linked_or_writable_work_parent_refuses_without_package_effects(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (calls, _, _, wanted):
+            root = Path(temporary)
+            (root / "outside").mkdir()
+            (root / "work").symlink_to(root / "outside", target_is_directory=True)
+            with self.assertRaisesRegex(RuntimeError, "work parent"):
+                installation.prepare_runtime_packages(wanted)
+            self.assertFalse((root / "outside/hosted-linux-package-evidence").exists())
+            (root / "work").unlink()
+            (root / "work").mkdir()
+            (root / "work").chmod(0o777)
+            with self.assertRaisesRegex(RuntimeError, "work parent"):
+                installation.prepare_runtime_packages(wanted)
+            self.assertEqual(calls, [])
+
+    def test_changed_job_sources_profile_or_executable_readback_refuse(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (_, sources, observer, wanted):
+            installation.prepare_runtime_packages(wanted)
+            with self.assertRaisesRegex(RuntimeError, "another original parent"):
+                installation.read_runtime_packages({**wanted, "binding": "f" * 64})
+            sources[0] += b"changed"
+            with self.assertRaisesRegex(RuntimeError, "sources changed"):
+                installation.read_runtime_packages(wanted)
+            sources[0] = b"fixed Ubuntu archive sources"
+            observer.return_value = {"packages": {}, "executables": {}}
+            with self.assertRaisesRegex(RuntimeError, "packages or executable bytes changed"):
+                installation.read_runtime_packages(wanted)
+            profile = Path(temporary) / "work/hosted-linux-package-evidence/bwrap-userns-restrict.apparmor"
+            profile.chmod(0o600)
+            profile.write_bytes(b"changed")
+            with self.assertRaisesRegex(RuntimeError, "profile input changed"):
+                installation.read_runtime_packages(wanted)
+
+    def test_package_inventory_refuses_missing_duplicate_or_unconfigured_rows(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            executable = Path(temporary) / "driver"
+            executable.write_text("inert")
+            executable.chmod(0o700)
+            valid = [f"{name}\t1.0-1\tamd64\tii " for name in installation.RUNTIME_PACKAGES]
+            with patch.object(installation, "RUNTIME_EXECUTABLES", (str(executable),)), \
+                    patch.object(installation, "read_regular", return_value=b"inert"), \
+                    patch.object(installation, "command", return_value="\n".join(valid)) as command:
+                result = installation.runtime_package_snapshot(lambda: None)
+                self.assertEqual(len(result["packages"]), len(installation.RUNTIME_PACKAGES))
+                for rows in (valid[:-1], valid + valid[:1], [valid[0].replace("\tii ", "\tiU "), *valid[1:]]):
+                    command.return_value = "\n".join(rows)
+                    with self.assertRaisesRegex(RuntimeError, "inventory incomplete|readback differs"):
+                        installation.runtime_package_snapshot(lambda: None)
+
+    def test_fixed_profile_command_preserves_binary_and_trailing_newline(self):
+        data = installation.command([sys.executable, "-I", "-S", "-c", "import sys;sys.stdout.buffer.write(b'\\x00profile\\n')"],
+                                    lambda: None, maximum_output_bytes=9, as_bytes=True)
+        self.assertEqual(data, b"\x00profile\n")
+
+    def test_command_refusal_retains_exit_and_actual_bounded_output(self):
+        with self.assertRaisesRegex(RuntimeError, "fixed installation command refused: exit=7") as captured:
+            installation.command([sys.executable, "-I", "-S", "-c",
+                                  "import sys;sys.stdout.write('partial');sys.stderr.write('reason');sys.exit(7)"],
+                                 lambda: None)
+        self.assertEqual(captured.exception.installation_stdout, b"partial")
+        self.assertEqual(captured.exception.installation_stderr, b"reason")
+
+
 @unittest.skipUnless(sys.platform == "linux", "actual Linux file/link custody contracts")
 class DependencyGraph(unittest.TestCase):
+    def test_frozen_install_controls_and_partial_refusal_retention(self):
+        for refused in (False, True):
+            with self.subTest(refused=refused), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                source = root / "native-source"
+                (source / "apps/desktop").mkdir(parents=True)
+                (source / "package.json").write_text('{"packageManager":"pnpm@12.14.0"}')
+                (source / "apps/desktop/package.json").write_text('{}')
+                workspace = b"packages: [apps/desktop]\n"
+                (source / "pnpm-workspace.yaml").write_bytes(workspace)
+                executable = root / "pnpm"
+                executable.write_bytes(b"inert executable fixture")
+                settings = {"pnpm": {"path": str(executable), "bytes": executable.stat().st_size,
+                            "sha256": hashlib.sha256(executable.read_bytes()).hexdigest()},
+                            "workspace_sha256": hashlib.sha256(workspace).hexdigest(), "patches": []}
+                calls = []
+                def invoke(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536,
+                           environment=None, calls=calls, source=source, refused=refused):
+                    check()
+                    calls.append((arguments, environment, maximum_file_bytes))
+                    if "--version" in arguments:
+                        return "12.14.0"
+                    (source / "node_modules").mkdir()
+                    (source / "apps/desktop/node_modules").mkdir()
+                    if refused:
+                        raise RuntimeError("provider refusal after partial progress")
+                    return ""
+                with patch.object(installation, "WORKSPACE", root), patch.object(installation, "fence"), \
+                        patch.object(installation.os, "getuid", return_value=1001), \
+                        patch.object(installation, "verify_installed_source"), \
+                        patch.object(installation, "inspect_plan"), \
+                        patch.object(installation, "command", side_effect=invoke):
+                    if refused:
+                        with self.assertRaisesRegex(RuntimeError, "partial progress"):
+                            installation.prepare_source_dependencies(plan(), settings)
+                    else:
+                        self.assertTrue(installation.prepare_source_dependencies(plan(), settings)["dependencies_prepared"])
+                    with self.assertRaisesRegex(RuntimeError, "retained dependency"):
+                        installation.prepare_source_dependencies(plan(), settings)
+                self.assertTrue((root / "native-dependency-home/intent.json").is_file())
+                self.assertTrue((source / "node_modules").is_dir())
+                self.assertEqual(len(calls), 2)
+                args, environment, maximum = calls[1]
+                for flag in ("--frozen-lockfile", "--ignore-scripts", "--ignore-pnpmfile", "--pm-on-fail=error",
+                             "--runtime-on-fail=error", "--package-import-method=copy", "--config.fetch-retries=0",
+                             "--config.enable-global-virtual-store=false"):
+                    self.assertIn(flag, args)
+                self.assertEqual(maximum, 128 * 1024 ** 2)
+                self.assertEqual(environment["HOME"], str(root / "native-dependency-home"))
+                self.assertEqual(environment["COREPACK_ENABLE_NETWORK"], "0")
+                self.assertFalse(any("TOKEN" in key or "AUTH" in key for key in environment))
+
     def test_public_acquisition_exact_inputs_and_changed_input_refusals(self):
         original_command = installation.command
         for alteration in (None, "source_tree", "harness_sha256"):

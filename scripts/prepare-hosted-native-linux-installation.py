@@ -1,7 +1,7 @@
 """Fixed disposable-host materialization. No guest code runs with root authority.
 
 The authenticated original parent supplies pins; this JSON never grants authority.
-The existing account/profile setup must already have completed for this same job.
+Fixed runtime inputs precede account/profile setup; materialization requires it.
 Partial roots and the first intent are retained; no reuse, deletion or retry.
 """
 import hashlib
@@ -27,6 +27,15 @@ WORKSPACE = Path("/home/runner/work/portcove/portcove")
 DEPENDENCIES = ("node_modules", "apps/desktop/node_modules")
 MAX_FILES = 100000
 MAX_BYTES = 2 * 1024 ** 3
+RUNTIME_PACKAGES = ("bubblewrap", "libwebkit2gtk-4.1-0", "webkit2gtk-driver", "xvfb",
+                    "x11-xkb-utils", "dbus-user-session", "dbus-x11", "at-spi2-core",
+                    "libfuse2t64", "libayatana-appindicator3-1")
+RUNTIME_EXECUTABLES = ("/usr/bin/bwrap", "/usr/bin/WebKitWebDriver", "/usr/bin/Xvfb",
+                       "/usr/bin/xkbcomp", "/usr/bin/dbus-run-session")
+PROFILE_VERSION = "4.0.1really4.0.1-0ubuntu0.24.04.9"
+PROFILE_DEB = f"apparmor-profiles_{PROFILE_VERSION}_all.deb"
+PROFILE_DEB_SHA256 = "90b02aa006eea7702cd4e851343e469e41365dda42145a3cb035de1d6c773b8c"
+PROFILE_SHA256 = "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9"
 ENV = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "HOME": "/",
        "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
        "GIT_TERMINAL_PROMPT": "0", "GIT_NO_LAZY_FETCH": "1",
@@ -73,6 +82,25 @@ def generation(pid):
     fields = Path(f"/proc/{pid}/stat").read_text().rpartition(") ")[2].split()
     need(len(fields) >= 20 and fields[0] != "Z", "installation parent is not live")
     return f"linux:{boot}:{pid}:{fields[19]}"
+
+
+def inspect_runtime_inputs_plan(raw):
+    """Correlation for fixed package preparation; never execution authority."""
+    need(isinstance(raw, dict) and set(raw) == {"schema_version", "binding", "broker_uid", "broker_pid",
+         "broker_identity", "deadline_ns", "context"}, "runtime input plan differs")
+    need(type(raw["schema_version"]) is int and raw["schema_version"] == 1
+         and isinstance(raw["binding"], str) and re.fullmatch(r"[a-f0-9]{64}", raw["binding"]), "runtime input binding differs")
+    for name in ("broker_uid", "broker_pid"):
+        need(type(raw[name]) is int and 0 < raw[name] < 2 ** 32, "runtime input broker differs")
+    need(isinstance(raw["broker_identity"], str) and re.fullmatch(r"linux:[a-f0-9-]{36}:[1-9][0-9]*:[1-9][0-9]*", raw["broker_identity"])
+         and isinstance(raw["deadline_ns"], str) and re.fullmatch(r"[1-9][0-9]{0,19}", raw["deadline_ns"]), "runtime input fence differs")
+    context = raw["context"]
+    need(isinstance(context, dict) and set(context) == {"GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_WORKFLOW_REF"}
+         and all(isinstance(value, str) for value in context.values()), "runtime input context differs")
+    workflow = r"boburning/portcove/\.github/workflows/(application-update-production.yml@refs/tags/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}|hosted-native-linux-readiness.yml@refs/heads/(main|feature/534-[a-z0-9-]+))"
+    need(re.fullmatch(r"[a-f0-9]{40}", context["GITHUB_SHA"]) and re.fullmatch(r"[1-9][0-9]*", context["GITHUB_RUN_ID"])
+         and context["GITHUB_RUN_ATTEMPT"] == "1" and re.fullmatch(workflow, context["GITHUB_WORKFLOW_REF"]), "runtime input job differs")
+    return raw
 
 
 def fence(plan):
@@ -167,12 +195,12 @@ def copy_dependencies(source, target, records, owners, uid, gid, check):
             need((target / name).resolve(strict=True) == target / value, "installed dependency graph differs")
 
 
-def command(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536):
+def command(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536, environment=None, as_bytes=False, cwd=None):
     check()
     if maximum_file_bytes is not None:
         arguments = ["/usr/bin/prlimit", f"--fsize={maximum_file_bytes}", "--", *arguments]
-    child = subprocess.Popen(arguments, env=ENV, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, start_new_session=True)
+    child = subprocess.Popen(arguments, env=ENV if environment is None else environment, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, start_new_session=True, cwd=cwd)
     selector, output, settled = selectors.DefaultSelector(), {"out": bytearray(), "err": bytearray()}, False
     try:
         for name, stream in (("out", child.stdout), ("err", child.stderr)):
@@ -189,9 +217,14 @@ def command(arguments, check, maximum_file_bytes=None, maximum_output_bytes=6553
                     need(len(output[event.data]) <= maximum_output_bytes, "installation command output exceeds bound")
         code = child.wait(timeout=1)
         settled = True
-        need(code == 0, "fixed installation command refused")
+        need(code == 0, f"fixed installation command refused: exit={code}")
         check()
-        return bytes(output["out"]).decode("utf-8").strip()
+        data = bytes(output["out"])
+        return data if as_bytes else data.decode("utf-8").strip()
+    except BaseException as error:
+        error.installation_stdout = bytes(output["out"])
+        error.installation_stderr = bytes(output["err"])
+        raise
     finally:
         selector.close()
         if not settled:
@@ -316,6 +349,99 @@ def acquire_public_checkout(source, plan, check):
     check()
 
 
+def prepare_source_dependencies(plan, settings):
+    """One frozen, hook-free install using the originally admitted native tool."""
+    def check():
+        fence(plan)
+    check()
+    need(os.getuid() == plan["broker_uid"] != 0, "original dependency broker required")
+    need(0 < int(plan["deadline_ns"]) - time.monotonic_ns() <= 90_000_000_000,
+         "dependency preparation allocation exceeds bound")
+    need(isinstance(settings, dict) and set(settings) == {"pnpm", "workspace_sha256", "patches"},
+         "validated dependency configuration absent")
+    pnpm = settings["pnpm"]
+    # Reuse the closed tool identity validator; this does not mint admission.
+    inspect_plan({**plan, "tools": {"node": pnpm, "driver": pnpm}})
+    source = WORKSPACE / "native-source"
+    verify_installed_source(source, plan, check)
+    owners = (0, os.getuid())
+    metadata = json.loads(read_regular(source / "package.json", 65536, owners, check))
+    need(metadata.get("packageManager") == "pnpm@12.14.0", "native source package-manager pin differs")
+    workspace_config = read_regular(source / "pnpm-workspace.yaml", 65536, owners, check)
+    need(hashlib.sha256(workspace_config).hexdigest() == settings["workspace_sha256"],
+         "semantically validated workspace bytes changed")
+    for package in (source, source / "apps/desktop"):
+        need(not os.path.lexists(package / ".npmrc"), "source registry overrides are not admitted")
+        manifest = json.loads(read_regular(package / "package.json", 65536, owners, check))
+        need("pnpm" not in manifest, "manifest package-manager overrides not admitted")
+        for field in ("dependencies", "devDependencies", "optionalDependencies"):
+            dependencies = manifest.get(field, {})
+            need(isinstance(dependencies, dict) and all(isinstance(value, str) and not re.search(
+                r"^(file:|link:|git|https?:|ssh:)|^(\.|/)|^[^@:]+/", value)
+                and (":" not in value or (value.count(":") == 1 and value.startswith(("npm:", "catalog:", "workspace:"))))
+                and (not value.startswith("workspace:") or re.fullmatch(r"workspace:[*~^0-9][0-9.*~^ -]*", value))
+                for value in dependencies.values()), "external or Git dependency route not admitted")
+    need(isinstance(settings["patches"], list) and len(settings["patches"]) <= 128,
+         "validated source patch inventory differs")
+    for filename in settings["patches"]:
+        need(isinstance(filename, str) and re.fullmatch(r"patches/[A-Za-z0-9_@.+-]+\.patch", filename),
+             "source patch path differs")
+        read_regular(source / filename, 1024 ** 2, owners, check)
+    executable = Path(pnpm["path"])
+    pnpm_bytes = read_regular(executable, 64 * 1024 ** 2, owners, check)
+    need(len(pnpm_bytes) == pnpm["bytes"] and hashlib.sha256(pnpm_bytes).hexdigest() == pnpm["sha256"],
+         "admitted package-manager bytes changed")
+    home = WORKSPACE / "native-dependency-home"
+    need(not os.path.lexists(home) and not any(os.path.lexists(source / p) for p in DEPENDENCIES),
+         "retained dependency attempt requires explicit recovery")
+    home.mkdir(mode=0o700)
+    with (home / "intent.json").open("x", encoding="utf-8") as output:
+        json.dump({"binding": plan["binding"], "source_commit": plan["source_commit"],
+                   "pnpm_sha256": pnpm["sha256"], "automatic_retry": False, "authority": "none"}, output)
+        output.flush()
+        os.fsync(output.fileno())
+    environment = {**ENV, "HOME": str(home), "XDG_CONFIG_HOME": str(home / "config"),
+                   "XDG_CACHE_HOME": str(home / "cache"), "XDG_DATA_HOME": str(home / "data"),
+                   "PATH": str(Path(plan["tools"]["node"]["path"]).parent) + ":/usr/bin:/bin",
+                   "TMPDIR": str(home), "CI": "true", "COREPACK_ENABLE_NETWORK": "0",
+                   "npm_config_userconfig": "/dev/null", "npm_config_globalconfig": "/dev/null"}
+    need(command([str(executable), "--version"], check, environment=environment) == "12.14.0",
+         "native package-manager runtime differs")
+    last_inventory = 0
+    def install_check():
+        nonlocal last_inventory
+        check()
+        if time.monotonic_ns() - last_inventory < 250_000_000:
+            return
+        last_inventory = time.monotonic_ns()
+        pending = [home, *(source / p for p in DEPENDENCIES if os.path.lexists(source / p))]
+        count, total = 0, 0
+        while pending:
+            check()
+            current = pending.pop()
+            with os.scandir(current) as children:
+                for child in children:
+                    count += 1
+                    need(count <= MAX_FILES, "dependency preparation inventory exceeds bound")
+                    info = child.stat(follow_symlinks=False)
+                    total += info.st_size
+                    need(total <= MAX_BYTES, "dependency preparation bytes exceed bound")
+                    if stat.S_ISDIR(info.st_mode):
+                        pending.append(Path(child.path))
+    command([str(executable), "--dir", str(source), "install", "--frozen-lockfile", "--ignore-scripts",
+             "--ignore-pnpmfile", "--pm-on-fail=error", "--runtime-on-fail=error", "--package-import-method=copy",
+             "--store-dir", str(home / "store"), "--registry=https://registry.npmjs.org/",
+             "--config.modules-dir=node_modules", "--config.virtual-store-dir=" + str(source / "node_modules/.pnpm"),
+             "--config.enable-global-virtual-store=false", "--config.node-linker=isolated",
+             "--config.fetch-retries=0", "--config.fetch-timeout=15000", "--reporter=silent"],
+            install_check, maximum_file_bytes=128 * 1024 ** 2, environment=environment)
+    last_inventory = 0
+    install_check()
+    need(read_regular(executable, 64 * 1024 ** 2, owners, check) == pnpm_bytes,
+         "package-manager bytes changed during install")
+    return read_source_dependencies(plan)
+
+
 def read_source_dependencies(plan):
     """Refuse known missing prerequisites before any privileged account effects."""
     def check():
@@ -343,12 +469,162 @@ def verify_installed_source(destination, plan, check):
     git(["-C", str(destination), "diff-files", "--exit-code", "--no-ext-diff", "--no-textconv"], check)
 
 
+def runtime_package_snapshot(check):
+    rows = command(["/usr/bin/dpkg-query", "--show", "--showformat=${Package}\t${Version}\t${Architecture}\t${db:Status-Abbrev}\n",
+                    *RUNTIME_PACKAGES], check).splitlines()
+    packages = {}
+    for row in rows:
+        fields = row.split("\t")
+        need(len(fields) == 4 and fields[0] in RUNTIME_PACKAGES and fields[0] not in packages
+             and fields[3].rstrip() == "ii" and fields[2] in ("amd64", "all")
+             and re.fullmatch(r"[0-9A-Za-z.+:~_-]{1,128}", fields[1]), "runtime package readback differs")
+        packages[fields[0]] = {"version": fields[1], "architecture": fields[2]}
+    need(set(packages) == set(RUNTIME_PACKAGES), "runtime package inventory incomplete")
+    executables = {}
+    for filename in RUNTIME_EXECUTABLES:
+        actual = Path(filename).resolve(strict=True)
+        data = read_regular(actual, 128 * 1024 ** 2, (0,), check)
+        need(actual.stat().st_mode & 0o111, "runtime executable is not executable")
+        executables[filename] = {"resolved": str(actual), "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    return {"packages": packages, "executables": executables}
+
+
+def prepare_runtime_packages(plan):
+    """Fixed Ubuntu inputs only; never execute native source or change policy."""
+    directory = WORKSPACE / "work/hosted-linux-package-evidence"
+    last_inventory = 0
+    inventory_enabled = False
+    def check():
+        nonlocal last_inventory
+        fence(plan)
+        if not inventory_enabled or time.monotonic_ns() - last_inventory < 250_000_000:
+            return
+        last_inventory = time.monotonic_ns()
+        pending, count, total = [directory], 0, 0
+        while pending:
+            fence(plan)
+            with os.scandir(pending.pop()) as entries:
+                for entry in entries:
+                    count += 1
+                    need(count <= 8192, "runtime input inventory exceeds bound")
+                    try:
+                        info = entry.stat(follow_symlinks=False)
+                    except FileNotFoundError:
+                        # APT atomically renames/removes partial downloads while
+                        # this detector samples. A vanished leaf stores no bytes;
+                        # retain its entry count and do not follow an alternative.
+                        continue
+                    total += info.st_size
+                    need(total <= 512 * 1024 ** 2, "runtime input inventory exceeds bound")
+                    # APT uses temporary leaf symlinks for mirror/index inputs.
+                    # This is a storage detector, not input admission: count the
+                    # link itself without reading or traversing its target.
+                    need(stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode),
+                         f"runtime input kind differs: {str(Path(entry.path).relative_to(directory))[:512]} mode={stat.S_IFMT(info.st_mode):o}")
+                    if stat.S_ISDIR(info.st_mode):
+                        pending.append(Path(entry.path))
+    check()
+    need(sys.platform == "linux" and os.getuid() == 0, "fixed root-side package preparation required")
+    need(0 < int(plan["deadline_ns"]) - time.monotonic_ns() <= 90_000_000_000, "runtime input allocation exceeds bound")
+    release = read_regular(Path("/usr/lib/os-release").resolve(strict=True), 16384, (0,), check).decode()
+    need(re.search(r"(?m)^ID=ubuntu$", release) and re.search(r'(?m)^VERSION_ID="24.04"$', release),
+         "fixed Ubuntu24.04 runtime required")
+    sources = Path("/etc/apt/sources.list.d/ubuntu.sources")
+    source_bytes = read_regular(sources, 65536, (0,), check)
+    need(source_bytes, "Ubuntu archive sources absent")
+    if not os.path.lexists(directory.parent):
+        directory.parent.mkdir(mode=0o700)
+        os.chown(directory.parent, plan["broker_uid"], -1)
+    parent_info = directory.parent.lstat()
+    need(stat.S_ISDIR(parent_info.st_mode) and parent_info.st_uid == plan["broker_uid"]
+         and not parent_info.st_mode & 0o022 and directory.parent.resolve(strict=True) == directory.parent,
+         "original work parent missing or linked")
+    need(not os.path.lexists(directory), "retained runtime input attempt requires explicit recovery")
+    directory.mkdir(mode=0o755)
+    inventory_enabled = True
+    def retain(name, value):
+        check()
+        with (directory / name).open("xb") as output:
+            output.write(value)
+            output.flush()
+            os.fsync(output.fileno())
+        (directory / name).chmod(0o444)
+    retain("intent.json", json.dumps({"binding": plan["binding"], "context": plan["context"],
+           "ubuntu_sources_sha256": hashlib.sha256(source_bytes).hexdigest(),
+           "packages": RUNTIME_PACKAGES, "profile_version": PROFILE_VERSION,
+           "automatic_retry": False, "authority": "none"}).encode())
+    for name in ("lists", "archives"):
+        (directory / name).mkdir(mode=0o755)
+        (directory / name / "partial").mkdir(mode=0o700)
+    options = ["-o", f"Dir::Etc::sourcelist={sources}", "-o", "Dir::Etc::sourceparts=-",
+               "-o", f"Dir::State::lists={directory}/lists/", "-o", f"Dir::Cache::archives={directory}/archives/",
+               "-o", "Dir::Cache::pkgcache=", "-o", "Dir::Cache::srcpkgcache=",
+               "-o", "Acquire::Retries=0", "-o", "Acquire::http::Timeout=15",
+               "-o", "Acquire::https::Timeout=15", "-o", "DPkg::Lock::Timeout=5",
+               "-o", "Acquire::AllowInsecureRepositories=false",
+               "-o", "Acquire::AllowDowngradeToInsecureRepositories=false",
+               "-o", "APT::Get::AllowUnauthenticated=false", "-o", "APT::Update::Error-Mode=any"]
+    environment = {**ENV, "DEBIAN_FRONTEND": "noninteractive"}
+    retain("stage-1-index.json", b'{"operation":"authenticated Ubuntu index update"}')
+    command(["/usr/bin/apt-get", *options, "-qq", "update"], check, environment=environment,
+            maximum_file_bytes=128 * 1024 ** 2)
+    retain("stage-2-packages.json", b'{"operation":"fixed runtime package installation"}')
+    command(["/usr/bin/apt-get", *options, "-qq", "install", "--yes", "--no-remove", "--no-install-recommends",
+             *RUNTIME_PACKAGES], check, environment=environment, maximum_file_bytes=128 * 1024 ** 2)
+    # Download into this retained private attempt; never install the profile package.
+    retain("stage-3-profile-download.json", b'{"operation":"exact profile package download"}')
+    # RLIMIT_FSIZE covers APT's metadata scratch as well as the download.
+    # Keep the same scratch cap as update/install; the archive itself must
+    # independently pass the exact 39592-byte/hash guard before extraction.
+    command(["/usr/bin/apt-get", *options, "-qq", "download", f"apparmor-profiles={PROFILE_VERSION}"],
+            check, environment=environment, cwd=directory, maximum_file_bytes=128 * 1024 ** 2)
+    archive = directory / PROFILE_DEB
+    data = read_regular(archive, 39592, (0,), check)
+    need(len(data) == 39592 and hashlib.sha256(data).hexdigest() == PROFILE_DEB_SHA256,
+         "fixed profile archive identity differs")
+    # Only authenticated exact reviewed bytes reach these fixed format tools.
+    retain("stage-4-profile-extraction.json", b'{"operation":"exact profile extraction"}')
+    profile = command(["/bin/bash", "-o", "pipefail", "-c",
+                       '/usr/bin/dpkg-deb --fsys-tarfile "$1" | /usr/bin/tar --extract --to-stdout --file=- ./usr/share/apparmor/extra-profiles/bwrap-userns-restrict',
+                       "fixed-profile", str(archive)], check, maximum_output_bytes=1936, as_bytes=True)
+    need(len(profile) == 1936 and hashlib.sha256(profile).hexdigest() == PROFILE_SHA256,
+         "fixed profile input differs")
+    retain("bwrap-userns-restrict.apparmor", profile)
+    need(read_regular(sources, 65536, (0,), check) == source_bytes, "Ubuntu sources changed during preparation")
+    retain("stage-5-readback.json", b'{"operation":"runtime package and executable readback"}')
+    snapshot = runtime_package_snapshot(check)
+    receipt = {"schema_version": 1, "binding": plan["binding"], "context": plan["context"],
+               "ubuntu_sources_sha256": hashlib.sha256(source_bytes).hexdigest(), **snapshot,
+               "profile_sha256": PROFILE_SHA256, "prepared": True, "automatic_retry": False,
+               "native_acceptance": "not-established", "authority": "none"}
+    retain("runtime.json", json.dumps(receipt).encode())
+    check()
+    return receipt
+
+
+def read_runtime_packages(plan):
+    def check():
+        fence(plan)
+    directory = WORKSPACE / "work/hosted-linux-package-evidence"
+    receipt = json.loads(read_regular(directory / "runtime.json", 65536, (0,), check))
+    need(receipt["binding"] == plan["binding"] and receipt["context"] == plan["context"]
+         and receipt["prepared"] is True, "runtime inputs belong to another original parent")
+    sources = read_regular(Path("/etc/apt/sources.list.d/ubuntu.sources"), 65536, (0,), check)
+    need(hashlib.sha256(sources).hexdigest() == receipt["ubuntu_sources_sha256"], "Ubuntu sources changed")
+    profile = read_regular(directory / "bwrap-userns-restrict.apparmor", 1936, (0,), check)
+    need(len(profile) == 1936 and hashlib.sha256(profile).hexdigest() == PROFILE_SHA256, "runtime profile input changed")
+    observed = runtime_package_snapshot(check)
+    need(all(receipt[key] == value for key, value in observed.items()), "runtime packages or executable bytes changed")
+    return receipt
+
+
 def install(plan):
     def check():
         fence(plan)
     check()
     need(0 < int(plan["deadline_ns"]) - time.monotonic_ns() <= 120_000_000_000, "installation allocation exceeds bound")
     need(sys.platform == "linux" and os.getuid() == 0 and pwd is not None, "fixed root-side Linux materializer required")
+    read_runtime_packages(plan)
     account = pwd.getpwnam("portcove-native")
     need(account.pw_uid > 0 and account.pw_uid != plan["broker_uid"] and account.pw_gid > 0
          and account.pw_dir == "/home/portcove-native" and account.pw_shell == "/usr/sbin/nologin",
@@ -433,11 +709,48 @@ def install(plan):
 
 
 if __name__ == "__main__":
+    preparing = len(sys.argv) == 3 and sys.argv[1] == "--runtime-packages"
     try:
-        need(len(sys.argv) == 2 and len(sys.argv[1].encode()) <= 8192, "one bounded fixed installation plan required")
-        result = install(inspect_plan(json.loads(sys.argv[1])))
+        operation = prepare_runtime_packages if preparing else install
+        argument = sys.argv[2] if operation is prepare_runtime_packages else sys.argv[1] if len(sys.argv) == 2 else ""
+        need(argument and len(argument.encode()) <= 8192, "one bounded fixed installation plan required")
+        raw = (inspect_runtime_inputs_plan if preparing else inspect_plan)(json.loads(argument))
+        result = operation(raw)
     except BaseException as error:
-        print(json.dumps({"installed": False, "failure": str(error)[:1024], "partial_effects_retained": True,
-                          "automatic_retry": False, "authority": "none"}))
+        result = {("prepared" if preparing else "installed"): False, "failure": str(error)[:1024], "partial_effects_retained": True,
+                  "automatic_retry": False, "authority": "none"}
+        # Bounded failure evidence may settle after the operation deadline. It
+        # cannot launch another operation or write into another retained attempt.
+        if preparing and hasattr(error, "installation_stderr"):
+            try:
+                directory = WORKSPACE / "work/hosted-linux-package-evidence"
+                descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                try:
+                    info = os.fstat(descriptor)
+                    need(info.st_uid == 0 and not info.st_mode & 0o022, "failure directory custody differs")
+                    with os.fdopen(os.open("intent.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor), "rb") as source:
+                        info = os.fstat(source.fileno())
+                        need(stat.S_ISREG(info.st_mode) and info.st_uid == 0 and info.st_size <= 8192, "failure intent custody differs")
+                        data = source.read(8193)
+                        need(len(data) <= 8192, "failure intent exceeds bound")
+                    intent = json.loads(data)
+                    need(intent["binding"] == raw["binding"] and intent["context"] == raw["context"], "failure intent differs")
+                    for name in ("stdout", "stderr"):
+                        data = getattr(error, "installation_" + name)
+                        need(len(data) <= 65536, "failure capture exceeds bound")
+                        file = os.open("failed-command." + name + ".bin", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                                       0o600, dir_fd=descriptor)
+                        with os.fdopen(file, "wb") as output:
+                            output.write(data)
+                            output.flush()
+                            os.fsync(output.fileno())
+                            os.fchmod(output.fileno(), 0o444)
+                        result[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+                                        "prefix": data[:1024].decode("utf-8", "replace")}
+                finally:
+                    os.close(descriptor)
+            except Exception as capture_error:
+                result["failure_capture_error"] = str(capture_error)[:256]
+        print(json.dumps(result))
         sys.exit(1)
     print(json.dumps(result, separators=(",", ":")))

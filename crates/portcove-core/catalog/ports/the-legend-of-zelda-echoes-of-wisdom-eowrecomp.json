@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-zelda-echoes-of-wisdom-eowrecomp",
+    "name": "The Legend of Zelda: Echoes of Wisdom (EoWRecomp)",
+    "summary": "Experimental AArch64 to C ahead of time with LAS-derived Horizon/NVN runtime Vulkan/MoltenVK. Upstream maturity: Not fully playable; Linux opening/first controllable scene. Full playthrough/saves/PC features pending. Acquisition: Frozen alpha_1 has Mac arm64 ZIP, Android APK, checksums; Linux/Windows source. Packages build owned game locally. Platforms: Linux x64 opening/first scene; Apple Silicon macOS15+ and Android arm64 packages tested setup only without game. Windows x64 cross-built, setup/game untested, no Windows asset. Original data: Own1.0.0 title01008CF01BAAC000, NO update, own prod.keys; NSP/XCI/NCA, local codegen and direct original package data reads. Separate firmware/region/digest not specified. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "The Legend of Zelda: Echoes of Wisdom",
+    "project_url": "https://github.com/Nycolazs/EoWRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Nycolazs/EoWRecomp",
+    "artwork": {
+      "game_id": 306149,
+      "cover_id": 390431,
+      "image_id": "co8d9b",
+      "image_sha256": "5a0b62cbccfbf553ea975be793594e6907ffc3932c636c6428154f784fc2e8a1",
+      "game_slug": "the-legend-of-zelda-echoes-of-wisdom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2947
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-legend-of-zelda-echoes-of-wisdom-eowrecomp",
+    "origin": {
+      "project_url": "https://github.com/Nycolazs/EoWRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425726581"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -25,15 +25,10 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.6.1",
-          "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.1/ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
-          "size": 11388312,
-          "sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
-          "published_at": "2026-08-06T01:58:24Z"
-        }
+      "provider": "github",
+      "repository": "mstan/ZeldaAlttPSNESRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["ZeldaALttPSNESRecomp-windows-x64-", ".zip"]
       }
     },
     "source_profile": "a-link-to-the-past-snes-usa",
@@ -51,7 +46,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Upstream documents prebuilt use but has not declared a project license; the package is downloaded unchanged from its original publisher."
+      "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.5 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms."
     },
     "launch_arguments": ["zelda.sfc"],
     "launch_environment": {

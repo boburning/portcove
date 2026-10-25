@@ -185,8 +185,8 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
     ] {
-        // MC2 and the three portable selectors below are shipped definitions.
-        // Other inputs stay frozen proposals until their #2926 batches arrive.
+        // Adopted portable and original-driven routes use their shipped rules.
+        // Sonic3K stays a frozen proposal pending its separate data transition.
         let proposed;
         let port = if matches!(
             id,
@@ -194,6 +194,12 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                 | "battletanx-global-assault-pc-port"
                 | "brawmario-infinite-mario-64-ever"
                 | "dkc1-recomp"
+                | "f-zero-snes-recomp"
+                | "dkc3-recomp"
+                | "super-mario-world-recomp"
+                | "the-legend-of-zelda-a-link-to-the-past-snes-recomp"
+                | "sonic-the-hedgehog-2-recomp"
+                | "super-bomberman-recomp"
         ) {
             catalog.port(id).unwrap()
         } else {
@@ -471,7 +477,7 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
     let current = release("v1.0.0", vec![asset("Game-linux-x64.AppImage", Some('a'))]);
     let (api_root, requests, server) = serve_http(vec![
         metadata(),
-        releases(&[current.clone()]),
+        releases(std::slice::from_ref(&current)),
         metadata(),
         releases(&[current]),
     ]);

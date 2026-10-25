@@ -3,13 +3,21 @@
   "listing": {
     "id": "k0nl-b2recomp",
     "name": "Bayonetta 2 (B2recomp)",
-    "summary": "Upstream route: B2recomp-builder ZIP compiles native game locally from own plainExeFS/RomFSv1.2; no encryptedpackage decryption/keys. Upstream builder owns toolchain/generation. Linuxbuilder testing, not a uniform ready-made runtime. Limits: Upstream only: Upstream describes local Switch recompilation with exact v1.2 input gate. Linux/older-GPU limits remain; completeness is an upstream claim only. Windows builder ZIP, not ready-made runtime; compiles AArch64 code locally with reimplemented NVN Vulkan layer. Preserve full-game maturity limitations from primary documentation. Upstream platforms: Windows 10/11 x64 Vulkan 1.3 builder; Linux builder testing. Polaris Windows workaround adds shader hitches. Original data: Own Bayonetta2 Switch v1.2(updatev131072), extracted plain ExeFS+RomFS. Encrypted NSP/XCI/NCA and keys are refused; project decrypts nothing. Local builder compiles on player machine. Other revisions/regions unsupported unless separately checked; no original BIOS input specified. Portcove setup/gameplay not verified.",
+    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Platforms: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Original data: OwnBayonetta2v1.2/updatev131072alreadydecryptedExeFS/RomFS;encryptedpackages/keysrefused. Portcove setup/gameplay untested; no operational integration offered.",
     "original_game_title": "Bayonetta 2",
     "project_url": "https://github.com/K0NL/B2recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/K0NL/B2recomp",
-    "issue_number": 2755
+    "issue_number": 2755,
+    "artwork": {
+      "game_id": 279336,
+      "cover_id": 525392,
+      "image_id": "cob9e8",
+      "image_sha256": "14c7b600fd0d0e2b298951f6ce8fb6a173b4b9d28b5c5f81af1978f950dd178a",
+      "game_slug": "bayonetta-2--1",
+      "match_kind": "underlying-game"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

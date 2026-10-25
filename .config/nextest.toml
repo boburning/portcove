@@ -7,6 +7,28 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI40164185374/a1 retained this complete authenticated staging/rollback case
+# at the Windows30.232s harness cutoff. Keep all durable operations/assertions,
+# phase diagnostics, cleanup, active worker slots and zero retries. Exact60s
+# headroom preserves finite hangs; this is not a product-deadline change or a
+# causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI 40165157806/a1 cut off the eight-scenario relocation recovery fixture at
+# 30.133s; its source-import sibling finished at 29.424s. Preserve all install
+# and adoption phases, assertions, cleanup, worker slots and zero retries.
+# Exact Windows cases get finite 60s room plus per-scenario timing output;
+# product and child deadlines remain unchanged. This is harness calibration.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/) | test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The historical byte-only backup round trip passed in the preceding batch,
 # then hit the Windows30.126s outer cap in run3be9ce8b. Preserve the complete
 # create/review/restore/assertion flow, two workers and zero retries. Exact60s
