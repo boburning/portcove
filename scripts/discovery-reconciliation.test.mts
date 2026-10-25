@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { assertDiscoveryIntakeIdentity } from "./discovery-intake-identity.mts";
 import {
   reconcileDiscoveryIdentity,
   reconcileDiscoverySnapshot,
@@ -27,6 +28,73 @@ const candidate: ReviewedDiscoveryIdentity = {
   game_key: "game-a",
   kind: "implementation",
 };
+void test("catalog lineage binds normalized GitHub clone URLs to transferred closed owners", () => {
+  const issue = {
+    number: 17,
+    title: "[Port] Original implementation",
+    state: "CLOSED",
+    body: "<!-- portcove-upstream: https://github.com/original/game -->",
+  };
+  for (const project_url of [
+    "https://github.com/Original/Game/",
+    "https://github.com/original/game.git/",
+  ]) {
+    assert.throws(
+      () =>
+        assertDiscoveryIntakeIdentity(
+          candidate,
+          [issue],
+          [
+            {
+              format_version: 1,
+              listing: {
+                id: "original-game",
+                name: "Game A",
+                summary: "Game",
+                project_url,
+                issue_number: 17,
+              },
+              upstream_lineage: {
+                format_version: 1,
+                target_key: "original-game",
+                origin: { project_url, repository: { host: "github.com", id: "42" } },
+                decisions: [],
+              },
+            },
+          ],
+          [],
+        ),
+      /Existing canonical owner/u,
+    );
+    assert.throws(
+      () =>
+        assertDiscoveryIntakeIdentity(
+          { ...candidate, repository: "new-owner/new-name" },
+          [issue],
+          [
+            {
+              format_version: 1,
+              listing: {
+                id: "original-game",
+                name: "Game A",
+                summary: "Game",
+                project_url,
+                issue_number: 17,
+              },
+              upstream_lineage: {
+                format_version: 1,
+                target_key: "original-game",
+                origin: { project_url, repository: { host: "github.com", id: "42" } },
+                decisions: [],
+              },
+            },
+          ],
+          [],
+        ),
+      /Existing canonical owner/u,
+    );
+  }
+});
 void test("maintained session guard blocks a relocated closed owner and helpers before posting, but preserves separate games and implementations", (t) => {
   const directory = mkdtempSync(join(tmpdir(), "discovery-identity-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

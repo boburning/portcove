@@ -16,7 +16,13 @@ export const discoveryGameKey = (game: string) =>
     .toLowerCase()
     .replace(/[^\p{Letter}\p{Number}]/gu, "");
 const github = (url: string) =>
-  /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/iu.test(url);
+  /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/iu.test(url);
+const githubKey = (url: string) =>
+  url
+    .slice(19)
+    .replace(/\/$/u, "")
+    .replace(/\.git$/iu, "")
+    .toLowerCase();
 /** Additional duplicate protection only. Fresh complete issue coverage remains
  * mandatory at the caller; local lineage/cache observations cannot prove absence.
  */
@@ -58,8 +64,10 @@ export function assertDiscoveryIntakeIdentity(
       authored?.listing.original_game_title ??
       body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
     for (const url of urls) {
-      const key = url.slice(19).toLowerCase();
-      const lineage = history.find((row) => row.project_url.toLowerCase() === url.toLowerCase());
+      const key = githubKey(url);
+      const lineage = history.find(
+        (row) => github(row.project_url) && githubKey(row.project_url) === key,
+      );
       const observed = leads.filter((row) =>
         [row.repository, ...(row.aliases ?? [])].some((alias) => alias.toLowerCase() === key),
       );
