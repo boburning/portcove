@@ -1,0 +1,59 @@
+name: Publish consolidated Roadmap report
+run-name: Roadmap publication ${{ github.event.workflow_run.id || 'manual' }} / ${{ github.event.workflow_run.run_attempt || '0' }}
+
+on:
+  workflow_run:
+    workflows: [Roadmap scoped checks and diagnostics]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: roadmap-maintained-report
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Replay retained collector results and prepare one maintained report
+        id: prepare
+        run: node scripts/roadmap-publish.mts prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.prepare.outputs.state_available == 'true'
+        with:
+          name: roadmap-report-state-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/roadmap-publisher/state.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish the verified snapshot and read back its exact body
+        run: node scripts/roadmap-publish.mts publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: roadmap-report-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/roadmap-publisher/body.md
+            work/roadmap-publisher/preimage.json
+            work/roadmap-publisher/error.json
+            work/roadmap-publisher/state-error.json
+            work/roadmap-publisher/collection-error.json
+          if-no-files-found: ignore
+          retention-days: 30

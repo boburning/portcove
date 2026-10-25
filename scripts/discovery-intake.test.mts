@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   RoadmapClient,
   renderPortIssueBody,
+  renderPortResearchDeclaration,
   findPortIssueDuplicates,
   validateConfig,
 } from "./roadmap.mts";
@@ -27,8 +28,11 @@ void test("discovery rejects the Brawl metadata omission before public creation"
   const valid = renderPortIssueBody({ title: "Brawl", upstream, portKey: "brawl" });
   validateDiscoveryIntakeBody(valid, upstream, "brawl");
   for (const invalid of [
-    valid.replace("Catalog ID: Not assigned (researched candidate)", "Catalog ID: Unknown"),
     valid
+      .replace(renderPortResearchDeclaration(), "")
+      .replace("Catalog ID: Not assigned (researched candidate)", "Catalog ID: Unknown"),
+    valid
+      .replace(renderPortResearchDeclaration(), "")
       .replace("does not grant support", "leaves support Unknown")
       .replace("does not change catalog.json", "leaves catalog unchanged"),
   ])

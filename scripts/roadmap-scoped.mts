@@ -87,6 +87,13 @@ const bodyOf = (item: RoadmapIssueItem) => String(item.content?.body ?? item.bod
 const isIssueList = (value: RoadmapIssueItem["blockedBy"]): value is readonly RoadmapIssueItem[] =>
   Array.isArray(value);
 
+export function scopedIssueWithBlockers(
+  item: RoadmapIssueItem,
+  blockers: readonly RoadmapIssueItem[],
+) {
+  return { ...item, blockedBy: { totalCount: blockers.length, nodes: blockers } };
+}
+
 /** Checks only observed records. Global origin coverage and uniqueness remain unevaluated. */
 export function evaluateScopedRoadmap(
   config: RoadmapConfig,
@@ -277,13 +284,7 @@ export async function runScopedDoctor(
     for (const number of selected) {
       const observed = observations.get(number) ?? client.executionIssue(number);
       revisions.set(number, revisionOf(observed));
-      items.push({
-        ...observed.item,
-        blockedBy: {
-          totalCount: observed.relationships.blockedBy.length,
-          nodes: observed.relationships.blockedBy,
-        },
-      });
+      items.push(scopedIssueWithBlockers(observed.item, observed.relationships.blockedBy));
     }
     // A consistent direct read is still an observation, never an atomic GitHub snapshot.
     for (const [number, revision] of revisions) {

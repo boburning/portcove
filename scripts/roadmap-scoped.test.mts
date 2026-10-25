@@ -549,6 +549,10 @@ void test("issue events and explicit requests select scoped checks; substantial 
     issue: 42,
   });
   assert.deepEqual(selectRoadmapHealth("workflow_dispatch", {}, read), { mode: "global" });
+  assert.deepEqual(
+    selectRoadmapHealth("workflow_dispatch", { inputs: { inventory_items: "PVTI_example" } }, read),
+    { mode: "none" },
+  );
   assert.throws(
     () => selectRoadmapHealth("issues", { issue: { number: "42; command" } }, read),
     /Invalid/,
@@ -623,10 +627,7 @@ void test("hosted automation has no periodic schedule and executes trusted sourc
   assert.match(workflow, /if: always\(\)/u);
   assert.match(workflow, /PORTCOVE_ROADMAP_TOKEN/u);
   assert.doesNotMatch(workflow, /pull_request_target|issue_comment/u);
-  assert.match(
-    workflow,
-    /group: roadmap-health-\$\{\{ needs\.configuration\.outputs\.available == 'true' && \(inputs\.inventory_items && 'inventory-readback' \|\| github\.event\.issue\.number \|\| inputs\.issue \|\| 'global'\) \|\| 'configuration' \}\}/u,
-  );
+  assert.doesNotMatch(workflow, /concurrency:/u);
   assert.match(workflow, /needs: configuration/u);
   assert.match(workflow, /available: \$\{\{ steps\.project-token\.outputs\.available \}\}/u);
   assert.match(workflow, /permissions: \{\}/u);

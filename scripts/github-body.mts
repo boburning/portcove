@@ -1,3 +1,5 @@
+import { validateGitHubBody } from "./github-body-text.mts";
+import { isRoadmapSpecification, validateLiveRoadmapReplacement } from "./roadmap-authoring.mts";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -24,6 +26,7 @@ export interface BodyWriteOptions {
 }
 export interface BodyApi {
   request(method: string, endpoint: string, payload?: unknown): { body: unknown };
+  validateRoadmapReplacement?: (number: number, previousBody: string, body: string) => void;
   graphql?: Parameters<typeof readClosingRelationships>[0]["graphql"];
 }
 function positiveId(value: unknown): value is number {
@@ -53,21 +56,7 @@ function headSha(item: Record<string, unknown>): unknown {
 const root = fileURLToPath(new URL("../", import.meta.url));
 const repository = config.repository;
 
-export function validateGitHubBody(body: unknown) {
-  if (typeof body !== "string" || !body.trim())
-    throw new Error("GitHub body must be nonempty text");
-  for (let index = 0; index < body.length; index++) {
-    const code = body.charCodeAt(index);
-    const invalid =
-      code === 13
-        ? body.charCodeAt(index + 1) !== 10
-        : code === 127 || (code < 32 && code !== 9 && code !== 10);
-    if (invalid) throw new Error(`Unexpected control character at text offset ${index}`);
-  }
-  // JSON/string input also must not contain malformed Unicode surrogate pairs.
-  if (!body.isWellFormed()) throw new Error("GitHub body contains malformed Unicode");
-  return body;
-}
+export { validateGitHubBody } from "./github-body-text.mts";
 
 export function readGitHubBody(file: string) {
   return validateGitHubBody(new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(file)));
@@ -114,6 +103,12 @@ export function writeGitHubBody(options: BodyWriteOptions, api: BodyApi = new Gi
       if (typeof previousBody !== "string") throw new Error("Edits require --previous-body-file");
       if ((before.body ?? "") !== previousBody)
         throw new Error("Remote body changed; refresh the preimage before editing");
+      if (operation === "issue-edit" && isRoadmapSpecification(before))
+        (api.validateRoadmapReplacement ?? validateLiveRoadmapReplacement)(
+          number,
+          previousBody,
+          body,
+        );
       if (operation === "pr-edit") {
         const closing = closingRelationships(api, number);
         options.observe?.({ phase: "closure-preimage", result: closing });
