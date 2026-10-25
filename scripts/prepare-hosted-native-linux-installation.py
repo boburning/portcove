@@ -167,8 +167,10 @@ def copy_dependencies(source, target, records, owners, uid, gid, check):
             need((target / name).resolve(strict=True) == target / value, "installed dependency graph differs")
 
 
-def command(arguments, check):
+def command(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536):
     check()
+    if maximum_file_bytes is not None:
+        arguments = ["/usr/bin/prlimit", f"--fsize={maximum_file_bytes}", "--", *arguments]
     child = subprocess.Popen(arguments, env=ENV, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, start_new_session=True)
     selector, output, settled = selectors.DefaultSelector(), {"out": bytearray(), "err": bytearray()}, False
@@ -184,7 +186,7 @@ def command(arguments, check):
                     selector.unregister(event.fileobj)
                 else:
                     output[event.data].extend(part)
-                    need(len(output[event.data]) <= 65536, "installation command output exceeds bound")
+                    need(len(output[event.data]) <= maximum_output_bytes, "installation command output exceeds bound")
         code = child.wait(timeout=1)
         settled = True
         need(code == 0, "fixed installation command refused")
@@ -201,12 +203,131 @@ def command(arguments, check):
         child.stderr.close()
 
 
-def git(arguments, check):
-    return command(["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+def git(arguments, check, maximum_output_bytes=65536):
+    arguments = ["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
                     "-c", "uploadpack.packObjectsHook=", "-c", "protocol.allow=never",
                     "-c", f"safe.directory={WORKSPACE / 'native-source'}",
                     "-c", f"safe.directory={ROOT / 'controller'}",
-                    "-c", "protocol.file.allow=always", *arguments], check)
+                    "-c", "protocol.file.allow=always", *arguments]
+    if maximum_output_bytes == 65536:
+        return command(arguments, check)
+    return command(arguments, check, maximum_output_bytes=maximum_output_bytes)
+
+
+def inspect_source_tree(inventory):
+    rows = inventory.splitlines()
+    need(0 < len(rows) <= 32768, "source tree entry count exceeds bound")
+    total = 0
+    for row in rows:
+        need(re.fullmatch(r"blob [0-9]{1,12}", row), "source tree object kind/size differs")
+        size = int(row.split()[1])
+        need(size <= 128 * 1024 ** 2, "source tree file exceeds bound")
+        total += size
+        need(total <= 256 * 1024 ** 2, "source tree bytes exceed bound")
+    return len(rows), total
+
+
+def acquire_source(plan):
+    """One public, exact-revision acquisition as the original unprivileged broker.
+
+    This does not install dependencies, execute repository code, or grant native
+    acceptance. A retained intent or partial checkout requires explicit recovery.
+    """
+    def check():
+        fence(plan)
+    check()
+    need(sys.platform == "linux" and os.getuid() == plan["broker_uid"] != 0,
+         "original non-root source broker required")
+    need(0 < int(plan["deadline_ns"]) - time.monotonic_ns() <= 90_000_000_000,
+         "source acquisition allocation exceeds bound")
+    need(WORKSPACE.resolve(strict=True) == WORKSPACE and WORKSPACE.stat().st_uid == os.getuid()
+         and not WORKSPACE.stat().st_mode & 0o022, "source workspace custody differs")
+    source = WORKSPACE / "native-source"
+    intent = WORKSPACE / "native-source-intent.json"
+    need(not os.path.lexists(source) and not os.path.lexists(intent),
+         "retained source acquisition requires recovery, never reuse")
+    with intent.open("x", encoding="utf-8") as output:
+        os.chmod(intent, 0o600)
+        json.dump({"binding": plan["binding"], "source_commit": plan["source_commit"],
+                   "source_tree": plan["source_tree"], "automatic_retry": False,
+                   "authority": "none"}, output)
+        output.flush()
+        os.fsync(output.fileno())
+    check()
+    source.mkdir(mode=0o700)
+    acquire_public_checkout(source, plan, check)
+    check()
+    return {"source_commit": plan["source_commit"], "source_tree": plan["source_tree"],
+            "binding": plan["binding"], "acquired": True, "dependencies_prepared": False,
+            "native_acceptance": "not-established", "authority": "none"}
+
+
+def acquire_public_checkout(source, plan, check):
+    original_check = check
+    last_inventory = 0
+    def bounded_check():
+        nonlocal last_inventory
+        original_check()
+        if time.monotonic_ns() - last_inventory < 250_000_000:
+            return
+        last_inventory = time.monotonic_ns()
+        pending, entries, total = [source], 0, 0
+        while pending:
+            original_check()
+            current = pending.pop()
+            with os.scandir(current) as children:
+                for child in children:
+                    entries += 1
+                    need(entries <= 32768, "source acquisition inventory exceeds bound")
+                    info = child.stat(follow_symlinks=False)
+                    total += info.st_size
+                    need(total <= 512 * 1024 ** 2, "source acquisition bytes exceed bound")
+                    if stat.S_ISDIR(info.st_mode):
+                        pending.append(Path(child.path))
+    check = bounded_check
+    git(["init", "--quiet", "--template=", str(source)], check)
+    # Fixed public origin only. No URL/config from candidate or ambient Git state;
+    # no credentials, redirects, hooks, submodules, LFS/filter or lazy fetching.
+    command(["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+             "-c", "protocol.allow=never", "-c", "protocol.https.allow=always",
+             "-c", "credential.helper=", "-c", "http.followRedirects=false",
+             "-c", "http.sslVerify=true", "-c", "http.lowSpeedLimit=1024",
+             "-c", "http.lowSpeedTime=15", "-c", "fetch.recurseSubmodules=false",
+             "-c", "fetch.unpackLimit=1", "-c", "gc.auto=0",
+             "-C", str(source), "fetch", "--quiet", "--depth=1", "--no-tags",
+             "--no-recurse-submodules", "https://github.com/boburning/portcove.git",
+             plan["source_commit"]], check, maximum_file_bytes=256 * 1024 ** 2)
+    need(git(["-C", str(source), "rev-parse", "FETCH_HEAD"], check) == plan["source_commit"]
+         and git(["-C", str(source), "rev-parse", "FETCH_HEAD^{tree}"], check) == plan["source_tree"],
+         "acquired independent native identity differs")
+    inspect_source_tree(git(["-C", str(source), "ls-tree", "-r",
+                             "--format=%(objecttype) %(objectsize)", "FETCH_HEAD"],
+                            check, maximum_output_bytes=1024 ** 2))
+    command(["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+             "-c", "protocol.allow=never", "-c", "core.autocrlf=false", "-c", "core.symlinks=true",
+             "-C", str(source), "checkout", "--quiet", "--detach", plan["source_commit"]],
+            check, maximum_file_bytes=128 * 1024 ** 2)
+    verify_installed_source(source, plan, check)
+    harness = read_regular(source / "apps/desktop/scripts/desktop-test.mts", 1024 ** 2,
+                           (os.getuid(),), check)
+    need(hashlib.sha256(harness).hexdigest() == plan["harness_sha256"],
+         "acquired independent native harness differs")
+    last_inventory = 0
+    check()
+
+
+def read_source_dependencies(plan):
+    """Refuse known missing prerequisites before any privileged account effects."""
+    def check():
+        fence(plan)
+    check()
+    need(os.getuid() == plan["broker_uid"] != 0, "original dependency broker required")
+    source = WORKSPACE / "native-source"
+    verify_installed_source(source, plan, check)
+    records, total = dependency_snapshot(source, (0, os.getuid()), check)
+    check()
+    return {"binding": plan["binding"], "dependencies_prepared": True,
+            "entries": len(records), "bytes": total, "authority": "none"}
 
 
 def verify_installed_source(destination, plan, check):

@@ -1,5 +1,6 @@
 """Materialization contracts; no root, account, package install or candidate."""
 import copy
+import hashlib
 import importlib.util
 import os
 import sys
@@ -62,6 +63,87 @@ class Installation(unittest.TestCase):
 
 @unittest.skipUnless(sys.platform == "linux", "actual Linux file/link custody contracts")
 class DependencyGraph(unittest.TestCase):
+    def test_public_acquisition_exact_inputs_and_changed_input_refusals(self):
+        original_command = installation.command
+        for alteration in (None, "source_tree", "harness_sha256"):
+            with self.subTest(alteration=alteration), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                origin, destination = root / "origin", root / "destination"
+                origin.mkdir()
+                destination.mkdir()
+                def git(*arguments, origin=origin):
+                    return installation.git(["-C", str(origin), *arguments], lambda: None)
+                git("init", "--quiet")
+                harness = origin / "apps/desktop/scripts/desktop-test.mts"
+                harness.parent.mkdir(parents=True)
+                harness.write_text("inert reviewed harness")
+                git("add", ".")
+                git("-c", "user.name=Inert fixture", "-c", "user.email=fixture@example.invalid",
+                    "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "inert source")
+                selected = {**plan(), "source_commit": git("rev-parse", "HEAD"),
+                            "source_tree": git("rev-parse", "HEAD^{tree}"),
+                            "harness_sha256": hashlib.sha256(harness.read_bytes()).hexdigest()}
+                if alteration:
+                    selected[alteration] = "f" * len(selected[alteration])
+                observed = []
+                def local_transport(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536,
+                                    observed=observed, destination=destination, origin=origin, selected=selected):
+                    if "fetch" in arguments:
+                        observed.append((arguments, maximum_file_bytes))
+                        # Real Git mechanics using inert local objects only. The production
+                        # invocation is captured separately; no provider success is inferred.
+                        return original_command(["/usr/bin/git", "-c", "protocol.file.allow=always",
+                            "-C", str(destination), "fetch", "--quiet", "--depth=1", "--no-tags",
+                            str(origin), selected["source_commit"]], check, maximum_file_bytes)
+                    return original_command(arguments, check, maximum_file_bytes, maximum_output_bytes)
+                with patch.object(installation, "command", side_effect=local_transport):
+                    if alteration:
+                        with self.assertRaisesRegex(RuntimeError, "identity differs|harness differs"):
+                            installation.acquire_public_checkout(destination, selected, lambda: None)
+                    else:
+                        installation.acquire_public_checkout(destination, selected, lambda: None)
+                        self.assertEqual((destination / harness.relative_to(origin)).read_bytes(), harness.read_bytes())
+                self.assertEqual(len(observed), 1)
+                args, maximum = observed[0]
+                self.assertEqual(args[-2:], ["https://github.com/boburning/portcove.git", selected["source_commit"]])
+                self.assertEqual(maximum, 256 * 1024 ** 2)
+                for fixed in ("http.followRedirects=false", "http.sslVerify=true", "credential.helper=",
+                              "protocol.allow=never", "--no-recurse-submodules", "--no-tags", "--depth=1"):
+                    self.assertIn(fixed, args)
+                self.assertTrue(destination.exists(), "refusal must retain partial source")
+
+    def test_source_tree_preflight_refuses_large_or_nonblob_contents(self):
+        self.assertEqual(installation.inspect_source_tree("blob 1\nblob 2"), (2, 3))
+        for inventory in ("", "commit 123", "blob 134217729", "blob 134217728\n" * 3,
+                          "blob 1\n" * 32769):
+            with self.subTest(inventory=inventory[:50]), self.assertRaises(RuntimeError):
+                installation.inspect_source_tree(inventory)
+
+    def test_source_acquisition_cannot_run_as_root_or_after_parent_expiry(self):
+        with patch.object(installation, "fence") as fence, patch.object(installation.os, "getuid", return_value=0):
+            with self.assertRaisesRegex(RuntimeError, "non-root"):
+                installation.acquire_source(plan())
+            fence.assert_called_once()
+        with patch.object(installation, "fence", side_effect=RuntimeError("original parent expired")), \
+                patch.object(installation, "command") as command:
+            with self.assertRaisesRegex(RuntimeError, "parent expired"):
+                installation.acquire_source(plan())
+            command.assert_not_called()
+
+    def test_missing_dependencies_refuse_before_privileged_setup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "native-source").mkdir()
+            with patch.object(installation, "WORKSPACE", root), patch.object(installation, "fence"), \
+                    patch.object(installation.os, "getuid", return_value=1001), \
+                    patch.object(installation, "verify_installed_source"), \
+                    patch.object(installation, "command") as command:
+                with self.assertRaisesRegex(RuntimeError, "dependency root absent"):
+                    installation.read_source_dependencies(plan())
+                command.assert_not_called()
+        caller = Path(__file__).with_name("release-hosted-native-installation.mts").read_text()
+        self.assertLess(caller.index('"hosted-dependency-preflight"'), caller.index('"hosted-primitives"'))
+
     def test_installed_worktree_checks_refuse_actual_git_index_masks(self):
         for mask in ("--assume-unchanged", "--skip-worktree"):
             with self.subTest(mask=mask), tempfile.TemporaryDirectory() as temporary:
