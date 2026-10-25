@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-smash-bros-ultimate-ssbu-recomp",
+    "name": "Super Smash Bros. Ultimate (ssbu-recomp)",
+    "summary": "Experimental AArch64 to C/x64 static code plus system runtime, Vulkan with OpenGL fallback. Partial fighter script recovery is not whole-game recovered source. Upstream maturity: Scripted whole1v1 CPU match; several modes only scripted/reachable, World of Light intro only, 3–8players/etc untested; online experimental, rollback incomplete; physical pads unconfirmed. Acquisition: Source ZIP/clone plus Install SSBU.bat; private Python and downloaded runtime/tool releases, local game generation; no Visual Studio stated necessary. Platforms: Windows10/11 x64 primary; native Linux one CachyOS/NVIDIA/Wayland whole-match observation, in progress; Steam Deck untested. Original data: Own SSBU13.0.4 or13.0.5 dump and keys; owned updates/DLC applied locally. Firmware explicitly unnecessary; open-source fonts included. Exact regional hashes Unknown in root. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Super Smash Bros. Ultimate",
+    "project_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
+    "artwork": {
+      "game_id": 90101,
+      "cover_id": 96089,
+      "image_id": "co2255",
+      "image_sha256": "5a97625578f9d37f8c97ed1fd918be12a247b33fd7946b2274f8b6234838acd4",
+      "game_slug": "super-smash-bros-ultimate",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2935
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-smash-bros-ultimate-ssbu-recomp",
+    "origin": {
+      "project_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1415436686"
+      }
+    },
+    "decisions": []
+  }
+}

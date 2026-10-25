@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-smash-bros-ultimate-windowsmash",
+    "name": "Super Smash Bros. Ultimate (WindowSmash)",
+    "summary": "Experimental AArch64/NEON to C then x64; D3D11/HLSL runtime. Experimental Linux DXVK/Vulkan; Apple Silicon own Metal renderer. Upstream maturity: Experimental; menus/matches and Local Wireless run. Physical pads limited; full two-PC matches/online roster not fully verified; Mac matches untested. Acquisition: Source installer downloads tools/compiler and builds locally. Two alpha release tags have no assets. Platforms: Windows10/11 x64 AVX2/D3D11; experimental Linux source, exact CPU scope not pinned; Apple Silicon macOS14.5+ source with menus only observed. Original data: Own SSBU13.0.5 ONLY, base plus matching update or updated/merged dump; prod.keys/title.keys and firmware NCAs for fonts. XCI/NSP/NCA; expand NSZ/XCZ first. Source data may remain read at runtime. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Super Smash Bros. Ultimate",
+    "project_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
+    "artwork": {
+      "game_id": 90101,
+      "cover_id": 96089,
+      "image_id": "co2255",
+      "image_sha256": "5a97625578f9d37f8c97ed1fd918be12a247b33fd7946b2274f8b6234838acd4",
+      "game_slug": "super-smash-bros-ultimate",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2937
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-smash-bros-ultimate-windowsmash",
+    "origin": {
+      "project_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
+      "repository": {
+        "host": "github.com",
+        "id": "1423873803"
+      }
+    },
+    "decisions": []
+  }
+}

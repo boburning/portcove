@@ -3,13 +3,21 @@
   "listing": {
     "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
     "name": "The Legend of Zelda: Link's Awakening (2019 Switch) (LASRecomp)",
-    "summary": "Upstream route: Windows ZIP, macOS DMG, Linux x86_64/aarch64 AppImages; game library generated locally Limits: Beta despite GitHub prerelease=false; crashes/graphics issues and randomizer solvability limits remain. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 AppImage, macOS Apple-Silicon ARM64 DMG. Linux AArch64 AppImage is built but untested on real hardware. Original data: Own Switch game v1.0.0, v1.0.1 or v1.1.0; game-file preparation needed Portcove setup/gameplay not verified.",
+    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: Releasecontainsgenerator/compilerandlocalfirstsetupgamecodegeneration;Windowsx64AVX2/Vulkan1.3,AppleSiliconmacOS15+,Linuxx64;Linuxarm64experimental. Platforms: Releasecontainsgenerator/compilerandlocalfirstsetupgamecodegeneration;Windowsx64AVX2/Vulkan1.3,AppleSiliconmacOS15+,Linuxx64;Linuxarm64experimental. Original data: Own2019SwitchLinkAwakeningv1.0.0/v1.0.1/v1.1.0preparedfiles;optionalownSwitchfonts,replacementsdefault. Portcove setup/gameplay untested; no operational integration offered.",
     "original_game_title": "The Legend of Zelda: Link's Awakening (2019 Switch)",
     "project_url": "https://github.com/peiikai/LASRecomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/peiikai/LASRecomp",
-    "issue_number": 2617
+    "issue_number": 2617,
+    "artwork": {
+      "game_id": 115284,
+      "cover_id": 81482,
+      "image_id": "co1qve",
+      "image_sha256": "e9c009c493b3e1d4a9354ecb5f6ba9a6c00fe60664d370aad5cfdb18e1e956bb",
+      "game_slug": "the-legend-of-zelda-links-awakening--1",
+      "match_kind": "underlying-game"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

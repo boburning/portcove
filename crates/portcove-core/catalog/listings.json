@@ -2559,6 +2559,25 @@
       "issue_number": 2813
     },
     {
+      "id": "ace-attorney-investigations-collection-nxnative-aa-port",
+      "name": "Ace Attorney Investigations Collection (nxnative-aa-port)",
+      "summary": "Experimental Maintained nxnative-derived Apple per-title compatibility fork with desktop host profiles Upstream maturity: Investigations Collection: upstream Mac/iOS UnityIL2CPP dialogue, menus, save-load and input at1080p; no court or full-game claim. Acquisition: Sourcebuild Macdm/host/dmhost with title GAME and explicit patchedmodule/RomFS/shader/font/save paths; iOSscriptbuildsIPA. No release. External/player rebuild owner; exact forkupdate/save transition Unknown. Platforms: Apple Silicon Mac and iOS upstream profile observations; other desktop platforms unestablished. Original data: Ownbasev1.0.0,title010005501E68C000,prod.keys;patched_v0/extractRomFSandshader/savepaths. Region/fingerprintUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Ace Attorney Investigations Collection",
+      "project_url": "https://github.com/armyja/nxnative-aa-port",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/armyja/nxnative-aa-port",
+      "artwork": {
+        "game_id": 306152,
+        "cover_id": 527260,
+        "image_id": "cobau4",
+        "image_sha256": "f9cbf0ea108451edc1d6b70d39dde45819c8a15ec8d91eabafcec73cc1da55e7",
+        "game_slug": "ace-attorney-investigations-collection",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2977
+    },
+    {
       "id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
       "name": "Ace Combat 3: Electrosphere — USA / Ace Combat 3 USA Recomp",
       "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
@@ -7253,6 +7272,44 @@
       }
     },
     {
+      "id": "animal-crossing-new-horizons-acnhrecomp",
+      "name": "Animal Crossing: New Horizons (ACNHRecomp)",
+      "summary": "Experimental AArch64 main/sdk/subsdk0 to C++ native Vulkan from Wonder framework. Upstream maturity: Opening/island free walk30fps; first full-day/save unverified, forcing60fps doubles game speed, online unavailable, bird-head rendering bug. Acquisition: No releases; source launcher/bash setup imports/recompiles/builds locally; Windows setup requires Linux/Mac/WSL2. Platforms: Linux x64 Ubuntu/IrisXe tested. Apple Silicon MoltenVK scripts untested. Windows unsupported: launcher may build/use elsewhere-generated folder but no native pipeline offer. Android unsupported. Original data: Own ACNH baseNSP plus3.0.2updateNSP title01006F8002326000; prod.keys required, title.keys recommended, DLC optional. Separate firmware folder not required by root; exact regional/build digest Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Animal Crossing: New Horizons",
+      "project_url": "https://github.com/Nycolazs/ACNHRecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Nycolazs/ACNHRecomp",
+      "artwork": {
+        "game_id": 109462,
+        "cover_id": 182224,
+        "image_id": "co3wls",
+        "image_sha256": "55d9907677580f40512c38629624f31e4e8a39ef044342b3be22b04e117ce380",
+        "game_slug": "animal-crossing-new-horizons",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2957
+    },
+    {
+      "id": "apollo-justice-ace-attorney-trilogy-nxnative-aa-port",
+      "name": "Apollo Justice: Ace Attorney Trilogy (nxnative-aa-port)",
+      "summary": "Experimental Maintained nxnative-derived Apple per-title compatibility fork with desktop host profiles Upstream maturity: Apollo Justice456: upstream Mac/iOS Court Record/3D evidence, save-load,30fps/1080p (optional1440p). No full-collection playthrough claim. Acquisition: Sourcebuild Macdm/host/dmhost with title GAME and explicit patchedmodule/RomFS/shader/font/save paths; iOSscriptbuildsIPA. No release. External/player rebuild owner; exact forkupdate/save transition Unknown. Platforms: Apple Silicon Mac and iOS upstream profile observations; other desktop platforms unestablished. Original data: Ownbase+update1.0.0,title010020D01B890000,prod.keys;hostpatched_v65536/RomFS/shader/savepaths. Region/fingerprintUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Apollo Justice: Ace Attorney Trilogy",
+      "project_url": "https://github.com/armyja/nxnative-aa-port",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/armyja/nxnative-aa-port",
+      "artwork": {
+        "game_id": 252997,
+        "cover_id": 527100,
+        "image_id": "cobapo",
+        "image_sha256": "2e969fa4d32255a0d4e2952d418579b11e6b7aed75294821ce07dfebc268643b",
+        "game_slug": "apollo-justice-ace-attorney-trilogy",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2976
+    },
+    {
       "id": "arcanum-community-edition",
       "name": "Arcanum Community Edition",
       "summary": "Explore Arcanum Community Edition and follow the upstream project for requirements, downloads and setup.",
@@ -7288,6 +7345,25 @@
         "game_slug": "arx-fatalis",
         "match_kind": "underlying-game"
       }
+    },
+    {
+      "id": "astral-chain-ac-recomp",
+      "name": "Astral Chain (AC-Recomp)",
+      "summary": "Experimental AArch64 to C++ ahead of time, Wonder-derived native NVN/Vulkan/MoltenVK. AC means ASTRAL CHAIN, not Animal Crossing. Upstream maturity: Only File01 motorcycle chase; save/reload untested. Windows cloud scripted play,8GiB guard can stop long sessions around10min. Linux crash/rendering issues. Acquisition: Mac release build kit/Setup generates locally. Windows source ZIP mentioned but absent latest assets; initial Mac dependency explicit. Platforms: Mac Apple Silicon macOS13+ actual setup DMG/ZIP. Windows x64 AVX2 Vulkan1.3 early source AFTER Mac import. Linux x64 headless early; desktop/audio/pads untested. iOS paused. Original data: Own AstralChain1.0.0 BASE/no update NSP, own keys/titlekeys if needed. Firmware shared fonts optional with Noto fallback but missing icons/CJK. Initial import needs Mac; Windows consumes owned imported files/control receipt. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Astral Chain",
+      "project_url": "https://github.com/swaymun/AC-Recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/swaymun/AC-Recomp",
+      "artwork": {
+        "game_id": 115283,
+        "cover_id": 530181,
+        "image_id": "cobd39",
+        "image_sha256": "3ed1b6e9e12e94e02f3e3a56daeb1a8b28d348aaba1ddfbc686f01fc60cce5bd",
+        "game_slug": "astral-chain",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2956
     },
     {
       "id": "athelas-the-fellowship-of-the-ring-xbox",
@@ -7636,6 +7712,25 @@
         "game_slug": "medievil",
         "match_kind": "underlying-game"
       }
+    },
+    {
+      "id": "blade-ii-the-return-of-evil-blade2-mobile",
+      "name": "Blade II: The Return of Evil (blade2-mobile)",
+      "summary": "Experimental BladeII-specific AppleARM64 native-code rewrite/Horizon/NVN-Metal compatibility adaptation Upstream maturity: UpstreamMaclevels1–3+firstBoss60fps/audio/cutscenes/controller/saveclaim; iOSunrun. Performanceisupstreamboundedobservation. Acquisition: Localextract_game.sh,patch_nso on sdk/subsdk0/main,shaderiteration andmac_app_blade.sh produce.app/.dmg. No observedrelease; runtime/resourceproducts derivedlocally. Platforms: AppleSiliconmacOS documented; iOSarm64shellcompilesbutnophysicaldevice validation. NoWindows/Linuxroute. Original data: OwnXCI+prod.keys/extractedExeFS/RomFS. Example01009cc00e224000/updatev131072;exactacceptedrangeUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Blade II: The Return of Evil",
+      "project_url": "https://github.com/ha7rock/blade2-mobile",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/ha7rock/blade2-mobile",
+      "artwork": {
+        "game_id": 57547,
+        "cover_id": 38483,
+        "image_id": "s3ntgdgppc61kr1pupy9",
+        "image_sha256": "8e5848cb79d3a91a0ab0deebbb40125ec3250bb4eb9dbf892d1a915063f206c5",
+        "game_slug": "blade-ii-the-return-of-evil",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2979
     },
     {
       "id": "blake-stone-aliens-of-gold-bstone",
@@ -8914,6 +9009,25 @@
       }
     },
     {
+      "id": "dark-souls-remastered-switch-edition-lordran-native",
+      "name": "Dark Souls: Remastered — Switch edition (lordran-native)",
+      "summary": "Experimental Direct ARM64 game execution on Apple with kernel-instruction rewriting and Horizon/NVN-on-Metal host; not ARM-to-x64 C recompilation. Upstream maturity: Experimental Mac bring-up; graphics/device compatibility need validation; no inherited nxnative qualification. Acquisition: Release ZIP is unsigned game-free iOS shell build input, not installable app or complete IPA. Matching source/shell plus owned files build locally. Platforms: Apple Silicon Mac/Xcode local app; iOS26+ unsigned IPA. Windows10/11 x64 is packaging/shell workflow for Apple output, not Windows Dark Souls gameplay. Original data: Own baseNSP plus1.0.3 update v196608 title01004AB00A260000 and prod.keys. BOTH NSPs needed for shaders even packing base. Separate firmware input not specified. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Dark Souls: Remastered — Switch edition",
+      "project_url": "https://github.com/Nishikori-Yui/lordran-native",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Nishikori-Yui/lordran-native",
+      "artwork": {
+        "game_id": 81085,
+        "cover_id": 527471,
+        "image_id": "cobazz",
+        "image_sha256": "d771e09f7b625b6582e97039e70a453d9183ce9d00a7701eb50226777e187e79",
+        "game_slug": "dark-souls-remastered",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2949
+    },
+    {
       "id": "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
       "name": "Daytona USA (Sega Model 2 arcade) (Daytona USA static recompilation)",
       "summary": "Upstream route: Source setup builds locally from own ROM set on Windows/macOS/Linux; no GitHub releases. Limits: Playable desktop routes; experimental hardware renderer/link play/wheels. Android/iOS/Vita documented, Dreamcast only tested in Flycast. Setup installs toolchains/dependencies (Windows VS C++/Clang, mac Homebrew, Linux packages); updates require pulling and rerunning generation. Main builds have CI compile coverage, not a proof of runtime playthrough. Distinguish original arcade title from Daytona Championship USA or other console ports.... Upstream platforms: Documented local source-build route for Windows/macOS/Linux; no GitHub release package. Windows compiler/Clang and macOS/Linux toolchain setup required; selected host CPU coverage not mapped in frozen evidence. Original data: User-owned daytona93 (Deluxe93) or daytona (Revision A1994) MAME-format zip/7z; other sets rejected. Both generated privately. Portcove setup/gameplay not verified.",
@@ -9185,6 +9299,17 @@
       }
     },
     {
+      "id": "diablo-ii-resurrected-reign-of-the-warlock-d2r-mobile",
+      "name": "Diablo II: Resurrected — Reign of the Warlock (d2r-mobile)",
+      "summary": "Experimental DiabloIIResurrected-specific nativeARM64 compatibility host with Metal/Vulkan platform adaptations Upstream maturity: Upstream broadmobileplayability/performanceclaims; Macfirstversion and keyboard/gamepadactualoperationlimits remain inreadme. Do not inheritphysicaldeviceorfullgameguarantees. Acquisition: setup.sh preparespatchedmodules/shaders locally; mac_app.sh buildsMac.app (DM_MAC_M3 olderAPI). PublishediOSshellbuild-inputZIPs andAndroid/HarmonyOSshellassets need ownruntime/data; no prebuiltcommercialgame. Upstream/playerrebuilds afternewcommit. Platforms: AppleSiliconmacOS26+orolderAPI15–25 documented; Intelnot supported. iOS26/olderAPI18–25; AndroidARM64API31+/Vulkan1.1,HarmonyOS separatecommunityscope; tvOScharacterselectpreviewonly. Original data: OwnSwitchgame+expansion1.0.34.0(PC3.3.94012),matchingExeFS/RomFS,ownprod.keysforextraction; localpatchedmodules/shaders. Expansionrequired,otherbuildIDsnotassumed. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Diablo II: Resurrected — Reign of the Warlock",
+      "project_url": "https://github.com/jhaizhou-ops/d2r-mobile",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/jhaizhou-ops/d2r-mobile",
+      "issue_number": 2978
+    },
+    {
       "id": "digimon-world-psx-recomp-port",
       "name": "Digimon World / psx-recomp-port",
       "summary": "Explore Digimon World / psx-recomp-port and follow the upstream project for requirements, downloads and setup.",
@@ -9415,6 +9540,25 @@
       "availability": "unknown",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom",
       "issue_number": 2654
+    },
+    {
+      "id": "doraemon-story-of-seasons-friends-of-the-great-kingdom-macnativeports",
+      "name": "Doraemon Story of Seasons: Friends of the Great Kingdom (MacNativePorts)",
+      "summary": "Experimental Shared AppleARM64 rewrite/Horizon/NVN-Metal host with game overlays Upstream maturity: Upstreamtitle/terms/save/opening/Nobitaexits-house only.3Dworldterrain/shadows/transparency/postprocessing notinspected. Acquisition: Sourceonly: XcodeCLT/Python,makeprepare/runtime/boot GAME=dora. Inputhashmanifests guardmodule/resources. No completeplayerrelease; upstream/player ownsbuild/update. Platforms: AppleSiliconmacOS; noWindows/Linux/iOSplayer established here. Original data: Own title0100F5E0177AC000 game/keys; ownrewrittenmodules,extractedExeFS/RomFS/fonts,pergameexpectedhashmanifest. ExactversionUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Doraemon Story of Seasons: Friends of the Great Kingdom",
+      "project_url": "https://github.com/colonnellotong/MacNativePorts",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/colonnellotong/MacNativePorts",
+      "artwork": {
+        "game_id": 206815,
+        "cover_id": 229672,
+        "image_id": "co4x7s",
+        "image_sha256": "2e7c37a2a76da85a31607995ddfb74298d749844758eebbeee23088d4b3cb091",
+        "game_slug": "doraemon-story-of-seasons-friends-of-the-great-kingdom",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2980
     },
     {
       "id": "doukutsu-rs-doukutsu-rs",
@@ -10056,6 +10200,25 @@
       "availability": "unknown",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom",
       "issue_number": 2656
+    },
+    {
+      "id": "final-fantasy-resonance-ffresonancerecomp",
+      "name": "FINAL FANTASY RESONANCE (FFResonanceRecomp)",
+      "summary": "Experimental Game ARM64 statically rewritten and executed directly on Apple Silicon, nxnative-derived NVN-to-Metal; not x64 C port. Upstream maturity: Early claimed title/story/town/battles60fps;8/73496 shaders fail, missing compute effects, dark night scenes, crash risk. Acquisition: No releases. Source make build, Xcode MetalToolchain/Homebrew/.NET/Python,60GB and first shader build about2h. Platforms: macOS26+ Apple Silicon M1+ ONLY; IntelMac/Windows/Linux explicitly unsupported. Original data: Own baseNSP0100606026F12000 plus1.0.1updateNSP0100606026F12800 v65536, prod.keys. All rewritten code/shaders/icon local. Firmware input not specified; region/hash Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "FINAL FANTASY RESONANCE",
+      "project_url": "https://github.com/tomasvivaldi/FFResonanceRecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/tomasvivaldi/FFResonanceRecomp",
+      "artwork": {
+        "game_id": 405454,
+        "cover_id": 569884,
+        "image_id": "coc7q4",
+        "image_sha256": "613d72460c0e6fbe5696f1d83ff59d06a2a8947b0c047962e45510a0a45bc04c",
+        "game_slug": "final-fantasy-resonance",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2953
     },
     {
       "id": "final-fantasy-tactics-advance-fftarecomp",
@@ -11451,13 +11614,21 @@
     {
       "id": "k0nl-b2recomp",
       "name": "Bayonetta 2 (B2recomp)",
-      "summary": "Upstream route: B2recomp-builder ZIP compiles native game locally from own plainExeFS/RomFSv1.2; no encryptedpackage decryption/keys. Upstream builder owns toolchain/generation. Linuxbuilder testing, not a uniform ready-made runtime. Limits: Upstream only: Upstream describes local Switch recompilation with exact v1.2 input gate. Linux/older-GPU limits remain; completeness is an upstream claim only. Windows builder ZIP, not ready-made runtime; compiles AArch64 code locally with reimplemented NVN Vulkan layer. Preserve full-game maturity limitations from primary documentation. Upstream platforms: Windows 10/11 x64 Vulkan 1.3 builder; Linux builder testing. Polaris Windows workaround adds shader hitches. Original data: Own Bayonetta2 Switch v1.2(updatev131072), extracted plain ExeFS+RomFS. Encrypted NSP/XCI/NCA and keys are refused; project decrypts nothing. Local builder compiles on player machine. Other revisions/regions unsupported unless separately checked; no original BIOS input specified. Portcove setup/gameplay not verified.",
+      "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Platforms: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Original data: OwnBayonetta2v1.2/updatev131072alreadydecryptedExeFS/RomFS;encryptedpackages/keysrefused. Portcove setup/gameplay untested; no operational integration offered.",
       "original_game_title": "Bayonetta 2",
       "project_url": "https://github.com/K0NL/B2recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/K0NL/B2recomp",
-      "issue_number": 2755
+      "issue_number": 2755,
+      "artwork": {
+        "game_id": 279336,
+        "cover_id": 525392,
+        "image_id": "cob9e8",
+        "image_sha256": "14c7b600fd0d0e2b298951f6ce8fb6a173b4b9d28b5c5f81af1978f950dd178a",
+        "game_slug": "bayonetta-2--1",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "kaikoclanworth1-buffy-chaos-bleeds-pc",
@@ -11692,6 +11863,25 @@
         "image_id": "co1wcz",
         "image_sha256": "89a352d789e3b4c813e537af3a77f2cdd5610d50bfdd9a610001e7efb2ef73ef",
         "game_slug": "kirby-64-the-crystal-shards",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "kirby-and-the-forgotten-land-nxport",
+      "name": "Kirby and the Forgotten Land (nxport)",
+      "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: iOS/macOS tested upstream; invisibleexhale/shadowrounding; exactversion Unknown. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for Kirby and the Forgotten Land. Exactacceptedversion/region/titleID Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Kirby and the Forgotten Land",
+      "project_url": "https://github.com/nxporting/nxport",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/nxporting/nxport",
+      "issue_number": 2968,
+      "artwork": {
+        "game_id": 172427,
+        "cover_id": 180932,
+        "image_id": "co3vlw",
+        "image_sha256": "b8e49e86f247d86702968589428cbdb7544dac07c7ab55ccca56ee13539e61ef",
+        "game_slug": "kirby-and-the-forgotten-land",
         "match_kind": "underlying-game"
       }
     },
@@ -12040,6 +12230,63 @@
       }
     },
     {
+      "id": "mario-kart-8-deluxe-mk8-recomp",
+      "name": "Mario Kart 8 Deluxe (mk8-recomp)",
+      "summary": "Experimental Current native integration uses static CPU modules/native Vulkan/services. Older suyu hybrid AOT+JIT tracks explicitly historical and retired. Upstream maturity: Claims four-course Mushroom Cup, native save/restart and59.50–59.96fps controls; full-game and true125/250fps unresolved. Acquisition: No releases/tags/assets. Game-linked binaries prohibited; source/tooling only after provenance review. Current local integration generates private modules. Platforms: Current native consumer OS/CPU matrix not established by root independently of retired suyu benchmarks. Original data: Own previously extracted MK8D inputs matching current native integration profile. Root does not pin current game update/region/hashes or key/firmware needs. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Mario Kart 8 Deluxe",
+      "project_url": "https://github.com/dougchansan/mk8-recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/dougchansan/mk8-recomp",
+      "artwork": {
+        "game_id": 26764,
+        "cover_id": 94741,
+        "image_id": "co213p",
+        "image_sha256": "0091f5120a0c7c1d7cbfb451728c9ce60e24e13e2f659d4a5a1277b984cc4173",
+        "game_slug": "mario-kart-8-deluxe",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2945
+    },
+    {
+      "id": "mario-kart-8-deluxe-nxport",
+      "name": "Mario Kart 8 Deluxe (nxport)",
+      "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: v3.0.4macOS tested upstream; time-trials,multiplayer,online,wireless crash. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for Mario Kart 8 Deluxe. Version3.0.4 documented. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Mario Kart 8 Deluxe",
+      "project_url": "https://github.com/nxporting/nxport",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/nxporting/nxport",
+      "artwork": {
+        "game_id": 26764,
+        "cover_id": 94741,
+        "image_id": "co213p",
+        "image_sha256": "0091f5120a0c7c1d7cbfb451728c9ce60e24e13e2f659d4a5a1277b984cc4173",
+        "game_slug": "mario-kart-8-deluxe",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2970
+    },
+    {
+      "id": "mario-kart-8-deluxe-racing-8-dx-recomp",
+      "name": "Mario Kart 8 Deluxe (Racing-8-DX-Recomp)",
+      "summary": "Experimental Documented strict AOT via SUYU_NO_JIT=ON, native Vulkan. Emulator-derived ancestry alone does not prove runtime CPU JIT; strict coverage remains unexecuted. Upstream maturity: Upstream AMD60fps races/4players claims; DLSS compiled but never tested NVIDIA, above60 game FPS planned. Acquisition: Tagv0.1.0 has ZERO assets. Source launcher generates game and personal AppImage; no downloadable AppImage proven. Platforms: Linux/AppImage workflow claimed; exact CPU not stated. Windows planned; Android development. Original data: Own base plus3.0.4 update, optional owned DLC, own keys and firmware; private generated rtld/main/subsdk modules. Region/build digest Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Mario Kart 8 Deluxe",
+      "project_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
+      "artwork": {
+        "game_id": 26764,
+        "cover_id": 94741,
+        "image_id": "co213p",
+        "image_sha256": "0091f5120a0c7c1d7cbfb451728c9ce60e24e13e2f659d4a5a1277b984cc4173",
+        "game_slug": "mario-kart-8-deluxe",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2946
+    },
+    {
       "id": "mario-kart-super-circuit-recomp",
       "name": "Mario Kart: Super Circuit Recomp",
       "summary": "Explore Mario Kart: Super Circuit Recomp and follow the upstream project for requirements, downloads and setup.",
@@ -12333,6 +12580,25 @@
       }
     },
     {
+      "id": "metroid-dread-metroid-dread-recomp",
+      "name": "Metroid Dread (Metroid-Dread-Recomp)",
+      "summary": "Experimental AArch64 to C ahead of time; native host runtime, Vulkan/OpenGL graphics. Upstream maturity: 0.x early previews, proper1.0 planned; crashes/setup/hardware rough edges. No Portcove test. Acquisition: Release launcher bundles GCC/Python and compiles game locally on first start. Upstream launcher owns update/undo. Platforms: Windows x64 release ZIP. Linux/Steam Deck scripts exist; exact native Linux CPU/build/testing scope not established by root README. Original data: Own Metroid Dread 2.1.0 ExeFS (main/main.npdm and companions) plus RomFS with update merged. RomFS alone is insufficient. Separate base/update dumps accepted. No separate keys/firmware input described for extracted route; exact region/executable digest Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Metroid Dread",
+      "project_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
+      "issue_number": 2934,
+      "artwork": {
+        "game_id": 15698,
+        "cover_id": 526516,
+        "image_id": "coba9g",
+        "image_sha256": "37c73a03d0d783e2f57efb3a3da627ca1a4f095edf72b0f29dd7fcc005d35789",
+        "game_slug": "metroid-dread",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "metroid-prime-hunters-metroidprimehuntersrecomp",
       "name": "Metroid Prime Hunters / MetroidPrimeHuntersRecomp",
       "summary": "Explore Metroid Prime Hunters / MetroidPrimeHuntersRecomp and follow the upstream project for requirements, downloads and setup.",
@@ -12349,6 +12615,25 @@
         "game_slug": "metroid-prime-hunters",
         "match_kind": "underlying-game"
       }
+    },
+    {
+      "id": "metroid-prime-remastered-switch-edition-metroidprimeremasteredrecomp",
+      "name": "Metroid Prime Remastered — Switch edition (MetroidPrimeRemasteredRecomp)",
+      "summary": "Experimental Switch AArch64 to C++ with Windows native NVN/Vulkan; source build_mpr.cmd explicitly lifts game code. Upstream maturity: Earlyv0.1: manual opening Frigate to early Tallon/ChozoRuins; all275area load test is not playthrough. Controller vertical aim broken; physical pads/HDR/real fullscreen untested; rare loading crashes. Acquisition: Official launcher imports own package; source build separately lifts. Player setup text does not explicitly establish whether distributed release already includes translated game code. Platforms: Actual Windows x64 ZIP; Windows10v1903+/11 Vulkan1.3; RTX3080 only, AMD/Intel untested. No other desktop route. Original data: Own1.0.0 BASE only, no update/patch. NSP/XCI/NSZ/XCZ plus prod.keys; title.keys when needed. Exact title/region/digest not stated. XCI/NSZ/XCZ tested only synthetic containers. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Metroid Prime Remastered — Switch edition",
+      "project_url": "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp",
+      "artwork": {
+        "game_id": 236663,
+        "cover_id": 528309,
+        "image_id": "cobbn9",
+        "image_sha256": "5d6851f3dffbac0064b88197f16902c17162fe0a236f02f3a558567d0665dd06",
+        "game_slug": "metroid-prime-remastered",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2951
     },
     {
       "id": "midnight-club-los-angeles-complete-edition-mcla-recomp",
@@ -12420,6 +12705,25 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2779
+    },
+    {
+      "id": "monster-hunter-generations-ultimate-mhgurecomp",
+      "name": "Monster Hunter Generations Ultimate (MHGURecomp)",
+      "summary": "Experimental 32-bit ARM to C, NOT AArch64. Host x64. Code-changing cheats run modified functions in an interpreter fallback; no blanket no-interpreter claim. Upstream maturity: Upstream dozen hunts/multiplayer fully-playable claim only; no reviewer play. Package no-gamefiles banner does not resolve translated code/donor data. Acquisition: Release layout includes mhgugame.dll; README explicitly identifies DLL/SO as translated game code and excludes that from project license. Release notes include optional donor save/event data. Hold package acquisition pending exact contents/permission; local-generation source route separately researchable. Platforms: Windows10/11 x64 AVX2 Vulkan1.2. Actual Windows/ArchLinux ZIPs; native Linux source tested Gentoo/NVIDIA/Wayland. NonAVX2 v2 flag untested. Original data: Own1.4.0 title0100770008DD8000, main build prefixFB08F1D20FD1204F; updateExeFS plus baseRomFS with update merged. Full folders under data. No separate keys/firmware described after extraction. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Monster Hunter Generations Ultimate",
+      "project_url": "https://github.com/morerokk/MHGURecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/morerokk/MHGURecomp",
+      "artwork": {
+        "game_id": 25623,
+        "cover_id": 68007,
+        "image_id": "m0l4ma2qdh7z2m5o6m5l",
+        "image_sha256": "334be9baad6545b640749152a29be9ca725450762735371038478d5afe92205f",
+        "game_slug": "monster-hunter-generations-ultimate",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2950
     },
     {
       "id": "monster-hunter-portable-3rd-hd-yakumo",
@@ -13711,6 +14015,25 @@
       "issue_number": 2891
     },
     {
+      "id": "phoenix-wright-ace-attorney-trilogy-nxnative-aa-port",
+      "name": "Phoenix Wright: Ace Attorney Trilogy (nxnative-aa-port)",
+      "summary": "Experimental Maintained nxnative-derived Apple per-title compatibility fork with desktop host profiles Upstream maturity: Phoenix Wright123: upstream Mac/iOS play and save-load fix; keyboard/controller/mouse-as-touch. No full-collection playthrough claim. Acquisition: Sourcebuild Macdm/host/dmhost with title GAME and explicit patchedmodule/RomFS/shader/font/save paths; iOSscriptbuildsIPA. No release. External/player rebuild owner; exact forkupdate/save transition Unknown. Platforms: Apple Silicon Mac and iOS upstream profile observations; other desktop platforms unestablished. Original data: Ownbase+update1.1.0,title0100CB000A142000,prod.keys;hostpatched_v196608/RomFS/fonts/shader/savepaths. Region/fingerprintUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Phoenix Wright: Ace Attorney Trilogy",
+      "project_url": "https://github.com/armyja/nxnative-aa-port",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/armyja/nxnative-aa-port",
+      "artwork": {
+        "game_id": 21610,
+        "cover_id": 476311,
+        "image_id": "coa7iv",
+        "image_sha256": "2c44a1fe9a10ead405017090442fbbf7e00b765c77afe69d63f1c6ceba0c61e0",
+        "game_slug": "phoenix-wright-ace-attorney-trilogy",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2975
+    },
+    {
       "id": "pilotwings-64-dgv-recomp",
       "name": "Pilotwings 64: Recompiled (Daniel Gomes Vieira)",
       "summary": "Explore Pilotwings 64: Recompiled (Daniel Gomes Vieira) and follow the upstream project for requirements, downloads and setup.",
@@ -13908,6 +14231,63 @@
       "issue_number": 2872
     },
     {
+      "id": "pokemon-legends-z-a-pokez-arecomp",
+      "name": "Pokémon Legends: Z-A (PokeZ-ARecomp)",
+      "summary": "Experimental AArch64 to C/x64 static runtime NVN/Vulkan, LAS-derived; no runtime emulator claimed. Upstream maturity: Only Windows/NVIDIA observed; partial Lumiose exploration/battles, no full completion established; black flashes/night wall stripes. Save version conversion caveat. Acquisition: Actual Windows ZIP launcher contains game-free runtime/generator/importer/compiler by root claim; own package locally imported/recompiled once. Platforms: Windows10v1903+/11 x64 Vulkan1.3, AVX2 preferred; SSE4.2 older CPU slower fallback. Linux/Mac inherited builds untested for Z-A. Original data: Own baseXCI/NSP1.0.0, optional2.0.0update and owned DLC, prod.keys/title.keys. Firmware fonts optional: Windows fallback font otherwise missing button icons.2.0.0 saves do not load on1.0.0; back up before conversion. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Pokémon Legends: Z-A",
+      "project_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
+      "artwork": {
+        "game_id": 288327,
+        "cover_id": 462648,
+        "image_id": "co9wzc",
+        "image_sha256": "b731dd3b6d01317ffbc27d55c098d05ef340f5c6305a4fd46cc9d39bdc703866",
+        "game_slug": "pokemon-legends-z-a",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2959
+    },
+    {
+      "id": "pokemon-let-s-go-eevee-letsgo-recomp",
+      "name": "Pokémon: Let’s Go, Eevee! (letsgo-recomp)",
+      "summary": "Experimental AArch64 to C static host code and LAS-derived Vulkan runtime. Upstream maturity: WIP, no full playthrough; Eevee1.0.0 most tested, Pikachu less. Online/PokéBallPlus/second player unsupported. Higher FPS, frame generation and wild battles experimental. Acquisition: Actual Windows ZIP launcher imports/copies and recompiles game locally once. One folder per game. Platforms: Windows10/11 x64 SSE4.2, AVX2 recommended, Vulkan1.3. No other native desktop route established. Original data: Own corresponding Eevee or Pikachu extracted ExeFS/RomFS, any region. Base1.0.0 offers all options;1.0.1/1.0.2 accepted with fewer options/less testing. XCI/NSP must be extracted first. Separate keys/firmware not described after extraction. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Pokémon: Let’s Go, Eevee!",
+      "project_url": "https://github.com/raulzrrs/letsgo-recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/raulzrrs/letsgo-recomp",
+      "issue_number": 2939,
+      "artwork": {
+        "game_id": 102873,
+        "cover_id": 92735,
+        "image_id": "co1zjz",
+        "image_sha256": "0dacb4e6e10b389c28590062eb7e5b7b4b68184d1999cddb48e1a072dd5112d3",
+        "game_slug": "pokemon-lets-go-eevee",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "pokemon-let-s-go-pikachu-letsgo-recomp",
+      "name": "Pokémon: Let’s Go, Pikachu! (letsgo-recomp)",
+      "summary": "Experimental AArch64 to C static host code and LAS-derived Vulkan runtime. Upstream maturity: WIP, no full playthrough; Eevee1.0.0 most tested, Pikachu less. Online/PokéBallPlus/second player unsupported. Higher FPS, frame generation and wild battles experimental. Acquisition: Actual Windows ZIP launcher imports/copies and recompiles game locally once. One folder per game. Platforms: Windows10/11 x64 SSE4.2, AVX2 recommended, Vulkan1.3. No other native desktop route established. Original data: Own corresponding Eevee or Pikachu extracted ExeFS/RomFS, any region. Base1.0.0 offers all options;1.0.1/1.0.2 accepted with fewer options/less testing. XCI/NSP must be extracted first. Separate keys/firmware not described after extraction. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Pokémon: Let’s Go, Pikachu!",
+      "project_url": "https://github.com/raulzrrs/letsgo-recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/raulzrrs/letsgo-recomp",
+      "issue_number": 2940,
+      "artwork": {
+        "game_id": 25877,
+        "cover_id": 92734,
+        "image_id": "co1zjy",
+        "image_sha256": "96b88558ba797f3257b777cb850e5f64541e241256049615e3e980599e4e5a31",
+        "game_slug": "pokemon-lets-go-pikachu",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "pokemon-platinum-pokeplatinum-pc-port-lead",
       "name": "Pokémon Platinum / pokeplatinum PC-port lead",
       "summary": "Explore Pokémon Platinum / pokeplatinum PC-port lead and follow the upstream project for requirements, downloads and setup.",
@@ -14035,6 +14415,25 @@
         "game_slug": "pokemon-stadium",
         "match_kind": "underlying-game"
       }
+    },
+    {
+      "id": "pokemon-sword-swsh-recomp",
+      "name": "Pokémon Sword (swsh-recomp)",
+      "summary": "Experimental AArch64 to C static host from LetsGo/LAS, Vulkan. Upstream maturity: Sword1.3.2 plus DLC on onePC; no full playthrough, memory growth,60fps experimental, title flicker; no online/trades/raids. Acquisition: Actual Windows ZIP imports/copies and locally recompiles, about40min on20threads; DLC not automated; no other desktop offer. Platforms: Windows10/11 x64 AVX2/FMA/BMI2, Vulkan1.3; RTX3080 only, AMD/Intel/iGPU untested. Original data: Own Pokémon Sword1.3.2 already-extracted updated exefs/romfs folders; optional matching owned DLC. XCI/NSP must be extracted externally first. No keys input is described in this launcher route; external extraction requirements are separate. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Pokémon Sword",
+      "project_url": "https://github.com/raulzrrs/swsh-recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/raulzrrs/swsh-recomp",
+      "artwork": {
+        "game_id": 37382,
+        "cover_id": 92738,
+        "image_id": "co1zk2",
+        "image_sha256": "0b6e1646a1fd74cb464de3281a839059ff1591ce24581228447cdb6941b24dc0",
+        "game_slug": "pokemon-sword",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2954
     },
     {
       "id": "pokemon-yellow-gen1recomp",
@@ -15588,7 +15987,7 @@
     {
       "id": "sonsegajp-hwder",
       "name": "Hyrule Warriors: Definitive Edition / Hyrule Warriors: Definitive Edition Recomp (sonsegajp)",
-      "summary": "Explore Hyrule Warriors: Definitive Edition / Hyrule Warriors: Definitive Edition Recomp (sonsegajp) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Experimental AArch64 to C then Windows x64 native executable; custom kernel/services/GPU Vulkan. Runtime reads original NSO segments/data from owned package; no CPU JIT claimed. Upstream maturity: Upstream boot/menus/movies/Adventure/Legend battles/saves/audio claims, test prereleases; no independent play/qualification. Acquisition: Actual win64 test ZIPs. Source build explicitly generates C from dump; player-release instructions only provide NSP/keys to packaged executable, so do not assert first-run local game-code generation absent further evidence. Platforms: Windows10/11 x64 AVX2 Vulkan1.2; MediaFoundation required for movies (N edition extra featurepack). No other desktop offer. Original data: Own base NSP title0100AE00096EA000 and prod.keys. Runtime decrypts ExeFS/RomFS directly; exact base revision/region fingerprint and firmware/font dependency not established by root. Separate musoh matching project targets1.0.1 and must not overwrite this base profile. Portcove setup/gameplay untested; no operational integration offered.",
       "project_url": "https://github.com/sonsegajp/HWDER",
       "issue_number": 1827,
       "platforms": [],
@@ -16213,6 +16612,63 @@
       }
     },
     {
+      "id": "super-mario-bros-35-sm35recomp",
+      "name": "Super Mario Bros. 35 (sm35recomp)",
+      "summary": "Experimental SMM2-derived AArch64 to C static runtime Metal/Vulkan. Upstream maturity: Two-player Mac+iPad matching-to-ranking tests; long many-player/Windows/Linux hardware untested. One device per internet connection per match limitation. Acquisition: Official launcher/recompiler packages build locally; Nextendo community sign-in/server, not Nintendo. Platforms: Actual Mac15+ Apple Silicon, Windows x64 AVX2, Linux x64 AVX2/aarch64 packages. Windows/Linux real hardware untested. iOS source played; Android source untried. Original data: Own base plus1.0.2 update, prod.keys and firmware; NSP/XCI or extracted ExeFS/RomFS. Version checked. Current legal acquisition availability not established; owned dump only. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Mario Bros. 35",
+      "project_url": "https://github.com/sm35recomp/sm35recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/sm35recomp/sm35recomp",
+      "artwork": {
+        "game_id": 138235,
+        "cover_id": 157355,
+        "image_id": "co3dez",
+        "image_sha256": "0d8dac8da8263960ad7a40de1fb93f31153a3ab45bb9f6b55e13ec5237817fc8",
+        "game_slug": "super-mario-bros-35",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2948
+    },
+    {
+      "id": "super-mario-bros-wonder-nxport",
+      "name": "Super Mario Bros. Wonder (nxport)",
+      "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: macOS tested upstream; question-markbuttonprompts; exactversion Unknown. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for Super Mario Bros. Wonder. Exactacceptedversion/region/titleID Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Mario Bros. Wonder",
+      "project_url": "https://github.com/nxporting/nxport",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/nxporting/nxport",
+      "artwork": {
+        "game_id": 254339,
+        "cover_id": 310593,
+        "image_id": "co6nnl",
+        "image_sha256": "705e383706f6007474af88c107b779702a5a1616f20aecd60e8d1efb9bd1e68d",
+        "game_slug": "super-mario-bros-wonder",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2969
+    },
+    {
+      "id": "super-mario-bros-wonder-supermariowonderrecomp",
+      "name": "Super Mario Bros. Wonder (SuperMarioWonderRecomp)",
+      "summary": "Experimental AArch64 to C++ with NVN to Vulkan/MoltenVK; not direct ARM execution just because Apple host. Upstream maturity: Title/select/opening/world map/course1-1 draw.60fps headless test; visible-window stretches35–40fps, glitch fixes unconfirmed. No full-game claim. Acquisition: No frozen releases. Source recompile/shader translation/build; local owned files and development tools. Platforms: Apple Silicon Mac reference; Windows x64 Vulkan1.3 with documented GPUs; Android arm64 separately. Linux NOT ported (missing platform/memguard/CMake path). Original data: Own Wonder1.0.0 title010015100B514000 ExeFS/RomFS plus own keys and firmware. Generated game/shader/font outputs private. Exact region/digest Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Mario Bros. Wonder",
+      "project_url": "https://github.com/BluetufieBugado/SuperMarioWonderRecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/BluetufieBugado/SuperMarioWonderRecomp",
+      "artwork": {
+        "game_id": 254339,
+        "cover_id": 310593,
+        "image_id": "co6nnl",
+        "image_sha256": "705e383706f6007474af88c107b779702a5a1616f20aecd60e8d1efb9bd1e68d",
+        "game_slug": "super-mario-bros-wonder",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2941
+    },
+    {
       "id": "super-mario-galaxy-nebula",
       "name": "Super Mario Galaxy (Nebula)",
       "summary": "Upstream route: Installer/update ownership route, not blindly extracted portable ZIP; good high-interest target. Limits: Upstream says start-to-finish playable; bugs remain. Installer/update ownership retained upstream. Upstream platforms: Windows10 1803+/11 x86-64 installer; AVX2 CPU and D3D12 GPU required. Upstream installer/updater owns preparation. Original data: Own USA RMGE01 revision0 ISO/RVZ/extracted folder. Windows10 1803+/11 x64, AVX2, D3D12 GPU. Portcove setup/gameplay not verified.",
@@ -16222,6 +16678,82 @@
       "availability": "unknown",
       "setup_url": "https://github.com/keepvaibin/nebula",
       "issue_number": 2613
+    },
+    {
+      "id": "super-mario-maker-2-smm2recomp",
+      "name": "Super Mario Maker 2 (smm2recomp)",
+      "summary": "Experimental AArch64 to C ahead of time; native Horizon/NVN runtime Metal/Vulkan. Upstream maturity: Early. Mac course play reference; Windows tester reports; Deck slow, Linux ARM title in VM; Android emulator only. Online Nextendo untested on hardware. Acquisition: Packages are launcher/recompiler plus compiler; first setup validates and builds owned game locally. Platforms: Actual Windows x64(x86-64-v2), Linux x64(v2)/aarch64, Apple Silicon macOS15+ packages. Intel Mac15+ AVX2 source-only; Android/iOS source-only. Original data: Own SMM2 base plus3.0.3 update, NSP/XCI or extracted ExeFS/RomFS; prod.keys and firmware system NCAs for fonts/Mii. Optional100MarioChallenge needs separate owned WiiU SMM1 dump. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Mario Maker 2",
+      "project_url": "https://github.com/smm2recomp/smm2recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/smm2recomp/smm2recomp",
+      "artwork": {
+        "game_id": 115276,
+        "cover_id": 95758,
+        "image_id": "co21vy",
+        "image_sha256": "cfd076b6bc7b597982693bbe91033403660f665255f0186dca2878cb8f0da2e0",
+        "game_slug": "super-mario-maker-2",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2943
+    },
+    {
+      "id": "super-mario-odyssey-macnativegames",
+      "name": "Super Mario Odyssey (MacNativeGames)",
+      "summary": "Experimental Game-specific native ARM64 rewriting/compatibility host on Apple Silicon; community port with its own runtime. Upstream maturity: Early community port; Cap Kingdom/Bonneton only, not full-game completion. Acquisition: Source build using games/odyssey/README.md; generated app/game contents remain private. Exact title-specific prerequisites require that pinned guide. Platforms: Apple Silicon Mac; opening Cap Kingdom/Bonneton at60fps on M3 claimed upstream. Other platforms unestablished. Original data: Own Super Mario Odyssey1.3.0. Exact region, executable fingerprints and title-specific extraction/key/font requirements remain to be checked in its separate guide. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Mario Odyssey",
+      "project_url": "https://github.com/ly05010419/MacNativeGames",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/ly05010419/MacNativeGames",
+      "artwork": {
+        "game_id": 26758,
+        "cover_id": 76371,
+        "image_id": "co1mxf",
+        "image_sha256": "5ccd15456fc6ab74eba1c578cf3dc80adbfc7cf73a48fbe2dea3ecd710e077ca",
+        "game_slug": "super-mario-odyssey",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 3024
+    },
+    {
+      "id": "super-mario-odyssey-nxport",
+      "name": "Super Mario Odyssey (nxport)",
+      "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: Renderinglooks good upstream; possiblesavebug,exactplatform/version Unknown underApple-onlygeneral scope. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for Super Mario Odyssey. Exactacceptedversion/region/titleID Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Mario Odyssey",
+      "project_url": "https://github.com/nxporting/nxport",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/nxporting/nxport",
+      "artwork": {
+        "game_id": 26758,
+        "cover_id": 76371,
+        "image_id": "co1mxf",
+        "image_sha256": "5ccd15456fc6ab74eba1c578cf3dc80adbfc7cf73a48fbe2dea3ecd710e077ca",
+        "game_slug": "super-mario-odyssey",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2971
+    },
+    {
+      "id": "super-mario-odyssey-smo-recomp",
+      "name": "Super Mario Odyssey (smo-recomp)",
+      "summary": "Experimental AArch64 to C game DLL plus own Windows native runtime/Vulkan; no interpreter/JIT or running firmware claimed. Upstream maturity: Early; scripted Cap Kingdom and short stage stress, manual Cap to Cascade checkpoint. Some observations from1.0.0 predate1.4.1; update additions untested; no online. Acquisition: No releases; local setup with LLVM9/VS2019 SDK/VulkanSDK/SDL3/Python lifts/compiles from owned dump. Platforms: Windows10/11 x64 Vulkan1.3; developed RTX4090; listed required Vulkan extensions. No other desktop offer. Original data: Own decrypted SMO1.4.1 updated program, merged RomFS and update control data. Keys/firmware explicitly unnecessary for this extracted route. Exact region/build fingerprints not exposed. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Mario Odyssey",
+      "project_url": "https://github.com/Coz-0/smo-recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Coz-0/smo-recomp",
+      "artwork": {
+        "game_id": 26758,
+        "cover_id": 76371,
+        "image_id": "co1mxf",
+        "image_sha256": "5ccd15456fc6ab74eba1c578cf3dc80adbfc7cf73a48fbe2dea3ecd710e077ca",
+        "game_slug": "super-mario-odyssey",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2944
     },
     {
       "id": "super-mario-rpg-legend-of-the-seven-stars-supermariorpgrecomp",
@@ -16386,6 +16918,63 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2614
+    },
+    {
+      "id": "super-smash-bros-ultimate-ssbu-arena",
+      "name": "Super Smash Bros. Ultimate (ssbu-arena)",
+      "summary": "Experimental Explicit independently maintained OpenSmash fork: AArch64 to C, Windows native runtime/Vulkan, own competitive relay/rollback. Upstream maturity: Competitive1v1 only. Rollback/network impairment tested in two windows on ONE PC; ranked/Elo/replays planned. Acquisition: README source installer/local build. Latest frozenv0.2.7 actually includes SSBU-Arena.exe, runtime ZIP and manifest, contradicting README no-prebuilt-runtime statement. Platforms: Windows10/11 x64 primary; Linux/macOS guide links alone do not establish exact CPU/gameplay offer. Original data: Own SSBU13.0.4 or13.0.5 dump and keys, owned update/DLC. Root does not clearly establish separate firmware requirement. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Smash Bros. Ultimate",
+      "project_url": "https://github.com/Acid236/ssbu-arena",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Acid236/ssbu-arena",
+      "artwork": {
+        "game_id": 90101,
+        "cover_id": 96089,
+        "image_id": "co2255",
+        "image_sha256": "5a97625578f9d37f8c97ed1fd918be12a247b33fd7946b2274f8b6234838acd4",
+        "game_slug": "super-smash-bros-ultimate",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2938
+    },
+    {
+      "id": "super-smash-bros-ultimate-ssbu-recomp",
+      "name": "Super Smash Bros. Ultimate (ssbu-recomp)",
+      "summary": "Experimental AArch64 to C/x64 static code plus system runtime, Vulkan with OpenGL fallback. Partial fighter script recovery is not whole-game recovered source. Upstream maturity: Scripted whole1v1 CPU match; several modes only scripted/reachable, World of Light intro only, 3–8players/etc untested; online experimental, rollback incomplete; physical pads unconfirmed. Acquisition: Source ZIP/clone plus Install SSBU.bat; private Python and downloaded runtime/tool releases, local game generation; no Visual Studio stated necessary. Platforms: Windows10/11 x64 primary; native Linux one CachyOS/NVIDIA/Wayland whole-match observation, in progress; Steam Deck untested. Original data: Own SSBU13.0.4 or13.0.5 dump and keys; owned updates/DLC applied locally. Firmware explicitly unnecessary; open-source fonts included. Exact regional hashes Unknown in root. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Smash Bros. Ultimate",
+      "project_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/OpenSmash-Ultimate/ssbu-recomp",
+      "artwork": {
+        "game_id": 90101,
+        "cover_id": 96089,
+        "image_id": "co2255",
+        "image_sha256": "5a97625578f9d37f8c97ed1fd918be12a247b33fd7946b2274f8b6234838acd4",
+        "game_slug": "super-smash-bros-ultimate",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2935
+    },
+    {
+      "id": "super-smash-bros-ultimate-windowsmash",
+      "name": "Super Smash Bros. Ultimate (WindowSmash)",
+      "summary": "Experimental AArch64/NEON to C then x64; D3D11/HLSL runtime. Experimental Linux DXVK/Vulkan; Apple Silicon own Metal renderer. Upstream maturity: Experimental; menus/matches and Local Wireless run. Physical pads limited; full two-PC matches/online roster not fully verified; Mac matches untested. Acquisition: Source installer downloads tools/compiler and builds locally. Two alpha release tags have no assets. Platforms: Windows10/11 x64 AVX2/D3D11; experimental Linux source, exact CPU scope not pinned; Apple Silicon macOS14.5+ source with menus only observed. Original data: Own SSBU13.0.5 ONLY, base plus matching update or updated/merged dump; prod.keys/title.keys and firmware NCAs for fonts. XCI/NSP/NCA; expand NSZ/XCZ first. Source data may remain read at runtime. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Super Smash Bros. Ultimate",
+      "project_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
+      "artwork": {
+        "game_id": 90101,
+        "cover_id": 96089,
+        "image_id": "co2255",
+        "image_sha256": "5a97625578f9d37f8c97ed1fd918be12a247b33fd7946b2274f8b6234838acd4",
+        "game_slug": "super-smash-bros-ultimate",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2937
     },
     {
       "id": "super-street-fighter-ii-turbo-hd-remix-ssf2t-hd-remix-recompiled",
@@ -16788,20 +17377,104 @@
       "issue_number": 2616
     },
     {
+      "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
+      "name": "The Legend of Zelda: Breath of the Wild (MacNativeGames)",
+      "summary": "Experimental Game-specific Apple ARM64 NSO rewrite/Horizon/NVN-Metal compatibility implementations sharing builder Upstream maturity: Early BOTW1.6.0/1.9.0 Mac port: opening, saves, Great Plateau and selected DLC observations; no full-game claim. iPhone1.6.0 played;1.9.0 iOS build unplayed. Performance/audio observations remain version/scene-specific. Acquisition: Python3.14build_app.py onAppleSiliconMac builds local.app,or signed/sideloadedIPA. No published release. Upstream/player rebuilds same.app for new version; profile backup precedes updatedlaunch; rollback does not imply backwards-savecompatibility. Platforms: Apple Silicon Mac, macOS26+/Metal4, BOTW1.6.0/1.9.0 bounded upstream sessions; iOS26+/iPhone14+1.6.0 played, iOS1.9.0 build unplayed. No established visionOS route for BOTW. Original data: Title01007EF00011E000base+1.6.0or1.9.0matchingupdateNSP/NSZ,ownprod.keys,firmware/sharedfonts. Combined1.6.0cardwithDLCaccepted; separatebase+1.6.0 withoutDLCaccepted.1.9.0optionalDLCtitles01007EF00011F001/002 suppliedseparately. Otherupdatehashesrejected. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Breath of the Wild",
+      "project_url": "https://github.com/ly05010419/MacNativeGames",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/ly05010419/MacNativeGames",
+      "artwork": {
+        "game_id": 7346,
+        "cover_id": 172453,
+        "image_id": "co3p2d",
+        "image_sha256": "63356e0bc0058032ae5e03ce22d5f292bea4da3779396de23530090cfd3f94b7",
+        "game_slug": "the-legend-of-zelda-breath-of-the-wild",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2974
+    },
+    {
+      "id": "the-legend-of-zelda-breath-of-the-wild-nxport",
+      "name": "The Legend of Zelda: Breath of the Wild (nxport)",
+      "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: Upstream still makingplayable; exactversion Unknown. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for The Legend of Zelda: Breath of the Wild. Exactacceptedversion/region/titleID Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Breath of the Wild",
+      "project_url": "https://github.com/nxporting/nxport",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/nxporting/nxport",
+      "artwork": {
+        "game_id": 7346,
+        "cover_id": 172453,
+        "image_id": "co3p2d",
+        "image_sha256": "63356e0bc0058032ae5e03ce22d5f292bea4da3779396de23530090cfd3f94b7",
+        "game_slug": "the-legend-of-zelda-breath-of-the-wild",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2972
+    },
+    {
+      "id": "the-legend-of-zelda-breath-of-the-wild-switch-edition-savagewindrecomp",
+      "name": "The Legend of Zelda: Breath of the Wild — Switch edition (SavageWindRecomp)",
+      "summary": "Experimental LAS-derived static code generated locally; native Windows/Linux Vulkan runtime. Upstream maturity: Shrine/GreatPlateau only; nobody past plateau, alpha tester preview; distant-map rendering and controller/gyro validation incomplete. Acquisition: Alpha3 ZIP/AppImages launcher validates/copies data, builds image and recompiles locally; no Nintendo package/decryption workflow. Platforms: Actual Windows x64 and Linux x64 SSE4.2/Vulkan1.3 packages; AVX2/FMA optional faster mode. Linux aarch64 asset highly experimental, never real ARM hardware. Original data: Own extracted BOTW1.9.0 ExeFS(main/main.npdm/rtld/sdk/subsdk0) plus complete merged RomFS. NEVER decrypts; no keys/firmware/dump tools supplied. DLC unsupported.1.8.2 may run but explicitly unsupported. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Breath of the Wild — Switch edition",
+      "project_url": "https://github.com/Revivedx/SavageWindRecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Revivedx/SavageWindRecomp",
+      "artwork": {
+        "game_id": 7346,
+        "cover_id": 172453,
+        "image_id": "co3p2d",
+        "image_sha256": "63356e0bc0058032ae5e03ce22d5f292bea4da3779396de23530090cfd3f94b7",
+        "game_slug": "the-legend-of-zelda-breath-of-the-wild",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2960
+    },
+    {
+      "id": "the-legend-of-zelda-echoes-of-wisdom-eowrecomp",
+      "name": "The Legend of Zelda: Echoes of Wisdom (EoWRecomp)",
+      "summary": "Experimental AArch64 to C ahead of time with LAS-derived Horizon/NVN runtime Vulkan/MoltenVK. Upstream maturity: Not fully playable; Linux opening/first controllable scene. Full playthrough/saves/PC features pending. Acquisition: Frozen alpha_1 has Mac arm64 ZIP, Android APK, checksums; Linux/Windows source. Packages build owned game locally. Platforms: Linux x64 opening/first scene; Apple Silicon macOS15+ and Android arm64 packages tested setup only without game. Windows x64 cross-built, setup/game untested, no Windows asset. Original data: Own1.0.0 title01008CF01BAAC000, NO update, own prod.keys; NSP/XCI/NCA, local codegen and direct original package data reads. Separate firmware/region/digest not specified. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Echoes of Wisdom",
+      "project_url": "https://github.com/Nycolazs/EoWRecomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Nycolazs/EoWRecomp",
+      "artwork": {
+        "game_id": 306149,
+        "cover_id": 390431,
+        "image_id": "co8d9b",
+        "image_sha256": "5a0b62cbccfbf553ea975be793594e6907ffc3932c636c6428154f784fc2e8a1",
+        "game_slug": "the-legend-of-zelda-echoes-of-wisdom",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2947
+    },
+    {
       "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
       "name": "The Legend of Zelda: Link's Awakening (2019 Switch) (LASRecomp)",
-      "summary": "Upstream route: Windows ZIP, macOS DMG, Linux x86_64/aarch64 AppImages; game library generated locally Limits: Beta despite GitHub prerelease=false; crashes/graphics issues and randomizer solvability limits remain. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 AppImage, macOS Apple-Silicon ARM64 DMG. Linux AArch64 AppImage is built but untested on real hardware. Original data: Own Switch game v1.0.0, v1.0.1 or v1.1.0; game-file preparation needed Portcove setup/gameplay not verified.",
+      "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: Releasecontainsgenerator/compilerandlocalfirstsetupgamecodegeneration;Windowsx64AVX2/Vulkan1.3,AppleSiliconmacOS15+,Linuxx64;Linuxarm64experimental. Platforms: Releasecontainsgenerator/compilerandlocalfirstsetupgamecodegeneration;Windowsx64AVX2/Vulkan1.3,AppleSiliconmacOS15+,Linuxx64;Linuxarm64experimental. Original data: Own2019SwitchLinkAwakeningv1.0.0/v1.0.1/v1.1.0preparedfiles;optionalownSwitchfonts,replacementsdefault. Portcove setup/gameplay untested; no operational integration offered.",
       "original_game_title": "The Legend of Zelda: Link's Awakening (2019 Switch)",
       "project_url": "https://github.com/peiikai/LASRecomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/peiikai/LASRecomp",
-      "issue_number": 2617
+      "issue_number": 2617,
+      "artwork": {
+        "game_id": 115284,
+        "cover_id": 81482,
+        "image_id": "co1qve",
+        "image_sha256": "e9c009c493b3e1d4a9354ecb5f6ba9a6c00fe60664d370aad5cfdb18e1e956bb",
+        "game_slug": "the-legend-of-zelda-links-awakening--1",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "the-legend-of-zelda-skyward-sword-hd-sky-recomp",
       "name": "The Legend of Zelda: Skyward Sword HD (Sky Recomp)",
-      "summary": "Research listing. Upstream route: Record as research/alpha with source and architecture review, not polished launch-ready candidate. Limits: Experimental with crashes/menu freezes/rendering differences; full-game stability unestablished. Upstream platforms: Experimental Windows/Linux64-bit x86-64 AVX2/FMA and macOS Apple-Silicon ARM64/Intel package/build claims. Full-game stability unestablished; source claims require scoped verification. Original data: Own uncompressed Switch v1.0.0 game files; no updates; no game assets/keys claimed included. Portcove setup/gameplay not verified.",
+      "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Platforms: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Original data: OwnSkywardSwordHDv1.0.0withoutupdates,preparedgamefiles;launcherneitherdecryptsNSP/XCInoracceptskeys. Portcove setup/gameplay untested; no operational integration offered.",
       "original_game_title": "The Legend of Zelda: Skyward Sword HD",
       "project_url": "https://github.com/Apolinario-coder/SkyRecomp",
       "platforms": [],
@@ -16816,6 +17489,82 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2901
+    },
+    {
+      "id": "the-legend-of-zelda-tears-of-the-kingdom-macnativegames",
+      "name": "The Legend of Zelda: Tears of the Kingdom (MacNativeGames)",
+      "summary": "Experimental Game-specific Apple ARM64 NSO rewrite/Horizon/NVN-Metal compatibility implementations sharing builder Upstream maturity: TOTK native ARM64 rewrite: Mac1.0.0/1.1.2/1.2.1/1.4.3 build profiles, bounded performance/render/audio reports; iPhone/iPad1.4.3 played, other iOS revisions untested. No full-game or blanket visionOS claim. Acquisition: Python3.14build_app.py onAppleSiliconMac builds local.app,or signed/sideloadedIPA. No published release. Upstream/player rebuilds same.app for new version; profile backup precedes updatedlaunch; rollback does not imply backwards-savecompatibility. Platforms: Apple Silicon Mac, macOS26+/Metal4; iOS/iPadOS26+ and iPhone14+,1.4.3 bounded upstream observations, other iOS revisions untested. visionOS contributor demonstration is distinct from current integration qualification. Original data: Base1.0.0title0100F2C0115B6000XCI/NSP+ownprod.keys; optionalcumulative1.1.2/1.2.1/1.4.3NSP/NSZupdate. NSPcommon-ticket unlessrights-free;ownfirmwareor6sharedBFTTFfonts (XCIupdatepartition mayprovide). NoDLC/othercombinedpackages/compressedbase/personalizedtickets. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+      "project_url": "https://github.com/ly05010419/MacNativeGames",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/ly05010419/MacNativeGames",
+      "artwork": {
+        "game_id": 119388,
+        "cover_id": 274264,
+        "image_id": "co5vmg",
+        "image_sha256": "43c1ab5bea6d4e2ec8805820d75b62a954275e30a69acb2967377e56bd2eceda",
+        "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2973
+    },
+    {
+      "id": "the-legend-of-zelda-tears-of-the-kingdom-nxport",
+      "name": "The Legend of Zelda: Tears of the Kingdom (nxport)",
+      "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: iOS/macOS tested upstream; renderingflicker/terrainnormals/Rauruaudio issues; exactversion Unknown. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for The Legend of Zelda: Tears of the Kingdom. Exactacceptedversion/region/titleID Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+      "project_url": "https://github.com/nxporting/nxport",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/nxporting/nxport",
+      "artwork": {
+        "game_id": 119388,
+        "cover_id": 274264,
+        "image_id": "co5vmg",
+        "image_sha256": "43c1ab5bea6d4e2ec8805820d75b62a954275e30a69acb2967377e56bd2eceda",
+        "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2967
+    },
+    {
+      "id": "the-legend-of-zelda-tears-of-the-kingdom-switch-edition-totk-recomp",
+      "name": "The Legend of Zelda: Tears of the Kingdom — Switch edition (totk-recomp)",
+      "summary": "Experimental Documented AArch64 main and parts of SDK translated ahead of time to C++ for Linux x86-64, native Switch services/NVN-on-Vulkan runtime. Not a zeldaret matching-decomp playable route by association. Upstream maturity: One outdoor walk on author SteamDeck measured62–64fps, not full-game stability/completion. Shaders first-start warmup; faster codegen planned absent. PC clangO2 build17min wall/2.1hCPU, Deck estimate1–1.5h unmeasured. Acquisition: No releases/assets. Source build_from_xci.sh imports own dump, generates C++, compiles and packs local dist. Launcher setup/version/extraction UI exists but game-build button is NOT wired; CLI required. Capstone exactly5.0.9;16GBRAM and45GB peak disk documented. Outputs derived from game must remain private. Platforms: Linux x86-64 AVX2 (Haswell/Zen2 or newer); Steam Deck upstream tested. Windows/macOS not established. Build on Deck unmeasured; distrobox Ubuntu24.04 or Linux PC source route. Original data: Own1.0.0 cartridge XCI title0100F2C0115B6000, main buildID082CE09B06E33A12, ownprod.keys with master key revision0x0E. Other versions unsupported. Separate firmware not specified in root. Exact regional digest Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Tears of the Kingdom — Switch edition",
+      "project_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
+      "artwork": {
+        "game_id": 119388,
+        "cover_id": 274264,
+        "image_id": "co5vmg",
+        "image_sha256": "43c1ab5bea6d4e2ec8805820d75b62a954275e30a69acb2967377e56bd2eceda",
+        "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2966
+    },
+    {
+      "id": "the-legend-of-zelda-tears-of-the-kingdom-totk-mobile-ojzen",
+      "name": "The Legend of Zelda: Tears of the Kingdom (Zelda-Mobile (OJZen/totk-mobile))",
+      "summary": "Experimental Upstream explicitly describes direct execution of the game’s ARM64 code on Apple silicon, an ARM64 module rewriter, a host reimplementing Horizon/system services, and NVN graphics commands translated to Metal. Shared Mac/iOS core. This is a title-specific native-code compatibility adaptation, not a generic framework, Windows recompilation or original standalone game. This classification is based on documented behavior, not repository name/language. Upstream maturity: Upstream Mac save loading/scene play/audio/cutscenes and keyboard/Xbox control; full playthrough unvalidated, first-visit shader stutters and variable FPS. Mobile results are separate and bounded. Portcove testing Not run. Acquisition: Source build and upstream preparation on Apple silicon Mac; no official release package observed. The player’s own base game, v1.4.3 update and keys generate the local runtime/resources/shaders. Platforms: Apple silicon Mac M1+ with full Xcode/CLT and Homebrew; exact macOS/Metal minimum Unknown. Intel unsupported. iPad M1+ limited play/import evidence; iPhone15Pro title-only, gameplay unmeasured. No other desktop route. Original data: Own Switch Tears of the Kingdom base plus v1.4.3 .nsz update and matching prod.keys; exactly one base/update in local/games/. Module fingerprint checks reject other versions. Accepted base format, region/title ID, actual hashes and firmware/font/ticket requirements remain Unknown in the retained README. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+      "project_url": "https://github.com/OJZen/totk-mobile",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/OJZen/totk-mobile",
+      "artwork": {
+        "game_id": 119388,
+        "cover_id": 274264,
+        "image_id": "co5vmg",
+        "image_sha256": "43c1ab5bea6d4e2ec8805820d75b62a954275e30a69acb2967377e56bd2eceda",
+        "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 3028
     },
     {
       "id": "the-operative-no-one-lives-forever-goty-nolf1-modern-nolfsrc",
@@ -17055,6 +17804,25 @@
         "image_id": "co55sr",
         "image_sha256": "c3845309b87055c9c8744fbd6cd2549c6e00a19a72cee4ff8449ca3d0cc2e66e",
         "game_slug": "tomba-2-the-evil-swine-return",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "tomodachi-life-living-the-dream-tomodachi-native",
+      "name": "Tomodachi Life: Living the Dream (tomodachi-native)",
+      "summary": "Experimental Tomodachi-specific nxnative-derived AppleARM64 rewrite/Horizon/Metal4 adaptation Upstream maturity: UpstreamMacislandtour/name/Miicreation/sound,notfullplaythrough; iPadstarts/runsnotplayedthrough; inputlater-sceneand55fpsbusy-scene limits. Acquisition: Macsourcebringup+build_mac_app.py; optionalembed copies/clonesowndata intoApplicationSupport; rebuildkeep-data preservesRomFS. iOSbuild/signlocally,gamecontent separate; no release. Platforms: AppleSiliconmacOS26targetbutdeveloped/testedmacOS27,26untried. iPadAirM2/iPadOS27 boundedstartup; iPhonebuildsunrun. NoMaccontroller yet. Original data: Ownbase1.0.0NSPtitle010051F0207B2000+prod.keys; localv0rewrittenmodules/RomFS/shaders. Otherregion/updateUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Tomodachi Life: Living the Dream",
+      "project_url": "https://github.com/kuosuko/tomodachi-native",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/kuosuko/tomodachi-native",
+      "issue_number": 2981,
+      "artwork": {
+        "game_id": 337036,
+        "cover_id": 531013,
+        "image_id": "cobdqd",
+        "image_sha256": "eaa5ab3451530ae4851571c6c1750d73f03ef95bc74ec881f4c99b9cb7824632",
+        "game_slug": "tomodachi-life-living-the-dream",
         "match_kind": "underlying-game"
       }
     },
@@ -18070,6 +18838,25 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 2833
+    },
+    {
+      "id": "yo-kai-watch-4-yw4recomp",
+      "name": "Yo-kai Watch 4++ (YW4Recomp)",
+      "summary": "Experimental AArch64 main/sdk to C via Clang with native Vulkan services; no linked emulator code claimed. Eden visual reference only. Upstream maturity: Early boot/new game/house/town/menus/autosave30fps; missing effects/crashes beyond reached areas, no full playthrough. Acquisition: No releases. Python/Git/Clang/GCC/VulkanSDK local ingest/translation/shaders/build. Platforms: Windows x64 Vulkan1.3 built/tested; Linux x64 planned/untested despite badge; no Mac. Original data: Own4++ ExeFS/RomFS update2.2.0 exact hash-checked build. Not generic originalYW4. Exact hashes/title/region and separate keys/firmware not in root. Portcove setup/gameplay untested; no operational integration offered.",
+      "original_game_title": "Yo-kai Watch 4++",
+      "project_url": "https://github.com/ILFforever/YW4Recomp",
+      "platforms": [],
+      "availability": "unknown",
+      "setup_url": "https://github.com/ILFforever/YW4Recomp",
+      "artwork": {
+        "game_id": 127255,
+        "cover_id": 311098,
+        "image_id": "co6o1m",
+        "image_sha256": "057b4a439acf7230063a699b227a012daa020f4b88bfb095dde125a05a3788c4",
+        "game_slug": "yo-kai-watch-4-plus-plus",
+        "match_kind": "underlying-game"
+      },
+      "issue_number": 2952
     },
     {
       "id": "yokimitsuro-khdays-port",

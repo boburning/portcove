@@ -16,6 +16,8 @@ const families = [
   ...ecosystemSearchFamilies,
 ] as const;
 export const leadSearchFamilyCount = families.length;
+export const leadFamilyIds: readonly string[] = families.map((family) => family.id);
+export const advanceLeadFamily = (index: number) => (index + 1) % leadSearchFamilyCount;
 export const leadPageSize = 50;
 export interface LeadSlice {
   since: string;
@@ -273,7 +275,8 @@ export function nextLeadPage(state: LeadState, now: string) {
   const family = families[state.next_family]!;
   const includeForks = ecosystemSearchFamilies.some((f) => f.id === family.id);
   // Keep the original four contracts stable; new ecosystem cursors bind fork coverage.
-  const contract = `${family.terms} [best-match]${includeForks ? " [fork:true]" : ""}`;
+  const sort = "sort" in family ? family.sort : undefined;
+  const contract = `${family.terms} [${sort ? `${sort} desc` : "best-match"}]${includeForks ? " [fork:true]" : ""}`;
   const saved = state.slices[family.id];
   const retired = saved !== undefined && saved.terms !== contract;
   const previous = retired ? undefined : saved;
@@ -290,6 +293,7 @@ export function nextLeadPage(state: LeadState, now: string) {
     family: family.id,
     slice,
     query: `${family.terms} ${family.clock}:${slice.since}..${slice.until} fork:${includeForks}`,
+    sort,
     page: slice.page,
     capped: slice.capped === true,
     current: previous?.completed_at === now,
@@ -375,7 +379,7 @@ export function acceptLeadPage(
     } else slice.completed_at = slice.window_until ?? slice.until;
   }
   next.slices[plan.family] = slice;
-  next.next_family = (state.next_family + 1) % families.length;
+  next.next_family = advanceLeadFamily(state.next_family);
   return next;
 }
 export function pendingLeads(

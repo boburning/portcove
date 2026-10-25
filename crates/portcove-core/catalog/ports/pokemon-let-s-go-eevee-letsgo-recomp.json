@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-let-s-go-eevee-letsgo-recomp",
+    "name": "Pokémon: Let’s Go, Eevee! (letsgo-recomp)",
+    "summary": "Experimental AArch64 to C static host code and LAS-derived Vulkan runtime. Upstream maturity: WIP, no full playthrough; Eevee1.0.0 most tested, Pikachu less. Online/PokéBallPlus/second player unsupported. Higher FPS, frame generation and wild battles experimental. Acquisition: Actual Windows ZIP launcher imports/copies and recompiles game locally once. One folder per game. Platforms: Windows10/11 x64 SSE4.2, AVX2 recommended, Vulkan1.3. No other native desktop route established. Original data: Own corresponding Eevee or Pikachu extracted ExeFS/RomFS, any region. Base1.0.0 offers all options;1.0.1/1.0.2 accepted with fewer options/less testing. XCI/NSP must be extracted first. Separate keys/firmware not described after extraction. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Pokémon: Let’s Go, Eevee!",
+    "project_url": "https://github.com/raulzrrs/letsgo-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/raulzrrs/letsgo-recomp",
+    "issue_number": 2939,
+    "artwork": {
+      "game_id": 102873,
+      "cover_id": 92735,
+      "image_id": "co1zjz",
+      "image_sha256": "0dacb4e6e10b389c28590062eb7e5b7b4b68184d1999cddb48e1a072dd5112d3",
+      "game_slug": "pokemon-lets-go-eevee",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-let-s-go-eevee-letsgo-recomp",
+    "origin": {
+      "project_url": "https://github.com/raulzrrs/letsgo-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421553870"
+      }
+    },
+    "decisions": []
+  }
+}
