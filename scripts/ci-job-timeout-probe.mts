@@ -330,19 +330,18 @@ if (path.resolve(process.argv[1] ?? "") === file) {
     assert.match(process.env.PORTCOVE_TIMEOUT_PROBE_NONCE ?? "", /^[a-f0-9-]{36}$/u);
     process.send?.({ nonce: process.env.PORTCOVE_TIMEOUT_PROBE_NONCE, pid: process.pid });
     setInterval(() => {}, 1000);
-  } else if (process.argv[2] === "verify")
+  } else if (process.argv[2] === "verify") {
+    const check: unknown = JSON.parse(await readLimited(process.argv[5] ?? "", 256 * 1024));
+    const annotations: unknown = JSON.parse(await readLimited(process.argv[6] ?? "", 1024 * 1024));
     console.log(
       JSON.stringify(
         verifyJobTimeoutProbe(
           JSON.parse(await readLimited(process.argv[3] ?? "", 256 * 1024)),
           await readLimited(process.argv[4] ?? "", 8 * 1024 * 1024),
           timeoutProbeContext(process.env),
-          {
-            check: JSON.parse(await readLimited(process.argv[5] ?? "", 256 * 1024)),
-            annotations: JSON.parse(await readLimited(process.argv[6] ?? "", 1024 * 1024)),
-          },
+          { check, annotations },
         ),
       ),
     );
-  else throw new Error("Usage: ci-job-timeout-probe.mts run|verify JOBS LOG CHECK ANNOTATIONS");
+  } else throw new Error("Usage: ci-job-timeout-probe.mts run|verify JOBS LOG CHECK ANNOTATIONS");
 }
