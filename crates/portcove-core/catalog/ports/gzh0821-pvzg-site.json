@@ -6,8 +6,31 @@
     "summary": "Explore Plants vs. Zombies 2 / PvZ2 Gardendless (Gzh0821) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/Gzh0821/pvzg_site",
     "issue_number": 1874,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Gzh0821/pvzg_site"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Gzh0821/pvzg_site/blob/3e250d37c1fff07f161d7ef845dc1d84913ca384/src/en/guide/FAQ.md",
+    "release_url": "https://github.com/Gzh0821/pvzg_site/releases",
+    "recommended_download_channel": "beta",
+    "download_block_reason": "Portcove downloads are paused until acquisition permissions for the bundled game art and audio are established. Upstream identifies EA/PopCap and other rights holders and states the project is not authorized by them; its own personal-use license does not establish those separate resource permissions. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that content.",
+    "manual_setup": {
+      "help_url": "https://github.com/Gzh0821/pvzg_site/blob/3e250d37c1fff07f161d7ef845dc1d84913ca384/src/en/guide/FAQ.md",
+      "warnings": [
+        "Portcove downloads are paused until acquisition permissions for the bundled game art and audio are established. Upstream identifies EA/PopCap and other rights holders and states the project is not authorized by them; its own personal-use license does not establish those separate resource permissions. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that content."
+      ],
+      "steps": [
+        {
+          "title": "Keep your permitted copy and edition",
+          "instruction": "Use an existing permitted Windows Standard or Lite copy. Keep the edition you already use when updating: upstream says Standard and Lite can use different data directories. The reviewed Windows Lite ZIP contains pvzge-lite.exe; keep your complete copy in a folder you control. Follow the upstream guide for package prerequisites. Portcove does not open the game or a helper during discovery."
+        },
+        {
+          "title": "Add the game you chose",
+          "instruction": "Select the completed game executable from that folder, with the same folder as its working directory; for Windows Lite this is pvzge-lite.exe. Save launch details, then choose Play separately. Keep the working copy until you have checked the new one. macOS packages and Linux Docker/browser play retain their upstream setup routes; this Windows archive observation does not qualify their execution."
+        },
+        {
+          "title": "Export saves before updating and keep mod data",
+          "instruction": "You or upstream provide runtime updates. In the game, select your player name to export a save before changing versions, and verify your progress in the new version before removing the old package. For mods, use Mods → Open Folder to locate the directory used by your edition. Close the game before copying mod-data, relevant mod settings, patches, __gpn_edits and save-backups; exported game saves and cloud saves do not automatically include mod-owned data. Follow GP-Next recovery instructions for startup or mod problems. External registration preserves every file and provides no Portcove-managed Update, Backup or Rollback."
+        }
+      ]
+    }
   }
 }
