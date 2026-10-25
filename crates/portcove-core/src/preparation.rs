@@ -3,9 +3,12 @@
 mod execution;
 #[path = "preparation_ghostship.rs"]
 mod ghostship;
+#[path = "preparation_manual.rs"]
+mod manual;
 #[path = "preparation_readiness.rs"]
 mod readiness;
 pub(crate) use execution::recover;
+pub(crate) use manual::{has_manual_marker, require_manual_setup, validate_manual_marker};
 pub(crate) use readiness::managed;
 pub(crate) use readiness::managed_install;
 pub(crate) const RECEIPT_FILE: &str = ".portcove-preparation.json";

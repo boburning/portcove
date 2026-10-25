@@ -4,6 +4,29 @@ type PresentedAction = "install" | "launch" | "rollback";
 type ActionPresentation = { blocked: false; reason?: never } | { blocked: true; reason: string };
 type Assessment = NonNullable<PortStatus["port_actions"]>[number];
 
+/** Recognize the sole setup hold; stronger or malformed holds keep their review. */
+export function hasPendingSetupAction(status: PortStatus | undefined): boolean {
+  const readiness = status?.readiness;
+  if (
+    readiness?.pending_setup !== true ||
+    readiness.launchable !== false ||
+    !Array.isArray(readiness.blockers) ||
+    readiness.blockers.length === 0 ||
+    readiness.blockers.some((blocker) => blocker !== "preparation_required")
+  )
+    return false;
+  const actions = status?.port_actions;
+  if (actions === undefined || (Array.isArray(actions) && actions.length === 0)) return true;
+  if (!Array.isArray(actions)) return false;
+  const matches = actions.filter((action) => action?.action === "launch");
+  return (
+    matches.length === 1 &&
+    matches[0]?.availability === "waiting" &&
+    matches[0]?.reason === "preparation_required" &&
+    matches[0]?.definition == null
+  );
+}
+
 /** Opens a fresh removal review only; Core still binds ownership and consent. */
 export function removalReviewPresentation(
   status: PortStatus | undefined,

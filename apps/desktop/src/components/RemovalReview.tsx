@@ -145,7 +145,9 @@ export function RemovalReviewDialog({
           hasPreview={Boolean(preview)}
           pending={pending}
           dismiss={dismiss}
-          review={review}
+          review={async () => {
+            await review();
+          }}
           apply={remove}
           keepLabel="Cancel"
           reviewLabel="Review removal again"

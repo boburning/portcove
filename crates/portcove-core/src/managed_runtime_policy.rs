@@ -1,6 +1,60 @@
-//! Artifact applicability for reviewed, closed runtime behaviors. The retained
-//! catalog owns release facts; hashing a download never supplies that authority.
+//! Closed runtime behavior is authored; changing release facts come from the
+//! provider. Offline checks bind the hashed manifest to its registered artifact.
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
+
+pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
+    port.release.provider == crate::ReleaseSource::Github
+        && (port.managed_initialization
+            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
+            || port.managed_shared_preferences
+                == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
+            || port.runtime_data_policy
+                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1))
+}
+
+pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {
+    if port.release.provider == crate::ReleaseSource::DirectManifest {
+        artifact(port)?;
+        return Ok(());
+    }
+    if !requires_provider_resolution(port)
+        || port.platforms != [Platform::WindowsX86_64]
+        || !crate::definition_acquisition::valid_github_repository(&port.release.repository)
+        || !port.release.direct.is_empty()
+        || !port.release.curated.is_empty()
+        || !port.release.managed_build.is_empty()
+        || !port.release.user_prepared.is_empty()
+        || port
+            .release
+            .asset_hints
+            .get(&Platform::WindowsX86_64)
+            .is_none_or(|hints| hints.is_empty() || hints.iter().any(|hint| hint.trim().is_empty()))
+    {
+        return Err(PortcoveError::verification(
+            "runtime policy requires reviewed direct facts or reusable Windows GitHub package rules",
+        ));
+    }
+    validate_executable(port)
+}
+
+fn validate_executable(port: &PortDefinition) -> Result<()> {
+    let hints = port
+        .executable_hints
+        .get(&Platform::WindowsX86_64)
+        .ok_or_else(|| PortcoveError::verification("runtime policy has no reviewed executable"))?;
+    let [executable] = hints.as_slice() else {
+        return Err(PortcoveError::verification(
+            "runtime policy requires one unambiguous executable",
+        ));
+    };
+    crate::archive::validate_relative_path(executable, false)?;
+    if !executable.to_ascii_lowercase().ends_with(".exe") {
+        return Err(PortcoveError::verification(
+            "runtime policy requires a native Windows executable",
+        ));
+    }
+    Ok(())
+}
 
 pub(crate) fn artifact(port: &PortDefinition) -> Result<(&str, ArtifactIdentity)> {
     let release = port
@@ -35,21 +89,7 @@ pub(crate) fn artifact(port: &PortDefinition) -> Result<(&str, ArtifactIdentity)
     let name =
         name.ok_or_else(|| PortcoveError::verification("runtime policy artifact name is missing"))?;
     crate::archive::validate_relative_path(name, false)?;
-    let hints = port
-        .executable_hints
-        .get(&Platform::WindowsX86_64)
-        .ok_or_else(|| PortcoveError::verification("runtime policy has no reviewed executable"))?;
-    let [executable] = hints.as_slice() else {
-        return Err(PortcoveError::verification(
-            "runtime policy requires one unambiguous executable",
-        ));
-    };
-    crate::archive::validate_relative_path(executable, false)?;
-    if !executable.to_ascii_lowercase().ends_with(".exe") {
-        return Err(PortcoveError::verification(
-            "runtime policy requires a native Windows executable",
-        ));
-    }
+    validate_executable(port)?;
     Ok((
         &release.version,
         ArtifactIdentity {
@@ -66,6 +106,28 @@ pub(crate) fn require_artifact(
     actual: &ArtifactIdentity,
     platform: Option<Platform>,
 ) -> Result<()> {
+    if requires_provider_resolution(port) {
+        validate_release_rules(port)?;
+        crate::archive::validate_relative_path(&actual.asset_name, false)?;
+        let name = actual.asset_name.to_ascii_lowercase();
+        if platform != Some(Platform::WindowsX86_64)
+            || version.trim().is_empty()
+            || actual.size == 0
+            || actual.sha256.len() != 64
+            || !actual.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || !name.ends_with(".zip")
+            || port.release.asset_hints[&Platform::WindowsX86_64]
+                .iter()
+                .any(|hint| !name.contains(&hint.to_ascii_lowercase()))
+        {
+            return Err(PortcoveError::verification(
+                "runtime policy artifact does not match its retained package rules",
+            ));
+        }
+        // This is consistency validation only. Fresh acquisition additionally
+        // requires the opaque provider binding; old installed versions stay offline.
+        return Ok(());
+    }
     let (expected_version, expected) = artifact(port)?;
     if platform != Some(Platform::WindowsX86_64)
         || version != expected_version
@@ -91,8 +153,61 @@ mod tests {
     ];
 
     #[test]
-    fn reviewed_policy_reuses_catalog_release_facts_and_refuses_mismatched_installations() {
+    fn dynamic_policies_keep_rules_unchanged_and_validate_old_artifacts_offline() {
         let catalog = crate::Catalog::embedded().unwrap();
+        for id in PORTS {
+            let mut port = catalog.port(id).unwrap().clone();
+            port.release.provider = crate::ReleaseSource::Github;
+            port.release.direct.clear();
+            port.release.repository = "official/project".into();
+            port.release.asset_hints.insert(
+                Platform::WindowsX86_64,
+                vec!["engine-".into(), "-windows-x64.zip".into()],
+            );
+            crate::runtime::validate(&port).unwrap();
+            for version in ["v1", "v2"] {
+                let actual = ArtifactIdentity {
+                    asset_name: format!("engine-{version}-windows-x64.zip"),
+                    sha256: "ab".repeat(32),
+                    size: 42,
+                };
+                require_artifact(&port, version, &actual, Some(Platform::WindowsX86_64)).unwrap();
+                let mut wrong = actual.clone();
+                wrong.asset_name = format!("engine-{version}-windows-arm64.zip");
+                assert!(
+                    require_artifact(&port, version, &wrong, Some(Platform::WindowsX86_64))
+                        .is_err()
+                );
+                wrong = actual.clone();
+                wrong.sha256.clear();
+                assert!(
+                    require_artifact(&port, version, &wrong, Some(Platform::WindowsX86_64))
+                        .is_err()
+                );
+            }
+            match id {
+                "the-force-engine-dark-forces" => {
+                    port.managed_initialization =
+                        Some(crate::ManagedInitialization::TfeDarkForces122420)
+                }
+                "resident-evil-gaiden-recomp" => {
+                    port.managed_shared_preferences =
+                        Some(crate::PreparedSharedPreferencesContract::Regaiden041Windows)
+                }
+                _ => {
+                    port.runtime_data_policy = Some(crate::RuntimeDataPolicy::Racewave46V100Windows)
+                }
+            }
+            assert!(
+                crate::runtime::validate(&port).is_err(),
+                "legacy exact policies cannot acquire dynamic meaning"
+            );
+        }
+    }
+
+    #[test]
+    fn reviewed_policy_reuses_catalog_release_facts_and_refuses_mismatched_installations() {
+        let catalog = crate::test_fixture::historical_managed_policy_catalog();
         for id in PORTS {
             let original = catalog.port(id).unwrap();
             let (_, previous) = artifact(original).unwrap();
@@ -177,7 +292,7 @@ mod tests {
 
     #[test]
     fn policy_facts_do_not_authorize_unsafe_urls_ambiguous_executables_or_unknown_policy() {
-        let catalog = crate::Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::historical_managed_policy_catalog();
         let original = catalog.port(PORTS[0]).unwrap();
         for url in [
             "http://upstream.example/game.zip",
@@ -212,7 +327,7 @@ mod tests {
 
     #[test]
     fn shared_save_identifier_is_reviewed_bounded_data_and_does_not_expand_legacy_authority() {
-        let catalog = crate::Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::historical_managed_policy_catalog();
         let original = catalog.port("resident-evil-gaiden-recomp").unwrap();
         for save_id in [
             None,

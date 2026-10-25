@@ -52,6 +52,8 @@ pub use catalog_download::{
 pub use package_selection::{CatalogDownloadRelease, CatalogPackageAssessment};
 pub use setup_discovery::{SetupLaunchTarget, SetupLaunchTargets};
 mod external_relink;
+mod installation_route_change;
+pub use installation_route_change::{ManagedRouteChangePreview, ManagedRouteChangeResult};
 mod ghostship_compatibility;
 #[cfg(test)]
 mod ghostship_persistence_tests;
@@ -66,11 +68,15 @@ pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 mod forbidden_memories_qualification;
 mod launch_preparation;
 mod listings;
+mod psx_mod_data;
+pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
 mod removal;
 mod sources;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
 
 const LAUNCH_MARKER: &str = ".portcove-launched";
+pub(crate) const PSX_DATA_RECEIPT: &str = ".portcove-psx-data-restored.json";
+pub(crate) const PSX_DATA_WRITE_PREFIX: &str = ".portcove-psx-data-write-";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
 
 struct RollbackTargetFailure {
@@ -1130,7 +1136,6 @@ impl PortcoveService {
     ) -> Result<InstallPlan> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
-        self.require_managed_runtime_ownership(&status)?;
         self.require_definition_operation(
             &self.catalog,
             port,
@@ -1758,15 +1763,18 @@ impl PortcoveService {
                     .validate_preparation_receipt(port, active, source)
                     .is_err();
             }
+            if crate::preparation::has_manual_marker(port) {
+                return crate::preparation::require_manual_setup(port, active).is_err();
+            }
             port.setup_marker
                 .as_ref()
                 .is_some_and(|marker| !active.path.join(marker).is_file())
         });
         if pending_setup
-            && status
-                .active
-                .as_ref()
-                .is_some_and(|active| crate::preparation::managed_install(port, active))
+            && status.active.as_ref().is_some_and(|active| {
+                crate::preparation::managed_install(port, active)
+                    || crate::preparation::has_manual_marker(port)
+            })
         {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
@@ -2795,7 +2803,9 @@ impl PortcoveService {
             &self.catalog,
             &port.id,
         )?;
-        let resolution = if scope.is_some() {
+        let resolution = if scope.is_some()
+            || crate::managed_runtime_policy::requires_provider_resolution(port)
+        {
             let resolved = reporter
                 .operation
                 .interruptible(self.resolve_release(port, release.channel, Platform::current()?))
@@ -2924,9 +2934,7 @@ impl PortcoveService {
             port,
             DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
         )?;
-        if port.adapter == AdapterKind::NativePortable
-            && let Some(active) = &status.active
-        {
+        if let Some(active) = &status.active {
             self.require_portable_runtime_unchanged(active)?;
         }
         if let Some(active) = &status.active {
@@ -3013,7 +3021,10 @@ impl PortcoveService {
                 &mut *reporter.emit,
             )
             .await?;
-        let portable = port.adapter == AdapterKind::NativePortable;
+        let staged_activation = matches!(
+            port.adapter,
+            AdapterKind::NativePortable | AdapterKind::PsxRecompManaged
+        ) || crate::persistence::ready_staged_archive(port);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install(
                 InstallRequest {
@@ -3022,7 +3033,7 @@ impl PortcoveService {
                     output_root: self
                         .output_location(&port.id, overrides.output_directory)?
                         .effective_output_directory,
-                    activate: activate && !portable,
+                    activate: activate && !staged_activation,
                     managed,
                     qualification,
                 },
@@ -3030,7 +3041,7 @@ impl PortcoveService {
                 &mut *reporter.emit,
             )
             .await?;
-        if portable && activate {
+        if staged_activation && activate {
             self.activate_staged_locked(&port.id, &Uuid::new_v4().to_string())
         } else {
             Ok(installed)
@@ -3390,7 +3401,7 @@ impl PortcoveService {
                 .rollback_target(port_id, &previous, status.active.as_ref())
                 .map_err(|failure| failure.error)?;
             if let Some(active) = &status.active {
-                self.require_portable_transition(active, &port)?;
+                self.require_portable_rollback_transition(active, &previous)?;
             }
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(&port, &previous.path)?;
@@ -3434,6 +3445,14 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
+        if let Some(active) = active {
+            self.require_portable_rollback_transition(active, previous)
+                .map_err(|error| RollbackTargetFailure {
+                    reason: PortActionReason::UnsafeData,
+                    error,
+                    definition: None,
+                })?;
+        }
         self.require_installed_shared_preferences(previous)
             .map_err(invalid)?;
         let qualification = self
@@ -5339,40 +5358,46 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<PathBuf>> {
-        let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
+        let Some(active) = self.collectible_active_install(port_id)? else {
             return Ok(Vec::new());
+        };
+        let port = self.installed_mutability_port(&active)?;
+        self.collect_user_data_from(&port, &active.path)
+    }
+
+    /// Read-only selection shared by collection and destructive-action review.
+    fn collectible_active_install(&self, port_id: &str) -> Result<Option<InstallRecord>> {
+        let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
+            return Ok(None);
         };
         if !active.path.join(LAUNCH_MARKER).is_file() {
             // Preserve the historical unlaunched path for deeper integrations.
-            // Only a verified retained portable contract can collect before launch;
+            // Only verified retained ready-archive/PS1 contracts collect before launch;
             // today's catalog cannot silently grant that ownership to a legacy row.
             let retained = self
                 .managed_install_root(port_id, &active.path)
                 .and_then(|_| Installer::new(self.library.clone())?.retained_catalog(&active));
-            let current_portable = self
+            let requires_retained_data = self
                 .catalog
                 .port(port_id)
-                .is_ok_and(|port| port.adapter == AdapterKind::NativePortable);
+                .is_ok_and(crate::persistence::collect_before_first_launch);
             match retained {
                 Ok(Some(catalog)) => {
-                    if catalog.port(port_id)?.adapter != AdapterKind::NativePortable {
-                        return Ok(Vec::new());
+                    if !crate::persistence::collect_before_first_launch(catalog.port(port_id)?) {
+                        return Ok(None);
                     }
                 }
-                Ok(None) if current_portable => {
+                Ok(None) if requires_retained_data => {
                     return Err(PortcoveError::verification(
-                        "Portable player data cannot be collected without its retained installation contract. Preserve the installation and review its current state.",
+                        "Managed player data cannot be collected without its retained installation contract. Preserve the installation and review its current state.",
                     ));
                 }
-                Err(error) if current_portable => return Err(error),
-                _ => return Ok(Vec::new()),
+                Err(error) if requires_retained_data => return Err(error),
+                _ => return Ok(None),
             }
         }
-        let port = self.installed_mutability_port(&active)?;
-        if port.adapter == AdapterKind::NativePortable {
-            self.require_portable_runtime_unchanged(&active)?;
-        }
-        self.collect_user_data_from(&port, &active.path)
+        self.require_portable_runtime_unchanged(&active)?;
+        Ok(Some(active))
     }
 
     pub fn collect_user_data_from_install(
@@ -5625,6 +5650,7 @@ impl PortcoveService {
         self.library.require_no_ghostship_recovery(port_id)?;
         let port = self.catalog.port(port_id)?;
         let user_root = self.library.user_dir(port_id);
+        let mut mods = self.preflight_psx_mod_restores(port_id, &user_root)?;
         for path in self.library.port_install_paths(port_id)? {
             refuse_symlink_ancestors(&path)?;
             match fs::symlink_metadata(&path) {
@@ -5644,6 +5670,12 @@ impl PortcoveService {
                     let destination = persistent_root.join(&relative);
                     refuse_symlink_ancestors(&source)?;
                     refuse_symlink_ancestors(&destination)?;
+                    if relative == "mods" && psx_mod_data::owns_mods(port) {
+                        if let Some(restore) = mods.remove(&install_root) {
+                            restore.apply(&self.library, port_id, &install_root)?;
+                        }
+                        continue;
+                    }
                     if port.runtime_data_policy.is_some() {
                         crate::runtime_data_policy::mirror(
                             port,
@@ -5659,6 +5691,7 @@ impl PortcoveService {
                     }
                 }
             }
+            self.record_psx_data_restored(port, &install_root)?;
             let marker = install_root.join(LAUNCH_MARKER);
             refuse_symlink_ancestors(&marker)?;
             match fs::remove_file(&marker) {
@@ -5682,6 +5715,18 @@ impl PortcoveService {
         self.require_completed_restore(&port.id)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, install_root)?;
+        self.require_psx_data_receipt_readable(port, install_root)?;
+        if crate::persistence::requires_restore_receipt(port)
+            && !install_root.join(LAUNCH_MARKER).is_file()
+            && let Some(copied) = self.collect_uninitialized_psx_data(
+                port,
+                install_root,
+                &persistent_root,
+                &user_root,
+            )?
+        {
+            return Ok(copied);
+        }
         let mut copied = Vec::new();
         for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
             let source = persistent_root.join(&relative);
@@ -5724,6 +5769,7 @@ impl PortcoveService {
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
+        self.require_psx_data_receipt_readable(port, &install_root)?;
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
@@ -5731,11 +5777,27 @@ impl PortcoveService {
             crate::runtime_data_policy::refuse_sensitive_tree(&user_root)?;
         }
         if !contract.writes_directly {
+            let mut mods = if psx_mod_data::owns_mods(port)
+                && (user_root.join("mods").try_exists()? || previously_launched)
+            {
+                Some(psx_mod_data::ModRestore::prepare(
+                    &user_root.join("mods"),
+                    &persistent_root.join("mods"),
+                )?)
+            } else {
+                None
+            };
             for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
                 let source = user_root.join(&relative);
                 let destination = persistent_root.join(&relative);
                 refuse_symlink_ancestors(&source)?;
                 refuse_symlink_ancestors(&destination)?;
+                if relative == "mods" && psx_mod_data::owns_mods(port) {
+                    if let Some(restore) = mods.take() {
+                        restore.apply(&self.library, &port.id, &install_root)?;
+                    }
+                    continue;
+                }
                 if port.runtime_data_policy.is_some() {
                     if source.exists() || previously_launched {
                         crate::runtime_data_policy::mirror(
@@ -5753,6 +5815,7 @@ impl PortcoveService {
                 }
             }
         }
+        self.record_psx_data_restored(port, &install_root)?;
         Ok(())
     }
 
@@ -6098,6 +6161,7 @@ fn sync_entry_checked(source: &Path, destination: &Path) -> Result<()> {
         }
         if destination.is_file()
             && fs::metadata(source)?.len() == fs::metadata(destination)?.len()
+            && fs::metadata(source)?.modified()? == fs::metadata(destination)?.modified()?
             && sha256_file(source)? == sha256_file(destination)?
         {
             return Ok(());
@@ -6153,6 +6217,8 @@ fn remove_managed_entry(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     mod backups;
+    #[cfg(windows)]
+    mod dynamic_policy;
 
     use std::{
         sync::{
@@ -10955,7 +11021,7 @@ fn main() {
     }
 
     #[tokio::test]
-    async fn external_ownership_refuses_managed_provider_work_before_resolution() {
+    async fn external_ownership_allows_route_inspection_but_refuses_managed_mutations() {
         struct UnexpectedProvider(Arc<AtomicUsize>);
         #[async_trait::async_trait]
         impl ReleaseProvider for UnexpectedProvider {
@@ -10974,11 +11040,17 @@ fn main() {
         let (_temporary, mut service, record) = external_location_fixture();
         let calls = Arc::new(AtomicUsize::new(0));
         service.releases = Arc::new(UnexpectedProvider(calls.clone()));
+        let inspection_failure = service
+            .plan_install(&record.port_id, None)
+            .await
+            .unwrap_err();
+        assert!(
+            inspection_failure
+                .message
+                .contains("external registration reached managed provider")
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         let results = [
-            service
-                .plan_install(&record.port_id, None)
-                .await
-                .map(|_| ()),
             service
                 .install_at(
                     &record.port_id,
@@ -11004,9 +11076,15 @@ fn main() {
             service.check_update(&record.port_id).await.map(|_| ()),
         ];
         for result in results {
-            assert!(result.unwrap_err().message.contains("external folder"));
+            let failure = result.unwrap_err();
+            assert!(
+                failure.message.contains("external folder")
+                    || failure.message.contains("externally owned folder"),
+                "{}",
+                failure.message
+            );
         }
-        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert_eq!(
             serde_json::to_value(
                 service
@@ -15173,12 +15251,13 @@ fn main() {
     }
 
     #[test]
-    fn post_exit_sync_reuses_identical_bytes_but_detects_same_size_and_time_changes() {
+    fn post_exit_sync_preserves_source_times_and_detects_same_size_and_time_changes() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         let destination = temporary.path().join("destination");
         fs::write(&source, b"save-one").unwrap();
         fs::write(&destination, b"save-one").unwrap();
+        let source_stamp = fs::metadata(&source).unwrap().modified().unwrap();
         let stamp = std::time::UNIX_EPOCH + Duration::from_secs(86400);
         let times = fs::FileTimes::new().set_modified(stamp);
         fs::File::options()
@@ -15190,8 +15269,16 @@ fn main() {
         sync_entry(&source, &destination).unwrap();
         assert_eq!(
             fs::metadata(&destination).unwrap().modified().unwrap(),
-            stamp
+            source_stamp
         );
+        // Set equal timestamps before changing only the payload. Neither equal
+        // size nor equal time may skip the byte comparison.
+        fs::File::options()
+            .write(true)
+            .open(&destination)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
 
         fs::write(&source, b"save-two").unwrap();
         fs::File::options()

@@ -465,10 +465,12 @@ impl PortcoveService {
             checkpoint,
         )?;
         self.require_user_selected_path_ownership(&proposed.executable, &proposed.path)?;
+        let pending = self.pending_setup_registration(port_id)?;
         let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&(
             "portcove-user-selected-relink-v1",
             &state.row_sha256,
             &proposed,
+            &pending,
         ))?));
         let preview = crate::ExternalRuntimeRelinkPreview {
             port_id: port_id.into(),
@@ -535,8 +537,15 @@ impl PortcoveService {
                 &preview.preview_sha256,
             )?;
             operation.begin_publication()?;
-            self.library
-                .relink_user_selected_runtime(port_id, &state.row_sha256, &preview.proposed)
+            let pending = self.pending_setup_registration(port_id)?;
+            self.library.relink_user_selected_runtime(
+                port_id,
+                &state.row_sha256,
+                &preview.proposed,
+                pending
+                    .as_ref()
+                    .map(|(record, json)| (record.id.as_str(), json.as_str())),
+            )
         })();
         self.finish_activity(activity, result)
     }

@@ -7,6 +7,98 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# The historical byte-only backup round trip passed in the preceding batch,
+# then hit the Windows30.126s outer cap in run3be9ce8b. Preserve the complete
+# create/review/restore/assertion flow, two workers and zero retries. Exact60s
+# room and phase output remain finite; product deadlines are unchanged.
+# Run667b37eb retained20 Windows timeouts in78 cases (58 passed). Phase logs
+# show durable fixture work: library open7.5-9.15s, register up to6.93s and
+# backup up to11.57s, before import/restore/publication assertions. Catalog
+# decoding was under0.11s. Calibrate only these observed cases: Core30/60s
+# becomes90s; four CLI30s cases become60s. Preserve all operations/assertions,
+# two local slots, cleanup, zero retries and every product/child deadline.
+# This supplies finite harness headroom, not a causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^import_execution::tests::admitted_post_client_definition_survives_interrupted_import_resume$/) | test(/^import_execution::tests::admitted_post_client_definition_survives_offline_import_with_its_full_graph$/) | test(/^import_execution::tests::changed_import_destination_is_retained_and_never_published$/) | test(/^import_execution::tests::changed_import_input_is_retained_and_never_published$/) | test(/^import_execution::tests::copied_successor_snapshot_without_admission_cannot_grant_unknown_port_authority$/) | test(/^import_execution::tests::copying_import_recovers_without_replaying_old_saves$/) | test(/^import_execution::tests::forged_but_self_consistent_successor_admission_cannot_reuse_portability_authority$/) | test(/^import_execution::tests::import_missing_retained_reference_stops_recovery$/) | test(/^import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library$/) | test(/^import_execution::tests::imported_retained_arguments_cannot_grant_themselves_execution_authority$/) | test(/^import_execution::tests::interrupted_abort_cannot_be_resumed_as_a_successful_import$/) | test(/^import_execution::tests::journal_phase_cannot_manufacture_import_publication$/) | test(/^import_execution::tests::late_credentials_hold_import_before_the_open_gate$/) | test(/^import_execution::tests::published_import_recovers_without_replaying_old_saves$/) | test(/^import_execution::tests::verified_import_recovers_without_replaying_old_saves$/) | test(/^library_transfer::tests::move_plan_accepts_an_admitted_post_client_definition$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & (test(/^definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas$/) | test(/^definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_unconfigured$/) | test(/^definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority$/) | test(/^definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# The preserved metadata batch completed131/133 cases; these existing full
+# recovery fixtures reached the Windows30.083s/30.050s harness cap. Keep their
+# staged/publication recovery, all data assertions, cleanup, two workers and
+# zero retries. Exact-case60s room and phase diagnostics retain finite hangs;
+# no product deadline changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Hosted run40134563104/a1 retained a30.138s outer cutoff while this complete
+# artwork CLI lifecycle was running fresh processes. Preserve both slots and
+# every import/handoff/stale-choice assertion, process cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# The focused local Windows run retained a 32.310s harness cutoff while this
+# two-install named-save fixture was preparing its runtime. Keep both real
+# installs, every data/import assertion, cleanup, two workers and zero retries;
+# allow finite lifecycle headroom without changing product or child deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::named_save_restore_updates_every_version_and_preserves_import_policy$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# The owned PSX provider/preparation/update/fresh-install fixture passed at
+# 24.578s, then hit the 30.108s Windows outer cap after its child started.
+# Keep its decoder compilation, all real Core install/staging/refusal/data
+# assertions and both workers. Exact-case 90s room plus phase diagnostics
+# preserves finite hang detection, zero retries and product/child deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::psx_progression::unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# This complete two-attempt PSX backup/restore fixture passed at 13.98s, then
+# hit the 30.047s Windows harness cutoff during the broader restore run.
+# Retain both success/conflict attempts and every package/save assertion, two
+# workers and zero retries. Exact-case 60s headroom and phase diagnostics leave
+# hang detection finite; product and child deadlines are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::psx_mod_data::tests::lifecycle::explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# These complete backup fixtures passed at 24.893s/24.495s, then hit exact
+# 30.142s/30.045s Windows caps in the broader restore run. Preserve all four
+# lifecycle operations and all five interrupted child boundaries. Exact-case
+# 60s room with phase diagnostics retains finite hang detection, two workers,
+# zero retries, cleanup and unchanged product/child deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The portable lifecycle fixtures perform several durable installs, activations
 # and recovery reopens. The retained local Windows run hit 30.042s and 30.085s
 # harness cutoffs while another full case completed at 28.979s. Keep every
@@ -16,6 +108,16 @@ final-status-level = "slow"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+
+# This registration/download/replacement fixture hit the 30.078s Windows harness
+# cutoff while retaining both external copies and repeated durable reviews. Match
+# the selected-runtime fixtures' finite 90s room; keep assertions, two workers,
+# cleanup, zero retries and all product/child deadlines unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
 
 # The legacy DKR metadata matrix opens 16 independent schema-2-to-5 libraries.
 # Its first Windows attempt reached a partial matrix at 24.9s before a repaired
@@ -49,8 +151,8 @@ success-output = "immediate"
 
 # Shipwright's complete Windows save lifecycles reached the 30s harness cap.
 # The activation fixture was ready at 14.77s and its second retained installation
-# at 21.10s, before activation/rollback assertions; restore includes fresh consent
-# after authoritative collection. Keep both workers, all steps, zero retries and
+# at 21.10s, before activation/rollback assertions; restore now binds runtime
+# data before consent and collects only after that read-only review. Keep both workers, all steps, zero retries and
 # product deadlines; only these exact fixtures receive finite 60s headroom.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
@@ -92,8 +194,16 @@ success-output = "immediate"
 # refusal operations, preservation assertions, two workers and zero retries.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::tests::external_ownership_refuses_managed_provider_work_before_resolution$/)'
+filter = 'package(portcove-core) & test(/^service::tests::external_ownership_allows_route_inspection_but_refuses_managed_mutations$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# The complete CLI registration/restart/relink/removal case reached 30.049s
+# locally. Retain its compiled native fixture, every subprocess and preservation
+# assertion, two workers and zero retries; allow this Windows case finite 90s.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & test(/^self_service_contract::listing_only_selected_runtime_survives_cli_restart_relink_and_registration_removal$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 
 # The second-audit Windows run retained a 30s runtime lifecycle timeout after
 # the first real install. Keep every install/update/rollback/preservation assertion with finite

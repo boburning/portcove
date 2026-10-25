@@ -833,3 +833,54 @@ void test("Python reporting changes provision Desktop dependencies for selected 
   }
   assert.equal(baselineRequiresDesktopDependencies(make(["docs/README.md"])), false);
 });
+
+void test("measured coverage helpers retain their controls and shared frontend consumers through missing siblings and renames", () => {
+  for (const name of [
+    "test-coverage",
+    "test-coverage-config",
+    "coverage-node-reporter",
+    "coverage-node-loader",
+    "coverage-maps",
+  ]) {
+    const file = `scripts/${name}.mts`;
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const plan = buildValidationPlan({
+        changes: [
+          {
+            status: variant.startsWith("R") ? "R100" : variant,
+            oldPath: variant === "R-new" ? "docs/moved.md" : file,
+            newPath: variant === "R-old" ? "docs/moved.md" : file,
+            oldMode: variant === "A" ? "000000" : "100644",
+            newMode: variant === "D" ? "000000" : "100644",
+          },
+        ],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const label = `${file}:${variant}`;
+      assert.ok(
+        baselineContractTests(plan, { fileExists: () => false }).includes(
+          "scripts/ui-test-selection.test.mts",
+        ),
+        label,
+      );
+      if (["test-coverage-config", "coverage-maps"].includes(name)) {
+        assert.ok(plan.groups.includes("frontend"), label);
+        const entries = baselineFrontendPlan(plan, { fileExists: () => false });
+        assert.ok(
+          entries.some((entry) => entry.id === "ui-tests"),
+          label,
+        );
+        assert.ok(
+          entries.some((entry) => entry.id === "ui-browser-tests"),
+          label,
+        );
+      }
+    }
+    const local = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(local.nodeTests.has("scripts/ui-test-selection.test.mts"), file);
+  }
+});

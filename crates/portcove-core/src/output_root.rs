@@ -359,6 +359,37 @@ pub(crate) fn validate_install_path(
     validate_owned_install_path(library, port_id, install_path, None, "registered")
 }
 
+/// The verified payload is published before its install row can be committed.
+/// Permit only that exact journal-bound leaf; all other unregistered content
+/// still fails the ordinary output-root ownership check.
+pub(crate) fn validate_published_install_path(
+    library: &Library,
+    operation: &crate::operation::LifecycleOperation,
+    install: &crate::InstallRecord,
+) -> Result<PathBuf> {
+    use crate::operation::{LifecycleOperationKind, LifecyclePhase};
+    if operation.kind != LifecycleOperationKind::Install
+        || operation.phase != LifecyclePhase::PayloadPublished
+        || operation.id != install.id
+        || operation.port_id != install.port_id
+        || operation.paths.final_path.as_ref() != Some(&install.path)
+        || serde_json::to_value(operation.install.as_ref())? != serde_json::to_value(Some(install))?
+    {
+        return Err(PortcoveError::conflict(
+            "published install path does not match its authoritative installation journal",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(&install.path)?;
+    let published = fs::canonicalize(&install.path)?;
+    validate_owned_install_path(
+        library,
+        &install.port_id,
+        &published,
+        Some(std::slice::from_ref(&published)),
+        "published",
+    )
+}
+
 pub(crate) fn validate_retired_install_path(
     library: &Library,
     port_id: &str,
@@ -728,6 +759,88 @@ fn volume_identity(path: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn published_path_refuses_journal_named_symlink_before_resolution() {
+        use crate::operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase};
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let parent = library.versions_dir().join("sample");
+        let target = parent.join("real-payload");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("sentinel"), b"keep published payload").unwrap();
+        let link = parent.join("journal-named-payload");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        #[cfg(windows)]
+        {
+            let target = target.to_str().unwrap();
+            let link = link.to_str().unwrap();
+            for path in [target, link] {
+                assert!(!path.contains(['"', '%', '!', '&', '|', '<', '>', '^', '\r', '\n']));
+            }
+            // Directory junctions exercise this boundary without requiring the
+            // optional Windows symbolic-link privilege.
+            let mut command = crate::ChildProcessPolicy::native_tool_spec(
+                crate::ChildProcessClass::HostTool,
+                "cmd.exe",
+            )
+            .unwrap();
+            command.raw_arg(format!("/D /V:OFF /C mklink /J \"{link}\" \"{target}\""));
+            let started = std::time::Instant::now();
+            let output = crate::tool_process::run_tool(
+                &mut command,
+                &|| {
+                    if started.elapsed() >= std::time::Duration::from_secs(2) {
+                        Err(PortcoveError::state(
+                            "published-path junction fixture exceeded two seconds",
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                },
+                crate::tool_process::ToolProcessObserver {
+                    diagnostics: None,
+                    quiesced: None,
+                },
+            )
+            .unwrap();
+            assert!(output.status.success(), "{}", output.output);
+        }
+        let install = crate::InstallRecord {
+            id: Uuid::new_v4().to_string(),
+            port_id: "sample".into(),
+            version: "v1".into(),
+            path: link.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact: Default::default(),
+            runtime: None,
+            manifest_sha256: "a".repeat(64),
+            selected_executable: "game.exe".into(),
+        };
+        let mut journal = LifecycleOperation::new(
+            &install.id,
+            LifecycleOperationKind::Install,
+            &install.port_id,
+        );
+        journal.phase = LifecyclePhase::PayloadPublished;
+        journal.paths.final_path = Some(link.clone());
+        journal.install = Some(install.clone());
+        let error = validate_published_install_path(&library, &journal, &install).unwrap_err();
+        // Unlink this fixture-owned link before recursive TempDir cleanup.
+        #[cfg(windows)]
+        fs::remove_dir(&link).unwrap();
+        #[cfg(unix)]
+        fs::remove_file(&link).unwrap();
+        assert!(error.message.contains("symlink"), "{error:?}");
+        assert_eq!(
+            fs::read(target.join("sentinel")).unwrap(),
+            b"keep published payload"
+        );
+    }
 
     #[test]
     fn external_root_claim_is_port_and_library_bound() {

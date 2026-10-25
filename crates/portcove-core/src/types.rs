@@ -713,6 +713,17 @@ pub struct PortListing {
     pub platforms: Vec<Platform>,
     #[serde(default)]
     pub availability: ListingAvailability,
+    /// A reviewed restriction on fresh self-service downloads only. It grants
+    /// no execution, management or permission over an existing copy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_block_reason: Option<String>,
+    /// Advisory literal filename hints for an upstream-owned download. They do
+    /// not authenticate a package or grant installation/execution ownership.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub download_asset_hints: BTreeMap<Platform, Vec<String>>,
+    /// Initial self-service release choice only; never the installed update policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_download_channel: Option<ReleaseChannel>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub release_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -734,8 +745,8 @@ pub enum ListingAvailability {
     Unavailable,
 }
 
-/// Independently versioned inert directory projection. The operational catalog
-/// keeps its existing schema and strict PortDefinition interpretation.
+/// Independently versioned directory projection. Format 2 can restrict fresh
+/// self-service downloads; neither format grants managed operations.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogListingDocument {
@@ -1792,6 +1803,8 @@ impl CapabilityDocument {
                 "external".into(),
                 "external.review".into(),
                 "external.relink".into(),
+                "external.managed-preview".into(),
+                "external.change-to-managed".into(),
                 "external.select".into(),
                 "external.select-relink".into(),
                 "setup".into(),

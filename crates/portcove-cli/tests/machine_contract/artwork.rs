@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() {
+    let started = std::time::Instant::now();
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("two slot library");
     // Two owned one-pixel RGB PNGs with different pixels and content identities.
@@ -26,7 +27,17 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
     });
     let run = |args: &[&str]| {
         // Every command opens the same library in a fresh compiled CLI process.
+        eprintln!(
+            "Artwork CLI step {:?} starting: {:?}",
+            args.get(2),
+            started.elapsed()
+        );
         let output = portcove(&library, args);
+        eprintln!(
+            "Artwork CLI step {:?} returned: {:?}",
+            args.get(2),
+            started.elapsed()
+        );
         assert!(output.status.success(), "{args:?}: {output:?}");
         let document = json_stdout(&output);
         assert_eq!(document["ok"], true, "{args:?}: {document}");

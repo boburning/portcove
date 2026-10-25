@@ -34,6 +34,7 @@ keyring.workspace = true
 reqwest.workspace = true
 rusqlite.workspace = true
 schemars.workspace = true
+same-file.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha1.workspace = true
@@ -55,7 +56,6 @@ rustix.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys.workspace = true
-same-file.workspace = true
 
 [dev-dependencies]
 aws-lc-rs = "1.18.2"

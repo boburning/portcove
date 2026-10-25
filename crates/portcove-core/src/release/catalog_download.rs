@@ -90,6 +90,27 @@ impl GithubReleaseProvider {
             ));
         }
         let history_complete = releases.len() < RELEASE_LIMIT;
+        if selected_id.is_none() && !history_complete {
+            let preferred = select_channel_candidate(
+                &releases,
+                channel,
+                rolling_tag,
+                |release| !release.draft,
+                is_beta_release,
+                |release| release.tag_name.as_str(),
+            );
+            // A recent stable is not proof that Preview has no older preview.
+            // Reuse managed discovery's finite completeness policy only when
+            // the browse window cannot establish the requested channel.
+            if preferred.is_none()
+                || (channel == ReleaseChannel::Beta
+                    && preferred.is_some_and(|release| !is_beta_release(release)))
+            {
+                releases = self
+                    .releases(&format!("{}/repos/{repository}", self.api_root))
+                    .await?;
+            }
+        }
         if let Some(id) = selected_id {
             if id == 0 {
                 return Err(PortcoveError::usage("release ID must be nonzero"));
@@ -151,8 +172,11 @@ impl GithubReleaseProvider {
         }
         let summaries = releases
             .iter()
-            .filter(|release| !release.draft)
-            .map(|release| crate::CatalogDownloadRelease {
+            .enumerate()
+            .filter(|(index, release)| {
+                !release.draft && (*index < RELEASE_LIMIT || release.id == selected_id)
+            })
+            .map(|(_, release)| crate::CatalogDownloadRelease {
                 id: release.id.unwrap(),
                 tag: release.tag_name.clone(),
                 preview: is_beta_release(release),
@@ -388,6 +412,79 @@ impl GithubReleaseProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_http::serve_http;
+
+    fn response(body: &str) -> String {
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    fn history(first: u64, count: u64) -> String {
+        serde_json::to_string(&(first..first + count).map(|id| serde_json::json!({
+            "id":id,"tag_name":format!("v{id}"),"draft":false,"prerelease":false,"published_at":null,"assets":[]
+        })).collect::<Vec<_>>()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn incomplete_or_failed_channel_observation_never_becomes_preview_fallback() {
+        for failure in ["rate", "network", "bound"] {
+            let mut responses = vec![response(&history(1, 10))];
+            match failure {
+                "rate" => responses.push("HTTP/1.1 403 Forbidden\r\nx-ratelimit-limit: 60\r\nx-ratelimit-remaining: 0\r\nx-ratelimit-reset: 2000000000\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()),
+                "network" => responses.push("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()),
+                _ => for page in 0..GITHUB_MAX_RELEASE_PAGES { responses.push(response(&history((page * PROVIDER_PAGE_SIZE + 1) as u64, PROVIDER_PAGE_SIZE as u64))); },
+            }
+            let count = responses.len();
+            let (root, requests, server) = serve_http(responses);
+            let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+            let error = provider
+                .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None)
+                .await
+                .unwrap_err();
+            if failure == "bound" {
+                assert!(error.message.contains("1000-release bound"), "{error}");
+            } else {
+                assert_eq!(error.code, crate::ErrorCode::Network);
+            }
+            if failure == "rate" {
+                assert_eq!(
+                    error.details.get("rate_remaining").map(String::as_str),
+                    Some("0")
+                );
+                assert_eq!(
+                    error.presentation().presentation_key,
+                    "provider_rate_limited"
+                );
+            }
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), count);
+        }
+    }
+
+    #[tokio::test]
+    async fn explicit_historical_selection_never_becomes_channel_latest() {
+        let exact = serde_json::json!({"id":500,"tag_name":"chosen-old-build","draft":false,"prerelease":false,"published_at":null,"assets":[]});
+        let (root, requests, server) = serve_http(vec![
+            response(&history(1, 10)),
+            response(&exact.to_string()),
+            response("[]"),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+        let (_, coverage, summaries, selected) = provider
+            .catalog_download_options("owner/game", Some(500), ReleaseChannel::Beta, None)
+            .await
+            .unwrap();
+        assert_eq!(selected, Some(500));
+        assert_eq!(summaries.last().unwrap().tag, "chosen-old-build");
+        assert!(!coverage.release_history_complete);
+        server.join().unwrap();
+        let paths = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(paths.len(), 3);
+        assert!(paths[1].contains("/releases/500 "));
+        assert!(paths[2].contains("/releases/500/assets?"));
+    }
     #[test]
     fn repository_boundary_does_not_become_a_universal_fetcher() {
         assert_eq!(

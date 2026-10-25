@@ -105,6 +105,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "@types/node",
     "@types/selenium-webdriver",
     "@types/semver",
+    "@vitest/coverage-v8",
     "es-module-lexer",
     "fallow",
     "vite-plus",
@@ -112,6 +113,8 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
   assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "2.3.2");
+  assert.equal(repositoryPackage.devDependencies["@vitest/coverage-v8"], "5.0.5");
+  assert.equal(Object.hasOwn(desktopPackage.devDependencies, "@vitest/coverage-v8"), false);
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "es-module-lexer"), false);
   for (const signingTool of ["@sigstore/bundle", "@sigstore/sign"] as const) {
     assert.equal(repositoryPackage.devDependencies[signingTool], "5.0.0");

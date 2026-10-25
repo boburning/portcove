@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 40;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 41;
 
 struct Migration {
     version: i64,
@@ -264,7 +264,26 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::definition_repository::publisher_policy::listing_delivery::migrate,
         verify: verify_migration_40,
     },
+    Migration {
+        version: 41,
+        name: "reviewed external to managed publication",
+        apply: migration_41,
+        verify: verify_migration_41,
+    },
 ];
+
+fn migration_41(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch("ALTER TABLE lifecycle_operations ADD COLUMN external_registration_sha256 TEXT CHECK(external_registration_sha256 IS NULL OR (length(external_registration_sha256)=64 AND external_registration_sha256 NOT GLOB '*[^0-9a-f]*'));")?;
+    verify_migration_41(transaction)
+}
+
+fn verify_migration_41(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "lifecycle_operations",
+        &["external_registration_sha256"],
+    )
+}
 
 fn verify_migration_40(connection: &Connection) -> Result<()> {
     require_columns(
@@ -916,7 +935,12 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
                 ("definition_publisher_admission", "launch_assessment_revision") => {
                     format!("{quoted_column}!=0")
                 }
-                ("lifecycle_operations", "ghostship_recovery_json" | "backup_deletion_json") => {
+                (
+                    "lifecycle_operations",
+                    "ghostship_recovery_json"
+                    | "backup_deletion_json"
+                    | "external_registration_sha256",
+                ) => {
                     format!("{quoted_column} IS NOT NULL")
                 }
                 _ => "1".to_owned(),
@@ -2722,6 +2746,7 @@ mod tests {
         schema_37: 37,
         schema_38: 38,
         schema_39: 39,
+        schema_40: 40,
     }
 
     #[test]

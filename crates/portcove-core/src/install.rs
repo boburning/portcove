@@ -111,8 +111,15 @@ impl InstallQualification {
                 ));
             }
             scope.require_port(catalog.port(&scope.stable_id)?)?;
-            self.acquisition = Some(resolution);
         }
+        if let Some(contract) = &self.retained_contract {
+            let catalog = contract.catalog(contract.port_id())?;
+            let port = catalog.port(contract.port_id())?;
+            if crate::managed_runtime_policy::requires_provider_resolution(port) {
+                resolution.require_selection(port, self.platform, resolution.release.channel)?;
+            }
+        }
+        self.acquisition = Some(resolution);
         Ok(self)
     }
 
@@ -422,6 +429,12 @@ struct InstallLifecycle {
     record: LifecycleOperation,
 }
 
+struct ExternalReplacement<'a> {
+    expected_row_sha256: &'a str,
+    previous_path: &'a Path,
+    prepare_activation: &'a (dyn Fn(&InstallRecord) -> Result<()> + Sync),
+}
+
 // This existing nullable field tracks joined managed preparation workers and
 // CVLoD blob mutations. None remains the legacy/non-managed Install contract.
 async fn run_managed_install_worker(
@@ -520,6 +533,66 @@ impl Installer {
         &self,
         request: InstallRequest,
         operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        self.install_with_external_replacement(request, None, operation, emit)
+            .await
+    }
+
+    pub(crate) async fn install_replacing_external<F>(
+        &self,
+        request: InstallRequest,
+        expected_row_sha256: &str,
+        previous_path: &Path,
+        prepare_activation: &(dyn Fn(&InstallRecord) -> Result<()> + Sync),
+        operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let contract = request
+            .qualification
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "managed route change requires its current retained definition",
+                )
+            })?;
+        let catalog = contract.catalog(&request.port_id)?;
+        let port = catalog.port(&request.port_id)?;
+        if port.adapter != AdapterKind::NativePortable
+            || !request.activate
+            || request.managed.is_some()
+            || port.managed_shared_preferences.is_some()
+            || port.runtime_data_policy.is_some()
+        {
+            return Err(PortcoveError::unsupported(
+                "this route change requires a separate native-portable runtime with no shared-account or managed-preparation transition",
+            ));
+        }
+        self.install_with_external_replacement(
+            request,
+            Some(ExternalReplacement {
+                expected_row_sha256,
+                previous_path,
+                prepare_activation,
+            }),
+            operation,
+            emit,
+        )
+        .await
+    }
+
+    async fn install_with_external_replacement<F>(
+        &self,
+        request: InstallRequest,
+        replacement: Option<ExternalReplacement<'_>>,
+        operation: &OperationCoordinator,
         mut emit: F,
     ) -> Result<InstallRecord>
     where
@@ -580,6 +653,9 @@ impl Installer {
         record.paths.staging = Some(operation_root.clone());
         record.paths.final_path = Some(destination.clone());
         record.activate = request.activate;
+        record.external_registration_sha256 = replacement
+            .as_ref()
+            .map(|replacement| replacement.expected_row_sha256.to_owned());
         let store = OperationStore::new(self.library.clone());
         store.put(&mut record)?;
         let mut lifecycle = InstallLifecycle {
@@ -589,9 +665,26 @@ impl Installer {
             record,
         };
         let mut result = self
-            .install_inner(request, operation, &mut lifecycle, &mut emit)
+            .install_inner(
+                request,
+                replacement.as_ref(),
+                operation,
+                &mut lifecycle,
+                &mut emit,
+            )
             .await;
         if let Err(error) = &mut result {
+            // Metadata committed before a later journal/cleanup failure. Keep
+            // that known identity even if subsequent database access also fails.
+            if let Some(replacement) = &replacement
+                && matches!(
+                    lifecycle.record.phase,
+                    LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+                )
+                && let Some(install) = &lifecycle.record.install
+            {
+                error.mark_managed_route_committed(install, replacement.previous_path, false);
+            }
             if lifecycle.record.phase == LifecyclePhase::Preparing {
                 if error.code == crate::ErrorCode::Cancelled {
                     if let Err(cleanup) = crate::cancellation::discard_private_install(
@@ -742,6 +835,28 @@ impl Installer {
                 Some(request.qualification.platform),
             )?;
         }
+        let port = catalog.port(&request.port_id)?;
+        if request.activate && crate::persistence::requires_restore_receipt(port) {
+            return Err(PortcoveError::unsupported(
+                "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
+            ));
+        }
+        if crate::managed_runtime_policy::requires_provider_resolution(port) {
+            request.qualification.acquisition.as_ref().ok_or_else(|| {
+                PortcoveError::verification("dynamic runtime policy requires an exact provider resolution before acquisition")
+            })?.require_selection(port, request.qualification.platform, request.release.channel)?;
+        }
+        if let Some(resolution) = &request.qualification.acquisition {
+            if resolution.release.asset != request.release.asset
+                || resolution.release.version != request.release.version
+                || resolution.release.channel != request.release.channel
+                || resolution.release.published_at != request.release.published_at
+            {
+                return Err(PortcoveError::conflict(
+                    "installation acquisition proof changed",
+                ));
+            }
+        }
         let current = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &catalog,
@@ -749,6 +864,7 @@ impl Installer {
         )?;
         match (current, &request.qualification.acquisition) {
             (None, None) => Ok(None),
+            (None, Some(resolution)) if resolution.scope.is_none() => Ok(None),
             (Some(current), Some(resolution)) => {
                 let scope = resolution.scope.as_ref().ok_or_else(|| {
                     PortcoveError::state("managed resolution lost its acquisition proof")
@@ -826,6 +942,7 @@ impl Installer {
     async fn install_inner<F>(
         &self,
         request: InstallRequest,
+        replacement: Option<&ExternalReplacement<'_>>,
         operation: &OperationCoordinator,
         lifecycle: &mut InstallLifecycle,
         emit: &mut F,
@@ -970,7 +1087,15 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.require_acquisition(&request)?;
-        self.library.register_install(&install, request.activate)?;
+        if let Some(replacement) = replacement {
+            (replacement.prepare_activation)(&install)?;
+            self.verify_critical(&install, &request.qualification)?;
+            self.require_acquisition(&request)?;
+            self.library
+                .register_install_replacing_external(&install, replacement.expected_row_sha256)?;
+        } else {
+            self.library.register_install(&install, request.activate)?;
+        }
         lifecycle.record.phase = LifecyclePhase::MetadataCommitted;
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults
@@ -1336,6 +1461,16 @@ impl Installer {
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
         let strict_staged = full_immutable_integrity(&manifest, install, staged_fallback)?;
+        let psx_metadata = manifest
+            .retained_contract
+            .as_ref()
+            .map(|contract| -> Result<bool> {
+                Ok(crate::persistence::requires_restore_receipt(
+                    contract.catalog(&install.port_id)?.port(&install.port_id)?,
+                ))
+            })
+            .transpose()?
+            .unwrap_or(false);
         let staged_candidates = if strict_staged {
             Some(staged_install_files(&install.path)?)
         } else {
@@ -1374,6 +1509,7 @@ impl Installer {
             let relative = manifest_relative(&install.path, &candidate)?;
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
+                || (psx_metadata && crate::service::psx_data_metadata_name(&relative))
                 || generated_metadata.contains(&relative)
                 || manifest
                     .mutable_file_patterns
@@ -2479,6 +2615,18 @@ fn manifest_files(
 
     let mut files = Vec::new();
     let file_patterns = qualification.file_patterns(root, selected)?;
+    let psx_metadata = qualification
+        .retained_contract
+        .as_ref()
+        .map(|contract| -> Result<bool> {
+            Ok(crate::persistence::requires_restore_receipt(
+                contract
+                    .catalog(contract.port_id())?
+                    .port(contract.port_id())?,
+            ))
+        })
+        .transpose()?
+        .unwrap_or(false);
     for path in walk_files(root)? {
         let relative = manifest_relative(root, &path)?;
         let matched_file = file_patterns
@@ -2503,6 +2651,7 @@ fn manifest_files(
         }
         if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json")
             || path.file_name().and_then(|value| value.to_str()) == Some(".portcove-launched")
+            || (psx_metadata && crate::service::psx_data_metadata_name(&relative))
             || mutable_roots
                 .iter()
                 .any(|mutable| path == *mutable || path.starts_with(mutable))
@@ -3327,6 +3476,7 @@ fn normalize_standalone_appimage(
 
 #[cfg(test)]
 mod tests {
+    mod dynamic_policy;
     use std::{
         fs::File,
         sync::{

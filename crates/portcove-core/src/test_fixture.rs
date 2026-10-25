@@ -35,6 +35,45 @@ pub(crate) fn phase<T>(label: &str, action: impl FnOnce() -> T) -> T {
     result
 }
 
+/// Immutable proposed metadata from the preserved rollout candidate. These
+/// inputs exercise generic provider/presentation behavior without advertising
+/// the corresponding routes as shipped catalog support.
+pub(crate) fn proposed_rollout_port(id: &str) -> crate::PortDefinition {
+    let document: serde_json::Value = serde_json::from_str(include_str!(
+        "../tests/fixtures/installation-rollout-proposals-20261025.json"
+    ))
+    .unwrap();
+    let port = document["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == id)
+        .unwrap_or_else(|| panic!("missing frozen proposed rollout definition: {id}"));
+    serde_json::from_value(port.clone()).unwrap()
+}
+
+/// Freeze the old direct-policy inputs independently of today's release rules.
+/// The reviewed fixture is source-bound to the catalog before GitHub adoption;
+/// current dynamic/provider tests must keep using the current embedded catalog.
+pub(crate) fn historical_managed_policy_catalog() -> crate::Catalog {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../tests/fixtures/managed-direct-policies-historical.json"
+    ))
+    .unwrap();
+    let ports: Vec<crate::PortDefinition> =
+        serde_json::from_value(fixture["ports"].clone()).unwrap();
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    for port in ports {
+        let existing = document
+            .ports
+            .iter_mut()
+            .find(|current| current.id == port.id)
+            .unwrap();
+        *existing = port;
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 /// Give synthetic installer fixtures the same complete retention input as a
 /// production catalog operation, with their explicitly modified port contract.
 pub(crate) fn retained_qualification(
@@ -124,13 +163,21 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port
+        let capability_version = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+            2
+        } else if port
             .release
             .user_prepared
             .values()
             .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
         {
             20
+        } else if crate::preparation::has_manual_marker(port) {
+            2
+        } else if crate::persistence::ready_staged_archive(port) {
+            23
+        } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
+            21
         } else if port.managed_initialization
             == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
             || port.runtime_data_policy
@@ -223,8 +270,9 @@ impl<'a> IndexedCatalogFixture<'a> {
 fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
-        ("resident-evil-gaiden-recomp", 19),
-        ("wave-race-64-racewave46", 19),
+        ("re-rac-rerac", 2),
+        ("resident-evil-gaiden-recomp", 21),
+        ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
     ] {
         let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);

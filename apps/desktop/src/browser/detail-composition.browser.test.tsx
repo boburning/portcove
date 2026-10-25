@@ -230,7 +230,7 @@ it.each(["dark", "light"])(
       .click();
     await page.getByRole("button", { name: "Continue setup", exact: true }).first().click();
     await expect
-      .element(page.getByRole("heading", { name: "Launch details", exact: true }))
+      .element(page.getByRole("region", { name: "Set up and launch", exact: true }))
       .toHaveFocus();
     await page
       .getByRole("textbox", { name: "Working directory", exact: true })

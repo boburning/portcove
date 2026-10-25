@@ -13,6 +13,7 @@ const actionLabels: Readonly<Record<string, string>> = {
   install: "Install game",
   launch: "Launch game",
   "open data folder": "Open saves and settings folder",
+  "open setup folder": "Open installed setup folder",
   remove: "Remove installation",
   "delete backup": "Delete save backup",
   rollback: "Use previous version",
@@ -107,6 +108,15 @@ export function detailActions({
         refresh: "none",
         invalidateDiagnostics: false,
       }),
+    openSetupFolder: () =>
+      perform(
+        "open setup folder",
+        () => {
+          if (!status?.active) throw new Error("Refresh this installation before opening setup.");
+          return desktopApi.openManualSetupFolder(port.id, status.active.id, libraryGeneration);
+        },
+        { refresh: "none", invalidateDiagnostics: false },
+      ),
     reviewInstall,
     remove: async (expectedPreview) => {
       const removed = await perform("remove", () =>

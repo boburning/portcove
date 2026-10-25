@@ -16,6 +16,7 @@ import { Button } from "./ui/button";
 
 export function ListingDetailPanel({
   entry,
+  libraryRoot,
   status,
   generation,
   perform,
@@ -24,6 +25,7 @@ export function ListingDetailPanel({
   opening,
 }: {
   entry: CatalogEntry;
+  libraryRoot?: string | undefined;
   status?: PortStatus | undefined;
   generation: number;
   perform: Perform;
@@ -48,6 +50,7 @@ export function ListingDetailPanel({
   );
   return (
     <SelfServiceSetup
+      libraryRoot={libraryRoot}
       entry={entry}
       status={status}
       generation={generation}
@@ -96,13 +99,7 @@ export function ListingDetailPanel({
                 data-focusable
                 variant="primary"
                 size="lg"
-                onClick={() =>
-                  reveal(
-                    "files",
-                    "detail-self-service-setup",
-                    !registered && entry.pendingSetup ? "[data-self-service-continue]" : undefined,
-                  )
-                }
+                onClick={() => reveal("files", "detail-self-service-setup")}
               >
                 {registered
                   ? "Review launch details"
@@ -119,7 +116,7 @@ export function ListingDetailPanel({
                     {registered
                       ? launch.reason
                       : entry.pendingSetup
-                        ? "Complete the upstream setup, then choose the executable."
+                        ? "Confirm the game or launcher in Files to finish setup."
                         : "Review available downloads and setup instructions."}{" "}
                     <Button variant="link" onClick={() => reveal("files")}>
                       Open Files

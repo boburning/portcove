@@ -39,7 +39,7 @@ export function readCatalogCoreMachineEnvelope(
   if (
     !isRecord(envelope) ||
     Object.keys(envelope).sort().join(",") !== "command,data,error,ok,schema_version" ||
-    envelope.schema_version !== 80 ||
+    envelope.schema_version !== 81 ||
     envelope.ok !== true ||
     envelope.error !== null ||
     envelope.command !== "catalog.inspect-definition-publication"

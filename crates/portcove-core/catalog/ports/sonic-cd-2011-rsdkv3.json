@@ -6,9 +6,8 @@
     "summary": "Explore Sonic CD 2011 RSDKv3 Decompilation and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/RSDKModding/RSDKv3-Decompilation",
     "issue_number": 1127,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/RSDKModding/RSDKv3-Decompilation",
+    "availability": "packages",
+    "setup_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md",
     "artwork": {
       "game_id": 86807,
       "cover_id": 311285,
@@ -16,6 +15,51 @@
       "image_sha256": "05b0446d1d4f24cbcbea9207a2034aead3f5feb4d51a993e88ca20004676b90d",
       "game_slug": "sonic-cd--1",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/releases/tag/1.3.3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original game",
+          "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
+    },
+    "original_game_title": "Sonic CD"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "RSDKModding/RSDKv3-Decompilation",
+      "asset_hints": {
+        "windows-x86-64": ["v3-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["RSDKv3.exe"]
+    },
+    "persistent_paths": [
+      "Data.rsdk",
+      "Data",
+      "Videos",
+      "settings.ini",
+      "SData.bin",
+      "SGame.bin",
+      "UData.bin",
+      "mods",
+      "log.txt",
+      "usage.txt"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player. The original Data.rsdk/unpacked Data and supported Videos, settings.ini, default SData/SGame/UData saves, user mods and named logs/instructions are declared for compatible replacement and backup. If UseSteamDir is deliberately enabled, that external Steam save location remains outside Portcove backups. Custom redirected save locations and modified runtime copies retain external registration. Supported mods follow upstream compatibility; runtime rollback carries current declared data without rewinding it. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
     }
   }
 }

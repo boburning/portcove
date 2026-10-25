@@ -154,6 +154,36 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if crate::preparation::has_manual_marker(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 2
+            })
+        {
+            return Err(PortcoveError::verification(
+                "manual native setup progress requires capability version 2",
+            ));
+        }
+        if !retained
+            && crate::persistence::ready_staged_archive(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 23
+            })
+        {
+            return Err(PortcoveError::verification(
+                "ready staged archives require metadata and prelaunch data preservation capability version 23",
+            ));
+        }
+        if !retained
+            && port.adapter == crate::AdapterKind::PsxRecompManaged
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "psx-recomp-managed" && requirement.minimum_version >= 2
+            })
+        {
+            return Err(PortcoveError::verification(
+                "new managed PS1 entries require package-preserving activation capability version 2",
+            ));
+        }
         if port
             .release
             .user_prepared
@@ -166,6 +196,16 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "user-selected execution requires staged-source capability version 20",
+            ));
+        }
+        if crate::managed_runtime_policy::requires_provider_resolution(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 21
+            })
+        {
+            return Err(PortcoveError::verification(
+                "provider-bound reusable runtime policies require staged-source capability version 21",
             ));
         }
         if (port.managed_initialization

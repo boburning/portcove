@@ -821,6 +821,18 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-hosted-native-job.mts", ["scripts/release-hosted-native-job.test.mts"]],
   [
+    "scripts/release-hosted-native-installation.mts",
+    ["scripts/release-hosted-native-installation.test.mts"],
+  ],
+  [
+    "scripts/prepare-hosted-native-linux-installation.py",
+    ["scripts/release-hosted-native-installation.test.mts"],
+  ],
+  [
+    "scripts/prepare-hosted-native-linux-installation.test.py",
+    ["scripts/release-hosted-native-installation.test.mts"],
+  ],
+  [
     "scripts/release-hosted-native-postsign-inputs.mts",
     ["scripts/release-hosted-native-job.test.mts", "scripts/release-controller-tools.test.mts"],
   ],
@@ -1178,6 +1190,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
+      "scripts/ui-test-selection.test.mts",
     ],
   ],
   [
@@ -1271,6 +1284,16 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/ui-test-selection.mts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-ui-tests.mts", ["scripts/ui-test-selection.test.mts"]],
+  ...[
+    "test-coverage",
+    "test-coverage-config",
+    "coverage-node-reporter",
+    "coverage-node-loader",
+    "coverage-maps",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/ui-test-selection.test.mts"],
+  ]),
   ["scripts/run-viteplus.mts", ["scripts/frontend-command-preflight.test.mts"]],
   [
     "scripts/pr-delivery.mts",
@@ -1996,6 +2019,8 @@ function classifyOnePath(
       "scripts/viteplus-cli.mts",
       "scripts/frontend-tests.ts",
       "scripts/run-ui-tests.mts",
+      "scripts/test-coverage-config.mts",
+      "scripts/coverage-maps.mts",
       "scripts/run-viteplus.mts",
     ].includes(file) ||
     /^patches\/[^/]+\.patch$/u.test(file)

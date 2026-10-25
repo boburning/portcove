@@ -6,9 +6,8 @@
     "summary": "Explore Rise of the Triad / Barrett (lunarmeadow) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/lunarmeadow/barrett",
     "issue_number": 1776,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/lunarmeadow/barrett",
+    "availability": "packages",
+    "setup_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md",
     "artwork": {
       "game_id": 2380,
       "cover_id": 228953,
@@ -16,6 +15,56 @@
       "image_sha256": "0f1a95130bf5610207ca50f8c614203d78e58d0d2ebb998eb068aed601f9f50a",
       "game_slug": "rise-of-the-triad-dark-war",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/lunarmeadow/barrett/releases/tag/v1.3-beta",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original game",
+          "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md"
+    },
+    "original_game_title": "Rise of the Triad"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "lunarmeadow/barrett",
+      "asset_hints": {
+        "windows-x86-64": ["barrett-win64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["barrett.exe"]
+    },
+    "persistent_paths": [
+      "userdata",
+      "DEMO1_3.DMO",
+      "DEMO2_3.DMO",
+      "DEMO3_3.DMO",
+      "DEMO4_3.DMO",
+      "REMOTE1.RTS",
+      "DARKWAR.RTC",
+      "DARKWAR.RTL",
+      "DARKWAR.WAD",
+      "HUNTBGIN.RTC",
+      "HUNTBGIN.RTL",
+      "HUNTBGIN.WAD",
+      "error.txt",
+      "VENDOR.DOC",
+      "LICENSE.DOC"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview. Upstream stores settings, saves, scores, optional soundfonts and OPL preferences in userdata beside the player. That folder, the named original inputs and named error/license outputs are declared for compatible replacement and backup. Original files must match the selected edition. Custom WAD/map/launch paths or changes to the runtime can use external registration; undeclared additions remain protected. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
     }
   }
 }

@@ -190,6 +190,16 @@ pub(crate) fn write_bytes_atomically(
     bytes: &[u8],
     replace: bool,
 ) -> Result<()> {
+    write_bytes_atomically_with_prefix(destination, bytes, replace, None)
+}
+
+/// Use a fixed Core-owned namespace for precisely identified metadata writes.
+pub(crate) fn write_bytes_atomically_with_prefix(
+    destination: &Path,
+    bytes: &[u8],
+    replace: bool,
+    prefix: Option<&str>,
+) -> Result<()> {
     use std::io::Write;
     let parent = destination
         .parent()
@@ -207,7 +217,13 @@ pub(crate) fn write_bytes_atomically(
     );
     #[cfg(windows)]
     let (parent, destination) = (parent.as_path(), destination.as_path());
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    let mut temporary = match prefix {
+        Some(prefix) => tempfile::Builder::new()
+            .prefix(prefix)
+            .rand_bytes(8)
+            .tempfile_in(parent)?,
+        None => tempfile::NamedTempFile::new_in(parent)?,
+    };
     temporary.write_all(bytes)?;
     temporary.as_file().sync_all()?;
     let result = if replace {

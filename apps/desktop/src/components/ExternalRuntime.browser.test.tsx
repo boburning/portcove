@@ -6,13 +6,23 @@ import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
-import type { ExternalRuntimeRecord, PortListingStatus } from "../types";
+import type {
+  ExternalRuntimeRecord,
+  PendingSetupRecord,
+  PortDefinition,
+  PortListing,
+  PortListingStatus,
+} from "../types";
+// Source-bound proposed metadata exercises retained presentation independently
+// of live catalog adoption. See #2926 for the remaining production rollout.
+import proposals from "../../../../crates/portcove-core/tests/fixtures/installation-rollout-proposals-20261025.json";
 import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
 
-vi.mock("../file-picker", () => ({
+vi.mock("../file-picker", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../file-picker")>()),
   pickInstallFolder: vi.fn(),
   pickHostToolExecutable: vi.fn(),
   pickArtworkPath: vi.fn(),
@@ -379,7 +389,7 @@ it("reviews explicit user launch details without accepted-package or file-manage
   expect(document.body.textContent).toContain(
     "Portcove has not authenticated it as an official package",
   );
-  expect(document.body.textContent).toContain("You or the upstream launcher own setup and updates");
+  expect(document.body.textContent).toContain("You or upstream own setup and updates");
   expect(document.body.textContent).not.toContain("Checked files");
   expect(apply).not.toHaveBeenCalled();
   expect(oldPreview).not.toHaveBeenCalled();
@@ -659,6 +669,115 @@ it("shows authored steps and essential warnings while preserving detailed notes 
   expect(open).toHaveBeenCalledExactlyOnceWith("https://example.com/guide");
   expect(register).not.toHaveBeenCalled();
   expect(pickInstallFolder).not.toHaveBeenCalled();
+});
+
+it.each(["native-portable", "staged-source-portable"] as const)(
+  "keeps managed-copy promises out of the %s external-registration guide",
+  async (adapter) => {
+    const guided: PortDefinition = {
+      ...port,
+      adapter,
+      release: { ...port.release, provider: "github" },
+      presentation: {
+        ...port.presentation,
+        manual_preparation: "Portcove replaces and backs up the managed copy.",
+        manual_setup: {
+          steps: [
+            {
+              title: "Choose original files",
+              instruction: "The game asks for your original files on first Play.",
+            },
+            {
+              title: "Choose controls",
+              instruction: "Use the game’s menus to choose your controls.",
+            },
+          ],
+          warnings: [],
+          help_url: "https://example.com/setup",
+        },
+      },
+    };
+    const register = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
+    await root.rerender(
+      <UserSelectedRuntimeControl
+        port={guided}
+        status={portStatus()}
+        generation={9}
+        busy={false}
+      />,
+    );
+    expect(host.textContent).toContain("The game asks for your original files on first Play.");
+    expect(host.textContent).toContain("You or upstream provide runtime updates.");
+    expect(host.textContent).not.toContain("Portcove replaces and backs up");
+    expect(host.textContent).toContain("Use the game’s menus to choose your controls.");
+    expect(register).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["colin-mcrae-rally-2-opencmr2", "alistert-openjazz", "citrongames-dora64"])(
+  "keeps retained %s setup truthful after the definition and listing disappear",
+  async (id) => {
+    const listing = proposals.listings.find((candidate) => candidate.id === id) as PortListing;
+    const pending: PendingSetupRecord = {
+      id: "retained-download",
+      reason: null,
+      port_id: id,
+      listing,
+      path: "C:/Downloads/game",
+      state: "downloaded",
+      downloaded_at: "2026-10-24T00:00:00Z",
+      archive_sha256: "a".repeat(64),
+      artifact: {
+        release_id: 1,
+        asset_id: 2,
+        release_tag: "v1",
+        name: "game.zip",
+        size: 1024,
+        release_url: "https://example.com/v1",
+        download_url: "https://example.com/game.zip",
+        can_extract: true,
+        sha256: null,
+      },
+    };
+    const entry = catalogEntries(undefined, undefined, [], [pending])[0]!;
+    expect(entry.definition).toBeUndefined();
+    expect(entry.adapter).toBeUndefined();
+    await root.rerender(
+      <UserSelectedRuntimeControl port={entry} status={portStatus()} generation={9} busy={false} />,
+    );
+    expect(host.textContent).toContain(listing.manual_setup!.steps[0]!.instruction);
+    expect(host.textContent).not.toContain("Portcove retains");
+    expect(host.textContent).not.toContain("declared for compatible");
+    expect(host.textContent).not.toContain("is carried between compatible versions");
+    expect(host.textContent).toContain("You or upstream provide runtime updates.");
+  },
+);
+
+it.each([
+  [
+    "colin-mcrae-rally-2-opencmr2",
+    "The supported original files can stay in their existing folder.",
+  ],
+  [
+    "alistert-openjazz",
+    "For external registration, use Change launch details to add game-data as a launch argument",
+  ],
+])("keeps the frozen proposed %s external setup handoff actionable", async (id, instruction) => {
+  const authored = proposals.ports.find(
+    (candidate) => candidate.id === id,
+  ) as unknown as PortDefinition;
+  expect(authored).toBeDefined();
+  await root.rerender(
+    <UserSelectedRuntimeControl
+      port={authored}
+      status={portStatus()}
+      generation={9}
+      busy={false}
+    />,
+  );
+  expect(document.body.textContent).toContain(instruction);
+  expect(document.body.textContent).not.toContain("is carried between compatible versions");
+  expect(document.body.textContent).not.toContain("Portcove retains");
 });
 
 it("reviews an exact player-owned folder before registering it", async () => {

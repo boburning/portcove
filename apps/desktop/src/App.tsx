@@ -711,6 +711,7 @@ function Workspace({
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
+        libraryRoot={bootstrap.library_root ?? undefined}
         key={model.entry.id}
         opening={detailOpening}
         entry={model.entry}
@@ -736,6 +737,7 @@ function Workspace({
                 </summary>
                 <div className="mt-4">
                   <SelfServiceSetup
+                    libraryRoot={bootstrap.library_root ?? undefined}
                     key={`${model.entry.id}:${bootstrap.generation}`}
                     entry={model.entry}
                     status={model.status}

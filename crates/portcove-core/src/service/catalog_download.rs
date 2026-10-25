@@ -317,9 +317,15 @@ impl PortcoveService {
     }
 
     fn require_download_available(&self, port_id: &str) -> Result<()> {
+        if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
+            return Err(PortcoveError::unsupported(reason.clone()));
+        }
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
-        if state.external_runtime.is_some()
+        if state
+            .external_runtime
+            .as_ref()
+            .is_some_and(|record| record.user_selected.is_none())
             || self
                 .library
                 .all_installs()?
@@ -332,7 +338,7 @@ impl PortcoveService {
                 .any(|session| session.port_id == port_id && session.outcome.is_none())
         {
             return Err(PortcoveError::conflict(
-                "this port already has an installation or active launch; keep it or explicitly remove its registration/managed installation before downloading another route",
+                "This retained installation cannot change routes here. Keep using it, or review an upstream package separately; no existing files will be adopted or removed.",
             ));
         }
         Ok(())
@@ -387,8 +393,16 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options(port_id, None, ReleaseChannel::Stable)
+        self.catalog_download_options_with_provider(port_id, None, None, None)
             .await
+    }
+
+    pub fn catalog_download_channel(&self, port_id: &str) -> Result<ReleaseChannel> {
+        Ok(self
+            .catalog
+            .listing(port_id)?
+            .recommended_download_channel
+            .unwrap_or(ReleaseChannel::Stable))
     }
 
     pub async fn catalog_download_options(
@@ -397,6 +411,23 @@ impl PortcoveService {
         selected_release_id: Option<u64>,
         channel: ReleaseChannel,
     ) -> Result<CatalogDownloadCandidates> {
+        self.catalog_download_options_with_provider(
+            port_id,
+            selected_release_id,
+            Some(channel),
+            None,
+        )
+        .await
+    }
+
+    async fn catalog_download_options_with_provider(
+        &self,
+        port_id: &str,
+        selected_release_id: Option<u64>,
+        channel: Option<ReleaseChannel>,
+        provider: Option<&GithubReleaseProvider>,
+    ) -> Result<CatalogDownloadCandidates> {
+        let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
         let upstream_url = listing
             .release_url
@@ -428,7 +459,14 @@ impl PortcoveService {
                 return Ok(result);
             }
         };
-        let provider = GithubReleaseProvider::for_library(&self.library)?;
+        let default_provider;
+        let provider = match provider {
+            Some(provider) => provider,
+            None => {
+                default_provider = GithubReleaseProvider::for_library(&self.library)?;
+                &default_provider
+            }
+        };
         let definition = self
             .catalog
             .port(port_id)
@@ -443,6 +481,7 @@ impl PortcoveService {
         let platform = Platform::current()?;
         let hints = definition
             .and_then(|port| port.release.asset_hints.get(&platform))
+            .or_else(|| listing.download_asset_hints.get(&platform))
             .map(Vec::as_slice)
             .unwrap_or_default();
         let (packages, recommended) = super::package_selection::recommend_packages(
@@ -793,7 +832,6 @@ impl PortcoveService {
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let occupied: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM installs WHERE port_id=?1)
-            OR EXISTS(SELECT 1 FROM external_runtime_registrations WHERE port_id=?1)
             OR EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
             [&record.port_id],
             |row| row.get(0),

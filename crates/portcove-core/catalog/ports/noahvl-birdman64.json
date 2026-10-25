@@ -6,9 +6,8 @@
     "summary": "Explore Pilotwings 64 / Birdman64 (NoahVl) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/NoahVl/Birdman64",
     "issue_number": 1801,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/NoahVl/Birdman64",
+    "availability": "packages",
+    "setup_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md",
     "artwork": {
       "game_id": 3573,
       "cover_id": 257550,
@@ -16,6 +15,42 @@
       "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
       "game_slug": "pilotwings-64",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/NoahVl/Birdman64/releases/tag/v1.5.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish the game’s setup",
+          "instruction": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
+    },
+    "original_game_title": "Pilotwings 64"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "NoahVl/Birdman64",
+      "asset_hints": {
+        "windows-x86-64": ["birdman64-windows-x64.zip"],
+        "linux-x86-64": ["birdman64-linux-x64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Birdman64.exe"],
+      "linux-x86-64": ["birdman64"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration. Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux tar.gz contains the direct birdman64 player and its bundled toolchain/zig compiler. Default data is in $XDG_DATA_HOME/birdman64 or ~/.local/share/birdman64; the external build cache remains upstream-owned and outside Portcove backups. The separately packaged AppRun is for an AppDir layout and is not the launch target for this tar.gz. System udev, D-Bus, X11/Wayland/audio libraries are required. Use external registration for PW64_DATA_DIR or portable/legacy data modes. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
     }
   }
 }

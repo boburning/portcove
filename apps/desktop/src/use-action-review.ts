@@ -41,7 +41,10 @@ export function useActionReview<T>({
     setError(undefined);
     try {
       const value = await callbacks.current.load();
-      if (requests.current.isCurrent(request)) setReviewed({ identity, value });
+      if (requests.current.isCurrent(request)) {
+        setReviewed({ identity, value });
+        return value;
+      }
     } catch (value) {
       if (requests.current.isCurrent(request)) setError(value);
     } finally {

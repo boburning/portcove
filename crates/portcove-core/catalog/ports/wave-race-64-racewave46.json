@@ -25,14 +25,10 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v1.0.0",
-          "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
-          "size": 35768574,
-          "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-        }
+      "provider": "github",
+      "repository": "DomazinUS/RaceWave46",
+      "asset_hints": {
+        "windows-x86-64": ["RaceWave46-Windows-x64-", ".zip"]
       }
     },
     "source_profile": "wave-race-64",

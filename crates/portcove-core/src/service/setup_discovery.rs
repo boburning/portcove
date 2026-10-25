@@ -53,7 +53,7 @@ fn native_application(path: &Path, platform: Platform) -> Result<bool> {
             let machine = u16::from_le_bytes(pe[4..6].try_into().unwrap());
             let characteristics = u16::from_le_bytes(pe[22..24].try_into().unwrap());
             Ok(pe.starts_with(b"PE\0\0")
-                && machine == 0x8664
+                && matches!(machine, 0x8664 | 0x014c)
                 && characteristics & 0x0002 != 0
                 && characteristics & 0x2000 == 0)
         }
@@ -252,33 +252,41 @@ impl PortcoveService {
                 .collect::<String>()
         };
         let id = identity(&pending.listing.id);
-        let title = identity(&pending.listing.name);
-        let convincing = plausible.first().is_some_and(|target| {
-            let reviewed_hint = self
-                .catalog
-                .port(port_id)
-                .ok()
-                .and_then(|port| port.executable_hints.get(&platform))
-                .is_some_and(|hints| matches_executable_hint(&target.executable, hints));
-            let name = identity(
-                &target
-                    .executable
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy(),
-            );
-            reviewed_hint
-                || [&id, &title]
-                    .iter()
-                    .any(|key| key.len() >= 4 && (name == **key || name.starts_with(key.as_str())))
-        });
+        let title = identity(
+            pending
+                .listing
+                .original_game_title
+                .as_deref()
+                .unwrap_or(&pending.listing.name),
+        );
+        let convincing = plausible
+            .iter()
+            .filter(|target| {
+                let reviewed_hint = self
+                    .catalog
+                    .port(port_id)
+                    .ok()
+                    .and_then(|port| port.executable_hints.get(&platform))
+                    .is_some_and(|hints| matches_executable_hint(&target.executable, hints));
+                let name = identity(
+                    &target
+                        .executable
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy(),
+                );
+                reviewed_hint
+                    || [&id, &title].iter().any(|key| {
+                        key.len() >= 4 && (name == **key || name.starts_with(key.as_str()))
+                    })
+            })
+            .collect::<Vec<_>>();
         let raw_package = root.join(&pending.artifact.name).is_file();
-        let recommended_executable =
-            if complete && plausible.len() == 1 && convincing && !raw_package {
-                Some(plausible[0].executable.clone())
-            } else {
-                None
-            };
+        let recommended_executable = if complete && convincing.len() == 1 && !raw_package {
+            Some(convincing[0].executable.clone())
+        } else {
+            None
+        };
         let explanation = if !complete { "Search reached a safety bound or could not inspect every entry. Choose an executable manually, or open a smaller installed folder." }
             else if plausible.is_empty() { "No native game application was identified here. Complete upstream setup, refresh suggestions, or choose the installed executable elsewhere. Installers, scripts and app bundles may need upstream setup first." }
             else { "Confirm the game or upstream launcher. First launch may handle game-data setup; discovery does not prove configuration or gameplay." }.into();
@@ -334,6 +342,25 @@ mod tests {
             &targets[0].executable,
             &["other.exe".into()]
         ));
+    }
+    #[test]
+    fn windows_host_suggestions_include_win32_but_exclude_dlls_and_other_processors() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("game.exe");
+        pe(&path);
+        let mut bytes = fs::read(&path).unwrap();
+        bytes[68..70].copy_from_slice(&0x014c_u16.to_le_bytes());
+        fs::write(&path, &bytes).unwrap();
+        assert!(native_application(&path, Platform::WindowsX86_64).unwrap());
+        bytes[86..88].copy_from_slice(&0x2002_u16.to_le_bytes());
+        fs::write(&path, &bytes).unwrap();
+        assert!(!native_application(&path, Platform::WindowsX86_64).unwrap());
+        bytes[86..88].copy_from_slice(&2_u16.to_le_bytes());
+        for machine in [0xaa64_u16, 0x01c4, 0x0000] {
+            bytes[68..70].copy_from_slice(&machine.to_le_bytes());
+            fs::write(&path, &bytes).unwrap();
+            assert!(!native_application(&path, Platform::WindowsX86_64).unwrap());
+        }
     }
     #[test]
     fn candidate_and_depth_bounds_are_honest() {
