@@ -33,7 +33,7 @@ impl ZipFileSet {
         // A duplicate handle retains this artifact even if its pathname changes.
         // The storage pass rewinds it; by_index seeks before each member read.
         let storage_file = file.try_clone()?;
-        let mut archive = zip::ZipArchive::new(file)
+        let mut archive = crate::archive::open_zip(file)
             .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?;
         if archive.len() > budget.max_zip_entries {
             return Err(PortcoveError::source(
