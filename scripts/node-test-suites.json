@@ -2624,6 +2624,20 @@
         ["catalog-full-2", 6350],
         ["repository-tools-2", 2350]
       ]
+    },
+    {
+      "file": "scripts/discovery-ecosystems.test.mts",
+      "memberships": [
+        ["catalog-full", 1100],
+        ["roadmap-check", 1100]
+      ]
+    },
+    {
+      "file": "scripts/discovery-reconciliation.test.mts",
+      "memberships": [
+        ["catalog-full", 1200],
+        ["roadmap-check", 1200]
+      ]
     }
   ]
 }

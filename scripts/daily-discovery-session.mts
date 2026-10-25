@@ -58,11 +58,13 @@ import {
   parseLeadState,
   pendingLeads,
   leadPageSize,
+  leadSearchFamilyCount,
   retainLeadResults,
   LeadSearchChanged,
   restartLeadSlice,
 } from "./discovery-leads.mts";
 import type { LeadState } from "./discovery-leads.mts";
+import { ecosystemBursts } from "./discovery-ecosystems.mts";
 
 interface Candidate {
   id: string;
@@ -158,6 +160,8 @@ const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =
     selected: v.fingerprint,
     releases: releaseFingerprint(v.releases),
     readme_blob: v.readme.blob,
+    manifest: v.manifest ?? null,
+    manifest_evidence: v.manifest_evidence,
   });
 const material = discoveryMaterial;
 export function discoveryInventoryCost(inventory: RoadmapInventory) {
@@ -625,6 +629,8 @@ export class DiscoverySession {
         throw new Error("Lead repository relocation needs continuity review");
       lead.status = "researched";
       lead.research = { evidence_id: id, file, material: fingerprint };
+      if (data.manifest) lead.manifest = data.manifest;
+      else delete lead.manifest;
       if (!this.knownLeadUrls().has(lead.url.toLowerCase())) this.researchedLeads.add(lead.id);
     }
     this.persist();
@@ -674,6 +680,7 @@ export class DiscoverySession {
       pending: pending?.length ?? null,
       next: pending?.slice(0, 12) ?? [],
       continuations: this.leads.slices,
+      ecosystem_bursts: ecosystemBursts(Object.values(this.leads.records), this.journal.started_at),
       scope: "Bounded GitHub lead searches; not complete community discovery",
     };
   }
@@ -685,12 +692,12 @@ export class DiscoverySession {
     for (let turn = 0; turn < 6 && this.searches < 6; turn++) {
       const plan = nextLeadPage(this.leads, this.journal.started_at);
       if (this.deferredLeadFamilies.has(plan.family)) {
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = (this.leads.next_family + 1) % leadSearchFamilyCount;
         continue;
       }
       if (plan.current) {
         this.leadFamilies.add(plan.family);
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = (this.leads.next_family + 1) % leadSearchFamilyCount;
         continue;
       }
       if (plan.capped) {
@@ -702,7 +709,7 @@ export class DiscoverySession {
           resume:
             "Narrow this capped time slice before a fresh bounded search; no complete coverage claim",
         });
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = (this.leads.next_family + 1) % leadSearchFamilyCount;
         this.persist();
         continue;
       }
@@ -743,7 +750,7 @@ export class DiscoverySession {
         this.leads = restartLeadSlice(this.leads, plan, errorMessage(error));
         this.leadFamilies.add(plan.family);
         this.deferredLeadFamilies.add(plan.family);
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = (this.leads.next_family + 1) % leadSearchFamilyCount;
         this.journal.notes.push({
           phase: "lead-search",
           status: "partial",
@@ -1318,8 +1325,7 @@ export class DiscoverySession {
       new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
     );
     return (
-      (this.leadPages >= 4 || this.leadFamilies?.size === 4) &&
-      this.researchedLeads.size >= required
+      (this.leadPages >= 4 || this.leadFamilies?.size >= 4) && this.researchedLeads.size >= required
     );
   }
   async apply() {

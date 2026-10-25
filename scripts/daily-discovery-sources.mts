@@ -6,6 +6,7 @@ import type { DiscoveryCheckpoint } from "./discovery-checkpoint.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { collectQuiver } from "./daily-discovery-quiver.mts";
+import { parseRecompFeed, parseRecompManifest } from "./discovery-ecosystems.mts";
 import type { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
 export interface CollectedSource {
   id: string;
@@ -35,6 +36,39 @@ export interface SourceContext {
   budget: DiscoveryBudget;
   http: ReturnType<typeof createDiscoveryTransport>;
   save: (name: string, value: unknown) => void;
+}
+export function collectRecompBoardSource(
+  c: Pick<SourceContext, "http" | "save">,
+  known: DiscoveryCheckpoint,
+): CollectedSource {
+  const url = "https://recomp.fyi/feed.xml";
+  const response = c.http.request("GET", url);
+  c.save("recomp-board-feed", response);
+  if (response.status !== 200) throw new Error("recomp.board Atom feed unavailable");
+  const leads = parseRecompFeed(response.text);
+  c.save("recomp-board-leads", leads);
+  const oldest = leads.map((lead) => lead.updated).sort()[0]!;
+  const previous = known.sources["recomp-board-feed"];
+  const gap = previous && Date.parse(oldest) > Date.parse(previous.completed_at);
+  return {
+    id: "recomp-board-feed",
+    status: gap ? "partial" : "complete",
+    evidence: url,
+    next_page: null,
+    truncated: false,
+    snapshot_kind: "rolling-feed",
+    records: leads.map((lead) => ({ key: lead.key, fingerprint: observationHash(lead) })),
+    coverage:
+      "Entire currently published Atom feed only; no historical table completeness or deletion claim",
+    oldest_published_entry: oldest,
+    ...(gap
+      ? {
+          next_action:
+            "Feed no longer overlaps the last successful scan; reconcile the missing interval from primary sources before resetting this source checkpoint",
+        }
+      : {}),
+    provenance: "recomp.board Atom feed; discovery hints require direct upstream research",
+  };
 }
 function list(c: SourceContext, endpoint: string, label: string) {
   return c.api.paginateRest(endpoint, { identity: (v) => rec(v).id, label });
@@ -295,6 +329,11 @@ export function collectDiscoverySources(
   } catch (e) {
     fail("pcgamingwiki", "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports", e);
   }
+  try {
+    result.push(collectRecompBoardSource(c, known));
+  } catch (e) {
+    fail("recomp-board-feed", "https://recomp.fyi/feed.xml", e);
+  }
   return result;
 }
 export function consumeConfiguredObserver(c: SourceContext) {
@@ -425,6 +464,22 @@ export function investigateDiscoveryUpstream(c: SourceContext, repository: strin
   }
   const ref = selected[0] ? str(selected[0].resolved_tag_commit) : commit(c, meta);
   const readme = rec(c.api.request("GET", `repos/${repo}/readme?ref=${ref}`).body);
+  // One optional project-authored manifest per investigation, inside the same
+  // charged budget. Multi-game siblings require separately scoped primary reads.
+  let manifest: ReturnType<typeof parseRecompManifest> | undefined;
+  let manifest_evidence: { commit: string; blob?: unknown; status: string; error?: string } = {
+    commit: ref,
+    status: "not-observed",
+  };
+  try {
+    const got = rec(c.api.request("GET", `repos/${repo}/contents/.recomp.json?ref=${ref}`).body);
+    manifest = parseRecompManifest(
+      JSON.parse(Buffer.from(str(got.content), "base64").toString("utf8")),
+    );
+    manifest_evidence = { commit: ref, blob: got.sha, status: "project-claim" };
+  } catch (e) {
+    manifest_evidence = { commit: ref, status: "unavailable-or-invalid", error: errorMessage(e) };
+  }
   return {
     metadata: meta,
     releases,
@@ -435,6 +490,8 @@ export function investigateDiscoveryUpstream(c: SourceContext, repository: strin
       text: Buffer.from(str(readme.content), "base64").toString("utf8"),
     },
     fingerprint: releaseFingerprint(selected),
+    manifest,
+    manifest_evidence,
     scope:
       "Current provider release buckets; policy eligibility and historic tag targets remain unassessed",
   };
