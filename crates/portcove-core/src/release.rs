@@ -2717,6 +2717,30 @@ mod tests {
     }
 
     #[test]
+    fn battleship_offered_managed_platforms_resolve_from_the_published_package_inventory() {
+        let release: GithubRelease = serde_json::from_str(include_str!(
+            "testdata/battleship-v1.6-release-2026-10-25.json"
+        ))
+        .unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("battleship").unwrap();
+        for &platform in &port.platforms {
+            let asset = choose_asset(port, platform, &release.assets).unwrap_or_else(|error| {
+                panic!("offered BattleShip platform {platform:?} has no supported package: {error}")
+            });
+            assert!(!asset.name.contains("-JP"), "the source contract is USA");
+        }
+        assert!(
+            release
+                .assets
+                .iter()
+                .any(|asset| asset.name == "BattleShip.dmg")
+        );
+        assert!(!is_supported_package("battleship.dmg"));
+        assert!(!port.platforms.contains(&Platform::MacosAarch64));
+    }
+
+    #[test]
     fn paperboat_hints_select_exact_runnable_assets_from_the_complete_release_inventory() {
         let catalog = crate::Catalog::embedded().unwrap();
         let port = catalog.port("paperboat").unwrap();
