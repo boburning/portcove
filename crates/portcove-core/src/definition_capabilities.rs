@@ -110,6 +110,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 23,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 24,
+        });
         supported
     }
 }
@@ -418,7 +422,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(3));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 24, 24)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 25, 25)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -464,6 +468,31 @@ mod tests {
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
             check_with_inventory(&request("staged-source-portable", 21, 21), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn versioned_mod_packages_exclude_v23_readers_without_retiring_them() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 23
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("staged-source-portable", 24, 24), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 23, 23), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 24, 24))
                 .unwrap()
                 .compatible
         );

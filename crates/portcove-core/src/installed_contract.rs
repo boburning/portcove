@@ -74,6 +74,9 @@ impl InstalledContract {
             contract.original_format = Some(contract.format);
             contract.format = 5;
             contract.external_trust = Some(crate::ExternalRuntimeTrust::UserSelected);
+        } else if catalog.port(port_id)?.mod_package_policy.is_some() {
+            contract.original_format = Some(contract.format);
+            contract.format = 7;
         } else if crate::persistence::ready_staged_archive(catalog.port(port_id)?) {
             // Embedded/unscoped installs need the same old-reader fence as an
             // indexed capability. Do not rewrite existing retained contracts.
@@ -100,7 +103,7 @@ impl InstalledContract {
             (5, Some(format @ 1..=3), None, Some(crate::ExternalRuntimeTrust::UserSelected)) => {
                 format
             }
-            (6, Some(format @ 1..=3), None, None) => format,
+            (6 | 7, Some(format @ 1..=3), None, None) => format,
             _ => {
                 return Err(PortcoveError::verification(
                     "retained preparation interpretation is unsupported or malformed",
@@ -139,7 +142,7 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if matches!(self.format, 4..=6) {
+        if matches!(self.format, 4..=7) {
             cache_key = serde_json::to_string(&(
                 self.original_format,
                 self.preparation_mode,
@@ -203,6 +206,11 @@ impl InstalledContract {
     }
 
     fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
+        if (self.format == 7) != catalog.port(&self.port_id)?.mod_package_policy.is_some() {
+            return Err(PortcoveError::verification(
+                "versioned mod package semantics require their retained interpretation envelope",
+            ));
+        }
         if self.format == 6
             && !crate::persistence::ready_staged_archive(catalog.port(&self.port_id)?)
         {
@@ -244,6 +252,52 @@ impl InstalledContract {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn versioned_mod_envelope_preserves_all_origins_and_refuses_downgrades() {
+        let original = crate::test_fixture::versioned_mod_catalog();
+        let id = &original.ports()[0].id;
+        for catalog in [
+            original.clone(),
+            crate::test_fixture::indexed_catalog(&original, id),
+            crate::test_fixture::admitted_indexed_catalog(&original, id),
+        ] {
+            let captured = InstalledContract::capture(&catalog, id).unwrap();
+            assert_eq!(captured.format, 7);
+            let bytes = serde_json::to_vec(&captured).unwrap();
+            let decoded: InstalledContract = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(
+                serde_json::to_vec(
+                    &InstalledContract::capture(&decoded.catalog(id).unwrap(), id).unwrap()
+                )
+                .unwrap(),
+                bytes
+            );
+            for format in [1, 2, 3, 6] {
+                let mut downgraded = decoded.clone();
+                downgraded.format = format;
+                if format < 4 {
+                    downgraded.original_format = None;
+                }
+                assert!(downgraded.catalog(id).is_err());
+                decoded.catalog(id).unwrap(); // rejected envelopes cannot poison a warm cache
+            }
+        }
+        let mut old = original.authoritative_document();
+        old.ports[0].mod_package_policy = None;
+        let old = Catalog::from_json(&serde_json::to_string(&old).unwrap()).unwrap();
+        let captured = InstalledContract::capture(&old, id).unwrap();
+        assert_eq!(captured.format, 6);
+        assert!(
+            !serde_json::to_string(&captured)
+                .unwrap()
+                .contains("mod_package_policy")
+        );
+        captured.catalog(id).unwrap();
+        let mut wrong = captured;
+        wrong.format = 7;
+        assert!(wrong.catalog(id).is_err());
+    }
 
     #[test]
     fn ready_archive_metadata_fence_preserves_origins_without_rewriting_history() {

@@ -184,6 +184,7 @@ function proposalChanges(before: CurrentCatalog, after: CurrentCatalog) {
           [
             "persistent_paths",
             "persistent_file_patterns",
+            "mod_package_policy",
             "runtime_mutable_paths",
             "runtime_mutable_file_patterns",
             "user_data_environment",

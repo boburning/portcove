@@ -160,6 +160,22 @@ uses conservative additive collection: canonical-only data survives and differin
 copies require a deliberate resolution. Existing source/build integrations keep
 their preparation and collection contracts.
 
+A ready staged archive whose reviewed mod layout is
+`mods/packages/<id>/<version>` may opt into
+`mod_package_policy: "versioned-packages-v1"` with the exact `mods` persistent
+root. This requires capability 24, a format-7 retained contract and runtime-local
+data. Direct-write `user_data_environment` bindings are refused because they bypass
+package restoration. Core reuses the existing complete-package coexistence
+behavior: absent versions are staged
+privately and published without overwriting, successor-only packages survive,
+and same-ID/version content conflicts report both paths before activation or
+explicit data restore. Package identity compares contents rather than publisher
+timestamps; current root state keeps its replacement/deletion behavior. Preserve
+the player's choices without rebasing them onto a new default. This policy does
+not authenticate mod code, promise compatibility, or preserve generated executable
+caches. An old contract merely declaring `mods` does not acquire these semantics;
+changing the policy holds replacement until a supported transition exists.
+
 Declared data copies preserve exact file modification times, including upstream
 original-data integrity records that depend on them. New backups verify those
 times separately from content; old byte-only snapshots retain their historical

@@ -136,7 +136,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(pairs.contains(&("psx-recomp-managed", 2)));
     assert!(pairs.contains(&("native-portable", 2)));
     let staged_versions = [
-        2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+        2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
     ];
     for version in staged_versions {
         assert!(pairs.contains(&("staged-source-portable", version)));
@@ -183,12 +183,13 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         (21, true, 21),
         (22, true, 22),
         (23, true, 23),
-        (24, false, 23),
-        (6, false, 23),
-        (7, false, 23),
-        (9, false, 23),
-        (13, false, 23),
-        (14, false, 23),
+        (24, true, 24),
+        (25, false, 24),
+        (6, false, 24),
+        (7, false, 24),
+        (9, false, 24),
+        (13, false, 24),
+        (14, false, 24),
     ] {
         std::fs::write(&requirements, serde_json::to_vec(&json!({
             "capability_contract_schema": 1,
