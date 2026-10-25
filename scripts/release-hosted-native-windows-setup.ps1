@@ -72,9 +72,9 @@ if($env:SystemRoot -ine [Environment]::GetFolderPath([Environment+SpecialFolder]
     throw 'Fixed hosted Windows system paths differ'
 }
 $root='C:\ProgramData\PortcoveHostedNativeQualification'
-$profile='C:\Users\PortcoveNativeQual'
-if(@(Get-LocalUser|Where-Object Name -IEQ 'PortcoveNativeQual').Count -or (Test-Path -LiteralPath $profile) -or
-    @(Get-CimInstance Win32_UserProfile -ErrorAction Stop|Where-Object {$_.LocalPath -ieq $profile}).Count){throw 'Existing hosted account/profile is retained; no adoption'}
+$nativeProfile='C:\Users\PortcoveNativeQual'
+if(@(Get-LocalUser|Where-Object Name -IEQ 'PortcoveNativeQual').Count -or (Test-Path -LiteralPath $nativeProfile) -or
+    @(Get-CimInstance Win32_UserProfile -ErrorAction Stop|Where-Object {$_.LocalPath -ieq $nativeProfile}).Count){throw 'Existing hosted account/profile is retained; no adoption'}
 Assert-OriginalHostedSetup
 [Portcove.HostedNative.Setup]::Directory($root,$owner.User.Value,$null,$false)
 Assert-OriginalHostedSetup
@@ -92,9 +92,9 @@ try {
     Assert-HostedNativeAccount $account $false
     Assert-OriginalHostedSetup
     $actualProfile=[Portcove.HostedNative.Setup]::Profile($account.SID.Value)
-    if($actualProfile -ine $profile){throw 'Actual hosted profile differs; preserve registered partial state'}
+    if($actualProfile -ine $nativeProfile){throw 'Actual hosted profile differs; preserve registered partial state'}
     $registeredProfile=Get-ItemPropertyValue -LiteralPath ('Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\'+$account.SID.Value) -Name ProfileImagePath
-    if([Environment]::ExpandEnvironmentVariables($registeredProfile) -ine $profile){throw 'Hosted profile registration differs'}
+    if([Environment]::ExpandEnvironmentVariables($registeredProfile) -ine $nativeProfile){throw 'Hosted profile registration differs'}
     $work=Join-Path $root 'work';$capture=Join-Path $root 'capture'
     [Portcove.HostedNative.Setup]::Directory($work,$owner.User.Value,$account.SID.Value,$true)
     $attemptWork=Join-Path $work $context.binding
@@ -119,9 +119,9 @@ try {
     $runtimeSha=(Get-FileHash -LiteralPath $runtime -Algorithm SHA256).Hash.ToLowerInvariant()
     $configuration=[Portcove.NativeQualification.AccountConfiguration]::new()
     $configuration.UserName=$account.Name;$configuration.AccountSid=$account.SID.Value;$configuration.BrokerSid=$owner.User.Value
-    $configuration.ProfileRoot=$profile;$configuration.WorkRoot=$work;$configuration.PrivateDesktop='PortcoveNative_'+$context.binding.Substring(0,32)+'\Qualification'
+    $configuration.ProfileRoot=$nativeProfile;$configuration.WorkRoot=$work;$configuration.PrivateDesktop='PortcoveNative_'+$context.binding.Substring(0,32)+'\Qualification'
     $environment=[Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach($entry in @{SystemRoot=$env:SystemRoot;WINDIR=$env:SystemRoot;PATH=(Join-Path $env:SystemRoot 'System32');USERPROFILE=$profile;HOMEDRIVE=$env:SystemDrive;HOMEPATH='\Users\PortcoveNativeQual';APPDATA=$roaming;LOCALAPPDATA=$local;TEMP=$attemptWork;TMP=$attemptWork}.GetEnumerator()){$environment[$entry.Key]=$entry.Value}
+    foreach($entry in @{SystemRoot=$env:SystemRoot;WINDIR=$env:SystemRoot;PATH=(Join-Path $env:SystemRoot 'System32');USERPROFILE=$nativeProfile;HOMEDRIVE=$env:SystemDrive;HOMEPATH='\Users\PortcoveNativeQual';APPDATA=$roaming;LOCALAPPDATA=$local;TEMP=$attemptWork;TMP=$attemptWork}.GetEnumerator()){$environment[$entry.Key]=$entry.Value}
     Assert-OriginalHostedSetup
     Enable-LocalUser -SID $account.SID
     Assert-HostedNativeAccount $account $true
@@ -147,7 +147,7 @@ try {
     } while($true)
     if($snapshot.Length -gt 65536){throw 'Hosted inert output exceeds bound'}
     $observation=[Text.UTF8Encoding]::new($false,$true).GetString($snapshot)|ConvertFrom-Json
-    if($observation.account_sid -cne $account.SID.Value -or $observation.pid -ne $child.Pid -or $observation.profile -ine $profile -or
+    if($observation.account_sid -cne $account.SID.Value -or $observation.pid -ne $child.Pid -or $observation.profile -ine $nativeProfile -or
         $observation.invocation -cne $context.binding -or $observation.registry.hive_present -ne $true -or $observation.registry.provenance -cne 'target-account-HKCU'){
         throw 'Actual isolated profile/HKCU observation differs'
     }
@@ -178,7 +178,7 @@ finally {
     finally {
         if($child){$child.Dispose()};if($group){$group.Dispose()};if($password){$password.Dispose()}
         if(-not $failure -and $cleanupFailures.Count){$failure='Hosted cleanup refused; retained details require recovery'}
-        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$profile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
+        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
     }
 }
 if(-not $disabled -or -not $settled -or $failure){throw 'Hosted inert account setup did not complete'}

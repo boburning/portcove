@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { observeWindowsAccountCommand } from "./qualify-controller-tools-windows.mts";
+import { observeWindowsAccountCommand } from "./release-hosted-native-windows-observation.mts";
 
 const script = fileURLToPath(new URL("./release-hosted-native-windows-setup.ps1", import.meta.url));
 const primitive = fileURLToPath(
@@ -112,7 +112,7 @@ for($i=0;$i -lt $statements.Count;$i++){
 }
 if($begin -lt 0 -or $end -lt $begin){throw 'Actual adapter configuration boundary absent'}
 $root='${root.replaceAll("'", "''")}';$work=Join-Path $root 'work';$context=@{binding=('a'*64)};$attemptWork=Join-Path $work $context.binding
-$roaming=Join-Path $attemptWork 'roaming';$local=Join-Path $attemptWork 'local';$profile='C:\Users\PortcoveNativeQual'
+$roaming=Join-Path $attemptWork 'roaming';$local=Join-Path $attemptWork 'local';$nativeProfile='C:\Users\PortcoveNativeQual'
 foreach($directory in @($work,$attemptWork,$roaming,$local)){[IO.Directory]::CreateDirectory($directory)|Out-Null}
 $owner=[Security.Principal.WindowsIdentity]::GetCurrent();$account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'}}
 . ([scriptblock]::Create(($statements[$begin..$end].Extent.Text -join [Environment]::NewLine)))
@@ -221,7 +221,7 @@ $write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefini
 . ([scriptblock]::Create($write.Extent.Text))
 $main=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]})
 if($main.Count -ne 1){throw 'Actual cleanup boundary differs'}
-$base='${root.replaceAll("'", "''")}';$profile='inert profile';$context=@{fixture='controlled-providers'}
+$base='${root.replaceAll("'", "''")}';$nativeProfile='inert profile';$context=@{fixture='controlled-providers'}
 foreach($failDisable in @($false,$true)){
 $root=Join-Path $base ([string]$failDisable);[IO.Directory]::CreateDirectory($root)|Out-Null
 $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'};Description='owned diagnostic';Enabled=$true}

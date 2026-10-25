@@ -1242,6 +1242,9 @@ the existing Windows supervisor product and actual resource lease.
 
 Local tests execute the actual context parser, ordinary-local-call refusal,
 private directory creation/owner/DACL/readback and retained-directory refusal.
+The seven-case test file is registered in the existing required Windows helper,
+catalog and local release suites. Its captured-stream observation helper imports
+no npm dependency, preserving Windows helper execution before dependency setup.
 Controlled extraction of the actual cleanup body tests teardown refusal plus
 independent disabling and simultaneous cleanup refusal. The actual first-effect
 statement boundary refuses stale parent generation and expired lifetime before
