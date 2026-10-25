@@ -150,6 +150,7 @@ impl Adapter for StandardAdapter {
             return validate_gamecube_disc_source(profile, path);
         }
         let mut budget = crate::source_file::HashBudget {
+            checkpoint: None,
             operation: None,
             limit: u64::MAX,
             hashed: 0,
@@ -996,8 +997,7 @@ fn prepare_runtime_source_set_member(
     }
 
     let file = File::open(source_root)?;
-    let mut archive = crate::archive::open_zip(file)
-        .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?;
+    let mut archive = crate::source_zip::runtime_archive(file, checkpoint)?;
     let index =
         source_set_zip_member_index(&mut archive, source_root, accepted_filenames, checkpoint)?;
     let member_name = archive
@@ -1263,8 +1263,7 @@ fn copy_runtime_source(
             .and_then(|value| value.to_str())
             .ok_or_else(|| PortcoveError::state("runtime source destination has no extension"))?;
         let file = File::open(source)?;
-        let mut archive = crate::archive::open_zip(file)
-            .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
+        let mut archive = crate::source_zip::runtime_archive(file, checkpoint)?;
         let mut matches = Vec::new();
         for index in 0..archive.len() {
             checkpoint()?;
@@ -2048,11 +2047,15 @@ fn hash_reader_with_checkpoint(
     Ok((hex::encode(digest.finalize()), size))
 }
 
-fn hash_file_sha1(path: &Path) -> Result<String> {
+fn hash_file_sha1_with_checkpoint(
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<String> {
     let mut file = File::open(path)?;
     let mut digest = Sha1::new();
     let mut buffer = [0_u8; 128 * 1024];
     loop {
+        checkpoint()?;
         let read = file.read(&mut buffer)?;
         if read == 0 {
             break;
@@ -2076,10 +2079,10 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
         )));
     }
     let archive = if is_zip {
-        Some(
-            crate::archive::open_zip(File::open(path)?)
-                .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
-        )
+        Some(crate::source_zip::file_set_archive(
+            File::open(path)?,
+            &|| Ok(()),
+        )?)
     } else {
         None
     };
@@ -2089,50 +2092,37 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
 fn validate_file_set_source_from_archive(
     profile: &SourceProfile,
     path: &Path,
-    mut archive: Option<zip::ZipArchive<File>>,
+    mut archive: Option<zip::ZipArchive<crate::source_zip::CheckedReader>>,
 ) -> Result<SourceRecord> {
     let mut hashes = Vec::with_capacity(profile.members.len());
     let mut total_size = 0_u64;
+    let mut budget = crate::source_file::HashBudget {
+        checkpoint: None,
+        operation: None,
+        limit: 2 * 1024 * 1024 * 1024,
+        hashed: 0,
+        max_zip_entries: 4096,
+    };
     for member in &profile.members {
-        let (sha256, sha1, crc32, size) = if let Some(archive) = archive.as_mut() {
+        let (sha1, sha256, crc32, size) = if let Some(archive) = archive.as_mut() {
             let index =
                 source_set_zip_member_index(archive, path, &member.accepted_filenames, &|| Ok(()))?;
-            let mut entry = archive.by_index(index).map_err(|error| {
-                PortcoveError::source(format!("invalid file-set ZIP entry: {error}"))
-            })?;
-            let crc32 = format!("{:08x}", entry.crc32());
-            let size = entry.size();
-            let mut sha256 = Sha256::new();
-            let mut sha1 = Sha1::new();
-            let mut buffer = [0_u8; 128 * 1024];
-            loop {
-                let read = entry.read(&mut buffer)?;
-                if read == 0 {
-                    break;
-                }
-                sha256.update(&buffer[..read]);
-                sha1.update(&buffer[..read]);
-            }
-            (
-                hex::encode(sha256.finalize()),
-                hex::encode(sha1.finalize()),
-                crc32,
-                size,
-            )
+            crate::source_file::read_zip_member_hashes(
+                archive,
+                index,
+                512 * 1024 * 1024,
+                &mut budget,
+            )?
         } else {
             let source = source_set_member_path(path, &member.accepted_filenames)?;
-            let (sha256, size) = hash_file(&source)?;
-            let sha1 = if member.accepted_sha1.is_empty() {
-                String::new()
-            } else {
-                hash_file_sha1(&source)?
-            };
-            let crc32 = if member.accepted_crc32.is_empty() {
-                String::new()
-            } else {
-                hash_file_crc32(&source)?
-            };
-            (sha256, sha1, crc32, size)
+            let file = File::open(source)?;
+            let expected = file.metadata()?.len();
+            crate::source_file::read_file_set_hashes(
+                file,
+                expected,
+                512 * 1024 * 1024,
+                &mut budget,
+            )?
         };
         if !member.accepted_sha1.is_empty()
             && !member
@@ -2197,7 +2187,7 @@ fn validate_file_set_source_from_archive(
 }
 
 fn source_set_zip_member_index(
-    archive: &mut zip::ZipArchive<File>,
+    archive: &mut zip::ZipArchive<crate::source_zip::CheckedReader>,
     archive_path: &Path,
     accepted_filenames: &[String],
     checkpoint: &dyn Fn() -> Result<()>,
@@ -2234,20 +2224,6 @@ fn source_set_zip_member_index(
     Ok(matches[0])
 }
 
-fn hash_file_crc32(path: &Path) -> Result<String> {
-    let mut file = File::open(path)?;
-    let mut digest = crc32fast::Hasher::new();
-    let mut buffer = [0_u8; 128 * 1024];
-    loop {
-        let read = file.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        digest.update(&buffer[..read]);
-    }
-    Ok(format!("{:08x}", digest.finalize()))
-}
-
 fn source_set_member_path(root: &Path, accepted_filenames: &[String]) -> Result<PathBuf> {
     if !root.is_dir() {
         return Err(PortcoveError::source(format!(
@@ -2256,7 +2232,12 @@ fn source_set_member_path(root: &Path, accepted_filenames: &[String]) -> Result<
         )));
     }
     let mut matches = Vec::new();
-    for entry in std::fs::read_dir(root)? {
+    for (index, entry) in std::fs::read_dir(root)?.enumerate() {
+        if index >= 4096 {
+            return Err(PortcoveError::source(
+                "file-set directory entry limit exceeded",
+            ));
+        }
         let entry = entry?;
         let file_type = entry.file_type()?;
         if file_type.is_symlink() || !file_type.is_file() {
@@ -2305,6 +2286,15 @@ pub(crate) fn observe_psx_disc_source(
     profile: &SourceProfile,
     path: &Path,
 ) -> Result<ObservedDiscSource> {
+    observe_psx_disc_source_with_checkpoint(profile, path, &|| Ok(()))
+}
+
+pub(crate) fn observe_psx_disc_source_with_checkpoint(
+    profile: &SourceProfile,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<ObservedDiscSource> {
+    checkpoint()?;
     let disc = profile.disc.as_ref().ok_or_else(|| {
         PortcoveError::state(format!("{} is missing its disc identity", profile.id))
     })?;
@@ -2323,10 +2313,16 @@ pub(crate) fn observe_psx_disc_source(
     let mut normalized_size = 0_u64;
     for (index, source) in paths.iter().enumerate() {
         let output = temporary.path().join(format!("disc-{:02}", index + 1));
-        let cue = materialize_psx_chd(source, &output)?;
+        let cue = materialize_psx_chd_with_tool(
+            source,
+            &output,
+            None,
+            checkpoint,
+            crate::tool_process::ToolProcessObserver::default(),
+        )?;
         let (track_count, data_track) = inspect_psx_cue(&cue)?;
-        let (sha256, size) = hash_file(&data_track)?;
-        let sha1 = hash_file_sha1(&data_track)?;
+        let (sha256, size) = hash_file_with_checkpoint(&data_track, checkpoint)?;
+        let sha1 = hash_file_sha1_with_checkpoint(&data_track, checkpoint)?;
         let volume_id = inspect_psx_volume_id(&data_track).ok();
         normalized_sha256.push(sha256.clone());
         normalized_size = normalized_size.saturating_add(size);
@@ -2343,7 +2339,7 @@ pub(crate) fn observe_psx_disc_source(
         });
     }
     let sha256 = aggregate_sha256(&normalized_sha256);
-    let (storage_sha256, storage_size) = source_storage_identity(path)?;
+    let (storage_sha256, storage_size) = source_storage_identity_with_checkpoint(path, checkpoint)?;
     Ok(ObservedDiscSource {
         record: SourceRecord {
             profile_id: profile.id.clone(),
@@ -2396,6 +2392,15 @@ pub(crate) fn observe_gamecube_disc_source(
     profile: &SourceProfile,
     path: &Path,
 ) -> Result<ObservedDiscSource> {
+    observe_gamecube_disc_source_with_checkpoint(profile, path, &|| Ok(()))
+}
+
+pub(crate) fn observe_gamecube_disc_source_with_checkpoint(
+    profile: &SourceProfile,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<ObservedDiscSource> {
+    checkpoint()?;
     if !path.is_file() {
         return Err(PortcoveError::source(format!(
             "GameCube source does not exist or is not a file: {}",
@@ -2420,8 +2425,12 @@ pub(crate) fn observe_gamecube_disc_source(
     }
 
     let (sha256, sha1, size) = if matches!(extension.as_str(), "iso" | "gcm") {
-        let (sha256, size) = hash_file(path)?;
-        (sha256, hash_file_sha1(path)?, size)
+        let (sha256, size) = hash_file_with_checkpoint(path, checkpoint)?;
+        (
+            sha256,
+            hash_file_sha1_with_checkpoint(path, checkpoint)?,
+            size,
+        )
     } else if extension == "ciso" {
         let canonical = std::fs::canonicalize(path)?;
         return crate::source_disc::observe_ciso(
@@ -2429,6 +2438,7 @@ pub(crate) fn observe_gamecube_disc_source(
             &canonical,
             u64::MAX,
             &mut crate::source_file::HashBudget {
+                checkpoint: Some(checkpoint),
                 operation: None,
                 limit: u64::MAX,
                 hashed: 0,
@@ -2446,11 +2456,21 @@ pub(crate) fn observe_gamecube_disc_source(
             .tempdir_in(temporary_parent)
             .map_err(PortcoveError::from)?;
         let iso = temporary.path().join("disc.iso");
-        materialize_gamecube_iso(path, &iso)?;
-        let (sha256, size) = hash_file(&iso)?;
-        (sha256, hash_file_sha1(&iso)?, size)
+        materialize_gamecube_iso_with_tool(
+            path,
+            &iso,
+            None,
+            checkpoint,
+            crate::tool_process::ToolProcessObserver::default(),
+        )?;
+        let (sha256, size) = hash_file_with_checkpoint(&iso, checkpoint)?;
+        (
+            sha256,
+            hash_file_sha1_with_checkpoint(&iso, checkpoint)?,
+            size,
+        )
     };
-    let (storage_sha256, storage_size) = hash_file(path)?;
+    let (storage_sha256, storage_size) = hash_file_with_checkpoint(path, checkpoint)?;
     Ok(ObservedDiscSource {
         record: SourceRecord {
             profile_id: profile.id.clone(),
@@ -2484,16 +2504,6 @@ fn validate_gamecube_disc_source(profile: &SourceProfile, path: &Path) -> Result
         .ok_or_else(|| PortcoveError::state("GameCube inspection produced no disc"))?;
     validate_source_hashes(profile, &disc.sha1, &disc.sha256)?;
     Ok(observation.record)
-}
-
-fn materialize_gamecube_iso(source: &Path, destination: &Path) -> Result<()> {
-    materialize_gamecube_iso_with_tool(
-        source,
-        destination,
-        None,
-        &|| Ok(()),
-        crate::tool_process::ToolProcessObserver::default(),
-    )
 }
 
 pub(crate) fn gamecube_source_requires_conversion(source: &Path) -> bool {
@@ -2796,7 +2806,15 @@ pub(crate) fn inspect_source_health(
         }
         Err(_) => return crate::SourceHealth::Unreadable,
     };
-    let identity = if profile.kind == SourceKind::RelativeFileSet && metadata.is_dir() {
+    if profile.kind == SourceKind::FileSet
+        && metadata.is_file()
+        && metadata.len() > crate::zip_read::FILE_SET.bytes
+    {
+        return crate::SourceHealth::Changed;
+    }
+    let identity = if profile.kind == SourceKind::FileSet && metadata.is_file() {
+        hash_file_bounded_with_checkpoint(&source.path, metadata.len(), || Ok(()))
+    } else if profile.kind == SourceKind::RelativeFileSet && metadata.is_dir() {
         crate::relative_file_set::validate_profile(profile, &source.path)
             .map(|current| (current.storage_sha256, current.storage_size))
     } else if profile.kind == SourceKind::FileSet && metadata.is_dir() {
@@ -2873,16 +2891,6 @@ fn validate_disc_identity(
         .detail("volume_id", volume_id));
     }
     Ok(())
-}
-
-pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<PathBuf> {
-    materialize_psx_chd_with_tool(
-        source,
-        destination,
-        None,
-        &|| Ok(()),
-        crate::tool_process::ToolProcessObserver::default(),
-    )
 }
 
 pub(crate) fn materialize_psx_chd_with_tool(
@@ -3207,8 +3215,7 @@ fn read_zip_source_with_checkpoint(
 ) -> Result<Vec<u8>> {
     checkpoint()?;
     let file = File::open(path)?;
-    let mut archive = crate::archive::open_zip(file)
-        .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
+    let mut archive = crate::source_zip::runtime_archive(file, checkpoint)?;
     let accepted: Vec<String> = accepted_extensions
         .iter()
         .map(|value| (*value).into())
@@ -5149,7 +5156,8 @@ mod tests {
             }],
         };
         let original = std::fs::read(&path).unwrap();
-        let archive = zip::ZipArchive::new(File::open(&path).unwrap()).unwrap();
+        let archive =
+            crate::source_zip::file_set_archive(File::open(&path).unwrap(), &|| Ok(())).unwrap();
         std::fs::rename(&path, &displaced).unwrap();
         let mut replacement = original.clone();
         let name = b"game.rom";

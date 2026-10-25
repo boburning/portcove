@@ -345,11 +345,14 @@ impl PortcoveService {
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<()> {
         let profile_id = &registered.profile_id;
-        // Relative sets retain the inspector's domain-separated member digest
+        // File sets retain the inspector's member-based aggregate identity
         // for directories (and the original container digest for ZIPs). The
         // generic basename storage digest is a different identity and cannot
         // preflight them. The inspector below checks content AND storage.
-        if catalog.source_profile(profile_id)?.kind == crate::SourceKind::RelativeFileSet {
+        if matches!(
+            catalog.source_profile(profile_id)?.kind,
+            crate::SourceKind::RelativeFileSet | crate::SourceKind::FileSet
+        ) {
             return crate::source_inspection::verify_registered_with_checkpoint(
                 catalog, registered, checkpoint,
             );
@@ -368,7 +371,9 @@ impl PortcoveService {
             .detail("actual_storage_size", storage_size.to_string()));
         }
         checkpoint()?;
-        crate::source_inspection::verify_registered(catalog, registered)?;
+        crate::source_inspection::verify_registered_with_checkpoint(
+            catalog, registered, checkpoint,
+        )?;
         checkpoint()?;
         Ok(())
     }

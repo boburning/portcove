@@ -9,22 +9,18 @@ use std::{
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sha1::Sha1;
-use sha2::{Digest, Sha256};
 
 use crate::{
     Catalog, CompoundSourceFormat, DigestIdentity, DigestScope, Library, PortcoveError, Result,
     SourceAdmission, SourceAdmissionMode, SourceAssessment, SourceClassification,
     SourceContractResult, SourceIdentity, SourceKind, SourceProfile, SourceRecord,
     SourceRejectionReason, SourceRepresentation, SourceRepresentationKind,
-    adapter::{
-        ObservedDiscSource, ObservedOpticalDisc, aggregate_sha256, observe_gamecube_disc_source,
-    },
+    adapter::{ObservedDiscSource, ObservedOpticalDisc, aggregate_sha256},
     source_file::{FileIdentity, HashBudget, read_identity},
 };
 
-#[cfg(not(any(windows, target_os = "linux")))]
-use crate::adapter::observe_psx_disc_source;
+#[cfg(test)]
+use crate::adapter::observe_gamecube_disc_source;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -238,6 +234,16 @@ pub(crate) fn inspect(
     profile_id: &str,
     path: &Path,
 ) -> Result<SourceInspection> {
+    inspect_with_checkpoint(catalog, profile_id, path, &|| Ok(()))
+}
+
+pub(crate) fn inspect_with_checkpoint(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceInspection> {
+    checkpoint()?;
     crate::path::unicode(path, "source")?;
     let absolute = std::path::absolute(path)?;
     let path = absolute.as_path();
@@ -247,6 +253,7 @@ pub(crate) fn inspect(
         SourceKind::File | SourceKind::UpstreamValidatedDisc
     ) {
         let mut budget = HashBudget {
+            checkpoint: Some(checkpoint),
             operation: None,
             limit: u64::MAX,
             hashed: 0,
@@ -258,13 +265,15 @@ pub(crate) fn inspect(
         return inspect_file(catalog, profile_id, path, u64::MAX, &mut budget);
     }
     if profile.kind == SourceKind::RelativeFileSet {
-        return crate::relative_file_set::inspect(catalog, profile_id, path);
+        return crate::relative_file_set::inspect_with_checkpoint(
+            catalog, profile_id, path, checkpoint,
+        );
     }
     if profile.kind == SourceKind::FileSet {
-        return inspect_file_set(catalog, profile_id, path);
+        return inspect_file_set_with_checkpoint(catalog, profile_id, path, checkpoint);
     }
     if matches!(profile.kind, SourceKind::GamecubeDisc | SourceKind::PsxDisc) {
-        return inspect_disc(catalog, profile_id, path);
+        return inspect_disc_with_checkpoint(catalog, profile_id, path, checkpoint);
     }
     unreachable!("all source kinds have a shared inspection path")
 }
@@ -280,16 +289,8 @@ pub(crate) fn verify_registered_with_checkpoint(
 ) -> Result<()> {
     let profile_id = &registered.profile_id;
     checkpoint()?;
-    let actual = if catalog.source_profile(profile_id)?.kind == SourceKind::RelativeFileSet {
-        crate::path::unicode(&registered.path, "source")?;
-        let absolute = std::path::absolute(&registered.path)?;
-        crate::relative_file_set::inspect_with_checkpoint(
-            catalog, profile_id, &absolute, checkpoint,
-        )?
-    } else {
-        inspect(catalog, profile_id, &registered.path)?
-    }
-    .require_admitted_record()?;
+    let actual = inspect_with_checkpoint(catalog, profile_id, &registered.path, checkpoint)?
+        .require_admitted_record()?;
     checkpoint()?;
     if actual.sha256 != registered.sha256
         || actual.size != registered.size
@@ -365,9 +366,7 @@ pub(crate) fn inspect_file(
     }
     if let Some(CompoundSourceFormat::StfsLive) = compound_format {
         crate::stfs::validate(path, &|| {
-            if let Some(operation) = &budget.operation {
-                operation.checkpoint()?;
-            }
+            budget.checkpoint()?;
             Ok(())
         })?;
     }
@@ -407,7 +406,11 @@ pub(crate) fn observe_compound_file(
     budget: &mut HashBudget,
 ) -> Result<Option<CompoundObservation>> {
     let operation = budget.operation.clone();
+    let supplied_checkpoint = budget.checkpoint;
     let checkpoint = || {
+        if let Some(checkpoint) = supplied_checkpoint {
+            checkpoint()?;
+        }
         if let Some(operation) = &operation {
             operation.checkpoint()?;
         }
@@ -786,12 +789,22 @@ fn inspect_pinned_validator_identity(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn inspect_file_set(
     catalog: &Catalog,
     profile_id: &str,
     path: &Path,
 ) -> Result<SourceInspection> {
-    inspect_file_set_observations(catalog, profile_id, path, None)
+    inspect_file_set_with_checkpoint(catalog, profile_id, path, &|| Ok(()))
+}
+
+fn inspect_file_set_with_checkpoint(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceInspection> {
+    inspect_file_set_observations(catalog, profile_id, path, None, checkpoint)
 }
 
 pub(crate) fn inspect_directory_file_set(
@@ -810,6 +823,7 @@ pub(crate) fn inspect_directory_file_set(
             read,
             storage: None,
         }),
+        &|| Ok(()),
     )
 }
 
@@ -830,10 +844,11 @@ pub(crate) fn inspect_observed_zip_file_set(
             read,
             storage: Some(storage),
         }),
+        &|| Ok(()),
     )
 }
 
-type ReadFileSetMember<'a> = dyn FnMut(&[String]) -> Result<Option<HashedNamedSource>> + 'a;
+type ReadFileSetMember<'a> = dyn FnMut(&[String], u64) -> Result<Option<HashedNamedSource>> + 'a;
 
 struct ObservedFileSetReader<'a> {
     names: &'a [String],
@@ -846,6 +861,7 @@ fn inspect_file_set_observations(
     profile_id: &str,
     path: &Path,
     mut directory_member: Option<ObservedFileSetReader<'_>>,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let is_zip = directory_member
@@ -893,6 +909,7 @@ fn inspect_file_set_observations(
                 is_zip,
                 members,
                 &mut directory_member,
+                checkpoint,
             )?
             else {
                 continue;
@@ -973,11 +990,22 @@ fn inspect_file_set_observations(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn inspect_disc(
     catalog: &Catalog,
     profile_id: &str,
     path: &Path,
 ) -> Result<SourceInspection> {
+    inspect_disc_with_checkpoint(catalog, profile_id, path, &|| Ok(()))
+}
+
+fn inspect_disc_with_checkpoint(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceInspection> {
+    checkpoint()?;
     let legacy = catalog.source_profile(profile_id)?;
     let observation = match legacy.kind {
         SourceKind::GamecubeDisc => {
@@ -1007,19 +1035,25 @@ pub(crate) fn inspect_disc(
                     catalog,
                     profile_id,
                     path,
-                    crate::source_disc::observe_selected(catalog, &profile, path)?,
+                    crate::source_disc::observe_selected_with_checkpoint(
+                        catalog, &profile, path, checkpoint,
+                    )?,
                 );
             }
-            observe_gamecube_disc_source(&profile, path)?
+            crate::adapter::observe_gamecube_disc_source_with_checkpoint(
+                &profile, path, checkpoint,
+            )?
         }
         SourceKind::PsxDisc => {
             #[cfg(any(windows, target_os = "linux"))]
             {
-                crate::source_disc::observe_selected(catalog, legacy, path)?
+                crate::source_disc::observe_selected_with_checkpoint(
+                    catalog, legacy, path, checkpoint,
+                )?
             }
             #[cfg(not(any(windows, target_os = "linux")))]
             {
-                observe_psx_disc_source(legacy, path)?
+                crate::adapter::observe_psx_disc_source_with_checkpoint(legacy, path, checkpoint)?
             }
         }
         _ => {
@@ -1371,6 +1405,7 @@ fn inspect_file_set_representation(
     is_zip: bool,
     members: &[crate::SourceMemberIdentity],
     directory_member: &mut Option<ObservedFileSetReader<'_>>,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Option<(Vec<ObservedSourceComponent>, SourceRecord, bool)>> {
     // Discovery knows the complete name inventory before consuming hash budget.
     if let Some(observations) = directory_member.as_ref()
@@ -1379,10 +1414,10 @@ fn inspect_file_set_representation(
         return Ok(None);
     }
     let archive = if is_zip && directory_member.is_none() {
-        Some(
-            crate::archive::open_zip(File::open(path)?)
-                .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
-        )
+        Some(crate::source_zip::file_set_archive(
+            File::open(path)?,
+            checkpoint,
+        )?)
     } else {
         None
     };
@@ -1392,6 +1427,7 @@ fn inspect_file_set_representation(
         members,
         directory_member,
         archive,
+        checkpoint,
     )
 }
 
@@ -1400,7 +1436,8 @@ fn inspect_file_set_representation_from_archive(
     path: &Path,
     members: &[crate::SourceMemberIdentity],
     directory_member: &mut Option<ObservedFileSetReader<'_>>,
-    mut archive: Option<zip::ZipArchive<File>>,
+    mut archive: Option<zip::ZipArchive<crate::source_zip::CheckedReader>>,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Option<(Vec<ObservedSourceComponent>, SourceRecord, bool)>> {
     let mut components = Vec::with_capacity(members.len());
     let mut hashes = Vec::with_capacity(members.len());
@@ -1408,17 +1445,25 @@ fn inspect_file_set_representation_from_archive(
     let mut matched = true;
     let mut selected_names = HashSet::new();
     for member in members {
+        checkpoint()?;
+        let maximum =
+            (512_u64 * 1024 * 1024).min((2_u64 * 1024 * 1024 * 1024).saturating_sub(total_size));
         let Some(source) = (if let Some(archive) = archive.as_mut() {
-            read_file_set_zip_member(archive, &member.filenames)?
+            read_file_set_zip_member(archive, &member.filenames, maximum, checkpoint)?
         } else {
             if let Some(read) = directory_member.as_mut() {
-                (read.read)(&member.filenames)?
+                (read.read)(&member.filenames, maximum)?
             } else {
-                read_file_set_directory_member(path, &member.filenames)?
+                read_file_set_directory_member(path, &member.filenames, maximum, checkpoint)?
             }
         }) else {
             return Ok(None);
         };
+        if source.size > maximum {
+            return Err(PortcoveError::source(
+                "file-set selected bytes exceed their size limit",
+            ));
+        }
         let HashedNamedSource {
             name,
             sha1,
@@ -1477,7 +1522,9 @@ fn inspect_file_set_representation_from_archive(
     } else if let Some(archive) = archive {
         let mut file = archive.into_inner();
         file.rewind()?;
-        let (_, sha256, _, size) = hash_source(file)?;
+        let expected = file.seek(SeekFrom::End(0))?;
+        file.rewind()?;
+        let (_, sha256, _, size) = hash_source(file, expected, 2 * 1024 * 1024 * 1024, checkpoint)?;
         (sha256, size)
     } else {
         (aggregate.clone(), total_size)
@@ -1501,9 +1548,17 @@ fn inspect_file_set_representation_from_archive(
 fn read_file_set_directory_member(
     root: &Path,
     accepted_filenames: &[String],
+    maximum: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Option<HashedNamedSource>> {
     let mut matches = Vec::new();
-    for entry in std::fs::read_dir(root)? {
+    for (index, entry) in std::fs::read_dir(root)?.enumerate() {
+        checkpoint()?;
+        if index >= 4096 {
+            return Err(PortcoveError::source(
+                "file-set directory entry limit exceeded",
+            ));
+        }
         let entry = entry?;
         let file_type = entry.file_type()?;
         if file_type.is_symlink() || !file_type.is_file() {
@@ -1526,7 +1581,9 @@ fn read_file_set_directory_member(
         return Ok(None);
     }
     let (name, path) = matches.remove(0);
-    let (sha1, sha256, crc32, size) = hash_source(File::open(path)?)?;
+    let file = File::open(path)?;
+    let expected = file.metadata()?.len();
+    let (sha1, sha256, crc32, size) = hash_source(file, expected, maximum, checkpoint)?;
     Ok(Some(HashedNamedSource {
         name,
         sha1,
@@ -1537,8 +1594,10 @@ fn read_file_set_directory_member(
 }
 
 fn read_file_set_zip_member(
-    archive: &mut zip::ZipArchive<File>,
+    archive: &mut zip::ZipArchive<crate::source_zip::CheckedReader>,
     accepted_filenames: &[String],
+    maximum: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Option<HashedNamedSource>> {
     let mut matches = Vec::new();
     for index in 0..archive.len() {
@@ -1568,7 +1627,8 @@ fn read_file_set_zip_member(
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?;
-    let (sha1, sha256, crc32, size) = hash_source(entry)?;
+    let expected = entry.size();
+    let (sha1, sha256, crc32, size) = hash_source(entry, expected, maximum, checkpoint)?;
     Ok(Some(HashedNamedSource {
         name,
         sha1,
@@ -1587,28 +1647,20 @@ pub(crate) struct HashedNamedSource {
     pub size: u64,
 }
 
-fn hash_source(mut reader: impl Read) -> Result<(String, String, String, u64)> {
-    let mut sha1 = Sha1::new();
-    let mut sha256 = Sha256::new();
-    let mut crc32 = crc32fast::Hasher::new();
-    let mut size = 0_u64;
-    let mut buffer = [0_u8; 128 * 1024];
-    loop {
-        let read = reader.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        sha1.update(&buffer[..read]);
-        sha256.update(&buffer[..read]);
-        crc32.update(&buffer[..read]);
-        size = size.saturating_add(read as u64);
-    }
-    Ok((
-        hex::encode(sha1.finalize()),
-        hex::encode(sha256.finalize()),
-        format!("{:08x}", crc32.finalize()),
-        size,
-    ))
+fn hash_source(
+    reader: impl Read,
+    expected: u64,
+    maximum: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<(String, String, String, u64)> {
+    let mut budget = HashBudget {
+        checkpoint: Some(checkpoint),
+        operation: None,
+        limit: u64::MAX,
+        hashed: 0,
+        max_zip_entries: 4096,
+    };
+    crate::source_file::read_file_set_hashes(reader, expected, maximum, &mut budget)
 }
 
 fn file_set_aggregate_digests(record: &SourceRecord) -> Vec<ObservedSourceDigest> {
@@ -2181,7 +2233,9 @@ impl FileIdentity {
 mod tests {
     use super::*;
     use proptest::prelude::*;
+    #[cfg(test)]
     use sha1::Sha1;
+    #[cfg(test)]
     use sha2::{Digest, Sha256};
     use std::{fs, io::Write};
 
@@ -2225,6 +2279,7 @@ mod tests {
 
     fn inspect(catalog: &Catalog, profile_id: &str, path: &Path) -> SourceInspection {
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: u64::MAX,
             hashed: 0,
@@ -2397,6 +2452,7 @@ mod tests {
             initial.len(),
             initial.len(),
             &mut HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit: initial.len(),
                 hashed: 0,
@@ -2550,6 +2606,7 @@ mod tests {
                 fs::write(&path, [0_u8; 1024]).unwrap();
             }
             let mut budget = HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit: u64::MAX,
                 hashed: 0,
@@ -2569,6 +2626,7 @@ mod tests {
         }
         let invalid_path = temporary.path().join("invalid.z64");
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: u64::MAX,
             hashed: 0,
@@ -2893,7 +2951,8 @@ mod tests {
         }
         writer.finish().unwrap();
         let original = fs::read(&path).unwrap();
-        let archive = zip::ZipArchive::new(File::open(&path).unwrap()).unwrap();
+        let archive =
+            crate::source_zip::file_set_archive(File::open(&path).unwrap(), &|| Ok(())).unwrap();
         fs::rename(&path, &displaced).unwrap();
         let mut replacement = original.clone();
         let name = fixtures[0].0.as_bytes();
@@ -2927,6 +2986,7 @@ mod tests {
             members,
             &mut None,
             Some(archive),
+            &|| Ok(()),
         )
         .unwrap()
         .unwrap();
@@ -2940,6 +3000,64 @@ mod tests {
         assert_eq!(record.storage_size, original.len() as u64);
         assert_eq!(fs::read(&path).unwrap(), replacement);
         assert_eq!(fs::read(&displaced).unwrap(), original);
+    }
+
+    #[test]
+    fn direct_file_set_inspection_bounds_directory_and_expanded_zip_members() {
+        let temporary = tempfile::tempdir().unwrap();
+        let name = "baserom.us.rev0.z64";
+        let oversized = 512_u64 * 1024 * 1024 + 1;
+        let directory = temporary.path().join("source-set");
+        fs::create_dir(&directory).unwrap();
+        File::create(directory.join(name))
+            .unwrap()
+            .set_len(oversized)
+            .unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let error = inspect_file_set(&catalog, "g-diffuser-source-set", &directory).unwrap_err();
+        assert!(error.message.contains("hashing size limit"), "{error}");
+
+        let path = temporary.path().join("source-set.zip");
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        writer
+            .start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"small").unwrap();
+        let mut bytes = writer.finish().unwrap().into_inner();
+        let central = bytes
+            .windows(4)
+            .position(|bytes| bytes == b"PK\x01\x02")
+            .unwrap();
+        bytes[22..26].copy_from_slice(&(oversized as u32).to_le_bytes());
+        bytes[central + 24..central + 28].copy_from_slice(&(oversized as u32).to_le_bytes());
+        fs::write(&path, bytes).unwrap();
+        let error = inspect_file_set(&catalog, "g-diffuser-source-set", &path).unwrap_err();
+        assert!(error.message.contains("hashing size limit"), "{error}");
+    }
+
+    #[test]
+    fn selected_file_set_reads_enforce_actual_lengths_and_typed_cancellation() {
+        let checkpoint = || Ok(());
+        assert!(
+            hash_source(std::io::Cursor::new([1; 9]), 8, 8, &checkpoint)
+                .unwrap_err()
+                .message
+                .contains("grew")
+        );
+        assert!(
+            hash_source(std::io::Cursor::new([1; 7]), 8, 8, &checkpoint)
+                .unwrap_err()
+                .message
+                .contains("shrank")
+        );
+        let error = hash_source(std::io::Cursor::new([1; 8]), 8, 8, &|| {
+            Err(PortcoveError::new(
+                crate::ErrorCode::Cancelled,
+                "cancel inside selected read",
+            ))
+        })
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
     }
 
     #[test]
@@ -3380,6 +3498,7 @@ mod tests {
                 &path,
                 u64::MAX,
                 &mut HashBudget {
+                    checkpoint: None,
                     operation: None,
                     limit: u64::MAX,
                     hashed: 0,
@@ -3409,6 +3528,7 @@ mod tests {
                 &path,
                 u64::MAX,
                 &mut HashBudget {
+                    checkpoint: None,
                     operation: None,
                     limit: u64::MAX,
                     hashed: 0,
@@ -3474,6 +3594,7 @@ mod tests {
             profile.variants[0].representations.push(second);
         });
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: u64::MAX,
             hashed: 0,
@@ -3493,6 +3614,7 @@ mod tests {
         let wrong = temporary.path().join("game.bin");
         fs::write(&wrong, b"wrong extension").unwrap();
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: u64::MAX,
             hashed: 0,

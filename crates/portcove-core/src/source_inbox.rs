@@ -203,6 +203,7 @@ impl PortcoveService {
             stats: SourceInboxScanStats::default(),
             reached: BTreeSet::new(),
             hash_budget: HashBudget {
+                checkpoint: None,
                 operation: Some(operation.clone()),
                 limit: limits.max_hash_bytes,
                 hashed: 0,
@@ -239,7 +240,7 @@ struct InboxScan<'a> {
     candidates: Vec<SourceInboxCandidate>,
     stats: SourceInboxScanStats,
     reached: BTreeSet<SourceDiscoveryLimit>,
-    hash_budget: HashBudget,
+    hash_budget: HashBudget<'a>,
 }
 
 impl InboxScan<'_> {
@@ -450,16 +451,12 @@ impl InboxScan<'_> {
                 self.stats.entries_examined += limits.entries;
                 result
             }
-            SourceKind::FileSet => crate::source_inspection::inspect_file_set(
-                self.service.catalog(),
-                &self.profile.id,
-                path,
-            ),
-            SourceKind::GamecubeDisc | SourceKind::PsxDisc => {
-                crate::source_inspection::inspect_disc(
+            SourceKind::FileSet | SourceKind::GamecubeDisc | SourceKind::PsxDisc => {
+                crate::source_inspection::inspect_with_checkpoint(
                     self.service.catalog(),
                     &self.profile.id,
                     path,
+                    &|| self.operation.checkpoint(),
                 )
             }
         }
@@ -553,10 +550,11 @@ impl InboxScan<'_> {
         let charge = match self.profile.kind {
             SourceKind::File | SourceKind::UpstreamValidatedDisc | SourceKind::RelativeFileSet => 0,
             SourceKind::FileSet if metadata.is_file() => {
-                let mut archive =
-                    crate::archive::open_zip(fs::File::open(path)?).map_err(|error| {
-                        PortcoveError::source(format!("invalid file-set ZIP: {error}"))
-                    })?;
+                let mut archive = crate::zip_read::open(
+                    fs::File::open(path)?,
+                    crate::zip_read::FILE_SET,
+                    &mut |_| self.operation.checkpoint(),
+                )?;
                 if archive.len() > 4096 {
                     self.reached.insert(SourceDiscoveryLimit::Entries);
                     return Ok(None);

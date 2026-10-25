@@ -637,6 +637,7 @@ fn real_owned_chd_decoder_matches_manual_observation() {
     let workspace = tempfile::tempdir().unwrap();
     let closed = Cell::new(true);
     let mut budget = HashBudget {
+        checkpoint: None,
         operation: None,
         limit: 1024 * 1024,
         hashed: 0,
@@ -722,6 +723,7 @@ fn real_owned_gamecube_containers_match_the_original_iso_observation() {
         let workspace = tempfile::tempdir().unwrap();
         let closed = Cell::new(true);
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: 1024 * 1024,
             hashed: 0,
@@ -779,6 +781,7 @@ fn supervised_psx_conversion_binds_original_and_normalized_facts() {
     let workspace = tempfile::tempdir().unwrap();
     let closed = Cell::new(true);
     let mut budget = HashBudget {
+        checkpoint: None,
         operation: None,
         limit: 8192,
         hashed: 0,
@@ -856,6 +859,7 @@ fn cancellation_joins_the_decoder_tree_before_private_cleanup_is_allowed() {
     });
     let closed = Cell::new(true);
     let mut budget = HashBudget {
+        checkpoint: None,
         operation: Some(operation),
         limit: 8192,
         hashed: 0,
@@ -957,6 +961,7 @@ fn changing_an_original_while_the_decoder_is_held_cannot_publish_normalized_fact
     });
     let closed = Cell::new(true);
     let mut budget = HashBudget {
+        checkpoint: None,
         operation: None,
         limit: 8192,
         hashed: 0,

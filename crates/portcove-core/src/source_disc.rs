@@ -32,11 +32,13 @@ const MAX_CONTAINER_METADATA_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_SELECTED_DISC_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 #[cfg(any(windows, target_os = "linux"))]
-pub(crate) fn observe_selected(
+pub(crate) fn observe_selected_with_checkpoint(
     catalog: &crate::Catalog,
     profile: &crate::SourceProfile,
     path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<ObservedDiscSource> {
+    checkpoint()?;
     let canonical = fs::canonicalize(path)?;
     let directory = if canonical.is_dir() {
         let handle = crate::external_runtime::open_identity_handle(&canonical)?;
@@ -87,6 +89,7 @@ pub(crate) fn observe_selected(
             .tempdir_in(temporary_parent)?,
     );
     let mut budget = HashBudget {
+        checkpoint: Some(checkpoint),
         operation: None,
         limit: u64::MAX,
         hashed: 0,
@@ -480,7 +483,11 @@ fn observe_converted_disc(
         maximum_size,
     } = source;
     let operation = budget.operation.clone();
+    let supplied_checkpoint = budget.checkpoint;
     let checkpoint = || {
+        if let Some(checkpoint) = supplied_checkpoint {
+            checkpoint()?;
+        }
         if let Some(operation) = &operation {
             operation.checkpoint()?;
         }

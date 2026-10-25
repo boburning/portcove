@@ -8,14 +8,30 @@ use std::{
     path::Path,
 };
 
-pub(crate) struct HashBudget {
+#[cfg(test)]
+thread_local! {
+    pub(crate) static HASH_READ_OBSERVER: std::cell::RefCell<Option<Box<dyn Fn(u64)>>> = const { std::cell::RefCell::new(None) };
+}
+
+pub(crate) struct HashBudget<'a> {
+    pub checkpoint: Option<&'a dyn Fn() -> Result<()>>,
     pub operation: Option<crate::OperationCoordinator>,
     pub limit: u64,
     pub hashed: u64,
     pub max_zip_entries: usize,
 }
 
-impl HashBudget {
+impl HashBudget<'_> {
+    pub fn checkpoint(&self) -> Result<()> {
+        if let Some(operation) = &self.operation {
+            operation.checkpoint()?;
+        }
+        if let Some(checkpoint) = self.checkpoint {
+            checkpoint()?;
+        }
+        Ok(())
+    }
+
     pub fn reserve(&self, bytes: u64) -> Result<()> {
         if bytes > self.limit.saturating_sub(self.hashed) {
             return Err(
@@ -166,9 +182,7 @@ fn read_zip_identity_from_file(
     let checked =
         crate::source_zip::open(file, maximum_size, budget.max_zip_entries, &mut |bytes| {
             budget.reserve(bytes)?;
-            if let Some(operation) = &budget.operation {
-                operation.checkpoint()?;
-            }
+            budget.checkpoint()?;
             budget.hashed += bytes;
             Ok(())
         })?;
@@ -239,13 +253,14 @@ struct HashedContent {
     canonical_n64_size: Option<u64>,
 }
 
+#[cfg(test)]
 struct HashedStorage {
     sha256: String,
     size: u64,
 }
 
-pub(crate) fn read_zip_member_hashes(
-    archive: &mut zip::ZipArchive<File>,
+pub(crate) fn read_zip_member_hashes<R: Read + Seek>(
+    archive: &mut zip::ZipArchive<R>,
     index: usize,
     maximum: u64,
     budget: &mut HashBudget,
@@ -261,8 +276,16 @@ pub(crate) fn read_zip_member_hashes(
                 .detail("scan_limit", "file_size"),
         );
     }
-    // File-set members use original byte digests, not cartridge canonicalization.
-    let identity = hash_reader(entry, expected, maximum, budget, false)?;
+    read_file_set_hashes(entry, expected, maximum, budget)
+}
+
+pub(crate) fn read_file_set_hashes(
+    reader: impl Read,
+    expected: u64,
+    maximum: u64,
+    budget: &mut HashBudget,
+) -> Result<(String, String, String, u64)> {
+    let identity = hash_reader(reader, expected, maximum, budget, false)?;
     Ok((
         identity.sha1,
         identity.sha256,
@@ -271,6 +294,7 @@ pub(crate) fn read_zip_member_hashes(
     ))
 }
 
+#[cfg(test)]
 pub(crate) fn read_storage_identity(
     mut file: File,
     expected: u64,
@@ -302,9 +326,7 @@ fn hash_reader(
     let mut size = 0_u64;
     let mut buffer = [0_u8; 128 * 1024];
     while size < expected {
-        if let Some(operation) = &budget.operation {
-            operation.checkpoint()?;
-        }
+        budget.checkpoint()?;
         let wanted = (expected - size).min(buffer.len() as u64) as usize;
         let read = reader.read(&mut buffer[..wanted])?;
         if read == 0 {
@@ -312,6 +334,12 @@ fn hash_reader(
         }
         budget.hashed += read as u64;
         size += read as u64;
+        #[cfg(test)]
+        HASH_READ_OBSERVER.with(|observer| {
+            if let Some(observer) = observer.borrow().as_ref() {
+                observer(size);
+            }
+        });
         sha256.update(&buffer[..read]);
         sha1.update(&buffer[..read]);
         crc32.update(&buffer[..read]);
@@ -334,6 +362,7 @@ fn hash_reader(
     })
 }
 
+#[cfg(test)]
 fn hash_storage_reader(
     mut reader: impl Read,
     expected: u64,
@@ -350,9 +379,7 @@ fn hash_storage_reader(
     let mut size = 0_u64;
     let mut buffer = [0_u8; 128 * 1024];
     while size < expected {
-        if let Some(operation) = &budget.operation {
-            operation.checkpoint()?;
-        }
+        budget.checkpoint()?;
         let wanted = (expected - size).min(buffer.len() as u64) as usize;
         let read = reader.read(&mut buffer[..wanted])?;
         if read == 0 {
@@ -642,6 +669,7 @@ mod tests {
             std::fs::write(&path, &bytes).unwrap();
 
             let mut budget = HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit: 1_000_000,
                 hashed: 0,
@@ -709,6 +737,7 @@ mod tests {
         assert_eq!(original.len(), replacement.len());
         assert_ne!(original, replacement);
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: 1_000_000,
             hashed: 0,
@@ -746,6 +775,7 @@ mod tests {
         file.seek(std::io::SeekFrom::End(0)).unwrap();
         let expected = file.metadata().unwrap().len();
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: expected,
             hashed: 0,
@@ -763,6 +793,7 @@ mod tests {
             (expected, expected - 1, "size limit"),
         ] {
             let mut budget = HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit,
                 hashed: 0,
@@ -781,6 +812,7 @@ mod tests {
             // In-place changes affect the original handle, unlike pathname replacement.
             std::fs::write(&path, changed).unwrap();
             let mut budget = HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit: expected,
                 hashed: 0,
@@ -904,6 +936,7 @@ mod tests {
     fn storage_identity_hashes_only_sha256_and_preserves_accounting() {
         let bytes = b"outer zip storage bytes";
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: bytes.len() as u64,
             hashed: 0,
@@ -925,6 +958,7 @@ mod tests {
     fn raw_member_facts_keep_crc_budget_and_changing_stream_guards() {
         let bytes = b"facts";
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: 5,
             hashed: 0,
@@ -940,6 +974,7 @@ mod tests {
             (b"abcd".as_slice(), 3, "grew"),
         ] {
             let mut budget = HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit: 3,
                 hashed: 0,

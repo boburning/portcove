@@ -403,6 +403,7 @@ pub(crate) fn validate_profile(
     Ok(record(&profile.id, path, &members, &input))
 }
 
+#[cfg(test)]
 pub(crate) fn inspect(
     catalog: &crate::Catalog,
     profile_id: &str,
@@ -418,6 +419,7 @@ pub(crate) fn inspect_with_checkpoint(
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<crate::SourceInspection> {
     let mut budget = crate::source_file::HashBudget {
+        checkpoint: None,
         operation: None,
         limit: u64::MAX,
         hashed: 0,
