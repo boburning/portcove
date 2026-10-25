@@ -1164,6 +1164,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
   const linuxLifecycleFilter =
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
+  const intelPreparationFilter =
+    "package(portcove-cli) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/)";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
@@ -1206,6 +1208,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
+      { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
@@ -1224,6 +1227,15 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   assert.equal(linuxLifecycle["success-output"], "immediate");
   for (const field of ["retries", "threads-required", "priority", "default-filter"])
     assert.equal(linuxLifecycle[field], undefined);
+  const intelPreparation = overrideFor(intelPreparationFilter, "x86_64-apple-darwin");
+  assert.deepEqual(intelPreparation["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 18,
+    "grace-period": "0s",
+  });
+  assert.equal(intelPreparation["success-output"], "immediate");
+  for (const field of ["retries", "threads-required", "priority", "default-filter"])
+    assert.equal(intelPreparation[field], undefined);
   for (const [filter, periods] of [
     [observedCoreFilter, 18],
     [observedCliFilter, 12],
