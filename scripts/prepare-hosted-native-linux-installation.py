@@ -167,11 +167,11 @@ def copy_dependencies(source, target, records, owners, uid, gid, check):
             need((target / name).resolve(strict=True) == target / value, "installed dependency graph differs")
 
 
-def command(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536):
+def command(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536, environment=None):
     check()
     if maximum_file_bytes is not None:
         arguments = ["/usr/bin/prlimit", f"--fsize={maximum_file_bytes}", "--", *arguments]
-    child = subprocess.Popen(arguments, env=ENV, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+    child = subprocess.Popen(arguments, env=ENV if environment is None else environment, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, start_new_session=True)
     selector, output, settled = selectors.DefaultSelector(), {"out": bytearray(), "err": bytearray()}, False
     try:
@@ -314,6 +314,99 @@ def acquire_public_checkout(source, plan, check):
          "acquired independent native harness differs")
     last_inventory = 0
     check()
+
+
+def prepare_source_dependencies(plan, settings):
+    """One frozen, hook-free install using the originally admitted native tool."""
+    def check():
+        fence(plan)
+    check()
+    need(os.getuid() == plan["broker_uid"] != 0, "original dependency broker required")
+    need(0 < int(plan["deadline_ns"]) - time.monotonic_ns() <= 90_000_000_000,
+         "dependency preparation allocation exceeds bound")
+    need(isinstance(settings, dict) and set(settings) == {"pnpm", "workspace_sha256", "patches"},
+         "validated dependency configuration absent")
+    pnpm = settings["pnpm"]
+    # Reuse the closed tool identity validator; this does not mint admission.
+    inspect_plan({**plan, "tools": {"node": pnpm, "driver": pnpm}})
+    source = WORKSPACE / "native-source"
+    verify_installed_source(source, plan, check)
+    owners = (0, os.getuid())
+    metadata = json.loads(read_regular(source / "package.json", 65536, owners, check))
+    need(metadata.get("packageManager") == "pnpm@12.14.0", "native source package-manager pin differs")
+    workspace_config = read_regular(source / "pnpm-workspace.yaml", 65536, owners, check)
+    need(hashlib.sha256(workspace_config).hexdigest() == settings["workspace_sha256"],
+         "semantically validated workspace bytes changed")
+    for package in (source, source / "apps/desktop"):
+        need(not os.path.lexists(package / ".npmrc"), "source registry overrides are not admitted")
+        manifest = json.loads(read_regular(package / "package.json", 65536, owners, check))
+        need("pnpm" not in manifest, "manifest package-manager overrides not admitted")
+        for field in ("dependencies", "devDependencies", "optionalDependencies"):
+            dependencies = manifest.get(field, {})
+            need(isinstance(dependencies, dict) and all(isinstance(value, str) and not re.search(
+                r"^(file:|link:|git|https?:|ssh:)|^(\.|/)|^[^@:]+/", value)
+                and (":" not in value or (value.count(":") == 1 and value.startswith(("npm:", "catalog:", "workspace:"))))
+                and (not value.startswith("workspace:") or re.fullmatch(r"workspace:[*~^0-9][0-9.*~^ -]*", value))
+                for value in dependencies.values()), "external or Git dependency route not admitted")
+    need(isinstance(settings["patches"], list) and len(settings["patches"]) <= 128,
+         "validated source patch inventory differs")
+    for filename in settings["patches"]:
+        need(isinstance(filename, str) and re.fullmatch(r"patches/[A-Za-z0-9_@.+-]+\.patch", filename),
+             "source patch path differs")
+        read_regular(source / filename, 1024 ** 2, owners, check)
+    executable = Path(pnpm["path"])
+    pnpm_bytes = read_regular(executable, 64 * 1024 ** 2, owners, check)
+    need(len(pnpm_bytes) == pnpm["bytes"] and hashlib.sha256(pnpm_bytes).hexdigest() == pnpm["sha256"],
+         "admitted package-manager bytes changed")
+    home = WORKSPACE / "native-dependency-home"
+    need(not os.path.lexists(home) and not any(os.path.lexists(source / p) for p in DEPENDENCIES),
+         "retained dependency attempt requires explicit recovery")
+    home.mkdir(mode=0o700)
+    with (home / "intent.json").open("x", encoding="utf-8") as output:
+        json.dump({"binding": plan["binding"], "source_commit": plan["source_commit"],
+                   "pnpm_sha256": pnpm["sha256"], "automatic_retry": False, "authority": "none"}, output)
+        output.flush()
+        os.fsync(output.fileno())
+    environment = {**ENV, "HOME": str(home), "XDG_CONFIG_HOME": str(home / "config"),
+                   "XDG_CACHE_HOME": str(home / "cache"), "XDG_DATA_HOME": str(home / "data"),
+                   "PATH": str(Path(plan["tools"]["node"]["path"]).parent) + ":/usr/bin:/bin",
+                   "TMPDIR": str(home), "CI": "true", "COREPACK_ENABLE_NETWORK": "0",
+                   "npm_config_userconfig": "/dev/null", "npm_config_globalconfig": "/dev/null"}
+    need(command([str(executable), "--version"], check, environment=environment) == "12.14.0",
+         "native package-manager runtime differs")
+    last_inventory = 0
+    def install_check():
+        nonlocal last_inventory
+        check()
+        if time.monotonic_ns() - last_inventory < 250_000_000:
+            return
+        last_inventory = time.monotonic_ns()
+        pending = [home, *(source / p for p in DEPENDENCIES if os.path.lexists(source / p))]
+        count, total = 0, 0
+        while pending:
+            check()
+            current = pending.pop()
+            with os.scandir(current) as children:
+                for child in children:
+                    count += 1
+                    need(count <= MAX_FILES, "dependency preparation inventory exceeds bound")
+                    info = child.stat(follow_symlinks=False)
+                    total += info.st_size
+                    need(total <= MAX_BYTES, "dependency preparation bytes exceed bound")
+                    if stat.S_ISDIR(info.st_mode):
+                        pending.append(Path(child.path))
+    command([str(executable), "--dir", str(source), "install", "--frozen-lockfile", "--ignore-scripts",
+             "--ignore-pnpmfile", "--pm-on-fail=error", "--runtime-on-fail=error", "--package-import-method=copy",
+             "--store-dir", str(home / "store"), "--registry=https://registry.npmjs.org/",
+             "--config.modules-dir=node_modules", "--config.virtual-store-dir=" + str(source / "node_modules/.pnpm"),
+             "--config.enable-global-virtual-store=false", "--config.node-linker=isolated",
+             "--config.fetch-retries=0", "--config.fetch-timeout=15000", "--reporter=silent"],
+            install_check, maximum_file_bytes=128 * 1024 ** 2, environment=environment)
+    last_inventory = 0
+    install_check()
+    need(read_regular(executable, 64 * 1024 ** 2, owners, check) == pnpm_bytes,
+         "package-manager bytes changed during install")
+    return read_source_dependencies(plan)
 
 
 def read_source_dependencies(plan):
