@@ -18,6 +18,7 @@ import stat
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 
 USER = "portcove-native"
@@ -43,6 +44,7 @@ def original_fence():
     assert Path(f'/proc/{pid}').stat().st_uid==LIFETIME['broker_uid'], 'original parent owner changed'
 '''
 exec(PARENT_FENCE)
+original_fence = globals()["original_fence"]
 
 
 def original_deadline(seconds):
@@ -78,10 +80,8 @@ def bounded_process(arguments, timeout, environment=None):
     finally:
         selector.close()
         if not settled:
-            try:
+            with suppress(ProcessLookupError):
                 os.killpg(child.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
             child.wait(timeout=2)
         child.stdout.close()
         child.stderr.close()

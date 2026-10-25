@@ -1,12 +1,12 @@
 """Inert failure/recovery contracts; no account, sudo, unit or namespace runs."""
 
 import ast
+import collections
 import fnmatch
 import hashlib
 import importlib.util
 import io
 import json
-import collections
 import re
 import stat
 import subprocess
@@ -540,7 +540,8 @@ class HostedReadiness(unittest.TestCase):
             child = SimpleNamespace(pid=42, returncode=None, wait=Mock(side_effect=RuntimeError("inert reap unavailable")))
             scope = self.root_runner(child)
             scope["selector"].select = Mock(side_effect=original)
-            if fault == "kill": scope["os"].killpg.side_effect = PermissionError("inert signal refused")
+            if fault == "kill":
+                scope["os"].killpg.side_effect = PermissionError("inert signal refused")
             with self.subTest(fault=fault), self.assertRaises(subprocess.TimeoutExpired) as caught:
                 scope["run"](["/usr/sbin/useradd"], 30)
             self.assertIs(caught.exception, original)

@@ -1,7 +1,6 @@
 """Materialization contracts; no root, account, package install or candidate."""
 import copy
 import importlib.util
-import json
 import os
 import sys
 import tempfile
@@ -46,9 +45,9 @@ class Installation(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "deadline"):
                 installation.fence(expired)
             generation.assert_not_called()
-        with patch.object(installation, "generation", return_value="different generation"):
-            with self.assertRaisesRegex(RuntimeError, "parent changed"):
-                installation.fence(plan())
+        with patch.object(installation, "generation", return_value="different generation"), \
+                self.assertRaisesRegex(RuntimeError, "parent changed"):
+            installation.fence(plan())
 
     def test_git_has_no_network_lazy_fetch_hooks_or_shared_clone(self):
         calls = []
@@ -67,7 +66,7 @@ class DependencyGraph(unittest.TestCase):
         for mask in ("--assume-unchanged", "--skip-worktree"):
             with self.subTest(mask=mask), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
-                def git(*arguments):
+                def git(*arguments, root=root):
                     return installation.git(["-C", str(root), *arguments], lambda: None)
                 git("init", "--quiet")
                 (root / "inert.py").write_text("original bytes")

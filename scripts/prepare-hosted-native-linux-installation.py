@@ -14,7 +14,9 @@ import stat
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path, PurePosixPath
+
 try:
     import pwd
 except ModuleNotFoundError:
@@ -43,7 +45,7 @@ def inspect_plan(raw):
     }, "fixed installation plan differs")
     need(type(raw["schema_version"]) is int and raw["schema_version"] == 1, "installation schema differs")
     for name, size in (("binding", 64), ("source_commit", 40), ("source_tree", 40), ("harness_sha256", 64)):
-        need(isinstance(raw[name], str) and re.fullmatch(r"[a-f0-9]{%d}" % size, raw[name]), "installation pin differs")
+        need(isinstance(raw[name], str) and re.fullmatch(rf"[a-f0-9]{{{size}}}", raw[name]), "installation pin differs")
     for name in ("broker_uid", "broker_pid"):
         need(type(raw[name]) is int and 0 < raw[name] < 2 ** 32, "installation broker differs")
     need(isinstance(raw["broker_identity"], str) and re.fullmatch(
@@ -192,10 +194,8 @@ def command(arguments, check):
         selector.close()
         if not settled:
             # This original unreaped child still owns its process-group generation.
-            try:
+            with suppress(ProcessLookupError):
                 os.killpg(child.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
             child.wait(timeout=2)
         child.stdout.close()
         child.stderr.close()
@@ -223,7 +223,8 @@ def verify_installed_source(destination, plan, check):
 
 
 def install(plan):
-    check = lambda: fence(plan)
+    def check():
+        fence(plan)
     check()
     need(0 < int(plan["deadline_ns"]) - time.monotonic_ns() <= 120_000_000_000, "installation allocation exceeds bound")
     need(sys.platform == "linux" and os.getuid() == 0 and pwd is not None, "fixed root-side Linux materializer required")
