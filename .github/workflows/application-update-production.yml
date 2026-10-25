@@ -773,7 +773,7 @@ jobs:
     if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
       (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
       'reused') }}
-    needs: &a7
+    needs:
       - admission
       - tool_bootstrap
       - tool_attest
@@ -1065,7 +1065,7 @@ jobs:
       needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
       != 'reused' && needs.attest.result == 'success' && (needs.tuf_timestamp.result == 'success' ||
       needs.coordinator.outputs.signing_custody == 'reused')) }}
-    needs: &a8
+    needs:
       - admission
       - tool_bootstrap
       - tool_attest
