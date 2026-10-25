@@ -225,14 +225,23 @@ namespace Portcove.NativeQualification {
             if (!before.SequenceEqual(Native.JobPids(job).OrderBy(value => value))) throw new InvalidOperationException("Owned job inventory changed during capture; no stable snapshot");
             return result.ToArray();
         }
+        public string LastWindowInspection { get; private set; }
         IntPtr FindWindow(uint target) {
             IntPtr found = IntPtr.Zero;
+            var inspected = new List<string>();
             Native.DesktopWindowCallback callback = delegate(IntPtr window, IntPtr unused) {
                 uint owner; Native.GetWindowThreadProcessId(window, out owner);
-                if (owner == target && Native.IsWindowVisible(window)) { found = window; return false; }
+                if (owner == target) {
+                    bool visible = Native.IsWindowVisible(window);
+                    if (inspected.Count < 16) inspected.Add(window.ToString() + ":" + visible + ":" + Native.GetWindowLongW(window, -16).ToString("X8"));
+                    if (visible) { found = window; return false; }
+                }
                 return true;
             };
-            Native.EnumDesktopWindows(desktop, callback, IntPtr.Zero);
+            bool enumerated = Native.EnumDesktopWindows(desktop, callback, IntPtr.Zero);
+            int enumerationError = Marshal.GetLastWin32Error();
+            LastWindowInspection = String.Join(",", inspected);
+            if (!enumerated && found == IntPtr.Zero) throw new Win32Exception(enumerationError, "EnumDesktopWindows failed: win32=" + enumerationError);
             GC.KeepAlive(callback);
             return found;
         }
@@ -580,6 +589,7 @@ namespace Portcove.NativeQualification {
         [DllImport("user32", SetLastError=true)] internal static extern bool CloseWindowStation(IntPtr station);
         [DllImport("user32", SetLastError=true)] internal static extern bool CloseDesktop(IntPtr desktop);
         internal delegate bool DesktopWindowCallback(IntPtr window, IntPtr parameter);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern int GetWindowLongW(IntPtr window, int index);
         [DllImport("user32", SetLastError=true)] internal static extern bool EnumDesktopWindows(IntPtr desktop, DesktopWindowCallback callback, IntPtr parameter);
         [DllImport("user32")] internal static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
         [DllImport("user32")] internal static extern bool IsWindowVisible(IntPtr window);

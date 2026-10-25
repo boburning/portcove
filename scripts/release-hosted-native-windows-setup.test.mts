@@ -350,3 +350,49 @@ if($capture.ToString().Trim() -cne 'inert-registry:identity-begin'){throw 'Expli
 `);
   assert.match(result, /actual default and opt-in registry marker binding passed/u);
 });
+
+void test("actual private-window lookup refuses enumeration failure without rejecting a found callback stop", () => {
+  const launcher = fileURLToPath(new URL("./native-qualification-account.cs.txt", import.meta.url));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$source=[IO.File]::ReadAllText('${launcher.replaceAll("'", "''")}')
+$begin=$source.IndexOf('        IntPtr FindWindow(uint target) {')
+$end=$source.IndexOf('        public IntPtr MainWindowHandle', $begin)
+if($begin -lt 0 -or $end -le $begin){throw 'Actual lookup boundary differs'}
+$method=$source.Substring($begin,$end-$begin)
+$harness=@'
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class Native {
+ public delegate bool DesktopWindowCallback(IntPtr window, IntPtr unused);
+ public static bool Fails, HasWindow;
+ public static bool EnumDesktopWindows(IntPtr desktop, DesktopWindowCallback callback, IntPtr ignored) {
+  if(HasWindow) return callback(new IntPtr(42), IntPtr.Zero);
+  return !Fails;
+ }
+ public static void GetWindowThreadProcessId(IntPtr window, out uint owner) { owner=7; }
+ public static bool IsWindowVisible(IntPtr window) {return true;}
+ public static int GetWindowLongW(IntPtr window, int index) {return 268435456;}
+ public static Exception Error(string operation) {return new InvalidOperationException(operation);}
+}
+public class Lookup {
+ IntPtr desktop=IntPtr.Zero;
+ public string LastWindowInspection {get; private set;}
+__METHOD__
+ public IntPtr Observe(){return FindWindow(7);}
+}
+'@
+Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method)
+$lookup=[Lookup]::new()
+if($lookup.Observe() -ne [IntPtr]::Zero){throw 'Empty desktop was not empty'}
+[Native]::Fails=$true
+$refused=$false;try{$lookup.Observe()|Out-Null}catch{if($_.Exception.ToString() -notmatch 'EnumDesktopWindows failed: win32='){throw};$refused=$true}
+if(-not $refused){throw 'Enumeration failure became an empty desktop'}
+[Native]::HasWindow=$true
+if($lookup.Observe().ToInt64() -ne 42 -or $lookup.LastWindowInspection -cne '42:True:10000000'){throw 'Found callback stop or bounded inspection was lost'}
+'actual lookup error, empty and found-callback semantics passed'
+`);
+  assert.match(result, /actual lookup error, empty and found-callback semantics passed/u);
+});
