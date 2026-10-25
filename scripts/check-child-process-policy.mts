@@ -13,6 +13,18 @@ const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   "crates/portcove-core/src/tool_process/linux_tests.rs",
   // The std-only writer test launches itself to verify the cross-process lease.
   "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
+  // Exact owned host/adapter subprocess and cross-process lease fixtures.
+  "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
+  "crates/portcove-cli/tests/host_diagnostics.rs",
+  "crates/portcove-cli/tests/machine_contract/human_presentation.rs",
+  "crates/portcove-cli/tests/machine_contract/preparation.rs",
+  "crates/portcove-core/src/definition_publication_connected_tests.rs",
+  "crates/portcove-diagnostics/src/writer_tests.rs",
+  // Temporary repository/compiled-client qualification, never production adapters.
+  "crates/portcove-release-tools/tests/tuf_repository/isolated/renewal.rs",
+  "crates/portcove-release-tools/tests/tuf_repository/isolated.rs",
+  "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
+  "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs",
 ]);
 
 function rustFiles(directory: string): string[] {
@@ -32,6 +44,9 @@ export function findDirectChildProcessCalls(
     // Supplemental spelling check, not Rust name resolution. Whitespace may
     // span lines; aliases are not resolved and comments/strings can match.
     for (const match of source.matchAll(/\bCommand\s*::\s*new\s*\(/gu)) {
+      // This exact namespace constructs a CLI parser, not a child process.
+      // Other namespaces (including other::clap) remain conservatively checked.
+      if (/(?:^|[^A-Za-z0-9_:])clap\s*::\s*$/u.test(source.slice(0, match.index))) continue;
       violations.push({ path, line: source.slice(0, match.index).split(/\r?\n/u).length });
     }
   }
@@ -53,7 +68,7 @@ export function main() {
     return;
   }
   console.log(
-    "Child-process spelling check passed: no Command::new calls found outside reviewed policy/test files. Aliases are not resolved; comments and strings can match.",
+    "Child-process spelling check passed: no process Command::new calls found outside reviewed policy/test files. Exact clap::Command constructors are parser builders; aliases are not resolved, and comments and strings can match.",
   );
 }
 
