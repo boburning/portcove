@@ -197,10 +197,9 @@ void test("proposal identity report retains exact source execution persistence a
     after: "replacement",
   });
   assert.ok(change.changes.persistence.some((item) => item.path === "$.persistent_paths[0]"));
-  assert.ok(
-    change.changes.execution.some(
-      (item) => item.path === "$.n64_runtime_at_executable_parent" && item.after === true,
-    ),
+  assert.deepEqual(
+    change.changes.execution.find((item) => item.path === "$.n64_runtime_at_executable_parent"),
+    { path: "$.n64_runtime_at_executable_parent", after: true },
   );
   assert.ok(
     change.changes.persistence.some(

@@ -505,9 +505,13 @@ mod tests {
             b"keep canonical settings",
         )
         .unwrap();
+        let removal_preview = restarted.preview_removal(ID).unwrap();
+        let removal_consent = restarted
+            .authorize_removal(ID, &removal_preview.preview_sha256)
+            .unwrap();
         for error in [
             restarted.create_backup(ID).unwrap_err(),
-            restarted.preview_removal(ID).unwrap_err(),
+            restarted.remove(ID, &removal_consent.token).unwrap_err(),
             restarted
                 .prepare_launch_for_install(&retained, &first, None, None)
                 .unwrap_err(),
@@ -521,6 +525,13 @@ mod tests {
         assert_eq!(
             fs::read(restarted.library.user_dir(ID).join("settings.ini")).unwrap(),
             b"keep canonical settings"
+        );
+        assert_eq!(restarted.status(ID).unwrap().active.unwrap().id, first.id);
+        assert!(
+            OperationStore::new(restarted.library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
         );
         // Deliberate fixture preservation/retry; product code never deletes a conflict.
         fs::remove_file(restarted.library.user_dir(ID).join("settings.ini")).unwrap();
