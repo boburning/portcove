@@ -185,10 +185,16 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
     ] {
-        // MC2 is shipped with the foundation. Other inputs are frozen proposed
-        // rollout definitions; their production adoption remains in #2926.
+        // MC2 and the three portable selectors below are shipped definitions.
+        // Other inputs stay frozen proposals until their #2926 batches arrive.
         let proposed;
-        let port = if id == "alariq-mc2" {
+        let port = if matches!(
+            id,
+            "alariq-mc2"
+                | "battletanx-global-assault-pc-port"
+                | "brawmario-infinite-mario-64-ever"
+                | "dkc1-recomp"
+        ) {
             catalog.port(id).unwrap()
         } else {
             proposed = crate::test_fixture::proposed_rollout_port(id);
@@ -492,7 +498,8 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
 // Actual reviewed package names paired with controlled version-only successors.
 // v999.123.456 is fixture data, not an observed upstream release or game test.
 #[tokio::test]
-async fn frozen_proposed_psx_rules_follow_successors_for_every_reviewed_platform_scope() {
+async fn adopted_psx_rules_follow_successors_for_every_reviewed_platform_scope() {
+    let catalog = crate::Catalog::embedded().unwrap();
     for (id, platform, old_tag, old_name, new_name) in [
         (
             "alexbeav-ace-combat-3-electrosphere-recomp",
@@ -642,8 +649,7 @@ async fn frozen_proposed_psx_rules_follow_successors_for_every_reviewed_platform
             "Fade-to-Black-Recomp-999.123.456-windows-x64.zip",
         ),
     ] {
-        let proposed = crate::test_fixture::proposed_rollout_port(id);
-        let port = &proposed;
+        let port = catalog.port(id).unwrap();
         assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
         assert_eq!(port.release.provider, crate::ReleaseSource::Github);
         let old = release(old_tag, vec![asset(old_name, Some('a'))]);
