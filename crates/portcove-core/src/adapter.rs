@@ -5076,6 +5076,40 @@ mod tests {
         assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 1);
     }
 
+    #[test]
+    fn psx_bin_cue_failed_quiescence_persistence_retains_staging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source.chd");
+        let destination = temporary.path().join("runtime");
+        let tool = temporary.path().join("missing-chdman");
+        std::fs::create_dir(&destination).unwrap();
+        std::fs::write(destination.join("previous.bin"), b"keep runtime").unwrap();
+        std::fs::write(&source, b"original source").unwrap();
+        let error = materialize_psx_bin_cue(
+            &source,
+            &destination,
+            Some(&tool),
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || Err(PortcoveError::state("proof persistence failed"))),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.message, "proof persistence failed");
+        assert!(std::fs::read_dir(temporary.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-psx-")
+        }));
+        assert_eq!(
+            std::fs::read(destination.join("previous.bin")).unwrap(),
+            b"keep runtime"
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn psx_bin_cue_uncertain_tool_failure_retains_staging() {
