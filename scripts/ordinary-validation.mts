@@ -1271,6 +1271,16 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/ui-test-selection.mts", ["scripts/ui-test-selection.test.mts"]],
   ["scripts/run-ui-tests.mts", ["scripts/ui-test-selection.test.mts"]],
+  ...[
+    "test-coverage",
+    "test-coverage-config",
+    "coverage-node-reporter",
+    "coverage-node-loader",
+    "coverage-maps",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/ui-test-selection.test.mts"],
+  ]),
   ["scripts/run-viteplus.mts", ["scripts/frontend-command-preflight.test.mts"]],
   [
     "scripts/pr-delivery.mts",
@@ -1996,6 +2006,8 @@ function classifyOnePath(
       "scripts/viteplus-cli.mts",
       "scripts/frontend-tests.ts",
       "scripts/run-ui-tests.mts",
+      "scripts/test-coverage-config.mts",
+      "scripts/coverage-maps.mts",
       "scripts/run-viteplus.mts",
     ].includes(file) ||
     /^patches\/[^/]+\.patch$/u.test(file)
