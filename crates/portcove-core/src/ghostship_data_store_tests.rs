@@ -209,18 +209,49 @@ fn ghostship_qualified_tree_preserves_empty_directories_and_refuses_hardlinks() 
 }
 
 #[test]
-fn ghostship_qualified_tree_refuses_excess_depth_and_case_aliases() {
+fn ghostship_qualified_tree_refuses_excess_depth() {
     let temporary = tempfile::tempdir().unwrap();
     let deep = (0..26).fold(temporary.path().to_path_buf(), |path, _| path.join("d"));
     fs::create_dir_all(&deep).unwrap();
     assert!(reviewed_data(temporary.path()).is_err());
-    #[cfg(not(windows))]
+}
+
+#[test]
+fn ghostship_qualified_tree_respects_filesystem_case_capabilities() {
+    use std::io::Write;
+    let aliases = tempfile::tempdir().unwrap();
+    fs::write(aliases.path().join("Data"), b"first").unwrap();
+    let first_key = crate::portable_tree::validate_relative_path("Data", false)
+        .unwrap()
+        .1;
+    let second_key = crate::portable_tree::validate_relative_path("data", false)
+        .unwrap()
+        .1;
+    assert_eq!(
+        first_key, second_key,
+        "portable collision identity is platform independent"
+    );
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(aliases.path().join("data"))
     {
-        let aliases = tempfile::tempdir().unwrap();
-        fs::write(aliases.path().join("Data"), b"first").unwrap();
-        fs::write(aliases.path().join("data"), b"second").unwrap();
-        assert!(reviewed_data(aliases.path()).is_err());
+        Ok(mut second) => {
+            second.write_all(b"second").unwrap();
+            drop(second);
+            assert_eq!(fs::read_dir(aliases.path()).unwrap().count(), 2);
+            assert!(reviewed_data(aliases.path()).is_err());
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            // Default macOS and Windows volumes cannot represent this two-entry
+            // fixture. Verify the actual single-entry tree without overwriting it;
+            // Linux qualification executes the physical collision refusal above.
+            assert_eq!(fs::read_dir(aliases.path()).unwrap().count(), 1);
+            assert_eq!(reviewed_data(aliases.path()).unwrap().files.len(), 1);
+        }
+        Err(error) => panic!("case-capability fixture could not be created: {error}"),
     }
+    assert_eq!(fs::read(aliases.path().join("Data")).unwrap(), b"first");
 }
 
 #[test]

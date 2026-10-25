@@ -623,13 +623,13 @@ mod tests {
         serve_deadline(move |connection| {
             // Preserve the old idle case's exact response; total needs more bytes.
             if trickle {
-                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{")?;
+                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 10000\r\n\r\n{")?;
             } else {
                 connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{")?;
             }
             connection.flush()?;
             if trickle {
-                for _ in 0..30 {
+                loop {
                     if connection.wait(Duration::from_millis(10)) {
                         break;
                     }
@@ -651,7 +651,11 @@ mod tests {
     #[tokio::test]
     async fn gitlab_metadata_body_progress_exhausts_the_overall_request_bound() {
         let (metadata_root, mut metadata_server) = serve_deadline_metadata(true);
-        let bounds = short_network_bounds();
+        let bounds = ProviderNetworkBounds {
+            connect: Duration::from_millis(200),
+            read_idle: Duration::from_millis(200),
+            request: Duration::from_millis(800),
+        };
         let provider =
             GitlabReleaseProvider::with_api_root_and_bounds(&metadata_root, bounds).unwrap();
         metadata_server.start();
@@ -667,7 +671,7 @@ mod tests {
         );
         let error = result.unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        assert!(elapsed < Duration::from_millis(500));
+        assert!(elapsed < Duration::from_millis(1500));
         let server = server.unwrap();
         assert!(server.armed && server.request_received);
         assert!(observed.headers.is_some(), "{observed:?}");
