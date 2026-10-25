@@ -2012,6 +2012,21 @@ Flags, file order, storage wrappers, native prerequisites and platform ownership
 remain explicit in those actual consumers. Dynamic diff-selected `ci-baseline` routes retain their separate
 routing contracts; registry membership is not execution evidence.
 
+A reviewed duplicate may declare an exclusive platform owner in its existing
+record, for example `"qualification": {"linux-x86_64": "frontend-full-4"}`.
+The executable inventory then requires exactly one active, complete-file
+qualification invocation on that platform in the named suite. Disabled steps,
+wrong directories, filtered invocations and another Linux producer cannot stand
+in for that owner. This opt-in contract currently covers five reviewed duplicates;
+other runner images, prerequisites, complementary filters, Windows and local
+memberships retain their independent routes. Changing a test's path still changes
+only its ownership record before regenerating commands.
+
+The [October 25 concurrency investigation](qualification/test-execution-measurements-2026-10-25.md)
+retains separate pure, Git-heavy, child-process and Windows-control measurements.
+Its failed Git run provides no basis for changing global concurrency; required
+serial families remain serial.
+
 Workflow contracts are grouped by responsibility: `ci-workflow.test.mts` retains
 the shared integration gates; `ci-{frontend,native,release,rust}-workflow.test.mts`
 owns the corresponding workflow policy. Pure Windows archive/partition contracts,

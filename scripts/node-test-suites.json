@@ -615,9 +615,11 @@
       "memberships": [
         ["windows-storage-4", 800],
         ["frontend-full-4", 800],
-        ["catalog-full-2", 400],
         ["development-tools", 600]
-      ]
+      ],
+      "qualification": {
+        "linux-x86_64": "frontend-full-4"
+      }
     },
     {
       "file": "scripts/desktop-native-account-session.test.mts",
@@ -1158,10 +1160,12 @@
     {
       "file": "scripts/release-bootstrap-preparation.test.mts",
       "memberships": [
-        ["frontend-full-6", 7300],
         ["catalog-full-2", 12000],
         ["release-check", 14200]
-      ]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      }
     },
     {
       "file": "scripts/release-candidate-dispatch.test.mts",
@@ -1924,10 +1928,12 @@
     {
       "file": "scripts/release-preview-withdrawals.test.mts",
       "memberships": [
-        ["frontend-full-6", 3400],
         ["catalog-full-2", 12200],
         ["release-check", 9900]
-      ]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      }
     },
     {
       "file": "scripts/release-production-dag.test.mts",
@@ -2163,18 +2169,22 @@
     {
       "file": "scripts/release-tuf-role-artifact.test.mts",
       "memberships": [
-        ["frontend-full-6", 6600],
         ["catalog-full-2", 12800],
         ["release-check", 10800]
-      ]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      }
     },
     {
       "file": "scripts/release-tuf-signing.test.mts",
       "memberships": [
-        ["frontend-full-6", 6700],
         ["catalog-full-2", 12700],
         ["release-check", 10700]
-      ]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      }
     },
     {
       "file": "scripts/release-workflow.test.mts",
