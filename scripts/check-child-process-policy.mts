@@ -48,7 +48,7 @@ export function findDirectChildProcessCalls(
       // Other namespaces (including other::clap) remain conservatively checked.
       const prefix = source.slice(0, match.index).replace(/\s*::\s*/gu, "::");
       const ambiguousTrivia = /(?:\*\/|\/\/[^\r\n]*[\r\n]+)\s*clap::$/u.test(prefix);
-      if (!ambiguousTrivia && /(?:^|[^A-Za-z0-9_:])clap::$/u.test(prefix)) continue;
+      if (!ambiguousTrivia && /(?:^|[^\p{ID_Continue}:#])clap::$/u.test(prefix)) continue;
       violations.push({ path, line: source.slice(0, match.index).split(/\r?\n/u).length });
     }
   }

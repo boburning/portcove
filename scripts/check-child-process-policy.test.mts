@@ -99,6 +99,8 @@ void test("exact Clap parser constructors do not exempt bare, process or other n
     ["other:: clap::Command::new(program)", 1],
     ["other ::\n clap :: Command::new(program)", 2],
     ["other::<T>:: clap::Command::new(program)", 1],
+    ["other::r#clap::Command::new(program)", 1],
+    ["éclap::Command::new(program)", 1],
     ["other:: /* comment */ clap::Command::new(program)", 1],
     ["other:: /* comment ( */ clap::Command::new(program)", 1],
     ["other:: // comment\n clap::Command::new(program)", 2],
