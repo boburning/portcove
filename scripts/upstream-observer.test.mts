@@ -12,7 +12,11 @@ import {
 } from "./upstream-observer.mts";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mts";
 import { validateHealthAccountingPolicy } from "./check-catalog-repositories.mts";
-import { healthArtifactHash, healthEndpointHash } from "./upstream-health-inputs.mts";
+import {
+  healthArtifactHash,
+  healthEndpointHash,
+  healthPortInputs,
+} from "./upstream-health-inputs.mts";
 import retainedArtifacts from "./fixtures/upstream-health-retained-artifacts.json" with { type: "json" };
 
 type MonitoringArtifactRule = {
@@ -42,8 +46,9 @@ function assertArtifactMonitoringBindings(
       ports.find((value) => isRecord(value) && value.id === rule.port_id),
     );
     assert.ok(isRecord(port) && isRecord(port.release));
+    const inputs = healthPortInputs(port);
     const release = port.release;
-    if (isRecord(release.direct) && Object.hasOwn(release.direct, rule.platform)) {
+    if (Object.hasOwn(inputs.release.direct, rule.platform)) {
       // A changed active artifact must never fall back to historical facts.
       assert.equal(
         healthArtifactHash(port, rule.platform),
@@ -598,6 +603,25 @@ void test("monitoring bindings reject changed active pins and malformed retained
     assert.throws(
       () => assertArtifactMonitoringBindings([port], [rule], []),
       assert.AssertionError,
+    );
+  });
+  for (const [name, direct] of [
+    ["null", null],
+    ["array", []],
+    ["string", "invalid"],
+  ] as const)
+    await t.test(`malformed ${name} direct map cannot use historical facts`, () => {
+      const changed = { ...port, release: { ...port.release, direct } };
+      assert.throws(
+        () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+        /Invalid upstream health direct artifacts/u,
+      );
+    });
+  await t.test("malformed other-platform artifact cannot use historical facts", () => {
+    const changed = { ...port, release: { ...port.release, direct: { "other-platform": {} } } };
+    assert.throws(
+      () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+      /Invalid upstream health artifact identity/u,
     );
   });
   await t.test("mutated retained bytes", () => {
