@@ -201,6 +201,12 @@ The control requires readiness stderr, an incomplete-report failure and direct
 child exit in both the inner runner and its parent; it cannot establish cleanup
 of arbitrary descendant trees or survival after a whole-job kill. Zero,
 non-finite and fractional Python harness deadlines are refused before launch.
+
+The manual `Job timeout rehearsal` uses a controlled Linux job with a five-minute
+outer limit and the maintained process supervisor. Its producer deliberately
+times out; a separate always-run verifier checks the original timeout, retained
+partial output and exact owned-process exit observations. Acceptance of that
+control remains distinct from a passing workflow, full suite or product run.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
 45 minutes, and exhaustive producers at 120 minutes; the existing 10-minute
 Windows helpers and 15-minute portability limits remain. These generous outer
