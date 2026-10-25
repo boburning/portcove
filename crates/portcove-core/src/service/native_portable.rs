@@ -73,6 +73,7 @@ impl PortcoveService {
             || crate::persistence::ready_staged_archive(&retained)
                 != crate::persistence::ready_staged_archive(to)
             || retained.persistent_paths != to.persistent_paths
+            || retained.mod_package_policy != to.mod_package_policy
             || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.runtime_subdirectory != to.runtime_subdirectory
             || retained.launch_from_install_root != to.launch_from_install_root
@@ -225,6 +226,16 @@ mod tests {
             folder: &str,
             program_name: &str,
         ) -> ResolvedRelease {
+            self.release_with_files(version, revision, folder, program_name, &[])
+        }
+        fn release_with_files(
+            &self,
+            version: &str,
+            revision: u8,
+            folder: &str,
+            program_name: &str,
+            files: &[(&str, &[u8])],
+        ) -> ResolvedRelease {
             let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
             zip.start_file(
                 format!("{folder}{program_name}"),
@@ -247,6 +258,14 @@ mod tests {
                 )
                 .unwrap();
                 zip.write_all(&[revision]).unwrap();
+            }
+            for (path, bytes) in files {
+                zip.start_file(
+                    format!("{folder}{path}"),
+                    zip::write::SimpleFileOptions::default(),
+                )
+                .unwrap();
+                zip.write_all(bytes).unwrap();
             }
             let bytes = zip.finish().unwrap().into_inner();
             let sha256 = hex::encode(Sha256::digest(&bytes));
@@ -640,6 +659,258 @@ mod tests {
             owned
         );
         assert!(!newest.path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[tokio::test]
+    async fn versioned_ready_mods_keep_current_data_and_both_package_versions_through_restore() {
+        const ID: &str = "versioned-mod-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_with_files(
+            "1",
+            1,
+            "",
+            "game.exe",
+            &[
+                ("mods/packages/bundled/1.0/manifest.toml", b"old default"),
+                ("mods/state.toml", b"old initial state"),
+            ],
+        ))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let catalog = crate::test_fixture::versioned_mod_catalog();
+        service.replace_catalog_for_test(catalog.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let write = |root: &Path, path: &str, bytes: &[u8]| {
+            fs::create_dir_all(root.join(path).parent().unwrap()).unwrap();
+            fs::write(root.join(path), bytes).unwrap();
+        };
+        write(&first.path, "settings.ini", b"before Play");
+        write(&first.path, "saves/current.sav", b"current progress");
+        write(&first.path, "mods/state.toml", b"selected old version");
+        write(
+            &first.path,
+            "mods/packages/imported/2.0/code.dll",
+            b"untrusted player mod",
+        );
+        write(&first.path, "cache/code.dll", b"old generated code");
+        let backup = service.create_backup(ID).unwrap();
+        assert!(!first.path.join(LAUNCH_MARKER).exists());
+        assert!(!backup.path.join("data/cache").exists());
+        assert_eq!(
+            fs::read(backup.path.join("data/mods/packages/imported/2.0/code.dll")).unwrap(),
+            b"untrusted player mod"
+        );
+        *provider.0.lock().unwrap() = server.release_with_files(
+            "2",
+            2,
+            "",
+            "game.exe",
+            &[
+                (
+                    "mods/packages/bundled/2.0/manifest.toml",
+                    b"successor default",
+                ),
+                ("mods/state.toml", b"successor initial state"),
+                ("cache/code.dll", b"new generated code"),
+            ],
+        );
+        let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        assert!(staged.staged);
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        let second = service.activate_staged(ID).unwrap();
+        assert_eq!(
+            fs::read(second.path.join("mods/state.toml")).unwrap(),
+            b"selected old version"
+        );
+        for path in [
+            "mods/packages/bundled/1.0/manifest.toml",
+            "mods/packages/bundled/2.0/manifest.toml",
+            "mods/packages/imported/2.0/code.dll",
+        ] {
+            assert!(second.path.join(path).is_file(), "{path}");
+        }
+        assert_eq!(
+            fs::read(second.path.join("cache/code.dll")).unwrap(),
+            b"new generated code"
+        );
+        fs::remove_file(second.path.join("mods/state.toml")).unwrap();
+        write(&second.path, "saves/current.sav", b"latest progress");
+        let restored = service.rollback(ID).unwrap();
+        assert_eq!(restored.id, first.id);
+        assert!(!first.path.join("mods/state.toml").exists());
+        assert_eq!(
+            fs::read(first.path.join("saves/current.sav")).unwrap(),
+            b"latest progress"
+        );
+        assert!(
+            first
+                .path
+                .join("mods/packages/bundled/2.0/manifest.toml")
+                .is_file()
+        );
+        assert_eq!(
+            fs::read(first.path.join("cache/code.dll")).unwrap(),
+            b"old generated code"
+        );
+        // A conflict in ANY retained runtime refuses the explicit backup restore
+        // before publishing its older canonical snapshot or changing current saves.
+        write(
+            &second.path,
+            "mods/packages/bundled/1.0/manifest.toml",
+            b"conflicting retained package",
+        );
+        let restore = || {
+            let preview = service
+                .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+                .unwrap();
+            let consent = service
+                .authorize_backup_action(
+                    ID,
+                    &backup.id,
+                    crate::BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            service.restore_backup(ID, &backup.id, &consent.token)
+        };
+        let error = restore().unwrap_err();
+        assert!(error.message.contains("Mod packages need review"));
+        assert!(error.details["destination_path"].contains("mods"));
+        assert_eq!(
+            fs::read(first.path.join("saves/current.sav")).unwrap(),
+            b"latest progress"
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("saves/current.sav")).unwrap(),
+            b"latest progress"
+        );
+        write(
+            &second.path,
+            "mods/packages/bundled/1.0/manifest.toml",
+            b"old default",
+        );
+        restore().unwrap();
+        assert_eq!(
+            fs::read(first.path.join("saves/current.sav")).unwrap(),
+            b"current progress"
+        );
+        assert_eq!(
+            fs::read(second.path.join("saves/current.sav")).unwrap(),
+            b"current progress"
+        );
+        assert!(
+            second
+                .path
+                .join("mods/packages/bundled/2.0/manifest.toml")
+                .is_file()
+        );
+        assert!(!first.path.join(LAUNCH_MARKER).exists());
+    }
+
+    #[tokio::test]
+    async fn versioned_ready_mods_refuse_conflicts_and_implicit_contract_transitions() {
+        const ID: &str = "versioned-mod-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_with_files(
+            "1",
+            1,
+            "",
+            "game.exe",
+            &[("mods/packages/bundled/1.0/manifest.toml", b"original")],
+        ))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let catalog = crate::test_fixture::versioned_mod_catalog();
+        service.replace_catalog_for_test(catalog.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        fs::write(first.path.join("settings.ini"), b"keep choices").unwrap();
+        *provider.0.lock().unwrap() = server.release_with_files(
+            "2",
+            2,
+            "",
+            "game.exe",
+            &[(
+                "mods/packages/bundled/1.0/manifest.toml",
+                b"changed same version",
+            )],
+        );
+        service.update(ID, None, None, false, |_| {}).await.unwrap();
+        let error = service.activate_staged(ID).unwrap_err();
+        assert!(error.message.contains("Mod packages need review"));
+        assert!(error.details["source_path"].contains("mods"));
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        assert_eq!(
+            fs::read(first.path.join("mods/packages/bundled/1.0/manifest.toml")).unwrap(),
+            b"original"
+        );
+        assert_eq!(
+            fs::read(first.path.join("settings.ini")).unwrap(),
+            b"keep choices"
+        );
+        let staged = service.status(ID).unwrap().staged.unwrap();
+        assert!(
+            service
+                .prepare_recovered_psx_activation(&staged)
+                .unwrap_err()
+                .message
+                .contains("Mod packages need review")
+        );
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        // Historical copies without a receipt use content-only package equality,
+        // but must still refuse conflicting root state before adding any package.
+        service.create_backup(ID).unwrap();
+        fs::remove_file(first.path.join(PSX_DATA_RECEIPT)).unwrap();
+        let packaged = first.path.join("mods/packages/bundled/1.0/manifest.toml");
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&packaged)
+            .unwrap()
+            .set_times(
+                fs::FileTimes::new()
+                    .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_700_000_001)),
+            )
+            .unwrap();
+        service.collect_active_user_data_if_launched(ID).unwrap();
+        fs::write(first.path.join("mods/state.toml"), b"unproven selection").unwrap();
+        fs::write(
+            library.user_dir(ID).join("mods/state.toml"),
+            b"canonical selection",
+        )
+        .unwrap();
+        assert!(service.collect_active_user_data_if_launched(ID).is_err());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("mods/state.toml")).unwrap(),
+            b"canonical selection"
+        );
+        let mut changed = catalog.authoritative_document();
+        changed.ports[0].mod_package_policy = None;
+        let changed = Catalog::from_json(&serde_json::to_string(&changed).unwrap()).unwrap();
+        let to = changed.port(ID).unwrap();
+        assert!(service.require_portable_transition(&first, to).is_err());
+        assert!(
+            service
+                .require_portable_transition_to(&first, to, true)
+                .is_err()
+        );
+        // Current catalog changes do not reinterpret a retained runtime.
+        service.replace_catalog_for_test(changed);
+        assert!(
+            service
+                .installed_port(&first)
+                .unwrap()
+                .mod_package_policy
+                .is_some()
+        );
     }
 
     #[tokio::test]

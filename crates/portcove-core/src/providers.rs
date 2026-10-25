@@ -172,6 +172,7 @@ mod tests {
             n64_windows_initial_d3d12: false,
             managed_initialization: None,
             runtime_data_policy: None,
+            mod_package_policy: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,

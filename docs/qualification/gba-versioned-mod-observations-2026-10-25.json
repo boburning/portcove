@@ -1,0 +1,1282 @@
+{
+  "format_version": 1,
+  "kind": "Dated batch coverage evidence, not a live status registry or completed parent acceptance",
+  "observation_cutoff": "2026-10-25T11:51:25.154Z",
+  "inventory_boundary": {
+    "original_identities": 524,
+    "original_affected_additions": 312,
+    "original_roadmap_joins": 22,
+    "original_direct_decisions_still_open": 6,
+    "scope": "Four existing affected listing-only identities; preserve all other definitions and canonical owners. New authored scope is metadata, not installed-contract migration.",
+    "original_identity_subset_verified": true,
+    "current_distinct_listing_identities": 880
+  },
+  "primary_files": [
+    {
+      "repository": "mstan/arm-recomp-core",
+      "source_commit": "61cdc51a85efe621841458d9e6c35c5357fcb2ee",
+      "path": "profiles/armv4t_gba/runtime_arm_types.h",
+      "blob_sha": "f214d47f0ac16dac476a83bc7ebbae0f9731eb40",
+      "url": "https://github.com/mstan/arm-recomp-core/blob/61cdc51a85efe621841458d9e6c35c5357fcb2ee/profiles/armv4t_gba/runtime_arm_types.h",
+      "sha256": "720d4cfaea549b48320b4f5830736cf86b18ee8d6b405d7a111f76ded278663b"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": ".gitmodules",
+      "blob_sha": "6b9408e2abd1e5134a21cd524ff36e20de57c418",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/.gitmodules",
+      "sha256": "81c33f8cfcc99ea53b9ffdc9b624a88a02210d6ac8b1958165918329337673f9"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/armv4t/runtime_arm.cpp",
+      "blob_sha": "24980dc55eceb8ecbe57cfcfeeddb02ee61a76e5",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/armv4t/runtime_arm.cpp",
+      "sha256": "8bea1423e61ded57b4e1c2ff3169e269f520f1fb0b409e077c88849cc21a033f"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/armv4t/runtime_arm.h",
+      "blob_sha": "db6dc3c8a9a56b6fb46e5dce9a5e4ec29d2fd7e6",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/armv4t/runtime_arm.h",
+      "sha256": "84ca1901a5f2327c38c8be2768fb3e6525c19695f1adbac99458164ff3ae7759"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/armv4t/runtime_arm_types.h",
+      "blob_sha": "b6d516095ffd6ea65aafc9a3646a18280fc65b45",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/armv4t/runtime_arm_types.h",
+      "sha256": "470e90859ae4f6ef14c815821876fb3316aa39ceb0eb663505546c0d25976466"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/debug/file_replace.cpp",
+      "blob_sha": "e4f5c1d2d0a4aff477acc7990479f2506f52793a",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/debug/file_replace.cpp",
+      "sha256": "80d4f8251566efa32cd0a82881e3e6c9fd22152b680ac166b75d92162c168d32"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/debug/file_replace.h",
+      "blob_sha": "b71c86ebfaaab298a0f1fc0f145b6a3a7fa18e44",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/debug/file_replace.h",
+      "sha256": "7ec1f22474080df88c8b3d481c674f1a4bfedc5ed77b241893905ae77ea417e3"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/debug/mod_state.cpp",
+      "blob_sha": "4b4f4a0ad9674c6f97b8d9a331671744e053d691",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/debug/mod_state.cpp",
+      "sha256": "5e8ebd633c82c0c27756d5f7a5992bc5b5789ee0f802738f29e6420983aad5cc"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/debug/replay_writer.cpp",
+      "blob_sha": "855d1f08f59d8fbba58dc852fd12bfe14a99ec15",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/debug/replay_writer.cpp",
+      "sha256": "b3aacb4a0ff3afe1e2ba97b94dd4cdca169fa5ae219e07e32a8b93b641d3b6eb"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/debug/snapshot.cpp",
+      "blob_sha": "b9af6ef876c98abcf99308c75320a875e3d9284b",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/debug/snapshot.cpp",
+      "sha256": "ad4a8dc8b1028056ffa10e8837f702b4f71524438dc6b21ae3e6fe5df38181f8"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/debug/snapshot.h",
+      "blob_sha": "88619792ff70c929c9e38183c498e52b4da0a916",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/debug/snapshot.h",
+      "sha256": "16e300c954fe26faeec4aba07ba391c03876d4e197d1ce5757c78b65d38c9073"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/gba/gba_audio.cpp",
+      "blob_sha": "72125d17918091026fc1d0fdf5ceb39ef25a1217",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_audio.cpp",
+      "sha256": "537cb2c1923156a6421d99015822b81d4d794335a99266b4c881608c202bed90"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/gba/gba_bus.cpp",
+      "blob_sha": "6571d921ccddbbfb3931477f7d07bcca7ce6ba19",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_bus.cpp",
+      "sha256": "f8afd0003670f4d42d4b70c555e5c51ffd4eeb1f2bc790d74f8ab13928b4dca8"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/gba/gba_io.cpp",
+      "blob_sha": "51d235e880f74d62f5d542609fd681f7127d4f63",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_io.cpp",
+      "sha256": "b12c31952e0331c7f35da7c904d1d59b5d24e9c7a1e1a845974530cea2f6a310"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/gba/gba_ppu.cpp",
+      "blob_sha": "8e0675846125dfff9975a0fb4cbc9ae445a6ea49",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_ppu.cpp",
+      "sha256": "872c2e16e729a0ccb53fa60eaa77850460351732577cf418dab3ef868551d392"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/gba/gba_save.cpp",
+      "blob_sha": "0e32e612e018a54f511343ea8c8a04fdce6b7973",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_save.cpp",
+      "sha256": "0cc187e431315654bfc4ce8d5db90ab2da972ac6e634304a4997eb1c55dbe7c5"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/diagnostic_replay.cpp",
+      "blob_sha": "e25e74c1a15cfc1040ad8d7b0879028b60890989",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/diagnostic_replay.cpp",
+      "sha256": "13446a9bed20a45864a696b69d53db0266617b9c473660dcccf44b1b70fcd713"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/diagnostic_replay.h",
+      "blob_sha": "eb826058e159a19bfe7ede7fc88d5293bfd3d918",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/diagnostic_replay.h",
+      "sha256": "66e36cef0fcdf15075441ba438cba42f42083bfb8e658d495f7eedbee7893582"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/runtime_arm_default_aborts.cpp",
+      "blob_sha": "ea6916d881efde0a99e965e87dc7249d9ae8d3cf",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/runtime_arm_default_aborts.cpp",
+      "sha256": "e295de32226013a99934091d0e92ccbb7792dcd14cf050c3ea6d5fce49a803ed"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/self_heal.h",
+      "blob_sha": "c72781d27d820a84b94019b0fbf149f3ba030ae3",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/self_heal.h",
+      "sha256": "79a536e5e2c5bc2521ea5a2a6f8e3227c2aaa4c0f424f6844ef244d6589ceee6"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/self_heal_cluster.cpp",
+      "blob_sha": "62e38e3185b3085ce5b1a23c655ee41ff81115ba",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/self_heal_cluster.cpp",
+      "sha256": "d7636439092e393934dc2c76dfea0292736f3f3ebde87ee599a735933ffb4472"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "src/buus_fury_extended_view.cpp",
+      "blob_sha": "49346f7091d83712cd2fa5611413698242517e65",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/src/buus_fury_extended_view.cpp",
+      "sha256": "04ea121358ee15c3c5b7d0f6015e7518c88c35dc126729f4e391e1b22b92efd1"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "src/buus_fury_extended_view.h",
+      "blob_sha": "9c310400868e7a687f7246cf41b7ce3b3abeb3b2",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/src/buus_fury_extended_view.h",
+      "sha256": "a24778cd0bd093730343e2fa3cf8f23a96266a0f4dd6ca61e78260bec5356009"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "src/mods/buus_fury_adaptive_view_plugin.cpp",
+      "blob_sha": "9136d4e74da6ab57780299474cbb14b574523b4c",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/src/mods/buus_fury_adaptive_view_plugin.cpp",
+      "sha256": "f39a2f821e56c25ffeed15b7b1a85ede0760841a013de9d4bd06b1405e2b5f82"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "src/legacy2_extended_view.cpp",
+      "blob_sha": "4be58bc38850b5bb907873ae6d2457e441245049",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/src/legacy2_extended_view.cpp",
+      "sha256": "e81bfa97bb852503b5bf0a5f2362928c524849b8db7fe341dfcb83d7ddf78d3f"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "src/legacy2_extended_view.h",
+      "blob_sha": "ef90d9ea95ac66a8d930a7d60f1a6fe2f2691bcd",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/src/legacy2_extended_view.h",
+      "sha256": "a3e8e748f6e49711b5ef720847242031d33bf6581ac1483368f6c82450979d79"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "src/mods/legacy2_adaptive_view_plugin.cpp",
+      "blob_sha": "47d3020c8878e311f1b699bb5485fe19f1061b85",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/src/mods/legacy2_adaptive_view_plugin.cpp",
+      "sha256": "ad176373f86511d872e67ff85f8a141c68cf5054ee34ce4fc33943fa3fd1ae8d"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "src/mmz_extended_view.cpp",
+      "blob_sha": "da05a7bfc76a38e7f5347100e311d3bfab05075f",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/src/mmz_extended_view.cpp",
+      "sha256": "f689a48549e85b1682236b64da5fbcfc38b2410b7130413cb6109beb44aa03ca"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "src/mmz_extended_view.h",
+      "blob_sha": "0535bf9d1b3c18a9a80a90f3bb47b748cbbe37e7",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/src/mmz_extended_view.h",
+      "sha256": "d0d6c9547626461f002498a5b24497438731651e490183736dd51409ef091fe7"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "src/mods/mmz_adaptive_view_plugin.cpp",
+      "blob_sha": "2b6d5607c650b698e250e9b7a14ce624101b330d",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/src/mods/mmz_adaptive_view_plugin.cpp",
+      "sha256": "a0903476e1a750b1260ade64c19d6d4e6b6729de38069a5e3a1b6628544dc996"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "src/mods/smw_adaptive_view_plugin.cpp",
+      "blob_sha": "b68bed1db469aee1182e2f9f821a7f4a5b2a73a3",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/src/mods/smw_adaptive_view_plugin.cpp",
+      "sha256": "90ff0785092cd9eeea3796a53773ee1f8db8879cf8b694da482b11a1251ca408"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "src/smw_extended_view.cpp",
+      "blob_sha": "8cf4ec775ba14e9584f2c5fa8a081450ba94472c",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/src/smw_extended_view.cpp",
+      "sha256": "57a442ae8a1a3f405da8a009da0ef36f544cb29865d4a6970428543ea352fbc5"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "src/smw_extended_view.h",
+      "blob_sha": "62c207ebf19a3db0e600c326c8583c018dce2ece",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/src/smw_extended_view.h",
+      "sha256": "e20319167e44972cc57b7a17340e5ac5d38be0208fc2b9659dbb0205ea43dbd7"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/common/keybinds.c",
+      "blob_sha": "070508faea9d1891a3b79df8575030d20c983e49",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/common/keybinds.c",
+      "sha256": "4a3b4478467dd2d2a676c3d607dd77efc59ff4982e49b6bf36afd09b9a402364"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/common/launcher_ini.inc",
+      "blob_sha": "7d2ff6980558e53a4cf73f771a01d2f967c4670e",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/common/launcher_ini.inc",
+      "sha256": "4be074fed0daf360abdddcfdc56a3e9bae6a89c59eb4214dc493a81fff5532c4"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/netplay/recomp_netplay_host.c",
+      "blob_sha": "eab6fb20c258df6f0b2088fc21ab077f2178e777",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/netplay/recomp_netplay_host.c",
+      "sha256": "f12e9819f99397f859e6ea2cdb508db948205dc6eda1a37a4a623f334a72f5a8"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/recomp_netplay_account.h",
+      "blob_sha": "ba206ea64ce5e997634711709710e12d40b82835",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/recomp_netplay_account.h",
+      "sha256": "8060e31fff5c2bc0f231b3cf37848067c1d2008b99e6f843a1f6603237a2b226"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "CMakeLists.txt",
+      "blob_sha": "b955a70cde00ff63134a7fe9663d20177fe70e6e",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/CMakeLists.txt",
+      "sha256": "f54f8edd784f4c442e4a07ea764f32b7c05fc60da63012a765248dc1a3ce0eb2"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/asset_picker.cpp",
+      "blob_sha": "a0b4ee32acbe14d4c3d357063bee9169b80b752f",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/asset_picker.cpp",
+      "sha256": "5ba229c892a77c4af1edbc310403febfa42d0f002c1bdceec3fabc0a48da98a2"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/host_window.cpp",
+      "blob_sha": "712c1bb700d7592b087b2db1dffcc5869e568bc1",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/host_window.cpp",
+      "sha256": "978542bf7b7db7cb3c6e0b36fa54f547cb418a2667854c60cf94135c72e57301"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/launcher_seam.h",
+      "blob_sha": "f4f9022e0ae0d4dc23d40daaf45b0a9d6b6103a2",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/launcher_seam.h",
+      "sha256": "04296a5b880fa6c45272d964cf9a4afc1f231811e10e5c2917365397fa030599"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/mod_runtime.cpp",
+      "blob_sha": "3b8ed238048e72c126ecec9c834663fbba8d8fbb",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/mod_runtime.cpp",
+      "sha256": "80a90fc750dde0e8812c5c9727bdbfa099f6e6105158d565c9b0f74522a78d44"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/overlay_compile.cpp",
+      "blob_sha": "553481c1d947d1ad7a0896e452aabe238656768e",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/overlay_compile.cpp",
+      "sha256": "1427db374ab20ed53d7c0df46d95c0e3155f7390920cb85e606960fd98131605"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/overlay_loader.cpp",
+      "blob_sha": "d6c4656233f83e618aa24756d2b59a6a0288aa7a",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/overlay_loader.cpp",
+      "sha256": "c66f08d5040577414cdd02187545ca2d62a6efac92779af3d0d3c9bcd9a81033"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/runtime.cpp",
+      "blob_sha": "fc8cf1cc824d6ae7040d53947b00bdf0d6779440",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/runtime.cpp",
+      "sha256": "3441aa78cddc8d1222ee94eddf466ed6e26e477c513bd7f51a56bd3c20833ecd"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/runtime.h",
+      "blob_sha": "08b51d4f6fa4942fba96494f4000e33a6741a2bb",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/runtime.h",
+      "sha256": "17696afb3459ad1c87bab33dde05cc481fcc9c1141772f393198a96ec0051389"
+    },
+    {
+      "repository": "mstan/gbarecomp",
+      "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+      "path": "src/runtime/save_config.cpp",
+      "blob_sha": "a804704b64e4b893ebe1e34df5bef9086ff80a5c",
+      "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/runtime/save_config.cpp",
+      "sha256": "a13cbf6aaf8e02249655ffc72d33e1f7b7dea203a3ba217ef5440ea3bf0bce59"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": ".gitmodules",
+      "blob_sha": "6eeee1036df1cd2fae8e8e4d6111fe1e51e2e8b1",
+      "sha256": "588d396323e6623dfd5b61013dafedba73062e18bccbfab2e429af37edf0f5cf",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/.gitmodules"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "baserom.md",
+      "blob_sha": "d6c82f48732698677c43cc6e8595fa0c78ed3110",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/baserom.md",
+      "sha256": "b10f558446c32c24e610b533869d699096b8d181d9e13d416ee358166b5b3aaa"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "CMakeLists.txt",
+      "blob_sha": "62b512c4baf8cbef7e89dc38b75ca45626a27f96",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/CMakeLists.txt",
+      "sha256": "a4ccdf370b6ebe5cb2c87a7bb6f9530d72a20650dcb3ecd7ff339ce6d4b1757b"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "game.toml",
+      "blob_sha": "fdf81481baba6b7a65af42787f507153078eaf7b",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/game.toml",
+      "sha256": "ac8354708649e3c1a32ca3bb3bfe40695809cb47d89653ec745e491598f3a15b"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "LICENSE",
+      "blob_sha": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/LICENSE"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "README.md",
+      "blob_sha": "3e80b9350bd5c83b318b9534818dc1a2cc2b8029",
+      "sha256": "59dabf60d1b1a1bf21c5dfd0ec3f44e973954f617ad22dacb1552c3e2facfcbd",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "src/game_launcher_boot.cpp",
+      "blob_sha": "16c0824e8fcae8613d63bfa5e0341da2aff34c95",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/src/game_launcher_boot.cpp",
+      "sha256": "3f0c6eef096a46075934ec79aafcc9ce7e0af13ab1e5d844479b90ad05b6025c"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "src/main.cpp",
+      "blob_sha": "dd8b47813df5f91853356cd4089ecc78f488f3cd",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/src/main.cpp",
+      "sha256": "6fd4b80e4c88f7193541e89e6dc9e40039434379e5bc80660f7790c629a50666"
+    },
+    {
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "path": "tools/make_release.ps1",
+      "blob_sha": "5285f18bec71fb317594649678a83d08616222fb",
+      "url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/tools/make_release.ps1",
+      "sha256": "0cd23500f1318a05dd80b25f7be033c1f5a5a1b8fb4f203a30e3fe39627d9941"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": ".gitmodules",
+      "blob_sha": "6eeee1036df1cd2fae8e8e4d6111fe1e51e2e8b1",
+      "sha256": "588d396323e6623dfd5b61013dafedba73062e18bccbfab2e429af37edf0f5cf",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/.gitmodules"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "baserom.md",
+      "blob_sha": "d251484794cff473dcaf002c065d7bf0dd251253",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/baserom.md",
+      "sha256": "1aff304a50836c81a3b9f81a36f07a7d8b36829718acf471b7266a1afa2be1e8"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "CMakeLists.txt",
+      "blob_sha": "3596147df6c035a26ee3e5447d6b0f93b7bd3d2b",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/CMakeLists.txt",
+      "sha256": "d830aa2584783c63d3774937eb0e6904fed31b56c8302408757aa6a78efc5c98"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "game.toml",
+      "blob_sha": "88c21af94fa9f6930b8dd1823f1273b522384e69",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/game.toml",
+      "sha256": "9cc2a308b376c28f0072736233aa700fd15434b0194d0d0d139031a92fd85aba"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "LICENSE",
+      "blob_sha": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/LICENSE"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "README.md",
+      "blob_sha": "b2381139d9d75aeb9ac63ec5d131219559c89cc9",
+      "sha256": "4099b501b2a81853582297faa02a6c4f60243b73efadca0e06f94da7b32dce8f",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "src/game_launcher_boot.cpp",
+      "blob_sha": "16c0824e8fcae8613d63bfa5e0341da2aff34c95",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/src/game_launcher_boot.cpp",
+      "sha256": "3f0c6eef096a46075934ec79aafcc9ce7e0af13ab1e5d844479b90ad05b6025c"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "src/main.cpp",
+      "blob_sha": "2ff8e81719747ab011f5ef44edb7b73972180021",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/src/main.cpp",
+      "sha256": "72562791bb5d0807a39b5281e68278435ca4a349f6e51e61b39e78a8695313d5"
+    },
+    {
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "path": "tools/make_release.ps1",
+      "blob_sha": "531ac087766a5d935c51022b7abf803c68bb580c",
+      "url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/tools/make_release.ps1",
+      "sha256": "8104b184e50b268044c29bccd92089b16944eef4cd0715f74c514f098cfd7ee7"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": ".gitmodules",
+      "blob_sha": "6eeee1036df1cd2fae8e8e4d6111fe1e51e2e8b1",
+      "sha256": "588d396323e6623dfd5b61013dafedba73062e18bccbfab2e429af37edf0f5cf",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/.gitmodules"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "baserom.md",
+      "blob_sha": "8048936dbac51e506c73583aa7b668873c41511c",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/baserom.md",
+      "sha256": "d6fccc3d8e43a85868a8e301fecadcf6588edf14ea226be4cab34ccf8fe6ac94"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "CMakeLists.txt",
+      "blob_sha": "f6dacb650a727cba7ed09c80aaa9ec564eac172f",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/CMakeLists.txt",
+      "sha256": "78d1ff7603e9b814529d11ad158876a45916e3dfc89b5e9b195352226502fc84"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "game.toml",
+      "blob_sha": "5961469367d290750ea9017277ef3370c477f416",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/game.toml",
+      "sha256": "9b49781f6dab04bd96020caab55981a95f66161d032791492e8628d3d2b1526b"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "LICENSE",
+      "blob_sha": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/LICENSE"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "README.md",
+      "blob_sha": "a8f51a332ee6fb523d92bab6e737f338a2ef3463",
+      "sha256": "5fb93a68ee9fa1e5cb8f9f474ef074be8f28ed74017e8a0976cc74fa3ba16432",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "src/game_launcher_boot.cpp",
+      "blob_sha": "6e231cc89c9cea9a30732d21c93e9e0e110475bb",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/src/game_launcher_boot.cpp",
+      "sha256": "854cd26aac54e8696e348980a159e3be5a73a5689642e7ee952b8fa218301994"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "src/main.cpp",
+      "blob_sha": "a53744d4dd6d7844d9ea0f8a95ea6af6f0a3d6f7",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/src/main.cpp",
+      "sha256": "05dfe0ca822fa174cdf97125bd793101048245d7cc08b04234b0bc6bb3b5007f"
+    },
+    {
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "path": "tools/make_release.ps1",
+      "blob_sha": "7caa9493e73556da30a4d892eabbc933692762b0",
+      "url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/tools/make_release.ps1",
+      "sha256": "ac0eaed1e36531e0966d8c1ec85453e7fe32635b823fc8bfda0ec642aaec062b"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": ".gitmodules",
+      "blob_sha": "6eeee1036df1cd2fae8e8e4d6111fe1e51e2e8b1",
+      "sha256": "588d396323e6623dfd5b61013dafedba73062e18bccbfab2e429af37edf0f5cf",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/.gitmodules"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "baserom.md",
+      "blob_sha": "add2093f8a8cda4ae4c8a369056497af8928aa89",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/baserom.md",
+      "sha256": "63dc8931a2f055a879b03b90df356620f0eafbe8d188672ea3831e35d74f0384"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "CMakeLists.txt",
+      "blob_sha": "0d0c8c906d7b1f360613e253ea248c4761f72e97",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/CMakeLists.txt",
+      "sha256": "e0710e5506db00e48e6409f14e0a44829b5dfb082f03e449ea478a7a17385b7f"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "game.toml",
+      "blob_sha": "a9513cec682fe8a07a398988f9c7189613df4511",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/game.toml",
+      "sha256": "fd4bc3a3e5569926f9add43a168d6245d7a6032cca46394f8a6fb21e4ecd9fba"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "LICENSE",
+      "blob_sha": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/LICENSE"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "README.md",
+      "blob_sha": "352ab5d6ef0846e9e519f5b26e5c4582071ebb7f",
+      "sha256": "a01f9c26426b6fe3845dc9a33f8fd4ba56a928d5670d05d6ba10ccc98cca7ab7",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "src/game_launcher_boot.cpp",
+      "blob_sha": "16c0824e8fcae8613d63bfa5e0341da2aff34c95",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/src/game_launcher_boot.cpp",
+      "sha256": "3f0c6eef096a46075934ec79aafcc9ce7e0af13ab1e5d844479b90ad05b6025c"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "src/main.cpp",
+      "blob_sha": "9fc5e8e110c99e9bd106641751cd102004cd27ba",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/src/main.cpp",
+      "sha256": "ca6c528ecc4ada6709a3baaea6bead14ea3bab2e86ad5ba319495856030b9691"
+    },
+    {
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "path": "tools/make_release.ps1",
+      "blob_sha": "fc8a8f1fe33205609d42bdd5f34289c71466ac49",
+      "url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/tools/make_release.ps1",
+      "sha256": "cdbf89d0541344ae4ac7990c5eb978529145c666ed1fd76745226ff339f65756"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/common/launcher_files.c",
+      "blob_sha": "0272a7e9025c6501e05935df5dbcfd473b2d95f5",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/common/launcher_files.c",
+      "sha256": "5d41dc8d3b6250b7f3482c235cf48c521784decf91cfc0a582d773592069ce8f"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/common/launcher_model.c",
+      "blob_sha": "febe98d96df215e729f4ac4bb5bc47d3f2b4c336",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/common/launcher_model.c",
+      "sha256": "f297401833cb1c87f8daebda4e3419a3275849d5fe83ac060fc1bf5f0bd57363"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/common/launcher_platform_sdl2.c",
+      "blob_sha": "2595ce35975da870eb41a170e7eedacce6e5c77b",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/common/launcher_platform_sdl2.c",
+      "sha256": "55a8da3ee01be468bd6add39737773137a7ed2d241cf82e0389434245debe64a"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/common/launcher_settings.inc",
+      "blob_sha": "352a5878f8b75b1a4178d221a879f14918784a0b",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/common/launcher_settings.inc",
+      "sha256": "99dccd6f0041aa889a79464d9fa7c3be9a7f397f97a6eac28e07387a3983249c"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "source_commit": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3",
+      "path": "src/launcher_profile.h",
+      "blob_sha": "3056014bc933f1aafbeb7cbae8859b329963676c",
+      "url": "https://github.com/mstan/recomp-ui/blob/0546fbcb0126bb14bf88d2128b4fe8a4229570a3/src/launcher_profile.h",
+      "sha256": "ad2c62ade78b9c614e53855c485b006e3e5d4a9edc9763ed52680dc677c0dbdc"
+    }
+  ],
+  "source_records_verified": 100,
+  "distinct_primary_files": 88,
+  "shared_mod_policy": {
+    "existing_core": "service/psx_mod_data.rs ModRestore is content/layout based, no PSX manifest/state parser. Reuse with explicit retained opt-in; do not infer from any mods folder.",
+    "actual_GBA_layout": "mods/packages/<package-id>/<version>/manifest.toml; mods/state.toml plus .tmp; import staging mods/.staging-<nonce> if interrupted. Packaged defaults and custom .gbamod packages share namespace.",
+    "requirements": [
+      "Preserve successor-only complete packages and user-added packages; refuse differing common ID/version trees before activation; do not authenticate player mod contents",
+      "Normal state collection mirrors real deletions; restore merges complete packages atomically then restores state, preserving current choices without promising crossruntime mod ABI",
+      "Apply policy consistently to prePlay collection, update/switch/rollback, explicit backup restore and recovery; widen existing hardcodedPSX preflight at733 only under exactoptin",
+      "Fence new consequential retained interpretation with capability and retained-reader/envelope guards; do not silently reinterpret arbitrary older ready archives"
+    ]
+  },
+  "save_state_reader": {
+    "observed_at": "2026-10-25T07:20:09.727Z",
+    "engine": "mstan/gbarecomp@215da7406f7a6d40c6d820be2d2ee778858aa598",
+    "cpu_types_dependency": "mstan/arm-recomp-core@61cdc51a85efe621841458d9e6c35c5357fcb2ee/profiles/armv4t_gba/runtime_arm_types.h (bound by exact parent gitlink; blob verified)",
+    "classification": "Versioned guest/device snapshot plus advisory counters and optional explicitly versioned native mod-provider state, not a dump of build-private globals/host function pointers.",
+    "sources": [
+      {
+        "receipt": "arm-recomp-core-runtime_arm_types.h.json",
+        "path": "profiles/armv4t_gba/runtime_arm_types.h",
+        "repository": "mstan/arm-recomp-core",
+        "source_commit": "61cdc51a85efe621841458d9e6c35c5357fcb2ee",
+        "blob_sha": "f214d47f0ac16dac476a83bc7ebbae0f9731eb40",
+        "url": "https://github.com/mstan/arm-recomp-core/blob/61cdc51a85efe621841458d9e6c35c5357fcb2ee/profiles/armv4t_gba/runtime_arm_types.h"
+      },
+      {
+        "receipt": "gbarecomp-common-gitmodules.json",
+        "path": ".gitmodules",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "6b9408e2abd1e5134a21cd524ff36e20de57c418",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/.gitmodules"
+      },
+      {
+        "receipt": "gbarecomp-common-src_armv4t_runtime_arm.h.json",
+        "path": "src/armv4t/runtime_arm.h",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "db6dc3c8a9a56b6fb46e5dce9a5e4ec29d2fd7e6",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/armv4t/runtime_arm.h"
+      },
+      {
+        "receipt": "gbarecomp-common-src_armv4t_runtime_arm_types.h.json",
+        "path": "src/armv4t/runtime_arm_types.h",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "b6d516095ffd6ea65aafc9a3646a18280fc65b45",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/armv4t/runtime_arm_types.h"
+      },
+      {
+        "receipt": "gbarecomp-common-src_debug_mod_state.cpp.json",
+        "path": "src/debug/mod_state.cpp",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "4b4f4a0ad9674c6f97b8d9a331671744e053d691",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/debug/mod_state.cpp"
+      },
+      {
+        "receipt": "gbarecomp-common-src_gba_gba_audio.cpp.json",
+        "path": "src/gba/gba_audio.cpp",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "72125d17918091026fc1d0fdf5ceb39ef25a1217",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_audio.cpp"
+      },
+      {
+        "receipt": "gbarecomp-common-src_gba_gba_bus.cpp.json",
+        "path": "src/gba/gba_bus.cpp",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "6571d921ccddbbfb3931477f7d07bcca7ce6ba19",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_bus.cpp"
+      },
+      {
+        "receipt": "gbarecomp-common-src_gba_gba_io.cpp.json",
+        "path": "src/gba/gba_io.cpp",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "51d235e880f74d62f5d542609fd681f7127d4f63",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_io.cpp"
+      },
+      {
+        "receipt": "gbarecomp-common-src_gba_gba_ppu.cpp.json",
+        "path": "src/gba/gba_ppu.cpp",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "8e0675846125dfff9975a0fb4cbc9ae445a6ea49",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_ppu.cpp"
+      },
+      {
+        "receipt": "gbarecomp-common-src_gba_gba_save.cpp.json",
+        "path": "src/gba/gba_save.cpp",
+        "repository": "mstan/gbarecomp",
+        "source_commit": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "blob_sha": "0e32e612e018a54f511343ea8c8a04fdce6b7973",
+        "url": "https://github.com/mstan/gbarecomp/blob/215da7406f7a6d40c6d820be2d2ee778858aa598/src/gba/gba_save.cpp"
+      }
+    ],
+    "safe_claims": [
+      {
+        "source": "src/debug/snapshot.cpp:199-320",
+        "fact": "GBAS magic, version1/2, ROM SHA1, framed section bounds, duplicate/trailing/missing section checks and optionalMODS catalog/schema/provider preflight precede mutation."
+      },
+      {
+        "source": "arm-recomp-core/profiles/armv4t_gba/runtime_arm_types.h:33-46; snapshot.cpp:77-90",
+        "fact": "CPU payload is ArmCpuState guest register/banked uint32 storage plus guest return-PC stack. No host function pointer serialized."
+      },
+      {
+        "source": "src/gba/gba_bus.cpp:40-85;gba_io.cpp:86-98,139-150;gba_audio.cpp:46-125;gba_save.cpp:55-132;gba_ppu.cpp:88-165",
+        "fact": "Guest memory/devices/audio sample rings/framebuffer bookkeeping; CPU and audio use raw pointer-freePOD fields, other fields use fixed scalar framing. Upstream snapshot version owns layout compatibility; no build fingerprint is present."
+      },
+      {
+        "source": "src/debug/mod_state.cpp:179-215;src/debug/snapshot.cpp:299-347",
+        "fact": "MODS validates exact registered provider count/id/schema and bounded payload/preflight before guest mutation. No native-code cache DLL is saved in .stateN."
+      }
+    ],
+    "known_limits": [
+      {
+        "source": "src/debug/snapshot.cpp:330-350",
+        "fact": "No per-section SnapshotReader.ok()/remaining validation around CPU/BUS/IO/AUDIO/SAVE/PPU deserialization. A container with valid outer framing but too-short/changed payload can mutate then returntrue. Do not claim malformed-state rejection beforemutation."
+      },
+      {
+        "source": "src/debug/snapshot.cpp:85-90,353-365;src/gba/gba_audio.cpp:117-120;src/gba/gba_save.cpp:104-132",
+        "fact": "Whole statefile size and section-supplied callstack/audio/save vector lengths lack before-allocation caps; bounded cursor alone does not establish bounded parser resources."
+      }
+    ],
+    "battery_save_distinction": {
+      "source": "retainedgba-launcher-sources/gbarecomp-common/src_runtime_runtime.cpp:1844-2034",
+      "fact": "Battery .sav stores ordinary SRAM/EEPROM/Flash bytes with runtime size/type handling, atomic temp/fallback backup writes and size-change preservation. It is not the full .stateN snapshot."
+    },
+    "desktop_activation": {
+      "source": "runtime.h:101-103;runtime.cpp:2254-2276,4201-4241;SMA4/Wariomain",
+      "fact": "Desktop defaults do not enable automatic suspend-state restoration; .stateN loads require user action/explicit --load-state. Android/mobile mode remains separately upstream-owned."
+    },
+    "fit_disposition": "No source evidence here justifies a Sonic-style native-host-snapshot releasepin or blanket managed-route deferral. Existing ready archive fit remains available with current declared data preserved, no crossversion savestate guarantee, old runtime/copy retained, and explicit upstream malformed-state limitation. This does not certify any uninspected future native release or repair the upstream parser."
+  },
+  "entries": [
+    {
+      "id": "mstan-dragonballzbuusfuryrecomp",
+      "canonical_issue": 1816,
+      "platform_scope": ["windows-x86-64"],
+      "previous_route": "Listing with non-owning upstream download/registration",
+      "selected_route": "Ready staged-source-portable archive with explicit versioned-packages-v1 policy; existing external registrations retain their files and ownership",
+      "channel": "stable",
+      "repository": "mstan/DragonBallZBuusFuryRecomp",
+      "source_commit": "9deab0151d2c963b8f87d21a8b3002504c56666b",
+      "framework_gitlinks": [
+        {
+          "path": "gbarecomp",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "215da7406f7a6d40c6d820be2d2ee778858aa598"
+        },
+        {
+          "path": "recomp-ui",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3"
+        }
+      ],
+      "selected_release": "v0.0.4",
+      "artifact": {
+        "name": "DragonBallZBuusFuryRecomp-windows-x64-v0.0.4.zip",
+        "size": 14101330,
+        "expected_sha256": "sha256:00e06678018b465b63d52a91dc799a645874c1c8b4e1ff4197a051f2da7bb5cf",
+        "observed_sha256": "00e06678018b465b63d52a91dc799a645874c1c8b4e1ff4197a051f2da7bb5cf"
+      },
+      "actual_sha256": "00e06678018b465b63d52a91dc799a645874c1c8b4e1ff4197a051f2da7bb5cf",
+      "update_owner": "Portcove for a newly managed compatible Windows archive; player/upstream for existing external copies",
+      "setup_boundary": "Explicit Play opens upstream picker for matching USA original GBA game and retail GBA BIOS; no separate installer, automatic helper or original-data acquisition",
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_BG3E.toml.frag",
+        "recomp_coverage_BG3E.json",
+        "replay-divergence.state"
+      ],
+      "packaged_mod_paths": [
+        "mods/packages/dragon-ball-z-buus-fury.enhancement.adaptive-view/1.0.0/manifest.toml"
+      ],
+      "data_boundary": {
+        "type": "eeprom",
+        "size": 8192,
+        "configured_local_path": "saves/dragon_ball_z_buus_fury_usa.sav",
+        "default": "Without loaded game.toml/explicit --save, normal battery save follows selectedROM basename .sav; .stateN also follows selectedROM, --state-dir changes states separately. Launcher displayed save path does not set runtime save path.",
+        "external_data": "External original ROM/BIOS and their saves/states remain outside Core backups. Source/config/CLI selected paths outside declared local data retain player/upstream ownership.",
+        "battery": "Ordinary cartridge bytes, runtime size/type handling, <save>.tmp + fallback .bak; save-size change preserves .prev-size.bak.",
+        "states": "Same versioned guest/device GBAS reader identified in contract-review savestate_followup; outer ROM/version/MODS checks but known malformed section/allocation limitations. No current native-host-pointer releasepin evidence or crossversion state guarantee."
+      },
+      "reason": "Retained opt-in reuses complete-package coexistence rather than overwriting successor defaults; executable caches remain version-local",
+      "definition_binding": {
+        "input_sha256": "d7450dad2c038993811486f82ee5b3459bcff67103db762dfd69cd2b636cbf69",
+        "before_sha256": "43f83256991de778d50baf739bee35bd26ea54c34435611eed8e0e0c5a29f2c7",
+        "formatted_authored_sha256": "59f3421d4cb78eeee29c5318b7892f908a404304737b56189fa6ebd248e1b0ff",
+        "generated_operational_json_sha256": "8c1ad393b4eac1046971cd24535451f04c1e6b3ab222493b644e0cce250ddee7",
+        "core_definition_sha256": "6286455262ff3f57a3c1dafbbb35fb805cd50e173f9fb9db47e2c3fa91983cc1"
+      },
+      "validation_scope": "Exact selected sources and actual publisher-hash ZIP bytes/layout rechecked; Core preparation, lifecycle/compatibility fixtures, independent review and hosted checks tracked separately. No player/helper/compiler/native/game/original execution or gameplay qualification.",
+      "delivery_status": "Candidate; final delivery recorded on linked canonical issues after guarded merge",
+      "limits": ["Preserve experimental upstream scope; no native/gameplay qualification inferred"],
+      "preparation": {
+        "status": "passed",
+        "report": "Retained local preparation receipt; public source facts and artifact identities are in this packet",
+        "validation": {
+          "format_version": 1,
+          "input_sha256": "01c2928cd4f713d0dbdb1b7c3426130ee069bd25140238fb44e5822ef1e7c522",
+          "input_bytes": 945818,
+          "catalog_schema": 2,
+          "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+          "validator_artifact_sha256": "8adfb35a91cca33e4747c90f2cd797e407b735303df7eb251a4f78c186d8541c",
+          "selected_port": {
+            "port_id": "mstan-dragonballzbuusfuryrecomp",
+            "definition_sha256": "6286455262ff3f57a3c1dafbbb35fb805cd50e173f9fb9db47e2c3fa91983cc1",
+            "check": "catalog-declared-contract-validation"
+          },
+          "complete_receipt_port_count": 159
+        },
+        "selected_asset": {
+          "id": 654398430,
+          "name": "DragonBallZBuusFuryRecomp-windows-x64-v0.0.4.zip",
+          "size": 14101330,
+          "digest": "sha256:00e06678018b465b63d52a91dc799a645874c1c8b4e1ff4197a051f2da7bb5cf",
+          "browser_download_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/releases/download/v0.0.4/DragonBallZBuusFuryRecomp-windows-x64-v0.0.4.zip",
+          "updated_at": "2026-10-18T20:21:24Z"
+        },
+        "scope": "Actual maintained canonical-bound Core declaration preparation; validator artifact hashes and input/prepared receipt bytes are retained separately from final formatted authored bytes"
+      },
+      "existing_route_transition_limit": "An already registered external copy remains usable and owned by its player. The existing guided fresh managed-copy transition is native-portable-only; this ready staged route currently presents that precise limit. Do not remove the only working registration before preparing and preserving a separate supported copy.",
+      "canonical_specification_sha256": "d9cf59cc2b393e52fcc087030af0fdd1e9dc498d209ca649ebb7bc38f6a58e1e"
+    },
+    {
+      "id": "mstan-dragonballzlegacyofgokuiirecomp",
+      "canonical_issue": 1815,
+      "platform_scope": ["windows-x86-64"],
+      "previous_route": "Listing with non-owning upstream download/registration",
+      "selected_route": "Ready staged-source-portable archive with explicit versioned-packages-v1 policy; existing external registrations retain their files and ownership",
+      "channel": "stable",
+      "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+      "source_commit": "6009d1f17478bfb8fa920b269dc533aca4367526",
+      "framework_gitlinks": [
+        {
+          "path": "gbarecomp",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "215da7406f7a6d40c6d820be2d2ee778858aa598"
+        },
+        {
+          "path": "recomp-ui",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3"
+        }
+      ],
+      "selected_release": "v0.0.3",
+      "artifact": {
+        "name": "DragonBallZLegacyofGokuIIRecomp-windows-x64-v0.0.3.zip",
+        "size": 12439152,
+        "expected_sha256": "sha256:4cbf08369dc7835de90baa3bc32935084f8e8ac3d0cbc187e3f0e8d2828214fe",
+        "observed_sha256": "4cbf08369dc7835de90baa3bc32935084f8e8ac3d0cbc187e3f0e8d2828214fe"
+      },
+      "actual_sha256": "4cbf08369dc7835de90baa3bc32935084f8e8ac3d0cbc187e3f0e8d2828214fe",
+      "update_owner": "Portcove for a newly managed compatible Windows archive; player/upstream for existing external copies",
+      "setup_boundary": "Explicit Play opens upstream picker for matching USA original GBA game and retail GBA BIOS; no separate installer, automatic helper or original-data acquisition",
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_ALFE.toml.frag",
+        "recomp_coverage_ALFE.json",
+        "replay-divergence.state"
+      ],
+      "packaged_mod_paths": [
+        "mods/packages/dragon-ball-z-legacy-of-goku-ii.enhancement.adaptive-view/1.0.0/manifest.toml"
+      ],
+      "data_boundary": {
+        "type": "eeprom",
+        "size": 8192,
+        "configured_local_path": "saves/dragon_ball_z_the_legacy_of_goku_ii_usa.sav",
+        "default": "Without loaded game.toml/explicit --save, normal battery save follows selectedROM basename .sav; .stateN also follows selectedROM, --state-dir changes states separately. Launcher displayed save path does not set runtime save path.",
+        "external_data": "External original ROM/BIOS and their saves/states remain outside Core backups. Source/config/CLI selected paths outside declared local data retain player/upstream ownership.",
+        "battery": "Ordinary cartridge bytes, runtime size/type handling, <save>.tmp + fallback .bak; save-size change preserves .prev-size.bak.",
+        "states": "Same versioned guest/device GBAS reader identified in contract-review savestate_followup; outer ROM/version/MODS checks but known malformed section/allocation limitations. No current native-host-pointer releasepin evidence or crossversion state guarantee."
+      },
+      "reason": "Retained opt-in reuses complete-package coexistence rather than overwriting successor defaults; executable caches remain version-local",
+      "definition_binding": {
+        "input_sha256": "c4ce3d3b00168fb722889ca33d5d82e29c1a8fb20fc790419e05ecb72550c175",
+        "before_sha256": "2d111b7c60bca562e5c2bd2304a3f8e96d21cfcd894a790ac3571febb67a4c75",
+        "formatted_authored_sha256": "9fec818cc1c6375efe2430828f272c11123d13e371daf943a5348343b39e429a",
+        "generated_operational_json_sha256": "f5b4be0af26fcc2d6976b17e652175dc0a7b2a5bd5c874b7c0a93d098d158493",
+        "core_definition_sha256": "58246b87828338ef3a3c92d52293883c9478ff6ccf8406f960605436308940fe"
+      },
+      "validation_scope": "Exact selected sources and actual publisher-hash ZIP bytes/layout rechecked; Core preparation, lifecycle/compatibility fixtures, independent review and hosted checks tracked separately. No player/helper/compiler/native/game/original execution or gameplay qualification.",
+      "delivery_status": "Candidate; final delivery recorded on linked canonical issues after guarded merge",
+      "limits": ["Preserve experimental upstream scope; no native/gameplay qualification inferred"],
+      "preparation": {
+        "status": "passed",
+        "report": "Retained local preparation receipt; public source facts and artifact identities are in this packet",
+        "validation": {
+          "format_version": 1,
+          "input_sha256": "fb36fef09cffe6a74b91f8871731433b8d8139d6fe33f659638aa31ca20304ce",
+          "input_bytes": 945921,
+          "catalog_schema": 2,
+          "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+          "validator_artifact_sha256": "8adfb35a91cca33e4747c90f2cd797e407b735303df7eb251a4f78c186d8541c",
+          "selected_port": {
+            "port_id": "mstan-dragonballzlegacyofgokuiirecomp",
+            "definition_sha256": "58246b87828338ef3a3c92d52293883c9478ff6ccf8406f960605436308940fe",
+            "check": "catalog-declared-contract-validation"
+          },
+          "complete_receipt_port_count": 159
+        },
+        "selected_asset": {
+          "id": 654405471,
+          "name": "DragonBallZLegacyofGokuIIRecomp-windows-x64-v0.0.3.zip",
+          "size": 12439152,
+          "digest": "sha256:4cbf08369dc7835de90baa3bc32935084f8e8ac3d0cbc187e3f0e8d2828214fe",
+          "browser_download_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/releases/download/v0.0.3/DragonBallZLegacyofGokuIIRecomp-windows-x64-v0.0.3.zip",
+          "updated_at": "2026-10-18T20:24:25Z"
+        },
+        "scope": "Actual maintained canonical-bound Core declaration preparation; validator artifact hashes and input/prepared receipt bytes are retained separately from final formatted authored bytes"
+      },
+      "existing_route_transition_limit": "An already registered external copy remains usable and owned by its player. The existing guided fresh managed-copy transition is native-portable-only; this ready staged route currently presents that precise limit. Do not remove the only working registration before preparing and preserving a separate supported copy.",
+      "canonical_specification_sha256": "d29fcca07cafc58ce335f8d27b91e5dbc13cb40b844ceac4ecfecb674a5b31de"
+    },
+    {
+      "id": "mstan-megamanzerorecomp",
+      "canonical_issue": 1845,
+      "platform_scope": ["windows-x86-64"],
+      "previous_route": "Listing with non-owning upstream download/registration",
+      "selected_route": "Ready staged-source-portable archive with explicit versioned-packages-v1 policy; existing external registrations retain their files and ownership",
+      "channel": "stable",
+      "repository": "mstan/MegaManZeroRecomp",
+      "source_commit": "0c7e9537cb22abb6b3991029f24909adbc47723c",
+      "framework_gitlinks": [
+        {
+          "path": "gbarecomp",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "215da7406f7a6d40c6d820be2d2ee778858aa598"
+        },
+        {
+          "path": "recomp-ui",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3"
+        }
+      ],
+      "selected_release": "v0.0.7",
+      "artifact": {
+        "name": "MegaManZeroRecomp-windows-x64-v0.0.7.zip",
+        "size": 18997889,
+        "expected_sha256": "sha256:ddd51f7fd60fcb045dbc2c34844d69e252fca6f4c5f015a253524095362774d5",
+        "observed_sha256": "ddd51f7fd60fcb045dbc2c34844d69e252fca6f4c5f015a253524095362774d5"
+      },
+      "actual_sha256": "ddd51f7fd60fcb045dbc2c34844d69e252fca6f4c5f015a253524095362774d5",
+      "update_owner": "Portcove for a newly managed compatible Windows archive; player/upstream for existing external copies",
+      "setup_boundary": "Explicit Play opens upstream picker for matching USA original GBA game and retail GBA BIOS; no separate installer, automatic helper or original-data acquisition",
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AZCE.toml.frag",
+        "recomp_coverage_AZCE.json",
+        "replay-divergence.state"
+      ],
+      "packaged_mod_paths": [
+        "mods/packages/mega-man-zero.enhancement.adaptive-view/1.0.0/manifest.toml"
+      ],
+      "data_boundary": {
+        "type": "sram",
+        "size": 32768,
+        "configured_local_path": "saves/megaman_zero_usa.sav",
+        "default": "Without loaded game.toml/explicit --save, normal battery save follows selectedROM basename .sav; .stateN also follows selectedROM, --state-dir changes states separately. Launcher displayed save path does not set runtime save path.",
+        "external_data": "External original ROM/BIOS and their saves/states remain outside Core backups. Source/config/CLI selected paths outside declared local data retain player/upstream ownership.",
+        "battery": "Ordinary cartridge bytes, runtime size/type handling, <save>.tmp + fallback .bak; save-size change preserves .prev-size.bak.",
+        "states": "Same versioned guest/device GBAS reader identified in contract-review savestate_followup; outer ROM/version/MODS checks but known malformed section/allocation limitations. No current native-host-pointer releasepin evidence or crossversion state guarantee."
+      },
+      "reason": "Retained opt-in reuses complete-package coexistence rather than overwriting successor defaults; executable caches remain version-local",
+      "definition_binding": {
+        "input_sha256": "900eb2c60291e08600abed6056a99874b23690f105c2d8262a4c627ada85273e",
+        "before_sha256": "24761211da2314da342a523578db383361e17582987f35e2d6acd1cfc0ef2566",
+        "formatted_authored_sha256": "ecacae1c7efa14e6561f7add378b511fd43a292b66628341c1e90676aaa5c153",
+        "generated_operational_json_sha256": "0c3f5222e22a957f704098458218c208b1098fe525542daef054cf32c463e8c3",
+        "core_definition_sha256": "692dd0bebb6be95a029c6fe2006fb9a6ac67e8c1e71281bcf2f5a55a793e7a10"
+      },
+      "validation_scope": "Exact selected sources and actual publisher-hash ZIP bytes/layout rechecked; Core preparation, lifecycle/compatibility fixtures, independent review and hosted checks tracked separately. No player/helper/compiler/native/game/original execution or gameplay qualification.",
+      "delivery_status": "Candidate; final delivery recorded on linked canonical issues after guarded merge",
+      "limits": [
+        "README knownv0.0.2 extended-view state-load limitation remains attributed/historical; faithful240x160 and SRAM unaffected; no full-game enhanced-view qualification"
+      ],
+      "preparation": {
+        "status": "passed",
+        "report": "Retained local preparation receipt; public source facts and artifact identities are in this packet",
+        "validation": {
+          "format_version": 1,
+          "input_sha256": "ba2872dc8381d9f19dbe53f5491b2ab4ceed61005b04a55aa13bbe00c094c78a",
+          "input_bytes": 946110,
+          "catalog_schema": 2,
+          "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+          "validator_artifact_sha256": "8adfb35a91cca33e4747c90f2cd797e407b735303df7eb251a4f78c186d8541c",
+          "selected_port": {
+            "port_id": "mstan-megamanzerorecomp",
+            "definition_sha256": "692dd0bebb6be95a029c6fe2006fb9a6ac67e8c1e71281bcf2f5a55a793e7a10",
+            "check": "catalog-declared-contract-validation"
+          },
+          "complete_receipt_port_count": 159
+        },
+        "selected_asset": {
+          "id": 654410263,
+          "name": "MegaManZeroRecomp-windows-x64-v0.0.7.zip",
+          "size": 18997889,
+          "digest": "sha256:ddd51f7fd60fcb045dbc2c34844d69e252fca6f4c5f015a253524095362774d5",
+          "browser_download_url": "https://github.com/mstan/MegaManZeroRecomp/releases/download/v0.0.7/MegaManZeroRecomp-windows-x64-v0.0.7.zip",
+          "updated_at": "2026-10-18T20:26:37Z"
+        },
+        "scope": "Actual maintained canonical-bound Core declaration preparation; validator artifact hashes and input/prepared receipt bytes are retained separately from final formatted authored bytes"
+      },
+      "existing_route_transition_limit": "An already registered external copy remains usable and owned by its player. The existing guided fresh managed-copy transition is native-portable-only; this ready staged route currently presents that precise limit. Do not remove the only working registration before preparing and preserving a separate supported copy.",
+      "canonical_specification_sha256": "a2b8c7c2e418f90c255d6219d3c95b009c2bf304aa183c2c1ec80147bc750c76"
+    },
+    {
+      "id": "mstan-supermarioadvance2recomp",
+      "canonical_issue": 1894,
+      "platform_scope": ["windows-x86-64"],
+      "previous_route": "Listing with non-owning upstream download/registration",
+      "selected_route": "Ready staged-source-portable archive with explicit versioned-packages-v1 policy; existing external registrations retain their files and ownership",
+      "channel": "beta",
+      "repository": "mstan/SuperMarioAdvance2Recomp",
+      "source_commit": "dd16f0101790814b3f16f3bdf93759c5d42f0d74",
+      "framework_gitlinks": [
+        {
+          "path": "gbarecomp",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "215da7406f7a6d40c6d820be2d2ee778858aa598"
+        },
+        {
+          "path": "recomp-ui",
+          "mode": "160000",
+          "type": "commit",
+          "sha": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3"
+        }
+      ],
+      "selected_release": "v0.0.4",
+      "artifact": {
+        "name": "SuperMarioAdvance2Recomp-windows-x64-v0.0.4.zip",
+        "size": 29427675,
+        "expected_sha256": "sha256:d1b3d287b5cc88f412f035b58491c10748ee6c6d5fc86d41f181332d028f8135",
+        "observed_sha256": "d1b3d287b5cc88f412f035b58491c10748ee6c6d5fc86d41f181332d028f8135"
+      },
+      "actual_sha256": "d1b3d287b5cc88f412f035b58491c10748ee6c6d5fc86d41f181332d028f8135",
+      "update_owner": "Portcove for a newly managed compatible Windows archive; player/upstream for existing external copies",
+      "setup_boundary": "Explicit Play opens upstream picker for matching USA original GBA game and retail GBA BIOS; no separate installer, automatic helper or original-data acquisition",
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AA2E.toml.frag",
+        "recomp_coverage_AA2E.json",
+        "replay-divergence.state"
+      ],
+      "packaged_mod_paths": [
+        "mods/packages/super-mario-world.enhancement.adaptive-view/1.0.0/manifest.toml"
+      ],
+      "data_boundary": {
+        "type": "eeprom",
+        "size": 8192,
+        "configured_local_path": "saves/super_mario_world_usa.sav",
+        "default": "Without loaded game.toml/explicit --save, normal battery save follows selectedROM basename .sav; .stateN also follows selectedROM, --state-dir changes states separately. Launcher displayed save path does not set runtime save path.",
+        "external_data": "External original ROM/BIOS and their saves/states remain outside Core backups. Source/config/CLI selected paths outside declared local data retain player/upstream ownership.",
+        "battery": "Ordinary cartridge bytes, runtime size/type handling, <save>.tmp + fallback .bak; save-size change preserves .prev-size.bak.",
+        "states": "Same versioned guest/device GBAS reader identified in contract-review savestate_followup; outer ROM/version/MODS checks but known malformed section/allocation limitations. No current native-host-pointer releasepin evidence or crossversion state guarantee."
+      },
+      "reason": "Retained opt-in reuses complete-package coexistence rather than overwriting successor defaults; executable caches remain version-local",
+      "definition_binding": {
+        "input_sha256": "84456bef4ed13bac426d245d2de9458bbe72b3563f0f03e6e41fa97642763537",
+        "before_sha256": "c2ef6433a7969a9f1ecfde4ec0f1b2853758c702725974a9b7fdebf3e420df8e",
+        "formatted_authored_sha256": "98b29526951807c0c98afd0c740c3fed5d436e9f9e88a58010c6e24da3a5f68b",
+        "generated_operational_json_sha256": "ff1bce7ab3787255e6c0fd8f6859cf65f97743458c2bc592a631c9cd611295d1",
+        "core_definition_sha256": "33fb6f43fc229b0f2cdfbcdc2fb529ac18159e9340c9e847a155a261e2c3a944"
+      },
+      "validation_scope": "Exact selected sources and actual publisher-hash ZIP bytes/layout rechecked; Core preparation, lifecycle/compatibility fixtures, independent review and hosted checks tracked separately. No player/helper/compiler/native/game/original execution or gameplay qualification.",
+      "delivery_status": "Candidate; final delivery recorded on linked canonical issues after guarded merge",
+      "limits": ["Preserve experimental upstream scope; no native/gameplay qualification inferred"],
+      "preparation": {
+        "status": "passed",
+        "report": "Retained local preparation receipt; public source facts and artifact identities are in this packet",
+        "validation": {
+          "format_version": 1,
+          "input_sha256": "61da2461eda3f23327f6fd41d3958b64a11a439c0fa97377471b501544a902e5",
+          "input_bytes": 945846,
+          "catalog_schema": 2,
+          "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+          "validator_artifact_sha256": "8adfb35a91cca33e4747c90f2cd797e407b735303df7eb251a4f78c186d8541c",
+          "selected_port": {
+            "port_id": "mstan-supermarioadvance2recomp",
+            "definition_sha256": "33fb6f43fc229b0f2cdfbcdc2fb529ac18159e9340c9e847a155a261e2c3a944",
+            "check": "catalog-declared-contract-validation"
+          },
+          "complete_receipt_port_count": 159
+        },
+        "selected_asset": {
+          "id": 654413640,
+          "name": "SuperMarioAdvance2Recomp-windows-x64-v0.0.4.zip",
+          "size": 29427675,
+          "digest": "sha256:d1b3d287b5cc88f412f035b58491c10748ee6c6d5fc86d41f181332d028f8135",
+          "browser_download_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/releases/download/v0.0.4/SuperMarioAdvance2Recomp-windows-x64-v0.0.4.zip",
+          "updated_at": "2026-10-18T20:28:21Z"
+        },
+        "scope": "Actual maintained canonical-bound Core declaration preparation; validator artifact hashes and input/prepared receipt bytes are retained separately from final formatted authored bytes"
+      },
+      "existing_route_transition_limit": "An already registered external copy remains usable and owned by its player. The existing guided fresh managed-copy transition is native-portable-only; this ready staged route currently presents that precise limit. Do not remove the only working registration before preparing and preserving a separate supported copy.",
+      "canonical_specification_sha256": "31955926efed5ee25479e6054749445b2af00c362f2a62ee9640f2fb697d882f"
+    }
+  ],
+  "excluded_required_work": {
+    "id": "mario-kart-super-circuit-recomp",
+    "issue": 285,
+    "reason": "Separate same-host netplay_secret preservation and portable backup/transfer omission/credential non-resurrection semantics remain required; this mod-only policy does not solve them",
+    "status": "Unfinished, not a new product deferral"
+  },
+  "delivery": "Partial #2510/#2926 only; Public beta acceptance remains open, independent #2225/#47/#48 and #534/#246 unchanged",
+  "retained_preparation_failures": [
+    "Initial four proposals duplicated integration platform facts in listings and were refused; no source mutation",
+    "SMA2 initial repaired preparation lost accepted artwork after adding explicit underlying-game identity; preservation assertion refused it. Fresh exact accepted-original declaration preserves the same mapping; old inputs and receipt remain retained."
+  ],
+  "base_commit": "522f2085887ea13ea8ab20a18d072332015819c7",
+  "source_binding": "Base commit plus authored candidate/prepared receipt hashes and actual validator artifact hashes. Final exact candidate CI/review/delivery are recorded on canonical issues after guarded merge; these local preparation receipts are not an exact-head hosted or native acceptance claim."
+}
