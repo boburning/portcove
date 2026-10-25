@@ -924,9 +924,13 @@ fn backup_create_assessment_preserves_mirrors_when_collection_skips_a_source_lin
     let service = service_with_release(library.clone(), "v1");
     let foreign = temporary.path().join("foreign-save");
     fs::write(&foreign, b"unowned source").unwrap();
-    std::os::unix::fs::symlink(&foreign, active.join("general.json")).unwrap();
+    // A nested source link is skipped; a linked persistence root is refused.
+    fs::create_dir(active.join("saves")).unwrap();
+    std::os::unix::fs::symlink(&foreign, active.join("saves/general.json")).unwrap();
     fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
-    let owned = library.user_dir("zelda64-recomp").join("general.json");
+    let owned = library
+        .user_dir("zelda64-recomp")
+        .join("saves/general.json");
     fs::create_dir_all(owned.parent().unwrap()).unwrap();
     fs::write(&owned, b"owned mirror").unwrap();
     assert_eq!(
@@ -940,10 +944,49 @@ fn backup_create_assessment_preserves_mirrors_when_collection_skips_a_source_lin
     assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
     let backup = service.create_backup("zelda64-recomp").unwrap();
     assert_eq!(
-        fs::read(backup.path.join("data/general.json")).unwrap(),
+        fs::read(backup.path.join("data/saves/general.json")).unwrap(),
         b"owned mirror"
     );
     assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
+}
+
+#[cfg(unix)]
+#[test]
+fn backup_collection_refuses_a_linked_persistence_root_without_changing_mirrors() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = register_zelda_install(&library, "v1", true);
+    let service = service_with_release(library.clone(), "v1");
+    let foreign = temporary.path().join("foreign-save");
+    fs::write(&foreign, b"unowned source").unwrap();
+    std::os::unix::fs::symlink(&foreign, active.join("general.json")).unwrap();
+    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+    let owned = library.user_dir("zelda64-recomp").join("general.json");
+    fs::create_dir_all(owned.parent().unwrap()).unwrap();
+    fs::write(&owned, b"owned mirror").unwrap();
+
+    let error = service.create_backup("zelda64-recomp").unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(
+        error
+            .message
+            .contains("refusing to synchronize through a symlink")
+    );
+    assert_eq!(fs::read(&owned).unwrap(), b"owned mirror");
+    assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
+    assert!(
+        fs::symlink_metadata(active.join("general.json"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(
+        service
+            .list_backups("zelda64-recomp")
+            .unwrap()
+            .backups
+            .is_empty()
+    );
 }
 
 fn assert_restore_recovers_before_and_after_user_data_publication(point: LifecycleFaultPoint) {
