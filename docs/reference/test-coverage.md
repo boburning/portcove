@@ -104,6 +104,8 @@ admission/supervision. Failed tests preserve their original nonzero status even
 when report generation succeeds; incomplete outcomes, source drift, redirected
 packets or missing branch measurements refuse completeness. No retry or percentage
 gate is added. The fresh instrumented build directory isolates ordinary artifacts.
+The supervisor retains the ordinary Cargo target/cache; only cargo-llvm-cov uses
+the fresh packet's build directory through `CARGO_LLVM_COV_TARGET_DIR`.
 The second invocation reuses only this packet's instrumented build; raw counters
 include its recorded discovery and test invocations. Stage wall times include
 queueing/setup and are not test execution or performance measurements.

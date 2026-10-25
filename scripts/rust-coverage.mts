@@ -405,6 +405,10 @@ export async function runRustCoverage() {
     platform: process.platform,
     arch: process.arch,
     commands,
+    directories: {
+      instrumented_build: path.join(directory, "build"),
+      supervisor_target: path.resolve(root, inspected.environment.CARGO_TARGET_DIR ?? "target"),
+    },
     feature_selection: "Core default package features; no feature overrides",
     instrumentation: "nightly branch coverage; cfg(coverage) and cfg(coverage_nightly) disabled",
   };
@@ -414,7 +418,6 @@ export async function runRustCoverage() {
   const receipt = openSync(path.join(directory, "receipt.json"), "wx");
   const environment = {
     ...inspected.environment,
-    CARGO_TARGET_DIR: path.join(directory, "build"),
     CARGO_LLVM_COV_TARGET_DIR: path.join(directory, "build"),
     CARGO_BUILD_JOBS: "2",
     CARGO_INCREMENTAL: "0",
@@ -439,7 +442,7 @@ export async function runRustCoverage() {
           output: { stdout: out, stderr: err },
           executionTimeoutMilliseconds: command.timeout_ms,
           queueDeadline: performance.now() + 15 * 60000,
-          exclusive: [frontendOutputResource(environment.CARGO_TARGET_DIR)],
+          exclusive: [frontendOutputResource(environment.CARGO_LLVM_COV_TARGET_DIR)],
         });
         if (status !== 0 && originalStatus === 0) originalStatus = status;
       } finally {
