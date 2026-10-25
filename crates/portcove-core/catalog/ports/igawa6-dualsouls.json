@@ -7,8 +7,8 @@
     "project_url": "https://github.com/igawa6/dualsouls",
     "issue_number": 1829,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/igawa6/dualsouls",
+    "availability": "packages",
+    "setup_url": "https://github.com/igawa6/dualsouls/blob/1.0.3/README.md",
     "artwork": {
       "game_id": 14593,
       "cover_id": 533941,
@@ -16,6 +16,22 @@
       "image_sha256": "ca8e7bee79563f001a8ed24a7a9f60de61567affcb1022a72594c5a47ed93a4f",
       "game_slug": "hollow-knight",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a permitted prepared copy",
+          "instruction": "For an already obtained permitted copy, follow this fork’s on-device Import Game flow with your own complete Hollow Knight GOG/Steam v1.5.12620 Voidheart folder and its matching release patch. The folder contains Hollow Knight_Data or hollow_knight_Data. Choose the game folder and patch, then Build game data and START GAME. Do not substitute another game version or describe the published patch as containing no game content."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The upstream Save Files page exports/imports slots; saves use Android/data/igawa6.dualsouls/files and imports retain the previous slot as .bak. Preserve an export before changing the app. Upstream says to update over the same signed app and never uninstall first: uninstall or Clear storage deletes saves and built data. A required data rebuild uses the matching new patch; PC save wrapping is not directly compatible."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/igawa6/dualsouls/blob/1.0.3/README.md"
+    },
+    "release_url": "https://github.com/igawa6/dualsouls/releases",
+    "download_block_reason": "The selected upstream README states that the APK contains Hollow Knight compiled game code; its redistribution audit also identifies the patch as carrying game content. No publisher permission for that distribution is established here. Fresh Portcove downloads remain unavailable until an attributable grant or a package that creates those materials from the player’s own inputs resolves this boundary. Existing permitted copies keep their files and upstream ownership."
   }
 }
