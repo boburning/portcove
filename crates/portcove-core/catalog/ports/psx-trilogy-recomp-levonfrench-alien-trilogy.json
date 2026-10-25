@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "psx-trilogy-recomp-levonfrench-alien-trilogy",
+    "name": "Alien Trilogy — PSX-Trilogy-Recomp (LevonFrench)",
+    "original_game_title": "Alien Trilogy",
+    "summary": "Research project. Experimental hybrid withoverlayfallback; physicalmouse/fullplaythrough unverified, no siblingtitle milestones borrowed. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "AlienTrilogy ownUSA/PAL SLUS00007/SLES00101; importer exactCRC/bootSHA256 does not verify alloverlays/audio. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised v0.2.0 package own-disc Play.cmd/DISCS, per-edition alien/alien-pal runtime/settings/cards; local source alternative. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Experimental hybrid withoverlayfallback; physicalmouse/fullplaythrough unverified, no siblingtitle milestones borrowed. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp"
+    },
+    "issue_number": 3530,
+    "artwork": {
+      "game_id": 6825,
+      "cover_id": 290070,
+      "image_id": "co67ti",
+      "image_sha256": "bf5d531fa1434f30f706d48c7ca1d0edfd518cc6c91fb85d97604126016d28b2",
+      "game_slug": "alien-trilogy",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "alien-trilogy-ps1",
+    "origin": {
+      "project_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1357908326"
+      }
+    },
+    "decisions": []
+  }
+}

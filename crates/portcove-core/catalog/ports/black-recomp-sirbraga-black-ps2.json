@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "black-recomp-sirbraga-black-ps2",
+    "name": "Black (PS2) — black-recomp (SirBraga)",
+    "original_game_title": "Black (PS2)",
+    "summary": "Native Veblensk gameplay claimed; exact full-game coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SirBraga/black-recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SirBraga/black-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21376 original ELF/disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local own-disc build; distinct source console from Xbox Black."
+        }
+      ],
+      "warnings": [
+        "Native Veblensk gameplay claimed; exact full-game coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/SirBraga/black-recomp"
+    },
+    "issue_number": 3080,
+    "artwork": {
+      "game_id": 5749,
+      "cover_id": 388910,
+      "image_id": "co8c32",
+      "image_sha256": "22a6b13aabf70f235c98cf1b33941a273b4eed5910197212b17d22a366cbd1f4",
+      "game_slug": "black",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "black-ps2",
+    "origin": {
+      "project_url": "https://github.com/SirBraga/black-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1408165439"
+      }
+    },
+    "decisions": []
+  }
+}

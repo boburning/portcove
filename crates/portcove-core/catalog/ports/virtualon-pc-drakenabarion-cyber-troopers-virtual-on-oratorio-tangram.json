@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on-oratorio-tangram",
+    "name": "Cyber Troopers Virtual-On Oratorio Tangram — virtualon_pc (drakenabarion)",
+    "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram",
+    "summary": "Research project. Upstream explicitly reports ot boot/menus/matches/audio; online unavailable. No completion or Portcove component qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/drakenabarion/virtualon_pc",
+    "platforms": ["linux-x86-64", "windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/drakenabarion/virtualon_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 CUSA16156 VirtualOnMasterpiece collection folder; select OratorioTangram component ot. Requires decrypted collection eboot.bin/pjv3.elf/modules/assets; update/fingerprints unbound."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual shared VirtualOn AppImage/WindowsZIP/source build; select owned collection folder and ot in launcher (BB_EXE=ot), keeping omg/force as other game owners."
+        }
+      ],
+      "warnings": [
+        "Upstream explicitly reports ot boot/menus/matches/audio; online unavailable. No completion or Portcove component qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/drakenabarion/virtualon_pc"
+    },
+    "issue_number": 3471
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "cyber-troopers-virtual-on-oratorio-tangram-ps4",
+    "origin": {
+      "project_url": "https://github.com/drakenabarion/virtualon_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1422731311"
+      }
+    },
+    "decisions": []
+  }
+}

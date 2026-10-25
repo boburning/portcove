@@ -54,7 +54,12 @@ function packet(log: string, prefix: string): Record<string, unknown> {
 
 /** The verifier checks one fixed two-job attempt. The original timed-out job
  * remains timed out even when the independent observation is accepted. */
-export function verifyJobTimeoutProbe(jobs: unknown, log: string, context: TimeoutProbeContext) {
+export function verifyJobTimeoutProbe(
+  jobs: unknown,
+  log: string,
+  context: TimeoutProbeContext,
+  timeout: unknown,
+) {
   assert.ok(Buffer.byteLength(log) <= 8 * 1024 * 1024);
   assert.ok(isRecord(jobs) && Array.isArray(jobs.jobs));
   assert.equal(jobs.total_count, 2);
@@ -77,7 +82,27 @@ export function verifyJobTimeoutProbe(jobs: unknown, log: string, context: Timeo
   );
   assert.ok(isRecord(job) && Array.isArray(job.steps));
   assert.equal(job.status, "completed");
-  assert.equal(job.conclusion, "timed_out");
+  assert.ok(job.conclusion === "timed_out" || job.conclusion === "cancelled");
+  assert.ok(isRecord(timeout) && isRecord(timeout.check) && Array.isArray(timeout.annotations));
+  const check = timeout.check;
+  assert.equal(check.url, job.check_run_url);
+  assert.ok(typeof check.url === "string" && check.url.endsWith(`/check-runs/${String(check.id)}`));
+  assert.ok(Number.isSafeInteger(check.id) && Number(check.id) > 0);
+  assert.equal(check.head_sha, context.source);
+  assert.equal(check.status, "completed");
+  assert.equal(check.conclusion, job.conclusion);
+  assert.ok(isRecord(check.output));
+  assert.equal(check.output.annotations_count, timeout.annotations.length);
+  assert.ok(timeout.annotations.length > 0 && timeout.annotations.length < 100);
+  const timeoutMessage = "The job has exceeded the maximum execution time of 5m0s";
+  assert.equal(
+    timeout.annotations.filter(
+      (value: unknown) =>
+        isRecord(value) && value.annotation_level === "failure" && value.message === timeoutMessage,
+    ).length,
+    1,
+    "An explicit runner timeout annotation is required; cancellation alone is insufficient",
+  );
   assert.ok(typeof job.started_at === "string" && typeof job.completed_at === "string");
   const elapsed = Date.parse(job.completed_at) - Date.parse(job.started_at);
   assert.ok(
@@ -144,6 +169,7 @@ export function verifyJobTimeoutProbe(jobs: unknown, log: string, context: Timeo
     job: job.id,
     elapsed_ms: elapsed,
     job_outcome: job.conclusion,
+    timeout_annotation: timeoutMessage,
     supervised_status: drained.status,
     quiescent: true,
     processes: processes.length,
@@ -304,15 +330,18 @@ if (path.resolve(process.argv[1] ?? "") === file) {
     assert.match(process.env.PORTCOVE_TIMEOUT_PROBE_NONCE ?? "", /^[a-f0-9-]{36}$/u);
     process.send?.({ nonce: process.env.PORTCOVE_TIMEOUT_PROBE_NONCE, pid: process.pid });
     setInterval(() => {}, 1000);
-  } else if (process.argv[2] === "verify")
+  } else if (process.argv[2] === "verify") {
+    const check: unknown = JSON.parse(await readLimited(process.argv[5] ?? "", 256 * 1024));
+    const annotations: unknown = JSON.parse(await readLimited(process.argv[6] ?? "", 1024 * 1024));
     console.log(
       JSON.stringify(
         verifyJobTimeoutProbe(
           JSON.parse(await readLimited(process.argv[3] ?? "", 256 * 1024)),
           await readLimited(process.argv[4] ?? "", 8 * 1024 * 1024),
           timeoutProbeContext(process.env),
+          { check, annotations },
         ),
       ),
     );
-  else throw new Error("Usage: ci-job-timeout-probe.mts run|verify JOBS LOG");
+  } else throw new Error("Usage: ci-job-timeout-probe.mts run|verify JOBS LOG CHECK ANNOTATIONS");
 }

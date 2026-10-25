@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "twistedmetal1234recomp-jcoker85-twisted-metal",
+    "name": "Twisted Metal — TwistedMetal1234Recomp (jcoker85)",
+    "original_game_title": "Twisted Metal",
+    "summary": "Research project. Upstream native Windows four-game launcher, title-specific hooks/settings. No complete TM1 campaign/player qualification established by shared launcher. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA TwistedMetal retail SCUS94304 CHD or CUE/BIN. Other launcher games have different disc profiles and are not interchangeable."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual shared Windows launcher release or tools/generate.sh own-disc source route; select TwistedMetal tm1 and owned SCUS94304. Recompiled C generated locally, discs stay required; no new launcher implementation."
+        }
+      ],
+      "warnings": [
+        "Upstream native Windows four-game launcher, title-specific hooks/settings. No complete TM1 campaign/player qualification established by shared launcher.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jcoker85/TwistedMetal1234Recomp"
+    },
+    "issue_number": 3486,
+    "artwork": {
+      "game_id": 4695,
+      "cover_id": 105748,
+      "image_id": "co29lg",
+      "image_sha256": "ebc2a1a6c3f76e3cabc5c356baa472e189a164c0d80a67ceddbe333fe452b512",
+      "game_slug": "twisted-metal",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "twisted-metal-ps1",
+    "origin": {
+      "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416517346"
+      }
+    },
+    "decisions": []
+  }
+}

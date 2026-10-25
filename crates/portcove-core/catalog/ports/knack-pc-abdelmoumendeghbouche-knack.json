@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "knack-pc-abdelmoumendeghbouche-knack",
+    "name": "Knack — knack_pc (AbdelmoumenDeghbouche)",
+    "original_game_title": "Knack",
+    "summary": "Upstream reports first chapters playable through fights, story videos, music and saves at up to 120 FPS on Windows; later chapters and Linux gameplay untested. Dust edges, startup text glitches and possible longer-run memory growth remain. New README reports local trophy records in user/trophies.txt and numeric on-screen notifications; trophy names and platinum are not implemented. This is an upstream feature claim, not PSN integration or Portcove verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own decrypted CUSA00068 base and 01.10 update, either merged per upstream profile or selected as separate game/update folders. PKG extraction scripts accept the player own dumped base/update packages."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README declares v0.1.0 knack-windows.zip with Knack.exe and knack-x86_64.AppImage. Select game and optional separate update folder, then Play. Source uses MSYS2 CLANG64 and Python on Windows or the Linux packaging scripts; first launch prepares shaders."
+        }
+      ],
+      "warnings": [
+        "Upstream reports first chapters playable through fights, story videos, music and saves at up to 120 FPS on Windows; later chapters and Linux gameplay untested. Dust edges, startup text glitches and possible longer-run memory growth remain. New README reports local trophy records in user/trophies.txt and numeric on-screen notifications; trophy names and platinum are not implemented. This is an upstream feature claim, not PSN integration or Portcove verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc"
+    },
+    "issue_number": 3622,
+    "artwork": {
+      "game_id": 2957,
+      "cover_id": 214354,
+      "image_id": "co4lea",
+      "image_sha256": "016635419aedaf9b32cf2751f760b01767accb3fa9b6718074d9c4f39dabf0b7",
+      "game_slug": "knack",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "knack-ps4",
+    "origin": {
+      "project_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1430070872"
+      }
+    },
+    "decisions": []
+  }
+}

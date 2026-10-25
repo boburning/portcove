@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mc3r-cloudalister-midnight-club-3-dub-edition-remix",
+    "name": "Midnight Club 3: DUB Edition Remix — mc3r (cloudalister)",
+    "original_game_title": "Midnight Club 3: DUB Edition Remix",
+    "summary": "Recompiled build boots to PRESS START; not game completion. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/cloudalister/mc3r",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/cloudalister/mc3r",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21355 own extracted disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local own-ELF recompile/build; no game files or translated sources distributed."
+        }
+      ],
+      "warnings": [
+        "Recompiled build boots to PRESS START; not game completion.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/cloudalister/mc3r"
+    },
+    "issue_number": 3083,
+    "artwork": {
+      "game_id": 22583,
+      "cover_id": 69282,
+      "image_id": "co1hgi",
+      "image_sha256": "f2d6a9b9d849f756d7d21154b6cde9973806416ceb7e5a49ccf353658df95368",
+      "game_slug": "midnight-club-3-dub-edition-remix",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "midnight-club-3-dub-edition-remix-ps2",
+    "origin": {
+      "project_url": "https://github.com/cloudalister/mc3r",
+      "repository": {
+        "host": "github.com",
+        "id": "1337619129"
+      }
+    },
+    "decisions": []
+  }
+}

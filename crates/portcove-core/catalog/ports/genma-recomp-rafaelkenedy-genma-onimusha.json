@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "genma-recomp-rafaelkenedy-genma-onimusha",
+    "name": "Genma Onimusha — genma-recomp (rafaelkenedy)",
+    "original_game_title": "Genma Onimusha",
+    "summary": "Native Windows player route and modern camera-relative controls documented. Upstream v0.5.1 fixes analog movement through camera cuts by retaining the character’s actual heading through small stick adjustments and clearing retention on guard or other action states. D-pad tank controls and native directional guard steps/dodges remain. Full campaign/completion and package/runtime behavior remain unverified by Portcove. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/rafaelkenedy/genma-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/rafaelkenedy/genma-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA default.xbe SHA1 08bfe432eb55877b5af2dd401b713743c5b751cd plus game files; ISO Redump/XISO or extracted folder"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README advertises GenmaOnimusha-*-win64.zip v0.5.1. First run imports the owned USA disc/XBE and compiles locally with the bundled compiler; later starts reuse it and rebuild after runtime updates. No release ZIP was downloaded or inspected in this follow-up."
+        }
+      ],
+      "warnings": [
+        "Native Windows player route and modern camera-relative controls documented. Upstream v0.5.1 fixes analog movement through camera cuts by retaining the character’s actual heading through small stick adjustments and clearing retention on guard or other action states. D-pad tank controls and native directional guard steps/dodges remain. Full campaign/completion and package/runtime behavior remain unverified by Portcove.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/rafaelkenedy/genma-recomp"
+    },
+    "issue_number": 3624
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "genma-onimusha-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/rafaelkenedy/genma-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1426192561"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -470,6 +470,42 @@ mod tests {
     #[cfg(windows)]
     #[tokio::test]
     async fn generic_install_authorization_does_not_accept_shared_scope() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+
+        // Exercise current catalog/scope and acknowledgment checks with fixed
+        // provider metadata. This test neither contacts GitHub nor acquires bytes.
+        struct FixedReleaseProvider(AtomicUsize);
+        #[async_trait::async_trait]
+        impl crate::ReleaseProvider for FixedReleaseProvider {
+            async fn resolve(
+                &self,
+                port: &PortDefinition,
+                channel: crate::ReleaseChannel,
+                platform: crate::Platform,
+            ) -> Result<crate::ResolvedRelease> {
+                assert_eq!(port.id, PORT);
+                assert_eq!(channel, crate::ReleaseChannel::Stable);
+                assert_eq!(platform, crate::Platform::WindowsX86_64);
+                self.0.fetch_add(1, Ordering::SeqCst);
+                Ok(crate::ResolvedRelease {
+                    version: "v0.4.1".into(),
+                    channel,
+                    published_at: None,
+                    asset: crate::ReleaseAsset {
+                        name: NAME.into(),
+                        url: format!(
+                            "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/{NAME}"
+                        ),
+                        size: 33_085_815,
+                        sha256: SHA.into(),
+                    },
+                })
+            }
+        }
+
         let temporary = tempfile::tempdir().unwrap();
         let library = crate::Library::open(temporary.path().join("library")).unwrap();
         // Persisted-source fixture isolates authorization from intake. Applying
@@ -486,7 +522,8 @@ mod tests {
                 observed_identity: None,
             })
             .unwrap();
-        let service = crate::PortcoveService::new(library).unwrap();
+        let provider = Arc::new(FixedReleaseProvider(AtomicUsize::new(0)));
+        let service = crate::PortcoveService::with_provider(library, provider.clone()).unwrap();
         let plan = service.plan_game_install(PORT).await.unwrap();
         assert!(plan.plan.shared_preferences.is_some());
         assert!(
@@ -515,6 +552,7 @@ mod tests {
             )
             .await
             .unwrap();
+        assert_eq!(provider.0.load(Ordering::SeqCst), 4);
         assert!(
             !plan
                 .plan

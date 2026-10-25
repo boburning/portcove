@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "p3d-pc-maouanimus-maouanimus-persona-3-dancing-in-moonlight",
+    "name": "Persona 3: Dancing in Moonlight — p3d-pc (MaouAnimus) (MaouAnimus)",
+    "original_game_title": "Persona 3: Dancing in Moonlight",
+    "summary": "Rhythm controls and character renderer described; exact full-playthrough not established;60Hz retained Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/MaouAnimus/p3d-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MaouAnimus/p3d-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "CUSA12636 owned decrypted dump; exact update unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Precompiled p3d.exe runtime or source MSYS2Clang64/Ninja; original game data remains required"
+        }
+      ],
+      "warnings": [
+        "Rhythm controls and character renderer described; exact full-playthrough not established;60Hz retained",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/MaouAnimus/p3d-pc"
+    },
+    "issue_number": 3352,
+    "artwork": {
+      "game_id": 54217,
+      "cover_id": 78165,
+      "image_id": "co1ob9",
+      "image_sha256": "7839e528887aaf8daa9c151a62215be9479717ea9cac1abdf91c78601e0cf66d",
+      "game_slug": "persona-3-dancing-in-moonlight",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "persona-3-dancing-in-moonlight-ps4",
+    "origin": {
+      "project_url": "https://github.com/MaouAnimus/p3d-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1423957380"
+      }
+    },
+    "decisions": []
+  }
+}

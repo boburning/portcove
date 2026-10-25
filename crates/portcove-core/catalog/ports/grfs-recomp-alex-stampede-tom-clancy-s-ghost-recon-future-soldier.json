@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "grfs-recomp-alex-stampede-tom-clancy-s-ghost-recon-future-soldier",
+    "name": "Tom Clancy's Ghost Recon: Future Soldier — GRFS-Recomp (alex-stampede)",
+    "original_game_title": "Tom Clancy's Ghost Recon: Future Soldier",
+    "summary": "Campaign/Guerrilla reportedly playable on development M-series Macs, with visual bugs. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/alex-stampede/GRFS-Recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alex-stampede/GRFS-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Tom Clancy's Ghost Recon: Future Soldier Xbox 360 disc ISO. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Install Mac package and import own compatible ISO; current binary requires macOS27 and is ad-hoc signed."
+        }
+      ],
+      "warnings": [
+        "Campaign/Guerrilla reportedly playable on development M-series Macs, with visual bugs.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/alex-stampede/GRFS-Recomp"
+    },
+    "issue_number": 3227,
+    "artwork": {
+      "game_id": 1293,
+      "cover_id": 91645,
+      "image_id": "co1ypp",
+      "image_sha256": "7ec36d6b03b96236c1764ef5cdb5a6f05dd03f5782eb44366e606c48e28b4155",
+      "game_slug": "tom-clancy-s-ghost-recon-future-soldier",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tom-clancy-s-ghost-recon-future-soldier-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/alex-stampede/GRFS-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425915760"
+      }
+    },
+    "decisions": []
+  }
+}

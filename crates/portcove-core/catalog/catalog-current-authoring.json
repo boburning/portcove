@@ -16142,8 +16142,7 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-aarch64"
+        "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
       "automated_tested_platforms": [
@@ -16160,9 +16159,6 @@
           ],
           "linux-x86-64": [
             "BattleShip-x86_64.AppImage"
-          ],
-          "macos-aarch64": [
-            "BattleShip.dmg"
           ]
         }
       },
@@ -16174,9 +16170,6 @@
         ],
         "linux-x86-64": [
           "BattleShip-x86_64.AppImage",
-          "BattleShip"
-        ],
-        "macos-aarch64": [
           "BattleShip"
         ]
       },
@@ -16202,6 +16195,24 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Super Smash Bros.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "macOS Apple Silicon: get the upstream application",
+              "instruction": "Windows and Linux use Portcove’s managed Install route. On macOS Apple Silicon, get the non-JP BattleShip.dmg from upstream Releases for the USA source route. Portcove cannot extract or manage replacement of this disk image. Mount it yourself and copy the complete BattleShip.app to your chosen location; keep its bundled libraries, resources and Torch companion intact."
+            },
+            {
+              "title": "macOS: register the copy and choose Play",
+              "instruction": "Use Choose existing installation to select BattleShip.app/Contents/MacOS/BattleShip inside your copied application bundle. Review the executable and launch location, then choose Play explicitly. The upstream first-run wizard requests your own matching Super Smash Bros. USA 1.0 original and extracts its game assets. Discovery and registration do not run the wizard or Torch. Follow upstream instructions for updates to this copy."
+            },
+            {
+              "title": "macOS: preserve app data separately",
+              "instruction": "The upstream macOS bundle stores settings, saves and extracted game assets under ~/Library/Application Support/BattleShip/, outside the application bundle. Preserve that folder and your original game separately. An external registration does not give Portcove ownership, managed Update, Backup or Rollback for this copy."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/JRickey/BattleShip/releases/tag/v1.6"
+        },
         "artwork": {
           "game_id": 1626,
           "cover_id": 131928,
@@ -23142,6 +23153,326 @@
           "image_id": "co255x",
           "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
           "game_slug": "mdk",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "mstan-dragonballzbuusfuryrecomp",
+      "name": "Dragon Ball Z: Buu's Fury / Dragon Ball Z: Buu's Fury Recomp (mstan)",
+      "summary": "Explore Dragon Ball Z: Buu's Fury / Dragon Ball Z: Buu's Fury Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "github",
+        "repository": "mstan/DragonBallZBuusFuryRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DragonBallZBuusFuryRecomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DragonBallZBuusFuryRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "mod_package_policy": "versioned-packages-v1",
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_BG3E.toml.frag",
+        "recomp_coverage_BG3E.json",
+        "replay-divergence.state"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows stable runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility.",
+        "original_game_title": "Dragon Ball Z: Buu's Fury",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game and BIOS in the player",
+              "instruction": "The complete Windows x64 stable ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
+            },
+            {
+              "title": "Back up your actual save folder",
+              "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
+            },
+            {
+              "title": "Keep your choices and mod versions when updating",
+              "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md"
+        },
+        "artwork": {
+          "game_id": 19835,
+          "cover_id": 166679,
+          "image_id": "co3klz",
+          "image_sha256": "95cd13d1653e6224973ed48c83a3b7ccb65bd2f3622496fd1ee5717b6a6e511d",
+          "game_slug": "dragon-ball-z-buus-fury",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "mstan-dragonballzlegacyofgokuiirecomp",
+      "name": "Dragon Ball Z: The Legacy of Goku II / Dragon Ball Z: The Legacy of Goku II Recomp (mstan)",
+      "summary": "Explore Dragon Ball Z: The Legacy of Goku II / Dragon Ball Z: The Legacy of Goku II Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "github",
+        "repository": "mstan/DragonBallZLegacyofGokuIIRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DragonBallZLegacyofGokuIIRecomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DragonBallZLegacyofGokuIIRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "mod_package_policy": "versioned-packages-v1",
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_ALFE.toml.frag",
+        "recomp_coverage_ALFE.json",
+        "replay-divergence.state"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows stable runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility.",
+        "original_game_title": "Dragon Ball Z: The Legacy of Goku II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game and BIOS in the player",
+              "instruction": "The complete Windows x64 stable ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
+            },
+            {
+              "title": "Back up your actual save folder",
+              "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
+            },
+            {
+              "title": "Keep your choices and mod versions when updating",
+              "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md"
+        },
+        "artwork": {
+          "game_id": 19834,
+          "cover_id": 138886,
+          "image_id": "co2z5y",
+          "image_sha256": "4c2205d020f94c85eb85f6eb5a4a8d604ea6c0186a9e02583a95a022f559fdff",
+          "game_slug": "dragon-ball-z-the-legacy-of-goku-ii",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "mstan-megamanzerorecomp",
+      "name": "Mega Man Zero / MegaManZeroRecomp (mstan)",
+      "summary": "Explore Mega Man Zero / MegaManZeroRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/mstan/MegaManZeroRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "github",
+        "repository": "mstan/MegaManZeroRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MegaManZeroRecomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "MegaManZeroRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "mod_package_policy": "versioned-packages-v1",
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AZCE.toml.frag",
+        "recomp_coverage_AZCE.json",
+        "replay-divergence.state"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows stable runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility.",
+        "original_game_title": "Mega Man Zero",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game and BIOS in the player",
+              "instruction": "The complete Windows x64 stable ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
+            },
+            {
+              "title": "Back up your actual save folder",
+              "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
+            },
+            {
+              "title": "Keep your choices and mod versions when updating",
+              "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
+            },
+            {
+              "title": "Understand the enhanced-view limitation",
+              "instruction": "The upstream README records a v0.0.2 extended-view state-load limitation and distinguishes faithful 240x160 output and normal SRAM saves. That historical note is not a current full-game observation. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
+        },
+        "artwork": {
+          "game_id": 1775,
+          "cover_id": 540253,
+          "image_id": "cobkv1",
+          "image_sha256": "3ed1ef20802473fa69f2657c7923a22a3f87ed200b7fdacf8b65978b4d0e47d9",
+          "game_slug": "mega-man-zero",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "mstan-supermarioadvance2recomp",
+      "name": "Super Mario World: Super Mario Advance 2 / SuperMarioAdvance2Recomp (mstan)",
+      "summary": "Explore Super Mario World: Super Mario Advance 2 / SuperMarioAdvance2Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/mstan/SuperMarioAdvance2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "github",
+        "repository": "mstan/SuperMarioAdvance2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SuperMarioAdvance2Recomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SuperMarioWorldRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        "mods"
+      ],
+      "mod_package_policy": "versioned-packages-v1",
+      "runtime_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AA2E.toml.frag",
+        "recomp_coverage_AA2E.json",
+        "replay-divergence.state"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility.",
+        "original_game_title": "Super Mario Advance 2: Super Mario World",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game and BIOS in the player",
+              "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
+            },
+            {
+              "title": "Back up your actual save folder",
+              "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
+            },
+            {
+              "title": "Keep your choices and mod versions when updating",
+              "instruction": "If Library identifies this copy as Portcove-managed, use its compatible beta update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md"
+        },
+        "artwork": {
+          "game_id": 16617,
+          "cover_id": 310376,
+          "image_id": "co6nhk",
+          "image_sha256": "0ac54f18b9a1fc9cfa36ba2552b1956d5ff37863eb15d95ad494ed0bb33afc0f",
+          "game_slug": "super-mario-world-super-mario-advance-2",
           "match_kind": "underlying-game"
         }
       }

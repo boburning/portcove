@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "recomp-domination-lngadesupport-lngadesupport-downhill-domination",
+    "name": "Downhill Domination — Recomp Domination (lngadesupport) (lngadesupport)",
+    "original_game_title": "Downhill Domination",
+    "summary": "Research project. Native runner builds via bootstrap; game gameplay not established by successful build. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/lngadesupport/Recomp-Domination",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/lngadesupport/Recomp-Domination",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SCUS-97177 extracted disc folder."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "BUILD_DOWNHILL.cmd bootstrap compiles Windows x64 native runner from owned SCUS_971.77/disc files. No playable package inferred."
+        }
+      ],
+      "warnings": [
+        "Native runner builds via bootstrap; game gameplay not established by successful build.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/lngadesupport/Recomp-Domination"
+    },
+    "issue_number": 3002,
+    "artwork": {
+      "game_id": 6340,
+      "cover_id": 162031,
+      "image_id": "co3h0v",
+      "image_sha256": "e12a11410c2a7d150527f7c44a297717fca25f7c222c2d00be3a809decbdf711",
+      "game_slug": "downhill-domination",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "downhill-domination-ps2",
+    "origin": {
+      "project_url": "https://github.com/lngadesupport/Recomp-Domination",
+      "repository": {
+        "host": "github.com",
+        "id": "1395952094"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dominorecomp-nikeymikey-no-one-can-stop-mr-domino",
+    "name": "No One Can Stop Mr. Domino — DominoRecomp (nikeymikey)",
+    "original_game_title": "No One Can Stop Mr. Domino",
+    "summary": "Research project. Correct-speed boot/six-stage native overlay cache claimed;77 interpreted instructions/frame remains, no full completeness. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/nikeymikey/DominoRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nikeymikey/DominoRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-00804 own MrDomino CUE; OpenBIOS or owned SCPH1001. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "scripts/build_windows.ps1 generates game and compiles title; captured overlays compile via MinGW GCC. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Correct-speed boot/six-stage native overlay cache claimed;77 interpreted instructions/frame remains, no full completeness. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/nikeymikey/DominoRecomp"
+    },
+    "issue_number": 3542
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "no-one-can-stop-mr-domino-ps1",
+    "origin": {
+      "project_url": "https://github.com/nikeymikey/DominoRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1346720064"
+      }
+    },
+    "decisions": []
+  }
+}

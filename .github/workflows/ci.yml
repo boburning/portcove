@@ -50,6 +50,8 @@ permissions:
 
 # Keep line-number backtraces without generating full variable debug data in CI.
 env:
+  PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  PORTCOVE_CHECKOUT_SHA: ${{ github.sha }}
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
   VP_GIT_HOOKS: "0"
@@ -555,7 +557,9 @@ jobs:
         if: needs.classify.outputs.native_tools == 'true'
       - name: Test affected native compiler and shell integrations
         if: needs.classify.outputs.native_tools == 'true'
-        run: node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mts
+        run: |
+          # node-suite: native-tools
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts apps/desktop/scripts/cli-command-shell.native.test.mts apps/desktop/scripts/desktop-appimage-update.native.test.mts apps/desktop/scripts/desktop-application-update-journey.native.test.mts apps/desktop/scripts/desktop-artwork-correction.native.test.mts apps/desktop/scripts/desktop-artwork-observations.native.test.mts apps/desktop/scripts/desktop-artwork.native.test.mts apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts apps/desktop/scripts/desktop-catalog-update.native.test.mts apps/desktop/scripts/desktop-completion-focus.native.test.mts apps/desktop/scripts/desktop-default-cover.native.test.mts apps/desktop/scripts/desktop-design-compatibility.native.test.mts apps/desktop/scripts/desktop-harness.native.test.mts apps/desktop/scripts/desktop-install-fixture.native.test.mts apps/desktop/scripts/desktop-install.native.test.mts apps/desktop/scripts/desktop-linux-native-session.native.test.mts apps/desktop/scripts/desktop-linux-public-update.native.test.mts apps/desktop/scripts/desktop-macos-installed-update.native.test.mts apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts apps/desktop/scripts/desktop-native-observations.native.test.mts apps/desktop/scripts/desktop-public-update-state.native.test.mts apps/desktop/scripts/desktop-qualification-history.native.test.mts apps/desktop/scripts/desktop-readiness.native.test.mts apps/desktop/scripts/desktop-reload.native.test.mts apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts apps/desktop/scripts/desktop-scenario-state.native.test.mts apps/desktop/scripts/desktop-staged-layout.native.test.mts apps/desktop/scripts/desktop-webview-boundary.native.test.mts apps/desktop/scripts/desktop-windows-public-update.native.test.mts apps/desktop/scripts/desktop-windows-update.native.test.mts apps/desktop/scripts/desktop-workspace-refresh.native.test.mts
       - name: Check native helper dependency declarations
         run: node scripts/native-helper-dependencies.mts
       - name: Test discovery state replacement under actual Windows reader sharing
@@ -846,7 +850,9 @@ jobs:
           node-version-file: .node-version
       - uses: ./.github/actions/setup-rust
       - name: Test native compiler and shell integrations without frontend dependencies
-        run: node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mts
+        run: |
+          # node-suite: native-tools
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts apps/desktop/scripts/cli-command-shell.native.test.mts apps/desktop/scripts/desktop-appimage-update.native.test.mts apps/desktop/scripts/desktop-application-update-journey.native.test.mts apps/desktop/scripts/desktop-artwork-correction.native.test.mts apps/desktop/scripts/desktop-artwork-observations.native.test.mts apps/desktop/scripts/desktop-artwork.native.test.mts apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts apps/desktop/scripts/desktop-catalog-update.native.test.mts apps/desktop/scripts/desktop-completion-focus.native.test.mts apps/desktop/scripts/desktop-default-cover.native.test.mts apps/desktop/scripts/desktop-design-compatibility.native.test.mts apps/desktop/scripts/desktop-harness.native.test.mts apps/desktop/scripts/desktop-install-fixture.native.test.mts apps/desktop/scripts/desktop-install.native.test.mts apps/desktop/scripts/desktop-linux-native-session.native.test.mts apps/desktop/scripts/desktop-linux-public-update.native.test.mts apps/desktop/scripts/desktop-macos-installed-update.native.test.mts apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts apps/desktop/scripts/desktop-native-observations.native.test.mts apps/desktop/scripts/desktop-public-update-state.native.test.mts apps/desktop/scripts/desktop-qualification-history.native.test.mts apps/desktop/scripts/desktop-readiness.native.test.mts apps/desktop/scripts/desktop-reload.native.test.mts apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts apps/desktop/scripts/desktop-scenario-state.native.test.mts apps/desktop/scripts/desktop-staged-layout.native.test.mts apps/desktop/scripts/desktop-webview-boundary.native.test.mts apps/desktop/scripts/desktop-windows-public-update.native.test.mts apps/desktop/scripts/desktop-windows-update.native.test.mts apps/desktop/scripts/desktop-workspace-refresh.native.test.mts
       - name: Test development storage on Windows
         run: |
           # node-suite: windows-storage

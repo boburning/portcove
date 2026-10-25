@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "psx-trilogy-recomp-levonfrench-die-hard-trilogy",
+    "name": "Die Hard Trilogy — PSX-Trilogy-Recomp (LevonFrench)",
+    "original_game_title": "Die Hard Trilogy",
+    "summary": "Research project. Experimental hybrid withoverlayfallback; physicalmouse/fullplaythrough unverified, no siblingtitle milestones borrowed. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "DieHardTrilogy ownUSA/PAL SLUS00119/SLES00445; importer exactCRC/bootSHA256 does not verify alloverlays/audio. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised v0.2.0 package own-disc Play.cmd/DISCS, per-edition dht/dht-pal runtime/settings/cards; local source alternative. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Experimental hybrid withoverlayfallback; physicalmouse/fullplaythrough unverified, no siblingtitle milestones borrowed. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp"
+    },
+    "issue_number": 3528,
+    "artwork": {
+      "game_id": 8234,
+      "cover_id": 133614,
+      "image_id": "co2v3i",
+      "image_sha256": "02a4599930c063a7b299791af4d31cc0f70bb331ff3e8dea42d3e7ee552559e6",
+      "game_slug": "die-hard-trilogy",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "die-hard-trilogy-ps1",
+    "origin": {
+      "project_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1357908326"
+      }
+    },
+    "decisions": []
+  }
+}

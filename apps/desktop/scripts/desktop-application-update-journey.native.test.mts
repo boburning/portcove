@@ -1,60 +1,62 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { readFile, mkdtemp, mkdir, copyFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { stripTypeScriptTypes } from "node:module";
+import { registerHooks } from "node:module";
 import type { WebDriver } from "selenium-webdriver";
 import { readInstalledUpdateStatus } from "./desktop-installed-update-harness.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
-// The frontend-free native contract lane deliberately has no Selenium package.
-// Execute the maintained UI function with controlled locator/driver adapters;
-// import and execute the actual dependency-free status reader and its callback.
-const source = await readFile(
-  new URL("./desktop-application-update-journey.mts", import.meta.url),
-  "utf8",
-);
-const start = source.indexOf("async function openInstalledUpdateSettings(");
-assert.ok(start >= 0);
-const drivers = runInNewContext(
-  stripTypeScriptTypes(source.slice(start).replace(/^export /gmu, "")) +
-    "\n({openInstalledUpdateSettings,driveInstalledUpdateToRestart,driveInstalledUpdateRecovery,driveInstalledForwardRepairToRestart});",
-  {
-    assert,
-    isRecord,
-    readInstalledUpdateStatus,
-    By: { css: (value: string) => ({ value }), xpath: (value: string) => ({ value }) },
-    until: {
-      elementLocated: (value: unknown) => value,
-      elementIsVisible: (value: unknown) => ({ visible: value }),
+// A separate module instance keeps controlled locators out of the canonical import cache.
+async function importControlledJourney(
+  moduleUrl: URL,
+): Promise<typeof import("./desktop-application-update-journey.mts")> {
+  const journey = new URL(moduleUrl);
+  journey.searchParams.set("native-contract", "controlled-locators");
+  let locatorImports = 0;
+  const hooks = registerHooks({
+    resolve(name, context, next) {
+      if (name === "selenium-webdriver" && context.parentURL === journey.href) {
+        locatorImports++;
+        return {
+          url:
+            "data:text/javascript," +
+            encodeURIComponent(`
+            export const By = { css: value => ({ value }), xpath: value => ({ value }) };
+            export const until = {
+              elementLocated: value => value,
+              elementIsVisible: value => ({ visible: value })
+            };
+          `),
+          shortCircuit: true,
+        };
+      }
+      return next(name, context);
     },
-  },
-) as {
-  openInstalledUpdateSettings: (browser: WebDriver) => Promise<void>;
-  driveInstalledUpdateToRestart: (
-    browser: WebDriver,
-    actions: string[],
-    version: string,
-  ) => Promise<{
-    before: unknown;
-    staged: unknown;
-    authority: string;
-  }>;
-  driveInstalledUpdateRecovery: (
-    browser: WebDriver,
-    actions: string[],
-    area: "schedule" | "staging" | "apply",
-  ) => Promise<{ before: unknown; after: unknown; authority: string }>;
-  driveInstalledForwardRepairToRestart: (
-    browser: WebDriver,
-    actions: string[],
-    version: string,
-    expectedPrior: { apply: Record<string, unknown>; staged: Record<string, unknown> },
-  ) => Promise<{ before: unknown; staged: unknown; authority: string }>;
-};
+  });
+  try {
+    const drivers: unknown = await import(journey.href);
+    assert.ok(isRecord(drivers));
+    for (const name of [
+      "openInstalledUpdateSettings",
+      "driveInstalledUpdateToRestart",
+      "driveInstalledUpdateRecovery",
+      "driveInstalledForwardRepairToRestart",
+    ])
+      assert.equal(typeof drivers[name], "function", name);
+    assert.equal(locatorImports, 1, "the actual journey imports its controlled locator dependency");
+    return drivers as typeof import("./desktop-application-update-journey.mts");
+  } finally {
+    hooks.deregister();
+  }
+}
+const drivers = await importControlledJourney(
+  new URL("./desktop-application-update-journey.mts", import.meta.url),
+);
+
 const {
   openInstalledUpdateSettings,
   driveInstalledUpdateToRestart,
@@ -135,16 +137,33 @@ void test("shipping status reader imports and executes outside dependency ancest
     new URL("../../../scripts/runtime-values.mts", import.meta.url),
     path.join(root, "scripts/runtime-values.mts"),
   );
+  await copyFile(
+    new URL("./desktop-application-update-journey.mts", import.meta.url),
+    path.join(root, "apps/desktop/scripts/desktop-application-update-journey.mts"),
+  );
   const probe = path.join(root, "probe.mjs");
   await writeFile(
     probe,
     `
     import assert from 'node:assert/strict';
+    import {registerHooks} from 'node:module';
+    import {isRecord} from './scripts/runtime-values.mts';
+    ${importControlledJourney.toString()}
     assert.throws(() => import.meta.resolve('selenium-webdriver'), {code:'ERR_MODULE_NOT_FOUND'});
     const {readInstalledUpdateStatus} = await import('./apps/desktop/scripts/desktop-installed-update-harness.mts');
     const status = await readInstalledUpdateStatus({executeAsyncScript:async()=>JSON.stringify({ok:true,value:{recovery_required:[],apply:null,staged:null}})});
     assert.equal(status.staged,null);
+    const journeyUrl = new URL('./apps/desktop/scripts/desktop-application-update-journey.mts', import.meta.url);
+    const journey = await importControlledJourney(journeyUrl);
+    let clicks=0;
+    await journey.openInstalledUpdateSettings({
+      findElement:()=>({click:async()=>{clicks++;}}),
+      wait:async()=>({click:async()=>{clicks++;}}),
+    });
+    assert.equal(clicks,2);
+    await assert.rejects(import(journeyUrl.href), {code:'ERR_MODULE_NOT_FOUND'});
     console.log('frontend-free actual reader executed');
+    console.log('actual journey imported without changing canonical dependency resolution');
   `,
     { flag: "wx" },
   );

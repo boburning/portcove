@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
+    "name": "Army of Two: The 40th Day — Libre40 (eu-maxwelllucas)",
+    "original_game_title": "Army of Two: The 40th Day",
+    "summary": "Single-player described playable; movies black-screen, waiting allows startup. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/eu-maxwelllucas/Libre40",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/eu-maxwelllucas/Libre40",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Army of Two: The 40th Day Xbox 360 disc ISO or extracted full disc files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract own 40thDay ISO, build SDK, generate code and compile Windows runtime."
+        }
+      ],
+      "warnings": [
+        "Single-player described playable; movies black-screen, waiting allows startup.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/eu-maxwelllucas/Libre40"
+    },
+    "issue_number": 3266,
+    "artwork": {
+      "game_id": 997,
+      "cover_id": 123421,
+      "image_id": "co2n8d",
+      "image_sha256": "618c3934a7cc6ea3c3db0c3fb229b793cb861cea2c55cdf6e304a0faa79517a5",
+      "game_slug": "army-of-two-the-40th-day",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "army-of-two-the-40th-day-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/eu-maxwelllucas/Libre40",
+      "repository": {
+        "host": "github.com",
+        "id": "1423298804"
+      }
+    },
+    "decisions": []
+  }
+}

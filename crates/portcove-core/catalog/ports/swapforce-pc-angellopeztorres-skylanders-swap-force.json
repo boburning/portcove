@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "swapforce-pc-angellopeztorres-skylanders-swap-force",
+    "name": "Skylanders: Swap Force — SwapForce-PC (AngelLopezTorres)",
+    "original_game_title": "Skylanders: Swap Force",
+    "summary": "Research project. Upstream2026-10-23 boot videos then uniform white output; effective game input and sound absent. USB portal selftests are not game support. Not gameplay-ready. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/AngelLopezTorres/swapforce-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AngelLopezTorres/swapforce-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Skylanders Swap Force Xbox360 Europe En/De XGD2 ISO8738846720bytes. No game files or generated C++/binaries included; other source editions not validated."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source setup.ps1 extracts own ISO, decrypts XEX, applies pinned XenonRecomp tooling and generates runtime/ppc_gen, then builds runtime/build/SwapForceRT.exe. No published game runtime inferred."
+        }
+      ],
+      "warnings": [
+        "Upstream2026-10-23 boot videos then uniform white output; effective game input and sound absent. USB portal selftests are not game support. Not gameplay-ready.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/AngelLopezTorres/swapforce-pc"
+    },
+    "issue_number": 3160,
+    "artwork": {
+      "game_id": 5159,
+      "cover_id": 91739,
+      "image_id": "co1ysb",
+      "image_sha256": "212d713068cc3c34872c86b17a7468f9a2816207c3835edbe07ea79e47e626de",
+      "game_slug": "skylanders-swap-force",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "skylanders-swap-force-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/AngelLopezTorres/swapforce-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1414838608"
+      }
+    },
+    "decisions": []
+  }
+}

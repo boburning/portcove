@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "colosseum-native-kreethedrifter-poke-mon-colosseum",
+    "name": "Pokémon Colosseum — colosseum-native (KreeTheDrifter)",
+    "original_game_title": "Pokémon Colosseum",
+    "summary": "Research project. Upstream native logo/intro/title-screen boot only:623456 instructions,0 unknown/fallback/SMC failures. Gameplay and high-fidelity feature goals remain unproven. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/KreeTheDrifter/colosseum-native",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/KreeTheDrifter/colosseum-native",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own GameCube USA GC6E01 ISO/CISO."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual developer route: own GC6E01 ISO/CISO, tools/disc.py convert/verify then scripts/recompile.sh using DolRecomp; native Windows host/Android app are documented. Detailed host packaging remains research, not a ready release."
+        }
+      ],
+      "warnings": [
+        "Upstream native logo/intro/title-screen boot only:623456 instructions,0 unknown/fallback/SMC failures. Gameplay and high-fidelity feature goals remain unproven.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/KreeTheDrifter/colosseum-native"
+    },
+    "issue_number": 3424,
+    "artwork": {
+      "game_id": 2725,
+      "cover_id": 131810,
+      "image_id": "co2tpe",
+      "image_sha256": "15e97bcf0eac5b4a2de6b923244a116e9f4be25288be2692e54d31a635a4b76b",
+      "game_slug": "pokemon-colosseum",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-colosseum-gamecube",
+    "origin": {
+      "project_url": "https://github.com/KreeTheDrifter/colosseum-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1422775369"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragonballgtfinalboutrecomp-mstan-mstan-dragon-ball-gt-final-bout",
+    "name": "Dragon Ball GT: Final Bout — DragonBallGTFinalBoutRecomp (mstan) (mstan)",
+    "original_game_title": "Dragon Ball GT: Final Bout",
+    "summary": "Playable/netplay/adaptivewidescreen advertised; no Portcove testing Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mstan/DragonBallGTFinalBoutRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/DragonBallGTFinalBoutRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS00493 own disc; optional own USA PS2BudokaiTenkaichi3ISO for FuniDub"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v1.0.0 ZIP bundles OpenBIOS/tools; own disc locally compiled"
+        }
+      ],
+      "warnings": [
+        "Playable/netplay/adaptivewidescreen advertised; no Portcove testing",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mstan/DragonBallGTFinalBoutRecomp"
+    },
+    "issue_number": 3345,
+    "artwork": {
+      "game_id": 2558,
+      "cover_id": 238935,
+      "image_id": "co54d3",
+      "image_sha256": "7954d83d7b19348c2116c88ba8f0b81fd1025dff2c11f471dd53c19d5102db99",
+      "game_slug": "dragon-ball-gt-final-bout",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-ball-gt-final-bout-ps1",
+    "origin": {
+      "project_url": "https://github.com/mstan/DragonBallGTFinalBoutRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417781427"
+      }
+    },
+    "decisions": []
+  }
+}

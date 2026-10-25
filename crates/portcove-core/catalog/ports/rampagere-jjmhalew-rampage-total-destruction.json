@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rampagere-jjmhalew-rampage-total-destruction",
+    "name": "Rampage: Total Destruction — RampageRE (jjmhalew)",
+    "original_game_title": "Rampage: Total Destruction",
+    "summary": "Native static game runtime and separate native-engine viewer; claimed Windows play, portable targets not physical evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jjmhalew/RampageRE",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jjmhalew/RampageRE",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS2 disc; serial/revision must be read from config"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source-built own-disc route; separate engine-viewer coverage from full game execution."
+        }
+      ],
+      "warnings": [
+        "Native static game runtime and separate native-engine viewer; claimed Windows play, portable targets not physical evidence.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jjmhalew/RampageRE"
+    },
+    "issue_number": 3046,
+    "artwork": {
+      "game_id": 2634,
+      "cover_id": 157350,
+      "image_id": "co3deu",
+      "image_sha256": "cb27ac5e4002ec6828cff6049627b0260199326470b45360860a66476782a31a",
+      "game_slug": "rampage-total-destruction",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "rampage-total-destruction-ps2",
+    "origin": {
+      "project_url": "https://github.com/jjmhalew/RampageRE",
+      "repository": {
+        "host": "github.com",
+        "id": "1409385784"
+      }
+    },
+    "decisions": []
+  }
+}

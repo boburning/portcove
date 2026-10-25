@@ -1,4 +1,5 @@
 import { defineConfig } from "vite-plus";
+import { registeredNodeCommand } from "./scripts/node-test-suites.mts";
 import { desktopProjects, testReporters } from "./scripts/frontend-tests.ts";
 import { checkStagedFiles } from "./scripts/viteplus-cli.mts";
 
@@ -262,7 +263,7 @@ export default defineConfig({
       },
       "test:native": { command: "vp -C apps/desktop run test:desktop", cache: false },
       "native:tools": {
-        command: "node --test --test-timeout=30000 apps/desktop/scripts/*.native.test.mts",
+        command: registeredNodeCommand("native-tools"),
         cache: false,
       },
     },

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dc2-ps2recomp-red-tv141-dark-cloud-2",
+    "name": "Dark Cloud 2 — DC2-PS2RECOMP (Red-tv141)",
+    "original_game_title": "Dark Cloud 2",
+    "summary": "Primary release0.9.5 published2026-10-10T19:50:12Z claims playable, improved frame-rate/analog-stick behavior; author ending development due to separate TealAlchemist decomp. Not a Portcove playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Red-tv141/DC2-PS2RECOMP",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Red-tv141/DC2-PS2RECOMP",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Dark Cloud 2 NTSC-U USA SCUS-97213 v2.00 ISO or extracted disc tree; config documents ELF hash5c0bad0610323eaba6f06c8be8869de6 (hash algorithm unstated). Exact launcher import requirements need launcher-source inspection."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Published runtime asset in0.9.5; precise source import and license/provenance review pending. Source config and PS2_PROJECT_STATE document own USA v2.00 inputs; no local-build-only claim."
+        }
+      ],
+      "warnings": [
+        "Primary release0.9.5 published2026-10-10T19:50:12Z claims playable, improved frame-rate/analog-stick behavior; author ending development due to separate TealAlchemist decomp. Not a Portcove playthrough.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Red-tv141/DC2-PS2RECOMP"
+    },
+    "issue_number": 2988,
+    "artwork": {
+      "game_id": 1215,
+      "cover_id": 139306,
+      "image_id": "co2zhm",
+      "image_sha256": "979a7bd602eb224f97a02698c58cb853dfd4e5dbb33138c03e1fb2a97fa6e2fe",
+      "game_slug": "dark-cloud-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dark-cloud-2-ps2",
+    "origin": {
+      "project_url": "https://github.com/Red-tv141/DC2-PS2RECOMP",
+      "repository": {
+        "host": "github.com",
+        "id": "1276655209"
+      }
+    },
+    "decisions": []
+  }
+}

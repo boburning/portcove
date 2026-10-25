@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "god-hand-rearmed-kris-c-anderson-god-hand",
+    "name": "God Hand — God Hand: Rearmed (kris-c-anderson)",
+    "original_game_title": "God Hand",
+    "summary": "Work in progress. Stages1/2 and stage3 through GorillaMask/MadMidgetFive are reported played; stages4–8, ending, credits/extras remain unplayed. Saving/loading and listed minigames are claimed working. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/kris-c-anderson/godhand-rearmed",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kris-c-anderson/godhand-rearmed",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own USA SLUS-21503 version-label1.00 ISO (1567686656 bytes), upstream SHA256 268B8E284619BB9E07D5C522D7E7CFA14CB0498623D7FBA04A97D18B63BC0A7C. Boot ELF SLUS_215.03 (3607008 bytes), upstream SHA256 1742F95BEF65BDB2AA57B7A77DF4AC7619A092E9646E1EA325BC32EC8A64F3CD. The documented runtime still needs the own ISO; these are source claims, not Portcove acceptance."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Provide the own ISO; use upstream generate/SNR2-overlay/module/VU/configure/build steps to produce this fork's godhand.exe, then launch it with the same disc. Character generation is a separate optional mod-related step."
+        }
+      ],
+      "warnings": [
+        "Work in progress. Stages1/2 and stage3 through GorillaMask/MadMidgetFive are reported played; stages4–8, ending, credits/extras remain unplayed. Saving/loading and listed minigames are claimed working.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/kris-c-anderson/godhand-rearmed"
+    },
+    "issue_number": 3075
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "god-hand-ps2",
+    "origin": {
+      "project_url": "https://github.com/kris-c-anderson/godhand-rearmed",
+      "repository": {
+        "host": "github.com",
+        "id": "1429373816"
+      }
+    },
+    "decisions": []
+  }
+}

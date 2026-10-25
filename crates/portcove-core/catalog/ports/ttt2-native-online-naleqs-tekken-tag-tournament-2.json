@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ttt2-native-online-naleqs-tekken-tag-tournament-2",
+    "name": "Tekken Tag Tournament 2 — TTT2 Native Online (naleqs)",
+    "original_game_title": "Tekken Tag Tournament 2",
+    "summary": "Earlydevelopment: native60FPSmenus/select/intros/fights,localversus; online is lockstep/inputdelay; rollbackunfinished, music/voices silent. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/naleqs/TTT2-native-online",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/naleqs/TTT2-native-online",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own TekkenTagTournament2 USA/Europe Xbox360 ISO/extractedfolder; all gamefiles checksumverified, modified/otherrevisionsrefused. Optional userTU3 andDLC; olderTUsignored. Exact fingerprintmanifestnotcapturedhere."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release TTT2NativeOnline.exe Setupthegame or source Setup.bat; verifies/copies ownfiles, fetches SHA256checked portablecompiler(~250MB), translates Default.xexandcompiles into native/bin. Windows10/11x64AVX2,D3D11. Rebuild after codeupdates retains verified data."
+        }
+      ],
+      "warnings": [
+        "Earlydevelopment: native60FPSmenus/select/intros/fights,localversus; online is lockstep/inputdelay; rollbackunfinished, music/voices silent.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/naleqs/TTT2-native-online"
+    },
+    "issue_number": 3164
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "shihabal3amri-tekken-tag-tournament-2-pc",
+    "origin": {
+      "project_url": "https://github.com/naleqs/TTT2-native-online",
+      "repository": {
+        "host": "github.com",
+        "id": "1422895961"
+      }
+    },
+    "decisions": []
+  }
+}

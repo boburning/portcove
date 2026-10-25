@@ -6,6 +6,19 @@ use crate::{PersistentFilePattern, PortDefinition, PortcoveError, Result};
 const MAX_DIRECTORY_ENTRIES: usize = 4096;
 const MAX_MATCHING_FILES: usize = 1024;
 
+pub(crate) fn validate_mod_package_policy(port: &PortDefinition) -> Result<()> {
+    if port.mod_package_policy.is_some()
+        && (!ready_staged_archive(port)
+            || port.user_data_environment.is_some()
+            || !port.persistent_paths.iter().any(|path| path == "mods"))
+    {
+        return Err(PortcoveError::usage(
+            "versioned mod packages require a ready staged archive, the declared mods root and runtime-local data",
+        ));
+    }
+    Ok(())
+}
+
 /// A ready managed archive with at most one verified, persistent raw-file copy.
 /// Decide from the retained definition before collecting data from an install.
 pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
@@ -42,7 +55,9 @@ pub(crate) fn collect_before_first_launch(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn requires_restore_receipt(port: &PortDefinition) -> bool {
-    port.adapter == crate::AdapterKind::PsxRecompManaged || ready_staged_archive(port)
+    port.adapter == crate::AdapterKind::PsxRecompManaged
+        || ready_staged_archive(port)
+        || port.n64_runtime_at_executable_parent
 }
 
 impl PersistentFilePattern {
@@ -148,6 +163,45 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn versioned_mod_policy_is_explicit_and_bounded_to_ready_archives() {
+        let catalog = crate::test_fixture::versioned_mod_catalog();
+        let port = catalog.ports()[0].clone();
+        assert!(ready_staged_archive(&port));
+        for (field, value) in [
+            ("adapter", serde_json::json!("native-portable")),
+            (
+                "persistent_paths",
+                serde_json::json!(["saves", "mods/packages"]),
+            ),
+            ("setup_marker", serde_json::json!("saves/prepared.json")),
+            (
+                "user_data_environment",
+                serde_json::json!("PORTCOVE_USER_DATA"),
+            ),
+            (
+                "mod_package_policy",
+                serde_json::json!("unknown-future-policy"),
+            ),
+        ] {
+            let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+            document["ports"][0][field] = value;
+            assert!(
+                crate::Catalog::from_json(&document.to_string()).is_err(),
+                "{field}"
+            );
+        }
+        let mut old = port;
+        old.mod_package_policy = None;
+        assert!(ready_staged_archive(&old));
+        assert!(
+            serde_json::to_value(&old)
+                .unwrap()
+                .get("mod_package_policy")
+                .is_none()
+        );
+    }
 
     #[test]
     fn ready_raw_copy_requires_the_complete_persistent_source_contract() {

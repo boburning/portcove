@@ -1,6 +1,108 @@
 use super::*;
 use std::io::Cursor;
 
+#[test]
+fn general_zip_metadata_is_bounded_before_parser_construction() {
+    let mut bytes = archive(1, 0, b"small", b"");
+    let footer = bytes.len() - 22;
+    bytes[footer + 12..footer + 16].copy_from_slice(&(129_u32 * 1024 * 1024).to_le_bytes());
+    let error = crate::archive::open_zip(Cursor::new(bytes)).err().unwrap();
+    assert!(error.message.contains("metadata"), "{error}");
+}
+
+#[test]
+fn general_zip_preserves_prefixed_packages() {
+    let bytes = archive(1, 0, b"package", b"comment");
+    let mut prefixed = b"an executable prefix".to_vec();
+    prefixed.extend(&bytes);
+    let mut checked = crate::archive::open_zip(Cursor::new(prefixed)).unwrap();
+    let mut payload = Vec::new();
+    checked
+        .by_index(0)
+        .unwrap()
+        .read_to_end(&mut payload)
+        .unwrap();
+    assert_eq!(payload, b"package");
+    assert_eq!(checked.comment(), b"comment");
+}
+
+#[test]
+fn package_payloads_and_comments_can_contain_zip_signatures() {
+    let inner = archive(1, 0, b"inner", b"");
+    let outer = archive(1, 0, &inner, b"comment PK\x05\x06 bytes");
+    let mut checked = crate::archive::open_zip(Cursor::new(outer)).unwrap();
+    let mut payload = Vec::new();
+    checked
+        .by_index(0)
+        .unwrap()
+        .read_to_end(&mut payload)
+        .unwrap();
+    assert_eq!(payload, inner);
+    assert_eq!(checked.comment(), b"comment PK\x05\x06 bytes");
+}
+
+fn zip64_archive(payload: &[u8], extension: &[u8]) -> Vec<u8> {
+    let original = archive(1, 0, payload, b"");
+    let end = original.len() - 22;
+    let start = u32_at(&original, end + 16);
+    let size = u32_at(&original, end + 12);
+    let mut bytes = original[..end].to_vec();
+    let zip64 = bytes.len() as u64;
+    bytes.extend(b"PK\x06\x06");
+    put64(&mut bytes, 44 + extension.len() as u64);
+    put16(&mut bytes, 45);
+    put16(&mut bytes, 45);
+    put32(&mut bytes, 0);
+    put32(&mut bytes, 0);
+    put64(&mut bytes, 1);
+    put64(&mut bytes, 1);
+    put64(&mut bytes, u64::from(size));
+    put64(&mut bytes, u64::from(start));
+    bytes.extend(extension);
+    bytes.extend(b"PK\x06\x07");
+    put32(&mut bytes, 0);
+    put64(&mut bytes, zip64);
+    put32(&mut bytes, 1);
+    bytes.extend(b"PK\x05\x06");
+    for value in [0, 0, u16::MAX, u16::MAX] {
+        put16(&mut bytes, value);
+    }
+    put32(&mut bytes, u32::MAX);
+    put32(&mut bytes, u32::MAX);
+    put16(&mut bytes, 0);
+    bytes
+}
+
+#[test]
+fn bounded_zip64_supports_prefixes_extensions_and_payload_signatures() {
+    for prefix in [b"".as_slice(), b"executable-prefix".as_slice()] {
+        let mut extension = vec![0; 56];
+        extension[..4].copy_from_slice(b"PK\x06\x06");
+        let original = zip64_archive(b"payload PK\x06\x06 bytes", &extension);
+        let mut bytes = prefix.to_vec();
+        bytes.extend(original);
+        let mut checked = crate::archive::open_zip(Cursor::new(bytes)).unwrap();
+        let mut payload = Vec::new();
+        checked
+            .by_index(0)
+            .unwrap()
+            .read_to_end(&mut payload)
+            .unwrap();
+        assert_eq!(payload, b"payload PK\x06\x06 bytes");
+    }
+}
+
+#[test]
+fn zip64_extensible_data_is_bounded_before_parser_allocation() {
+    let mut bytes = zip64_archive(b"small", b"");
+    let record = bytes
+        .windows(4)
+        .position(|window| window == b"PK\x06\x06")
+        .unwrap();
+    bytes[record + 4..record + 12].copy_from_slice(&(1024_u64 * 1024 * 1024).to_le_bytes());
+    assert!(crate::archive::open_zip(Cursor::new(bytes)).is_err());
+}
+
 fn put16(bytes: &mut Vec<u8>, value: u16) {
     bytes.extend(value.to_le_bytes());
 }
@@ -309,6 +411,7 @@ fn malformed_metadata_still_consumes_the_storage_hashing_budget() {
         .copy_from_slice(&((MAX_DIRECTORY_BYTES as u32) + 1).to_le_bytes());
     std::fs::write(&path, &bytes).unwrap();
     let mut budget = crate::source_file::HashBudget {
+        checkpoint: None,
         operation: None,
         limit: bytes.len() as u64,
         hashed: 0,
@@ -319,4 +422,36 @@ fn malformed_metadata_still_consumes_the_storage_hashing_budget() {
             .is_err()
     );
     assert_eq!(budget.hashed, bytes.len() as u64);
+}
+
+#[test]
+fn every_zip_metadata_checkpoint_preserves_typed_cancellation() {
+    let bytes = archive(1, 0, b"payload", b"comment");
+    let mut checkpoints = 0;
+    crate::zip_read::open(Cursor::new(&bytes), crate::zip_read::FILE_SET, &mut |_| {
+        checkpoints += 1;
+        Ok(())
+    })
+    .unwrap();
+    for interrupted in 1..=checkpoints {
+        let mut current = 0;
+        let error =
+            crate::zip_read::open(Cursor::new(&bytes), crate::zip_read::FILE_SET, &mut |_| {
+                current += 1;
+                if current == interrupted {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "metadata cancellation",
+                    ))
+                } else {
+                    Ok(())
+                }
+            })
+            .unwrap_err();
+        assert_eq!(
+            error.code,
+            crate::ErrorCode::Cancelled,
+            "checkpoint {interrupted}"
+        );
+    }
 }

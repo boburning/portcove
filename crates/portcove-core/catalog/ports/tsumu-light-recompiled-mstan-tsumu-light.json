@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tsumu-light-recompiled-mstan-tsumu-light",
+    "name": "Tsumu Light — Tsumu Light Recompiled (mstan)",
+    "original_game_title": "Tsumu Light",
+    "summary": "BootsandplaysinEnglish claim; exactduration/levelsunknown Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mstan/TsumuLightRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/TsumuLightRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan SLPS02253 own disc; localgeneratedC; optionalEnglishtranslation runtime"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v0.0.1 localsetup; OpenBIOS/HLEbootskip"
+        }
+      ],
+      "warnings": [
+        "BootsandplaysinEnglish claim; exactduration/levelsunknown",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mstan/TsumuLightRecomp"
+    },
+    "issue_number": 3396,
+    "artwork": {
+      "game_id": 122545,
+      "cover_id": 516325,
+      "image_id": "cob2ed",
+      "image_sha256": "7dde0c758b6b26eb38cb74dc769dea77889f535cd79e535df24f7a5014459419",
+      "game_slug": "tsumu-light",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tsumu-light-ps1",
+    "origin": {
+      "project_url": "https://github.com/mstan/TsumuLightRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1291627253"
+      }
+    },
+    "decisions": []
+  }
+}

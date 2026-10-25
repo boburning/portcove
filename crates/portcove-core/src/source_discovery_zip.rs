@@ -4,7 +4,7 @@ use crate::{Catalog, PortcoveError, Result, SourceInspection, source_file::HashB
 use std::{collections::BTreeMap, fs::File, path::Path};
 
 pub(super) struct ZipFileSet {
-    archive: zip::ZipArchive<File>,
+    archive: zip::ZipArchive<crate::source_zip::CheckedReader>,
     members: Vec<(usize, String)>,
     identities: BTreeMap<usize, HashedNamedSource>,
     storage: (String, u64),
@@ -32,39 +32,20 @@ impl ZipFileSet {
         let expected = file.metadata()?.len();
         // A duplicate handle retains this artifact even if its pathname changes.
         // The storage pass rewinds it; by_index seeks before each member read.
-        let storage_file = file.try_clone()?;
-        let mut archive = crate::archive::open_zip(file)
-            .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?;
+        let limits = crate::zip_read::Limits {
+            bytes: maximum.min(crate::zip_read::FILE_SET.bytes),
+            entries: budget
+                .max_zip_entries
+                .min(crate::zip_read::FILE_SET.entries),
+            ..crate::zip_read::FILE_SET
+        };
+        let mut archive = crate::zip_read::open(file, limits, &mut |_| budget.checkpoint())?;
         if archive.len() > budget.max_zip_entries {
             return Err(PortcoveError::source(
                 "source ZIP has too many entries for discovery",
             ));
         }
-        let mut members = Vec::new();
-        for index in 0..archive.len() {
-            if let Some(operation) = &budget.operation {
-                operation.checkpoint()?;
-            }
-            let entry = archive.by_index(index).map_err(|error| {
-                PortcoveError::source(format!("invalid file-set ZIP entry: {error}"))
-            })?;
-            let name = entry
-                .enclosed_name()
-                .ok_or_else(|| PortcoveError::source("file-set ZIP contains an unsafe path"))?;
-            // Discovery never treats an archive symlink as game bytes.
-            if entry
-                .unix_mode()
-                .is_some_and(|mode| mode & 0o170000 == 0o120000)
-            {
-                return Err(PortcoveError::source("file-set ZIP contains a symlink"));
-            }
-            if entry.is_dir() || name.components().count() != 1 {
-                continue;
-            }
-            if let Some(name) = name.file_name().and_then(|name| name.to_str()) {
-                members.push((index, name.to_owned()));
-            }
-        }
+        let members = inventory(&mut archive, budget)?;
         let names = members
             .iter()
             .map(|(_, name)| name.clone())
@@ -75,8 +56,24 @@ impl ZipFileSet {
         {
             return Ok(None);
         }
-        let storage =
-            crate::source_file::read_storage_identity(storage_file, expected, maximum, budget)?;
+        budget.reserve(expected)?;
+        let checked = crate::source_zip::open_with_limits(
+            archive.into_inner().into_inner(),
+            limits,
+            &mut |bytes| {
+                budget.checkpoint()?;
+                budget.reserve(bytes)?;
+                budget.hashed += bytes;
+                Ok(())
+            },
+        )?;
+        let mut archive = checked.archive;
+        if checked.storage_size != expected || inventory(&mut archive, budget)? != members {
+            return Err(PortcoveError::source(
+                "source ZIP changed before its private inspection",
+            ));
+        }
+        let storage = (checked.storage_sha256, checked.storage_size);
         Ok(Some(Self {
             archive,
             members,
@@ -104,7 +101,9 @@ impl ZipFileSet {
             path,
             &names,
             self.storage.clone(),
-            &mut |accepted| self.member(accepted, maximum, budget),
+            &mut |accepted, selected_maximum| {
+                self.member(accepted, maximum.min(selected_maximum), budget)
+            },
         )?;
         validate_location(path)?;
         if std::fs::metadata(path)?.len() != self.storage.1 {
@@ -134,6 +133,11 @@ impl ZipFileSet {
             return Ok(None);
         };
         if let Some(identity) = self.identities.get(index) {
+            if identity.size > maximum {
+                return Err(PortcoveError::source(
+                    "file-set selected bytes exceed their size limit",
+                ));
+            }
             return Ok(Some(identity.clone()));
         }
         let (sha1, sha256, crc32, size) =
@@ -157,4 +161,34 @@ fn validate_location(path: &Path) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn inventory(
+    archive: &mut zip::ZipArchive<crate::source_zip::CheckedReader>,
+    budget: &HashBudget,
+) -> Result<Vec<(usize, String)>> {
+    let mut members = Vec::new();
+    for index in 0..archive.len() {
+        budget.checkpoint()?;
+        let entry = archive.by_index(index).map_err(|error| {
+            PortcoveError::source(format!("invalid file-set ZIP entry: {error}"))
+        })?;
+        let name = entry
+            .enclosed_name()
+            .ok_or_else(|| PortcoveError::source("file-set ZIP contains an unsafe path"))?;
+        // Discovery never treats an archive symlink as game bytes.
+        if entry
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000)
+        {
+            return Err(PortcoveError::source("file-set ZIP contains a symlink"));
+        }
+        if entry.is_dir() || name.components().count() != 1 {
+            continue;
+        }
+        if let Some(name) = name.file_name().and_then(|name| name.to_str()) {
+            members.push((index, name.to_owned()));
+        }
+    }
+    Ok(members)
 }

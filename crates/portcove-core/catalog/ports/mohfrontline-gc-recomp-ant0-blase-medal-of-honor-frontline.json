@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mohfrontline-gc-recomp-ant0-blase-medal-of-honor-frontline",
+    "name": "Medal of Honor: Frontline — MOHFrontline-GC-RECOMP (ant0-blase)",
+    "original_game_title": "Medal of Honor: Frontline",
+    "summary": "Research project. Upstream experimental Linux native Frontline with enhanced rendering claims; optional PS3 assets alter presentation, not source game architecture or PS3 executable identity. No Portcove gameplay comparison. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ant0-blase/MOHFrontline-GC-RECOMP",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ant0-blase/MOHFrontline-GC-RECOMP",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own GameCube USA GMFE69; optional separately owned PS3 textures/fonts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual GMFE69 GameCube source/native runtime route from README build and launcher sections. Optional PS3 remaster data requires a separately owned PS3_FILES tree or finalized retail PKG; no PS3 assets are included."
+        }
+      ],
+      "warnings": [
+        "Upstream experimental Linux native Frontline with enhanced rendering claims; optional PS3 assets alter presentation, not source game architecture or PS3 executable identity. No Portcove gameplay comparison.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ant0-blase/MOHFrontline-GC-RECOMP"
+    },
+    "issue_number": 3431,
+    "artwork": {
+      "game_id": 1309,
+      "cover_id": 140996,
+      "image_id": "co30sk",
+      "image_sha256": "69ba1c92b934b0c937b687f38a978b6e2eb757b88c44af3a6f7985a531daa896",
+      "game_slug": "medal-of-honor-frontline",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "medal-of-honor-frontline-gamecube",
+    "origin": {
+      "project_url": "https://github.com/ant0-blase/MOHFrontline-GC-RECOMP",
+      "repository": {
+        "host": "github.com",
+        "id": "1337865445"
+      }
+    },
+    "decisions": []
+  }
+}

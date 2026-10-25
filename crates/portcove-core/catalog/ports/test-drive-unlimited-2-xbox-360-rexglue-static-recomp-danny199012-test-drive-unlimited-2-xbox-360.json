@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "test-drive-unlimited-2-xbox-360-rexglue-static-recomp-danny199012-test-drive-unlimited-2-xbox-360",
+    "name": "Test Drive Unlimited 2 (Xbox 360) — Test Drive Unlimited 2 (Xbox 360) — ReXGlue Static Recomp (danny199012)",
+    "original_game_title": "Test Drive Unlimited 2 (Xbox 360)",
+    "summary": "A 47-minute session through licences/tournaments is reported; crashes and untested paths remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Test Drive Unlimited 2 (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build both Default.xex and TestDrive2_DLL.xex targets from own extracted disc; use the Release runtime."
+        }
+      ],
+      "warnings": [
+        "A 47-minute session through licences/tournaments is reported; crashes and untested paths remain.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp"
+    },
+    "issue_number": 3182,
+    "artwork": {
+      "game_id": 7216,
+      "cover_id": 282380,
+      "image_id": "co61vw",
+      "image_sha256": "c1cd8b5f319d1cf2f41450a5199cbecd51d81d64c9801860f719f58eb9379748",
+      "game_slug": "test-drive-unlimited-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "test-drive-unlimited-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1404223218"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "burnout-crash-pc-recompilation-kiesxoxo-burnout-crash",
+    "name": "Burnout CRASH! — Burnout CRASH! — PC recompilation (kiesxoxo)",
+    "original_game_title": "Burnout CRASH!",
+    "summary": "One-PC testing with limited further coverage; broad completion unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/kiesxoxo/burnout-crash-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kiesxoxo/burnout-crash-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Burnout CRASH! Xbox 360 XBLA package or its complete extracted files. Title 58410B5D/media 734ABC74 with TU 3; exact DEFAULT.XEX and DLL/CRASH.DLL.XEX SHA256s in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "setup.ps1 obtains tools and locally generates/builds both game modules from own TU 3 package."
+        }
+      ],
+      "warnings": [
+        "One-PC testing with limited further coverage; broad completion unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/kiesxoxo/burnout-crash-recomp"
+    },
+    "issue_number": 3289,
+    "artwork": {
+      "game_id": 20160,
+      "cover_id": 94733,
+      "image_id": "co213h",
+      "image_sha256": "280b7b8e26e17685255e8353658be5d202ec691b48f52772a306c62088fd1428",
+      "game_slug": "burnout-crash",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "burnout-crash-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/kiesxoxo/burnout-crash-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1410165664"
+      }
+    },
+    "decisions": []
+  }
+}

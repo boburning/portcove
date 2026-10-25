@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-glintburn-acfa-port-sulphurs16-armored-core-for-answer",
+    "name": "Armored Core: For Answer — Project Glintburn ACFA-Port (SulphurS16)",
+    "original_game_title": "Armored Core: For Answer",
+    "summary": "Upstream presents native missions/mouse/high-framerate play route; no full-playthrough verification here Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SulphurS16/ACFA-Port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SulphurS16/ACFA-Port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA BLUS30187 disc folder; owned Sony 4.93 PUP/RPCS3 preparation; optional update01.35 PKG"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release launcher; local translation/compile; game files and firmware persist locally"
+        }
+      ],
+      "warnings": [
+        "Upstream presents native missions/mouse/high-framerate play route; no full-playthrough verification here",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/SulphurS16/ACFA-Port"
+    },
+    "issue_number": 3311,
+    "artwork": {
+      "game_id": 5493,
+      "cover_id": 300659,
+      "image_id": "co6fzn",
+      "image_sha256": "06fa2288439bb78c4526dfbc0fcebbd5685813eb555f8bdfe8d01295bed686cc",
+      "game_slug": "armored-core-for-answer",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "armored-core-for-answer-ps3",
+    "origin": {
+      "project_url": "https://github.com/SulphurS16/ACFA-Port",
+      "repository": {
+        "host": "github.com",
+        "id": "1422297273"
+      }
+    },
+    "decisions": []
+  }
+}

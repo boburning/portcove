@@ -4,7 +4,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
-import { timeoutProbeContext, verifyJobTimeoutProbe } from "./ci-job-timeout-probe.mts";
+import {
+  timeoutProbeContext,
+  verifyJobTimeoutProbe as verifyProbe,
+  type TimeoutProbeContext,
+} from "./ci-job-timeout-probe.mts";
 
 const context = { source: "a".repeat(40), run: "123", attempt: "2" };
 const ready = {
@@ -40,6 +44,7 @@ const probe = {
   id: 1,
   name: "controlled-job-timeout",
   head_sha: context.source,
+  check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/11",
   run_id: 123,
   run_attempt: 2,
   status: "completed",
@@ -48,6 +53,29 @@ const probe = {
   completed_at: "2026-10-25T12:05:00Z",
   steps,
 };
+
+const timeoutMetadata = {
+  check: {
+    id: 11,
+    url: probe.check_run_url,
+    head_sha: context.source,
+    status: "completed",
+    conclusion: "timed_out",
+    output: { annotations_count: 1 },
+  },
+  annotations: [
+    {
+      annotation_level: "failure",
+      message: "The job has exceeded the maximum execution time of 5m0s",
+    },
+  ],
+};
+const verifyJobTimeoutProbe = (
+  jobs: unknown,
+  log: string,
+  context: TimeoutProbeContext,
+  metadata: unknown = timeoutMetadata,
+) => verifyProbe(jobs, log, context, metadata);
 const jobs = {
   total_count: 2,
   jobs: [
@@ -75,6 +103,43 @@ void test("timeout observation keeps the original timed-out outcome and separate
   );
 });
 
+void test("runner cancellation requires the exact complete job-timeout annotation", () => {
+  const cancelled = { ...jobs, jobs: [{ ...probe, conclusion: "cancelled" }, jobs.jobs[1]] };
+  const metadata = {
+    ...timeoutMetadata,
+    check: { ...timeoutMetadata.check, conclusion: "cancelled" },
+  };
+  assert.equal(verifyJobTimeoutProbe(cancelled, log(), context, metadata).job_outcome, "cancelled");
+  for (const annotations of [
+    [],
+    [{ annotation_level: "failure", message: "The operation was canceled." }],
+    [...timeoutMetadata.annotations, ...timeoutMetadata.annotations],
+  ])
+    assert.throws(() =>
+      verifyJobTimeoutProbe(cancelled, log(), context, {
+        ...metadata,
+        annotations,
+        check: { ...metadata.check, output: { annotations_count: annotations.length } },
+      }),
+    );
+  for (const patch of [
+    { head_sha: "b".repeat(40) },
+    { status: "in_progress" },
+    { conclusion: "success" },
+    { id: 12 },
+    { url: "https://api.github.com/repos/other/repo/check-runs/11" },
+    { output: { annotations_count: 2 } },
+  ])
+    assert.throws(() =>
+      verifyJobTimeoutProbe(cancelled, log(), context, {
+        ...metadata,
+        check: { ...metadata.check, ...patch },
+      }),
+    );
+  for (const value of [null, {}, { check: metadata.check, annotations: "missing" }])
+    assert.throws(() => verifyJobTimeoutProbe(cancelled, log(), context, value));
+});
+
 void test("timeout job inventory refuses omissions, duplicates, stale contexts and early failures", () => {
   for (const value of [
     null,
@@ -93,7 +158,7 @@ void test("timeout job inventory refuses omissions, duplicates, stale contexts a
     { run_attempt: undefined },
     { status: "in_progress" },
     { conclusion: "failure" },
-    { conclusion: "cancelled" },
+    { conclusion: "success" },
     { completed_at: "2026-10-25T12:00:10Z" },
     { completed_at: "2026-10-25T12:10:00Z" },
   ])
@@ -190,14 +255,15 @@ void test("manual timeout rehearsal retains finite budgets, normal failure and i
   assert.equal(rust.uses, "./.github/actions/setup-rust");
   const run: unknown = probe.steps[3];
   assert.ok(isRecord(run));
-  assert.equal(run.run, "node scripts/ci-job-timeout-probe.mts run");
+  assert.equal(run.run, "exec node scripts/ci-job-timeout-probe.mts run");
   assert.equal(verify.needs, "probe");
   assert.equal(verify.if, "always()");
-  assert.deepEqual(verify.permissions, { contents: "read", actions: "read" });
+  assert.deepEqual(verify.permissions, { contents: "read", actions: "read", checks: "read" });
   const final: unknown = verify.steps[2];
   assert.ok(isRecord(final) && typeof final.run === "string");
   assert.match(final.run, /attempts\/\$GITHUB_RUN_ATTEMPT\/jobs\?per_page=100/u);
   assert.match(final.run, /ci-job-timeout-probe\.mts verify/u);
+  assert.match(final.run, /annotations\?per_page=100/u);
 });
 
 void test("timeout context refuses missing or malformed source/run/attempt", () => {

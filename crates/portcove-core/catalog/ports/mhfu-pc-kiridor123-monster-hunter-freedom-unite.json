@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mhfu-pc-kiridor123-monster-hunter-freedom-unite",
+    "name": "Monster Hunter Freedom Unite — MHFU-PC (Kiridor123)",
+    "original_game_title": "Monster Hunter Freedom Unite",
+    "summary": "PokkenativeAOTVulkan/SDL3; gameplay/saveclaimsareupstreamonly; EU MHForeverdifferent sourceedition. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Kiridor123/MHFU-PC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Kiridor123/MHFU-PC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA ULUS10391 v1.01 ISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Pokke.exe fromReleases plusownISO; LinuxAppImagebuildgenerateslocally."
+        }
+      ],
+      "warnings": [
+        "PokkenativeAOTVulkan/SDL3; gameplay/saveclaimsareupstreamonly; EU MHForeverdifferent sourceedition.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Kiridor123/MHFU-PC"
+    },
+    "issue_number": 3095,
+    "artwork": {
+      "game_id": 20427,
+      "cover_id": 592783,
+      "image_id": "cocpe7",
+      "image_sha256": "4f36e8170fbe53a32d39088379641617c06d047c92f785db334bad2181621f09",
+      "game_slug": "monster-hunter-freedom-unite",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dudux42-freedomunbound",
+    "origin": {
+      "project_url": "https://github.com/Kiridor123/MHFU-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1419945547"
+      }
+    },
+    "decisions": []
+  }
+}

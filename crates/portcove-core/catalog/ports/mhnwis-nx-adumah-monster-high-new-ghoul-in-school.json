@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mhnwis-nx-adumah-monster-high-new-ghoul-in-school",
+    "name": "Monster High: New Ghoul in School — mhnwis-nx (adumah)",
+    "original_game_title": "Monster High: New Ghoul in School",
+    "summary": "Linux boot/movies/gameplay/save-load reported near60 FPS on SteamDeck. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/adumah/mhnwis-nx",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/adumah/mhnwis-nx",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Monster High: New Ghoul in School Xbox 360 disc ISO or extracted full disc files. USA; title 373407DA/media 323E519F/XEX version 5."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use Linux build-from-disc instructions and own USA MonsterHigh disc; Switch packages are outside this intake."
+        }
+      ],
+      "warnings": [
+        "Linux boot/movies/gameplay/save-load reported near60 FPS on SteamDeck.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/adumah/mhnwis-nx"
+    },
+    "issue_number": 3244,
+    "artwork": {
+      "game_id": 19318,
+      "cover_id": 296169,
+      "image_id": "co6cix",
+      "image_sha256": "c8c014783f8ccf74537503e808658d3d6e19f921b8909ebffadfd58cd9dbbfa1",
+      "game_slug": "monster-high-new-ghoul-in-school",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "monster-high-new-ghoul-in-school-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/adumah/mhnwis-nx",
+      "repository": {
+        "host": "github.com",
+        "id": "1427628039"
+      }
+    },
+    "decisions": []
+  }
+}

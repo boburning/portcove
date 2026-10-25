@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bloodborne-mac-bloodborne-native-bloodborne",
+    "name": "Bloodborne — bloodborne-mac (bloodborne-native)",
+    "original_game_title": "Bloodborne",
+    "summary": "Research project. Upstream experimental native CPU/compiler project, oneM3Pro three-hour new-game median42FPS/Metal and31MoltenVK; crashes/loading hangs/corruption possible, no complete playthrough claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/bloodborne-native/bloodborne-mac",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bloodborne-native/bloodborne-mac",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 Bloodborne dump; exact accepted title/update needs runtime source profile."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream macOS app release is described: choose own game folder and Play. Treat as manual research information until source/profile/package integrity reviewed; no Rosetta or CPU-emulator route inferred."
+        }
+      ],
+      "warnings": [
+        "Upstream experimental native CPU/compiler project, oneM3Pro three-hour new-game median42FPS/Metal and31MoltenVK; crashes/loading hangs/corruption possible, no complete playthrough claim.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/bloodborne-native/bloodborne-mac"
+    },
+    "issue_number": 3446,
+    "artwork": {
+      "game_id": 7334,
+      "cover_id": 525225,
+      "image_id": "cob99l",
+      "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
+      "game_slug": "bloodborne",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "awakenchan-lanternengine",
+    "origin": {
+      "project_url": "https://github.com/bloodborne-native/bloodborne-mac",
+      "repository": {
+        "host": "github.com",
+        "id": "1413762075"
+      }
+    },
+    "decisions": []
+  }
+}

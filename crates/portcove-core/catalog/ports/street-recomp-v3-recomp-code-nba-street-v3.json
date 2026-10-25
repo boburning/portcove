@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "street-recomp-v3-recomp-code-nba-street-v3",
+    "name": "NBA Street V3 — street-recomp-v3 (recomp-code)",
+    "original_game_title": "NBA Street V3",
+    "summary": "Native game with optional renderer helper process and online claims; must inspect helper protocol before shell/adaptor assumptions. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/recomp-code/street-recomp-v3",
+    "platforms": ["windows-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/recomp-code/street-recomp-v3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21126 ISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows release self-builds; macOS app selects own ISO, developer local build; generic external acquisition owner."
+        }
+      ],
+      "warnings": [
+        "Native game with optional renderer helper process and online claims; must inspect helper protocol before shell/adaptor assumptions.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/recomp-code/street-recomp-v3"
+    },
+    "issue_number": 3052
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nba-street-v3-ps2",
+    "origin": {
+      "project_url": "https://github.com/recomp-code/street-recomp-v3",
+      "repository": {
+        "host": "github.com",
+        "id": "1414860978"
+      }
+    },
+    "decisions": []
+  }
+}

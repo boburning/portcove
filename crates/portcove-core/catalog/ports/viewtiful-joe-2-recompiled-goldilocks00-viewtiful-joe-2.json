@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "viewtiful-joe-2-recompiled-goldilocks00-viewtiful-joe-2",
+    "name": "Viewtiful Joe 2 — viewtiful-joe-2-recompiled (goldilocks00)",
+    "original_game_title": "Viewtiful Joe 2",
+    "summary": "Research project. Upstream native Capcom/title/menus and first combats/movement; progression stuck at Slow tutorial02. Audio signal detected; quality/saves/first-level/full-game not validated. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/goldilocks00/viewtiful-joe-2-recompiled",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/goldilocks00/viewtiful-joe-2-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own GameCube Europe G2VP08 revision0."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual own-CISO source route: fetch_sources.py, optional bootstrap_deps.py, tools/project.sh tools/prepare/build/run. Generates local DolRecomp/runtime artifacts; no game download."
+        }
+      ],
+      "warnings": [
+        "Upstream native Capcom/title/menus and first combats/movement; progression stuck at Slow tutorial02. Audio signal detected; quality/saves/first-level/full-game not validated.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/goldilocks00/viewtiful-joe-2-recompiled"
+    },
+    "issue_number": 3428,
+    "artwork": {
+      "game_id": 4230,
+      "cover_id": 94826,
+      "image_id": "co2162",
+      "image_sha256": "6da0db8df087a0f2abd05ef693907710616500e7a9823e0f72e1867514c6dca9",
+      "game_slug": "viewtiful-joe-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "viewtiful-joe-2-gamecube",
+    "origin": {
+      "project_url": "https://github.com/goldilocks00/viewtiful-joe-2-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1421312672"
+      }
+    },
+    "decisions": []
+  }
+}

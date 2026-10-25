@@ -25,7 +25,6 @@ import {
   qualificationWorkflow,
   qualityGuide,
   windowsQualificationRunner,
-  fastRust,
   fastRustTests,
   fastRustQuality,
   rustTests,
@@ -133,19 +132,19 @@ void test("storage setup policy distinguishes executable setup from harmless tes
 });
 
 void test("runtime diagnostics retain complete Windows and Linux typed fixture evidence", () => {
-  assert.match(fastRust, /runs-on: windows-latest/u);
+  assert.match(fastRustTests, /runs-on: windows-latest/u);
   assert.match(
-    fastRust,
+    fastRustTests,
     /PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR: .*\/work\/runtime-diagnostics\/windows/u,
   );
   assert.match(fastRustTests, /windows-rust-tests\.mts run/u);
-  assert.match(fastRust, /PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=.*GITHUB_ENV/u);
+  assert.match(fastRustTests, /PORTCOVE_DIAGNOSTICS_SOURCE_REVISION=.*GITHUB_ENV/u);
   assert.match(
     fastRustQuality,
     /uses: \.\/\.github\/actions\/setup-rust\n\s+if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\)\n\s+with:\n\s+test-fixtures: true/u,
   );
   assert.match(
-    fastRust,
+    fastRustTests,
     /- name: Retain runtime diagnostics acceptance and latency evidence\n\s+if: always\(\)/u,
   );
   const linuxFixture = requiredFixture(
@@ -1073,10 +1072,11 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   // Parse the actual configuration consumed by nextest, using the same TOML
   // implementation already used by production nextest-equivalence selection.
   const parsed = spawnSync(
-    "python",
+    process.platform === "win32" ? "python" : "python3",
     ["-c", "import sys,json,tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))"],
     { input: config, encoding: "utf8", timeout: 5000, windowsHide: true },
   );
+  assert.ifError(parsed.error);
   assert.equal(parsed.status, 0, parsed.stderr);
   const document: unknown = JSON.parse(parsed.stdout);
   assert.ok(isRecord(document) && isRecord(document.profile));

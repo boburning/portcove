@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3",
+    "name": "Midtown Madness 3 — Midtown Madness 3 — Static Recompilation (taxidriverhk)",
+    "original_game_title": "Midtown Madness 3",
+    "summary": "Upstream estimates roughly 80%; boots, movies, loading screens and full Paris/Washington races with audio/gamepad at about 40–50FPS and 2x internal resolution; ten-minute sessions claimed. New supersampling/FXAA, resizable 4:3 window, cached background shader compilation and rumble forwarding remain upstream claims. Loading/results hitches, occasional missing colour grade, 43 unchecked caller-flag-sensitive functions and unconfirmed physical rumble remain; networking stubbed out. No full progression/completion or Portcove runtime qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/taxidriverhk/mm3recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/taxidriverhk/mm3recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Midtown Madness 3 Original Xbox complete extracted game files, including the original executable. Title 4D53002A; XBE build2003-05-08/XDK5233; SHA1 e63b03dd956544d3838bead8be5622da6cd189e1."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract own retail Xbox disc and run the full regenerate/MSVC pipeline; game data remains needed at runtime."
+        }
+      ],
+      "warnings": [
+        "Upstream estimates roughly 80%; boots, movies, loading screens and full Paris/Washington races with audio/gamepad at about 40–50FPS and 2x internal resolution; ten-minute sessions claimed. New supersampling/FXAA, resizable 4:3 window, cached background shader compilation and rumble forwarding remain upstream claims. Loading/results hitches, occasional missing colour grade, 43 unchecked caller-flag-sensitive functions and unconfirmed physical rumble remain; networking stubbed out. No full progression/completion or Portcove runtime qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/taxidriverhk/mm3recomp"
+    },
+    "issue_number": 3455,
+    "artwork": {
+      "game_id": 5929,
+      "cover_id": 205808,
+      "image_id": "co4esw",
+      "image_sha256": "888cf0e287d705f4688fc1a4e203efc7e8046965c260500f0412aa4f9d659451",
+      "game_slug": "midtown-madness-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "midtown-madness-3-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/taxidriverhk/mm3recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431918853"
+      }
+    },
+    "decisions": []
+  }
+}

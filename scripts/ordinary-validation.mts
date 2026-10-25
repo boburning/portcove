@@ -373,6 +373,7 @@ const workflowFeatureTests = [
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
   ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
   [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
   ...[
@@ -2014,6 +2015,13 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  if (
+    /^apps\/desktop\/scripts\/[^/]+\.native\.test\.mts$/u.test(file) ||
+    file === "vite.config.ts" ||
+    file === ".github/workflows/ci.yml"
+  )
+    addNodeTest(selection, "scripts/node-test-inventory.test.mts");
+
   if (
     file.startsWith("docs/") &&
     /\.ya?ml$/u.test(file) &&

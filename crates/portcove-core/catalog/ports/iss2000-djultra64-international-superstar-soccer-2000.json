@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "iss2000-djultra64-international-superstar-soccer-2000",
+    "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
+    "original_game_title": "International Superstar Soccer 2000",
+    "summary": "Early development, PAL career/training native route; alignment/render issues. Windows intro only observed upstream and close test cancelled, not full gameplay acceptance. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/djultra64/ISS2000",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/djultra64/ISS2000",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe English/German revision0 ROM SHA256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README v0.7.1 portable OS packages choose owned ROM; exact assets/source tree pins need readback."
+        }
+      ],
+      "warnings": [
+        "Early development, PAL career/training native route; alignment/render issues. Windows intro only observed upstream and close test cancelled, not full gameplay acceptance.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/djultra64/ISS2000"
+    },
+    "issue_number": 3584
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "international-superstar-soccer-2000-n64",
+    "origin": {
+      "project_url": "https://github.com/djultra64/ISS2000",
+      "repository": {
+        "host": "github.com",
+        "id": "1425032638"
+      }
+    },
+    "decisions": []
+  }
+}

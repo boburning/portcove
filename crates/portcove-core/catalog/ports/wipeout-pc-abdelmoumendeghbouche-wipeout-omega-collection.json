@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wipeout-pc-abdelmoumendeghbouche-wipeout-omega-collection",
+    "name": "WipEout Omega Collection — wipeout_pc (AbdelmoumenDeghbouche)",
+    "original_game_title": "WipEout Omega Collection",
+    "summary": "Research project. Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in2048 on RTX4070Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture sincev0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 WipEout Omega Collection dump: README declares CUSA07671 US base01.00+update01.07 as development target and CUSA05670 EU with version unspecified. Merge owned base/update files or supply GOW3_PATCH_DIR; GoldHEN folder dumps are also documented. Runtime reads owned eboot.bin and game files and links own libc/Fios2/NpToolkit2. One executable serves 2048/HD/Fury; no separate implementation per component. Exact accepted executable/asset fingerprints remain Unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream README declares wipeout-windows.zip from Releases. Extract it, run WipEout.exe and select the owned game folder containing eboot.bin. Supply the matching owned base/update data as documented; runtime continues reading original files. Windows source build uses MSYS2 CLANG64/Python and upstream build.sh; Linux has a source-build route without a package or stated CPU matrix. No release asset was downloaded or verified. This manual discovery route is not managed acquisition or runtime qualification."
+        }
+      ],
+      "warnings": [
+        "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in2048 on RTX4070Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture sincev0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc"
+    },
+    "issue_number": 3464,
+    "artwork": {
+      "game_id": 26195,
+      "cover_id": 117762,
+      "image_id": "co2iv6",
+      "image_sha256": "0f45789393ff7e10aa1e4f1f0550c1175476019adf78e922e0bc44fe592be8b1",
+      "game_slug": "wipeout-omega-collection",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wipeout-omega-collection-ps4",
+    "origin": {
+      "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1423948474"
+      }
+    },
+    "decisions": []
+  }
+}

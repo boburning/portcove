@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "outrun-online-arcade-pc-recompilation-sp00nznet-outrun-online-arcade",
+    "name": "OutRun Online Arcade — OutRun Online Arcade — PC Recompilation (sp00nznet)",
+    "original_game_title": "OutRun Online Arcade",
+    "summary": "Links but crashes in guest global initialization before rendering/gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/outrun",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/outrun",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own OutRun Online Arcade Xbox 360 XBLA package or its complete extracted files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build SDK, generate code and compile Windows target from own OutRunOnlineArcade executable."
+        }
+      ],
+      "warnings": [
+        "Links but crashes in guest global initialization before rendering/gameplay.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/outrun"
+    },
+    "issue_number": 3299
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "outrun-online-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/outrun",
+      "repository": {
+        "host": "github.com",
+        "id": "1273568307"
+      }
+    },
+    "decisions": []
+  }
+}

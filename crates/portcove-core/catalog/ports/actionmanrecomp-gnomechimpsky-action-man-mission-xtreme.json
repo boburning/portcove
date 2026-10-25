@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "actionmanrecomp-gnomechimpsky-action-man-mission-xtreme",
+    "name": "Action Man: Mission Xtreme — ActionManRecomp (GnomeChimpsky)",
+    "original_game_title": "Action Man: Mission Xtreme",
+    "summary": "Research project. Upstream preview boots/plays tested parts; full playthrough not verified. Linux virtual-display-only and Windows cross-compile evidence must not become physical/native host gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/GnomeChimpsky/ActionManRecomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GnomeChimpsky/ActionManRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 PAL SLES01761."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README describes matching platform ZIP, ActionManRecomp executable and launcher selecting own PAL SLES-01761 CUE/BIN. Background level compilation/cache and source patch/build route require separate integrity review."
+        }
+      ],
+      "warnings": [
+        "Upstream preview boots/plays tested parts; full playthrough not verified. Linux virtual-display-only and Windows cross-compile evidence must not become physical/native host gameplay qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/GnomeChimpsky/ActionManRecomp"
+    },
+    "issue_number": 3439
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "action-man-mission-xtreme-ps1",
+    "origin": {
+      "project_url": "https://github.com/GnomeChimpsky/ActionManRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427481947"
+      }
+    },
+    "decisions": []
+  }
+}

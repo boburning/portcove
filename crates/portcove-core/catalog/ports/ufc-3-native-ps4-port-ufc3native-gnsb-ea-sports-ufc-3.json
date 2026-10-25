@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ufc-3-native-ps4-port-ufc3native-gnsb-ea-sports-ufc-3",
+    "name": "EA Sports UFC 3 — UFC 3 native PS4 port (UFC3Native) (GNSB)",
+    "original_game_title": "EA Sports UFC 3",
+    "summary": "Research project. Upstream playable menus/fights/audio/controls/saves and bounded career fixes; long-session memory/performance and campaign acceptance are not Portcove-qualified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/GNSB/UFC-3-PS4-PORT-LINUX-WINDOWS",
+    "platforms": ["linux-x86-64", "windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GNSB/UFC-3-PS4-PORT-LINUX-WINDOWS",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 CUSA06534 update1.14 own base/update."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual upstream0.1.9 WindowsZIP/UFC3.exe or Linux source route; own CUSA06534 base+1.14 update merged by merge_update.py. Runtime continues reading owned files; no package validation performed."
+        }
+      ],
+      "warnings": [
+        "Upstream playable menus/fights/audio/controls/saves and bounded career fixes; long-session memory/performance and campaign acceptance are not Portcove-qualified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/GNSB/UFC-3-PS4-PORT-LINUX-WINDOWS"
+    },
+    "issue_number": 3448,
+    "artwork": {
+      "game_id": 75297,
+      "cover_id": 77864,
+      "image_id": "co1o2w",
+      "image_sha256": "a0abe8502585f105984c722532697fe59626775b93dc895bd797ef76fc079cde",
+      "game_slug": "ea-sports-ufc-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ea-sports-ufc-3-ps4",
+    "origin": {
+      "project_url": "https://github.com/GNSB/UFC-3-PS4-PORT-LINUX-WINDOWS",
+      "repository": {
+        "host": "github.com",
+        "id": "1419442607"
+      }
+    },
+    "decisions": []
+  }
+}

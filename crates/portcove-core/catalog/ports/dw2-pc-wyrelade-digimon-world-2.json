@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dw2-pc-wyrelade-digimon-world-2",
+    "name": "Digimon World 2 — DW2-PC (Wyrelade)",
+    "original_game_title": "Digimon World 2",
+    "summary": "Beta; native PC port based1088matching functions; wider gameplay must remain upstream claim Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Wyrelade/DW2-PC",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Wyrelade/DW2-PC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS01193 owned disc, per-file digest checks; locally built data pack"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "ReleaseZIPs; own disc local extraction to data pack; source compile"
+        }
+      ],
+      "warnings": [
+        "Beta; native PC port based1088matching functions; wider gameplay must remain upstream claim",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Wyrelade/DW2-PC"
+    },
+    "issue_number": 3350,
+    "artwork": {
+      "game_id": 36508,
+      "cover_id": 85711,
+      "image_id": "co1u4v",
+      "image_sha256": "26270ce540b53c94de9dde72607de9d641c36a2f9c55df661b53102d8b1fca75",
+      "game_slug": "digimon-world-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "digimon-world-2-ps1",
+    "origin": {
+      "project_url": "https://github.com/Wyrelade/DW2-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1411378799"
+      }
+    },
+    "decisions": []
+  }
+}

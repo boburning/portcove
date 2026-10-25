@@ -4,7 +4,17 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, readFile, rm, chmod, link, readdir } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  writeFile,
+  readFile,
+  rm,
+  chmod,
+  link,
+  readdir,
+  symlink,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -365,7 +375,11 @@ void test("actual relay stream refuses an over-budget write before any downstrea
 
 void test(
   "actual Linux profile snapshot restores full library/WebView bytes and refuses changed or imported paths",
-  { skip: process.platform !== "linux" },
+  {
+    skip:
+      process.platform !== "linux" &&
+      "platform: linux; requires Linux private profile boundaries; route: ci.yml/frontend_full (native:tools)",
+  },
   async (context) => {
     const root = await mkdtemp(path.join(tmpdir(), "portcove-public-profile-"));
     context.after(() => rm(root, { recursive: true, force: true }));
@@ -596,3 +610,69 @@ void test("Linux semantic choices cannot conceal a moved WebKit or library profi
     /library path/u,
   );
 });
+
+void test(
+  "settled profile snapshots refuse unsafe names, writable entries and symlinks before publication",
+  {
+    skip:
+      process.platform !== "linux" &&
+      "platform: linux; requires Linux private profile boundaries; route: ci.yml/frontend_full (native:tools)",
+  },
+  async (context) => {
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-profile-entry-refusal-"));
+    context.after(() => rm(root, { recursive: true, force: true }));
+    const unrelated = path.join(root, "unrelated");
+    await writeFile(unrelated, "player-owned bytes");
+    const payload = Buffer.from("fixed staged payload");
+    const identity = {
+      bytes: payload.length,
+      sha256: createHash("sha256").update(payload).digest("hex"),
+    };
+    for (const kind of [
+      "valid",
+      "trailing-dot",
+      "trailing-space",
+      "writable-file",
+      "writable-directory",
+      "symlink",
+    ]) {
+      const area = path.join(root, kind),
+        runtime = path.join(area, "runtime");
+      await mkdir(path.join(runtime, "staging"), { recursive: true, mode: 0o700 });
+      await writeFile(path.join(runtime, "staging", "candidate-installer.exe"), payload, {
+        mode: 0o600,
+      });
+      const unsafe = path.join(
+        runtime,
+        kind === "trailing-dot" ? "unsafe." : kind === "trailing-space" ? "unsafe " : "unsafe",
+      );
+      if (kind === "symlink") await symlink(unrelated, unsafe);
+      else if (kind === "writable-directory") {
+        await mkdir(unsafe);
+        await chmod(unsafe, 0o777);
+      } else {
+        await writeFile(unsafe, "private bytes", { mode: 0o600 });
+        if (kind === "writable-file") await chmod(unsafe, 0o666);
+      }
+      const store = await createPublicUpdatePreimageStore(path.join(area, "store"));
+      const output = path.join(area, "snapshot");
+      if (kind === "valid") {
+        const retained = await retainPublicUpdateProfile(
+          runtime,
+          output,
+          store,
+          performance.now() + 10000,
+          identity,
+        );
+        assert.match(retained.sha256, /^[a-f0-9]{64}$/u);
+        continue;
+      }
+      await assert.rejects(
+        retainPublicUpdateProfile(runtime, output, store, performance.now() + 10000, identity),
+        kind,
+      );
+      await assert.rejects(readFile(path.join(output, "profile.json")), { code: "ENOENT" });
+      assert.equal(await readFile(unrelated, "utf8"), "player-owned bytes");
+    }
+  },
+);

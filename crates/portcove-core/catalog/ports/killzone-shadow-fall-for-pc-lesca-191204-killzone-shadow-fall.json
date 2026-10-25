@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killzone-shadow-fall-for-pc-lesca-191204-killzone-shadow-fall",
+    "name": "Killzone: Shadow Fall — Killzone Shadow Fall for PC (lesca-191204)",
+    "original_game_title": "Killzone: Shadow Fall",
+    "summary": "Author claims complete campaign Ryzen75700/RTX2060Super; AMDGPU/IntelCPU untested Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/lesca-191204/killzone-shadowfall-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/lesca-191204/killzone-shadowfall-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "CUSA00190 update01.81 tested; own decrypted folder eboot; other regions listed but not validated"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Publicbeta0.5.0 runtimeZIP launcher imports own dump"
+        }
+      ],
+      "warnings": [
+        "Author claims complete campaign Ryzen75700/RTX2060Super; AMDGPU/IntelCPU untested",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/lesca-191204/killzone-shadowfall-pc"
+    },
+    "issue_number": 3351,
+    "artwork": {
+      "game_id": 1937,
+      "cover_id": 86976,
+      "image_id": "co1v40",
+      "image_sha256": "2dfba045049b748fe56c3bf00de8ab48580b0394471dc1a336edd2db76f567d5",
+      "game_slug": "killzone-shadow-fall",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "killzone-shadow-fall-ps4",
+    "origin": {
+      "project_url": "https://github.com/lesca-191204/killzone-shadowfall-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1422341725"
+      }
+    },
+    "decisions": []
+  }
+}

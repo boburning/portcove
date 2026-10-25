@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "oceantrirecomp-krisztsa-monster-hunter-tri",
+    "name": "Monster Hunter Tri — OceanTriRecomp (krisztsa)",
+    "original_game_title": "Monster Hunter Tri",
+    "summary": "Upstream presents a native game runtime with integrated graphics, controls and save management; this README does not give a complete-playthrough result. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/krisztsa/OceanTriRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/krisztsa/OceanTriRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own RMHP08 .iso or .rvz. Select or extract the image using the runtime setup. Original assets are still needed; upstream says its downloads do not contain the game."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README declares author-published compiled releases and v1.9.0; use the official runtime package and supply the owned image in its setup. Source alternative: CMake 3.22+, Ninja and C++20 Clang or Visual Studio 2022. Setup is not described as recompiling the game locally."
+        }
+      ],
+      "warnings": [
+        "Upstream presents a native game runtime with integrated graphics, controls and save management; this README does not give a complete-playthrough result.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/krisztsa/OceanTriRecomp"
+    },
+    "issue_number": 3419,
+    "artwork": {
+      "game_id": 2268,
+      "cover_id": 130623,
+      "image_id": "co2ssf",
+      "image_sha256": "abc8c2ce40aadbf898611d982cccfe3e2fcc6c4f531afb42fa6ef3d489190d92",
+      "game_slug": "monster-hunter-tri",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "monster-hunter-tri-wii",
+    "origin": {
+      "project_url": "https://github.com/krisztsa/OceanTriRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427593979"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mahmoud-mess-tekken-6-recomp-mahmoud-mess-tekken-6",
+    "name": "Tekken 6 — mahmoud-mess Tekken 6 Recomp (mahmoud-mess)",
+    "original_game_title": "Tekken 6",
+    "summary": "Concrete source/codegen/package pipeline; no end-to-end playability claim in reviewed README. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mahmoud-mess/tekken6-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mahmoud-mess/tekken6-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 ISO/XEX; builder validates supported source. Exact revision not in root README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Portable ISO builder bundles compiler/project sources to generate native game locally; source LLVM-MinGW Windows cross-build also documented."
+        }
+      ],
+      "warnings": [
+        "Concrete source/codegen/package pipeline; no end-to-end playability claim in reviewed README.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mahmoud-mess/tekken6-recomp"
+    },
+    "issue_number": 3128
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tekken-6-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/mahmoud-mess/tekken6-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1392924105"
+      }
+    },
+    "decisions": []
+  }
+}

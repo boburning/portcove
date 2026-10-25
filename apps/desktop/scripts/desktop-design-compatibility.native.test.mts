@@ -1,23 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext, runInThisContext } from "node:vm";
-import { executeBrowserScript } from "./browser-script.mts";
+import { runInNewContext } from "node:vm";
+import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 
 void test("design assertions execute erased serialized callbacks and refuse missing required controls", async () => {
-  const erased = stripTypeScriptTypes(
-    readFileSync(new URL("./desktop-design-compatibility-assertions.mts", import.meta.url), "utf8"),
-    { mode: "strip" },
-  );
-  const start = erased.indexOf("export async function assertDesignCompatibility(");
-  assert.ok(start >= 0);
-  const factory: unknown = runInThisContext(
-    `(function(assert,executeBrowserScript){${erased.slice(start).replace("export async function", "async function")} return assertDesignCompatibility;})`,
-  );
-  assert.ok(typeof factory === "function");
-  const scenario: unknown = Reflect.apply(factory, undefined, [assert, executeBrowserScript]);
-  assert.ok(typeof scenario === "function");
   for (const mode of ["ordinary", "embedded", "missing-root", "missing-select"]) {
     let theme = "dark",
       direction = "ltr",
@@ -164,10 +150,10 @@ void test("design assertions execute erased serialized callbacks and refuse miss
     };
     if (mode.startsWith("missing-")) {
       await assert.rejects(async () => {
-        await Reflect.apply(scenario, undefined, [options]);
+        await Reflect.apply(assertDesignCompatibility, undefined, [options]);
       }, /required design fixture element missing/u);
     } else {
-      const result: unknown = await Reflect.apply(scenario, undefined, [options]);
+      const result: unknown = await Reflect.apply(assertDesignCompatibility, undefined, [options]);
       assert.deepEqual(result, {
         architecture: "x64",
         platform: "fixture",

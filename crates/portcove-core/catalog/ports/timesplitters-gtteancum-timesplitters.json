@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "timesplitters-gtteancum-timesplitters",
+    "name": "TimeSplitters — Timesplitters (GTTeancum)",
+    "original_game_title": "TimeSplitters",
+    "summary": "Native recompilation; upstream four-player multiplayer screenshots and controller/save claims; Linux tested under WSL. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/GTTeancum/Timesplitters",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GTTeancum/Timesplitters",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS20090 own disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Runtime release zip/tar + own disc; Xbox requires Windows Prepare Xbox Files utility/build."
+        }
+      ],
+      "warnings": [
+        "Native recompilation; upstream four-player multiplayer screenshots and controller/save claims; Linux tested under WSL.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/GTTeancum/Timesplitters"
+    },
+    "issue_number": 3047
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "timesplitters-ps2",
+    "origin": {
+      "project_url": "https://github.com/GTTeancum/Timesplitters",
+      "repository": {
+        "host": "github.com",
+        "id": "1384318685"
+      }
+    },
+    "decisions": []
+  }
+}

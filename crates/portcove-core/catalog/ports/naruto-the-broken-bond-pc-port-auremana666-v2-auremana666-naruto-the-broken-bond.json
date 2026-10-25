@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "naruto-the-broken-bond-pc-port-auremana666-v2-auremana666-naruto-the-broken-bond",
+    "name": "Naruto: The Broken Bond — Naruto: The Broken Bond — PC Port (Auremana666 v2) (Auremana666)",
+    "original_game_title": "Naruto: The Broken Bond",
+    "summary": "V2 documented with gameplay/screenshots and bounded performance reports. No complete campaign or Portcove gameplay qualification is established. Laptop/integrated-GPU limits and virtual-controller detection issues remain. Parent higher-frame-rate capability does not automatically become a fork-wide qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Auremana666/Naruto-The-Broken-Bond-PC-Port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Auremana666/Naruto-The-Broken-Bond-PC-Port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 disc ISO or supported extracted files. Inherited jorjbarbosa native base documents title55530825/media09FFE047/XEX0.0.0.3/SHA2568f70e79443e36b38e44b6a105dad51fb8909fb615d982753cabaac9b15f0d576. Parent source identity must be checked against this fork's current importer before offering operational acquisition; no broader revision support inferred."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream offers a release ZIP: supply own ISO and launch Naruto The Broken Bond PC.exe. Source alternative builds patched SDK, generates C++ from own default.xex and compiles the fork's native target. Release availability/content was not queried in this narrow review."
+        }
+      ],
+      "warnings": [
+        "V2 documented with gameplay/screenshots and bounded performance reports. No complete campaign or Portcove gameplay qualification is established. Laptop/integrated-GPU limits and virtual-controller detection issues remain. Parent higher-frame-rate capability does not automatically become a fork-wide qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Auremana666/Naruto-The-Broken-Bond-PC-Port"
+    },
+    "issue_number": 3122,
+    "artwork": {
+      "game_id": 7102,
+      "cover_id": 85892,
+      "image_id": "co1u9w",
+      "image_sha256": "6972453fdae5d42a13eb5888f31c4c666f580eb958e65f59a150584ef5f402f5",
+      "game_slug": "naruto-the-broken-bond",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "naruto-the-broken-bond-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Auremana666/Naruto-The-Broken-Bond-PC-Port",
+      "repository": {
+        "host": "github.com",
+        "id": "1425749555"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wwe-12-pc-unofficial-native-port-imrburn-wwe-12",
+    "name": "WWE '12 — WWE '12 PC — unofficial native port (iMrBurn)",
+    "original_game_title": "WWE '12",
+    "summary": "0.9.0-beta; coloured blocks affect some Intel/AMD GPUs. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/iMrBurn/wwe12-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/iMrBurn/wwe12-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own WWE '12 Xbox 360 disc ISO or extracted full disc files. Base game; TU support planned, not current."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract WWE12 release ZIP and place own ISO or extracted data in game; title-update support is future work."
+        }
+      ],
+      "warnings": [
+        "0.9.0-beta; coloured blocks affect some Intel/AMD GPUs.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/iMrBurn/wwe12-pc"
+    },
+    "issue_number": 3210
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wwe-12-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/iMrBurn/wwe12-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1414144392"
+      }
+    },
+    "decisions": []
+  }
+}

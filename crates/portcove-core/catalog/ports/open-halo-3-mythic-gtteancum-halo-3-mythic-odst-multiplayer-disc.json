@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "open-halo-3-mythic-gtteancum-halo-3-mythic-odst-multiplayer-disc",
+    "name": "Halo 3 Mythic (ODST multiplayer disc) — Open Halo 3 Mythic (GTTeancum)",
+    "original_game_title": "Halo 3 Mythic (ODST multiplayer disc)",
+    "summary": "CustomGames/Forge/1–4-player split-screen work; Theater recording/playback incompletely validated. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/GTTeancum/OpenH3M",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GTTeancum/OpenH3M",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Halo 3 Mythic (ODST multiplayer disc) Xbox 360 disc ISO or extracted full disc files. Halo3ODST Disc2 multiplayer edition, not campaign disc."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use Windows beta0.8 ZIP with own extracted Halo3ODST Disc2 multiplayer data."
+        }
+      ],
+      "warnings": [
+        "CustomGames/Forge/1–4-player split-screen work; Theater recording/playback incompletely validated.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/GTTeancum/OpenH3M"
+    },
+    "issue_number": 3265
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "halo-3-mythic-odst-multiplayer-disc-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/GTTeancum/OpenH3M",
+      "repository": {
+        "host": "github.com",
+        "id": "1335545539"
+      }
+    },
+    "decisions": []
+  }
+}

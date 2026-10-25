@@ -160,6 +160,22 @@ uses conservative additive collection: canonical-only data survives and differin
 copies require a deliberate resolution. Existing source/build integrations keep
 their preparation and collection contracts.
 
+A ready staged archive whose reviewed mod layout is
+`mods/packages/<id>/<version>` may opt into
+`mod_package_policy: "versioned-packages-v1"` with the exact `mods` persistent
+root. This requires capability 24, a format-7 retained contract and runtime-local
+data. Direct-write `user_data_environment` bindings are refused because they bypass
+package restoration. Core reuses the existing complete-package coexistence
+behavior: absent versions are staged
+privately and published without overwriting, successor-only packages survive,
+and same-ID/version content conflicts report both paths before activation or
+explicit data restore. Package identity compares contents rather than publisher
+timestamps; current root state keeps its replacement/deletion behavior. Preserve
+the player's choices without rebasing them onto a new default. This policy does
+not authenticate mod code, promise compatibility, or preserve generated executable
+caches. An old contract merely declaring `mods` does not acquire these semantics;
+changing the policy holds replacement until a supported transition exists.
+
 Declared data copies preserve exact file modification times, including upstream
 original-data integrity records that depend on them. New backups verify those
 times separately from content; old byte-only snapshots retain their historical
@@ -1092,6 +1108,23 @@ routes, changed accepted bytes, failed integrity and unsafe operations still
 hold at their actual scope. Exact direct manifests retain their existing
 per-platform HTTPS URL, nonzero size, version and SHA-256 requirements.
 
+GitLab generic-package links can use the same reusable project, channel and
+native-archive selectors. Core joins the selected versioned URL to independently
+published package names, versions, filenames, sizes and SHA-256 values. It reads
+all relevant bounded registry pages before claiming a unique match. If upstream
+has uploaded different files to the same package/version/filename, a bounded,
+redirect-free HEAD of that exact official project URL must identify exactly one
+registry row through its published checksum and optional size. Repeated identities,
+missing or conflicting integrity, ambiguous uploads and incomplete pagination
+refuse resolution without caching a result. The joined filename must satisfy the
+actual native archive/platform/variant rules; a display label is insufficient.
+The new route downloads the exact URL it validated, then applies ordinary Core
+byte verification and staged lifecycle protections. A mutable URL changing after
+resolution can fail integrity safely; five-minute cache reuse is not a fresh
+HEAD observation. Existing explicit package-file and published-description
+checksum routes retain their behavior. This adds no per-release definition edit
+or new approval/publication authority.
+
 The earlier archive-state veto was completed under
 [issue #212](https://github.com/boburning/portcove/issues/212) and remains
 historical evidence. This availability-first contract supersedes that veto;
@@ -1291,6 +1324,25 @@ AMD RX 9070 XT / driver 32.0.31041.1004 Auto/Vulkan failure and D3D12 remedy.
 Other Windows hardware and newly created settings require their own applicable
 evidence. Retained installation contracts preserve their original declaration;
 indexed definitions require the N64 version 2 capability for this behavior.
+
+The optional `n64_runtime_at_executable_parent` contract keeps a reviewed ready
+N64 runtime and its declared data beside the selected executable when an archive
+wrapper changes between releases. It requires a managed portable archive,
+`portable_marker`, an admitted source with persistent N64 big-endian materialization,
+and no conflicting runtime root, external data environment or generated build.
+Review the actual package and component grants before enabling acquisition.
+Do not add this flag to an existing installation to migrate its data coordinates.
+
+This opt-in uses the existing staged lifecycle and conservative data-restore
+receipt. Declared data is collected before first Play, backup, replacement,
+rollback and removal. Without a matching restore receipt, conflicting runtime and
+canonical copies are preserved for explicit resolution. Full immutable verification
+holds modified runtime files and undeclared additions; current data crosses only
+compatible retained coordinates. Runtime rollback does not rewind saves.
+N64 engine capability 4 and retained-contract format 8 fence these semantics from
+older readers; omitted/false retains historical N64 coordinates and behavior.
+The contract itself supplies no platform, native, original-file or gameplay
+qualification, and does not grant ownership of external copies.
 
 Duke Nukem: Zero Hour Recompiled 0.0.3 has exact Windows structural and
 bounded automated lifecycle records for the checksum-qualified USA source and

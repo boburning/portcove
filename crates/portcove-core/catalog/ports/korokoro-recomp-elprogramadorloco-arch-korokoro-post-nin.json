@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "korokoro-recomp-elprogramadorloco-arch-korokoro-post-nin",
+    "name": "KoroKoro Post nin — korokoro-recomp (elprogramadorloco-arch)",
+    "original_game_title": "KoroKoro Post nin",
+    "summary": "Research project. Stage1 and boot/menu/audio compared with DuckStation; stages2–10, card and ending unverified. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan SLPS-03479 own CHD or CUE/BIN; data88131792bytes MD5 6897e2c85262456a16c579a531435268. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "run.bat with own data downloads hash-pinned portable tools, translates/builds out/KoroKoroPostNin.exe; Android package separate same family. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Stage1 and boot/menu/audio compared with DuckStation; stages2–10, card and ending unverified. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp"
+    },
+    "issue_number": 3506,
+    "artwork": {
+      "game_id": 92677,
+      "cover_id": 134117,
+      "image_id": "co2vhh",
+      "image_sha256": "e431cdb6322bec340473695a3d72c240f8097e2d6c1252858ac15878846f0aa6",
+      "game_slug": "korokoro-post-nin",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "korokoro-post-nin-ps1",
+    "origin": {
+      "project_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1400825065"
+      }
+    },
+    "decisions": []
+  }
+}

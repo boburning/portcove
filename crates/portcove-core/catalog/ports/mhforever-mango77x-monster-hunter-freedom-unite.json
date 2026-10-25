@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mhforever-mango77x-monster-hunter-freedom-unite",
+    "name": "Monster Hunter Freedom Unite — MHForever (Mango77x)",
+    "original_game_title": "Monster Hunter Freedom Unite",
+    "summary": "Only MHFUEurope supported; playableclaimed, plannedothergames/regions are not targets. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Mango77x/MHForever",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Mango77x/MHForever",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe ULES01213 v1.01 plainISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Runtime Releases unzip/add ownISO; LinuxneedsWebKitGTK4.1/GTK3."
+        }
+      ],
+      "warnings": [
+        "Only MHFUEurope supported; playableclaimed, plannedothergames/regions are not targets.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Mango77x/MHForever"
+    },
+    "issue_number": 3091,
+    "artwork": {
+      "game_id": 20427,
+      "cover_id": 592783,
+      "image_id": "cocpe7",
+      "image_sha256": "4f36e8170fbe53a32d39088379641617c06d047c92f785db334bad2181621f09",
+      "game_slug": "monster-hunter-freedom-unite",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dudux42-freedomunbound",
+    "origin": {
+      "project_url": "https://github.com/Mango77x/MHForever",
+      "repository": {
+        "host": "github.com",
+        "id": "1426205383"
+      }
+    },
+    "decisions": []
+  }
+}

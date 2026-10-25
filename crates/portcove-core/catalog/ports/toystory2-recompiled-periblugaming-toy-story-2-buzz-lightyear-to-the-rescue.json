@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "toystory2-recompiled-periblugaming-toy-story-2-buzz-lightyear-to-the-rescue",
+    "name": "Toy Story 2: Buzz Lightyear to the Rescue — ToyStory2 Recompiled (PeriBluGaming)",
+    "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue",
+    "summary": "Information only; source hold. Nativegame runtime; exactgameplayprogressunknown Acquisition is blocked: Committed/distributed translated gameC and package provenance require review; precise gameplay completion is unestablished. Resume: Expose manual ToyStory2 research listing with standalone route and optional RetComM integration, retaining generated-code acquisition hold. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/PeriBluGaming/ToyStory2Recomp",
+    "platforms": ["windows-x86-64", "macos-x86-64"],
+    "availability": "unknown",
+    "download_block_reason": "Committed/distributed translated gameC and package provenance require review; precise gameplay completion is unestablished. Resume: Expose manual ToyStory2 research listing with standalone route and optional RetComM integration, retaining generated-code acquisition hold.",
+    "issue_number": 3401
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "toy-story-2-buzz-lightyear-to-the-rescue-ps1",
+    "origin": {
+      "project_url": "https://github.com/PeriBluGaming/ToyStory2Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1316533604"
+      }
+    },
+    "decisions": []
+  }
+}

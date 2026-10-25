@@ -697,6 +697,8 @@ The preview validates the new path against the current catalog profile and the r
 
 On Windows and Linux, selecting a converted disc for inspection or registration uses the same bounded immutable snapshot and positive decoder-tree closure as discovery. Explicit selection has no scan batch or hashing allowance; each original and decoded disc is limited to 2 GiB, and a selected PSX directory has a complete inventory bound of 16,384 top-level entries. Ordered sets retain one inventory and recheck every original after conversion before admission. A changed, incomplete or unavailable input cannot create a registration. Unknown decoder closure retains private evidence.
 
+Selected file sets allow at most 512 MiB per member and 2 GiB in aggregate. File-set ZIPs also allow at most 2 GiB of container bytes, 4,096 entries and 16 MiB of metadata. Source ZIP verification uses a private temporary snapshot and needs corresponding temporary disk space. Limit failures and cancellation preserve original source bytes and registered baselines.
+
 ### Opt-in source discovery
 
 Human output describes the searched scope, processing limits, scan issues and omitted issue count. An empty candidate list describes only inspected inputs; it does not prove that a matching file is absent or invalid. Candidates keep their content and stored-file hashes/sizes separate. The summary names the explicit registration command; discovery never registers, installs or launches a game. JSON and JSONL retain the existing exact report fields.

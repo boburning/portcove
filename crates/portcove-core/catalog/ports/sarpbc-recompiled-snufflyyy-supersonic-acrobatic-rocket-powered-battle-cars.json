@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sarpbc-recompiled-snufflyyy-supersonic-acrobatic-rocket-powered-battle-cars",
+    "name": "Supersonic Acrobatic Rocket-Powered Battle-Cars — SARPBC-recompiled (snufflyyy)",
+    "original_game_title": "Supersonic Acrobatic Rocket-Powered Battle-Cars",
+    "summary": "Information only; source hold. Menus/offlinearenamatch35+fps claimed; originalprojectsource no license chosen Acquisition is blocked: Original project has not chosen a license; keep distribution/acquisition approval held. Windows/macOS are future, not validated hosts. Resume: Publish same-ID information-only native research listing; obtain an attributable license before distribution/managed acquisition. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/snufflyyy/SARPBC-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "download_block_reason": "Original project has not chosen a license; keep distribution/acquisition approval held. Windows/macOS are future, not validated hosts. Resume: Publish same-ID information-only native research listing; obtain an attributable license before distribution/managed acquisition.",
+    "issue_number": 3371,
+    "artwork": {
+      "game_id": 11009,
+      "cover_id": 352621,
+      "image_id": "co7k31",
+      "image_sha256": "b9cd24c365823b5bce196f8b2d3ad6569e24b94596f9571cdc94bac6941aa317",
+      "game_slug": "supersonic-acrobatic-rocket-powered-battle-cars",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "supersonic-acrobatic-rocket-powered-battle-cars-ps3",
+    "origin": {
+      "project_url": "https://github.com/snufflyyy/SARPBC-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1426088786"
+      }
+    },
+    "decisions": []
+  }
+}

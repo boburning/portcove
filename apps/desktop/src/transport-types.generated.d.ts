@@ -291,6 +291,11 @@ export type AdapterKind =
  */
 export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forces-portable-v1";
 /**
+ * Preserve complete mod package versions without replacing packaged defaults.
+ * This grants neither executable trust nor mod/save compatibility.
+ */
+export type ModPackagePolicy = "versioned-packages-v1";
+/**
  * User-facing installation behavior supplied by the catalog. Adapters remain an
  * implementation detail and must not be translated into product copy by clients.
  */
@@ -1371,6 +1376,12 @@ export interface PortDefinition {
    */
   managed_shared_preferences_save_id?: string | null;
   manually_validated_platforms: Platform[];
+  mod_package_policy?: ModPackagePolicy | null;
+  /**
+   * Keep a reviewed N64 package's runtime and data beside its selected player,
+   * including when upstream changes the outer archive wrapper name.
+   */
+  n64_runtime_at_executable_parent?: boolean;
   /**
    * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
    */

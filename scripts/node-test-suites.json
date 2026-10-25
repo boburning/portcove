@@ -204,6 +204,13 @@
     },
     "mutex-owned-payload": {
       "arguments": ["--test", "--test-reporter=./scripts/required-node-test-reporter.mts"]
+    },
+    "native-tools": {
+      "arguments": [
+        "--test",
+        "--test-timeout=30000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ]
     }
   },
   "tests": [
@@ -2709,6 +2716,126 @@
         ["catalog-full-2", 16002],
         ["release-check", 16202]
       ]
+    },
+    {
+      "file": "apps/desktop/scripts/cli-command-shell.native.test.mts",
+      "memberships": [["native-tools", 0]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-appimage-update.native.test.mts",
+      "memberships": [["native-tools", 100]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-application-update-journey.native.test.mts",
+      "memberships": [["native-tools", 200]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+      "memberships": [["native-tools", 300]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
+      "memberships": [["native-tools", 400]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-artwork.native.test.mts",
+      "memberships": [["native-tools", 500]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts",
+      "memberships": [["native-tools", 600]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
+      "memberships": [["native-tools", 700]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-completion-focus.native.test.mts",
+      "memberships": [["native-tools", 800]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-default-cover.native.test.mts",
+      "memberships": [["native-tools", 900]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-design-compatibility.native.test.mts",
+      "memberships": [["native-tools", 1000]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-harness.native.test.mts",
+      "memberships": [["native-tools", 1100]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-install-fixture.native.test.mts",
+      "memberships": [["native-tools", 1200]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-install.native.test.mts",
+      "memberships": [["native-tools", 1300]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-linux-native-session.native.test.mts",
+      "memberships": [["native-tools", 1400]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-linux-public-update.native.test.mts",
+      "memberships": [["native-tools", 1500]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
+      "memberships": [["native-tools", 1600]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      "memberships": [["native-tools", 1700]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+      "memberships": [["native-tools", 1800]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-public-update-state.native.test.mts",
+      "memberships": [["native-tools", 1900]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+      "memberships": [["native-tools", 2000]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-readiness.native.test.mts",
+      "memberships": [["native-tools", 2100]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-reload.native.test.mts",
+      "memberships": [["native-tools", 2200]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
+      "memberships": [["native-tools", 2300]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-scenario-state.native.test.mts",
+      "memberships": [["native-tools", 2400]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-staged-layout.native.test.mts",
+      "memberships": [["native-tools", 2500]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      "memberships": [["native-tools", 2600]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+      "memberships": [["native-tools", 2700]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-windows-update.native.test.mts",
+      "memberships": [["native-tools", 2800]]
+    },
+    {
+      "file": "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
+      "memberships": [["native-tools", 2900]]
     }
   ]
 }

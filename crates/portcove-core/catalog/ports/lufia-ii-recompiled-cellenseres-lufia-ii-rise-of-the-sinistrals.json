@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lufia-ii-recompiled-cellenseres-lufia-ii-rise-of-the-sinistrals",
+    "name": "Lufia II: Rise of the Sinistrals — Lufia II Recompiled (Cellenseres)",
+    "original_game_title": "Lufia II: Rise of the Sinistrals",
+    "summary": "Intro/title/gameplay/battles/audio/saves/launcher claimed; no fullplaythrough claim Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Cellenseres/Lufia2SNESRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Cellenseres/Lufia2SNESRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "CleanheaderlessUSA ROM2621440bytes SHA2567C34ECB16C10F551120ED7B86CFBC947042F479B52EE74BB3C40E92FDD192B3A SHA1A89931C1F29B161B8BE717DFAB4A4ADB54B42B84"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source CMake windows-release/LinuxNinja; ROM at runtime; selected semantic C fallback per bindings"
+        }
+      ],
+      "warnings": [
+        "Intro/title/gameplay/battles/audio/saves/launcher claimed; no fullplaythrough claim",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Cellenseres/Lufia2SNESRecomp"
+    },
+    "issue_number": 3360,
+    "artwork": {
+      "game_id": 1178,
+      "cover_id": 448995,
+      "image_id": "co9mg3",
+      "image_sha256": "6614cf05c94ec12f3517d03e1f57ebc9fe3d5f8e8e0c22f990120c02eb0686d8",
+      "game_slug": "lufia-ii-rise-of-the-sinistrals",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "lufia-ii-rise-of-the-sinistrals-snes",
+    "origin": {
+      "project_url": "https://github.com/Cellenseres/Lufia2SNESRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1344274240"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "graw-360-recompiled-juansolo457-tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
+    "name": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360) — GRAW 360 Recompiled (Juansolo457)",
+    "original_game_title": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360)",
+    "summary": "Research project. Menu boots; InstantAction/co-op load/play with black3D; campaign menu boots, mission start next. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Juansolo457/graw360-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Juansolo457/graw360-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA/Europe Xbox360 title555307D5 default.xex SHA256 abbreviated295ac4de...c023a. Three game executables incl main, multiplayer and campaign; preserve them as one implementation."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source extract/build scripts target port,port-mp,port-yeti. No releases observed."
+        }
+      ],
+      "warnings": [
+        "Menu boots; InstantAction/co-op load/play with black3D; campaign menu boots, mission start next.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Juansolo457/graw360-recomp"
+    },
+    "issue_number": 3137,
+    "artwork": {
+      "game_id": 1300,
+      "cover_id": 91361,
+      "image_id": "co1yht",
+      "image_sha256": "ee96e971a3f788e94b1a18ac0b125ce15707ba43c3a728c4456f4c1d4b3d3ec6",
+      "game_slug": "tom-clancy-s-ghost-recon-advanced-warfighter",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Juansolo457/graw360-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431776788"
+      }
+    },
+    "decisions": []
+  }
+}

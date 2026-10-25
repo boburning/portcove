@@ -196,6 +196,13 @@ the consent-bound manifest and verifies staged data before collecting current
 runtime progress. Historical byte-only backup integrity is not retroactively
 strengthened. See [definition compatibility](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
 
+Ready archives can explicitly retain the closed `mod_package_policy` for complete
+versioned mod packages. Capability 24 and installed-contract format 7 fence older
+readers. `service/psx_mod_data.rs` owns the shared package coexistence algorithm,
+including retained-runtime preflight for explicit restore; its historical module
+and receipt names do not restrict the policy to PS1. A policy change is a data
+contract change, never inferred from a persistent folder or current catalog.
+
 ## Source import journal interpretation
 
 Source import admits publication through the existing atomic cancellation boundary
@@ -3263,6 +3270,8 @@ launched working data before replacing or removing it. An existing non-directory
 `Save` root on either side holds the operation without overwriting it. Ordinary
 changed regular save bytes retain normal synchronization and safety-backup rules.
 This bounded compatibility repair does not qualify another release or platform.
+
+ZIP readers bound metadata before constructing the parser: cartridge sources allow 1 GiB, 4,096 entries and 16 MiB of metadata; file-set ZIPs allow 2 GiB with the same entry and metadata limits; artifacts allow 8 GiB, 100,000 entries and 128 MiB of metadata; runtime archives allow 64 GiB, 4,096 entries and 16 MiB of metadata. A bounded immutable metadata window gates the pinned ZIP parser, including ZIP64 extension allocation. Selected source ZIPs use private temporary snapshots for payload and identity reads. Discovery can reject incomplete member inventories before creating a full snapshot. Direct file sets bound each selected member to 512 MiB and aggregate reads to 2 GiB. Preparation checkpoints reach every verification pass; cancellation retains worker ownership until reads and decoders stop.
 
 ZIP readers decode raw entry names as UTF-8 when valid, otherwise CP437, including archives whose producer omitted the UTF-8 flag. Source inspection retains that decoded member name alongside independently verified content and outer-container identities; multiple matching members remain ambiguous. Installer extraction still rejects every non-ASCII path before writes.
 

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "peggle-2-for-mac-macprotips-peggle-2-xbox-live-arcade",
+    "name": "Peggle 2 (Xbox Live Arcade) — Peggle 2 for Mac (macprotips)",
+    "original_game_title": "Peggle 2 (Xbox Live Arcade)",
+    "summary": "Beta: upstream playedthrough on developerMacs; broaderMaccompatibilityunverified. NativeARM64Metal/CoreAudio; noWindows/Linuxclaim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/macprotips/peggle2-mac",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/macprotips/peggle2-mac",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Peggle2 Xbox360 XBLApackage from Content/0000000000000000/58411436/000D0000/; exact package/XEX hashrequires importerread. Original data supplied locally."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release Peggle2Installer onAppleSilicon macOS13+; drop ownpackage, installer locally builds app intoApplications using AppleCommandLineTools. Source setup.sh/install_game/regen.sh; CMake/Ninja/Python3."
+        }
+      ],
+      "warnings": [
+        "Beta: upstream playedthrough on developerMacs; broaderMaccompatibilityunverified. NativeARM64Metal/CoreAudio; noWindows/Linuxclaim.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/macprotips/peggle2-mac"
+    },
+    "issue_number": 3168,
+    "artwork": {
+      "game_id": 3752,
+      "cover_id": 76901,
+      "image_id": "co1nc5",
+      "image_sha256": "c874dfe0b4eb144c7c3d04785716f307858577e6c661d2dde313109a6d4221ff",
+      "game_slug": "peggle-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "peggle-2-xbox-live-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/macprotips/peggle2-mac",
+      "repository": {
+        "host": "github.com",
+        "id": "1427770622"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "db-final-bout-recomp-novapowers0-novapowers0-dragon-ball-gt-final-bout",
+    "name": "Dragon Ball GT: Final Bout — DB-Final-Bout-Recomp (novapowers0) (novapowers0)",
+    "original_game_title": "Dragon Ball GT: Final Bout",
+    "summary": "Playable claim; stretch-only widescreen and netplay; broader qualification absent Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/novapowers0/DB-Final-Bout-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/novapowers0/DB-Final-Bout-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS00493 owned disc; exact revision unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release0.2.1 launcher local owned-disc compile"
+        }
+      ],
+      "warnings": [
+        "Playable claim; stretch-only widescreen and netplay; broader qualification absent",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/novapowers0/DB-Final-Bout-Recomp"
+    },
+    "issue_number": 3344,
+    "artwork": {
+      "game_id": 2558,
+      "cover_id": 238935,
+      "image_id": "co54d3",
+      "image_sha256": "7954d83d7b19348c2116c88ba8f0b81fd1025dff2c11f471dd53c19d5102db99",
+      "game_slug": "dragon-ball-gt-final-bout",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-ball-gt-final-bout-ps1",
+    "origin": {
+      "project_url": "https://github.com/novapowers0/DB-Final-Bout-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1338223952"
+      }
+    },
+    "decisions": []
+  }
+}

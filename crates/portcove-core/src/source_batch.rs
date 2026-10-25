@@ -155,6 +155,7 @@ impl PortcoveService {
         let registrations = self.library().sources_for(&ids)?;
         let registration_sha256 = fingerprint(&registrations)?;
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: Some(operation.clone()),
             limit: limits.max_hash_bytes,
             hashed: 0,
@@ -492,7 +493,7 @@ fn inspect_directory_set(
         &record.profile_id,
         &record.path,
         &names,
-        &mut |aliases| {
+        &mut |aliases, maximum| {
             checkpoint(
                 budget.operation.as_ref().expect("batch owns operation"),
                 started,
@@ -508,6 +509,11 @@ fn inspect_directory_set(
             let name = matched[0];
             let member = record.path.join(name);
             crate::path::refuse_symlink_ancestors(&member)?;
+            if std::fs::metadata(&member)?.len() > maximum {
+                return Err(PortcoveError::source(
+                    "file-set selected bytes exceed their size limit",
+                ));
+            }
             let identity = observe_raw_bytes(&member, record, limits, started, budget, cache)?;
             Ok(Some(crate::source_inspection::HashedNamedSource {
                 name: name.clone(),

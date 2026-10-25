@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dokodemo-native-senya01-doko-demo-issyo-portable",
+    "name": "Doko Demo Issyo Portable — dokodemo-native (Senya01)",
+    "original_game_title": "Doko Demo Issyo Portable",
+    "summary": "Source-only bounded room/conversation/UI paths; actual player-entry/room continuation unverified; full game incomplete. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Senya01/dokodemo-native",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Senya01/dokodemo-native",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japanese v1.01 UCJS10002; owned BOOT.BIN/audio/game resources and locally generated headers; optional separate FFmpeg package."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source-only Windows Visual Studio/CMake/Ninja build with locally generated external headers from own BOOT.BIN/audio manifest; optional separately supplied FFmpeg development package."
+        }
+      ],
+      "warnings": [
+        "Source-only bounded room/conversation/UI paths; actual player-entry/room continuation unverified; full game incomplete.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Senya01/dokodemo-native"
+    },
+    "issue_number": 3065,
+    "artwork": {
+      "game_id": 246063,
+      "cover_id": 298321,
+      "image_id": "co6e6p",
+      "image_sha256": "a517748d177d9437d5ab058718de020291d052b4849c1cbf17be655c20fa5d12",
+      "game_slug": "doko-demo-issho-portable",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doko-demo-issyo-portable-psp",
+    "origin": {
+      "project_url": "https://github.com/Senya01/dokodemo-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1428438014"
+      }
+    },
+    "decisions": []
+  }
+}

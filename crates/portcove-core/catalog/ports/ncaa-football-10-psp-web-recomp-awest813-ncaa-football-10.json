@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ncaa-football-10-psp-web-recomp-awest813-ncaa-football-10",
+    "name": "NCAA Football 10 — NCAA Football 10 PSP Web Recomp (awest813)",
+    "original_game_title": "NCAA Football 10",
+    "summary": "Browser AOT recomp route; inherited GOW performance history explicitly separate from NCAA evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/awest813/NCAA-10-PSP-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/awest813/NCAA-10-PSP-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA ULUS10440 owned ISO."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Hosted browser player supplies hash-pinned prepared game-specific WASM engine/boot preload; user selects uncompressed USA ULUS10440 ISO with checked executable revision. No compiler required for hosted player; local source-build route also exists. Review generated-engine distribution provenance separately."
+        }
+      ],
+      "warnings": [
+        "Browser AOT recomp route; inherited GOW performance history explicitly separate from NCAA evidence.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/awest813/NCAA-10-PSP-Recomp"
+    },
+    "issue_number": 3008,
+    "artwork": {
+      "game_id": 7111,
+      "cover_id": 136621,
+      "image_id": "co2xf1",
+      "image_sha256": "d9e7633646a8f846224aed52b3e772c4adda4c0a7219e28957d62a10ed58ea93",
+      "game_slug": "ncaa-football-10",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ncaa-football-10-psp",
+    "origin": {
+      "project_url": "https://github.com/awest813/NCAA-10-PSP-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1414921555"
+      }
+    },
+    "decisions": []
+  }
+}

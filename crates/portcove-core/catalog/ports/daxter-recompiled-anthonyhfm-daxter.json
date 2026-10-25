@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "daxter-recompiled-anthonyhfm-daxter",
+    "name": "Daxter — daxter-recompiled (anthonyhfm)",
+    "original_game_title": "Daxter",
+    "summary": "Experimentalalpha; nativeRefracthost exists; nofullgamecoverageclaim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/anthonyhfm/daxter-recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/anthonyhfm/daxter-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe UCES00044 ownISO/executableSHA256checked; localPPSSPPdecryptrequired"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "make macos-run hydrates/decrypts/recompiles locally;WindowsMSVC/Qt6/FFmpegbuild; PSP/PPSSPPtargetsdevelopmentonly."
+        }
+      ],
+      "warnings": [
+        "Experimentalalpha; nativeRefracthost exists; nofullgamecoverageclaim.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/anthonyhfm/daxter-recompiled"
+    },
+    "issue_number": 3109
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "daxter-psp",
+    "origin": {
+      "project_url": "https://github.com/anthonyhfm/daxter-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1357513192"
+      }
+    },
+    "decisions": []
+  }
+}

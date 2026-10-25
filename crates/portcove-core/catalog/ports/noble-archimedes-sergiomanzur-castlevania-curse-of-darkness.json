@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "noble-archimedes-sergiomanzur-castlevania-curse-of-darkness",
+    "name": "Castlevania: Curse of Darkness — Noble Archimedes (sergiomanzur)",
+    "original_game_title": "Castlevania: Curse of Darkness",
+    "summary": "Playable development build measurements~53FPStransition; not full release/game coverage. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sergiomanzur/noble-archimedes",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sergiomanzur/noble-archimedes",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21168 owned disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Alpha0.2.1 release artifacts referenced; source build/setup from own game."
+        }
+      ],
+      "warnings": [
+        "Playable development build measurements~53FPStransition; not full release/game coverage.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sergiomanzur/noble-archimedes"
+    },
+    "issue_number": 3072,
+    "artwork": {
+      "game_id": 1137,
+      "cover_id": 78820,
+      "image_id": "co1otg",
+      "image_sha256": "04f23e02ba2a436b358660cd8af60e8c4cb5a4fcb2a272425e90f8764e71ad26",
+      "game_slug": "castlevania-curse-of-darkness",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "castlevania-curse-of-darkness-ps2",
+    "origin": {
+      "project_url": "https://github.com/sergiomanzur/noble-archimedes",
+      "repository": {
+        "host": "github.com",
+        "id": "1398146841"
+      }
+    },
+    "decisions": []
+  }
+}

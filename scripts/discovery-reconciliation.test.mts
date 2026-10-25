@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { assertDiscoveryIntakeIdentity } from "./discovery-intake-identity.mts";
+import { reconcilePortIssueMarkers } from "./roadmap.mts";
 import {
   reconcileDiscoveryIdentity,
   reconcileDiscoverySnapshot,
@@ -28,6 +29,109 @@ const candidate: ReviewedDiscoveryIdentity = {
   game_key: "game-a",
   kind: "implementation",
 };
+void test("reviewed family aliases retain closed ownership through normalized bodies and transfers", () => {
+  const body = reconcilePortIssueMarkers(
+    "Underlying game: **Game A**.\nGitHub repository ID: 42.\nReviewed source-family alias: https://github.com/contributor/game-linux (GitHub repository ID: 201)\nRelationship: Reviewed host adaptation; primary credits retained.",
+    { upstream: "https://github.com/original/game", portKey: "game-a" },
+  );
+  assert.equal(
+    reconcilePortIssueMarkers(body, {
+      upstream: "https://github.com/original/game",
+      portKey: "game-a",
+    }),
+    body,
+  );
+  assert.equal([...body.matchAll(/<!-- portcove-upstream:/gu)].length, 1);
+  const issue = { number: 17, title: "[Port] Game A", state: "CLOSED", body };
+  for (const identity of [
+    { repository: "original/game", repository_id: 42 },
+    { repository: "contributor/game-linux", repository_id: 201 },
+    { repository: "new-owner/renamed", repository_id: 201 },
+  ])
+    assert.throws(
+      () =>
+        assertDiscoveryIntakeIdentity(
+          { ...identity, game_key: "gamea", kind: "implementation" },
+          [issue],
+          [],
+          [],
+        ),
+      /Existing canonical owner/u,
+    );
+  assert.throws(
+    () =>
+      assertDiscoveryIntakeIdentity(
+        {
+          repository: "contributor/game-linux",
+          repository_id: 202,
+          game_key: "gamea",
+          kind: "implementation",
+        },
+        [issue],
+        [],
+        [],
+      ),
+    /Identity conflict/u,
+  );
+  assert.equal(
+    assertDiscoveryIntakeIdentity(
+      {
+        repository: "independent/game",
+        repository_id: 203,
+        game_key: "gamea",
+        kind: "implementation",
+      },
+      [issue],
+      [],
+      [],
+    ).disposition,
+    "New canonical intake",
+  );
+  assert.equal(
+    assertDiscoveryIntakeIdentity(
+      {
+        repository: "contributor/game-linux",
+        repository_id: 201,
+        game_key: "gameb",
+        kind: "implementation",
+      },
+      [issue],
+      [],
+      [],
+    ).disposition,
+    "New canonical intake",
+  );
+  const creditOnly = {
+    ...issue,
+    body: "Underlying game: **Game A**.\nCredits: https://github.com/contributor/game-linux\n<!-- portcove-upstream: https://github.com/original/game -->",
+  };
+  assert.equal(
+    assertDiscoveryIntakeIdentity(
+      {
+        repository: "contributor/game-linux",
+        repository_id: 201,
+        game_key: "gamea",
+        kind: "implementation",
+      },
+      [creditOnly],
+      [],
+      [],
+    ).disposition,
+    "New canonical intake",
+  );
+  for (const malformed of [
+    "Reviewed source-family alias: https://github.com/a/b (GitHub repository ID: 9007199254740992)",
+    "Reviewed source-family alias: https://example.com/a/b (GitHub repository ID: 201)",
+    Array.from(
+      { length: 17 },
+      () => "Reviewed source-family alias: https://github.com/a/b (GitHub repository ID: 201)",
+    ).join("\n"),
+  ])
+    assert.throws(
+      () => assertDiscoveryIntakeIdentity(candidate, [{ ...issue, body: malformed }], [], []),
+      /family alias/u,
+    );
+});
 void test("catalog lineage binds normalized GitHub clone URLs to transferred closed owners", () => {
   const issue = {
     number: 17,
@@ -164,6 +268,39 @@ void test("maintained session guard blocks a relocated closed owner and helpers 
     () =>
       session.assertIntakeIdentity(
         {
+          ...scoped("Game A"),
+          body:
+            scoped("Game A").body +
+            "\nReviewed source-family alias: https://github.com/old-owner/old-name (GitHub repository ID: 42)",
+        },
+        [],
+      ),
+    /Existing canonical owner/u,
+  );
+  const aliasCandidate = {
+    ...scoped("Game A"),
+    body:
+      scoped("Game A").body +
+      "\nReviewed source-family alias: https://github.com/contributor/variant (GitHub repository ID: 201)",
+  };
+  assert.equal(
+    session.assertIntakeIdentity(aliasCandidate, []).disposition,
+    "New canonical intake",
+  );
+  session.inventory.issues.push({
+    number: 900002,
+    title: "[Port] Existing variant",
+    state: "CLOSED",
+    body: "Underlying game: **Game A**.\nGitHub repository ID: 201.\n<!-- portcove-upstream: https://github.com/contributor/variant -->",
+  });
+  assert.throws(
+    () => session.assertIntakeIdentity(aliasCandidate, []),
+    /Existing canonical owner/u,
+  );
+  assert.throws(
+    () =>
+      session.assertIntakeIdentity(
+        {
           ...input,
           identity_kind: "helper",
           body: `<!-- portcove-discovery-identity:${observationHash({ game: null, kind: "helper" })} -->`,
@@ -244,6 +381,40 @@ void test("a multi-game implementation resolves by game identity, not repository
   assert.equal(
     reconcileDiscoveryIdentity({ ...candidate, game_key: "game-c" }, [existing, second])
       .disposition,
+    "New canonical intake",
+  );
+});
+void test("host-only family variants reuse a closed owner across frozen source replay", () => {
+  const closed = { ...existing, state: "CLOSED" as const };
+  const linux: ReviewedDiscoveryIdentity = {
+    repository: "contributor/game-linux",
+    repository_id: 201,
+    game_key: "game-a",
+    kind: "helper",
+    helper_for: candidate,
+  };
+  const android: ReviewedDiscoveryIdentity = {
+    ...linux,
+    repository: "contributor/game-android",
+    repository_id: 202,
+  };
+  const sources = [
+    { ...linux, key: "linux-family-variant", evidence: "parent-credits" },
+    { ...linux, key: "linux-family-variant", evidence: "direct-repository" },
+    { ...android, key: "android-family-variant", evidence: "direct-repository" },
+  ];
+  const first = reconcileDiscoverySnapshot(sources, [closed]);
+  assert.equal(first.length, 2);
+  for (const row of first) {
+    assert.equal(row.disposition, "Alias/helper");
+    assert.deepEqual(row.issues, [17]);
+  }
+  assert.deepEqual(reconcileDiscoverySnapshot([...sources].reverse(), [closed]), first);
+  assert.equal(
+    reconcileDiscoveryIdentity(
+      { ...candidate, repository: "independent/game-runtime", repository_id: 203 },
+      [closed],
+    ).disposition,
     "New canonical intake",
   );
 });

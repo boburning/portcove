@@ -12,7 +12,7 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises native portable version 2,
 managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–23. Staged-source creation
+staged-source portable versions 2–5, 8, 10–12 and 15–24. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -79,6 +79,17 @@ Older backup readers ignore the optional digest; capability and retained-contrac
 fences, rather than that optional field alone, protect new metadata-dependent
 managed installations.
 
+Version 24 adds the explicit ready-archive `mod_package_policy` value
+`versioned-packages-v1`, requiring the exact declared `mods` root. Indexed new
+and retained entries require minimum version 24. Embedded, indexed and admitted
+installations retain a format-7 envelope wrapping their original interpretation;
+older readers refuse it. The policy and envelope must agree, including cached
+reads. Existing contracts keep their bytes and meaning. Updates, staged
+activation, recovered activation and rollback refuse a policy change. Data
+restore preflights complete package conflicts across all retained runtimes before
+publishing canonical data. This reuses the PS1 coexistence algorithm and grants
+no new publisher, executable, original-file or external-data authority.
+
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
 `(template, contract_version)` pairs; a template may implement several versions.
@@ -98,6 +109,14 @@ An indexed entry using `n64_windows_initial_d3d12` must require N64 portable
 version 2 or later as its minimum. A `[1,2]` window is refused for that entry:
 version 1 engines could otherwise silently ignore the safety-relevant default.
 This compatibility check supplies no admission, signing or execution authority.
+
+Entries using `n64_runtime_at_executable_parent` require N64 portable minimum
+version 4. Earlier engines retain versions 1–3 but cannot interpret the new
+runtime coordinates, strict archive selection and pre-Play data preservation.
+New captures use retained-contract format 8; format 7 continues to mean versioned
+mod packages. Existing retained definitions are never recaptured or migrated by
+today's catalog. A change between these coordinates requires a supported explicit
+transition; an incompatible update preserves the working installation.
 
 Staged-source portable version 3 implements a user-prepared runtime's declared
 `runtime_subdirectory` as its launch working directory. Core verifies the whole

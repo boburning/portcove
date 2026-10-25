@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chili-con-carnage-pc-mikethesavage-chili-con-carnage",
+    "name": "Chili Con Carnage — chili-con-carnage-pc (MikeTheSavage)",
+    "original_game_title": "Chili Con Carnage",
+    "summary": "Native staticruntime/setup; onlyUSdisc; gameplayboundary needsprimaryknownissues. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA ULUS10216 unmodifiedplainISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "ReleaseSetup/launcher importsownISO/generateslocally; optionalportablebuildtools."
+        }
+      ],
+      "warnings": [
+        "Native staticruntime/setup; onlyUSdisc; gameplayboundary needsprimaryknownissues.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc"
+    },
+    "issue_number": 3097,
+    "artwork": {
+      "game_id": 23111,
+      "cover_id": 209191,
+      "image_id": "co4hev",
+      "image_sha256": "ab4eeec515f39b56578acffc49fdda2fdd1106ae84c7d1e3c7894bbdb53c6f3c",
+      "game_slug": "chili-con-carnage",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "chili-con-carnage-psp",
+    "origin": {
+      "project_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1421539960"
+      }
+    },
+    "decisions": []
+  }
+}

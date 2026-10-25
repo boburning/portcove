@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "3-on-3-nhl-arcade-pc-port-wndwsqrrl-3-on-3-nhl-arcade",
+    "name": "3 on 3 NHL Arcade — 3 on 3 NHL Arcade – PC Port (Wndwsqrrl)",
+    "original_game_title": "3 on 3 NHL Arcade",
+    "summary": "Concrete runtime/gameplay screenshot exists; full-match/save scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own 3 on 3 NHL Arcade Xbox 360 XBLA package or its complete extracted files. XBLA title 58410975."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows package/launcher offered; retained evidence does not establish game-code compilation behavior during setup."
+        }
+      ],
+      "warnings": [
+        "Concrete runtime/gameplay screenshot exists; full-match/save scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp"
+    },
+    "issue_number": 3285,
+    "artwork": {
+      "game_id": 21258,
+      "cover_id": 585871,
+      "image_id": "cock27",
+      "image_sha256": "375638575352279835e2b2e5f85679cab7806b24753f115e334fc234d5b2b593",
+      "game_slug": "3-on-3-nhl-arcade",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "startupandhold-3on3arcaderecomp",
+    "origin": {
+      "project_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1394649082"
+      }
+    },
+    "decisions": []
+  }
+}

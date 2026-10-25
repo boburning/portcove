@@ -600,6 +600,14 @@ pub enum RuntimeDataPolicy {
     VersionLocalRetroAchievementsV1,
 }
 
+/// Preserve complete mod package versions without replacing packaged defaults.
+/// This grants neither executable trust nor mod/save compatibility.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ModPackagePolicy {
+    VersionedPackagesV1,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -638,10 +646,16 @@ pub struct PortDefinition {
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub n64_windows_initial_d3d12: bool,
+    /// Keep a reviewed N64 package's runtime and data beside its selected player,
+    /// including when upstream changes the outer archive wrapper name.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub n64_runtime_at_executable_parent: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_initialization: Option<ManagedInitialization>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_package_policy: Option<ModPackagePolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_shared_preferences: Option<PreparedSharedPreferencesContract>,
     /// Reviewed engine save identifier used only to bound managed GB save paths.

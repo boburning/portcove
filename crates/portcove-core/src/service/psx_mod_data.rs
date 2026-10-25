@@ -4,7 +4,7 @@
 //! upstream state. The retained adapter owns the declared `mods` tree; upstream
 //! still decides whether a selected package is compatible with a runtime.
 //! The bounded data-restoration receipt and conservative uninitialized-tree
-//! collection also serve ready staged archives. Its historical metadata filename
+//! collection also serve ready staged archives and opted-in N64 runtimes. Its historical metadata filename
 //! stays readable; it grants neither executable nor mod authenticity.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -211,7 +211,8 @@ impl AdditiveTree {
 }
 
 pub(super) fn owns_mods(port: &PortDefinition) -> bool {
-    port.adapter == AdapterKind::PsxRecompManaged
+    (port.adapter == AdapterKind::PsxRecompManaged
+        || port.mod_package_policy == Some(crate::ModPackagePolicy::VersionedPackagesV1))
         && port.persistent_paths.iter().any(|path| path == "mods")
 }
 
@@ -683,8 +684,15 @@ impl PortcoveService {
         for relative in crate::persistence::entries(port, &[persistent_root, user_root])? {
             let from = persistent_root.join(&relative);
             let to = user_root.join(&relative);
-            let plan =
-                AdditiveTree::prepare(&from, &to, crate::persistence::ready_staged_archive(port))?;
+            // Package identity compares complete content, not publisher timestamps.
+            // Keep the additive preflight for conflicting unproven root state.
+            let plan = AdditiveTree::prepare(
+                &from,
+                &to,
+                (crate::persistence::ready_staged_archive(port)
+                    || port.n64_runtime_at_executable_parent)
+                    && !(relative == "mods" && owns_mods(port)),
+            )?;
             if relative == "mods" && owns_mods(port) {
                 mods = Some(ModRestore::prepare(&from, &to)?);
             }
@@ -730,7 +738,10 @@ impl PortcoveService {
             }
             let install_root = self.managed_install_root(port_id, &path)?;
             let contract = self.persistence_contract(fallback, &install_root)?;
-            if !contract.writes_directly && contract.port.adapter == AdapterKind::PsxRecompManaged {
+            if !contract.writes_directly
+                && (contract.port.adapter == AdapterKind::PsxRecompManaged
+                    || contract.port.mod_package_policy.is_some())
+            {
                 self.require_psx_data_receipt_readable(&contract.port, &install_root)?;
                 if !owns_mods(&contract.port) {
                     continue;

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "psx-jackie-chan-recomp-claudiovarandas-jackie-chan-stuntmaster",
+    "name": "Jackie Chan Stuntmaster — psx-jackie-chan-recomp (ClaudioVarandas)",
+    "original_game_title": "Jackie Chan Stuntmaster",
+    "summary": "Research project. Native3D/sound/widescreen60FPS claim; game-specific interrupt fixes; release packaging undone, no full playthrough. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-00684 JackieChan own disc plus own SCPH1001 BIOS. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build pinned PSXRecomp tools, translate own BIOS/disc, link title framework fixes and build runtime. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Native3D/sound/widescreen60FPS claim; game-specific interrupt fixes; release packaging undone, no full playthrough. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp"
+    },
+    "issue_number": 3547
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jackie-chan-stuntmaster-ps1",
+    "origin": {
+      "project_url": "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1309318642"
+      }
+    },
+    "decisions": []
+  }
+}

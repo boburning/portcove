@@ -347,6 +347,7 @@ fn raw_observation_reuses_schema_two_recognition_and_structural_unknown_logic() 
             std::fs::write(&record.path, b"\x80\x37\x12\x40different exact input\0\0\0").unwrap();
         }
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: Some(operation()),
             limit: 1024,
             hashed: 0,
@@ -393,6 +394,7 @@ fn archive_only_profile_cannot_use_an_empty_raw_inventory_as_a_wildcard() {
     let (_temporary, mut service, record) = fixture();
     service.replace_catalog_for_test(raw_fixture_catalog(&service, &record, true));
     let mut budget = HashBudget {
+        checkpoint: None,
         operation: Some(operation()),
         limit: 1024,
         hashed: 0,
@@ -561,8 +563,9 @@ fn directory_inspection(
     )
 }
 
-fn hash_budget(maximum: u64) -> HashBudget {
+fn hash_budget(maximum: u64) -> HashBudget<'static> {
     HashBudget {
+        checkpoint: None,
         operation: Some(operation()),
         limit: maximum,
         hashed: 0,

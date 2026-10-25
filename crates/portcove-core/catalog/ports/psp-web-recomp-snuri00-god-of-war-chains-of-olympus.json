@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "psp-web-recomp-snuri00-god-of-war-chains-of-olympus",
+    "name": "God of War: Chains of Olympus — PSP Web Recomp (snuri00)",
+    "original_game_title": "God of War: Chains of Olympus",
+    "summary": "Two Ready at Dawn titles brought through combat; movies skipped; browser saves not directly interoperable with PSP encrypted saves. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/snuri00/psp-web-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/snuri00/psp-web-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Owned PSP ISO or extracted disc; decrypted EBOOT via external PSP_DECRYPT; exact regional IDs not stated in README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local Linux setup.sh/port.sh/serve.sh compiles generated C++ to WASM from owned input and externally decrypted EBOOT; served browser player uses original disc data over HTTP Range. Native flag creates headless diagnostic runner."
+        }
+      ],
+      "warnings": [
+        "Two Ready at Dawn titles brought through combat; movies skipped; browser saves not directly interoperable with PSP encrypted saves.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/snuri00/psp-web-recomp"
+    },
+    "issue_number": 3006
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "god-of-war-chains-of-olympus-psp",
+    "origin": {
+      "project_url": "https://github.com/snuri00/psp-web-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1408673153"
+      }
+    },
+    "decisions": []
+  }
+}

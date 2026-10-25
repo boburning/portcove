@@ -82,3 +82,186 @@ include = ["**/crates/portcove-core/src/external_runtime/tfe_settings_tests.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = ['^C:/Games/$']
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/apps/desktop/src-tauri/src/application_update_restart_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/owned host helpers/fusermount3$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/apps/desktop/src-tauri/src/source_removal_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^D:/Original ü/game\\.iso$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/apps/desktop/src-tauri/src/application_update_process_environment_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/usr/bin/env$", "^/owned host helpers/fusermount3$", "^/owned library$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-release-tools/tests/tuf_repository/offline.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/keytype$", "^/scheme$", "^/keyval/public$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-release-tools/src/definition_repository/tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/absolute$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-cli/src/human/transfers_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  "^/game files/星の狐\\.z64$",
+  "^/original/星の狐\\.z64$",
+  "^/new\nlocation\\.z64$",
+  "^/restored$",
+  "^/original$",
+  "^/export/metadata\\.json$",
+  "^/copied payload$",
+  "^/restore target$",
+]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-cli/src/human/task_results_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  "^/library/备份/backup-1$",
+  "^/managed\nゲーム\u001b$",
+  "^/original\nゲーム\u001b$",
+  "^/library$",
+  "^/library/ports$",
+  "^/library/user/starship$",
+  "^/managed/retained-install$",
+  "^/library/セーブ\tsettings\u001b$",
+  "^/library/ゲーム$",
+  "^/owned/ゲーム\nfolder$",
+  "^/owned/ゲーム/game$",
+]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/relative_file_set_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^C:/outside$", "^/DARK\\.GOB$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/external_runtime/shared_preferences_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  "^C:\\\\Runtime\\\\runtime_prefs\\.ini$",
+  "^C:\\\\café$",
+  "^C:\\\\game\nfile$",
+  "^C:\\\\game\u0000file$",
+]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/service/ghostship_legacy_save_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  "^/shipSaveData/achievementSaveData/entries/0/id$",
+  "^/shipSaveData/achievementSaveData/entries/0/progress$",
+  "^/shipSaveData/achievementSaveData/cheated$",
+  "^/shipSaveData/achievementSaveData/capStars$",
+  "^/shipSaveData/achievementSaveData/coins$",
+  "^/shipSaveData/randoSaveData/randoSaveChecks/0/randoItemId$",
+  "^/shipSaveData/randoSaveData/randoSaveChecks/0/randoAct$",
+  "^/shipSaveData/randoSaveData/randoSaveChecks/1/randoAct$",
+  "^/shipSaveData/randoSaveData/randoSaveChecks/0/obtained$",
+  "^/shipSaveData/randoSaveData/randoSaveChecks/0/skipped$",
+  "^/shipSaveData/randoSaveData/randoSaveEntrances/0/destinationId$",
+  "^/shipSaveData/randoSaveData/randoSaveEntrances/1/destinationId$",
+  "^/shipSaveData/randoSaveData/randoSaveEntrances/1/randoEntranceId$",
+  "^/shipSaveData/randoSaveData/randoSaveEntrances/1/found$",
+  "^/shipSaveData/randoSaveData/randoSaveOptions/9$",
+  "^/shipSaveData/randoSaveData/finalSeed$",
+  "^/version$",
+  "^/capLevel$",
+  "^/capArea$",
+  "^/capPos/x$",
+  "^/capPos/y$",
+  "^/capPos/z$",
+  "^/flags$",
+  "^/courseStars/BOB$",
+  "^/courseCoinScores/RR$",
+]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/service/catalog_download_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  "^/repos/owner/game/releases/7$",
+  "^/download/game\\.zip$",
+  "^/download/game\\.zip\\.sha256$",
+]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/failure_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^C:/Games/<preserve>$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/cancellation_managed_builder_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^/L$", "^/deny$", "^/d$", "^/c$", "^/J$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/runtime_path_policy_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  "^C:\\\\Games\\\\DKC3$",
+  "^C:\\\\Games with spaces\\\\F-Zero$",
+  "^\\\\\\\\\\?\\\\C:\\\\Games\\\\F-Zero$",
+  "^\\\\\\\\server\\\\games\\\\F-Zero$",
+  "^\\\\\\\\\\?\\\\UNC\\\\server\\\\games\\\\F-Zero$",
+  "^C:\\\\Juegos\\\\José$",
+  "^C:\\\\Games\\\\日本語$",
+  "^C:\\\\Games\\\\bad\tname$",
+  "^C:\\\\Games\\\\runtime\\\\game\\.exe$",
+  "^C:\\\\Games\\\\runtime$",
+  "^C:\\\\Originals\\\\game\\.sfc$",
+  "^C:\\\\Originals\\\\日本語\\.sfc$",
+  "^C:\\\\日本語$",
+  "^/home/日本語$",
+]
+
+# exact Windows extended UNC prefix; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/runtime_path_policy.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^\\\\\\\\\\?\\\\UNC\\\\$"]
+
+# test-only literal controls; values are exact and apply only to this file.
+[[scope]]
+include = ["**/crates/portcove-core/src/preparation_ghostship_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ["^E:/fixture/Ghostship$", "^E:/fixture with spaces/baserom\\.us\\.z64$"]

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gowa-pc-richardfontoura-richardfontoura-god-of-war-ascension",
+    "name": "God of War: Ascension — gowa-pc (RichardFontoura) (RichardFontoura)",
+    "original_game_title": "God of War: Ascension",
+    "summary": "Research project. Boot/menu/newgame/inputtutorialbutfirstleveltooSlow; explicitlynotplayable Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/RichardFontoura/gowa-pc",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RichardFontoura/gowa-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USABCUS98232 own disc+update1.12"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcelocalpipeline+Tklauncher"
+        }
+      ],
+      "warnings": [
+        "Boot/menu/newgame/inputtutorialbutfirstleveltooSlow; explicitlynotplayable",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/RichardFontoura/gowa-pc"
+    },
+    "issue_number": 3379,
+    "artwork": {
+      "game_id": 1291,
+      "cover_id": 157478,
+      "image_id": "co3die",
+      "image_sha256": "34f5ea12174c809172ade265bf4ad1181002180eea97e8067604207be04e6548",
+      "game_slug": "god-of-war-ascension",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "god-of-war-ascension-ps3",
+    "origin": {
+      "project_url": "https://github.com/RichardFontoura/gowa-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1420268493"
+      }
+    },
+    "decisions": []
+  }
+}

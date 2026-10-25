@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ata-recomp-ryah-aero-the-acro-bat",
+    "name": "Aero the Acro-Bat — ATA-Recomp (Ryah)",
+    "original_game_title": "Aero the Acro-Bat",
+    "summary": "v0.1.1 first circus stage movement/jump/landing/music tested upstream; no full campaign, boss, physical-controller or soundtrack qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Ryah/ATA-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Ryah/ATA-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA1048576byte ROM CRC32 A3A7A8B5 SHA256 6E845533D3D41DD10C7A0C7FBAE5AB1FD2669F925CC5903954FB485859234B79"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Native AeroLauncher.exe uses own ROM path in rom.cfg; player build needs no compiler/Python. Source Build.ps1 produces game/launcher with pinned SDK patches; exact published release asset not freshly read."
+        }
+      ],
+      "warnings": [
+        "v0.1.1 first circus stage movement/jump/landing/music tested upstream; no full campaign, boss, physical-controller or soundtrack qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Ryah/ATA-Recomp"
+    },
+    "issue_number": 3562
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "aero-the-acro-bat-genesis",
+    "origin": {
+      "project_url": "https://github.com/Ryah/ATA-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432683630"
+      }
+    },
+    "decisions": []
+  }
+}

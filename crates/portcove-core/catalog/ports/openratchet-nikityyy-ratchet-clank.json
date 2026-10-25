@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openratchet-nikityyy-ratchet-clank",
+    "name": "Ratchet & Clank — OpenRatchet (Nikityyy)",
+    "original_game_title": "Ratchet & Clank",
+    "summary": "Native application replacesplatformservices; PS2Recomp fallback gameexecutor; Level0/render/overlay checks are not proven full gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Nikityyy/OpenRatchet",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Nikityyy/OpenRatchet",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS2 ISO; exact version/serial needs source manifest"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local Extract/Ghidra/Recompile/Build pipeline, assets privately sourced; independent of OpenRAC C decomp runtime."
+        }
+      ],
+      "warnings": [
+        "Native application replacesplatformservices; PS2Recomp fallback gameexecutor; Level0/render/overlay checks are not proven full gameplay.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Nikityyy/OpenRatchet"
+    },
+    "issue_number": 3086
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ratchet-clank-2002-ps2-rac-rs",
+    "origin": {
+      "project_url": "https://github.com/Nikityyy/OpenRatchet",
+      "repository": {
+        "host": "github.com",
+        "id": "1320649050"
+      }
+    },
+    "decisions": []
+  }
+}

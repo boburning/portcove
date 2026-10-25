@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "v64recomp-quake2-us-polaco1782-quake-ii-n64",
+    "name": "Quake II (N64) — v64recomp / quake2-us (polaco1782)",
+    "original_game_title": "Quake II (N64)",
+    "summary": "Research project. Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/polaco1782/v64recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/polaco1782/v64recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Quake II (N64) N64 own USA ROM; quake2-us exactsize/SHA1 inprofile. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "tools/import_rom.py --profile games/quake2-us/profile.toml normalizes ownz64/n64/v64, CMake quake2-us-release builds native quake2-us; externalROMdefault, optionalembeddedbuildprivate. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/polaco1782/v64recomp"
+    },
+    "issue_number": 3604
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "quake-ii-n64-n64",
+    "origin": {
+      "project_url": "https://github.com/polaco1782/v64recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420121199"
+      }
+    },
+    "decisions": []
+  }
+}

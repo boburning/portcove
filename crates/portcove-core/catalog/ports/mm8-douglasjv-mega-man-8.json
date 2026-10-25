@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mm8-douglasjv-mega-man-8",
+    "name": "Mega Man 8 — mm8 (douglasjv)",
+    "original_game_title": "Mega Man 8",
+    "summary": "Research project. Experimental psxrecomp-tweaks integration faithful baseline; no gameplay qualification borrowed from other MegaMan8 repo. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/douglasjv/mm8",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/douglasjv/mm8",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-00453 MegaMan8 own CHD and512KiB SCPH1001. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "tools/extract_chd.sh, tools/build-macos.sh, Mega_Man_8_Recompiled with own CUE. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Experimental psxrecomp-tweaks integration faithful baseline; no gameplay qualification borrowed from other MegaMan8 repo. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/douglasjv/mm8"
+    },
+    "issue_number": 3548,
+    "artwork": {
+      "game_id": 1721,
+      "cover_id": 605357,
+      "image_id": "cocz3h",
+      "image_sha256": "79f8cdddb93133025bc98a5b4d91eabc7e209fa383d528beb668cf7f0bc3f007",
+      "game_slug": "mega-man-8",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mega-man-8-ps1",
+    "origin": {
+      "project_url": "https://github.com/douglasjv/mm8",
+      "repository": {
+        "host": "github.com",
+        "id": "1299702220"
+      }
+    },
+    "decisions": []
+  }
+}

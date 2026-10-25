@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fifa-09-pc-chunchunq-fifa-09-xbox-360",
+    "name": "FIFA 09 (Xbox 360) — FIFA 09 PC (ChunchunQ)",
+    "original_game_title": "FIFA 09 (Xbox 360)",
+    "summary": "Release/online features described; complete mode coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ChunchunQ/fifa09-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ChunchunQ/fifa09-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own FIFA 09 (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Title 4541085B; exact XEX SHA256 in source_identity_facts; other regions/TUs unsafe."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows ZIP, populate Game from own FIFA09 disc and start launcher; only documented XEX supported."
+        }
+      ],
+      "warnings": [
+        "Release/online features described; complete mode coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ChunchunQ/fifa09-recomp"
+    },
+    "issue_number": 3231
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fifa-09-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/ChunchunQ/fifa09-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1426304840"
+      }
+    },
+    "decisions": []
+  }
+}

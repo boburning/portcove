@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goldeneye007reloadedrecomp-nikolaygorb-goldeneye-007-reloaded",
+    "name": "GoldenEye 007: Reloaded — GoldenEye007ReloadedRecomp (nikolaygorb)",
+    "original_game_title": "GoldenEye 007: Reloaded",
+    "summary": "Upstream reports main menu with video/audio/controller input, plus training and first mission loading and gameplay. Online multiplayer is not implemented. Only Windows is tested; Linux/macOS are untested presets. No Portcove campaign or host qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own GoldenEye 007: Reloaded Xbox 360 complete extracted game files, including the original executable. Title 415608AF/media 40583A82."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract own GoldenEye Reloaded ISO, then use Clang/CMake; codegen runs during build."
+        }
+      ],
+      "warnings": [
+        "Upstream reports main menu with video/audio/controller input, plus training and first mission loading and gameplay. Online multiplayer is not implemented. Only Windows is tested; Linux/macOS are untested presets. No Portcove campaign or host qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp"
+    },
+    "issue_number": 3223,
+    "artwork": {
+      "game_id": 1651,
+      "cover_id": 120915,
+      "image_id": "co2lar",
+      "image_sha256": "0a8ac0b001727dc4259e77d8690c6b21be487cf452070a1a2c354e2b004c49b2",
+      "game_slug": "goldeneye-007-reloaded",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "goldeneye-007-reloaded-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421062661"
+      }
+    },
+    "decisions": []
+  }
+}

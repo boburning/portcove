@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-riders-recomp-teclilla18-sonic-riders",
+    "name": "Sonic Riders — sonic-riders-recomp (teclilla18)",
+    "original_game_title": "Sonic Riders",
+    "summary": "Native title/player setup described; exact race/story/completion boundary unresolved. Switch is destination, not source. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/teclilla18/sonic-riders-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/teclilla18/sonic-riders-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GXEE8P full1.4GB ISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README SonicRiders-PC-Setup-<version>.zip or Switch setup, own disc first local build10–30min. Generated binaries contain game-derived code and remain private."
+        }
+      ],
+      "warnings": [
+        "Native title/player setup described; exact race/story/completion boundary unresolved. Switch is destination, not source.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/teclilla18/sonic-riders-recomp"
+    },
+    "issue_number": 3581
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "sonic-riders-gamecube",
+    "origin": {
+      "project_url": "https://github.com/teclilla18/sonic-riders-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1430129207"
+      }
+    },
+    "decisions": []
+  }
+}

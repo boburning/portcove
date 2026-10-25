@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fci-recomp-vinceip-far-cry-instincts-evolution",
+    "name": "Far Cry Instincts: Evolution — fci-recomp (VinceIP)",
+    "original_game_title": "Far Cry Instincts: Evolution",
+    "summary": "v0.2.1; map editors and story routes described, no end-to-end guarantee; same known defects. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/VinceIP/fci-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/VinceIP/fci-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Original Xbox Far Cry Instincts: Evolution title55530060 version3; own ISO or extracted disc files."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Same repository/build route as Instincts; BuildGame.cmd handles each title separately."
+        }
+      ],
+      "warnings": [
+        "v0.2.1; map editors and story routes described, no end-to-end guarantee; same known defects.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/VinceIP/fci-recomp"
+    },
+    "issue_number": 3117,
+    "artwork": {
+      "game_id": 22584,
+      "cover_id": 253821,
+      "image_id": "co5ful",
+      "image_sha256": "a772f7dff041ac2e2e90dd0c594228569c93ea34ba00393ae7ca488616627d1f",
+      "game_slug": "far-cry-instincts-evolution",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "far-cry-instincts-evolution-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/VinceIP/fci-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423641542"
+      }
+    },
+    "decisions": []
+  }
+}

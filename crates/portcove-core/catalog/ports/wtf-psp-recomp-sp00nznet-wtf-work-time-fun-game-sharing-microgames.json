@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wtf-psp-recomp-sp00nznet-wtf-work-time-fun-game-sharing-microgames",
+    "name": "WTF: Work Time Fun (game-sharing microgames) — wtf-psp-recomp (sp00nznet)",
+    "original_game_title": "WTF: Work Time Fun (game-sharing microgames)",
+    "summary": "Lumberjack plays through paycheck; Pendemonium playable; main EBOOT not attempted; no audio device output. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/wtf-psp-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/wtf-psp-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own USA UMD/PSN dump; encrypted b02/b04 PBP microgame modules, external pspdecrypt"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local extract/decrypt/emit/build, separate executable per microgame; do not claim entire anthology playable."
+        }
+      ],
+      "warnings": [
+        "Lumberjack plays through paycheck; Pendemonium playable; main EBOOT not attempted; no audio device output.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/wtf-psp-recomp"
+    },
+    "issue_number": 3041,
+    "artwork": {
+      "game_id": 42853,
+      "cover_id": 198108,
+      "image_id": "co48v0",
+      "image_sha256": "7af25015548d76253fecaf429aa0da1599675ee854f4464adeafa56e69e6b023",
+      "game_slug": "wtf-work-time-fun",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wtf-work-time-fun-game-sharing-microgames-psp",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/wtf-psp-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1306072979"
+      }
+    },
+    "decisions": []
+  }
+}

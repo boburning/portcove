@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rustmania-racing-ray-m-w-muppet-racemania",
+    "name": "Muppet RaceMania — RustMania Racing (Ray-m-w)",
+    "original_game_title": "Muppet RaceMania",
+    "summary": "Native60Hzwidescreen; tickcomparisonandHUDoracleclaims; fullcampaignnotverified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Ray-m-w/RustMania-Racing",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Ray-m-w/RustMania-Racing",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS01237 ownCUE/BIN; CHDconvert; digestchecked"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Releaseor sourcebuild; discassetsreadat runtime"
+        }
+      ],
+      "warnings": [
+        "Native60Hzwidescreen; tickcomparisonandHUDoracleclaims; fullcampaignnotverified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Ray-m-w/RustMania-Racing"
+    },
+    "issue_number": 3392,
+    "artwork": {
+      "game_id": 3259,
+      "cover_id": 213837,
+      "image_id": "co4kzx",
+      "image_sha256": "ca8e2b9d66473b86d282d634f4e78fc0c30ded2504db2cc41d90055a1e0d4d6e",
+      "game_slug": "muppet-racemania",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "muppet-racemania-ps1",
+    "origin": {
+      "project_url": "https://github.com/Ray-m-w/RustMania-Racing",
+      "repository": {
+        "host": "github.com",
+        "id": "1424374230"
+      }
+    },
+    "decisions": []
+  }
+}

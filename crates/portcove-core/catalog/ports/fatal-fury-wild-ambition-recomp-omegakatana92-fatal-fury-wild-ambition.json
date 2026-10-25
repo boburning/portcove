@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fatal-fury-wild-ambition-recomp-omegakatana92-fatal-fury-wild-ambition",
+    "name": "Fatal Fury: Wild Ambition — Fatal-Fury-Wild-Ambition-Recomp (omegakatana92)",
+    "original_game_title": "Fatal Fury: Wild Ambition",
+    "summary": "Research project. Windows build/launcher/disc acceptance/game launch reported; gameplay testing ongoing; setup-only unknown-dispatch caveat. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NorthAmerica SLUS-01001 own FatalFuryWildAmbition disc; framework BIOS prerequisite to clarify. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "CMake PSXRECOMP_FORCE_SETUP_HOST=OFF builds title exe, own-disc setup generates local game C. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Windows build/launcher/disc acceptance/game launch reported; gameplay testing ongoing; setup-only unknown-dispatch caveat. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp"
+    },
+    "issue_number": 3526,
+    "artwork": {
+      "game_id": 28138,
+      "cover_id": 461190,
+      "image_id": "co9vuu",
+      "image_sha256": "87e56e2b52c85b0020821e90d749407be7f91543d9c19b7f4570d01a618493c3",
+      "game_slug": "fatal-fury-wild-ambition",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fatal-fury-wild-ambition-ps1",
+    "origin": {
+      "project_url": "https://github.com/omegakatana92/Fatal-Fury-Wild-Ambition-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1360862973"
+      }
+    },
+    "decisions": []
+  }
+}

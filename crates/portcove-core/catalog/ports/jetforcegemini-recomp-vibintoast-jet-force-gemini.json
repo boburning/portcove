@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+    "name": "Jet Force Gemini — JetForceGemini-Recomp (VibinToast)",
+    "original_game_title": "Jet Force Gemini",
+    "summary": "Claims100% playable, modern controls and texture packs; upstream claim only, no Portcove playthrough. Different repo ID than existing TK22 owner and own DKR-derived runtime needs final lineage reconciliation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA z64 ROM SHA1 493ced9008dbe932d6e91179b68e8630cf23a023"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README Windows/Linux archives/AppImage or source local build. Runtime selects own ROM; saves separate per package."
+        }
+      ],
+      "warnings": [
+        "Claims100% playable, modern controls and texture packs; upstream claim only, no Portcove playthrough. Different repo ID than existing TK22 owner and own DKR-derived runtime needs final lineage reconciliation.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/VibinToast/JetForceGemini-Recomp"
+    },
+    "issue_number": 3580
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tk22-26-jetforcegemini-recomp",
+    "origin": {
+      "project_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1418141714"
+      }
+    },
+    "decisions": []
+  }
+}

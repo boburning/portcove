@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "thegetawayrecomp-miguel-apereira-the-getaway",
+    "name": "The Getaway — TheGetawayRecomp (miguel-apereira)",
+    "original_game_title": "The Getaway",
+    "summary": "Research project. Early boot to main menu, New Game stalls loading; not playable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/miguel-apereira/TheGetawayRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/miguel-apereira/TheGetawayRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SCUS97133 ISO."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source build of native shell checks/imports own NTSC-U ISO, recompiles/builds runtime; New Game loading stalls."
+        }
+      ],
+      "warnings": [
+        "Early boot to main menu, New Game stalls loading; not playable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/miguel-apereira/TheGetawayRecomp"
+    },
+    "issue_number": 3015,
+    "artwork": {
+      "game_id": 8237,
+      "cover_id": 79148,
+      "image_id": "co1p2k",
+      "image_sha256": "4e2d416fb01ef83338d839d759d69e658af81e5220b35f25ff4b84b7fd906da5",
+      "game_slug": "the-getaway",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-getaway-ps2",
+    "origin": {
+      "project_url": "https://github.com/miguel-apereira/TheGetawayRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429802290"
+      }
+    },
+    "decisions": []
+  }
+}

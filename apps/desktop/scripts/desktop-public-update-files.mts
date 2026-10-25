@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { lstat, mkdir, open, rename, writeFile, readdir, chmod } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import path from "node:path";
 import { errorCode, isRecord } from "../../../scripts/runtime-values.mts";
 import {
@@ -494,6 +495,11 @@ async function retainRawSelections(
   return result;
 }
 
+function assertPrivateProfileEntry(value: Stats) {
+  assert.ok(!value.isSymbolicLink() && (value.mode & 0o022) === 0);
+  if (process.getuid) assert.equal(value.uid, process.getuid());
+}
+
 /** Snapshot of an already settled isolated profile, never an admitted restore.
  * The exact previous actual claim/capture must authenticate any later use. */
 export async function retainPublicUpdateProfile(
@@ -521,26 +527,17 @@ export async function retainPublicUpdateProfile(
     assert.ok(performance.now() < deadline && depth <= 16 && directories.length < 512);
     const directory = path.join(runtime, relative),
       identity = await lstat(directory);
-    assert.ok(
-      identity.isDirectory() && !identity.isSymbolicLink() && (identity.mode & 0o022) === 0,
-    );
-    if (process.getuid) assert.equal(identity.uid, process.getuid());
+    assert.ok(identity.isDirectory());
+    assertPrivateProfileEntry(identity);
     directories.push({ path: relative, mode: identity.mode & 0o777, identity });
     const entries = await readdir(directory);
     assert.ok(entries.length <= 512);
     for (const name of entries.sort()) {
-      assert.ok(
-        /^[A-Za-z0-9._ -]{1,128}$/u.test(name) &&
-          name !== "." &&
-          name !== ".." &&
-          !name.endsWith(".") &&
-          !name.endsWith(" "),
-      );
+      profileRelative(name);
       const next = relative ? relative + "/" + name : name;
       assert.ok(next.length <= 2048 && selected.length < 512);
       const info = await lstat(path.join(runtime, next));
-      assert.ok(!info.isSymbolicLink() && (info.mode & 0o022) === 0);
-      if (process.getuid) assert.equal(info.uid, process.getuid());
+      assertPrivateProfileEntry(info);
       if (info.isDirectory()) {
         await walk(next, depth + 1);
         continue;

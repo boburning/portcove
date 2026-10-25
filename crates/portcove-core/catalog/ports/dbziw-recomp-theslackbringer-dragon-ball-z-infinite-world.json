@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dbziw-recomp-theslackbringer-dragon-ball-z-infinite-world",
+    "name": "Dragon Ball Z: Infinite World — dbziw-recomp (TheSlackbringer)",
+    "original_game_title": "Dragon Ball Z: Infinite World",
+    "summary": "Source/release self-builder in development; tested scenes not full playability. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TheSlackbringer/dbziw-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TheSlackbringer/dbziw-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe PAL SLES55347 ISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows self-building release; Linux local generation/build; no Linux runtime package asserted."
+        }
+      ],
+      "warnings": [
+        "Source/release self-builder in development; tested scenes not full playability.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TheSlackbringer/dbziw-recomp"
+    },
+    "issue_number": 3060,
+    "artwork": {
+      "game_id": 2570,
+      "cover_id": 178574,
+      "image_id": "co3tse",
+      "image_sha256": "d82029c253fcd97e6bcd5ca3e81b7acad498a8d0caa8d546d07e2990da2fc9c8",
+      "game_slug": "dragon-ball-z-infinite-world",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-ball-z-infinite-world-ps2",
+    "origin": {
+      "project_url": "https://github.com/TheSlackbringer/dbziw-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427182085"
+      }
+    },
+    "decisions": []
+  }
+}

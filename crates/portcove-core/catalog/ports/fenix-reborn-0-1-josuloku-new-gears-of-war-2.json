@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fenix-reborn-0-1-josuloku-new-gears-of-war-2",
+    "name": "Gears of War 2 — Fenix Reborn 0.1 (josuloku-new)",
+    "original_game_title": "Gears of War 2",
+    "summary": "Experimental image/mod options documented; full campaign coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/josuloku-new/Fenix-Reborn",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/josuloku-new/Fenix-Reborn",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Gears of War 2 Xbox 360 disc ISO. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "FenixReborn setup obtains tools and generates/compiles game code from own ISO."
+        }
+      ],
+      "warnings": [
+        "Experimental image/mod options documented; full campaign coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/josuloku-new/Fenix-Reborn"
+    },
+    "issue_number": 3226,
+    "artwork": {
+      "game_id": 548,
+      "cover_id": 104272,
+      "image_id": "co28gg",
+      "image_sha256": "dd7160c423dc5ceed153a3ceb9a77eca6ba2fa8b3bab0b93681af6fd9b21e5b4",
+      "game_slug": "gears-of-war-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gears-of-war-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/josuloku-new/Fenix-Reborn",
+      "repository": {
+        "host": "github.com",
+        "id": "1431130056"
+      }
+    },
+    "decisions": []
+  }
+}

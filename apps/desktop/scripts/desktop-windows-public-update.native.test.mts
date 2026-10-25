@@ -543,7 +543,11 @@ void test("fixed entry refuses changed configuration and exhausted lifetime befo
 
 void test(
   "actual installer public-entry guards refuse unappointed source and version before account access",
-  { skip: process.platform !== "win32" },
+  {
+    skip:
+      process.platform !== "win32" &&
+      "platform: win32; requires Windows PowerShell installer guards; route: ci.yml/windows_storage (native helper contracts)",
+  },
   async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "portcove-public-installer-entry-"));
     try {

@@ -544,6 +544,7 @@ fn live_compound_discovery_matches_manual_without_registration_or_rewriting() {
             &path,
             u64::MAX,
             &mut HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit: u64::MAX,
                 hashed: 0,
@@ -909,6 +910,7 @@ fn live_compound_owned_reader_keeps_existing_hash_bounds_and_cancellation() {
     let path = temporary.path().join("package");
     fs::write(&path, &package).unwrap();
     let mut budget = HashBudget {
+        checkpoint: None,
         operation: None,
         limit: package.len() as u64,
         hashed: 0,
@@ -1067,6 +1069,7 @@ fn live_compound_failure_rejects_its_profile_but_preserves_independent_raw_admis
                 &path,
                 u64::MAX,
                 &mut HashBudget {
+                    checkpoint: None,
                     operation: None,
                     limit: u64::MAX,
                     hashed: 0,
@@ -1133,6 +1136,7 @@ fn live_compound_extension_override_does_not_widen_structural_legacy_admission()
             path,
             u64::MAX,
             &mut HashBudget {
+                checkpoint: None,
                 operation: None,
                 limit: u64::MAX,
                 hashed: 0,
@@ -4072,6 +4076,7 @@ fn zip_file_set_identity_retains_the_opened_artifact_after_path_replacement() {
         .map(|(_, bytes)| bytes.len() as u64)
         .sum::<u64>();
     let mut budget = HashBudget {
+        checkpoint: None,
         operation: None,
         limit: original.len() as u64 + member_bytes,
         hashed: 0,
@@ -4129,6 +4134,7 @@ fn zip_file_set_changed_length_invalidates_observed_candidate() {
         let path = fs::canonicalize(path).unwrap();
         let original = fs::read(&path).unwrap();
         let mut budget = HashBudget {
+            checkpoint: None,
             operation: None,
             limit: 1_000_000,
             hashed: 0,

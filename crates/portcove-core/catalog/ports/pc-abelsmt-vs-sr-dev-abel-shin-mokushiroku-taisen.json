@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen",
+    "name": "ABEL: Shin Mokushiroku Taisen — pc-abelsmt (vs-sr-dev)",
+    "original_game_title": "ABEL: Shin Mokushiroku Taisen",
+    "summary": "Research project. Opening/ending/firstroom parity, CPU35%speed visualestimate; firstdungeon/save/Englishtranslation pending. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-abelsmt",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-abelsmt",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "FM Towns Japan ABEL MTC1137 own20-track disc plus ownfontROM. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "fmtownskit disc extraction,tools/recomp.sh translates OPNG/ABEL/ENDG/TBIOS; build/rt/abel. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Opening/ending/firstroom parity, CPU35%speed visualestimate; firstdungeon/save/Englishtranslation pending. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-abelsmt"
+    },
+    "issue_number": 3591,
+    "artwork": {
+      "game_id": 299785,
+      "cover_id": 426783,
+      "image_id": "co95b3",
+      "image_sha256": "424eea10675ca610a7315a9bc1bb0575ecb297dc317976b222ce7f93509af470",
+      "game_slug": "abel-shin-mokushiroku-taisen",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "abel-shin-mokushiroku-taisen-fm-towns",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-abelsmt",
+      "repository": {
+        "host": "github.com",
+        "id": "1430344008"
+      }
+    },
+    "decisions": []
+  }
+}

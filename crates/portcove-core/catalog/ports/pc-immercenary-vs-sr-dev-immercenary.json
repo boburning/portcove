@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-immercenary-vs-sr-dev-immercenary",
+    "name": "Immercenary — pc-immercenary (vs-sr-dev)",
+    "original_game_title": "Immercenary",
+    "summary": "Research project. City/shots/death/debrief/secondjump claimed, not fullcompletion; earlier customengine route superseded. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-immercenary",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-immercenary",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "3DO ImmercenaryUSA own IMG and discprograms/OS. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "operafs.py ownIMG extraction,3dokit originalARM staticemit/CMake pfboot --boot --window. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "City/shots/death/debrief/secondjump claimed, not fullcompletion; earlier customengine route superseded. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-immercenary"
+    },
+    "issue_number": 3589,
+    "artwork": {
+      "game_id": 4296,
+      "cover_id": 161717,
+      "image_id": "co3gs5",
+      "image_sha256": "cbba41f0bef3466aa161ae886d1b90b12651c238eda31d036bf9aa08d7d65890",
+      "game_slug": "immercenary",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "immercenary-3do",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-immercenary",
+      "repository": {
+        "host": "github.com",
+        "id": "1343675457"
+      }
+    },
+    "decisions": []
+  }
+}

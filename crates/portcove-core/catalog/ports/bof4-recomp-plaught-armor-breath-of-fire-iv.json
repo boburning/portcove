@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bof4-recomp-plaught-armor-breath-of-fire-iv",
+    "name": "Breath of Fire IV — bof4-recomp (plaught-armor)",
+    "original_game_title": "Breath of Fire IV",
+    "summary": "Native title runtime described; exact campaign/scene completion and package route not established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/plaught-armor/bof4-recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/plaught-armor/bof4-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS01324 CUE plus data/audio tracks; exact source digest unresolved"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local setup.sh/setup.bat verifies US executable, lifts game code and builds native bof4 with Odin/SDL2; original disc data retained."
+        }
+      ],
+      "warnings": [
+        "Native title runtime described; exact campaign/scene completion and package route not established here.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/plaught-armor/bof4-recomp"
+    },
+    "issue_number": 3563,
+    "artwork": {
+      "game_id": 1280,
+      "cover_id": 311972,
+      "image_id": "co6opw",
+      "image_sha256": "f83183d23e9c2d6cc223ab2ae9ad67c6c8ec7fdfc88be36779c60722d3309037",
+      "game_slug": "breath-of-fire-iv",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "breath-of-fire-iv-ps1",
+    "origin": {
+      "project_url": "https://github.com/plaught-armor/bof4-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432167597"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "demonssoulspc-leonardorobertomotalvao-leonardorobertomotalvao-demon-s-souls",
+    "name": "Demon's Souls — DemonsSoulsPC (Leonardorobertomotalvao) (Leonardorobertomotalvao)",
+    "original_game_title": "Demon's Souls",
+    "summary": "Functionalprototype ononeauthorWindows10PC; exactcontinuousgameplay proof tobound Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Leonardorobertomotalvao/demons-souls-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Leonardorobertomotalvao/demons-souls-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NorthAmericaBLUS30443 owneddecryptedEBOOT.ELF+PS3_GAME; runtime/EBOOTsha256approvedidentity"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Alpha0.2 WPF.NET8ownerlauncher/sourcebuild; localcopyintoownedinstall"
+        }
+      ],
+      "warnings": [
+        "Functionalprototype ononeauthorWindows10PC; exactcontinuousgameplay proof tobound",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Leonardorobertomotalvao/demons-souls-pc"
+    },
+    "issue_number": 3375
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "demon-s-souls-ps3",
+    "origin": {
+      "project_url": "https://github.com/Leonardorobertomotalvao/demons-souls-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1429858099"
+      }
+    },
+    "decisions": []
+  }
+}

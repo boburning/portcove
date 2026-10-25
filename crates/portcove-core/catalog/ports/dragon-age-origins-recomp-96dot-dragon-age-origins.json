@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragon-age-origins-recomp-96dot-dragon-age-origins",
+    "name": "Dragon Age: Origins — Dragon-Age-Origins-Recomp (96dot)",
+    "original_game_title": "Dragon Age: Origins",
+    "summary": "Research project. Extensive title renderer/input/DLC features, experimental upscalers/framerates not fullgame/hardware qualification. Upstream statements only; not Portcove runtime/gameplay verification. Linux installer does not make a native Linux runtime; README requires Wine/Proton and calls Linux support untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/96dot/Dragon-Age-Origins-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/96dot/Dragon-Age-Origins-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Xbox360 DAO title454108C0/media186A1115 En/It/Es disc or matchingUltimateEditiondisc1; own TU6/7/DLC separate. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised DAORecomp.exe accepts ownISO, retrieves tools/translates/builds30–60min; source install.py. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Extensive title renderer/input/DLC features, experimental upscalers/framerates not fullgame/hardware qualification. Upstream statements only; not Portcove runtime/gameplay verification. Linux installer does not make a native Linux runtime; README requires Wine/Proton and calls Linux support untested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/96dot/Dragon-Age-Origins-Recomp"
+    },
+    "issue_number": 3574,
+    "artwork": {
+      "game_id": 76,
+      "cover_id": 122968,
+      "image_id": "co2mvs",
+      "image_sha256": "877e7713a956a12a20536dcaf457a41d7b84e5bef6c1c008b44922615e876b83",
+      "game_slug": "dragon-age-origins",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-age-origins-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/96dot/Dragon-Age-Origins-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1413736445"
+      }
+    },
+    "decisions": []
+  }
+}

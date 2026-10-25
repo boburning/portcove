@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "unicorn-overlord-pc-hachi23-hachi23-unicorn-overlord",
+    "name": "Unicorn Overlord — Unicorn Overlord PC (hachi23) (hachi23)",
+    "original_game_title": "Unicorn Overlord",
+    "summary": "Prologue/chapter1/first battle and save/load claimed; full game not verified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/hachi23/unicorn_overlord_pc",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/hachi23/unicorn_overlord_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Asia CUSA36381 app01.04 base+English1.04 update owned dump"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v1.0.0 AppImage/WindowsZIP; local launch prepares owned inputs; latest prerelease untested"
+        }
+      ],
+      "warnings": [
+        "Prologue/chapter1/first battle and save/load claimed; full game not verified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/hachi23/unicorn_overlord_pc"
+    },
+    "issue_number": 3337,
+    "artwork": {
+      "game_id": 68353,
+      "cover_id": 330516,
+      "image_id": "co7310",
+      "image_sha256": "82d5a9db373079330736b880d24d2d4d751bfdf418499684a46bd333e1a9ec85",
+      "game_slug": "unicorn-overlord--1",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "unicorn-overlord-ps4",
+    "origin": {
+      "project_url": "https://github.com/hachi23/unicorn_overlord_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1416842013"
+      }
+    },
+    "decisions": []
+  }
+}

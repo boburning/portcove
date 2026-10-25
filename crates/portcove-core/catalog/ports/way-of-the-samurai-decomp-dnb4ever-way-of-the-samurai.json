@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "way-of-the-samurai-decomp-dnb4ever-way-of-the-samurai",
+    "name": "Way of the Samurai — way-of-the-samurai-decomp (dnb4ever)",
+    "original_game_title": "Way of the Samurai",
+    "summary": "Matching C and separate static native execution reach own IOP/mainloop and first frames; not full gameplay established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/dnb4ever/way-of-the-samurai-decomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dnb4ever/way-of-the-samurai-decomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA NTSC-U SLUS20407 own disc/ELF"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local source/generation route; matching function count not native gameplay percentage."
+        }
+      ],
+      "warnings": [
+        "Matching C and separate static native execution reach own IOP/mainloop and first frames; not full gameplay established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/dnb4ever/way-of-the-samurai-decomp"
+    },
+    "issue_number": 3054,
+    "artwork": {
+      "game_id": 10156,
+      "cover_id": 78621,
+      "image_id": "co1onx",
+      "image_sha256": "0815a55716747a41b76673d9c4b05e6fdc99bdb382d1b7254e4f1b6d34d9f2c9",
+      "game_slug": "way-of-the-samurai",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "way-of-the-samurai-ps2",
+    "origin": {
+      "project_url": "https://github.com/dnb4ever/way-of-the-samurai-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427490732"
+      }
+    },
+    "decisions": []
+  }
+}

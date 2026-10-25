@@ -6,9 +6,9 @@
     "summary": "Explore Digimon World / psx-recomp-port and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://gitlab.com/ethan4love/psx-recomp-port",
     "issue_number": 357,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://gitlab.com/ethan4love/psx-recomp-port",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",
     "artwork": {
       "game_id": 8614,
       "cover_id": 76556,
@@ -16,6 +16,27 @@
       "image_sha256": "bd8b2a3b450776072e2d55a7d8f861e1717f206e8fd6acef9e5d4f18393f56ab",
       "game_slug": "digimon-world",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/releases",
+    "manual_setup": {
+      "help_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",
+      "warnings": [
+        "The official download is an upstream setup kit, not a ready game. Its own wizard generates and rebuilds the runtime from your disc. Keep the entire prepared project and originals; Portcove does not own its compiler, caches or runtime updates."
+      ],
+      "steps": [
+        {
+          "title": "Finish upstream setup once",
+          "instruction": "Use the complete official Windows x64 setup ZIP and follow its README-SETUP.txt. Supply your own Digimon World USA SLUS-01032 BIN and matching CUE, choose the CUE, and let upstream validate it. Setup requires Python 3 and offers its own build tools; a retail SCPH-1001 BIOS is optional because upstream can generate OpenBIOS locally. Run the upstream setup yourself and keep its folder/progress if interrupted. Portcove does not run a discovered setup host, compiler or helper."
+        },
+        {
+          "title": "Register the finished game player",
+          "instruction": "After upstream Generate & rebuild succeeds, select build-release/Digimon_World_Recompiled.exe inside that project, rather than the root setup-forwarding executable or the Play batch file. Set the working directory to the project root. In Arguments, enter --game, game.toml and --launcher on three separate lines, one argument per line, matching the reviewed upstream product handoff. Review and save these launch details, then choose Play explicitly."
+        },
+        {
+          "title": "Keep saves and upstream updates together",
+          "instruction": "You or upstream update and regenerate this external project. Close the game and preserve the complete prepared folder, including saves/, mods/, game.toml and build-release/, as well as any originals or BIOS stored elsewhere. Ordinary memory-card saves are the long-term progress route; upstream warns that save states and rewind depend on matching mods. Retain the old working copy until progress works after an update. Removing registration preserves every external file; this route does not provide managed Update, Backup or Rollback."
+        }
+      ]
     }
   }
 }

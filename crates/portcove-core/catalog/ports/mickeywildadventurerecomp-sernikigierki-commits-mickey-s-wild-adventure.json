@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mickeywildadventurerecomp-sernikigierki-commits-mickey-s-wild-adventure",
+    "name": "Mickey's Wild Adventure — Mickeywildadventurerecomp (sernikigierki-commits)",
+    "original_game_title": "Mickey's Wild Adventure",
+    "summary": "Research project. Custom story/continue/save protection, practice mode, frontend and input; no full playthrough claim. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sernikigierki-commits/Mickeywildadventurerecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sernikigierki-commits/Mickeywildadventurerecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe SCES-00163 own CUE plus all28 BIN tracks. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Recomp Build Studio validates owned folder, prepares OpenBIOS/game and builds local package; RUN_GAME.bat/RUN_GAME.sh. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Custom story/continue/save protection, practice mode, frontend and input; no full playthrough claim. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sernikigierki-commits/Mickeywildadventurerecomp"
+    },
+    "issue_number": 3501,
+    "artwork": {
+      "game_id": 256368,
+      "cover_id": 314252,
+      "image_id": "co6qh8",
+      "image_sha256": "b166621bc297d161c3f56b4f824fe8b43b0834d1baef7247e4873240994a3616",
+      "game_slug": "mickeys-wild-adventure",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mickey-s-wild-adventure-ps1",
+    "origin": {
+      "project_url": "https://github.com/sernikigierki-commits/Mickeywildadventurerecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1383558997"
+      }
+    },
+    "decisions": []
+  }
+}

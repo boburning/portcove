@@ -49,6 +49,43 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("portability literal baseline retains its native scanner contract across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const input = "scripts/fixtures/rscheck-portability-baseline.json";
+  const sibling = "scripts/fixtures/rscheck-portability-baseline-sibling.json";
+  for (const file of [input, sibling])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        assert.equal(
+          selected.has("scripts/run-rscheck.test.mts"),
+          file === input,
+          JSON.stringify(change),
+        );
+    }
+});
+
 void test("manual job timeout inputs retain direct contracts across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   for (const file of [

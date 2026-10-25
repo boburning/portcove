@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "iqrecomp-thiccboi2-intelligent-qube",
+    "name": "Intelligent Qube — IQRecomp (thiccboi2)",
+    "original_game_title": "Intelligent Qube",
+    "summary": "Research project. Playable early claim, choppy opening FMV, ongoing rendering/input/packaging; exact own-data location remains explicit gap. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/thiccboi2/IQRecomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/thiccboi2/IQRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own IntelligentQube data required; exact region/revision/layout deferred to release instructions. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised player release and IQRecomp executable; follow release own-data instructions; placeholder YOURNAME clone is not identity evidence. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Playable early claim, choppy opening FMV, ongoing rendering/input/packaging; exact own-data location remains explicit gap. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/thiccboi2/IQRecomp"
+    },
+    "issue_number": 3523,
+    "artwork": {
+      "game_id": 4126,
+      "cover_id": 228095,
+      "image_id": "co4vzz",
+      "image_sha256": "b640c2bd96d3a99155be1ea3a938b2e18c22fcf029f9505ed29a3bbd8ff2dc21",
+      "game_slug": "intelligent-qube",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "intelligent-qube-ps1",
+    "origin": {
+      "project_url": "https://github.com/thiccboi2/IQRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1364382659"
+      }
+    },
+    "decisions": []
+  }
+}

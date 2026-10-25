@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-3ddotgameheroes-vs-sr-dev-3d-dot-game-heroes",
+    "name": "3D Dot Game Heroes — pc-3ddotgameheroes (vs-sr-dev)",
+    "original_game_title": "3D Dot Game Heroes",
+    "summary": "Research project. Fourlogos/firstflip then blackscreen lookingforsave; no menu/gameplay established; concrete early native title runtime. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-3ddotgameheroes",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-3ddotgameheroes",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PS3 Europe BLES00875 own3DDotGameHeroes disc/EBOOT plus user keyfile; exactrevision frommanifest. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "OwnISO extract/decrypt, declaredflashstandin, ps3kit staticemit/CMake then local ps3boot. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Fourlogos/firstflip then blackscreen lookingforsave; no menu/gameplay established; concrete early native title runtime. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-3ddotgameheroes"
+    },
+    "issue_number": 3585,
+    "artwork": {
+      "game_id": 7265,
+      "cover_id": 86634,
+      "image_id": "co1uui",
+      "image_sha256": "3fd8af4d3905cace5735714fce10ee1a11146b874ecb9956c82426e17379ed24",
+      "game_slug": "3d-dot-game-heroes",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "3d-dot-game-heroes-ps3",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-3ddotgameheroes",
+      "repository": {
+        "host": "github.com",
+        "id": "1430948950"
+      }
+    },
+    "decisions": []
+  }
+}

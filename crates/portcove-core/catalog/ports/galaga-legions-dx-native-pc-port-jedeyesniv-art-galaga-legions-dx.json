@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "galaga-legions-dx-native-pc-port-jedeyesniv-art-galaga-legions-dx",
+    "name": "Galaga Legions DX — Galaga Legions DX: native PC port (jedeyesniv-art)",
+    "original_game_title": "Galaga Legions DX",
+    "summary": "Full-game60 FPS claimed; tournament/leaderboards unavailable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jedeyesniv-art/Galaga-Legions-DX-PC-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jedeyesniv-art/Galaga-Legions-DX-PC-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Galaga Legions DX Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows release ZIP and populate game; SteamDeck uses the same build through compatibility software."
+        }
+      ],
+      "warnings": [
+        "Full-game60 FPS claimed; tournament/leaderboards unavailable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jedeyesniv-art/Galaga-Legions-DX-PC-Recomp"
+    },
+    "issue_number": 3242,
+    "artwork": {
+      "game_id": 10762,
+      "cover_id": 157059,
+      "image_id": "co3d6r",
+      "image_sha256": "c1485289bbef18ec5521fc16575e7b386bcaa487a759d5362270f653fc9e1f5b",
+      "game_slug": "galaga-legions-dx",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "galaga-legions-dx-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/jedeyesniv-art/Galaga-Legions-DX-PC-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429725838"
+      }
+    },
+    "decisions": []
+  }
+}

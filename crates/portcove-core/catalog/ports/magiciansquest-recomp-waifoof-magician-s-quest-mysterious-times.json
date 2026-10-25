@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "magiciansquest-recomp-waifoof-magician-s-quest-mysterious-times",
+    "name": "Magician's Quest: Mysterious Times — MagiciansQuest-Recomp (waifoof)",
+    "original_game_title": "Magician's Quest: Mysterious Times",
+    "summary": "Early alpha reaches creation/dormitory and first school day with control/sound/touch; broad campaign and multiplayer remain upstream claims. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/waifoof/MagiciansQuest-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/waifoof/MagiciansQuest-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA YNNE NDS ROM SHA1 ab2e495f6206b5c9b69043f8b4114d760f7298b2; Europe EnchantedFolk unsupported"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README rolling latest pre-release ZIP with MagiciansQuest.exe and compiler. Choose owned ROM; compile once locally. Developer source route exists; Windows bootstrap may install tools machine-wide and is not implicitly approved."
+        }
+      ],
+      "warnings": [
+        "Early alpha reaches creation/dormitory and first school day with control/sound/touch; broad campaign and multiplayer remain upstream claims.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/waifoof/MagiciansQuest-Recomp"
+    },
+    "issue_number": 3557,
+    "artwork": {
+      "game_id": 21183,
+      "cover_id": 214462,
+      "image_id": "co4lha",
+      "image_sha256": "4086e7d4c13b213be53816eef7624b0b66a2db7658e4255165b8008d893c635f",
+      "game_slug": "magicians-quest-mysterious-times",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "magician-s-quest-mysterious-times-nds",
+    "origin": {
+      "project_url": "https://github.com/waifoof/MagiciansQuest-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422852361"
+      }
+    },
+    "decisions": []
+  }
+}

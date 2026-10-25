@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ncaa-football-14-recompiled-legendarydoors-ncaa-football-14",
+    "name": "NCAA Football 14 — NCAA Football 14 Recompiled (LegendaryDoors)",
+    "original_game_title": "NCAA Football 14",
+    "summary": "Native player release offered; full dynasty/match scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own NCAA Football 14 Xbox 360 disc ISO or extracted full disc files. USA base default.xex, not title-update XEXP; mod/update requirements need clarification."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use Windows ZIP/Linux AppImage; launcher imports own NCAA14 ISO, codegen uses base XEX rather than XEXP."
+        }
+      ],
+      "warnings": [
+        "Native player release offered; full dynasty/match scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp"
+    },
+    "issue_number": 3301,
+    "artwork": {
+      "game_id": 19673,
+      "cover_id": 100179,
+      "image_id": "co25ar",
+      "image_sha256": "ba9392e6fe317c94ce46ed918055e763dde45931a7133ac7cb05fe0fea388e91",
+      "game_slug": "ncaa-football-14",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ncaa-football-14-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1366785037"
+      }
+    },
+    "decisions": []
+  }
+}

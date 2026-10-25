@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sp00nznet-burnout3-sp00nznet-burnout-3-takedown",
+    "name": "Burnout 3: Takedown — sp00nznet Burnout3 (sp00nznet)",
+    "original_game_title": "Burnout 3: Takedown",
+    "summary": "Research project. Upstream alpha: original Xbox game menus/races/modes including split-screen reportedly run. Software NV2A makes menus~14FPS and races2–4FPS; no profile saving; texture/movie defects. Not a Portcove test. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/burnout3",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/burnout3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own originalXbox Burnout3 Takedown disc ISO; extracted default.xbe beside Data/Tracks/ovid and other disc files. Exact retail revision/hash not established in retained README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows Burnout3-Installer-windows-x64.exe or Setup.cmd imports own ISO, fetches xboxrecomp toolkit pinned afeb69f, generates C and compiles locally with VS2022/CMake/Python3.10+/capstone/Git. First generation/build roughly1–2hours; setup can provision missing tools."
+        }
+      ],
+      "warnings": [
+        "Upstream alpha: original Xbox game menus/races/modes including split-screen reportedly run. Software NV2A makes menus~14FPS and races2–4FPS; no profile saving; texture/movie defects. Not a Portcove test.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/burnout3"
+    },
+    "issue_number": 3173,
+    "artwork": {
+      "game_id": 5761,
+      "cover_id": 90903,
+      "image_id": "co1y53",
+      "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
+      "game_slug": "burnout-3-takedown",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "burnout-3-takedown-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/burnout3",
+      "repository": {
+        "host": "github.com",
+        "id": "1159849415"
+      }
+    },
+    "decisions": []
+  }
+}

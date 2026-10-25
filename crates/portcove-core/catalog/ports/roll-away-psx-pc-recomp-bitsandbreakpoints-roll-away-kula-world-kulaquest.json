@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "roll-away-psx-pc-recomp-bitsandbreakpoints-roll-away-kula-world-kulaquest",
+    "name": "Roll Away / Kula World / KulaQuest — roll-away-psx-pc-recomp (Bitsandbreakpoints)",
+    "original_game_title": "Roll Away / Kula World / KulaQuest",
+    "summary": "Native game and three-region title/screens/gameplay features described; exact whole-game level completion unverified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own USA SLUS00724 or Europe SCES01000 or Japan SCPS10064 BIN/CUE/CHD; ISO loses audio"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README roll-away-pc.zip and roll_away.exe selects own supported image; assets read from disc, no BIOS."
+        }
+      ],
+      "warnings": [
+        "Native game and three-region title/screens/gameplay features described; exact whole-game level completion unverified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp"
+    },
+    "issue_number": 3576,
+    "artwork": {
+      "game_id": 9678,
+      "cover_id": 264068,
+      "image_id": "co5nr8",
+      "image_sha256": "37b675caecfaeb258c2a58c28807beaf61851483616769b5c79f27d2bc84b185",
+      "game_slug": "roll-away",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kula-world-ps1",
+    "origin": {
+      "project_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427445649"
+      }
+    },
+    "decisions": []
+  }
+}
