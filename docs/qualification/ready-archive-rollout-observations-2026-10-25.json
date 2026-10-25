@@ -12,7 +12,7 @@
     "frozen_original_identities": 524,
     "original_affected_authored_additions": 312,
     "original_roadmap_only_joins": 22,
-    "scope": "Three fitting Windows managed routes; no new platform qualification or Project promotion",
+    "scope": "Two fitting Windows managed routes and one precise GoldenEye acquisition condition; no new platform qualification or Project promotion",
     "reviewed_route_assessments": 3
   },
   "entries": [
@@ -162,7 +162,7 @@
       "runtime_source_filename": null,
       "data_boundary": "External files remain outside managed replacement/backup/rollback/removal. Technical proposal preserves exact original/settings/EEPROM/99 import backups and keeps generation version-local, but those managed declarations are not admitted while acquisition condition remains unresolved.",
       "delivery_status": "Selected listing condition/guidance; managed adoption remains blocked pending exact permission fact",
-      "limits": "No actual original or game execution. Upstream converter failure handling is imperfect; Core does not certify generated outputs. EEPROM importer has 99 backup names and can overwrite its last slot when full; all 99 are preserved by managed replacement. Optional Python bytecode remains an undeclared-addition preservation hold.",
+      "limits": "No actual original or game execution. Upstream converter failure handling is imperfect; no Core certification of generated outputs. EEPROM importer has99backup names and can overwrite its last slot when full. The preserved, unadmitted technical proposal would preserve all99 during compatible managed replacement; the selected listing offers no such managed operation. Optional Python bytecode remains an undeclared-addition preservation hold in that proposal.",
       "permission_condition": {
         "id": "goldeneye-007-n64-pc-port",
         "canonical_issue": 1129,
@@ -178,7 +178,7 @@
   ],
   "preparation": {
     "directory": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\ready-rollout-batch6\\full-preparation-4",
-    "accepted_input_output_checks": "Full three-route technical proposal Core inspection passed before review found GoldenEye acquisition blocker. Final two-route/guidance candidate is separately validated by exact-head hosted catalog/Rust checks. The earlier passing technical proposal is not permission or acceptance for GoldenEye.",
+    "accepted_input_output_checks": "Full three-route technical proposal Core inspection passed before review found GoldenEye acquisition blocker. Final two-route/guidance candidate requires separate exact-head hosted catalog/Rust checks, pending at this source checkpoint. Earlier passing technical preparation is not GoldenEye permission or acceptance.",
     "artwork_context_sha256": "81cdedad6580b82a9bd84184bb97657fcffa7af42a048696c15d87118893c629",
     "accepted_operational_sha256": "209621c61861f7b4374f12e6572126ed9e17b94a09a3ecb08a67ca9f00c10ae9",
     "output_sha256": "1fc13af4331ece14a4e3b4381e36d6a4b5eda1c4311a75dc33a46464414d0e54",
