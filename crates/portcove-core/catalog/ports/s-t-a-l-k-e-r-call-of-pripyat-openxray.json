@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
+    "name": "S.T.A.L.K.E.R.: Call of Pripyat (OpenXRay)",
+    "summary": "Upstream route: Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages. Limits: Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported. Upstream platforms: Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence. Original data: Shadow of Chernobyl and Enhanced Edition NOT supported. Mutable nightly tag needs asset identity handling. Portcove setup/gameplay not verified.",
+    "original_game_title": "S.T.A.L.K.E.R.: Call of Pripyat",
+    "project_url": "https://github.com/OpenXRay/xray-16",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenXRay/xray-16",
+    "artwork": {
+      "game_id": 7605,
+      "cover_id": 472725,
+      "image_id": "coa4r9",
+      "image_sha256": "15e9a6bd5f6fb360f192db696a86f83838835c3d98d5e7aadefa5987b3bbd0d8",
+      "game_slug": "s-dot-t-a-dot-l-k-dot-e-r-dot-call-of-pripyat",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2707
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
+    "origin": {
+      "project_url": "https://github.com/OpenXRay/xray-16",
+      "repository": {
+        "host": "github.com",
+        "id": "23690226"
+      }
+    },
+    "decisions": []
+  }
+}

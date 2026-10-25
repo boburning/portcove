@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shadow-warrior-raze",
+    "name": "Shadow Warrior (Raze)",
+    "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+    "original_game_title": "Shadow Warrior",
+    "project_url": "https://github.com/ZDoom/Raze",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ZDoom/Raze",
+    "issue_number": 2668
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "shadow-warrior-raze",
+    "origin": {
+      "project_url": "https://github.com/ZDoom/Raze",
+      "repository": {
+        "host": "github.com",
+        "id": "230432175"
+      }
+    },
+    "decisions": []
+  }
+}

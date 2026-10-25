@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lancommander-tonywasaproskater",
+    "name": "Tony Hawk's Pro Skater (Tony Was A Pro Skater)",
+    "summary": "Upstream route: Upstream runtime package for Tony Was A Pro Skater; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims fully playable matching-decompilation THPS. CPU documentation mismatch and optional Dreamcast assets remain distinct; no independent full-game test. Native decompilation port; inherited LANCommander/THPS source ancestry, not game-title-only duplicate. README says32bit but release x64 and x86 assets exist: resolve architecture per actual asset. Upstream platforms: README says32-bit Windows/x86 Linux while releases include x64/x86. Resolve actual architecture from selected package layout. Original data: PS1 THPS USA SLUS00860 own disc; optional Dreamcast asset set. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Tony Hawk's Pro Skater",
+    "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/LANCommander/TonyWasAProSkater",
+    "issue_number": 2831
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "lancommander-tonywasaproskater",
+    "origin": {
+      "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
+      "repository": {
+        "host": "github.com",
+        "id": "1416375662"
+      }
+    },
+    "decisions": []
+  }
+}

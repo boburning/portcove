@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "perimeter-perimeter-community-engine",
+    "name": "Perimeter (Perimeter community engine)",
+    "summary": "Research listing. Upstream route: Open-source engine supports both games and original data; current source development. Limits: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Upstream platforms: Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research. Original data: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Portcove setup/gameplay not verified.",
+    "original_game_title": "Perimeter",
+    "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+    "issue_number": 2889
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "perimeter-perimeter-community-engine",
+    "origin": {
+      "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+      "repository": {
+        "host": "github.com",
+        "id": "373844177"
+      }
+    },
+    "decisions": []
+  }
+}

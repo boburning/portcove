@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mr-finster-vf1-recomp",
+    "name": "Virtua Fighter (Virtua Fighter Recomp)",
+    "summary": "Upstream route: Upstream runtime package for Virtua Fighter Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Bounded upstream interpreter/MAME checks and gameplay claims. Online not yet; full hardware/playthrough qualification not established by lockstep checks. V60 compiled dynamically with Model1 hardware/TGP emulation; Windows/macOS/Deck packages. Online not yet; exact set/layout and CPU coverage retained. Upstream platforms: Windows/macOS/SteamDeck runtime family; native V60 compilation plus Model1/TGP model. Exact host CPU matrix follows selected docs. Original data: ArcadeModel1 VirtuaFighter MAMEvf.zip own set. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Virtua Fighter",
+    "project_url": "https://github.com/mr-finster/vf1-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mr-finster/vf1-recomp",
+    "issue_number": 2863
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mr-finster-vf1-recomp",
+    "origin": {
+      "project_url": "https://github.com/mr-finster/vf1-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1413086652"
+      }
+    },
+    "decisions": []
+  }
+}

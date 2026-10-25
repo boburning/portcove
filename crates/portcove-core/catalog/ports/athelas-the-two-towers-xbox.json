@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "athelas-the-two-towers-xbox",
+    "name": "The Lord of the Rings: The Two Towers — Original Xbox (Athelas ports/two-towers)",
+    "summary": "Upstream route: Athelas shared launcher/release ZIP contains TT-Xbox/TwoTowers.exe. Imports own USAoriginalXboxISO/extractedfiles, launches this distinctcomponentruntime and owns settings/updates. Component source build recompile is separate. No managed Portcove operations inferred. Limits: Upstream only: Three distinct Xbox implementations share the launcher; PC ROTKFix is separate enhancement. Fellowship is a new first version; complete qualification not inherited. Not simply launcher alias: repository contains three Xbox native ports plus ROTK Fix mod. Expand per-game implementation; compare TwoTowers row56 ancestry, preserve original PC protection and launcher updates. Upstream platforms: Xbox components: Windows 10/11 x64 D3D12. Athelas uses Proton on Linux/Deck; CrossOver-like testing is not a physical Mac run. Original data: Own The Lord of the Rings: The Two Towers originalXbox USA disc ISO or extracted default.xbe and matching files. Athelas contains its own ports/two-towers implementation; source build locally translates game code. Exact accepted executable revision/hash not stated in reviewed componentREADME; no separate XboxBIOS input described. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Lord of the Rings: The Two Towers",
+    "project_url": "https://github.com/Shagg88/Athelas",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Shagg88/Athelas",
+    "issue_number": 2798
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "athelas-the-two-towers-xbox",
+    "origin": {
+      "project_url": "https://github.com/Shagg88/Athelas",
+      "repository": {
+        "host": "github.com",
+        "id": "1422517871"
+      }
+    },
+    "decisions": []
+  }
+}

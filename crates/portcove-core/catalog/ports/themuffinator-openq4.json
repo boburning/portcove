@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "themuffinator-openq4",
+    "name": "Quake 4 (openQ4)",
+    "summary": "Upstream route: Upstream runtime package for openQ4; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Beta with legitimate PC Quake4 data. Package/platform labels do not establish physical hardware or gameplay qualification. Beta Windows/Linux x64/ARM64 and experimental macOS; WindowsARM64 built but no hardware confirmation. Packages do not establish GPL engine vs game SDK licensing authority; keep notices. Upstream platforms: Windows/Linux x64/ARM64; experimental macOS. Windows ARM64 built but not confirmed on hardware; Linux ARM64 preview. Original data: Quake4 legitimate installed game and matching data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Quake 4",
+    "project_url": "https://github.com/themuffinator/openQ4",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/themuffinator/openQ4",
+    "artwork": {
+      "game_id": 356,
+      "cover_id": 77825,
+      "image_id": "co1o1t",
+      "image_sha256": "36a2169de892ca30d7d094c0612bbda1f0f80cc6ccb11a9b9e4ebbe2dc8b2615",
+      "game_slug": "quake-4",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2810
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "themuffinator-openq4",
+    "origin": {
+      "project_url": "https://github.com/themuffinator/openQ4",
+      "repository": {
+        "host": "github.com",
+        "id": "1149948783"
+      }
+    },
+    "decisions": []
+  }
+}

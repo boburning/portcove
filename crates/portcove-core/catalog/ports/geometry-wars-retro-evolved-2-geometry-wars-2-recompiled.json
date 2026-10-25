@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+    "name": "Geometry Wars: Retro Evolved 2 (Geometry Wars 2 Recompiled)",
+    "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Requires original Xbox 360 XBLA package; exact source and updater ownership remain integration work. Upstream platforms: Windows x86-64 ZIP and experimental native Linux x86-64 AppImage; Linux requires Vulkan and lacks broad device validation. Original data: Own Geometry Wars: Retro Evolved 2 XBLA package, title 584108FF. Extracted default.xex must be 704,512 bytes, SHA-256 6D5D9980A1D17DC74B9CCF540CEC16C2E144E7CEE3A74938E78C237B8ACEEB88. Launcher checks package identity/type and executable; per-owner container hashes vary. Portcove setup/gameplay not verified.",
+    "original_game_title": "Geometry Wars: Retro Evolved 2",
+    "project_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
+    "artwork": {
+      "game_id": 4887,
+      "cover_id": 508443,
+      "image_id": "coawbf",
+      "image_sha256": "b810cb36e2e71a73fdd458497ab1ac4e3fba37ec63c50bde2d4863fdc07b6a42",
+      "game_slug": "geometry-wars-retro-evolved-2",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2577
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+    "origin": {
+      "project_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1413781219"
+      }
+    },
+    "decisions": []
+  }
+}

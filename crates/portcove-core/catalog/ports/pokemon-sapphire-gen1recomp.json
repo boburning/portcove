@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-sapphire-gen1recomp",
+    "name": "Pokémon Sapphire (Gen1Recomp / G1R Deluxe)",
+    "summary": "Research listing. Upstream route: Use upstream ROM import and player-prepared native runtime; game-specific integration remains research. Red #98 scope is separate. Limits: beta research; no inherited Red qualification or managed update/save ownership. Upstream platforms: The shared engine documents Windows x64, Linux x64, and macOS Intel/Apple Silicon host routes. Compatibility of current packages with this additional game remains research and is not inherited from the Red #98 qualification. Original data: Own canonical US English Sapphire ROM; exact accepted revisions and SHA-1 are listed in current upstream README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Pokémon Sapphire",
+    "project_url": "https://github.com/bryanthaboi/gen1recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+    "artwork": {
+      "game_id": 1515,
+      "cover_id": 92653,
+      "image_id": "co1zhp",
+      "image_sha256": "0d2217a9ea352407dbc491b55a004f8aaf07b46ad7173e784acab1be41dcf073",
+      "game_slug": "pokemon-sapphire-version",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2874
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-sapphire-gen1recomp",
+    "origin": {
+      "project_url": "https://github.com/bryanthaboi/gen1recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1304486109"
+      }
+    },
+    "decisions": []
+  }
+}

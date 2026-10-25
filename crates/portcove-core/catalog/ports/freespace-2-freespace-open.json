@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "freespace-2-freespace-open",
+    "name": "FreeSpace 2 (FreeSpace Open)",
+    "summary": "Upstream route: Active source-port engine with current Win/Linux/macOS assets. Limits: Established engine with current release-candidate assets; select stable/RC channel deliberately and preserve launcher ownership. Upstream platforms: Current Windows/Linux/macOS FreeSpaceOpen engine assets; choose launcher/engine separately. Selected package CPU architectures unknown in frozen audit. Original data: Resolve engine vs launcher ownership and exact retail-data installation; observed top release is RC2 despite prerelease=false. Portcove setup/gameplay not verified.",
+    "original_game_title": "FreeSpace 2",
+    "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/scp-fs2open/fs2open.github.com",
+    "artwork": {
+      "game_id": 722,
+      "cover_id": 89603,
+      "image_id": "co1x4z",
+      "image_sha256": "a8baf08c598eac808086fb23ff6fb554c6f3144170aea72843228272db913758",
+      "game_slug": "freespace-2",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2677
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "freespace-2-freespace-open",
+    "origin": {
+      "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
+      "repository": {
+        "host": "github.com",
+        "id": "7700081"
+      }
+    },
+    "decisions": []
+  }
+}

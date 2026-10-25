@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wootbeer-dinotale",
+    "name": "Yoshi's Story (DinoTale)",
+    "summary": "Upstream route: Upstream runtime package for DinoTale; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream Yoshi'sStory modernization. Full campaign/platform breadth Unknown here; distinct from NES Yoshi and Yoshi'sCookie. DinoTaleWindows/Linux/Deck; game title not original Yoshi NES row16. Preserve input hash/region and limited upstream maturity evidence. Upstream platforms: Windows/Linux including Steam Deck; CPU and OS minimums beyond selected player docs Unknown. Original data: N64 YoshisStory own supported USA ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Yoshi's Story",
+    "project_url": "https://github.com/wootbeer/dinotale",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/wootbeer/dinotale",
+    "artwork": {
+      "game_id": 3213,
+      "cover_id": 101117,
+      "image_id": "co260t",
+      "image_sha256": "db2387a1a80b2ab283d04a8378bdc6e89304df13b03424c60180f01e9deb944a",
+      "game_slug": "yoshi-s-story",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2847
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wootbeer-dinotale",
+    "origin": {
+      "project_url": "https://github.com/wootbeer/dinotale",
+      "repository": {
+        "host": "github.com",
+        "id": "1413705209"
+      }
+    },
+    "decisions": []
+  }
+}

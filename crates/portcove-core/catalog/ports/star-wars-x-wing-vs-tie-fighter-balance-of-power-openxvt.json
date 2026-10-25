@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+    "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
+    "summary": "Research listing. Upstream route: Native desktop releases using original retail installation. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Active native reimplementation with upstream eight-player multiplayer claim; Balance of Power data mandatory. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Active development with possible differences; requires Balance of Power data as well. | Complete X-Wing vs. TIE Fighter installation with Balance of Power Portcove setup/gameplay not verified.",
+    "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
+    "project_url": "https://github.com/elyosh/OpenXvT",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/elyosh/OpenXvT",
+    "issue_number": 2899
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+    "origin": {
+      "project_url": "https://github.com/elyosh/OpenXvT",
+      "repository": {
+        "host": "github.com",
+        "id": "1367490590"
+      }
+    },
+    "decisions": []
+  }
+}

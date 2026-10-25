@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vagrant-story-playstation-rood-boi",
+    "name": "Vagrant Story (PlayStation) (rood-boi)",
+    "summary": "Research listing. Upstream route: Source build on Linux; Windows cross build via Linux/WSL. No GitHub releases. Limits: Playable but unfinished; unimplemented paths stop explicitly, no complete playthrough. Distinct Vagrant Story implementation. Upstream platforms: Linux x86-64 source build and Windows x86-64 cross-build via Linux/WSL MinGW; no GitHub releases. Linux ARM and macOS unsupported. Original data: User-owned US disc. Portcove setup/gameplay not verified.",
+    "original_game_title": "Vagrant Story (PlayStation)",
+    "project_url": "https://github.com/noprompt/rood-boi",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/noprompt/rood-boi",
+    "artwork": {
+      "game_id": 2216,
+      "cover_id": 129336,
+      "image_id": "co2rso",
+      "image_sha256": "0e3051c1509f1afe97c30193d3643d4b09b73c3720ee25babf3a7ebd28911abf",
+      "game_slug": "vagrant-story",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2907
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "vagrant-story-playstation-rood-boi",
+    "origin": {
+      "project_url": "https://github.com/noprompt/rood-boi",
+      "repository": {
+        "host": "github.com",
+        "id": "1414867149"
+      }
+    },
+    "decisions": []
+  }
+}

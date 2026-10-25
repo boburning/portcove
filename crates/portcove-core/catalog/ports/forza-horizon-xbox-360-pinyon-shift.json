@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "forza-horizon-xbox-360-pinyon-shift",
+    "name": "Forza Horizon (Xbox 360) (Pinyon Shift)",
+    "summary": "Upstream route: Prebuilt launcher on Windows/Linux/macOS; game built locally from owned input Limits: Playable preview with rendering bugs/slowdowns; game built locally from owned input. Android remains alpha. Upstream platforms: Launcher packages for Windows x86-64, Linux x86-64/SteamDeck and macOS Apple-Silicon ARM64; game compiles locally. Android is separate alpha, ABI unknown. Original data: Owned Forza Horizon disc or verified extracted game files Portcove setup/gameplay not verified.",
+    "original_game_title": "Forza Horizon (Xbox 360)",
+    "project_url": "https://github.com/arcanite24/pinyon-shift",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/arcanite24/pinyon-shift",
+    "artwork": {
+      "game_id": 3047,
+      "cover_id": 96226,
+      "image_id": "co228y",
+      "image_sha256": "1eb8731c3064bc7496d92a650c4898374488af4a0d2b31becf8b9cf8cdab0862",
+      "game_slug": "forza-horizon",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2576
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "forza-horizon-xbox-360-pinyon-shift",
+    "origin": {
+      "project_url": "https://github.com/arcanite24/pinyon-shift",
+      "repository": {
+        "host": "github.com",
+        "id": "1346650977"
+      }
+    },
+    "decisions": []
+  }
+}

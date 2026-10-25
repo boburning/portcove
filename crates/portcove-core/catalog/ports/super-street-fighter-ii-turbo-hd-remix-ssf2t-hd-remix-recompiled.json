@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "super-street-fighter-ii-turbo-hd-remix-ssf2t-hd-remix-recompiled",
+    "name": "Super Street Fighter II Turbo HD Remix (SSF2T HD Remix Recompiled)",
+    "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Own XBLA data required; launcher checks updates. Establish single runtime owner. Upstream platforms: Windows x86-64 ZIP and experimental Linux x86-64/SteamDeck AppImage, glibc2.31+. Linux hardware validation unavailable upstream. Original data: Own Super Street Fighter II Turbo HD Remix XBLA package, title 584108A4. default.xex must be 3,932,160 bytes, SHA-256 6E1C2F9ED7D1102A311A5F5626563527EDA5F85B2FBE8DB8405B866DED3F31EE. Upstream launcher checks title and extracted executable; other code versions are refused. Portcove setup/gameplay not verified.",
+    "original_game_title": "Super Street Fighter II Turbo HD Remix",
+    "project_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
+    "artwork": {
+      "game_id": 21796,
+      "cover_id": 88200,
+      "image_id": "co1w20",
+      "image_sha256": "cc6a66bbf81a83fce8129c0ffc43060f266b65fe5fe338ffbf0b1afbd6472484",
+      "game_slug": "super-street-fighter-ii-turbo-hd-remix",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2714
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-street-fighter-ii-turbo-hd-remix-ssf2t-hd-remix-recompiled",
+    "origin": {
+      "project_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1424402979"
+      }
+    },
+    "decisions": []
+  }
+}

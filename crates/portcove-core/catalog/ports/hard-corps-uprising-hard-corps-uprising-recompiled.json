@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hard-corps-uprising-hard-corps-uprising-recompiled",
+    "name": "Hard Corps: Uprising (Hard Corps: Uprising Recompiled)",
+    "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Requires own XBLA package. Upstream launcher/update ownership needs bounded integration. Upstream platforms: Windows x86-64 ZIP and experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+; not Wine/Proton packaging. Original data: Own Hard Corps: Uprising XBLA package, title 58410A18. Extracted default.xex must be 12,955,648 bytes, SHA-256 530EDE8ED5271051A2AB19C077A97FB167E4F30B094C292E8F59D37D0D2069DC. Optional character DLC uses separately owned Marketplace packages for that title, content type 00000002. Portcove setup/gameplay not verified.",
+    "original_game_title": "Hard Corps: Uprising",
+    "project_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
+    "artwork": {
+      "game_id": 21174,
+      "cover_id": 117693,
+      "image_id": "co2it9",
+      "image_sha256": "41ad550cffcf3df1848c083c0cc8821db171bbc4d359092b12b6d7193116a8ae",
+      "game_slug": "hard-corps-uprising",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2581
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hard-corps-uprising-hard-corps-uprising-recompiled",
+    "origin": {
+      "project_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1412674415"
+      }
+    },
+    "decisions": []
+  }
+}

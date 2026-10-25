@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-3-cod3recomp",
+    "name": "Call of Duty 3 (CoD3Recomp)",
+    "summary": "Upstream route: Windows executable imports own disc image Limits: Still in development; upstream describes levels loading/playing and first-level functionality, not Portcove validation. Upstream platforms: Windows executable/setup package and native source build. Exact selected Windows CPU architecture is unknown in frozen README/release research; do not infer it solely from Xbox360 guest CPU. Original data: Own Call of Duty 3 Xbox 360 disc as full XGD1/XGD2/XGD3 or stripped ISO, or an installed folder containing default.xex. Upstream first-start setup extracts it; its published check compares executable size with the compiled target. Exact accepted region, revision and cryptographic executable digest are not established in reviewed README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Call of Duty 3",
+    "project_url": "https://github.com/FrankHUN88453/CoD3Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/FrankHUN88453/CoD3Recomp",
+    "issue_number": 2639
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "call-of-duty-3-cod3recomp",
+    "origin": {
+      "project_url": "https://github.com/FrankHUN88453/CoD3Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1374010413"
+      }
+    },
+    "decisions": []
+  }
+}

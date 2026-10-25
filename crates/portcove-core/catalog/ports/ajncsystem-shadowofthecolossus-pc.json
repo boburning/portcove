@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ajncsystem-shadowofthecolossus-pc",
+    "name": "Shadow of the Colossus — 2018 PS4 remake (ShadowOfTheColossus-PC)",
+    "summary": "Upstream route: Upstream runtime package for ShadowOfTheColossus-PC; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims ending/credits. AMD fix not confirmed on physical hardware; no Portcove playthrough or inherited fork qualification. Primary parent for row37 optimized fork. Upstream start-to-end claim; AMD fixes not physically tested. Compare existing PS4 runtime ownership, not PS2/PS3 editions. Upstream platforms: Windows10/11 PS4 layer, EU CUSA08809v1.01. US support belongs to Oussama fork; own console audio modules required. Original data: Own PS4 ShadowOfColossus Bluepoint2018 EU CUSA08809v1.01 game dump with eboot.bin,sce_module,sce_sys. Sound requires owner-dumped decrypted libSceNgs2.sprx and libSceUlt.sprx; silent without them. Modules are Sony firmware, excluded from package. US support belongs to Oussama fork extension, not established for parent. Portcove setup/gameplay not verified.",
+    "original_game_title": "Shadow of the Colossus",
+    "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
+    "issue_number": 2840
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ajncsystem-shadowofthecolossus-pc",
+    "origin": {
+      "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1415622546"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dyotson-forzahorizon1-reimagined",
+    "name": "Forza Horizon (Forza Horizon 1: ReImagined)",
+    "summary": "Upstream route: Upstream launcher installer/Flatpak/tar.gz downloads build tools and compiles game locally from own game files; launcher owns game setup/self-update. macOS is source-build experiment, not a player download. Limits: Upstream only: Upstream advertises racing/free roam/co-op. macOS opening drives render; full races, save reloads and physical controllers remain unvalidated. Upstream launcher owns setup and self-update. macOS source experiment has no launcher/download and races/save reload/controllers unvalidated; preserve independent implementation identity. Upstream platforms: Windows installer; Linux Flatpak/tar.gz. macOS is a source experiment without launcher/download. Exact PC architecture needs selected-package documentation. Original data: Xbox 360 Forza Horizon 2012 own disc/GOD/extracted game; TU4 optional for Rally/1000 Club. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Forza Horizon",
+    "project_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
+    "artwork": {
+      "game_id": 3047,
+      "cover_id": 96226,
+      "image_id": "co228y",
+      "image_sha256": "1eb8731c3064bc7496d92a650c4898374488af4a0d2b31becf8b9cf8cdab0862",
+      "game_slug": "forza-horizon",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2726
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dyotson-forzahorizon1-reimagined",
+    "origin": {
+      "project_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
+      "repository": {
+        "host": "github.com",
+        "id": "1413230318"
+      }
+    },
+    "decisions": []
+  }
+}

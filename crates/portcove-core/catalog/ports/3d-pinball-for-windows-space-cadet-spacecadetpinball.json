@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+    "name": "3D Pinball for Windows: Space Cadet (SpaceCadetPinball)",
+    "summary": "Upstream route: Complete reverse-engineered desktop game with Windows/macOS release archives. Limits: Complete reverse-engineered game according to upstream; original Windows/Full Tilt data is separate. Upstream platforms: Windows/macOS release archives; Linux source build. Windows x86-64 cross-build and Intel/Apple-Silicon macOS builds documented; selected archive architectures otherwise unknown in frozen evidence. Original data: Original Windows or Full Tilt resources not included; verify lawful data acquisition/setup. Portcove setup/gameplay not verified.",
+    "original_game_title": "3D Pinball for Windows: Space Cadet",
+    "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
+    "issue_number": 2553,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/k4zmu2a/SpaceCadetPinball"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+    "origin": {
+      "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
+      "repository": {
+        "host": "github.com",
+        "id": "334165650"
+      }
+    },
+    "decisions": []
+  }
+}

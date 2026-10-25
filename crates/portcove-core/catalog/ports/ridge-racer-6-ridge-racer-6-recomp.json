@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ridge-racer-6-ridge-racer-6-recomp",
+    "name": "Ridge Racer 6 (Ridge Racer 6 Recomp)",
+    "summary": "Upstream route: Windows package and disc-import launcher Limits: Early Windows test release; Linux test-channel metadata is not a stable player-route pass. Upstream platforms: Windows10/11 x86-64 portable ZIP; separate experimental Linux test channel exists, selected Linux artifact CPU not established by frozen release evidence. Original data: Own USA Xbox 360 Ridge Racer 6 disc, title 4E4D07D3, as ISO. RR6 Launcher checks and extracts the disc once; the ISO is then unnecessary. Other regions are not accepted. Exact accepted default.xex revision/hash is not established by the reviewed README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Ridge Racer 6",
+    "project_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
+    "artwork": {
+      "game_id": 7160,
+      "cover_id": 284750,
+      "image_id": "co63pq",
+      "image_sha256": "731ea4d96ffcccd7a38732608d576e488cb4b19c0a78b64cc4563dc966ca76c4",
+      "game_slug": "ridge-racer-6",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2601
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ridge-racer-6-ridge-racer-6-recomp",
+    "origin": {
+      "project_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
+      "repository": {
+        "host": "github.com",
+        "id": "1407616425"
+      }
+    },
+    "decisions": []
+  }
+}

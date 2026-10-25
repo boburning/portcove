@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "catacomb-3-d-the-descent-reflectionhle",
+    "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
+    "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+    "original_game_title": "Catacomb 3-D: The Descent",
+    "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "issue_number": 2684
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "catacomb-3-d-the-descent-reflectionhle",
+    "origin": {
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "repository": {
+        "host": "github.com",
+        "id": "24228275"
+      }
+    },
+    "decisions": []
+  }
+}

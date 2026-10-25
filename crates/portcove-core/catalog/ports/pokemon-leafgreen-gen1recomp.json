@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-leafgreen-gen1recomp",
+    "name": "Pokémon LeafGreen (Gen1Recomp / G1R Deluxe)",
+    "summary": "Research listing. Upstream route: Use upstream ROM import and player-prepared native runtime; game-specific integration remains research. Red #98 scope is separate. Limits: beta research; no inherited Red qualification or managed update/save ownership. Upstream platforms: The shared engine documents Windows x64, Linux x64, and macOS Intel/Apple Silicon host routes. Compatibility of current packages with this additional game remains research and is not inherited from the Red #98 qualification. Original data: Own canonical US English LeafGreen ROM; exact accepted revisions and SHA-1 are listed in current upstream README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Pokémon LeafGreen",
+    "project_url": "https://github.com/bryanthaboi/gen1recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+    "artwork": {
+      "game_id": 1516,
+      "cover_id": 92689,
+      "image_id": "co1zip",
+      "image_sha256": "0d1252f456aa2893afbfe1dfb54884c984966c49aa9acc3219f8933e069d04d0",
+      "game_slug": "pokemon-leafgreen-version",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2872
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-leafgreen-gen1recomp",
+    "origin": {
+      "project_url": "https://github.com/bryanthaboi/gen1recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1304486109"
+      }
+    },
+    "decisions": []
+  }
+}

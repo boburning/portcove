@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nhl-94-genesis-ninety-four",
+    "name": "NHL '94 (Genesis) (ninety-four)",
+    "summary": "Upstream route: Good portable-package / original-ROM route; same maintainer as gunstars, distinct game. Limits: Released0.3.6 native rewrite; optional roster/hack enhancements do not change game identity. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 archive (glibc2.34+), universal macOS11+ Intel/Apple-Silicon ZIP. Original data: Own US/Europe 1 MB retail Genesis ROM. Portcove setup/gameplay not verified.",
+    "original_game_title": "NHL '94 (Genesis)",
+    "project_url": "https://github.com/1nputs/ninety-four",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/1nputs/ninety-four",
+    "artwork": {
+      "game_id": 5405,
+      "cover_id": 115187,
+      "image_id": "co2gvn",
+      "image_sha256": "b898c84a43d4bca017e427707d29115a868306fbffbb62c454f7122789d8a6d1",
+      "game_slug": "nhl-94",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2597
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nhl-94-genesis-ninety-four",
+    "origin": {
+      "project_url": "https://github.com/1nputs/ninety-four",
+      "repository": {
+        "host": "github.com",
+        "id": "1422352563"
+      }
+    },
+    "decisions": []
+  }
+}

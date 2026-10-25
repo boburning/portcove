@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bluddy-rails",
+    "name": "Railroad Tycoon (Open Railroad Tycoon)",
+    "summary": "Upstream route: Upstream runtime package for Open Railroad Tycoon; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes railway/economy/AI/save features. Exact simulation parity and complete original-game coverage remain Unknown here. Feature completeness follows docs/FEATURES.md; runtime packages alone do not prove exact original simulation parity. Upstream platforms: Windows x86-64, Linux x86-64 AppImage/tar.gz, macOS ARM64/x86-64; OCaml5/opam/SDL2 builds. Original data: Own original RailroadTycoon DOS files *.PIC,*.PAN,*.DTA in data/ or --data-dir. Exact game revision/hash is not specified in reviewed README. No separate BIOS/firmware input is described. Portcove setup/gameplay not verified.",
+    "original_game_title": "Railroad Tycoon",
+    "project_url": "https://github.com/bluddy/rails",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bluddy/rails",
+    "issue_number": 2787
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bluddy-rails",
+    "origin": {
+      "project_url": "https://github.com/bluddy/rails",
+      "repository": {
+        "host": "github.com",
+        "id": "342119479"
+      }
+    },
+    "decisions": []
+  }
+}

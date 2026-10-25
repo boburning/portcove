@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "goodshepherd23-jetmoto2-recomp",
+    "name": "Jet Moto 2: Championship Edition (Jet Moto 2 Recompiled)",
+    "summary": "Upstream route: Upstream Windows ZIP first launchJetMoto2.exe recompiles supporteddisc toC#and builds with.NET10SDK. Updates trigger one rebuild whilekeeping saves/settings. Upstream owns codegeneration; not zero-toolchain runtime. Limits: Upstream only: Early release; bounded boot/menu/racing claims. Sound/CD music and wider gameplay remain untested per status. Early release Windows11x64 only; sound/CDmusic and wider gameplay remain untested per status; .NET10 SDK setup distinct from runtime. Upstream platforms: Windows x64 and .NET10 SDK first-build route. Tested only Windows11x64; other hosts not established. Original data: PS1 JetMoto2 ChampionshipEdition SCUS94167 own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Jet Moto 2: Championship Edition",
+    "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
+    "issue_number": 2825
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "goodshepherd23-jetmoto2-recomp",
+    "origin": {
+      "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417253487"
+      }
+    },
+    "decisions": []
+  }
+}

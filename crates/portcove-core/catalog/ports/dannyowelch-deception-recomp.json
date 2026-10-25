@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dannyowelch-deception-recomp",
+    "name": "Tecmo's Deception: Invitation to Darkness (Deception-recomp)",
+    "summary": "Upstream route: Upstream WindowsZIP/setup orLinuxAppImage asks for exact supported disc then builds game locally on first start. Laterstarts reuse prepared build; development .NET10SDK requirement is separate from packaged route. Limits: Upstream only: Upstream says playable and explicitly lacks a verified full playthrough. First-start local compilation and disc validation are separate from gameplay qualification. First launch compiles from own disc; .NET 10 SDK required for source build. Upstream says playable, full playthrough unverified. Fork of verdite2 is framework reuse, not same game. Upstream platforms: Windows x64 ZIP/setup and Linux x86-64 AppImage. .NET 10 SDK is documented for source builds. Original data: PS1 Tecmo Deception Invitation to Darkness NTSC-U SLUS-00340 CUE/BIN or CHD v5. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Tecmo's Deception: Invitation to Darkness",
+    "project_url": "https://github.com/dannyowelch/deception-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dannyowelch/deception-recomp",
+    "artwork": {
+      "game_id": 20801,
+      "cover_id": 136578,
+      "image_id": "co2xdu",
+      "image_sha256": "96720ccddf38b2affe4dd30412c73257a6ed91932362b8587173e17e497f1006",
+      "game_slug": "tecmos-deception-invitation-to-darkness",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2735
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dannyowelch-deception-recomp",
+    "origin": {
+      "project_url": "https://github.com/dannyowelch/deception-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422671093"
+      }
+    },
+    "decisions": []
+  }
+}

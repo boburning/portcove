@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pharaoh-akhenaten",
+    "name": "Pharaoh (Akhenaten)",
+    "summary": "Research listing. Upstream route: Native recreation with CI builds; initial campaign missions playable according to upstream. Limits: Work in progress with early campaign support; no stable-release claim and original Pharaoh demo unsupported. Upstream platforms: Windows/Linux and macOS ARM64/x86-64 CI archives plus official itch.io distribution; selected Windows/Linux CPU artifacts unknown in frozen docs. WIP rather than stable release. Original data: WIP, no stable release in README; original Pharaoh data, NOT Pharaoh: A New Era assets. Portcove setup/gameplay not verified.",
+    "original_game_title": "Pharaoh",
+    "project_url": "https://github.com/dalerank/Akhenaten",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dalerank/Akhenaten",
+    "issue_number": 2891
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pharaoh-akhenaten",
+    "origin": {
+      "project_url": "https://github.com/dalerank/Akhenaten",
+      "repository": {
+        "host": "github.com",
+        "id": "658490226"
+      }
+    },
+    "decisions": []
+  }
+}

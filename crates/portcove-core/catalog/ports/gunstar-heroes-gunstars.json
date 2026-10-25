@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gunstar-heroes-gunstars",
+    "name": "Gunstar Heroes (gunstars)",
+    "summary": "Upstream route: Good simple portable-package and explicit-ROM candidate; native game/menu/save behavior remains upstream claim. Limits: Early0.2.2 native rewrite with portable packages; game/menu/save claims remain upstream observations. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 archive and universal macOS Intel/Apple-Silicon package. Original data: Own Gunstar Heroes USA 1 MB cartridge dump selected via file browser or --rom. Portcove setup/gameplay not verified.",
+    "original_game_title": "Gunstar Heroes",
+    "project_url": "https://github.com/1nputs/gunstars",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/1nputs/gunstars",
+    "issue_number": 2580
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gunstar-heroes-gunstars",
+    "origin": {
+      "project_url": "https://github.com/1nputs/gunstars",
+      "repository": {
+        "host": "github.com",
+        "id": "1424763220"
+      }
+    },
+    "decisions": []
+  }
+}

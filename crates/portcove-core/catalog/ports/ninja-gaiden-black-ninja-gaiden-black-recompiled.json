@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ninja-gaiden-black-ninja-gaiden-black-recompiled",
+    "name": "Ninja Gaiden Black (Ninja Gaiden Black Recompiled)",
+    "summary": "Upstream route: Windows ZIP and Linux AppImage; first-run disc import Limits: USA Xbox title 5443000D; no game data in package. macOS source is unsupported. Upstream platforms: Windows x86-64 ZIP and Linux x86-64 AppImage (glibc2.35+,Vulkan1.3). Apple-Silicon macOS26 source route explicitly unsupported/unmaintained; no official Mac package. Original data: Own retail USA/NTSC-U Ninja Gaiden Black Xbox disc, title 5443000D. Upstream imports full/trimmed disc images, supported ZIP/7z disc containers, or extracted data with default.xbe on first launch. Keep the full game-data tree; this is not another region or the original Ninja Gaiden edition. Portcove setup/gameplay not verified.",
+    "original_game_title": "Ninja Gaiden Black",
+    "project_url": "https://github.com/gamboozino/ngbrecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gamboozino/ngbrecomp",
+    "artwork": {
+      "game_id": 18735,
+      "cover_id": 188704,
+      "image_id": "co41ls",
+      "image_sha256": "2456b50e19aafb3afa8c370ec01427d9b4c6f24caf4570c4f2b794ee8f4eb50d",
+      "game_slug": "ninja-gaiden-black",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2598
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ninja-gaiden-black-ninja-gaiden-black-recompiled",
+    "origin": {
+      "project_url": "https://github.com/gamboozino/ngbrecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420902544"
+      }
+    },
+    "decisions": []
+  }
+}

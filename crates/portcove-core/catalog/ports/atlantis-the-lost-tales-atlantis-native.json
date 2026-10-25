@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "atlantis-the-lost-tales-atlantis-native",
+    "name": "Atlantis: The Lost Tales (Atlantis Native)",
+    "summary": "Research listing. Upstream route: Native Rust port, no game data included, current desktop release packages. Limits: New native implementation with broad original-edition data support; completion claims remain upstream-only. Upstream platforms: Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route. Original data: Newer project; verify end-to-end play and data extraction despite upstream completion claims. Portcove setup/gameplay not verified.",
+    "original_game_title": "Atlantis: The Lost Tales",
+    "project_url": "https://github.com/ripleyXLR8/atlantis-native",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ripleyXLR8/atlantis-native",
+    "artwork": {
+      "game_id": 2209,
+      "cover_id": 471922,
+      "image_id": "coa44y",
+      "image_sha256": "4e2c467092c10bfa470dbaba2b4f9f933903085fb9ef8f74c8d7afdcf59e1660",
+      "game_slug": "atlantis-the-lost-tales",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2876
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "atlantis-the-lost-tales-atlantis-native",
+    "origin": {
+      "project_url": "https://github.com/ripleyXLR8/atlantis-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1423169574"
+      }
+    },
+    "decisions": []
+  }
+}
