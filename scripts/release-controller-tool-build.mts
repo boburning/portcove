@@ -51,6 +51,7 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
   ];
   for (const definition of entries) {
     const entry = path.join(sourceRoot, definition.source);
+    const commandOnly = definition.source === "scripts/release-hosted-native-worker.mts";
     await pack.build({
       config: false,
       cwd: sourceRoot,
@@ -66,6 +67,9 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
       env: {},
       envPrefix: [],
       deps: { alwaysBundle: [/.*/] },
+      // The worker is a subprocess CLI, never an imported bundle API. Do not
+      // preserve an unused entry export facade across its dynamic dependencies.
+      inputOptions: commandOnly ? { preserveEntrySignatures: false } : {},
       outputOptions: { entryFileNames: definition.output, codeSplitting: false },
       plugins: [
         {
@@ -115,6 +119,13 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
             return { code, map: null };
           },
           generateBundle(_options, bundle) {
+            if (commandOnly) {
+              const worker = bundle[definition.output];
+              if (!worker || worker.type !== "chunk" || worker.exports.length !== 0)
+                throw new Error(
+                  "opaque native worker must expose only its fixed command interface",
+                );
+            }
             for (const item of Object.values(bundle))
               if (
                 item.type === "chunk" &&
@@ -123,7 +134,7 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
                 )
               )
                 throw new Error(
-                  `controller bundle retained runtime dependencies: ${JSON.stringify({ file: item.fileName, imports: item.imports, dynamic_imports: item.dynamicImports })}`,
+                  `controller bundle retained runtime dependencies: ${JSON.stringify({ file: item.fileName, code_splitting: _options.codeSplitting, inline_dynamic_imports: _options.inlineDynamicImports, imports: item.imports, dynamic_imports: item.dynamicImports })}`,
                 );
           },
         },
