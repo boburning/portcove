@@ -184,6 +184,12 @@ report and clean up. Other registered suite defaults, explicit per-test limits
 and product deadlines remain in force. The controlled timeout contract retains
 the child's readiness stderr and verifies process exit before the outer runner
 completes. Other nested subprocess families require their own calibration.
+The Python reporter also exercises its actual timed-out Python child with
+5/10/15/20-second child, Node case, command supervisor and enclosing-case budgets.
+The control requires readiness stderr, an incomplete-report failure and direct
+child exit in both the inner runner and its parent; it cannot establish cleanup
+of arbitrary descendant trees or survival after a whole-job kill. Zero,
+non-finite and fractional Python harness deadlines are refused before launch.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
 45 minutes, and exhaustive producers at 120 minutes; the existing 10-minute
 Windows helpers and 15-minute portability limits remain. These generous outer
