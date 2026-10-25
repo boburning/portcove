@@ -2543,6 +2543,13 @@
       ]
     },
     {
+      "file": "scripts/upstream-health-triage.test.mts",
+      "memberships": [
+        ["catalog-full", 410],
+        ["repository-tools", 410]
+      ]
+    },
+    {
       "file": "scripts/upstream-health.test.mts",
       "memberships": [
         ["catalog-full", 200],
