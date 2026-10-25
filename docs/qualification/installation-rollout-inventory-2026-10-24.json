@@ -4,9 +4,9 @@
   "owner": "https://github.com/boburning/portcove/issues/2510",
   "status": "IN_PROGRESS; no all-port implementation or delivery completion claim",
   "pickup_source_commit": "cea107d84e80bdd67bd44d4c7c68e0b76d083e4e",
-  "candidate_source_commit": "90297c7681dd2640b64a0dd9039c3cc0dd423309",
+  "candidate_source_commit": "af06568d7c279c0669204ce36ef6e8aeff5dbeb3",
   "inventory_cutoff": "2026-10-24T03:40:15.396Z",
-  "generated_at": "2026-10-24T23:30:06.646Z",
+  "generated_at": "2026-10-25T00:50:46.293Z",
   "sources": {
     "collector": "scripts/roadmap-inventory.mts collectRoadmapInventory",
     "repository_issues": 918,
@@ -59,7 +59,7 @@
     },
     "fit_assessment_complete": false,
     "implementation_complete": false,
-    "final_affected_inventory_reconciliation": "outstanding",
+    "final_affected_inventory_reconciliation": "Complete fresh retrieval;312 authored addition fit reviews and22 roadmap-only joins/assessments outstanding",
     "release_maintenance": {
       "operational_rules_inventoried": 156,
       "implemented_candidate_changes": 27,
@@ -70,8 +70,9 @@
         "gitlab": 2,
         "direct-manifest": 6
       },
-      "scope": "27 existing-route maintenance repairs plus three newly adopted dynamic staged routes and38 new native-portable routes are candidate implementations. Six Direct-route decisions and203 original fit decisions remain unfinished. Component-grant conditions, manual ReRAC state, rendered flows and final reconciliation/delivery remain outstanding."
-    }
+      "scope": "27 existing-route maintenance repairs plus three newly adopted dynamic staged routes and38 new native-portable routes are candidate implementations. Six Direct-route decisions and203 original fit decisions remain unfinished; the additional current inventory is not yet assessed. ReRAC manual progress is implemented; remaining rendered flows, metadata/component conditions and final delivery remain outstanding."
+    },
+    "workset_scope": "Original frozen524 identities; current836-authored/roadmap-only additions are recorded separately above and remain required reconciliation work."
   },
   "boundaries": [
     "#2499 is retained and credited; #2494 stays closed.",
@@ -18409,40 +18410,70 @@
         "body_sha256_at_cutoff": "03af9d1ae7c13741aa8d6c8d7a2a8b67d5ff5a572dc71ba76eb29e6857dfaed1"
       },
       "duplicates": [],
-      "platform_scope": [],
+      "platform_scope": ["windows-x86-64"],
       "pickup_route": "listing-only",
-      "selected_route": "existing discovery/non-owning route; managed fit under review",
+      "selected_route": "Permitted-existing-copy Windows edition and setup/save/mod handoff; fresh Core acquisition held; managed fit unfinished",
       "disposition": "unresolved-fit",
-      "update_owner": "player/upstream; no managed replacement promise",
+      "update_owner": "player/upstream; no Portcove-managed Update, Backup or Rollback",
       "setup_data": {
-        "instructions": null,
+        "instructions": [
+          {
+            "title": "Keep your permitted copy and edition",
+            "instruction": "Use an existing permitted Windows Standard or Lite copy. Keep the edition you already use when updating: upstream says Standard and Lite can use different data directories. The reviewed Windows Lite ZIP contains pvzge-lite.exe; keep your complete copy in a folder you control. Follow the upstream guide for package prerequisites. Portcove does not open the game or a helper during discovery."
+          },
+          {
+            "title": "Add the game you chose",
+            "instruction": "Select the completed game executable from that folder, with the same folder as its working directory; for Windows Lite this is pvzge-lite.exe. Save launch details, then choose Play separately. Keep the working copy until you have checked the new one. macOS packages and Linux Docker/browser play retain their upstream setup routes; this Windows archive observation does not qualify their execution."
+          },
+          {
+            "title": "Export saves before updating and keep mod data",
+            "instruction": "You or upstream provide runtime updates. In the game, select your player name to export a save before changing versions, and verify your progress in the new version before removing the old package. For mods, use Mods → Open Folder to locate the directory used by your edition. Close the game before copying mod-data, relevant mod settings, patches, __gpn_edits and save-backups; exported game saves and cloud saves do not automatically include mod-owned data. Follow GP-Next recovery instructions for startup or mod problems. External registration preserves every file and provides no Portcove-managed Update, Backup or Rollback."
+          }
+        ],
         "source_profiles": [],
         "declared_paths": [],
         "declared_patterns": [],
-        "details_record": "crates/portcove-core/catalog/ports/gzh0821-pvzg-site.json"
+        "details_record": "crates/portcove-core/catalog/ports/gzh0821-pvzg-site.json",
+        "reviewed_boundary": "Standard and Lite can use different data directories. Export via player name, verify progress before retiring old package, keep edition-specific mod data/settings/backups separately through Mods → Open Folder. Runtime/native-write and credential boundaries not established for management."
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/Gzh0821/pvzg_site",
         "observed_repository": "Gzh0821/pvzg_site",
         "repository_node_id": "R_kgDOMVGuyA",
-        "guide_url": "https://github.com/Gzh0821/pvzg_site/blob/main/README.md",
+        "guide_url": "https://github.com/Gzh0821/pvzg_site/blob/3e250d37c1fff07f161d7ef845dc1d84913ca384/src/en/guide/FAQ.md",
         "guide_ref": "main",
         "guide_blob_sha": "e1cb8ed165174efa3b3ee31c2dde64b001f5510b",
         "observation": "2026-10-24T03:39:09.479Z",
-        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately"
+        "release_window": "at most 20 releases; selected-release preparation enumerates assets separately",
+        "source_revision": "3e250d37c1fff07f161d7ef845dc1d84913ca384",
+        "assessment_file": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\prepare-pvz-reviewed-handoff-v3\\completion-afc2fcd745210024f432c8cb70034103eee7486ab8ae7853d47e889ea5e2c0e1.json",
+        "permission_evidence": {
+          "repository": "Gzh0821/pvzg_site",
+          "revision": "3e250d37c1fff07f161d7ef845dc1d84913ca384",
+          "path": "src/en/instructions/Agreement.md",
+          "blob": "5b0f7f06bdac074143d53c91b4b17d9dc6bb7686",
+          "scope": "Pinned first-party Agreement distinguishes its desktop personal-use license from separately owned included EA/PopCap assets, which it says are not authorized. No blanket code-license or infringement conclusion."
+        }
       },
-      "selected_artifact": null,
-      "reason": "Fit decision remains unfinished; Unknown is not unsupported.",
+      "selected_artifact": {
+        "release": "0.16.0",
+        "name": "pvzge-lite-0.16.0.zip",
+        "size": 382729242,
+        "independently_expected": "3159d3dd5a7e17b67365ec5bc7bd37b45e9390030aedbb49057cb09bc54503ff",
+        "observed_sha256": "3159d3dd5a7e17b67365ec5bc7bd37b45e9390030aedbb49057cb09bc54503ff",
+        "scope": "Official lite archive matched separately published asset digest. Read-only package review; no extraction, execution, support or terms conclusion."
+      },
+      "reason": "Permitted-existing-copy edition selection, non-owning registration, upstream-owned updates and exact save/mod handoff are evidenced. Fresh Core self-service acquisition, including non-owning download, remains held on the named bundled-content permission fact. Managed portable fit is separately unfinished: the single-file Tauri/WebView Lite runtime is real, but its complete runtime-write, credential and self-replacement boundary has not been established. Unknown is not unsupported.",
       "validation_scope": {
-        "scope": "Primary-source retrieval and inventory join only; route-fit validation unfinished."
+        "scope": "Complete selected-release assets; publisher-digest-matched 382729242-byte Lite ZIP; one x64 PE observed; pinned Agreement, FAQ, edition-specific mod data and recovery guide. No executable/helper/game/native UI run."
       },
-      "delivery_status": "unfinished assessment/implementation",
-      "affected_operation": "managed installation/update and supported setup route selection",
-      "next_action": "Establish the exact executable, supported setup/data boundary and runtime replacement owner from https://github.com/Gzh0821/pvzg_site/blob/main/README.md; no runnable package has been selected. Then implement every fitting existing-capability change or retain a specifically evidenced limitation. No new product deferral is assigned.",
-      "acquisition_restriction": null,
+      "delivery_status": "Reviewed permitted-existing-copy guide and exact fresh-acquisition condition implemented and independently reviewed; unmerged. Required managed fit remains unfinished, not unsupported or delivered.",
+      "affected_operation": "Fresh Core download/acquisition and prospective managed runtime replacement",
+      "next_action": "Establish the separately owned bundled-content permission basis; separately determine complete Windows runtime-write, credential and self-replacement behavior. Preserve existing permitted copies and upstream-owned setup/update capabilities.",
+      "acquisition_restriction": "Portcove downloads are paused until acquisition permissions for the bundled game art and audio are established. Upstream identifies EA/PopCap and other rights holders and states the project is not authorized by them; its own personal-use license does not establish those separate resource permissions. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that content.",
       "assessed_platform_scope": null,
       "download_recommendation": {
-        "channel": "stable",
+        "channel": "beta",
         "asset_hints": {}
       },
       "reference_catalog": {
@@ -29034,7 +29065,7 @@
         "instructions": [
           {
             "title": "Prepare your own disc before Play",
-            "instruction": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. Then choose Play. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play."
+            "instruction": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. After successful extraction and verification, return to Portcove to continue. A separately registered copy keeps its explicit Play action. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play."
           },
           {
             "title": "Use the guided launcher when you prefer",
@@ -29049,8 +29080,9 @@
         "declared_paths": ["game-data"],
         "declared_patterns": [],
         "details_record": "crates/portcove-core/catalog/ports/re-rac-rerac.json",
-        "reviewed_boundary": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. Then choose Play. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play. Normal memory-card saves, settings and the crash log are outside the runtime: %APPDATA%/rerac on Windows, $XDG_CONFIG_HOME/rerac or ~/.config/rerac on Linux, and ~/Library/Application Support/rerac on macOS. Back up the profile you actually use separately. A custom RC_SAVE_DIR or RC_SETTINGS_FILE changes it. The launcher’s movable data/version/log folder can be different from the engine’s save/settings folder; preserve both when using it. Older versions may not read newer saves. Keep your original ISO and current working copy before re-extraction or changing versions.",
-        "persistence_evidence": null
+        "reviewed_boundary": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. Return to Portcove and choose Check setup again; Play becomes available after the upstream completion record is readable. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play. Normal memory-card saves, settings and the crash log are outside the runtime: %APPDATA%/rerac on Windows, $XDG_CONFIG_HOME/rerac or ~/.config/rerac on Linux, and ~/Library/Application Support/rerac on macOS. Back up the profile you actually use separately. A custom RC_SAVE_DIR or RC_SETTINGS_FILE changes it. The launcher’s movable data/version/log folder can be different from the engine’s save/settings folder; preserve both when using it. Older versions may not read newer saves. Keep your original ISO and current working copy before re-extraction or changing versions. Portcove replaces this separate portable runtime and carries the declared game-data directory, including extracted originals, extraction marker and prepared non-executable caches. The runtime checks the extraction’s data format and refuses missing, incomplete or incompatible data; a missing or stale prepared cache is rebuilt when possible or kept in memory. If a later format requires re-extraction, keep the previous runtime and data recoverable and follow that version’s bundled extractor instructions; Portcove does not guess at a migration. Runtime rollback carries current declared data and does not rewind the external memory card or guarantee older data compatibility. Windows x64, Linux x64 and Apple-silicon macOS archives were inspected separately; OS/GPU minimums, native execution, gameplay and real-save restoration remain unqualified. For guided ISO selection, progress, verification, re-extraction and version management, use the official ReRAC Launcher linked by Open setup guide. Its published Windows MSI, Linux AppImage and macOS disk images are separate from these game ZIPs. Follow its Version Management and Install via ISO flow, then register your prepared player with its real data directory, or register the launcher deliberately if you want its own interface. That copy’s runtime updates belong to the launcher. The project’s older README statement that nothing has been released does not describe the currently published launcher packages. Mod management is planned, not a delivered feature.",
+        "persistence_evidence": null,
+        "completion_record": "game-data/extract-info.json"
       },
       "upstream_evidence": {
         "retained_project_url": "https://github.com/re-rac/rerac",
@@ -29072,11 +29104,12 @@
         "authored_setup_url": "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha"
       },
       "selected_artifact": null,
-      "reason": "Add fitting native portable packages with supported literal data coordinates and deliberate bundled-extractor handoff; preserve the simpler richer upstream launcher and external profile ownership.",
+      "reason": "Managed native runtime and manual upstream extraction retain their separate owners. Core now observes the reviewed atomic completion JSON under retained game-data coordinates and exposes Finish setup / bounded read-only refresh without invoking the extractor. First-Play file pickers elsewhere remain Play.",
       "validation_scope": {
-        "scope": "Exact primary source contracts, separately inspected official Windows/Linux/macOS native packages where offered for ReRAC, existing Glover source/contract retained, Z3R generated-asset limitation and launcher lineage reviewed; maintained preparation and Core declaration inspection. No helper/player/original execution, platform minimum or gameplay claim."
+        "scope": "Exact primary source contracts, separately inspected official Windows/Linux/macOS native packages where offered for ReRAC, existing Glover source/contract retained, Z3R generated-asset limitation and launcher lineage reviewed; maintained preparation and Core declaration inspection. No helper/player/original execution, platform minimum or gameplay claim.",
+        "follow_up": "Retained wrapper-coordinate manual-setup lifecycle passed (38.927s): old installed contract unchanged, new data preserved before first Play, malformed/oversized/hardlinked records refused, restart and historical rollback use retained contracts, no helper/player execution. Five rendered/unit UI files passed244cases including accessible Finish setup and stronger holds; final malformed negative fixture type annotation repaired through normal static hooks. This is fixture evidence, not real-disc extraction, native UI or gameplay."
       },
-      "delivery_status": "Native route implemented in candidate; Core-owned manual handoff progress/next-action state remains required before final delivery; unmerged",
+      "delivery_status": "Native route plus Core-owned manual handoff progress and consistent Catalog/Library/details setup actions implemented and independently reviewed in unmerged source. Required exact-head delivery and native/gameplay observations remain separate.",
       "affected_operation": "Finish manual original-data preparation before Play",
       "next_action": "Implement a truthful durable Core manual-setup handoff using existing readiness/action seams; do not infer verified extraction from descriptive presentation or file existence, and keep first-Play picker routes distinct.",
       "acquisition_restriction": null,
@@ -40120,7 +40153,7 @@
       }
     }
   ],
-  "candidate_authored_records_sha256": "dea6fc0d3e43401187af30485bd391a244bab2215b090592cb6c788b9711870c",
+  "candidate_authored_records_sha256": "bc43f29c204186a8a3d3545f0473c8db8d072b60383cb2fe3c7b813f4b1b3061",
   "reference_sources": [
     {
       "name": "Quiver",
@@ -40254,6 +40287,3165 @@
         }
       ],
       "evidence_limits": "Actual artifact/source inspection, inert fixtures, browser feedback, hosted qualification, native runtime/gameplay and final production delivery remain distinct."
+    },
+    "manual_setup_and_transfer_follow_up": {
+      "source_commit": "af06568d7c279c0669204ce36ef6e8aeff5dbeb3",
+      "manual_setup": "Native template2 marker-only completion under already declared data; old retained contracts preserved; folder open binds active installation ID/generation; no discovery execution.",
+      "transfer": "Reviewed copies preserve exact mtime before no-clobber publication, recheck stable source identity/metadata, and refuse resumed destination mismatch while preserving both copies. Published verification remains destination-owned; byte-only plans do not authenticate historical timestamps.",
+      "verification": {
+        "ui": "244/244 cases,5files,0skips; final negative fixture type annotation corrected by passing normal hooks",
+        "authoring": "19/19 prepare-port cases passed",
+        "rust": "78selected cases:58passed,20harness timeouts under30/60s limits. New manual setup, transfer exact-mtime, post-exit sync, reader-floor and definition tests passed; broad import/restore completion remains unverified by that failed run.",
+        "hooks": "Normal commit hooks passed all11TSfiles static and formatting after preserved malformed-fixture failures.",
+        "prior_hosted": "118a163e exact CI: catalog/frontend/dependency-review/rust-quality passed; rust failed backup mtime, stale sync-time assertion and two reader-floor expectations. Source repairs implemented; new exact-head hosted results pending."
+      },
+      "limits": "Fixture/source/artifact evidence only. No actual disc/game/helper/native UI execution, gameplay, installed-client rollout, final CI or merge claim."
     }
+  },
+  "affected_inventory_reconciliation": {
+    "source_commit": "9500045d",
+    "candidate_merge": "05e2c38513a05b49a5166eb859abcde0d78ab9af",
+    "cutoff": "2026-10-25T00:42:56.573Z",
+    "repository_issues": 1255,
+    "active_project_records": 1254,
+    "archived_project_records": 1,
+    "canonical_port_issue_rows": 860,
+    "current_authored_identities": 836,
+    "current_operational_definitions": 156,
+    "current_listing_only": 680,
+    "frozen_initial_identities": 524,
+    "affected_authored_additions": [
+      {
+        "id": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+        "canonical_issue": 2553,
+        "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "abilliontokens-bustinout-recomp",
+        "canonical_issue": 2745,
+        "project_url": "https://github.com/abilliontokens/bustinout-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "abilliontokens-sims1-recomp",
+        "canonical_issue": 2733,
+        "project_url": "https://github.com/abilliontokens/sims1-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "abilliontokens-sims2-recomp",
+        "canonical_issue": 2752,
+        "project_url": "https://github.com/abilliontokens/sims2-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "abilliontokens-urbz-recomp",
+        "canonical_issue": 2813,
+        "project_url": "https://github.com/abilliontokens/urbz-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ajncsystem-shadowofthecolossus-pc",
+        "canonical_issue": 2840,
+        "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ambermoon-ambermoon-net",
+        "canonical_issue": 2625,
+        "project_url": "https://github.com/Pyrdacor/Ambermoon.net",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "amped-2-amped2-recomp",
+        "canonical_issue": 2626,
+        "project_url": "https://github.com/bertibertig/Amped2-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "arx-fatalis-arx-libertatis",
+        "canonical_issue": 2554,
+        "project_url": "https://github.com/arx/ArxLibertatis",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "athelas-the-fellowship-of-the-ring-xbox",
+        "canonical_issue": 2800,
+        "project_url": "https://github.com/Shagg88/Athelas",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "athelas-the-return-of-the-king-xbox",
+        "canonical_issue": 2799,
+        "project_url": "https://github.com/Shagg88/Athelas",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "athelas-the-two-towers-xbox",
+        "canonical_issue": 2798,
+        "project_url": "https://github.com/Shagg88/Athelas",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "atlantis-the-lost-tales-atlantis-native",
+        "canonical_issue": 2876,
+        "project_url": "https://github.com/ripleyXLR8/atlantis-native",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "awakenchan-lanternengine",
+        "canonical_issue": 2829,
+        "project_url": "https://github.com/Awakenchan/LanternEngine",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "baldur-s-gate-ii-enhanced-edition-gemrb",
+        "canonical_issue": 2633,
+        "project_url": "https://github.com/gemrb/gemrb",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "baldur-s-gate-ii-original-gemrb",
+        "canonical_issue": 2629,
+        "project_url": "https://github.com/gemrb/gemrb",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "baldur-s-gate-original-gemrb",
+        "canonical_issue": 2628,
+        "project_url": "https://github.com/gemrb/gemrb",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "bc160201983-uncharted-1",
+        "canonical_issue": 2773,
+        "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "bc160201983-uncharted-2",
+        "canonical_issue": 2774,
+        "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "bc160201983-uncharted-3",
+        "canonical_issue": 2783,
+        "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "bio-menace-reflectionhle",
+        "canonical_issue": 2692,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "bitsandbreakpoints-d-psx-pc-recomp",
+        "canonical_issue": 2741,
+        "project_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "black-xbox-black-pc",
+        "canonical_issue": 2877,
+        "project_url": "https://github.com/Spark198rus/black-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "black-xbox-black-xberecomp",
+        "canonical_issue": 2636,
+        "project_url": "https://github.com/TGP482/BLACK-XBERecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "blake-stone-aliens-of-gold-bstone",
+        "canonical_issue": 2555,
+        "project_url": "https://github.com/bibendovsky/bstone",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "blake-stone-planet-strike-bstone",
+        "canonical_issue": 2556,
+        "project_url": "https://github.com/bibendovsky/bstone",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "blast-corps-blastcorps-recompiled",
+        "canonical_issue": 2558,
+        "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "blast-corps-power-dozer",
+        "canonical_issue": 2557,
+        "project_url": "https://github.com/djultra64/Power-Dozer",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "blood-raze",
+        "canonical_issue": 2667,
+        "project_url": "https://github.com/ZDoom/Raze",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "bluddy-rails",
+        "canonical_issue": 2787,
+        "project_url": "https://github.com/bluddy/rails",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "bountyhunterkanden-secondhunt",
+        "canonical_issue": 2845,
+        "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "burnout-3-takedown-ps2-burnout3-pc",
+        "canonical_issue": 2638,
+        "project_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "burnout-xbox-burnout-recompilation",
+        "canonical_issue": 2637,
+        "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "call-of-duty-3-cod3recomp",
+        "canonical_issue": 2639,
+        "project_url": "https://github.com/FrankHUN88453/CoD3Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cannon-fodder-2-open-fodder",
+        "canonical_issue": 2642,
+        "project_url": "https://github.com/OpenFodder/openfodder",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cannon-fodder-open-fodder",
+        "canonical_issue": 2641,
+        "project_url": "https://github.com/OpenFodder/openfodder",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "catacomb-3-d-the-descent-catacombgl",
+        "canonical_issue": 2643,
+        "project_url": "https://github.com/ArnoAnsems/CatacombGL",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "catacomb-3-d-the-descent-reflectionhle",
+        "canonical_issue": 2684,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cave-story-nxengine-evo",
+        "canonical_issue": 2647,
+        "project_url": "https://github.com/nxengine/nxengine-evo",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "chasm-the-rift-panzerchasm",
+        "canonical_issue": 2878,
+        "project_url": "https://github.com/Panzerschrek/Chasm-Reverse",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "citrongames-dora64-3",
+        "canonical_issue": 2724,
+        "project_url": "https://github.com/citrongames/Dora64-3",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "clergyman0013-arizona-vamp-recomp",
+        "canonical_issue": 2740,
+        "project_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "commander-keen-4-omnispeak",
+        "canonical_issue": 2648,
+        "project_url": "https://github.com/sulix/omnispeak",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "commander-keen-5-omnispeak",
+        "canonical_issue": 2649,
+        "project_url": "https://github.com/sulix/omnispeak",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "commander-keen-6-omnispeak",
+        "canonical_issue": 2650,
+        "project_url": "https://github.com/sulix/omnispeak",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-alien-vs-predator",
+        "canonical_issue": 2769,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-cadillacs-and-dinosaurs",
+        "canonical_issue": 2770,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-marvel-super-heroes",
+        "canonical_issue": 2764,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-street-fighter-alpha-2",
+        "canonical_issue": 2763,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-street-fighter-alpha",
+        "canonical_issue": 2762,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-super-gem-fighter-mini-mix",
+        "canonical_issue": 2780,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
+        "canonical_issue": 2765,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-vampire-hunter-2",
+        "canonical_issue": 2782,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-vampire-savior-2",
+        "canonical_issue": 2767,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-vampire-savior-definitive",
+        "canonical_issue": 2768,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-vampire-savior",
+        "canonical_issue": 2766,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "cps2recomp-x-men-vs-street-fighter",
+        "canonical_issue": 2781,
+        "project_url": "https://github.com/tmcleroy/cps2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "crackdown-crackdown-recompiled",
+        "canonical_issue": 2559,
+        "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "crash-team-racing-ctr-recompiled",
+        "canonical_issue": 2879,
+        "project_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "crazyriddler-finesthourremastered",
+        "canonical_issue": 2785,
+        "project_url": "https://github.com/crazyriddler/FinestHourRemastered",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "danilopaulinodasilva-kof98recomp",
+        "canonical_issue": 2732,
+        "project_url": "https://github.com/danilopaulinodasilva/kof98recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dannyowelch-deception-recomp",
+        "canonical_issue": 2735,
+        "project_url": "https://github.com/dannyowelch/deception-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
+        "canonical_issue": 2651,
+        "project_url": "https://github.com/alphanu1/daytona-arcade-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dead-or-alive-3-doa3-recomp",
+        "canonical_issue": 2560,
+        "project_url": "https://github.com/parkerallan/doa3-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "def-jam-fight-for-ny-defjamffny-recomp",
+        "canonical_issue": 2562,
+        "project_url": "https://github.com/vyanhursky/DefJamFFNY-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+        "canonical_issue": 2561,
+        "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "descent-dxx-rebirth",
+        "canonical_issue": 2652,
+        "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "descent-ii-dxx-rebirth",
+        "canonical_issue": 2653,
+        "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "diablo-devilutionx",
+        "canonical_issue": 2563,
+        "project_url": "https://github.com/diasurgical/DevilutionX",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "diablo-hellfire-devilutionx",
+        "canonical_issue": 2564,
+        "project_url": "https://github.com/diasurgical/DevilutionX",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "djultra64-clayfighter64",
+        "canonical_issue": 2830,
+        "project_url": "https://github.com/djultra64/ClayFighter64",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "doom-3-classic-dhewm3",
+        "canonical_issue": 2567,
+        "project_url": "https://github.com/dhewm/dhewm3",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "doom-3-classic-dude-doom-3-unified-development-engine",
+        "canonical_issue": 2565,
+        "project_url": "https://github.com/Inkub0/dude",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "doom-3-resurrection-of-evil-classic-dhewm3",
+        "canonical_issue": 2568,
+        "project_url": "https://github.com/dhewm/dhewm3",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+        "canonical_issue": 2566,
+        "project_url": "https://github.com/Inkub0/dude",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "doom-ii-crispy-doom-family",
+        "canonical_issue": 2655,
+        "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "doom-the-ultimate-doom-crispy-doom-family",
+        "canonical_issue": 2654,
+        "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
+        "canonical_issue": 2664,
+        "project_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dragon-s-crown-pro-ps4-dragon-s-crown-pro-pc",
+        "canonical_issue": 2880,
+        "project_url": "https://github.com/saulob/dragons-crown-pro-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dudux42-freedomunbound",
+        "canonical_issue": 2808,
+        "project_url": "https://github.com/Dudux42/FreedomUnbound",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "duke-nukem-3d-raze",
+        "canonical_issue": 2666,
+        "project_url": "https://github.com/ZDoom/Raze",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dune-ii-dune-dynasty",
+        "canonical_issue": 2569,
+        "project_url": "https://github.com/gameflorist/dunedynasty",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dune-ii-opendune",
+        "canonical_issue": 2674,
+        "project_url": "https://github.com/OpenDUNE/OpenDUNE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "dyotson-forzahorizon1-reimagined",
+        "canonical_issue": 2726,
+        "project_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "elraro-atomic-bomberman",
+        "canonical_issue": 2756,
+        "project_url": "https://github.com/elraro/atomic-bomberman",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "erreib-pure-recomp",
+        "canonical_issue": 2749,
+        "project_url": "https://github.com/erreib/pure-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+        "canonical_issue": 2570,
+        "project_url": "https://github.com/griches/EternalDarknessRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "fallout-2-fallout-2-community-edition",
+        "canonical_issue": 2574,
+        "project_url": "https://github.com/alexbatalov/fallout2-ce",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "fallout-fallout-community-edition",
+        "canonical_issue": 2573,
+        "project_url": "https://github.com/alexbatalov/fallout1-ce",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "fataldecomp-roller",
+        "canonical_issue": 2792,
+        "project_url": "https://github.com/FatalDecomp/ROLLER",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "felipeprado0-spartanport",
+        "canonical_issue": 2826,
+        "project_url": "https://github.com/FelipePrado0/SpartanPort",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "final-doom-crispy-doom-family",
+        "canonical_issue": 2656,
+        "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "final-fantasy-tactics-advance-fftarecomp",
+        "canonical_issue": 2575,
+        "project_url": "https://github.com/Jorge262007/FFTARecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "forza-horizon-xbox-360-pinyon-shift",
+        "canonical_issue": 2576,
+        "project_url": "https://github.com/arcanite24/pinyon-shift",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "forza-motorsport-3-ultimate-collection-usa-xbox-360-forza-motorsport-3-native-recompilation",
+        "canonical_issue": 2675,
+        "project_url": "https://github.com/0herculabs/hl360-forza3",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "forza-motorsport-4-forza-motorsport-4-recompiled",
+        "canonical_issue": 2676,
+        "project_url": "https://github.com/Alexbeav/fm4-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "freespace-2-freespace-open",
+        "canonical_issue": 2677,
+        "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+        "canonical_issue": 2577,
+        "project_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "getlostin-ctr-nitrofueled-pc",
+        "canonical_issue": 2822,
+        "project_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "go-go-ackman-go-go-ackman-recompiled",
+        "canonical_issue": 2881,
+        "project_url": "https://github.com/catmidori/gogoackman1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "goodshepherd23-galerians-recompiled",
+        "canonical_issue": 2734,
+        "project_url": "https://github.com/goodshepherd23/Galerians-Recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "goodshepherd23-jetmoto2-recomp",
+        "canonical_issue": 2825,
+        "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "gothic-ii-night-of-the-raven-opengothic",
+        "canonical_issue": 2578,
+        "project_url": "https://github.com/Try/OpenGothic",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "gran-turismo-4-playstation-2-gt4recomp",
+        "canonical_issue": 2579,
+        "project_url": "https://github.com/moesuito/gt4-staticrecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "gtteancum-openjam",
+        "canonical_issue": 2807,
+        "project_url": "https://github.com/GTTeancum/OpenJam",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "gumpolas-tootawersrecomp",
+        "canonical_issue": 2796,
+        "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "gunstar-heroes-gunstars",
+        "canonical_issue": 2580,
+        "project_url": "https://github.com/1nputs/gunstars",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "half-life-xash3d-fwgs",
+        "canonical_issue": 2678,
+        "project_url": "https://github.com/FWGS/xash3d-fwgs",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "hard-corps-uprising-hard-corps-uprising-recompiled",
+        "canonical_issue": 2581,
+        "project_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "hayatog-iss-pc",
+        "canonical_issue": 2788,
+        "project_url": "https://github.com/HayatoG/iss_pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "hayatog-tlg-pc",
+        "canonical_issue": 2815,
+        "project_url": "https://github.com/HayatoG/tlg_pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "heart-of-darkness-hode",
+        "canonical_issue": 2882,
+        "project_url": "https://github.com/usineur/hode",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "heretic-crispy-doom-family",
+        "canonical_issue": 2657,
+        "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "heroes-of-might-and-magic-ii-fheroes2",
+        "canonical_issue": 2582,
+        "project_url": "https://github.com/ihhub/fheroes2",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "hexen-crispy-doom-family",
+        "canonical_issue": 2662,
+        "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
+        "canonical_issue": 2680,
+        "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "icewind-dale-ii-gemrb",
+        "canonical_issue": 2631,
+        "project_url": "https://github.com/gemrb/gemrb",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "icewind-dale-original-gemrb",
+        "canonical_issue": 2630,
+        "project_url": "https://github.com/gemrb/gemrb",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "iirg4x-mp6-native-port",
+        "canonical_issue": 2843,
+        "project_url": "https://github.com/iirg4x/mp6-native-port",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "infamous-2009-ps3-infamousreborn",
+        "canonical_issue": 2681,
+        "project_url": "https://github.com/whompay/inFAMOUSreborn",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "iron-jay-banjo-tooie-xbla-recomp",
+        "canonical_issue": 2860,
+        "project_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "itsbybanshee-wwe2k14-pc",
+        "canonical_issue": 2750,
+        "project_url": "https://github.com/itsbybanshee/wwe2k14-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "jackgllghr-bigmission-recomp",
+        "canonical_issue": 2805,
+        "project_url": "https://github.com/jackgllghr/bigmission-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "jagged-alliance-2-ja2-stracciatella",
+        "canonical_issue": 2583,
+        "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "james2doyle-ffta-recomp",
+        "canonical_issue": 2824,
+        "project_url": "https://github.com/james2doyle/ffta-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "jazz-jackrabbit-2-jazz2-resurrection",
+        "canonical_issue": 2682,
+        "project_url": "https://github.com/deathkiller/jazz2-native",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "jedeyesniv-art-pacman-ce-pc-recomp",
+        "canonical_issue": 2727,
+        "project_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "jonathandc64-ffcceot-recomp",
+        "canonical_issue": 2844,
+        "project_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "josiahg2502-glitch-newsuperpaperbros",
+        "canonical_issue": 2772,
+        "project_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "jumatt-jetsetradiofuture-unleashed",
+        "canonical_issue": 2820,
+        "project_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "k0nl-b2recomp",
+        "canonical_issue": 2755,
+        "project_url": "https://github.com/K0NL/B2recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "kaikoclanworth1-buffy-chaos-bleeds-pc",
+        "canonical_issue": 2784,
+        "project_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "kaikoclanworth1-wwe-svr2011-pc",
+        "canonical_issue": 2856,
+        "project_url": "https://github.com/KaikoClanworth1/wwe-svr2011-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "kandowontu2-urbanrecomp",
+        "canonical_issue": 2851,
+        "project_url": "https://github.com/kandowontu2/UrbanRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "keen-dreams-reflectionhle",
+        "canonical_issue": 2683,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "kevinfoley-herculan",
+        "canonical_issue": 2758,
+        "project_url": "https://github.com/kevinfoley/Herculan",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "killer-instinct-2-arcade-ultracombo",
+        "canonical_issue": 2585,
+        "project_url": "https://github.com/thefixinhixon/UltraCombo",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "killer-instinct-arcade-ultracombo",
+        "canonical_issue": 2584,
+        "project_url": "https://github.com/thefixinhixon/UltraCombo",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "kingdom-hearts-chain-of-memories-gba-rekhcom",
+        "canonical_issue": 2586,
+        "project_url": "https://github.com/MatyMeatBoy/ReKHCoM",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "lancommander-tonywasaproskater",
+        "canonical_issue": 2831,
+        "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "linkssy2-darkwatchdarkeredition",
+        "canonical_issue": 2736,
+        "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "linkssy2-urbanchaosriotresponseburneredition",
+        "canonical_issue": 2811,
+        "project_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "luigi-s-mansion-luigi-s-mansion-recompiled",
+        "canonical_issue": 2587,
+        "project_url": "https://github.com/rob646464/luigis-mansion-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "marathon-2-durandal-aleph-one",
+        "canonical_issue": 2589,
+        "project_url": "https://github.com/Aleph-One-Marathon/alephone",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "marathon-aleph-one",
+        "canonical_issue": 2588,
+        "project_url": "https://github.com/Aleph-One-Marathon/alephone",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "marathon-infinity-aleph-one",
+        "canonical_issue": 2591,
+        "project_url": "https://github.com/Aleph-One-Marathon/alephone",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "master-of-orion-1oom-vanilla-branch",
+        "canonical_issue": 2883,
+        "project_url": "https://github.com/1oom-fork/1oom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mdomangue26-thebigs2",
+        "canonical_issue": 2802,
+        "project_url": "https://github.com/mdomangue26/thebigs2",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+        "canonical_issue": 2594,
+        "project_url": "https://github.com/openmoh/openmohaa",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "medal-of-honor-allied-assault-openmohaa",
+        "canonical_issue": 2592,
+        "project_url": "https://github.com/openmoh/openmohaa",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
+        "canonical_issue": 2593,
+        "project_url": "https://github.com/openmoh/openmohaa",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "midnight-club-los-angeles-complete-edition-mcla-recomp",
+        "canonical_issue": 2693,
+        "project_url": "https://github.com/holdmysocks/mcla-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "midtown-madness-sneak-preview-beta-build-1560-open1560",
+        "canonical_issue": 2884,
+        "project_url": "https://github.com/0x1F9F1/Open1560",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "might-and-magic-vii-openenroth",
+        "canonical_issue": 2885,
+        "project_url": "https://github.com/OpenEnroth/OpenEnroth",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mlb-power-pros-2008-mlbpowerpros2008recomp",
+        "canonical_issue": 2694,
+        "project_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "monscriser-hydrothunderport",
+        "canonical_issue": 2779,
+        "project_url": "https://github.com/monscriser/HydroThunderPORT",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "morsgames-moonchildfe",
+        "canonical_issue": 2865,
+        "project_url": "https://github.com/MorsGames/MoonChildFE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mortal-kombat-shaolin-monks-xbox-shaolinmonksrecomp",
+        "canonical_issue": 2595,
+        "project_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mother-3-mother-3-recomp",
+        "canonical_issue": 2596,
+        "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mr-finster-vf1-recomp",
+        "canonical_issue": 2863,
+        "project_url": "https://github.com/mr-finster/vf1-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mr-finster-vf2-recomp",
+        "canonical_issue": 2834,
+        "project_url": "https://github.com/mr-finster/vf2-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mr-finster-vf3-recomp",
+        "canonical_issue": 2754,
+        "project_url": "https://github.com/mr-finster/vf3-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mstan-tetrisgbrecomp",
+        "canonical_issue": 2738,
+        "project_url": "https://github.com/mstan/TetrisGBRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "mstan-yoshinesrecomp",
+        "canonical_issue": 2739,
+        "project_url": "https://github.com/mstan/YoshiNESRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "murkantor-project-midas",
+        "canonical_issue": 2789,
+        "project_url": "https://github.com/murkantor/Project-Midas",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "n64hub-perfect-dark-recomp",
+        "canonical_issue": 2776,
+        "project_url": "https://github.com/n64hub/perfect-dark-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "n64hub-rush-2049-recomp",
+        "canonical_issue": 2838,
+        "project_url": "https://github.com/n64hub/rush-2049-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "n64hub-super-mario-64-recomp",
+        "canonical_issue": 2725,
+        "project_url": "https://github.com/n64hub/super-mario-64-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "nam-raze",
+        "canonical_issue": 2672,
+        "project_url": "https://github.com/ZDoom/Raze",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "naruto-rise-of-a-ninja-naruto-rise-recomp",
+        "canonical_issue": 2695,
+        "project_url": "https://github.com/jorjbarbosa/naruto-rise-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "need-for-speed-ii-special-edition-nfs-recompiled",
+        "canonical_issue": 2887,
+        "project_url": "https://github.com/motor-dev/nfs-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "need-for-speed-ii-special-edition-nfsiise",
+        "canonical_issue": 2886,
+        "project_url": "https://github.com/zaps166/NFSIISE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
+        "canonical_issue": 2888,
+        "project_url": "https://github.com/motor-dev/nfs-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
+        "canonical_issue": 2696,
+        "project_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "nhl-94-genesis-ninety-four",
+        "canonical_issue": 2597,
+        "project_url": "https://github.com/1nputs/ninety-four",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ninja-gaiden-black-ninja-gaiden-black-recompiled",
+        "canonical_issue": 2598,
+        "project_url": "https://github.com/gamboozino/ngbrecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "nmlgc-ssg",
+        "canonical_issue": 2837,
+        "project_url": "https://github.com/nmlgc/ssg",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "nycolazs-windwakerhd-android-plus",
+        "canonical_issue": 2857,
+        "project_url": "https://github.com/Nycolazs/WindWakerHD-Android-Plus",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "obaidr1-hercules-recompiled",
+        "canonical_issue": 2823,
+        "project_url": "https://github.com/obaidr1/hercules-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "openport-labs-galaxy-android",
+        "canonical_issue": 2803,
+        "project_url": "https://github.com/OpenPort-Labs/Galaxy-Android",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "overkilllabs3-dc-ps5",
+        "canonical_issue": 2821,
+        "project_url": "https://github.com/OverkillLabs3/DC-PS5",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "overkilllabs3-driveclub-recomp",
+        "canonical_issue": 2795,
+        "project_url": "https://github.com/OverkillLabs3/driveclub-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "overkilllabs3-gears-judgement-recomp",
+        "canonical_issue": 2859,
+        "project_url": "https://github.com/OverkillLabs3/gears-judgement-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "overkilllabs3-sos-ps5",
+        "canonical_issue": 2848,
+        "project_url": "https://github.com/OverkillLabs3/SoS-PS5",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "overkilllabs3-vice-city-stories-recomp",
+        "canonical_issue": 2858,
+        "project_url": "https://github.com/OverkillLabs3/vice-city-stories-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "perimeter-emperor-s-testament-perimeter-community-engine",
+        "canonical_issue": 2890,
+        "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "perimeter-perimeter-community-engine",
+        "canonical_issue": 2889,
+        "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pharaoh-akhenaten",
+        "canonical_issue": 2891,
+        "project_url": "https://github.com/dalerank/Akhenaten",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "planescape-torment-original-gemrb",
+        "canonical_issue": 2632,
+        "project_url": "https://github.com/gemrb/gemrb",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-blue-gen1recomp",
+        "canonical_issue": 2866,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-crystal-gen1recomp",
+        "canonical_issue": 2870,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-emerald-gen1recomp",
+        "canonical_issue": 2875,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-firered-gen1recomp",
+        "canonical_issue": 2871,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-gold-gen1recomp",
+        "canonical_issue": 2868,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-leafgreen-gen1recomp",
+        "canonical_issue": 2872,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-ruby-gen1recomp",
+        "canonical_issue": 2873,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-sapphire-gen1recomp",
+        "canonical_issue": 2874,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-silver-gen1recomp",
+        "canonical_issue": 2869,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "pokemon-yellow-gen1recomp",
+        "canonical_issue": 2867,
+        "project_url": "https://github.com/bryanthaboi/gen1recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "portingpete-the-darkness-recomp",
+        "canonical_issue": 2849,
+        "project_url": "https://github.com/portingpete/The-Darkness-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "poseidon-master-of-atlantis-ezeus",
+        "canonical_issue": 2911,
+        "project_url": "https://github.com/MaurycyLiebner/eZeus",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "potiondweller-azure-dreams-hd-recompilation",
+        "canonical_issue": 2753,
+        "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "powerslave-exhumed-dos-raze",
+        "canonical_issue": 2671,
+        "project_url": "https://github.com/ZDoom/Raze",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "presidentraptor-ace-combat-04-pc-port",
+        "canonical_issue": 2804,
+        "project_url": "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "previouslevelgames-recharged",
+        "canonical_issue": 2759,
+        "project_url": "https://github.com/previouslevelgames/recharged",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "prince-of-persia-dos-sdlpop",
+        "canonical_issue": 2892,
+        "project_url": "https://github.com/NagyD/SDLPoP",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "promethendev-wwe13-recomp",
+        "canonical_issue": 2855,
+        "project_url": "https://github.com/PromethenDev/wwe13-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "puyo-puyo-box-puyopuyoboxrecomp",
+        "canonical_issue": 2893,
+        "project_url": "https://github.com/kirby1237/PuyoPuyoBoxRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp",
+        "canonical_issue": 2699,
+        "project_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "quake-ii-yamagi-quake-ii",
+        "canonical_issue": 2700,
+        "project_url": "https://github.com/yquake2/yquake2",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "quake-iii-arena-ioquake3",
+        "canonical_issue": 2701,
+        "project_url": "https://github.com/ioquake/ioq3",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "quake-iii-team-arena-ioquake3",
+        "canonical_issue": 2702,
+        "project_url": "https://github.com/ioquake/ioq3",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "quake-ironwail",
+        "canonical_issue": 2698,
+        "project_url": "https://github.com/andrei-drexler/ironwail",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "quake-vkquake",
+        "canonical_issue": 2697,
+        "project_url": "https://github.com/Novum/vkQuake",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "rallisport-challenge-2-rallisport-challenge-2-recomp",
+        "canonical_issue": 2704,
+        "project_url": "https://github.com/Mortify7612/RallisportChallenge2-decomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ratchet-clank-2002-ps2-rac-rs",
+        "canonical_issue": 2599,
+        "project_url": "https://github.com/AsobiCodes/rac-rs",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "re-volt-rvgl",
+        "canonical_issue": 2705,
+        "project_url": "https://rvgl.org/",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "redneck-rampage-raze",
+        "canonical_issue": 2670,
+        "project_url": "https://github.com/ZDoom/Raze",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "resident-evil-code-veronica-x-ps2-recvx-enhanced-port",
+        "canonical_issue": 2600,
+        "project_url": "https://github.com/aikatore/recvx-enhanced-port",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "resident-evil-code-veronica-x-ps2-recvx-native",
+        "canonical_issue": 2894,
+        "project_url": "https://github.com/Patt92/recvx-native",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "return-to-castle-wolfenstein-iortcw",
+        "canonical_issue": 2706,
+        "project_url": "https://github.com/iortcw/iortcw",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ridge-racer-6-ridge-racer-6-recomp",
+        "canonical_issue": 2601,
+        "project_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ridge-racer-v-fukami",
+        "canonical_issue": 2604,
+        "project_url": "https://github.com/danisandoval/fukami",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "riotashley81-jpg-vagrantstory-recomp",
+        "canonical_issue": 2771,
+        "project_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "roman215-weltall",
+        "canonical_issue": 2786,
+        "project_url": "https://github.com/Roman215/Weltall",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ryu7w7-octr-nitrofueled-pc",
+        "canonical_issue": 2819,
+        "project_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
+        "canonical_issue": 2707,
+        "project_url": "https://github.com/OpenXRay/xray-16",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "s-t-a-l-k-e-r-clear-sky-openxray",
+        "canonical_issue": 2708,
+        "project_url": "https://github.com/OpenXRay/xray-16",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "serious-sam-the-first-encounter-serioussamclassic",
+        "canonical_issue": 2605,
+        "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "serious-sam-the-second-encounter-serioussamclassic",
+        "canonical_issue": 2606,
+        "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "shadow-warrior-raze",
+        "canonical_issue": 2668,
+        "project_url": "https://github.com/ZDoom/Raze",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "shaneomac1337-wwe-allstars-recomp",
+        "canonical_issue": 2812,
+        "project_url": "https://github.com/shaneomac1337/WWE-AllStars-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "shihabal3amri-tekken-tag-tournament-2-pc",
+        "canonical_issue": 2748,
+        "project_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "skate-2-skate2recompiled",
+        "canonical_issue": 2608,
+        "project_url": "https://github.com/cookingwithsimon/Skate2Recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "skate-2007-skate1recompiled",
+        "canonical_issue": 2607,
+        "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "skies-of-arcadia-legends-skies-of-arcadia-legends-recompiled",
+        "canonical_issue": 2895,
+        "project_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "smbx-13-thextech",
+        "canonical_issue": 2731,
+        "project_url": "https://github.com/TheXTech/TheXTech",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "south-park-let-s-go-tower-defense-play-south-park-td-recompiled",
+        "canonical_issue": 2709,
+        "project_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "south-park-tenorman-s-revenge-south-park-tr-recompiled",
+        "canonical_issue": 2710,
+        "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "soyjxck-dod3-recomp",
+        "canonical_issue": 2842,
+        "project_url": "https://github.com/soyjxck/dod3-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "spear-of-destiny-reflectionhle",
+        "canonical_issue": 2689,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "spicywonda-castlevania-chronicles-recomp",
+        "canonical_issue": 2854,
+        "project_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ssx-3-playstation-2-ssx-3-native-rust-port",
+        "canonical_issue": 2711,
+        "project_url": "https://github.com/andersfischernielsen/ssx3-decomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ssx-3-xbox-pal-ssx3-recomp-bertibertig",
+        "canonical_issue": 2712,
+        "project_url": "https://github.com/bertibertig/SSX3-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ssx-3-xbox-pal-ssx3-recomp-koenhendriks",
+        "canonical_issue": 2609,
+        "project_url": "https://github.com/koenhendriks/SSX3-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "star-fox-adventures-foxhollow",
+        "canonical_issue": 2610,
+        "project_url": "https://github.com/JackPriceBurns/foxhollow",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+        "canonical_issue": 2611,
+        "project_url": "https://github.com/JACoders/OpenJK",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+        "canonical_issue": 2612,
+        "project_url": "https://github.com/JACoders/OpenJK",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "star-wars-x-wing-alliance-openxwa",
+        "canonical_issue": 2898,
+        "project_url": "https://github.com/elyosh/OpenXWA",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "star-wars-x-wing-openxw",
+        "canonical_issue": 2896,
+        "project_url": "https://github.com/elyosh/OpenXW",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+        "canonical_issue": 2899,
+        "project_url": "https://github.com/elyosh/OpenXvT",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "startupandhold-3on3arcaderecomp",
+        "canonical_issue": 2737,
+        "project_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "strife-crispy-doom-family",
+        "canonical_issue": 2663,
+        "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "strike-gunner-s-t-g-strike-gunner-stg-recomp",
+        "canonical_issue": 2713,
+        "project_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "super-3-d-noah-s-ark-dos-reflectionhle",
+        "canonical_issue": 2690,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "super-mario-galaxy-nebula",
+        "canonical_issue": 2613,
+        "project_url": "https://github.com/keepvaibin/nebula",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "super-mario-rpg-legend-of-the-seven-stars-supermariorpgrecomp",
+        "canonical_issue": 2900,
+        "project_url": "https://github.com/mstan/SuperMarioRPGRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "super-robot-taisen-64-marchwind-64",
+        "canonical_issue": 2614,
+        "project_url": "https://github.com/dyzz/srw64-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "super-street-fighter-ii-turbo-hd-remix-ssf2t-hd-remix-recompiled",
+        "canonical_issue": 2714,
+        "project_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "supermedo-prince-of-persia-2-windows",
+        "canonical_issue": 2814,
+        "project_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "supermedo-uncharted-1",
+        "canonical_issue": 2816,
+        "project_url": "https://github.com/Supermedo/uncharted_pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "supermedo-uncharted-2",
+        "canonical_issue": 2817,
+        "project_url": "https://github.com/Supermedo/uncharted_pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "supermedo-uncharted-3",
+        "canonical_issue": 2818,
+        "project_url": "https://github.com/Supermedo/uncharted_pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "syndicate-wars-syndicate-wars-fan-expansion",
+        "canonical_issue": 2715,
+        "project_url": "https://github.com/swfans/syndwarsfx",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "tekrantgaming-point-blank-recompiled",
+        "canonical_issue": 2839,
+        "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "tgp482-scda-xberecomp",
+        "canonical_issue": 2832,
+        "project_url": "https://github.com/TGP482/SCDA-XBERecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-catacomb-abyss-catacombgl",
+        "canonical_issue": 2644,
+        "project_url": "https://github.com/ArnoAnsems/CatacombGL",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-catacomb-abyss-reflectionhle",
+        "canonical_issue": 2685,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-catacomb-apocalypse-catacombgl",
+        "canonical_issue": 2646,
+        "project_url": "https://github.com/ArnoAnsems/CatacombGL",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-catacomb-apocalypse-reflectionhle",
+        "canonical_issue": 2687,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-catacomb-armageddon-catacombgl",
+        "canonical_issue": 2645,
+        "project_url": "https://github.com/ArnoAnsems/CatacombGL",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-catacomb-armageddon-reflectionhle",
+        "canonical_issue": 2686,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-darkness-xbox-360-2007-estacado",
+        "canonical_issue": 2615,
+        "project_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-elder-scrolls-iii-morrowind-openmw",
+        "canonical_issue": 2616,
+        "project_url": "https://github.com/OpenMW/openmw",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
+        "canonical_issue": 2617,
+        "project_url": "https://github.com/peiikai/LASRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-legend-of-zelda-skyward-sword-hd-sky-recomp",
+        "canonical_issue": 2901,
+        "project_url": "https://github.com/Apolinario-coder/SkyRecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-operative-no-one-lives-forever-goty-nolf1-modern-nolfsrc",
+        "canonical_issue": 2902,
+        "project_url": "https://github.com/nolffan/nolfsrc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "the-warriors-ps2-coney",
+        "canonical_issue": 2903,
+        "project_url": "https://github.com/Ryubara/coney",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "themuffinator-openq4",
+        "canonical_issue": 2810,
+        "project_url": "https://github.com/themuffinator/openQ4",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "tk22-26-jetforcegemini-recomp",
+        "canonical_issue": 2835,
+        "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "tomb-raider-openlara",
+        "canonical_issue": 2904,
+        "project_url": "https://github.com/XProger/OpenLara",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "top-gear-snes-top-gear-for-windows",
+        "canonical_issue": 2905,
+        "project_url": "https://github.com/thebradshaw/topgear-pc",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+        "canonical_issue": 2618,
+        "project_url": "https://github.com/Capridog/SpaceRanger",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "transport-tycoon-deluxe-openttd-upstream",
+        "canonical_issue": 2716,
+        "project_url": "https://github.com/OpenTTD/OpenTTD",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+        "canonical_issue": 2619,
+        "project_url": "https://github.com/OpenXcom/OpenXcom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ultima-vii-part-two-serpent-isle-exult",
+        "canonical_issue": 2622,
+        "project_url": "https://github.com/exult/exult",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "ultima-vii-the-black-gate-exult",
+        "canonical_issue": 2621,
+        "project_url": "https://github.com/exult/exult",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "urban-chaos-openchaos",
+        "canonical_issue": 2906,
+        "project_url": "https://github.com/UltimaBeaR/OpenChaos",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "urban-reign-urban-reign-recomp",
+        "canonical_issue": 2718,
+        "project_url": "https://github.com/thiagordsfx/urban-reign-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "vagrant-story-playstation-rood-boi",
+        "canonical_issue": 2907,
+        "project_url": "https://github.com/noprompt/rood-boi",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "vagrant-story-ps1-vs-nativeport",
+        "canonical_issue": 2908,
+        "project_url": "https://github.com/JEschete/VS-NativePort",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "vyruz-destruction-of-the-untel-empire-openvyruz",
+        "canonical_issue": 2623,
+        "project_url": "https://github.com/Solessfir/OpenVyruz",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wayne-gretzky-s-3d-hockey-wg3d-recomp",
+        "canonical_issue": 2719,
+        "project_url": "https://github.com/geno55/wg3d-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wet-wet-recomp",
+        "canonical_issue": 2720,
+        "project_url": "https://github.com/Supermedo/wet-recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "whompay-saintsreborn",
+        "canonical_issue": 2778,
+        "project_url": "https://github.com/whompay/SaintsReborn",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wild-9-wild9recomp",
+        "canonical_issue": 2624,
+        "project_url": "https://github.com/plinkr/Wild9Recomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
+        "canonical_issue": 2909,
+        "project_url": "https://github.com/neuromancer/wc1-re",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wolfenstein-3d-reflectionhle",
+        "canonical_issue": 2688,
+        "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wolfenstein-enemy-territory-et-legacy",
+        "canonical_issue": 2721,
+        "project_url": "https://github.com/etlegacy/etlegacy",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wootbeer-btgarecomp",
+        "canonical_issue": 2846,
+        "project_url": "https://github.com/wootbeer/btgarecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wootbeer-btrecomp",
+        "canonical_issue": 2793,
+        "project_url": "https://github.com/wootbeer/btrecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wootbeer-bzrecomp",
+        "canonical_issue": 2828,
+        "project_url": "https://github.com/wootbeer/bzrecomp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wootbeer-dinotale",
+        "canonical_issue": 2847,
+        "project_url": "https://github.com/wootbeer/dinotale",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "wootbeer-paxdino",
+        "canonical_issue": 2790,
+        "project_url": "https://github.com/wootbeer/PaxDino",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "world-war-ii-gi-raze",
+        "canonical_issue": 2673,
+        "project_url": "https://github.com/ZDoom/Raze",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "x-com-terror-from-the-deep-openxcom",
+        "canonical_issue": 2620,
+        "project_url": "https://github.com/OpenXcom/OpenXcom",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "y0oshi-lain-psx-decompiled",
+        "canonical_issue": 2833,
+        "project_url": "https://github.com/Y0oshi/lain-psx-decompiled",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "yokimitsuro-khdays-port",
+        "canonical_issue": 2794,
+        "project_url": "https://github.com/Yokimitsuro/khdays-port",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "youkaicountry-yknytt",
+        "canonical_issue": 2809,
+        "project_url": "https://github.com/youkaicountry/yknytt",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "zeranemesis-marioparty4",
+        "canonical_issue": 2850,
+        "project_url": "https://github.com/zeranemesis/Marioparty4",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "zeus-master-of-olympus-ezeus",
+        "canonical_issue": 2910,
+        "project_url": "https://github.com/MaurycyLiebner/eZeus",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      },
+      {
+        "id": "zuma-deluxe-zuma-portable-circleshootapp",
+        "canonical_issue": 2912,
+        "project_url": "https://github.com/kyle-sylvestre/CircleShootApp",
+        "current_route": null,
+        "listing_availability": "unknown",
+        "platforms": [],
+        "source": "main missing-port audit #2552 / #2916; assessment pending"
+      }
+    ],
+    "known_duplicate_mappings": [
+      {
+        "from": 554,
+        "to": 356
+      },
+      {
+        "from": 1786,
+        "to": 322
+      }
+    ],
+    "unresolved_roadmap_only_joins": [
+      {
+        "number": 2546,
+        "url": "https://github.com/boburning/portcove/issues/2546",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T14:40:33Z",
+        "body_sha256": "fd5105088087cab349cb9779715ee5355888ecae3fb429a8fb3f6b7a2548e1c1",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["hybrid-heaven-ogdanimal"],
+          "upstreams": ["https://github.com/ogdanimal/hybridheaven-recomp"],
+          "title": "hybrid-heaven-hybridheaven-recomp-ogdanimal"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2722,
+        "url": "https://github.com/boburning/portcove/issues/2722",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T21:35:28Z",
+        "body_sha256": "8fdb1a11cd2c5802926ba79d55a8def97d1596806a70ad57b69d4ce247c65a8e",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["petarov-saboteur2"],
+          "upstreams": ["https://github.com/petarov/saboteur2"],
+          "title": "saboteur-ii-avenging-angel-saboteur-ii-x86-64-recomp"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2728,
+        "url": "https://github.com/boburning/portcove/issues/2728",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T21:46:45Z",
+        "body_sha256": "77711c8004d1fc6f84b5561c61b68bbdfd032a8519ec4690cea0e9b2ed2d7642",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["xgcmodding-platinum"],
+          "upstreams": ["https://github.com/xgcmodding/platinum"],
+          "title": "pokemon-platinum-pokemon-platinum-by-xgcmodding"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2729,
+        "url": "https://github.com/boburning/portcove/issues/2729",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T21:47:26Z",
+        "body_sha256": "18bcef26195c021ad340cb3ec005ff77033d82d433b401f80b4c0da91a6b7a1a",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["meteo-dream-mf-community-edition"],
+          "upstreams": ["https://github.com/meteo-dream/mf-community-edition"],
+          "title": "mario-forever-community-edition-mario-forever-community-edition"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2744,
+        "url": "https://github.com/boburning/portcove/issues/2744",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:01:54Z",
+        "body_sha256": "09ac1cab14788f002a3892edcdad45529eb10d3d63e0fee15c22b730639b7001",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["sirdankz-undead-neighbor-eaters-droid"],
+          "upstreams": ["https://github.com/sirdankz/undead-neighbor-eaters-droid"],
+          "title": "zombies-ate-my-neighbors-undead-neighbor-eaters-droid"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2746,
+        "url": "https://github.com/boburning/portcove/issues/2746",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:04:10Z",
+        "body_sha256": "8293cb931f91761723c7e0b70a814842b308cc2d7b2b9b773ab7c66835455641",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["diegodedios-alienrerecomp"],
+          "upstreams": ["https://github.com/diegodedios/alienrerecomp"],
+          "title": "alien-resurrection-alienrerecomp"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2747,
+        "url": "https://github.com/boburning/portcove/issues/2747",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:05:32Z",
+        "body_sha256": "f79e45d20577d7b1afd856c9aea1d2ce8361ed66fff33e8400b248f216b048c2",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["tdrrmk2-uhexen2-tweaked"],
+          "upstreams": ["https://github.com/tdrrmk2/uhexen2-tweaked"],
+          "title": "hexen-ii-uhexen2-tweaked"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2751,
+        "url": "https://github.com/boburning/portcove/issues/2751",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:10:16Z",
+        "body_sha256": "ecdc7f433f4a23e6a5a85dd5e21feb1f2192eed8822eeb57d87d3d3c82278e4f",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["inliner495-bblit-remaster"],
+          "upstreams": ["https://github.com/inliner495/bblit-remaster"],
+          "title": "bugs-bunny-lost-in-time-bblit-remaster"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2757,
+        "url": "https://github.com/boburning/portcove/issues/2757",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:16:37Z",
+        "body_sha256": "1353ef7a8bec5269591dfec18de39a80c2ae4f637a2e8fa04a596c56eb67b0ca",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["caiuscodes-goldeneye-007-xbla-pc-recomp"],
+          "upstreams": ["https://github.com/caiuscodes/goldeneye-007-xbla-pc-recomp"],
+          "title": "goldeneye-007-unreleased-xbla-remaster-goldeneye-007-xbla-pc-recomp"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2760,
+        "url": "https://github.com/boburning/portcove/issues/2760",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:18:49Z",
+        "body_sha256": "81b2584b96874ddb004b49a260aaa5bab584e6db2fc7d71845be9be0c20cea77",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["leithsilver-mgsm"],
+          "upstreams": ["https://github.com/leithsilver/mgsm"],
+          "title": "metal-gear-solid-mobile-metal-gear-solid-mobile-native-port"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2761,
+        "url": "https://github.com/boburning/portcove/issues/2761",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:19:36Z",
+        "body_sha256": "ea5f58dc5d8fc6204b43383d8ea6df565cd94bcf9c94a77d4275f7bfa74716ff",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["clickingmaster-ssrecomp"],
+          "upstreams": ["https://github.com/clickingmaster/ssrecomp"],
+          "title": "pokemon-soulsilver-ssrecomp"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2791,
+        "url": "https://github.com/boburning/portcove/issues/2791",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:42:48Z",
+        "body_sha256": "bca4633e31a53469d215cfda61eb8b92fe9cdb726ad73587db63235d874fe0d2",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["dankzonestudios-cv64recomp"],
+          "upstreams": ["https://github.com/dankzonestudios/cv64recomp"],
+          "title": "castlevania-64-castlevania-64-recompiled"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2801,
+        "url": "https://github.com/boburning/portcove/issues/2801",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:46:20Z",
+        "body_sha256": "940a65df673795e4448309f4e32d14d6f52280063e71731e9dc9d098b5e841cd",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["athelas-return-of-the-king-pc-fix"],
+          "upstreams": ["https://github.com/shagg88/athelas"],
+          "title": "the-lord-of-the-rings-the-return-of-the-king-windows-2003-rotk-fix-inside-athelas"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2806,
+        "url": "https://github.com/boburning/portcove/issues/2806",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:48:10Z",
+        "body_sha256": "42271d7eb75aa4c084895e4c83ac651cb33438b132ba9cfd4c5c4514d07647aa",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["nvdemu-apeescaperecomp-macwindowslinux"],
+          "upstreams": ["https://github.com/nvdemu/apeescaperecomp-macwindowslinux"],
+          "title": "ape-escape-ape-escape-recompiled-enhanced-edition"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2827,
+        "url": "https://github.com/boburning/portcove/issues/2827",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:56:24Z",
+        "body_sha256": "33cbc6b4a8fafe196805b4178d782f92a62bffae585444fe7815dfa22fe65468",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["petarov-alleycat-exe"],
+          "upstreams": ["https://github.com/petarov/alleycat.exe"],
+          "title": "alley-cat-alley-cat-x86-64-port"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2836,
+        "url": "https://github.com/boburning/portcove/issues/2836",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T22:59:50Z",
+        "body_sha256": "e67a689c2fb3dbb9b16329015c8684239eba395349fd0680cea0d3ddd342c31e",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["lodilorenzo-cybermage-darklight-re-awakening"],
+          "upstreams": ["https://github.com/lodilorenzo/cybermage-darklight-re-awakening"],
+          "title": "cybermage-darklight-awakening-cybermage-darklight-re-awakening"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2841,
+        "url": "https://github.com/boburning/portcove/issues/2841",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T23:02:07Z",
+        "body_sha256": "a1e06f143221e04e8bf616bc1f75f83ee0bcdb96f2f9cce0730e89523cb39ef5",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["btfighter-super-mario-world-remastered-plus"],
+          "upstreams": ["https://github.com/btfighter/super-mario-world-remastered-plus"],
+          "title": "super-mario-world-super-mario-world-remastered-plus"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2852,
+        "url": "https://github.com/boburning/portcove/issues/2852",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T23:06:22Z",
+        "body_sha256": "d190fb83c25cb34df6685b703ea9b370beb3bf6eb22fdc7b1e3b54965ede699b",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["gta-iii-re3"],
+          "upstreams": ["https://github.com/leanndroguedes/re3-19feb21"],
+          "title": "grand-theft-auto-iii-re3"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2853,
+        "url": "https://github.com/boburning/portcove/issues/2853",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T23:06:45Z",
+        "body_sha256": "09a95b9472528f039e9c5f32dce218864b2fa41862f5e3aa5bc39b5d0ea593e7",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["gta-vice-city-revc"],
+          "upstreams": ["https://github.com/leanndroguedes/re3-19feb21"],
+          "title": "grand-theft-auto-vice-city-revc"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2861,
+        "url": "https://github.com/boburning/portcove/issues/2861",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T23:11:13Z",
+        "body_sha256": "48bb3e62785f5817ded264f25aa3c0a7789da87d2a7785562d5b02f4b4fc79cf",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["rages4calm-earthbound-companion"],
+          "upstreams": ["https://github.com/rages4calm/earthbound-companion"],
+          "title": "earthbound-earthbound-companion"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2862,
+        "url": "https://github.com/boburning/portcove/issues/2862",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T23:11:37Z",
+        "body_sha256": "97a760136634374f9b93eb60dee149e329cb8be96ed57a6da38ad567c8a13041",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["mr-finster-stunts-hd"],
+          "upstreams": ["https://github.com/mr-finster/stunts-hd"],
+          "title": "stunts-stunts-hd"
+        },
+        "authored_ids": []
+      },
+      {
+        "number": 2913,
+        "url": "https://github.com/boburning/portcove/issues/2913",
+        "state": "OPEN",
+        "updatedAt": "2026-10-24T23:32:35Z",
+        "body_sha256": "3bfdda11d465d4a7d8f04d97c98f4fe45737fb22ed91db3f2290b383b3e39795",
+        "identity": {
+          "catalogIds": [],
+          "portKeys": ["abuse-abuse-2025"],
+          "upstreams": ["https://github.com/apancik/abuse_2025"],
+          "title": "abuse-abuse-2025"
+        },
+        "authored_ids": []
+      }
+    ],
+    "coverage": "Complete maintained repository/Project pagination at the recorded cutoff; current authored IDs accounted for. The22 roadmap-only identity/lineage joins and312 new authored-route fit reviews remain unfinished. Do not claim858 distinct delivered ports or all-port implementation.",
+    "receipt": "checkpoint13-inventory-refresh/roadmap-inventory.json",
+    "summary_sha256": "34617a10ea5629771b6e371598a35bdbe8df2162b448a84574952bc41c1e6ceb"
   }
 }
