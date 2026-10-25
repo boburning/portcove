@@ -2004,6 +2004,13 @@ function classifyOnePath(
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
   if (
+    /^apps\/desktop\/scripts\/[^/]+\.native\.test\.mts$/u.test(file) ||
+    file === "vite.config.ts" ||
+    file === ".github/workflows/ci.yml"
+  )
+    addNodeTest(selection, "scripts/node-test-inventory.test.mts");
+
+  if (
     file.startsWith("docs/") &&
     /\.ya?ml$/u.test(file) &&
     validationOwnershipForPath(file).areas.includes("release-security")

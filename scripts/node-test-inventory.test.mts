@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { parseDocument, stringify } from "yaml";
+import { executableLines } from "./ci-workflow-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { checkStagedNodeTestInventory, requireNodeTestInventory } from "./node-test-inventory.mts";
 import {
@@ -12,6 +14,9 @@ import {
   commandTokens,
   generateNodeCommands,
   parseNodeTestSuites,
+  nodeTestPath,
+  registeredNodeCommand,
+  requireNativeNodeTestInventory,
 } from "./node-test-suites.mts";
 
 const first = "scripts/first.test.mts";
@@ -91,7 +96,9 @@ void test("equivalent qualification expressions preserve executable routes in th
   const runner = readFileSync(new URL("./run-windows-qualification.ps1", import.meta.url), "utf8");
   const registryText = readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8");
   const registry = parseNodeTestSuites(registryText);
-  const files = [...new Set(Object.values(registry.suites).flatMap((suite) => suite.files))];
+  const files = [...new Set(Object.values(registry.suites).flatMap((suite) => suite.files))].filter(
+    (file) => nodeTestPath.test(file),
+  );
   for (const condition of [
     "needs.classify.outputs.mode\n == 'qualification'",
     "${{\n needs.classify.outputs.mode\n == 'qualification'\n}}",
@@ -646,4 +653,152 @@ void test("platform ownership rejects unknown scopes and owners outside the file
         ),
       /Invalid qualification ownership/,
     );
+});
+
+void test("native helper ownership detects added, renamed, removed and empty families", () => {
+  const file = "apps/desktop/scripts/owned.native.test.mts";
+  const renamed = "apps/desktop/scripts/renamed.native.test.mts";
+  const registry = (files: string[]) =>
+    parseNodeTestSuites(
+      JSON.stringify({
+        format_version: 1,
+        suites: { "native-tools": { arguments: ["--test"], files } },
+      }),
+    );
+  requireNativeNodeTestInventory([file], registry([file]));
+  for (const files of [[], [renamed], [file, renamed]])
+    assert.throws(() => requireNativeNodeTestInventory(files, registry([file])));
+  requireNativeNodeTestInventory([renamed], registry([renamed]));
+  requireNativeNodeTestInventory([file, renamed], registry([file, renamed]));
+  assert.throws(() => requireNativeNodeTestInventory([first], registry([file])));
+  for (const invalid of [
+    "apps/desktop/scripts/../escape.native.test.mts",
+    "apps/desktop/scripts/*.native.test.mts",
+    "apps/desktop/scripts/owned.test.mts",
+    "apps/desktop/scripts/owned.native.test.js",
+  ])
+    assert.throws(() => registry([invalid]));
+  assert.throws(() => registeredNodeCommand("missing-suite"), /Unknown Node suite/u);
+});
+
+void test("all native helpers use one explicit reported family in both CI owners and the actual Vite task", async () => {
+  const registry = parseNodeTestSuites(
+    readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  const files = readdirSync(new URL("../apps/desktop/scripts", import.meta.url))
+    .filter((file) => file.endsWith(".native.test.mts"))
+    .map((file) => "apps/desktop/scripts/" + file);
+  requireNativeNodeTestInventory(files, registry);
+  const suite = registry.suites["native-tools"];
+  assert.ok(suite);
+  assert.deepEqual(suite.arguments, [
+    "--test",
+    "--test-timeout=30000",
+    "--test-reporter=./scripts/required-node-test-reporter.mts",
+  ]);
+  const settings: unknown = parseDocument(
+    readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+    { uniqueKeys: true },
+  ).toJS();
+  const { default: config } = await import("../vite.config.ts");
+  assert.ok(isRecord(config) && isRecord(config.run) && isRecord(config.run.tasks));
+  const task = config.run.tasks["native:tools"];
+  const assertConsumers = (settings: unknown, task: unknown) => {
+    assert.ok(isRecord(settings) && isRecord(settings.jobs));
+    const defaults =
+      isRecord(settings.defaults) && isRecord(settings.defaults.run) ? settings.defaults.run : {};
+    assert.ok(
+      defaults["working-directory"] === undefined ||
+        defaults["working-directory"] === "." ||
+        defaults["working-directory"] === "./",
+    );
+    for (const [id, condition] of [
+      ["windows_helpers", "needs.classify.outputs.native_tools == 'true'"],
+      ["windows_storage", undefined],
+    ] as const) {
+      const job: unknown = settings.jobs[id];
+      assert.ok(isRecord(job) && Array.isArray(job.steps));
+      assert.equal(job["runs-on"], "windows-latest");
+      assert.ok(job["continue-on-error"] === undefined || job["continue-on-error"] === false);
+      assert.equal(
+        job.if,
+        id === "windows_helpers"
+          ? "needs.classify.outputs.windows_helpers == 'true'"
+          : "needs.classify.outputs.mode == 'qualification'",
+      );
+      const steps: unknown[] = job.steps;
+      const owners = steps.filter(
+        (step) =>
+          isRecord(step) &&
+          typeof step.run === "string" &&
+          annotatedNodeCommands(step.run, registry).some(
+            (command) => command.id === "native-tools",
+          ),
+      );
+      assert.equal(owners.length, 1, id);
+      const owner = owners[0];
+      assert.ok(isRecord(owner));
+      assert.equal(owner.if, condition);
+      assert.ok(owner["continue-on-error"] === undefined || owner["continue-on-error"] === false);
+      assert.ok(typeof owner.run === "string");
+      assert.deepEqual(executableLines(owner.run), [registeredNodeCommand("native-tools")]);
+      assert.equal(owner["working-directory"], undefined);
+      assert.equal(job.defaults, undefined);
+    }
+    assert.ok(isRecord(task) && typeof task.command === "string");
+    assert.equal(task.cache, false);
+    assert.deepEqual(commandTokens(task.command), ["node", ...suite.arguments, ...suite.files]);
+  };
+  assertConsumers(settings, task);
+  for (const [target, field, value] of [
+    ["job", "if", "false"],
+    ["owner", "if", "false"],
+    ["owner", "continue-on-error", true],
+    ["owner", "working-directory", "elsewhere"],
+    ["owner", "run", "exit 0"],
+  ] as const) {
+    const changed: unknown = structuredClone(settings);
+    assert.ok(isRecord(changed) && isRecord(changed.jobs));
+    const job = changed.jobs.windows_helpers;
+    assert.ok(isRecord(job) && Array.isArray(job.steps));
+    const steps: unknown[] = job.steps;
+    const owner = steps.find(
+      (step) =>
+        isRecord(step) &&
+        typeof step.run === "string" &&
+        step.run.includes("# node-suite: native-tools"),
+    );
+    assert.ok(isRecord(owner));
+    (target === "job" ? job : owner)[field] = value;
+    assert.throws(() => assertConsumers(changed, task), `${target}/${field}`);
+  }
+  const wrongDirectory: unknown = structuredClone(settings);
+  assert.ok(isRecord(wrongDirectory));
+  wrongDirectory.defaults = { run: { "working-directory": "elsewhere" } };
+  assert.throws(() => assertConsumers(wrongDirectory, task));
+  assert.ok(isRecord(task));
+  for (const change of [{ command: "node --test unowned.mts" }, { cache: true }])
+    assert.throws(() => assertConsumers(settings, { ...task, ...change }));
+});
+
+void test("native file and consumer changes always select their inventory contract", async () => {
+  const { classifyChanges } = await import("./ordinary-validation.mts");
+  for (const file of [
+    "apps/desktop/scripts/new.native.test.mts",
+    "vite.config.ts",
+    ".github/workflows/ci.yml",
+  ])
+    for (const change of [
+      { status: "M", path: file },
+      { status: "A", path: file },
+      { status: "D", path: file },
+      { status: "R100", path: "docs/moved.md", previousPath: file },
+      { status: "R100", previousPath: "docs/moved.md", path: file },
+    ])
+      assert.ok(
+        classifyChanges([change], { fileExists: () => false }).nodeTests.has(
+          "scripts/node-test-inventory.test.mts",
+        ),
+        JSON.stringify(change),
+      );
 });
