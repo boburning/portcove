@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Erick194/DoomRPG-RE",
     "issue_number": 369,
     "platforms": [],
-    "availability": "packages",
+    "availability": "unknown",
     "setup_url": "https://github.com/Erick194/DoomRPG-RE",
     "artwork": {
       "game_id": 101029,
@@ -16,27 +16,6 @@
       "image_sha256": "cc08e314298f0cb0e877d0f6483b3d4b830feace20b3b36258c2300b82c068d2",
       "game_slug": "doom-rpg",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare Doom RPG data with upstream",
-          "instruction": "The Windows player needs your permitted DoomRPG.zip beside DoomRPG.exe in the DoomRPG folder. Upstream includes a separate BarToZip converter; it is a preparation tool, not the game. Follow upstream’s instructions for your own compatible original data. Portcove does not run that converter, obtain original files or infer that J2ME and BREW editions are interchangeable. If you already have a working prepared copy, keep using it."
-        },
-        {
-          "title": "Register the prepared game",
-          "instruction": "Choose DoomRPG.exe with its containing game folder as the working directory. Keep the supplied runtime libraries together. Save the launch details, then choose Play separately. You or upstream manage updates and the external working folder, including original data, saves and settings. Prepare another version separately and keep the current copy; Portcove does not back up, roll back or remove these external files."
-        }
-      ],
-      "warnings": [
-        "The inspected release does not publish an independently expected archive hash. A download is an explicitly unverified upstream copy; it does not become a managed or authenticated runtime."
-      ],
-      "help_url": "https://github.com/Erick194/DoomRPG-RE/blob/v.0.2.2/README.md"
-    },
-    "release_url": "https://github.com/Erick194/DoomRPG-RE/releases/tag/v.0.2.2",
-    "download_asset_hints": {
-      "windows-x86-64": ["DoomRPG_Port.", ".zip"]
-    },
-    "original_game_title": "Doom RPG"
+    }
   }
 }

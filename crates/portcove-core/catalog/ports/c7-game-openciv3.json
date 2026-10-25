@@ -7,8 +7,8 @@
     "project_url": "https://github.com/C7-Game/OpenCiv3",
     "issue_number": 1850,
     "platforms": [],
-    "availability": "packages",
-    "setup_url": "https://github.com/C7-Game/OpenCiv3/blob/v0.3-dutch-preview-1/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/C7-Game/OpenCiv3",
     "artwork": {
       "game_id": 310,
       "cover_id": 119071,
@@ -16,24 +16,6 @@
       "image_sha256": "d93e0f29120c8816eec38230c1fa57e4901217cc32692d715a384944238b23da",
       "game_slug": "sid-meier-s-civilization-iii",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/C7-Game/OpenCiv3/releases/tag/v0.3-dutch-preview-1",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Keep your permitted OpenCiv3 player",
-          "instruction": "For an existing permitted Windows copy, choose OpenCiv3.exe and keep OpenCiv3.pck, data_C7_windows_x86_64, Assets and Text together in its working folder. The early pre-alpha player can use your own Civilization III Conquests/Complete files, or its placeholder standalone mode where you have permission to use those bundled assets. Choose the game-data folder or standalone option in the player; no original Civilization III runtime has to be launched."
-        },
-        {
-          "title": "Keep updates and data with the working copy",
-          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder."
-        }
-      ],
-      "warnings": [
-        "Fresh acquisition is unavailable while permission for the package’s separately credited placeholder assets remains unresolved. The code’s MIT license does not license the Assets bundle, whose README says it is not licensed. Keep an existing permitted copy. Reconsider when the selected package has attributable compatible asset grants or omits those assets."
-      ],
-      "help_url": "https://github.com/C7-Game/OpenCiv3/blob/v0.3-dutch-preview-1/README.md"
-    },
-    "download_block_reason": "Fresh acquisition is unavailable while permission for the package’s separately credited placeholder assets remains unresolved. The code’s MIT license does not license the Assets bundle, whose README says it is not licensed. Keep an existing permitted copy. Reconsider when the selected package has attributable compatible asset grants or omits those assets."
+    }
   }
 }

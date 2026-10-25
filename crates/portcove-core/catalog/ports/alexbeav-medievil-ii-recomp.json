@@ -6,8 +6,9 @@
     "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
     "issue_number": 459,
-    "availability": "packages",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
     "artwork": {
       "game_id": 4002,
       "cover_id": 84942,
@@ -15,54 +16,6 @@
       "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
       "game_slug": "medievil-ii--1",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Choose your own USA disc",
-          "instruction": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md"
-    },
-    "release_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/releases/tag/v0.2.4-alpha",
-    "original_game_title": "MediEvil II"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["beta"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "alexbeavs-ps1-ports/medievil-ii-recomp",
-      "asset_hints": {
-        "windows-x86-64": ["medieviliirecomp-", "-windows-x64.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["MediEvilIIRecomp.exe"]
-    },
-    "persistent_paths": [
-      "settings.toml",
-      "disc.cfg",
-      "bios.cfg",
-      "input.ini",
-      "config.ini",
-      "keybinds.ini",
-      "saves",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "diagnostics-location.txt"
-    ],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "portcove-managed",
-      "manual_preparation": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache. Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility. Existing external installations keep their files and runtime owner. Gameplay, minimum environment and packaged Desktop acceptance remain separate observations."
     }
   }
 }

@@ -121,16 +121,10 @@ pub(crate) fn launch_working_directory(
             )));
         }
         Ok(directory)
-    } else if port.launch_from_install_root
-        || (kind == AdapterKind::N64RecompPortable && !port.n64_runtime_at_executable_parent)
-    {
+    } else if port.launch_from_install_root || kind == AdapterKind::N64RecompPortable {
         Ok(install_root.to_path_buf())
     } else {
-        Ok(crate::runtime::working_root_for_executable(
-            port,
-            install_root,
-            executable,
-        ))
+        Ok(executable.parent().unwrap_or(install_root).to_path_buf())
     }
 }
 

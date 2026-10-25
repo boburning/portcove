@@ -25,10 +25,15 @@
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
     "release": {
-      "provider": "github",
-      "repository": "alexbeavs-ps1-ports/driver-recomp",
-      "asset_hints": {
-        "windows-x86-64": ["Driver-Recomp-", "-windows-x64.zip"]
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.6",
+          "url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
+          "size": 30154093,
+          "sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+          "published_at": "2026-09-04T14:48:39Z"
+        }
       }
     },
     "source_profile": "driver-psx",

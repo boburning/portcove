@@ -6,8 +6,9 @@
     "summary": "Explore Ace Combat 6 Recomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/sal063/AC6_recomp",
     "issue_number": 159,
-    "availability": "packages",
-    "setup_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sal063/AC6_recomp",
     "artwork": {
       "game_id": 5476,
       "cover_id": 129981,
@@ -15,75 +16,6 @@
       "image_sha256": "4c96dc0b2df555f04889240e43fcc2a6b1d9a39efddb2c11c0900c487f04ba70",
       "game_slug": "ace-combat-6-fires-of-liberation",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Ace Combat 6: Fires of Liberation",
-    "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["ac6recomp-", ".zip"]
-    },
-    "release_url": "https://github.com/sal063/AC6_recomp/releases/tag/v1.0.0-beta.2",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Add your US game data before Play",
-          "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
-        },
-        {
-          "title": "Keep your saves and settings",
-          "instruction": "Saves and the default texture-mod profile use your Windows Documents/ac6recomp folder. Keep a separate backup of that folder before changing versions. Runtime settings and keyboard bindings sit beside the player in ac6recomp.toml and ac6_input.toml; use forward slashes in TOML paths. Runtime caches and logs also appear beside the player. If Windows cannot resolve Documents, the upstream relative ac6recomp fallback stays beside the player. Custom data, disc, DLC, log, mod and diagnostic locations remain yours to preserve separately. Close the game before changing runtime files; older versions may not read newer saves."
-        },
-        {
-          "title": "Know this release’s limits",
-          "instruction": "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["beta"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "sal063/AC6_recomp",
-      "asset_hints": {
-        "windows-x86-64": ["ac6recomp-", ".zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["ac6recomp.exe"]
-    },
-    "persistent_paths": [
-      "AC6.iso",
-      "assets",
-      "dlc",
-      "ac6recomp.toml",
-      "ac6_input.toml",
-      "boot.log",
-      "ac6recomp.log",
-      "logs",
-      "cache",
-      "ac6recomp",
-      "ac6_pac_runtime_dump",
-      "out/ac6_pac_runtime_dump"
-    ],
-    "persistent_file_patterns": [
-      {
-        "prefix": "ac6recomp.",
-        "suffix": ".log"
-      },
-      {
-        "prefix": "crash-",
-        "suffix": ".txt"
-      }
-    ],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update. Portcove manages the official Windows x64 runtime and preserves the declared AC6.iso, assets, dlc, local settings, bindings, logs, shader cache and reviewed diagnostic folders, including data added before first Play. Its backup covers those declared in-folder paths, not the normal Documents/ac6recomp save/mod profile or custom locations. Keep a separate backup of external saves. Runtime rollback carries current declared data and does not rewind saves or establish older-version compatibility. Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
     }
   }
 }

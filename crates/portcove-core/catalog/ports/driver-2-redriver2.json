@@ -7,8 +7,8 @@
     "project_url": "https://github.com/OpenDriver2/REDRIVER2",
     "issue_number": 317,
     "platforms": [],
-    "availability": "packages",
-    "setup_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions",
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenDriver2/REDRIVER2",
     "artwork": {
       "game_id": 6391,
       "cover_id": 364339,
@@ -16,26 +16,6 @@
       "image_sha256": "188dd97ae742e78c8c47e7a2e0c7921a5b7047a83245f307fb4b3a0b19eea00e",
       "game_slug": "driver-2-back-on-the-streets",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Driver 2",
-    "release_url": "https://github.com/OpenDriver2/REDRIVER2/releases",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Use the upstream setup for your platform",
-          "instruction": "The reviewed Windows release is a 32-bit Windows ZIP. Extract the Release package into a separate folder, then follow the linked official installation instructions. For the upstream launcher route, place OpenDriver2’s Launcher in that folder, install its Java prerequisite, and deliberately run its Setup wizard. Linux has separate SDL2/OpenAL and Java requirements and its own conversion script. Portcove does not run these tools automatically."
-        },
-        {
-          "title": "Provide both of your Driver 2 discs",
-          "instruction": "The upstream setup needs both original Driver 2 discs from a supported English PAL or NTSC edition. Its wizard selects CD1 and CD2 and prepares the game data. The documented manual alternative uses install/Driver2CD1.bin, install/Driver2CD2.bin, the config.ini cdfs setting and the platform conversion script. Complete that specific upstream process before choosing REDRIVER2.exe or the Linux player in Portcove."
-        },
-        {
-          "title": "Register the prepared player and keep your copy",
-          "instruction": "Save the prepared game executable with its game folder as the working directory, then choose Play separately. You or upstream provide runtime updates and own the converted data, local configuration and saves. Prepare replacements in another folder and keep the current tree and both disc images recoverable. Portcove leaves external files untouched and does not promise managed Update, Backup or Rollback."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions"
     }
   }
 }

@@ -6,8 +6,9 @@
     "summary": "Explore F-Zero / F-Zero Recomp (craigshaw) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/craigshaw/FZeroRecomp",
     "issue_number": 1821,
-    "availability": "packages",
-    "setup_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/craigshaw/FZeroRecomp",
     "artwork": {
       "game_id": 3490,
       "cover_id": 319391,
@@ -15,51 +16,6 @@
       "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
       "game_slug": "f-zero",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/craigshaw/FZeroRecomp/releases/tag/v0.6.0",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Start with your original game",
-          "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
-    },
-    "original_game_title": "F-Zero"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "craigshaw/FZeroRecomp",
-      "asset_hints": {
-        "windows-x86-64": ["fzerorecomp-", "-windows-x64.zip"],
-        "linux-x86-64": ["fzerorecomp-", "-linux-x64.tar.gz"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["fzero_recomp.exe"],
-      "linux-x86-64": ["fzero_recomp"]
-    },
-    "persistent_paths": [
-      "config.ini",
-      "config.ini.tmp",
-      "config.ini.save-folder.tmp",
-      "keybinds.ini",
-      "rom.cfg",
-      "fzero_usa_reference.sfc",
-      "saves",
-      "screenshots"
-    ],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "portcove-managed",
-      "manual_preparation": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path. Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux uses the same executable-adjacent declared configurations and saves as Windows. Keep lib/libSDL3.so.0 with the player; the ELF runpath resolves that packaged companion. System OpenGL and C++ runtime libraries are required. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
     }
   }
 }

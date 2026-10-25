@@ -6,8 +6,9 @@
     "summary": "Explore Banjo-Tooie: Recompiled (some-scurvy-dog) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled",
     "issue_number": 1395,
-    "availability": "packages",
-    "setup_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled",
     "artwork": {
       "game_id": 3418,
       "cover_id": 295556,
@@ -15,52 +16,6 @@
       "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
       "game_slug": "banjo-tooie",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Banjo-Tooie",
-    "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["BanjoTooieScurvyDogPort-", "-Windows-x64.zip"]
-    },
-    "release_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/releases/tag/v0.1.0-alpha.4.3",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Select your own Banjo-Tooie ROM on first Play",
-          "instruction": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically."
-        },
-        {
-          "title": "Keep your saves and settings",
-          "instruction": "Saves, settings, copied ROM, logs, cache and RT64 texture packs use %LOCALAPPDATA%/BanjoTooieScurvyDogPort. Keep a separate backup; do not share the whole profile because it contains your ROM. On first start only, if this destination does not exist, the game can copy selected Alpha 4/4.1 data from BanjoTooieEncore while leaving the old profile unchanged. Close the old game first; the copies do not synchronize. An existing destination, even empty, wins. A failed copy can leave an unused .migrating-… folder; preserve it and consult the upstream recovery instructions before retrying. Alpha 3 save import asks once if there is no current save; Alpha 3 settings and practice states are not carried over. Texture packs are experimental; code mods and ROM patches are unsupported."
-        },
-        {
-          "title": "Know this release’s limits",
-          "instruction": "This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["beta"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "some-scurvy-dog/banjo-tooie-scurvy-dog-port",
-      "asset_hints": {
-        "windows-x86-64": ["BanjoTooieScurvyDogPort-", "-Windows-x64.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["BanjoTooieScurvyDogPort.exe"]
-    },
-    "persistent_paths": [],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically. Portcove manages only the official Windows x64 runtime. The reviewed player writes its ROM, saves, settings, log, cache and mods to the external upstream profile rather than the runtime folder, so no in-folder persistent paths are declared. Portcove runtime backup does not back up that profile. Keep a separate backup of your saves/profile before updates or runtime rollback. Runtime rollback does not rewind that profile, synchronize old copies or guarantee save compatibility. Existing registrations retain their files and update owner. This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
     }
   }
 }

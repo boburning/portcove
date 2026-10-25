@@ -7,8 +7,8 @@
     "project_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
     "issue_number": 1580,
     "platforms": [],
-    "availability": "packages",
-    "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/78a6df91f538d011c80c5f5dbcd567651c1b67e6/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled",
     "artwork": {
       "game_id": 98,
       "cover_id": 93655,
@@ -16,22 +16,6 @@
       "image_sha256": "25ed7f5aa7dacdb1853021d593dcc536d240f5e757ae2db568d60b33639ad23d",
       "game_slug": "need-for-speed-most-wanted",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/releases/tag/latest",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Keep a permitted prepared copy",
-          "instruction": "For a permitted locally built Windows copy, follow this project’s complete upstream ReXGlue bootstrap/extraction/build instructions with your own Need for Speed: Most Wanted Xbox 360 PAL Spain dump. The selected guide explicitly excludes PAL UK and NTSC US for this route. Its private ready-to-play build contains translated game code; the publishable Portable folder deliberately omits that executable. Register only your prepared native player, keeping the original dump and working copy separate."
-        },
-        {
-          "title": "Keep your data when changing versions",
-          "instruction": "The current Android release is separate from that Windows build and has its own game-path selector for an ISO or extracted default.xex. Its generated-code distribution boundary has not been resolved: the release declares source commit 78a6df91f538d011c80c5f5dbcd567651c1b67e6, whose Android CMake links app/generated/default sources despite the selected project’s rule against publishing the compiled game. Keep existing app/native data intact and follow the owning upstream setup; Portcove does not build, replace or back up these runtimes."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/78a6df91f538d011c80c5f5dbcd567651c1b67e6/README.md"
-    },
-    "download_block_reason": "The selected project explicitly prohibits distributing its generated game sources and compiled game executable. The Android release’s declared source links those generated game sources into its native library. Permission for fresh acquisition of that translated game-code package is not established. Keep existing permitted/local builds; fresh Portcove downloads require an attributable distribution grant or a code-free package with a supported owned-input preparation route."
+    }
   }
 }

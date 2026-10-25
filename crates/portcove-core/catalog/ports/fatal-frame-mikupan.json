@@ -6,9 +6,9 @@
     "summary": "Explore Fatal Frame / MikuPan and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/Mikompilation/MikuPan",
     "issue_number": 346,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Mikompilation/MikuPan",
     "artwork": {
       "game_id": 5106,
       "cover_id": 445266,
@@ -16,34 +16,6 @@
       "image_sha256": "2416f2d6b5f72ad7064b72b465aaa9f6bcb14d2e3d1a9a4b07b5b1943e80eaf0",
       "game_slug": "fatal-frame",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Fatal Frame",
-    "release_url": "https://github.com/Mikompilation/MikuPan/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["MikuPan_windows_", ".zip"],
-      "linux-x86-64": ["MikuPan_linux_", ".zip"]
-    },
-    "recommended_download_channel": "beta",
-    "download_block_reason": "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
-    "manual_setup": {
-      "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
-      "warnings": [
-        "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font."
-      ],
-      "steps": [
-        {
-          "title": "Use a permitted copy and your matching game files",
-          "instruction": "Keep an existing permitted complete native player, including its resources and libraries. The Windows player is MikuPan.exe; register it with its folder as the working directory. Save launch details, then choose Play separately. Prepare your own IMG_HD.BIN and IMG_BD.BIN from the matching Fatal Frame disc in a separate retained data folder. Default upstream builds use NTSC-U USA; PAL/EU needs the matching EU build, and the Japanese edition is unsupported. No original files or PS2 BIOS are supplied by Portcove."
-        },
-        {
-          "title": "Choose the original-data folder on first Play",
-          "instruction": "The native player asks for the folder containing the missing game files on first deliberate Play and remembers your selection. Keep that original-data folder outside any separately managed runtime so replacing a player does not replace your originals. The package is portable and has no installer. Source builds have their own CMake/dependency instructions. Linux is a separate upstream route; macOS is an experimental Apple Silicon community build with no maintained hardware coverage, not Windows qualification."
-        },
-        {
-          "title": "Back up the actual profile before updating",
-          "instruction": "You or upstream update this external copy. Close the game, keep the working folder, and extract a new permitted player separately. Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming. If profile-directory creation fails, upstream uses the local MikuPan directory instead; retain that too. Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."
-        }
-      ]
     }
   }
 }

@@ -6,8 +6,9 @@
     "summary": "Explore Gladiator / OpenGLaD and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/openglad/openglad",
     "issue_number": 1917,
-    "availability": "packages",
-    "setup_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/openglad/openglad",
     "artwork": {
       "game_id": 100047,
       "cover_id": 563025,
@@ -15,42 +16,6 @@
       "image_sha256": "ddabf593da503a4f6f737dcb5b5698da4a061998a8a34746d0985c8384e6a5a8",
       "game_slug": "gladiator--1",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/openglad/openglad/releases/tag/v2.1092",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Start the game",
-          "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
-    },
-    "original_game_title": "Gladiator"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "openglad/openglad",
-      "asset_hints": {
-        "windows-x86-64": ["openglad-windows-x86_64.zip"],
-        "linux-x86-64": ["openglad-linux-x86_64.tar.gz"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["openglad.exe"],
-      "linux-x86-64": ["openglad"]
-    },
-    "persistent_paths": [],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux normally keeps player data in ~/.openglad, outside Portcove backups. The selected binary requires OpenSSL3 and other upstream system libraries. The packaged campaigns and engine assets remain version-owned. Use an external copy for custom OPENGLAD_CONFIG_DIR or a current-folder fallback. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
     }
   }
 }

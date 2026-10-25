@@ -25,10 +25,15 @@
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
     "release": {
-      "provider": "github",
-      "repository": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
-      "asset_hints": {
-        "windows-x86-64": ["Duke-Nukem-Time-to-Kill-Recomp-", "-windows-x64.zip"]
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.6",
+          "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+          "size": 30158026,
+          "sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+          "published_at": "2026-09-04T14:48:44Z"
+        }
       }
     },
     "source_profile": "duke-nukem-time-to-kill-psx",

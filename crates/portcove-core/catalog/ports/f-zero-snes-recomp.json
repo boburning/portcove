@@ -26,10 +26,15 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "github",
-      "repository": "mstan/FZeroSNESRecomp",
-      "asset_hints": {
-        "windows-x86-64": ["FZeroSNESRecomp-", "-windows-x64.zip"]
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v1.8.3",
+          "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
+          "size": 8247843,
+          "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "published_at": "2026-09-22T03:42:21Z"
+        }
       }
     },
     "source_profile": "f-zero-snes-usa",

@@ -59,11 +59,7 @@ type PackageFacts = Pick<
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
 export function portablePreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
-  const executableParentN64 =
-    record.integration?.adapter === "n64-recomp-portable" &&
-    record.integration.n64_runtime_at_executable_parent === true;
-  if (record.integration?.adapter !== "native-portable" && !executableParentN64) return undefined;
-  if (!record.integration) return undefined;
+  if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
   const platforms = Array.isArray(record.integration.platforms)
@@ -78,9 +74,7 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
       : [],
     manual_setup: {
       completion_record: record.integration.setup_marker ?? null,
-      next: executableParentN64
-        ? "Core prepares the declared canonical N64 ROM and portable marker beside the selected player. Preserve the existing source identity and preparation contract; do not execute a discovered helper."
-        : "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
+      next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
     },
     launch_identity: {
       original_game_title: record.listing.original_game_title ?? null,
@@ -88,9 +82,8 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
         ? "Keep this underlying game title separate from its implementation and helper names."
         : "Supply listing.original_game_title from the canonical game identity; do not make players distinguish the player from compiler or converter helpers.",
     },
-    data_review: executableParentN64
-      ? "Review the actual portable N64 package and declare canonical ROM, saves, settings, optional imports and runtime writes relative to its selected player. N64 capability 4 and retained format 7 preserve pre-Play data and stage activation. Keep historical wrapper-prefixed contracts unchanged; their data-coordinate transition remains held until supported. No archive flattening, helper execution, external-file adoption or gameplay qualification follows from filename matches."
-      : "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route. Generated executable caches need compatible producer identity or supported invalidation, not just a declared directory or ABI label.",
+    data_review:
+      "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route. Generated executable caches need compatible producer identity or supported invalidation, not just a declared directory or ABI label.",
     scope:
       "Authoring observations only; Core retains package selection, trust and mutation authority.",
   };

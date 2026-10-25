@@ -25,10 +25,15 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "github",
-      "repository": "elliotttate/BombermanRecomp",
-      "asset_hints": {
-        "windows-x86-64": ["BombermanRecomp-windows-x64-", ".zip"]
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.1.1",
+          "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
+          "size": 1245795,
+          "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+          "published_at": "2026-08-26T16:01:04Z"
+        }
       }
     },
     "source_profile": "super-bomberman-snes-usa",

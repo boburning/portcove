@@ -6,41 +6,8 @@
     "summary": "Explore Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/Brawmario/infinite-mario-64-ever",
     "issue_number": 1830,
-    "availability": "packages",
-    "setup_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md",
-    "release_url": "https://github.com/Brawmario/infinite-mario-64-ever/releases/tag/v0.1.5",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Select your original in the game",
-          "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
-    },
-    "original_game_title": "Super Mario 64"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "Brawmario/infinite-mario-64-ever",
-      "asset_hints": {
-        "windows-x86-64": ["infinite-mario-64-ever.", ".windows.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["Infinite Mario 64.exe"]
-    },
-    "persistent_paths": ["project.godot"],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed."
-    }
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Brawmario/infinite-mario-64-ever"
   }
 }

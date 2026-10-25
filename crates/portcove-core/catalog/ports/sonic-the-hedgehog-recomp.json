@@ -51,7 +51,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+      "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial."
     },
     "runtime_source_filename": "game.bin",
     "runtime_source_materialization": "copy",

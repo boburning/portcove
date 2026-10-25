@@ -6,9 +6,9 @@
     "summary": "Explore Mario Kart Wii / KartPad (chrissotraidis) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/chrissotraidis/kartpad",
     "issue_number": 1835,
-    "platforms": ["macos-aarch64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/chrissotraidis/kartpad/blob/v0.8.5/docs/INSTALL_MACOS.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/chrissotraidis/kartpad",
     "artwork": {
       "game_id": 2183,
       "cover_id": 94766,
@@ -16,24 +16,6 @@
       "image_sha256": "99649b10acf61fded11decddbd2ad02ddb1b91e2ebbc92123b1a5242029cf9e9",
       "game_slug": "mario-kart-wii",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Build the Mac app with upstream setup",
-          "instruction": "On an Apple Silicon Mac, use PadMint 0.5.1 or newer with Xcode and your own Mario Kart Wii PAL RMCP01 revision 0 disc. Choose Mario Kart Wii and This Mac, then move the resulting KartPad.app to Applications. Upstream lists macOS 14 or newer and describes the Mac version as experimental. Follow the linked guide if PadMint cannot download its tools or does not show This Mac; keep your existing game files and certificate verification."
-        },
-        {
-          "title": "Reuse your prepared game files",
-          "instruction": "When KartPad first opens, select your own extracted game data. The linked Mac guide shows how to copy the matching version’s prepared disc folder from PadMint into a location you will keep, so you do not need to prepare it again. Retro Rewind needs the matching compiled version and its separate full data pack; keep the whole enclosing data folder because it can also contain saves. Building, importing and opening the app remain explicit upstream steps."
-        },
-        {
-          "title": "Keep saves when replacing the app",
-          "instruction": "For newer Mac versions, build another app with PadMint, quit the current app and replace it through upstream’s instructions. Original settings and saves live in ~/Library/Application Support/KartPad; graphics caches are in ~/Library/Caches/KartPad. Keep Retro Rewind’s selected data folder too. The ready-made Mac downloads from 0.7.9 through 0.7.13 remain historical alternatives and no longer receive updates. Android uses its own APK and updater; iPhone/iPad use the separate PadMint and signing route. Portcove does not run PadMint, sign Apple apps, manage these bundles or back up their external data."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/chrissotraidis/kartpad/blob/v0.8.5/docs/INSTALL_MACOS.md"
     }
   }
 }

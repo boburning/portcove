@@ -6,8 +6,9 @@
     "summary": "Explore BattleTanx: Global Assault PC Port and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
     "issue_number": 2003,
-    "availability": "packages",
-    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
     "artwork": {
       "game_id": 47685,
       "cover_id": 110864,
@@ -15,40 +16,6 @@
       "image_sha256": "85a5c7bae259b9b6cb96c8b9e0caba168097c78c36470025995208cc1c645900",
       "game_slug": "battletanx-global-assault",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/releases/tag/v0.2.5",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Select your original in the game",
-          "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
-    },
-    "original_game_title": "BattleTanx: Global Assault"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
-      "asset_hints": {
-        "windows-x86-64": ["BattleTanxGA-", "-windows-x64-portable.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["BattleTanxGA.exe"]
-    },
-    "persistent_paths": ["userdata"],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed. The official portable package includes portable.txt and keeps settings, Controller Pak data, logs and texture packs in userdata beside the player. That directory is declared for compatible updates and backups. Your selected original ROM stays in its own location and is outside Portcove backup. A deliberate BTGA_DATA_DIR override also remains outside that backup. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed."
     }
   }
 }

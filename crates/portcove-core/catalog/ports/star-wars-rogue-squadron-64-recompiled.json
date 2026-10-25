@@ -7,8 +7,8 @@
     "project_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
     "issue_number": 1576,
     "platforms": [],
-    "availability": "source-only",
-    "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/main/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
     "artwork": {
       "game_id": 163,
       "cover_id": 352556,
@@ -16,20 +16,6 @@
       "image_sha256": "07c0866df3261563a66c21b6081029113952bdfc9205a43745fcaee4f63d6f12",
       "game_slug": "star-wars-rogue-squadron",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare upstream or keep an existing game build",
-          "instruction": "Follow upstream’s native build guide with your own Star Wars: Rogue Squadron USA v1.0 ROM, including its required RT64/toolchain preparation. Register the resulting game player, not N64Recomp or RSPRecomp. Keep upstream’s runtime data/working folder. Steam relay is optional and has separate Steam SDK/runtime requirements; it is not required merely to register an existing local player."
-        },
-        {
-          "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/main/README.md"
     }
   }
 }

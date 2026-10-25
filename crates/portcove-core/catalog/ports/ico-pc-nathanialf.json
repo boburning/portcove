@@ -6,8 +6,9 @@
     "summary": "Explore ICO (ico-pc / nathanialf) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/nathanialf/ico-pc",
     "issue_number": 1622,
-    "availability": "packages",
-    "setup_url": "https://github.com/nathanialf/ico-pc/blob/v0.8.5/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nathanialf/ico-pc",
     "artwork": {
       "game_id": 7170,
       "cover_id": 175220,
@@ -15,50 +16,6 @@
       "image_sha256": "6ab4d0a4eebe33c774cb97817538cd171d8489fcad57c8b0fcd8ed3378dace3d",
       "game_slug": "ico",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "ICO",
-    "release_url": "https://github.com/nathanialf/ico-pc/releases/tag/v0.8.5",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Select your ICO disc on first Play",
-          "instruction": "Choose Play, then select your own ICO European SCES-50760, Japanese SCPS-11003 or Korean SCPS-56001 disc image when asked. Use ISO, CHD, or BIN with its matching CUE; the US disc is not supported. Keep the image outside the runtime folder. The game verifies and extracts its data on first launch (about 1 GB); later launches use that extracted copy. Keep your original image available if a future data-format change requires extraction again."
-        },
-        {
-          "title": "Keep saves with this portable copy",
-          "instruction": "The official portable download enables portable=1 and keeps saves, settings and extracted disc data in userdata beside the player. Windows puts the player in x64; Linux puts it at the archive root. Back up userdata/memcard for saves, and use userdata/memcard2 for an optional second card. With portable=0 or an unwritable portable folder, data instead uses the upstream user-profile folder. Preserve that folder separately. Texture/model packs go in the documented textures/models folders. Close the game and preserve your current data before replacing a runtime; older versions may not read newer saves."
-        },
-        {
-          "title": "Other upstream platforms",
-          "instruction": "The upstream project also publishes Apple-silicon macOS bundles, ARM Linux and mobile packages. Follow its platform guide for those copies; their setup and data locations differ from these Windows x64 and Linux x64 portable archives."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/nathanialf/ico-pc/blob/v0.8.5/docs/PORTABLE_MODE.md"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "nathanialf/ico-pc",
-      "asset_hints": {
-        "windows-x86-64": ["ico-pc-", "-win-portable.zip"],
-        "linux-x86-64": ["ico-pc-", "-linux-portable.tar.gz"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["ico_pc_x64.exe"],
-      "linux-x86-64": ["ico_pc"]
-    },
-    "persistent_paths": ["userdata", "ico-pc.ini", "ico-pc.ini.tmp", "logs", "textures", "models"],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Choose Play, then select your own ICO European SCES-50760, Japanese SCPS-11003 or Korean SCPS-56001 disc image when asked. Use ISO, CHD, or BIN with its matching CUE; the US disc is not supported. Keep the image outside the runtime folder. The game verifies and extracts its data on first launch (about 1 GB); later launches use that extracted copy. Keep your original image available if a future data-format change requires extraction again. Portcove manages the official portable runtime with portable=1. It preserves userdata (extracted game data, memory cards, settings, screenshots and achievements), ico-pc.ini and its interrupted-write temporary file, logs, textures and models beside the executable. Use userdata/memcard2 for an optional second card. Custom save locations, portable=0, and fallback user-profile storage are outside Portcove backups; keep a separate backup of those locations. Runtime rollback carries current declared data and cannot guarantee older versions can read newer saves. Optional injected graphics tools and custom output paths need separate preservation before changing runtime versions. Requires Windows 10/11 x64 or a recent Linux x64 system (Debian 13/Ubuntu 24.04 or newer), with an up-to-date Vulkan-capable graphics driver; Windows also offers Direct3D 12."
     }
   }
 }

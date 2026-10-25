@@ -63,7 +63,6 @@ pub(crate) fn validate_user_selected_route(
         || port.windows_runtime_path_policy.is_some()
         || port.portable_marker
         || port.n64_windows_initial_d3d12
-        || port.n64_runtime_at_executable_parent
         || port.managed_initialization.is_some()
         || port.runtime_data_policy.is_some()
         || port.managed_shared_preferences.is_some()

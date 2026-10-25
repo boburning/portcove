@@ -7,8 +7,8 @@
     "project_url": "https://github.com/linkzenic/2ship2harkinian-Android",
     "issue_number": 1787,
     "platforms": [],
-    "availability": "packages",
-    "setup_url": "https://github.com/linkzenic/2ship2harkinian-Android/blob/v5.0.1-android.3/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/linkzenic/2ship2harkinian-Android",
     "artwork": {
       "game_id": 1030,
       "cover_id": 172745,
@@ -16,21 +16,6 @@
       "image_sha256": "342f842607e49e0f37fc9bb70b0ac967c18c760410031e473123655d21c903d5",
       "game_slug": "the-legend-of-zelda-majora-s-mask",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/linkzenic/2ship2harkinian-Android/releases/tag/v5.0.1-android.3",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Finish setup in the upstream Android app",
-          "instruction": "Install the APK from this fork, open it once to create its data folder and support files, and select your own supported Majora’s Mask MM.z64 when prompted. The app creates mm.o2r on the device. Its Android route needs no desktop 2Ship extraction or separate native plugin package."
-        },
-        {
-          "title": "Keep your data when changing versions",
-          "instruction": "The selected 2S2H data folder is shown and changed under Settings > General, including an SD card location. Preserve that actual folder’s saves, configuration, generated mm.o2r, mods and presets before changing or removing the app. If diagnosing an O2R problem, preserve the existing data before regenerating it from your own ROM. Android 7+/OpenGL ES 3.0 are upstream requirements; Portcove does not qualify every device or back up this external app profile."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/linkzenic/2ship2harkinian-Android/blob/v5.0.1-android.3/README.md"
     }
   }
 }

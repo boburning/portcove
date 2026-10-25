@@ -6,8 +6,9 @@
     "summary": "Explore Sonic the Hedgehog — 2013 mobile edition / RSDKv4 decompilation and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
     "issue_number": 382,
-    "availability": "packages",
-    "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
     "artwork": {
       "game_id": 88912,
       "cover_id": 93117,
@@ -15,51 +16,6 @@
       "image_sha256": "b49adaa12478047466365aa4e5d27e2c2d262335e3f4c48fef99c6a0f540ba91",
       "game_slug": "sonic-the-hedgehog--14",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/releases/tag/1.3.3",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Supply this game’s original assets",
-          "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
-    },
-    "original_game_title": "Sonic the Hedgehog"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "RSDKModding/RSDKv4-Decompilation",
-      "asset_hints": {
-        "windows-x86-64": ["v4-windows-x64.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["RSDKv4.exe"]
-    },
-    "persistent_paths": [
-      "Data.rsdk",
-      "Data",
-      "settings.ini",
-      "SData.bin",
-      "UData.bin",
-      "mods",
-      "log.txt",
-      "Bytecode",
-      "SGame.bin",
-      "usage.txt"
-    ],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player. Data.rsdk or unpacked Data/Bytecode, settings.ini, SData.bin/SGame.bin/UData.bin, user mods, log.txt and missing-assets usage.txt are declared for compatible runtime replacement and backup. Keep the original source files too. For an optional Android pre-forever save import, upstream says to copy your own matching SGame.bin as SData.bin; retain both originals before doing so. Custom redirected storage, modified runtime files or a combined/custom engine folder can use external registration. Runtime rollback carries current declared data; it does not rewind progress or guarantee old-runtime/mod compatibility. Existing external installations keep their files and runtime owner. No original-input, gameplay, minimum-environment or packaged Desktop acceptance is inferred from package/source inspection."
     }
   }
 }

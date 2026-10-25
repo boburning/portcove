@@ -6,8 +6,9 @@
     "summary": "Explore Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
     "issue_number": 1882,
-    "availability": "packages",
-    "setup_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/blob/v1.1.3/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
     "artwork": {
       "game_id": 44884,
       "cover_id": 116054,
@@ -15,41 +16,6 @@
       "image_sha256": "ec3e1a158432cdef557e2121b58c6375444f8fe7056c10e096ed48ec49a91e43",
       "game_slug": "looney-tunes-sheep-raider",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/releases/tag/v1.1.3",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare your original game",
-          "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/blob/v1.1.3/README.md"
-    },
-    "original_game_title": "Sheep, Dog 'n' Wolf"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
-      "asset_hints": {
-        "windows-x86-64": ["rewooled-windows-x64-", ".zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["SheepD3D.exe"]
-    },
-    "persistent_paths": ["game-data"],
-    "launch_arguments": ["--game-dir=game-data"],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation. The original game-data folder is declared for compatible runtime replacement and backup. Default saves and launcher/game options are stored in AppData/Infogrames/Sheep, Dog'n Wolf DX7, outside Portcove backups. Only the direct SheepD3D.exe is launched by the managed route; the optional launcher checks release pages rather than replacing the runtime. Upstream disc extraction, language export and custom data paths stay manual/external. Do not put converted/custom output over the version-owned player. Use external registration for customized launch workflows or SDW_SAVE_DIR. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
     }
   }
 }

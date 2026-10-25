@@ -97,7 +97,6 @@ struct DeviceSession {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ReleaseSelectionCacheKey {
     adapter: AdapterKind,
-    n64_runtime_at_executable_parent: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -110,7 +109,6 @@ impl ReleaseSelectionCacheKey {
     pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
         Self {
             adapter: port.adapter,
-            n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1519,17 +1517,13 @@ fn choose_asset<'a>(
             let can_extract = [".zip", ".tar.gz", ".tgz"]
                 .iter()
                 .any(|extension| name.ends_with(extension));
-            if (port.adapter == AdapterKind::NativePortable
-                || port.n64_runtime_at_executable_parent)
-                && !can_extract
-            {
+            if port.adapter == AdapterKind::NativePortable && !can_extract {
                 return None;
             }
             if matches!(
                 port.adapter,
                 AdapterKind::NativePortable | AdapterKind::StagedSourcePortable
-            ) || port.n64_runtime_at_executable_parent
-            {
+            ) {
                 // Reusable portable rules and the download recommendation share
                 // native suitability. A selected variant cannot become optional
                 // when a successor publishes only another package class.
@@ -2286,7 +2280,6 @@ mod tests {
         };
         let oldest_key = ReleaseSelectionCacheKey {
             adapter: AdapterKind::NativePortable,
-            n64_runtime_at_executable_parent: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2309,7 +2302,6 @@ mod tests {
                 .store_release(
                     ReleaseSelectionCacheKey {
                         adapter: AdapterKind::NativePortable,
-                        n64_runtime_at_executable_parent: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

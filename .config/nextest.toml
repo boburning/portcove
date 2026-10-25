@@ -11,6 +11,25 @@ final-status-level = "slow"
 # then hit the Windows30.126s outer cap in run3be9ce8b. Preserve the complete
 # create/review/restore/assertion flow, two workers and zero retries. Exact60s
 # room and phase output remain finite; product deadlines are unchanged.
+# Run667b37eb retained20 Windows timeouts in78 cases (58 passed). Phase logs
+# show durable fixture work: library open7.5-9.15s, register up to6.93s and
+# backup up to11.57s, before import/restore/publication assertions. Catalog
+# decoding was under0.11s. Calibrate only these observed cases: Core30/60s
+# becomes90s; four CLI30s cases become60s. Preserve all operations/assertions,
+# two local slots, cleanup, zero retries and every product/child deadline.
+# This supplies finite harness headroom, not a causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^import_execution::tests::admitted_post_client_definition_survives_interrupted_import_resume$/) | test(/^import_execution::tests::admitted_post_client_definition_survives_offline_import_with_its_full_graph$/) | test(/^import_execution::tests::changed_import_destination_is_retained_and_never_published$/) | test(/^import_execution::tests::changed_import_input_is_retained_and_never_published$/) | test(/^import_execution::tests::copied_successor_snapshot_without_admission_cannot_grant_unknown_port_authority$/) | test(/^import_execution::tests::copying_import_recovers_without_replaying_old_saves$/) | test(/^import_execution::tests::forged_but_self_consistent_successor_admission_cannot_reuse_portability_authority$/) | test(/^import_execution::tests::import_missing_retained_reference_stops_recovery$/) | test(/^import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library$/) | test(/^import_execution::tests::imported_retained_arguments_cannot_grant_themselves_execution_authority$/) | test(/^import_execution::tests::interrupted_abort_cannot_be_resumed_as_a_successful_import$/) | test(/^import_execution::tests::journal_phase_cannot_manufacture_import_publication$/) | test(/^import_execution::tests::late_credentials_hold_import_before_the_open_gate$/) | test(/^import_execution::tests::published_import_recovers_without_replaying_old_saves$/) | test(/^import_execution::tests::verified_import_recovers_without_replaying_old_saves$/) | test(/^library_transfer::tests::move_plan_accepts_an_admitted_post_client_definition$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-cli) & (test(/^definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas$/) | test(/^definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_unconfigured$/) | test(/^definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority$/) | test(/^definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)'

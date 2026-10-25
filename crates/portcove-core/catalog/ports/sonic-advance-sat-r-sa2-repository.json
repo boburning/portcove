@@ -7,8 +7,8 @@
     "project_url": "https://github.com/SAT-R/sa2",
     "issue_number": 380,
     "platforms": [],
-    "availability": "source-only",
-    "setup_url": "https://github.com/SAT-R/sa2/blob/main/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/SAT-R/sa2",
     "artwork": {
       "game_id": 6283,
       "cover_id": 86456,
@@ -16,20 +16,6 @@
       "image_sha256": "07abd5db157a0a2e4dff8d523ccd56a8ad581f5b38b2d79a214a2f36a7264bdc",
       "game_slug": "sonic-advance",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare upstream or keep an existing game build",
-          "instruction": "This shared repository contains Sonic Advance 1 and 2. Use the Sonic Advance 1 source/edition instructions; its listed sa1.gba output is a GBA ROM, not a native PC executable. The README’s sa2 SDL commands describe Sonic Advance 2 and do not establish this game’s native output. Only select an existing native Sonic Advance 1 player if you have separately prepared one; keep the title-specific native-build question explicit."
-        },
-        {
-          "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/SAT-R/sa2/blob/main/README.md"
     }
   }
 }

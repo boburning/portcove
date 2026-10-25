@@ -6,9 +6,9 @@
     "summary": "Explore Dante's Inferno / hells-gate-recomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/florinp93/hells-gate-recomp",
     "issue_number": 367,
-    "platforms": ["windows-x86-64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/florinp93/hells-gate-recomp",
     "artwork": {
       "game_id": 6958,
       "cover_id": 104554,
@@ -16,29 +16,6 @@
       "image_sha256": "ca61d103dab3eef24365a724385500de2dbba9fd054bd004bf2a6e0724870ff3",
       "game_slug": "dante-s-inferno",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Dante's Inferno",
-    "release_url": "https://github.com/florinp93/hells-gate-recomp/releases",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Finish upstream setup in a permitted copy",
-          "instruction": "Use your existing permitted Windows copy with its own upstream instructions. The installed edition uses the upstream installer; the portable ZIP has no installer and includes DantesInfernoLauncher.exe, the native player and an original-disc importer. Choose DantesInfernoLauncher.exe with its folder as the working directory when registering it. Save launch details first, then choose Play separately."
-        },
-        {
-          "title": "Import your own original through the launcher",
-          "instruction": "In the portable launcher, choose Play and deliberately accept its ISO import prompt, then select your own supported Xbox 360 Dante’s Inferno ISO. The launcher runs its bundled extract-xiso into the selected game-data directory. Portcove never invokes that tool during discovery. Keep the ISO and game data recoverable. The package’s bundled title-update patch and imported originals share game; do not overwrite a new package’s patch by copying an old whole game folder without upstream guidance."
-        },
-        {
-          "title": "Keep upstream updates and your data together",
-          "instruction": "The installed edition can offer and launch its own update installer. The portable launcher opens the upstream release page and asks for a manual portable update; it does not silently self-replace. Close the game, keep the old copy, and back up userdata, dantes_inferno.toml, dlc and your imported original data before following the matching upstream route. The reviewed portable.txt keeps normal saves/cache in userdata; custom game-data/profile locations need a separate backup. Portcove leaves the external files untouched and supplies no managed Update, Backup or Rollback."
-        }
-      ],
-      "warnings": [
-        "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game."
-      ],
-      "help_url": "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md"
-    },
-    "download_block_reason": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game."
+    }
   }
 }

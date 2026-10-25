@@ -237,31 +237,6 @@ Committed activation remains authoritative after a later failure; recovery must
 not claim an automatic rollback. Existing managed and external installations are
 never silently converted when a catalog entry gains this capability.
 
-## Versioned N64 archive folders
-
-Keep a richer `n64-recomp-portable` integration when its official archive gains
-a version-dependent wrapper folder. For a reviewed portable package with one
-canonical ROM and local player data, `n64_runtime_at_executable_parent: true`
-uses the selected player's parent as both runtime and persistence root. Author
-paths relative to that directory, with reusable release/package rules; do not
-put the observed wrapper version in the definition. All package hints remain
-mandatory and native package suitability still rejects incompatible variants;
-selection caches distinguish this opt-in from historical N64 matching. This opt-in requires
-`portable_marker: true`, the persistent canonical N64 source destination, no
-explicit `runtime_subdirectory`, no install-root launch override and no external
-user-data environment, prepared runtime or bundled-runtime contract.
-
-Establish the package's actual source, settings, saves, optional imports and
-runtime writes before opting in. N64 capability 4 includes complete immutable
-verification, collection before first Play and staged restoration before
-activation, using the existing lifecycle and recovery receipts. New captures use
-retained format 7 so older clients refuse the new coordinates even without an
-indexed definition. Historical contracts keep their original roots and behavior.
-A wrapper-prefixed old data contract does not silently become a relative one:
-that change remains held until a supported preservation transition exists.
-Keep the current installation usable and describe the precise separate-copy
-alternative. This capability does not qualify a game or authorize external data.
-
 ## Catalog author task routes
 
 The machine-readable catalog owns port, platform, source, release and

@@ -35,6 +35,23 @@ pub(crate) fn phase<T>(label: &str, action: impl FnOnce() -> T) -> T {
     result
 }
 
+/// Immutable proposed metadata from the preserved rollout candidate. These
+/// inputs exercise generic provider/presentation behavior without advertising
+/// the corresponding routes as shipped catalog support.
+pub(crate) fn proposed_rollout_port(id: &str) -> crate::PortDefinition {
+    let document: serde_json::Value = serde_json::from_str(include_str!(
+        "../tests/fixtures/installation-rollout-proposals-20261025.json"
+    ))
+    .unwrap();
+    let port = document["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == id)
+        .unwrap_or_else(|| panic!("missing frozen proposed rollout definition: {id}"));
+    serde_json::from_value(port.clone()).unwrap()
+}
+
 /// Freeze the old direct-policy inputs independently of today's release rules.
 /// The reviewed fixture is source-bound to the catalog before GitHub adoption;
 /// current dynamic/provider tests must keep using the current embedded catalog.
@@ -213,8 +230,6 @@ impl<'a> IndexedCatalogFixture<'a> {
             4
         } else if !port.release.user_prepared.is_empty() && port.runtime_subdirectory.is_some() {
             3
-        } else if port.n64_runtime_at_executable_parent {
-            4
         } else if port.n64_windows_initial_d3d12
             || port
                 .release

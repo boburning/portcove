@@ -13,8 +13,9 @@ import type {
   PortListing,
   PortListingStatus,
 } from "../types";
-import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
-import directory from "../../../../crates/portcove-core/catalog/listings.json";
+// Source-bound proposed metadata exercises retained presentation independently
+// of live catalog adoption. See #2926 for the remaining production rollout.
+import proposals from "../../../../crates/portcove-core/tests/fixtures/installation-rollout-proposals-20261025.json";
 import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
@@ -716,7 +717,7 @@ it.each(["native-portable", "staged-source-portable"] as const)(
 it.each(["colin-mcrae-rally-2-opencmr2", "alistert-openjazz", "citrongames-dora64"])(
   "keeps retained %s setup truthful after the definition and listing disappear",
   async (id) => {
-    const listing = directory.listings.find((candidate) => candidate.id === id) as PortListing;
+    const listing = proposals.listings.find((candidate) => candidate.id === id) as PortListing;
     const pending: PendingSetupRecord = {
       id: "retained-download",
       reason: null,
@@ -761,8 +762,10 @@ it.each([
     "alistert-openjazz",
     "For external registration, use Change launch details to add game-data as a launch argument",
   ],
-])("keeps the authored %s external setup handoff actionable", async (id, instruction) => {
-  const authored = catalog.ports.find((candidate) => candidate.id === id) as PortDefinition;
+])("keeps the frozen proposed %s external setup handoff actionable", async (id, instruction) => {
+  const authored = proposals.ports.find(
+    (candidate) => candidate.id === id,
+  ) as unknown as PortDefinition;
   expect(authored).toBeDefined();
   await root.rerender(
     <UserSelectedRuntimeControl

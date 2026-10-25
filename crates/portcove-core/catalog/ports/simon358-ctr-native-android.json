@@ -7,8 +7,8 @@
     "project_url": "https://github.com/Simon358/ctr-native-android",
     "issue_number": 1808,
     "platforms": [],
-    "availability": "packages",
-    "setup_url": "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/Simon358/ctr-native-android",
     "artwork": {
       "game_id": 1192,
       "cover_id": 361766,
@@ -16,21 +16,6 @@
       "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
       "game_slug": "crash-team-racing",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/Simon358/ctr-native-android/releases/tag/Android-Build4",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Finish setup in the upstream Android app",
-          "instruction": "Install this fork’s Android APK and open its Missing Assets screen. Follow its storage-permission handoff, choose Select File, and select your own Crash Team Racing NTSC-U raw BIN or supported BIGFILE.BIG. The app copies the chosen data to its own assets storage; restart the app after the copy. Do not use another region or the parent’s desktop executable as an Android package. The source targets a 32-bit Android memory model and requires OpenGL ES 3.0."
-        },
-        {
-          "title": "Keep your data when changing versions",
-          "instruction": "Keep your original disc data and preserve the app’s saves/data before Android app replacement or removal. The Android guide describes /data/data/com.ctrnative/files/assets for picker copies and a different external assets path for manual PC/root setup; use the picker instead of guessing between them. Release Build4 adds touch controls when no controller is detected. Full-game and device coverage remain unqualified; Portcove owns neither APK updates nor its profile backup."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md"
     }
   }
 }

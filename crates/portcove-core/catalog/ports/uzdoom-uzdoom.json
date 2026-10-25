@@ -6,27 +6,8 @@
     "summary": "Explore Doom / UZDoom (UZDoom) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/UZDoom/UZDoom",
     "issue_number": 1899,
-    "platforms": ["windows-x86-64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/UZDoom/UZDoom/blob/5.0.3/README.md",
-    "release_url": "https://github.com/UZDoom/UZDoom/releases/tag/5.0.3",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Use the upstream-owned player",
-          "instruction": "Extract the complete official Windows archive. The native player is uzdoom.exe; updater.exe is its runtime replacement helper, not a game to register. Add uzdoom.exe as an external installation with your consent."
-        },
-        {
-          "title": "Choose your game data",
-          "instruction": "Use the launcher to select your own supported IWAD or compatible free game data. Keep mods and game data under the upstream documented setup. Adding launch details does not start a game; choose Play separately."
-        },
-        {
-          "title": "Update through upstream",
-          "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/UZDoom/UZDoom/blob/5.0.3/README.md"
-    }
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/UZDoom/UZDoom"
   }
 }

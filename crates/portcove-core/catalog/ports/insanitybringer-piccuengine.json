@@ -6,8 +6,9 @@
     "summary": "Explore Descent 3 / Piccu Engine (InsanityBringer) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/InsanityBringer/PiccuEngine",
     "issue_number": 1868,
-    "availability": "packages",
-    "setup_url": "https://github.com/InsanityBringer/PiccuEngine/blob/v1.3.0-proto4/docs/readme.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/InsanityBringer/PiccuEngine",
     "artwork": {
       "game_id": 667,
       "cover_id": 426373,
@@ -15,65 +16,6 @@
       "image_sha256": "1ae44bba5a1cebee260ad49072657ac765ba4d92b5a78b63e918caf9164d1117",
       "game_slug": "descent-3",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Descent 3",
-    "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["PiccuEngine-", "-win32.zip"]
-    },
-    "release_url": "https://github.com/InsanityBringer/PiccuEngine/releases/tag/v1.3.0-proto4",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Add your own Descent 3 data before Play",
-          "instruction": "Before Play, open the new runtime folder and copy only the original data from your own patched Descent 3 1.4 installation: d3.hog, extra.hog, extra13.hog, and missions/d3.mn3, d3_2.mn3, d3voice1.hog, d3voice2.hog and training.mn3. Keep the old installation intact. Add merc.hog and missions/merc.mn3 only if you own Mercenary; the upstream also recognizes the Steam extra1.hog expansion layout. For multiplayer, follow the packaged README for your own netgames directory and missions/Fury.mn3 and bedlam.mn3; movies are optional. Do not copy old top-level executables or DLLs over this runtime. Then choose Play. This ZIP has no installer; Portcove does not verify a retail-edition checksum for this upstream setup route."
-        },
-        {
-          "title": "Keep a separate backup of your Saved Games profile",
-          "instruction": "Normal saves, pilots, demos, screenshots and temporary scripts use Windows Saved Games/Piccu Engine. The SDL configuration is Saved Games/Piccu Engine/PiccuEngine.registry, including when portable mode is used. Back up that external profile separately before changing runtime versions; older versions may not read newer data. Keep your original HOG files, missions, netgames and movies available separately too."
-        },
-        {
-          "title": "Keep customized copies separate",
-          "instruction": "Adding piccu_portable, custom -setdir/-tempdir arguments or failure to resolve Saved Games can place player data and generated DLL caches in the runtime folder. An early startup crash can also leave a dump beside the player. Close the game and preserve your actual player-data locations before changing a customized copy. Do not copy generated script caches into another engine version; follow upstream instructions when changing storage modes."
-        },
-        {
-          "title": "Choose this Preview deliberately",
-          "instruction": "This optional Windows Preview is the upstream SDL prototype, with fixes for pilot-control loading and input issues. Some settings do not import from older Piccu versions, and switching fullscreen/windowed can show a stray cursor. The stable v1.2.2 upstream copy remains available through the release list or an existing installation; it has separate known control issues. The player is Win32 and can run on 64-bit Windows through Windows compatibility support. Other platforms, gameplay, minimum Windows versions and populated-save restoration are not qualified here."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/InsanityBringer/PiccuEngine/blob/v1.3.0-proto4/docs/readme.md"
-    }
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["beta"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "InsanityBringer/PiccuEngine",
-      "asset_hints": {
-        "windows-x86-64": ["PiccuEngine-", "-win32.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["PiccuEngine.exe"]
-    },
-    "persistent_paths": [
-      "d3.hog",
-      "extra.hog",
-      "extra1.hog",
-      "extra13.hog",
-      "merc.hog",
-      "missions",
-      "netgames",
-      "movies"
-    ],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Before Play, open the new runtime folder and copy only the original data from your own patched Descent 3 1.4 installation: d3.hog, extra.hog, extra13.hog, and missions/d3.mn3, d3_2.mn3, d3voice1.hog, d3voice2.hog and training.mn3. Keep the old installation intact. Add merc.hog and missions/merc.mn3 only if you own Mercenary; the upstream also recognizes the Steam extra1.hog expansion layout. For multiplayer, follow the packaged README for your own netgames directory and missions/Fury.mn3 and bedlam.mn3; movies are optional. Do not copy old top-level executables or DLLs over this runtime. Then choose Play. This ZIP has no installer; Portcove does not verify a retail-edition checksum for this upstream setup route. Normal saves, pilots, demos, screenshots and temporary scripts use Windows Saved Games/Piccu Engine. The SDL configuration is Saved Games/Piccu Engine/PiccuEngine.registry, including when portable mode is used. Back up that external profile separately before changing runtime versions; older versions may not read newer data. Keep your original HOG files, missions, netgames and movies available separately too. Adding piccu_portable, custom -setdir/-tempdir arguments or failure to resolve Saved Games can place player data and generated DLL caches in the runtime folder. An early startup crash can also leave a dump beside the player. Close the game and preserve your actual player-data locations before changing a customized copy. Do not copy generated script caches into another engine version; follow upstream instructions when changing storage modes. Portcove manages this separate Preview runtime using the default Saved Games setup. It preserves only the declared in-folder original HOG files, missions, netgames and movies, including files added before first Play. Its backup does not cover the external Saved Games profile or custom locations. Runtime rollback carries current declared originals and does not rewind external saves. Unknown additions, including in-folder generated caches or early crash dumps, block replacement and remain untouched until you preserve and resolve the reported paths; they are not copied into a new runtime. Keep customized copies registered as existing installations when you need their separate setup. This optional Windows Preview is the upstream SDL prototype, with fixes for pilot-control loading and input issues. Some settings do not import from older Piccu versions, and switching fullscreen/windowed can show a stray cursor. The stable v1.2.2 upstream copy remains available through the release list or an existing installation; it has separate known control issues. The player is Win32 and can run on 64-bit Windows through Windows compatibility support. Other platforms, gameplay, minimum Windows versions and populated-save restoration are not qualified here."
     }
   }
 }

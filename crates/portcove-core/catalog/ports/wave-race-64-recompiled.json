@@ -3,25 +3,11 @@
   "listing": {
     "id": "wave-race-64-recompiled",
     "name": "Wave Race 64 Recompiled",
-    "summary": "Experimental Wave Race 64 renderer prototype; upstream has not published a playable game package.",
+    "summary": "Explore Wave Race 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/chronic8000/WaveRace64Recompiled",
     "issue_number": 168,
     "platforms": [],
-    "availability": "source-only",
-    "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
-    "manual_setup": {
-      "help_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
-      "warnings": [],
-      "steps": [
-        {
-          "title": "Understand the current prototype",
-          "instruction": "This upstream currently reports only two boxes of visual noise, with no published player archive. A managed download would not supply the missing playable implementation. Its README asks for your own USA Rev A Wave Race 64 Z64 dump, but BUILDING.md still contains inherited Majora’s Mask/Zelda64 commands; do not substitute that other game or treat those commands as a verified Wave Race preparation guide."
-        },
-        {
-          "title": "Preserve an already registered development copy",
-          "instruction": "Keep any already registered Wave Race development copy and its complete folder under its existing contract. You or upstream own runtime updates, original files, generated data, saves and settings; retain those files separately. Portcove does not supply a playable package or managed update, backup or rollback for this copy. New installation and registration remain on the existing useful-output hold. Reconsider them when upstream demonstrates useful runnable output and supplies a title-specific reproducible preparation or player package."
-        }
-      ]
-    }
+    "availability": "unknown",
+    "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled"
   }
 }

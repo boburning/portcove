@@ -65,14 +65,11 @@ impl PortcoveService {
             && to.adapter != AdapterKind::NativePortable
             && !crate::persistence::ready_staged_archive(&retained)
             && !crate::persistence::ready_staged_archive(to)
-            && !retained.n64_runtime_at_executable_parent
-            && !to.n64_runtime_at_executable_parent
         {
             return Ok(());
         }
         let platform = Platform::current()?;
         if retained.adapter != to.adapter
-            || retained.n64_runtime_at_executable_parent != to.n64_runtime_at_executable_parent
             || crate::persistence::ready_staged_archive(&retained)
                 != crate::persistence::ready_staged_archive(to)
             || retained.persistent_paths != to.persistent_paths
@@ -107,7 +104,6 @@ impl PortcoveService {
         let port = self.installed_port(install)?;
         if port.adapter != AdapterKind::NativePortable
             && !crate::persistence::ready_staged_archive(&port)
-            && !port.n64_runtime_at_executable_parent
         {
             return Ok(());
         }
@@ -268,29 +264,6 @@ mod tests {
             }
         }
     }
-    impl Server {
-        fn release_with_nested_data(
-            &self,
-            version: &str,
-            revision: u8,
-            folder: &str,
-        ) -> ResolvedRelease {
-            let mut release = self.release_in_folder(version, revision, folder, "game.exe");
-            let mut content = self.bytes.lock().unwrap();
-            let mut zip =
-                zip::ZipWriter::new_append(std::io::Cursor::new(content.clone())).unwrap();
-            zip.start_file(
-                format!("{folder}assets/package-data.bin"),
-                zip::write::SimpleFileOptions::default(),
-            )
-            .unwrap();
-            zip.write_all(&[revision]).unwrap();
-            *content = zip.finish().unwrap().into_inner();
-            release.asset.size = content.len() as u64;
-            release.asset.sha256 = hex::encode(Sha256::digest(&*content));
-            release
-        }
-    }
     impl Drop for Server {
         fn drop(&mut self) {
             self.stop.store(true, Ordering::SeqCst);
@@ -304,183 +277,6 @@ mod tests {
         let mut service = PortcoveService::with_provider(library, provider).unwrap();
         service.catalog = catalog();
         service
-    }
-
-    #[tokio::test]
-    async fn n64_executable_parent_preserves_preplay_data_across_versioned_wrappers() {
-        const ID: &str = "portable-fixture";
-        const PROFILE: &str = "owned-n64-fixture";
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        // First-party inert big-endian header/payload, never commercial data.
-        let mut owned = [0_u8; 32];
-        owned[..4].copy_from_slice(b"\x80\x37\x12\x40");
-        let source = temporary.path().join("owned.z64");
-        fs::write(&source, owned).unwrap();
-        let digest = hex::encode(Sha256::digest(owned));
-        let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
-        document["source_profiles"] = serde_json::json!([{
-            "id":PROFILE,"label":"Owned inert N64 fixture","kind":"file",
-            "accepted_extensions":["z64"],"accepted_sha256":[digest]
-        }]);
-        let port = &mut document["ports"][0];
-        port["adapter"] = serde_json::json!("n64-recomp-portable");
-        port["portable_marker"] = serde_json::json!(true);
-        port["n64_runtime_at_executable_parent"] = serde_json::json!(true);
-        port["source_profile"] = serde_json::json!(PROFILE);
-        port["runtime_source_filename"] = serde_json::json!("owned.z64");
-        port["runtime_source_materialization"] = serde_json::json!("n64-big-endian");
-        port["runtime_source_hashes"] = serde_json::json!({"owned.z64":digest});
-        port["persistent_paths"] =
-            serde_json::json!(["data", "saves", "mods", "settings.ini", "owned.z64"]);
-        let catalog = Catalog::from_json(&document.to_string()).unwrap();
-        let port = catalog.port(ID).unwrap().clone();
-        let server = Server::new();
-        let provider = Arc::new(Provider(Mutex::new(
-            server.release_with_nested_data("v1", 1, "Game-v1/"),
-        )));
-        let mut service =
-            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
-        service.replace_catalog_for_test(catalog.clone());
-        service.register_source(PROFILE, &source).unwrap();
-        let first = service
-            .install(ID, None, None, None, true, |_| {})
-            .await
-            .unwrap();
-        let first_root = first.path.join("Game-v1");
-        let launch = service
-            .prepare_launch_for_install(&port, &first, None, None)
-            .unwrap();
-        assert_eq!(launch.working_directory, first_root);
-        assert_eq!(fs::read(first_root.join("owned.z64")).unwrap(), owned);
-        assert!(first_root.join("portable.txt").is_file());
-        // Exercise the retained-contract classifier inside verify_critical,
-        // not only the service's pre-collection verifier.
-        let installer = Installer::new(library.clone()).unwrap();
-        let qualification =
-            InstallQualification::from_port(&port, Platform::WindowsX86_64).unwrap();
-        installer.verify_critical(&first, &qualification).unwrap();
-        fs::write(first_root.join("assets/package-data.bin"), [9]).unwrap();
-        let tampered = installer
-            .verify_critical(&first, &qualification)
-            .unwrap_err();
-        assert!(tampered.details["failures"].contains("assets/package-data.bin"));
-        assert!(!first.path.join(LAUNCH_MARKER).exists());
-        fs::write(first_root.join("assets/package-data.bin"), [1]).unwrap();
-        fs::write(first_root.join("settings.ini"), b"choice before first Play").unwrap();
-        fs::create_dir_all(first_root.join("saves")).unwrap();
-        fs::write(first_root.join("saves/progress"), b"preplay progress").unwrap();
-        let stamp = std::time::UNIX_EPOCH + Duration::new(1_700_000_000, 123_456_700);
-        fs::OpenOptions::new()
-            .write(true)
-            .open(first_root.join("settings.ini"))
-            .unwrap()
-            .set_times(fs::FileTimes::new().set_modified(stamp))
-            .unwrap();
-        assert!(!first.path.join(LAUNCH_MARKER).exists());
-        let backup = service.create_backup(ID).unwrap();
-        assert_eq!(
-            fs::read(backup.path.join("data/settings.ini")).unwrap(),
-            b"choice before first Play"
-        );
-        *provider.0.lock().unwrap() = server.release_with_nested_data("v2", 2, "Game-v2/");
-        let update = service.update(ID, None, None, false, |_| {}).await.unwrap();
-        assert!(update.staged);
-        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
-        // Replay an interrupted activation only after current retained-data
-        // collection and restoration, including writes made after staging.
-        let staged = service.status(ID).unwrap().staged.unwrap();
-        fs::write(first_root.join("saves/progress"), b"progress after staging").unwrap();
-        let operation_id = Uuid::new_v4().to_string();
-        let mut journal = crate::operation::LifecycleOperation::new(
-            &operation_id,
-            crate::operation::LifecycleOperationKind::Install,
-            ID,
-        );
-        journal.install = Some(staged.clone());
-        journal.activate = true;
-        journal.phase = crate::operation::LifecyclePhase::PayloadPublished;
-        journal.paths.staging = Some(library.staging_dir().join(&operation_id));
-        journal.paths.final_path = Some(staged.path.clone());
-        fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
-        let store = OperationStore::new(library.clone());
-        store.put(&mut journal).unwrap();
-        crate::recovery::recover_published_install(&service, &store, &mut journal).unwrap();
-        let second = service.status(ID).unwrap().active.unwrap();
-        assert_eq!(second.id, staged.id);
-        assert!(store.get(&journal.id).unwrap().is_none());
-        let second_root = second.path.join("Game-v2");
-        assert_eq!(
-            fs::read(second_root.join("settings.ini")).unwrap(),
-            b"choice before first Play"
-        );
-        assert_eq!(
-            fs::metadata(second_root.join("settings.ini"))
-                .unwrap()
-                .modified()
-                .unwrap(),
-            stamp
-        );
-        assert_eq!(fs::read(second_root.join("owned.z64")).unwrap(), owned);
-        assert_eq!(
-            fs::read(second_root.join("saves/progress")).unwrap(),
-            b"progress after staging"
-        );
-        assert!(!second.path.join("Game-v1").exists());
-        assert_eq!(
-            fs::read(second_root.join("assets/package-data.bin")).unwrap(),
-            [2]
-        );
-        let mut restarted = PortcoveService::with_provider(library, provider.clone()).unwrap();
-        restarted.replace_catalog_for_test(catalog);
-        let retained = restarted.installed_port(&second).unwrap();
-        assert!(retained.n64_runtime_at_executable_parent);
-        let launch = restarted
-            .prepare_launch_for_install(&retained, &second, None, None)
-            .unwrap();
-        assert_eq!(launch.working_directory, second_root);
-        fs::write(second_root.join("saves/progress"), b"latest progress").unwrap();
-        let previous = restarted.rollback(ID).unwrap();
-        assert_eq!(previous.id, first.id);
-        assert_eq!(
-            fs::read(first_root.join("saves/progress")).unwrap(),
-            b"latest progress"
-        );
-        let mut legacy = retained;
-        legacy.n64_runtime_at_executable_parent = false;
-        assert!(
-            restarted
-                .require_portable_transition(&previous, &legacy)
-                .is_err()
-        );
-        fs::write(first_root.join("unreviewed-addon.bin"), b"keep this copy").unwrap();
-        let error = restarted
-            .update(ID, None, None, true, |_| {})
-            .await
-            .unwrap_err();
-        assert_eq!(
-            error.presentation().presentation_key,
-            "portable_runtime_modified"
-        );
-        assert!(error.details["failures"].contains("unreviewed-addon.bin"));
-        assert_eq!(
-            fs::read(first_root.join("unreviewed-addon.bin")).unwrap(),
-            b"keep this copy"
-        );
-        assert_eq!(restarted.status(ID).unwrap().active.unwrap().id, first.id);
-        assert!(!previous.path.join(LAUNCH_MARKER).exists());
-        let fresh_library = Library::open(temporary.path().join("fresh")).unwrap();
-        let mut fresh = PortcoveService::with_provider(fresh_library, provider).unwrap();
-        fresh.replace_catalog_for_test(restarted.catalog.clone());
-        fresh.register_source(PROFILE, &source).unwrap();
-        let newest = fresh
-            .install(ID, None, None, None, true, |_| {})
-            .await
-            .unwrap();
-        assert_eq!(newest.version, "v2");
-        assert!(newest.path.join("Game-v2/game.exe").is_file());
-        // Preparing launch never executes the inert player or publishes Play.
-        assert!(!newest.path.join(LAUNCH_MARKER).exists());
     }
 
     #[tokio::test]
@@ -1003,12 +799,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prelaunch_preserving_archives_raw_activation_refuses_before_acquisition() {
-        for id in [
-            "alariq-mc2",
-            "crash-team-racing-ctr-native",
-            "road-rash-64-recompiled",
-        ] {
+    async fn ready_staged_archive_raw_activation_refuses_before_acquisition() {
+        for id in ["alariq-mc2", "crash-team-racing-ctr-native"] {
             let temporary = tempfile::tempdir().unwrap();
             let library = Library::open(temporary.path().join("library")).unwrap();
             let catalog = Catalog::embedded().unwrap();

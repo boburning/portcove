@@ -7,8 +7,8 @@
     "project_url": "https://github.com/jakobkhansen/SilksongAndroid",
     "issue_number": 1884,
     "platforms": [],
-    "availability": "packages",
-    "setup_url": "https://github.com/jakobkhansen/SilksongAndroid/blob/v2.0.0/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/jakobkhansen/SilksongAndroid",
     "artwork": {
       "game_id": 115289,
       "cover_id": 531786,
@@ -16,21 +16,6 @@
       "image_sha256": "5ccc0412e66ff956dc125b477e97e355ec0e3449c1fc6b2b94685941439c966b",
       "game_slug": "hollow-knight-silksong",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/jakobkhansen/SilksongAndroid/releases/tag/v2.0.0",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Finish setup in the upstream Android app",
-          "instruction": "Install this fork’s Android APK. Supply your own Silksong Linux game files by choosing the complete folder containing Hollow Knight Silksong.x86_64, UnityPlayer.so and Hollow Knight Silksong_Data; the Windows and macOS depots are not compatible. You can copy that folder from your own PC without signing in. The app also offers optional Steam sign-in on the device. Portcove does not request or handle your account credentials. Start the app’s build and then Play; this can take substantial time on the device."
-        },
-        {
-          "title": "Keep your data when changing versions",
-          "instruction": "Leave the selected Linux game folder on the device: the app reads it every Play and during rebuilds instead of copying the whole game into app storage. Moving or deleting it stops the game. Keep a separate save backup before updates or Steam Cloud synchronization; cloud pull/push is an optional app feature, not a Portcove data-restore guarantee. The APK is an upstream build system that downloads its toolchain and builds from your inputs, outside the native-portable replacement contract."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/jakobkhansen/SilksongAndroid/blob/v2.0.0/README.md"
     }
   }
 }

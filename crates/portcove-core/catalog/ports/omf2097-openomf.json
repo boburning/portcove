@@ -6,8 +6,9 @@
     "summary": "Explore One Must Fall 2097 / OpenOMF (omf2097) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/omf2097/openomf",
     "issue_number": 1856,
-    "availability": "packages",
-    "setup_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/omf2097/openomf",
     "artwork": {
       "game_id": 14429,
       "cover_id": 128159,
@@ -15,40 +16,6 @@
       "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
       "game_slug": "one-must-fall-2097",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/omf2097/openomf/releases/tag/0.8.6",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Start the game",
-          "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md"
-    },
-    "original_game_title": "One Must Fall: 2097"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "omf2097/openomf",
-      "asset_hints": {
-        "windows-x86-64": ["openomf_", "_windows.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["openomf.exe"]
-    },
-    "persistent_paths": [],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64. OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }

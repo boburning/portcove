@@ -6,9 +6,9 @@
     "summary": "Explore GoldenEye 007 N64 PC Port and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/jkdansereau/goldeneye-pc-port",
     "issue_number": 1129,
-    "platforms": ["windows-x86-64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/v0.5.0/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port",
     "artwork": {
       "game_id": 1638,
       "cover_id": 576176,
@@ -16,25 +16,6 @@
       "image_sha256": "6937741f1cbcd1394211af3a808040fdff0c9fc02eab5f2f506f7ea700c5f779",
       "game_slug": "goldeneye-007",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare your own game",
-          "instruction": "Extract the complete official Windows archive. Create data beside ge007.x86_64.exe and copy your own US NTSC-U ROM there as ge007.ntsc-final.z64. Register ge007.x86_64.exe as the external player; prepare-assets/ge007-convert.exe is a setup helper, not the play target."
-        },
-        {
-          "title": "Choose Play to finish upstream setup",
-          "instruction": "The first explicit Play generates asset sidecars from the verified ROM using the included upstream converter. Later starts reuse those files. Downloading and read-only discovery do not run the converter or the game."
-        },
-        {
-          "title": "Update without carrying obsolete assets",
-          "instruction": "Follow upstream’s update guide: extract a new version separately and copy only your ROM, data/ge007.eep and data/ge007.ini, retaining the old copy. Do not carry generated pcmodels-* or pccg-* folders; the new player must regenerate them. Keep any emulator save backup too. This version-dependent in-folder generation does not fit the current native-portable persistence contract. Runtime updates stay with you/upstream, and external data stays outside Portcove backups."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/v0.5.0/README.md"
     }
   }
 }

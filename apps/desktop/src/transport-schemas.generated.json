@@ -3917,10 +3917,6 @@
             },
             "type": "array"
           },
-          "n64_runtime_at_executable_parent": {
-            "description": "Keep a reviewed N64 package's runtime and data beside its selected player,\nincluding when upstream changes the outer archive wrapper name.",
-            "type": "boolean"
-          },
           "n64_windows_initial_d3d12": {
             "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
             "type": "boolean"
@@ -21443,10 +21439,6 @@
         },
         "type": "array"
       },
-      "n64_runtime_at_executable_parent": {
-        "description": "Keep a reviewed N64 package's runtime and data beside its selected player,\nincluding when upstream changes the outer archive wrapper name.",
-        "type": "boolean"
-      },
       "n64_windows_initial_d3d12": {
         "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
         "type": "boolean"
@@ -27538,10 +27530,6 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
-          },
-          "n64_runtime_at_executable_parent": {
-            "description": "Keep a reviewed N64 package's runtime and data beside its selected player,\nincluding when upstream changes the outer archive wrapper name.",
-            "type": "boolean"
           },
           "n64_windows_initial_d3d12": {
             "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",

@@ -473,6 +473,59 @@ impl Drop for GithubFixture {
 }
 
 #[tokio::test]
+async fn channel_selection_reaches_beyond_recent_history_without_browsing_every_release() {
+    for channel in [
+        ReleaseChannel::Stable,
+        ReleaseChannel::Beta,
+        ReleaseChannel::Rolling,
+    ] {
+        let github = GithubFixture::new(archive(), None, None);
+        *github.releases.lock().unwrap() = (1..=120)
+            .map(|id| json!({
+                "id":id,
+                "tag_name":if channel == ReleaseChannel::Rolling && id == 115 { "nightly".into() } else { format!("v{id}") },
+                "draft":false,
+                "prerelease":if channel == ReleaseChannel::Stable { id < 115 } else { channel == ReleaseChannel::Beta && id == 115 },
+                "published_at":null,"assets":[]
+            }))
+            .collect();
+        let (candidates, coverage, summaries, selected) = github
+            .provider
+            .catalog_download_options("owner/game", None, channel, Some("nightly"))
+            .await
+            .unwrap();
+        assert_eq!(selected, Some(115), "{channel:?}");
+        assert_eq!(candidates[0].release_id, 115);
+        assert_eq!(summaries.len(), 11, "recent ten plus selected channel");
+        assert_eq!(summaries.last().unwrap().id, 115);
+        assert!(
+            !coverage.release_history_complete,
+            "history browsing stays bounded"
+        );
+        assert_eq!(coverage.release_limit, 10);
+        assert_eq!(coverage.releases_checked, 1);
+        assert_eq!(github.requests.load(Ordering::SeqCst), 4);
+    }
+}
+
+#[tokio::test]
+async fn preview_falls_back_only_after_bounded_complete_channel_observation() {
+    let github = GithubFixture::new(archive(), None, None);
+    *github.releases.lock().unwrap() = (1..=120)
+        .map(|id| json!({"id":id,"tag_name":format!("v{id}"),"draft":false,"prerelease":false,"published_at":null,"assets":[]}))
+        .collect();
+    let (_, coverage, summaries, selected) = github
+        .provider
+        .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None)
+        .await
+        .unwrap();
+    assert_eq!(selected, Some(1));
+    assert_eq!(summaries.len(), 10);
+    assert!(!coverage.release_history_complete);
+    assert_eq!(github.requests.load(Ordering::SeqCst), 4);
+}
+
+#[tokio::test]
 async fn bounded_discovery_does_not_claim_no_assets_when_older_releases_are_unchecked() {
     let github = GithubFixture::new(archive(), None, None);
     let older_asset = github.assets.lock().unwrap()[0].clone();

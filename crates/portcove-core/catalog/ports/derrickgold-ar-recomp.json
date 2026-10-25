@@ -6,9 +6,9 @@
     "summary": "Explore ActRaiser / ActRaiser Recompiled (DerrickGold) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/DerrickGold/ar-recomp",
     "issue_number": 1791,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/DerrickGold/ar-recomp",
     "artwork": {
       "game_id": 6468,
       "cover_id": 292420,
@@ -16,32 +16,6 @@
       "image_sha256": "aedb4a72a76144aa114d97520dbff8883f8e5e874dec8a3439577b51aa29e401",
       "game_slug": "actraiser",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "ActRaiser",
-    "release_url": "https://github.com/DerrickGold/ar-recomp/releases",
-    "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["ActRaiserRecompBuilder-windows-x86_64-portable.zip"],
-      "macos-x86-64": ["ActRaiserRecompBuilder-macos-x86_64-portable.zip"],
-      "macos-aarch64": ["ActRaiserRecompBuilder-macos-arm64-portable.zip"]
-    },
-    "manual_setup": {
-      "help_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
-      "warnings": [],
-      "steps": [
-        {
-          "title": "Prepare the game with the upstream Builder",
-          "instruction": "The portable download is ActRaiser Recomp Builder, not a prepared player. For a Windows or macOS portable desktop bundle, extract it into a writable folder, keep its .portable marker and BuilderData together, then deliberately open the Builder’s Workshop. The generic Linux x64 tar.xz uses ./run-build.sh to open the Workshop in your browser; follow its upstream prerequisites. Choose your own supported USA ActRaiser ROM and Build game. The bundle supplies its compiler; Portcove does not run it during discovery. Use the matching package and instructions for your platform."
-        },
-        {
-          "title": "Add the completed game",
-          "instruction": "The default output is ActRaiserRecomp beside the Builder. Choose the completed game executable in that output folder in Portcove, with its folder as the working directory. Keep its DLLs, user-rom.sfc, tools, assets, settings and saves together. Save launch details, then choose Play separately. If application control blocks a builder tool, retain its error and use upstream/administrator guidance."
-        },
-        {
-          "title": "Back up and rebuild to update",
-          "instruction": "You or upstream own the generated player and updates. Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder. Upstream migrates older save.srm/save.ini or actraiser.srm to Slot 1 and keeps originals under saves/legacy-layout. Use Import previous installation for older utils layouts. Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
-        }
-      ]
     }
   }
 }

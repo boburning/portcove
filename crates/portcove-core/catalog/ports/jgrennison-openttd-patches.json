@@ -6,8 +6,9 @@
     "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/JGRennison/OpenTTD-patches",
     "issue_number": 1859,
-    "availability": "packages",
-    "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JGRennison/OpenTTD-patches",
     "artwork": {
       "game_id": 5502,
       "cover_id": 85659,
@@ -15,56 +16,6 @@
       "image_sha256": "3554c280028ad14f2991fc66c11dee1349690679b178a6af800b47dd160d9b0d",
       "game_slug": "transport-tycoon-deluxe",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/JGRennison/OpenTTD-patches/releases/tag/jgrpp-0.73.4",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Start the game",
-          "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
-    },
-    "original_game_title": "OpenTTD"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "JGRennison/OpenTTD-patches",
-      "asset_hints": {
-        "windows-x86-64": ["openttd-jgrpp-", "-windows-win64.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["openttd.exe"]
-    },
-    "persistent_paths": [
-      "openttd.cfg",
-      "hs.dat",
-      "hotkeys.cfg",
-      "windows.cfg",
-      "private.cfg",
-      "secrets.cfg",
-      "favs.cfg",
-      "openttd.log",
-      "save",
-      "scenario",
-      "heightmap",
-      "orderlist",
-      "newgrf",
-      "screenshot",
-      "content_download"
-    ],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build. The default Windows save/config/content location is Documents/OpenTTD, shared with other OpenTTD copies and outside Portcove backups. Only the named fallback configs, saves, scenarios, heightmaps, order lists, NewGRF files, screenshots and content_download folder are declared if present. Packaged baseset, ai and game resources remain immutable. Use an external registration for a mixed executable-folder custom profile or plugins; unknown additions keep their exact-path preservation guard. Portcove replaces this runtime only; it does not manage external shared saves, original game files or another OpenTTD installation. Older runtimes may not read newer saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }

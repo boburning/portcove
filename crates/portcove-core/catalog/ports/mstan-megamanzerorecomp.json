@@ -6,9 +6,9 @@
     "summary": "Explore Mega Man Zero / MegaManZeroRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mstan/MegaManZeroRecomp",
     "issue_number": 1845,
-    "platforms": ["windows-x86-64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/MegaManZeroRecomp",
     "artwork": {
       "game_id": 1775,
       "cover_id": 540253,
@@ -16,30 +16,6 @@
       "image_sha256": "3ed1ef20802473fa69f2657c7923a22a3f87ed200b7fdacf8b65978b4d0e47d9",
       "game_slug": "mega-man-zero",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Mega Man Zero",
-    "recommended_download_channel": "stable",
-    "download_asset_hints": {
-      "windows-x86-64": ["MegaManZeroRecomp-", "windows-x64", ".zip"]
-    },
-    "release_url": "https://github.com/mstan/MegaManZeroRecomp/releases/tag/v0.0.7",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Choose your own ROM and BIOS in the game",
-          "instruction": "The Windows ZIP is ready to open after extraction; it has no installer or player build step. Keep its DLLs, assets, any supplied mods and overlay_toolchain together. Finish setup with MegaManZeroRecomp.exe, then choose Play explicitly. In the game’s launcher, select your own Mega Man Zero USA, AZCE revision 0 ROM and retail GBA BIOS, then Play. The expected ROM SHA-1 is 193b14120119162518a73c70876f0b8bffdbd96e; the retail BIOS SHA-1 is 300c20df6731a33952ded8c436f7f186d25d3492. The game remembers valid selections. The tcc programs are internal compiler helpers, not the player; Portcove does not run them during setup discovery."
-        },
-        {
-          "title": "Keep the saves and settings you actually use",
-          "instruction": "By default, cartridge saves use the selected ROM’s name with .sav, and save-state slots use the same name with .state1 through .state10, beside that ROM. Keep a separate copy of this folder; a save path shown in the launcher is not proof that the save moved there. Also preserve config.ini, keybinds.ini, rom.cfg, bios.cfg, your mod choices and any player-added mods beside the executable. Custom --save/--save-path or --state-dir choices change the save locations. Older builds may not read newer states or saves. Portcove registration preserves these externally owned files; it does not back up or restore them."
-        },
-        {
-          "title": "Keep your working copy when updating",
-          "instruction": "Updates come from the upstream project. Extract a new release into a separate folder and keep the current copy usable while checking it. Keep each release’s own DLLs, packaged mods and overlay_toolchain; do not overlay the old runtime folder onto the new one. The game can generate native code in recomp_cache during Play. Keep that old cache with the old copy and let the new release start with its own cache, rather than transferring generated DLLs. Transfer only compatible player settings, saves and mods using the matching upstream instructions, then change the registered player when ready. These previews remain experimental; downloading or registering one does not establish full-game compatibility."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
     }
   }
 }

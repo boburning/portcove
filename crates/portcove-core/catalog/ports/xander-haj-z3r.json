@@ -6,9 +6,9 @@
     "summary": "Explore The Legend of Zelda: A Link to the Past / Zelda 3 Reborn / Z3R (xander-haj) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/xander-haj/Z3R",
     "issue_number": 1912,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/xander-haj/lawn/releases/tag/v0.8.1",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/xander-haj/Z3R",
     "artwork": {
       "game_id": 1026,
       "cover_id": 181427,
@@ -16,29 +16,6 @@
       "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
       "game_slug": "the-legend-of-zelda-a-link-to-the-past",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "The Legend of Zelda: A Link to the Past",
-    "download_asset_hints": {
-      "windows-x86-64": ["Z3R-Launcher-", "windows-x64-setup.exe"]
-    },
-    "release_url": "https://github.com/xander-haj/lawn/releases/tag/v0.8.1",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Let the upstream launcher prepare your own game",
-          "instruction": "The recommended Windows download is the upstream lawn/Z3R Launcher setup package. Open that installer deliberately after downloading, then use its guided preparation. Install its published package for your platform, choose your own clean USA A Link to the Past .sfc, and follow its setup/extract/build steps. The Windows setup package includes the lightweight Git/Python/TCC/SDL2 toolkit; choosing a separate MSBuild route needs its own build tools. Linux and macOS use their matching upstream dependency guide. Portcove does not install these tools or run the launcher during discovery. When setup finishes, register the prepared zelda3.exe on Windows or native zelda3 player on Linux/macOS with its project folder as the working directory, then choose Play explicitly."
-        },
-        {
-          "title": "Keep the generated assets and player data together",
-          "instruction": "Keep the complete prepared project, your original ROM, zelda3_assets.dat, zelda3.user.ini overrides, saves, custom sprites/shaders/MSU packs, and any randomizer YAML, seed/spoiler files or selected feature-asset folders separately backed up. The game tries zelda3.user.ini before zelda3.ini. Keep packaged defaults with their own release and use user overrides for personal settings. The native release ZIP supplies a player and SDL but no generated zelda3_assets.dat; copying that executable alone is not finished setup."
-        },
-        {
-          "title": "Regenerate matching assets when updating",
-          "instruction": "Let the selected upstream launcher manage its own project setup and updates. The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/xander-haj/lawn/releases/tag/v0.8.1"
     }
   }
 }

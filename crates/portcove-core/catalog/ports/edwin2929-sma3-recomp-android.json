@@ -7,8 +7,8 @@
     "project_url": "https://github.com/Edwin2929/sma3-recomp-android.",
     "issue_number": 1885,
     "platforms": [],
-    "availability": "packages",
-    "setup_url": "https://github.com/Edwin2929/sma3-recomp-android./blob/Descarga/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/Edwin2929/sma3-recomp-android.",
     "artwork": {
       "game_id": 16747,
       "cover_id": 200020,
@@ -16,21 +16,6 @@
       "image_sha256": "82c1d426dbafbac5b8121ac036f8158c7db23def20cab27d16f5484f65a48236",
       "game_slug": "yoshis-island-super-mario-advance-3",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/Edwin2929/sma3-recomp-android./releases/tag/Descarga",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Finish setup in the upstream Android app",
-          "instruction": "The upstream guide describes this Android ARM64 setup: CHOOSE ROM for your own Yoshi’s Island: Super Mario Advance 3 USA ROM, CHOOSE BIOS for your own GBA BIOS, then PLAY. It identifies the 4,194,304-byte ROM by SHA-1 7352d2bd064d9ebaec579e264228aa21c7345b80 and the 16,384-byte BIOS by SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The published APK names a different version from that guide, so check its release instructions before changing a working copy. Portcove supplies neither original file."
-        },
-        {
-          "title": "Keep your data when changing versions",
-          "instruction": "The published APK and setup guide name different versions (0.9 and 0.4). The input and save-transfer details for that APK are still being checked. Keep existing saves, app data and your originals separately before changing builds; a locally signed build cannot update a differently signed app in place. Preserve a working copy’s data before any uninstall required by a signing change."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/Edwin2929/sma3-recomp-android./blob/Descarga/README.md"
     }
   }
 }

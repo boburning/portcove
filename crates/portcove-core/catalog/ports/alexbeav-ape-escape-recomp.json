@@ -25,10 +25,15 @@
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
     "release": {
-      "provider": "github",
-      "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
-      "asset_hints": {
-        "windows-x86-64": ["Ape-Escape-Recomp-", "-windows-x64.zip"]
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.3.6",
+          "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+          "size": 30155637,
+          "sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+          "published_at": "2026-09-04T14:48:29Z"
+        }
       }
     },
     "source_profile": "ape-escape-psx",

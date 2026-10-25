@@ -39,10 +39,6 @@ impl EngineTemplateCapability {
             contract_version: 3,
         });
         supported.push(Self {
-            template: AdapterKind::N64RecompPortable,
-            contract_version: 4,
-        });
-        supported.push(Self {
             template: AdapterKind::PsxRecompManaged,
             contract_version: 2,
         });

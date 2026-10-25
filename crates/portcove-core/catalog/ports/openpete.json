@@ -15,26 +15,7 @@
       "game_slug": "openpete",
       "match_kind": "port"
     },
-    "issue_number": 113,
-    "setup_url": "https://openpete.com/",
-    "manual_setup": {
-      "help_url": "https://openpete.com/",
-      "warnings": [],
-      "steps": [
-        {
-          "title": "Choose the accepted managed copy or current upstream player",
-          "instruction": "The managed route retains its accepted v0.1.4 setup and data contract. For the current upstream Windows release, download the complete player from the official OpenPete page and prepare it in a separate writable folder. Compare the download with the checksum published there. Keep your existing working copy intact."
-        },
-        {
-          "title": "Supply your own Spyro disc through upstream setup",
-          "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
-        },
-        {
-          "title": "Keep progress and generated files with their working version",
-          "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
-        }
-      ]
-    }
+    "issue_number": 113
   },
   "integration": {
     "support_tier": "stable",
@@ -71,8 +52,7 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed",
-      "manual_preparation": "This managed route retains the accepted v0.1.4 runtime and its original setup/data contract. To use the current upstream player, prepare a separate copy through the official OpenPete guide. Keep your working runtime and its generated library and states until your saves work in the new copy. Upstream or you provide updates for that external copy."
+      "saves_and_settings": "portcove-managed"
     }
   }
 }

@@ -6,9 +6,9 @@
     "summary": "Explore Banjo-Kazooie: Nuts & Bolts / reNut and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/masterspike52/reNut",
     "issue_number": 161,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/masterspike52/reNut/blob/99cb2f4e4ba7fe147d3ed967baaacbe252319dd8/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/masterspike52/reNut",
     "artwork": {
       "game_id": 3008,
       "cover_id": 113272,
@@ -16,29 +16,6 @@
       "image_sha256": "d9fdbcaf84c07704610236e52a03420bcafec11c295730d03999a01377bf21e1",
       "game_slug": "banjo-kazooie-nuts-bolts",
       "match_kind": "underlying-game"
-    },
-    "original_game_title": "Banjo-Kazooie: Nuts & Bolts",
-    "release_url": "https://github.com/masterspike52/reNut/releases",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare a permitted copy with upstream setup",
-          "instruction": "For existing permitted copies of reNut and its setup tools, point NutStaller’s install folder at your player and use 3. Pick ISO + extract with your own USA Banjo-Kazooie: Nuts & Bolts Xbox 360 ISO. This prepares game data and renut.cfg without downloading another runtime. Keep the current game folder backed up before approving any replacement. The optional Add title update action accepts your own update; match it to your runtime’s release instructions. Beta9 advertises TU3 and DLC support. Get latest reNut and Do everything acquire a new runtime and require separate acquisition permission. Portcove never runs these tools during discovery."
-        },
-        {
-          "title": "Register the prepared player",
-          "instruction": "On Windows choose the prepared renut.exe and its containing folder; on Linux choose the prepared renut.AppImage with its matching folder. Save launch details, then choose Play separately. Keep NutStaller for upstream updates, controls, Workshop and save tools. The Linux player and extraction helper have separate system requirements in upstream instructions; the reviewed launcher documents glibc 2.38 for the player and 2.34 for its extraction helper. If setting up the player manually, its first-run path wizard asks for your existing game and user-data folders."
-        },
-        {
-          "title": "Keep original files, saves and settings recoverable",
-          "instruction": "You or upstream provide runtime updates. Close the game before using NutStaller to back up or to update to another release you have permission to acquire. Its normal user-data folder is Documents/renut on Windows and XDG_DATA_HOME/renut (normally ~/.local/share/renut) on Linux. Keep renut.cfg and renut.toml too: next to the Windows player, or in the Linux user-data folder. Retain your original ISO, prepared game folder, custom user-data paths, mods, and NutStaller configuration separately. Portcove external registration leaves these files untouched and supplies no managed Update, Backup or Rollback."
-        }
-      ],
-      "warnings": [
-        "Portcove downloads are paused because attributable distribution terms for reNut’s separately authored runtime and branding are not established by the reviewed release or project tree. Third-party notices do not settle those terms. Use only a copy you are permitted to use. Reconsider when upstream provides compatible terms for the project and packaged resources."
-      ],
-      "help_url": "https://github.com/masterspike52/reNut/blob/99cb2f4e4ba7fe147d3ed967baaacbe252319dd8/README.md"
-    },
-    "download_block_reason": "Portcove downloads are paused because attributable distribution terms for reNut’s separately authored runtime and branding are not established by the reviewed release or project tree. Third-party notices do not settle those terms. Use only a copy you are permitted to use. Reconsider when upstream provides compatible terms for the project and packaged resources."
+    }
   }
 }

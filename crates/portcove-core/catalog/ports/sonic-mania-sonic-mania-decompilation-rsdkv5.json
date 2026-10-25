@@ -6,9 +6,9 @@
     "summary": "Explore Sonic Mania / Sonic Mania decompilation + RSDKv5 and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
     "issue_number": 384,
-    "platforms": ["windows-x86-64"],
-    "availability": "packages",
-    "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/v1.1.1/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
     "artwork": {
       "game_id": 21062,
       "cover_id": 515556,
@@ -16,25 +16,6 @@
       "image_sha256": "5d2b03cbd07290402537b9d9eadefb95b5a1012b31d0d6f4d71e595ef4354e9e",
       "game_slug": "sonic-mania",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases/tag/v1.1.1",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Pair the game module with its matching engine",
-          "instruction": "The reviewed mania-windows-x64.zip contains v5/Game.dll and v5U/Game.dll, not a player executable. Follow upstream’s guide to obtain the matching RSDKv5 or RSDKv5U engine, use only the matching Game.dll variant beside that engine, and supply assets from your own supported Sonic Mania (Plus) release. The Netflix Games version is not supported. Keep this prepared folder separate from your only working copy."
-        },
-        {
-          "title": "Register the prepared player",
-          "instruction": "Choose the actual matching engine executable after upstream setup, with its prepared game folder as the working directory. Game.dll is a module, not a launch target. Read-only discovery and downloading do not run or combine modules/helpers. Upstream’s save-transfer guidance can bring over your own original PC save data; keep a separate original copy."
-        },
-        {
-          "title": "Keep runtime replacement with upstream",
-          "instruction": "Use upstream’s compatible engine/Game.dll pair and a separately prepared replacement folder when updating; keep the current folder and its saves recoverable until the replacement works. You or upstream provide runtime updates; Portcove does not back up or roll back this external copy. This download is a game module rather than a complete player, so finish pairing it through upstream before registering."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/v1.1.1/README.md"
     }
   }
 }

@@ -25,10 +25,15 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "github",
-      "repository": "elliotttate/DKC3Recomp",
-      "asset_hints": {
-        "windows-x86-64": ["DKC3Recomp-", "-windows-x64.zip"]
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.0.6",
+          "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
+          "size": 6009000,
+          "sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "published_at": "2026-09-13T04:22:33Z"
+        }
       }
     },
     "source_profile": "dkc3-na-en-fr",
@@ -46,7 +51,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified."
+      "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. This build has a known game-logic failure during startup. Gameplay, visual correctness and save/load remain unqualified."
     },
     "launch_environment": {
       "SNESRECOMP_NO_LAUNCHER": "1"

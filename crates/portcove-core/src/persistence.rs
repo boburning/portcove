@@ -42,9 +42,7 @@ pub(crate) fn collect_before_first_launch(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn requires_restore_receipt(port: &PortDefinition) -> bool {
-    port.adapter == crate::AdapterKind::PsxRecompManaged
-        || ready_staged_archive(port)
-        || port.n64_runtime_at_executable_parent
+    port.adapter == crate::AdapterKind::PsxRecompManaged || ready_staged_archive(port)
 }
 
 impl PersistentFilePattern {

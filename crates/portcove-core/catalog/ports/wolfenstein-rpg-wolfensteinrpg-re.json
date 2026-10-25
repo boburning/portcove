@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
     "issue_number": 371,
     "platforms": [],
-    "availability": "packages",
+    "availability": "unknown",
     "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE",
     "artwork": {
       "game_id": 67744,
@@ -16,27 +16,6 @@
       "image_sha256": "31cefd47414a8bafd8da34018c6d5af038ce19cd9b1c898324e9b9276dd4b331",
       "game_slug": "wolfenstein-rpg",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Use your own Wolfenstein RPG iOS package",
-          "instruction": "The Windows player reads your own permitted iOS package named Wolfenstein RPG.ipa from the same working folder as WolfensteinRPG.exe. A J2ME JAR or BREW package is not the same input. Upstream also requires OpenAL on Windows; use the official OpenAL instructions linked in its package README if it is missing. This route does not obtain, decrypt or convert the original game for you."
-        },
-        {
-          "title": "Register the prepared game",
-          "instruction": "Choose WolfensteinRPG.exe with its containing game folder as the working directory. Keep the supplied runtime libraries together. Save the launch details, then choose Play separately. You or upstream manage updates and the external working folder, including original data, saves and settings. Prepare another version separately and keep the current copy; Portcove does not back up, roll back or remove these external files."
-        }
-      ],
-      "warnings": [
-        "The inspected release does not publish an independently expected archive hash. A download is an explicitly unverified upstream copy; it does not become a managed or authenticated runtime."
-      ],
-      "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/WolfensteinRPG-v.0.1/README.md"
-    },
-    "release_url": "https://github.com/Erick194/WolfensteinRPG-RE/releases/tag/WolfensteinRPG-v.0.1",
-    "download_asset_hints": {
-      "windows-x86-64": ["WolfensteinRPG.", ".zip"]
-    },
-    "original_game_title": "Wolfenstein RPG"
+    }
   }
 }

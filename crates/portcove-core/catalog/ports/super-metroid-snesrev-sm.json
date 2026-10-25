@@ -7,8 +7,8 @@
     "project_url": "https://github.com/snesrev/sm",
     "issue_number": 340,
     "platforms": [],
-    "availability": "source-only",
-    "setup_url": "https://github.com/snesrev/sm/blob/main/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/snesrev/sm",
     "artwork": {
       "game_id": 1103,
       "cover_id": 265426,
@@ -16,20 +16,6 @@
       "image_sha256": "6c552ed7337ed7a6a68fd8502d2885747bccd350af9cd4aa081f1f08060c5f6d",
       "game_slug": "super-metroid",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare upstream or keep an existing game build",
-          "instruction": "Follow the linked BUILDING.md for your own Super Metroid source. Upstream expects the supported sm.smc in the runtime root and uses a frame-by-frame comparison mode, writing mismatch snapshots under saves. Keep that source/runtime layout and the upstream limitations with your own native build; this is not a packaged game download."
-        },
-        {
-          "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/snesrev/sm/blob/main/README.md"
     }
   }
 }

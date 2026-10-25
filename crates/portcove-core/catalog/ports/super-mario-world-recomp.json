@@ -25,10 +25,15 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "github",
-      "repository": "mstan/SuperMarioWorldRecomp",
-      "asset_hints": {
-        "windows-x86-64": ["SuperMarioWorldRecomp-windows-x64-", ".zip"]
+      "provider": "direct-manifest",
+      "direct": {
+        "windows-x86-64": {
+          "version": "v0.12.0",
+          "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.12.0/SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
+          "size": 9490376,
+          "sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+          "published_at": "2026-09-11T08:01:27Z"
+        }
       }
     },
     "source_profile": "super-mario-world-snes-usa",
@@ -46,7 +51,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups."
+      "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified."
     },
     "launch_arguments": ["smw.sfc"],
     "launch_environment": {

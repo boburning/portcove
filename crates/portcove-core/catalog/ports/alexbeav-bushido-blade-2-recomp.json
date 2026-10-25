@@ -8,7 +8,7 @@
     "issue_number": 1588,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/blob/v0.1.0/README.md",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp",
     "artwork": {
       "game_id": 1419,
       "cover_id": 232215,
@@ -16,24 +16,6 @@
       "image_sha256": "adbb4260d6903edac93c5384815a2d6ecb539dd7495c442f1b3fb228c7abc805",
       "game_slug": "bushido-blade-2",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare the game with upstream setup",
-          "instruction": "This download is an upstream setup package. It prepares the game from your own matching disc through the upstream launcher’s generation/build step. Downloading does not run that step."
-        },
-        {
-          "title": "Supply only the files the upstream guide requires",
-          "instruction": "Open the linked setup guide for this release. Use your own matching disc and its tracks; supply a BIOS only when that guide requires it. Complete the supported generation/build step in upstream’s launcher, then return to Portcove."
-        },
-        {
-          "title": "Confirm the game or launcher",
-          "instruction": "Choose the resulting native game executable or its supported upstream launcher to finish adding the game. If setup installed elsewhere, choose that location. Adding it saves launch details; Play starts it separately. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove backups."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/bushido-blade-2-recomp/blob/v0.1.0/README.md"
     }
   }
 }

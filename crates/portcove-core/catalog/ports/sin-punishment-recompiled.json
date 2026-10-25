@@ -7,8 +7,8 @@
     "project_url": "https://github.com/maximilianoide/sin-punishment-recompiled",
     "issue_number": 167,
     "platforms": [],
-    "availability": "source-only",
-    "setup_url": "https://github.com/maximilianoide/sin-punishment-recompiled/blob/main/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/maximilianoide/sin-punishment-recompiled",
     "artwork": {
       "game_id": 1467,
       "cover_id": 85687,
@@ -16,20 +16,6 @@
       "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
       "game_slug": "sin-and-punishment",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Understand the current development limit",
-          "instruction": "Upstream’s current milestone reaches the native title screen; gameplay/runtime completion remains in progress and no player package is published. Its public build guide also requires rom/sinpunishment_patched.z64 and a working-image patch pipeline that is not published. Your clean Japanese ROM and a clean clone alone do not establish a reproducible game build. Keep using an existing prepared development copy if you have one, preserving its files and limitations; do not select N64Recomp/RSPRecomp compiler tools as the player."
-        },
-        {
-          "title": "Keep your files and update through upstream",
-          "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/maximilianoide/sin-punishment-recompiled/blob/main/README.md"
     }
   }
 }

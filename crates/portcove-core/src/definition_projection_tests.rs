@@ -149,8 +149,6 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         && typed.runtime_subdirectory.is_some()
     {
         3
-    } else if typed.n64_runtime_at_executable_parent {
-        4
     } else if typed.n64_windows_initial_d3d12
         || typed
             .release

@@ -6,8 +6,9 @@
     "summary": "Explore Donkey Kong Country 2: Diddy's Kong Quest / DKC2Recomp (elliotttate) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/elliotttate/DKC2Recomp",
     "issue_number": 1811,
-    "availability": "packages",
-    "setup_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/elliotttate/DKC2Recomp",
     "artwork": {
       "game_id": 1092,
       "cover_id": 94882,
@@ -15,48 +16,6 @@
       "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
       "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
       "match_kind": "underlying-game"
-    },
-    "release_url": "https://github.com/elliotttate/DKC2Recomp/releases/tag/v0.0.8",
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Finish the game’s setup",
-          "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
-    },
-    "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest"
-  },
-  "integration": {
-    "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
-    "adapter": "native-portable",
-    "release": {
-      "repository": "elliotttate/DKC2Recomp",
-      "asset_hints": {
-        "windows-x86-64": ["dkc2recomp-", "-windows-x64.zip"]
-      }
-    },
-    "executable_hints": {
-      "windows-x86-64": ["DKC2Recomp.exe"]
-    },
-    "persistent_paths": [
-      "rom.cfg",
-      "launcher.cfg",
-      "kongs.cfg",
-      "msu1.cfg",
-      "saves",
-      "diagnostics",
-      "performance.log"
-    ],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "portcove-managed",
-      "manual_preparation": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports. The remembered ROM path, launcher/character/audio preferences, saves and save states, diagnostics and performance.log live beside the player and are declared for compatible replacement and backup. The selected external ROM, character pack and music folder remain outside backups. Pack/state compatibility follows upstream’s selected version; runtime rollback carries current saves without rewinding them. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations."
     }
   }
 }

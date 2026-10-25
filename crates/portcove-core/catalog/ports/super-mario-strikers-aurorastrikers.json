@@ -7,8 +7,8 @@
     "project_url": "https://github.com/Saffsanity/AuroraStrikers",
     "issue_number": 818,
     "platforms": [],
-    "availability": "source-only",
-    "setup_url": "https://github.com/Saffsanity/AuroraStrikers/blob/main/README.md",
+    "availability": "unknown",
+    "setup_url": "https://github.com/Saffsanity/AuroraStrikers",
     "artwork": {
       "game_id": 2256,
       "cover_id": 89895,
@@ -16,20 +16,6 @@
       "image_sha256": "9953c59416011cdbe3074beed3a4ac8863368b7e11c1d31cf11445864279dc8b",
       "game_slug": "super-mario-strikers",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare upstream or keep an existing game build",
-          "instruction": "Build through upstream with your own Super Mario Strikers disc. Its documented player is build-pc/bin/AuroraStrikers.exe with --disc and your absolute disc path. Retain the prepared project working directory and those arguments in Change launch details. The generated executable contains game-derived code; upstream says not to redistribute that output. Portcove does not build or distribute it."
-        },
-        {
-          "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/Saffsanity/AuroraStrikers/blob/main/README.md"
     }
   }
 }
