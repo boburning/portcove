@@ -235,7 +235,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Record workspace cache observation
@@ -305,7 +305,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Windows test archive and manifest
@@ -702,7 +702,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Compile Core and prove all original qualification phase selections
@@ -760,7 +760,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -803,7 +803,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - run: cargo nextest run --locked --workspace --exclude portcove-core
@@ -927,7 +927,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Use the runner-owned temporary directory
@@ -963,7 +963,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Cross-compile the full Intel test workspace
@@ -1001,7 +1001,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Intel test binaries
@@ -1104,7 +1104,7 @@ jobs:
             ~/.cargo/bin/rscheck
           key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt Rust quality tools
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Read pinned aqua version
@@ -1127,7 +1127,7 @@ jobs:
           fi
       - name: Install pinned rscheck
         if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Verify exact Rust quality-tool versions
@@ -1236,7 +1236,7 @@ jobs:
         working-directory: .
         run: echo "just=just@$(node scripts/quality-tools.mts --version just)" >> "$GITHUB_OUTPUT"
       - name: Install pinned recipe runner
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - name: Verify staged checks and hook installation
