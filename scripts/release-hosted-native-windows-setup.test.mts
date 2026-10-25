@@ -308,3 +308,21 @@ if(-not $observed){throw 'Actual membership call was not bound'}
     assert.match(result, /actual LocalPrincipal parameter binding passed/u);
   },
 );
+
+void test("hosted probe stream readback bounds retained bytes and preserves empty output", () => {
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$reader=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Read-HostedNativeProbeStream'},$true)
+. ([scriptblock]::Create($reader.Extent.Text))
+foreach($size in @(0,20,16385)){
+$stream=[pscustomobject]@{Bytes=[byte[]]::new($size)}
+$stream|Add-Member ScriptMethod Snapshot {return ,$this.Bytes}
+$actual=Read-HostedNativeProbeStream $stream
+if($actual.bytes -ne $size -or [Convert]::FromBase64String($actual.prefix_base64).Length -ne [Math]::Min($size,16384) -or $actual.truncated -ne ($size -gt 16384)){throw 'Probe capture bound differs'}
+}
+'actual probe capture bounds passed'
+`);
+  assert.match(result, /actual probe capture bounds passed/u);
+});

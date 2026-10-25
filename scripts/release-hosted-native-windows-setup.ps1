@@ -19,6 +19,10 @@ function Write-HostedNativeSetupRecord([string]$Path,$Value) {
     $file=[IO.FileStream]::new($Path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
     try{$file.Write($bytes);$file.Flush($true)}finally{$file.Dispose()}
 }
+function Read-HostedNativeProbeStream($Stream) {
+    $bytes=$Stream.Snapshot()
+    return [ordered]@{bytes=$bytes.Length;prefix_base64=[Convert]::ToBase64String($bytes,0,[Math]::Min($bytes.Length,16384));truncated=($bytes.Length -gt 16384)}
+}
 function Assert-HostedNativeAccount($Expected,[bool]$Enabled) {
     $actual=Get-LocalUser -SID $Expected.SID -ErrorAction Stop
     if($actual.Name -cne 'PortcoveNativeQual' -or $actual.SID.Value -cne $Expected.SID.Value -or
@@ -82,6 +86,7 @@ Write-HostedNativeSetupRecord (Join-Path $root 'intent.json') ([ordered]@{schema
 $account=$null;$password=$null;$group=$null;$child=$null;$disabled=$false;$settled=$false;$failure=$null;$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
+$probeCapture=$null
 try {
     Assert-OriginalHostedSetup
     $password=[Portcove.HostedNative.Setup]::Password()
@@ -176,9 +181,13 @@ finally {
         }
     } catch {$cleanupFailures.Add($_.Exception.Message)}
     finally {
+        if($child){
+            try {$probeCapture=@{stdout=(Read-HostedNativeProbeStream $child.OutputCapture);stderr=(Read-HostedNativeProbeStream $child.ErrorCapture);exit_code=$(if($rootExited){$child.ExitCode}else{$null})}}
+            catch {$probeCapture=@{error=$_.Exception.Message}}
+        }
         if($child){$child.Dispose()};if($group){$group.Dispose()};if($password){$password.Dispose()}
         if(-not $failure -and $cleanupFailures.Count){$failure='Hosted cleanup refused; retained details require recovery'}
-        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
+        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
     }
 }
 if(-not $disabled -or -not $settled -or $failure){throw 'Hosted inert account setup did not complete'}
