@@ -120,3 +120,20 @@ Direct flags also instrument applicable dependencies; the reported scope remains
 the selected Core path module. The cold build/discovery permits 45 minutes,
 allowing finite headroom over that attempt's 15m54s compilation; warm tests and export
 permit five minutes each, with a separate 15-minute admission bound per stage.
+
+The first measured Windows run on source `dbdf7c5842a5908b5bf03b96e7aec3ff8613e6aa`
+passed its three selected tests and covered 2 of 22 reported branch outcomes.
+Inspecting those uncovered locations led to two bounded-reader tests for exact
+limits, empty files, oversize refusal, nonregular inputs and missing files.
+Source `835de32e66bb02555b73aabf75a82ed7a2b5560a` passed all five selected tests
+and covered 8 of the same 22 branch outcomes, with 33/98 lines, 4/12 functions
+and 49/160 regions covered. Production `path.rs` remained byte-identical.
+These are bounded module observations; symlink, path-resolution and read-race
+branches remain unmeasured or uncovered by this selection.
+
+The retained packet identities are `f78ae947-2187-498e-b966-26a7021adb87` and
+`68750e15-fc9b-42a3-8eb0-a536553e66d9`, respectively. Their LLVM export SHA-256s
+are `48adba498eda844c57dd25310362ec4f6f8e6ab9c03d878390e38b8263309e8e` and
+`92dedf3b15bcdf2eb595b29740e5f89643102288c7a84e2555f3a8f59eaf024c`.
+The receipts retain the original source identities, complete outcomes, counters
+and copied inputs. These instrumented runs establish no execution-time gain.
