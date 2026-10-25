@@ -7,8 +7,8 @@
     "project_url": "https://github.com/vs-sr-dev/pc-deepfear",
     "issue_number": 1578,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/vs-sr-dev/pc-deepfear",
+    "availability": "source-only",
+    "setup_url": "https://github.com/vs-sr-dev/pc-deepfear#readme",
     "artwork": {
       "game_id": 46057,
       "cover_id": 354153,
@@ -16,6 +16,20 @@
       "image_sha256": "8055f6f1ada2cd3c7e86cede012d8c098087200712db478b5290eda1e68c7883",
       "game_slug": "deep-fear",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use both of your own complete Europe MK-81804 V1.001 (1998-07-13) cue/bin disc sets with upstream's recursive saturnkit checkout. Its CMake/Ninja, clang and SDL3 preparation needs both extracted discs and audio. Run any documented tools/run.py --play command deliberately from the repository root; discovery does not invoke it. The reviewed milestone reaches the first room and walking, not a packaged full-game release. Register only a native game output you have prepared with its required working folder, not a Python disc or compiler tool."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/vs-sr-dev/pc-deepfear#readme"
     }
   }
 }

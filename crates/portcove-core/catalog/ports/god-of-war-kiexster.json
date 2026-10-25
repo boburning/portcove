@@ -7,8 +7,8 @@
     "project_url": "https://github.com/KIexster/god-of-war-recomp",
     "issue_number": 1671,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/KIexster/god-of-war-recomp",
+    "availability": "source-only",
+    "setup_url": "https://github.com/KIexster/god-of-war-recomp#readme",
     "artwork": {
       "game_id": 549,
       "cover_id": 157296,
@@ -16,6 +16,20 @@
       "image_sha256": "50bd98e4408b79a9c2d91b1649ed63f9cdd4adc8f1311526bb95c6abd8c9fa47",
       "game_slug": "god-of-war",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use your own God of War NTSC-U SCUS-97399 files, including both DVD layers and the required IRX/.disc_layout files beside the ELF. Follow upstream's documented 1_instalar_herramientas and 2_compilar preparation scripts deliberately; 3_ejecutar_manual.cmd is its untimed manual launch. Register ps2EntryRunner.exe only when its explicit working folder, data and invocation reproduce the prepared native runtime. Portcove does not import a setup script's environment or run its compiler during discovery. The current upstream save/load and full-completion work remains in progress."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/KIexster/god-of-war-recomp#readme"
     }
   }
 }
