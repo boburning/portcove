@@ -26,22 +26,57 @@ export const reportMarker = "<!-- portcove-roadmap-report:";
 export function legacyRoadmapObservations(comments: readonly unknown[], repository: string) {
   const observations: RoadmapObservation[] = [];
   for (const value of comments) {
-    if (!isRecord(value) || !isRecord(value.user) || value.user.type !== "Bot" || value.user.login !== "github-actions[bot]" || typeof value.body !== "string") continue;
+    if (
+      !isRecord(value) ||
+      !isRecord(value.user) ||
+      value.user.type !== "Bot" ||
+      value.user.login !== "github-actions[bot]" ||
+      typeof value.body !== "string"
+    )
+      continue;
     const encoded = value.body.match(/^<!-- portcove-roadmap-health:(\{[^\n]*\}) -->/u)?.[1];
     if (!encoded) continue;
     const state: unknown = JSON.parse(encoded);
-    if (!isRecord(state) || typeof state.scope !== "string") throw new Error("Legacy diagnostic scope is malformed");
+    if (!isRecord(state) || typeof state.scope !== "string")
+      throw new Error("Legacy diagnostic scope is malformed");
     const scope: unknown = JSON.parse(state.scope);
     if (!isRecord(scope) || scope.kind === "configuration") continue; // Verified setup history has its own activation receipt.
     const started = value.body.match(/Observed: ([\dT:.Z+-]+)\./u)?.[1] ?? value.updated_at;
-    if (typeof started !== "string" || !Number.isFinite(Date.parse(started))) throw new Error("Legacy diagnostic observation time is unavailable");
+    if (typeof started !== "string" || !Number.isFinite(Date.parse(started)))
+      throw new Error("Legacy diagnostic observation time is unavailable");
     const id = Number(value.id);
-    if (!Number.isSafeInteger(id) || id < 1) throw new Error("Legacy diagnostic comment identity is unavailable");
+    if (!Number.isSafeInteger(id) || id < 1)
+      throw new Error("Legacy diagnostic comment identity is unavailable");
     const kind = value.body.match(/Classification: `([^`]+)`/u)?.[1] ?? "planning_findings";
     if (kind === "configuration_missing") continue;
-    const scopes = scope.kind === "global" ? ["global"] : scope.kind === "issues" && Array.isArray(scope.issues) ? scope.issues.map((issue) => { if (!Number.isSafeInteger(issue) || Number(issue) < 1) throw new Error("Legacy diagnostic issue identity is invalid"); return `issue:${String(issue)}`; }) : [];
-    const status = state.status === "passed" ? "passed" : kind === "planning_findings" ? "needs_attention" : "unable_to_verify";
-    for (const scope of scopes) observations.push({ scope, started_at: started, run: id, attempt: 0, status, kind, incident: kind === "rate_limit" || kind === "authentication" ? kind : "", detail: safeText(value.body.split("\n").slice(1).join("\n")), evidence: `https://github.com/${repository}/issues/2414#issuecomment-${id}` });
+    const scopes =
+      scope.kind === "global"
+        ? ["global"]
+        : scope.kind === "issues" && Array.isArray(scope.issues)
+          ? scope.issues.map((issue) => {
+              if (!Number.isSafeInteger(issue) || Number(issue) < 1)
+                throw new Error("Legacy diagnostic issue identity is invalid");
+              return `issue:${String(issue)}`;
+            })
+          : [];
+    const status =
+      state.status === "passed"
+        ? "passed"
+        : kind === "planning_findings"
+          ? "needs_attention"
+          : "unable_to_verify";
+    for (const scope of scopes)
+      observations.push({
+        scope,
+        started_at: started,
+        run: id,
+        attempt: 0,
+        status,
+        kind,
+        incident: kind === "rate_limit" || kind === "authentication" ? kind : "",
+        detail: safeText(value.body.split("\n").slice(1).join("\n")),
+        evidence: `https://github.com/${repository}/issues/2414#issuecomment-${id}`,
+      });
   }
   return observations;
 }
@@ -159,6 +194,28 @@ export interface RoadmapReplayRun {
   completed: boolean;
 }
 export class ReplayWindowFull extends Error {}
+export function journalCollectorRun(entry: Record<string, unknown>) {
+  if (
+    entry.path !== ".github/workflows/roadmap-report.yml" ||
+    entry.head_branch !== "main" ||
+    !["workflow_run", "workflow_dispatch"].includes(String(entry.event))
+  )
+    throw new Error("Untrusted publication journal entry");
+  if (entry.event === "workflow_dispatch") return null;
+  const match =
+    typeof entry.display_title === "string"
+      ? entry.display_title.match(/^Roadmap publication ([1-9]\d*) \/ ([1-9]\d*)$/u)
+      : null;
+  if (
+    !match ||
+    !Number.isSafeInteger(Number(match[1])) ||
+    !Number.isSafeInteger(Number(match[2])) ||
+    typeof entry.created_at !== "string" ||
+    !Number.isFinite(Date.parse(entry.created_at))
+  )
+    throw new Error("Publication journal lacks an exact collector attempt");
+  return { run: Number(match[1]), attempt: Number(match[2]), created_at: entry.created_at };
+}
 /** GitHub caps filtered Actions searches at 1,000 records. Split complete time
  * windows and deduplicate inclusive boundaries instead of trusting a prefix. */
 export function collectReplayWindows(
@@ -167,15 +224,24 @@ export function collectReplayWindows(
   collect: (since: string, until: string) => Record<string, unknown>[],
   deadline = Date.now() + 120000,
 ): Record<string, unknown>[] {
-  if (Date.now() >= deadline) throw new Error("Replay inventory deadline exhausted; retain the previous cursor");
-  try { return collect(since, until); }
-  catch (error) {
+  if (Date.now() >= deadline)
+    throw new Error("Replay inventory deadline exhausted; retain the previous cursor");
+  try {
+    return collect(since, until);
+  } catch (error) {
     if (!(error instanceof ReplayWindowFull)) throw error;
-    const start = Date.parse(since), end = Date.parse(until);
+    const start = Date.parse(since),
+      end = Date.parse(until);
     const middle = Math.floor((start + end) / 2000) * 1000;
-    if (middle <= start || middle >= end) throw new Error("More than 1,000 collector runs share one second; complete replay remains unavailable");
+    if (middle <= start || middle >= end)
+      throw new Error(
+        "More than 1,000 collector runs share one second; complete replay remains unavailable",
+      );
     const boundary = new Date(middle).toISOString();
-    const values = [...collectReplayWindows(since, boundary, collect, deadline), ...collectReplayWindows(boundary, until, collect, deadline)];
+    const values = [
+      ...collectReplayWindows(since, boundary, collect, deadline),
+      ...collectReplayWindows(boundary, until, collect, deadline),
+    ];
     return [...new Map(values.map((value) => [value.id, value])).values()];
   }
 }

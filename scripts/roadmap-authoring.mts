@@ -5,7 +5,7 @@ import type {
   RoadmapConfig,
   QualificationCatalogObservation,
 } from "./roadmap.mts";
-import { evaluateScopedRoadmap } from "./roadmap-scoped.mts";
+import { evaluateScopedRoadmap, scopedIssueWithBlockers } from "./roadmap-scoped.mts";
 
 export function isRoadmapSpecification(issue: RoadmapIssueItem) {
   return /<!--\s*portcove-|^## User outcome\s*$|^\[Port\]/mu.test(
@@ -53,7 +53,8 @@ export function validateLiveRoadmapReplacement(number: number, previousBody: str
     JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
   );
   const client = new RoadmapClient(config);
-  const item = client.executionIssue(number).item;
+  const observed = client.executionIssue(number);
+  const item = scopedIssueWithBlockers(observed.item, observed.relationships.blockedBy);
   const catalog: QualificationCatalogObservation = JSON.parse(
     readFileSync(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
   );

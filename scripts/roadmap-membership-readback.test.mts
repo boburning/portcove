@@ -233,7 +233,7 @@ void test("missing dedicated credential and invalid selection stop before any Gi
   }
 });
 
-void test("manual inventory mode isolates the ordinary health reporter and uses only the dedicated credential", () => {
+void test("manual inventory mode retains a skip receipt and uses only the dedicated credential", () => {
   const workflow: unknown = parse(
     readFileSync(new URL("../.github/workflows/roadmap-health.yml", import.meta.url), "utf8"),
   );
@@ -254,7 +254,8 @@ void test("manual inventory mode isolates the ordinary health reporter and uses 
   );
   assert.equal(
     health.if,
-    "github.event_name != 'workflow_dispatch' || inputs.inventory_items == ''",
+    undefined,
+    "The collector records a no-health-scope manifest for journal replay",
   );
   assert.deepEqual(readback.env, {
     ROADMAP_INVENTORY_ITEMS: "${{ inputs.inventory_items }}",

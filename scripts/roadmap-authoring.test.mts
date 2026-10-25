@@ -12,9 +12,37 @@ import { validateRoadmapReplacement } from "./roadmap-authoring.mts";
 import { writeGitHubBody } from "./github-body.mts";
 import { editRoadmapBatch } from "./roadmap-edit.mts";
 import type { RoadmapIssueItem } from "./roadmap.mts";
+import { scopedIssueWithBlockers } from "./roadmap-scoped.mts";
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
 );
+
+void test("live authoring consumes the same enriched blocker memberships as scoped doctor", () => {
+  const { item, body } = issue();
+  assert(item.content);
+  item.content.blockedBy = { totalCount: 1, nodes: [{ id: "I_blocker", number: 2 }] };
+  assert.throws(
+    () => validateRoadmapReplacement(config, { ports: [] }, item, body, body),
+    /membership is unverified/u,
+  );
+  const observed = scopedIssueWithBlockers(item, [
+    { id: "I_blocker", number: 2, projectItemId: "PVTI_blocker" },
+  ]);
+  assert.doesNotThrow(() =>
+    validateRoadmapReplacement(config, { ports: [] }, observed, body, body),
+  );
+  assert.throws(
+    () =>
+      validateRoadmapReplacement(
+        config,
+        { ports: [] },
+        scopedIssueWithBlockers(item, [{ id: "I_blocker", number: 2, projectItemId: null }]),
+        body,
+        body,
+      ),
+    /outside the configured active Project/u,
+  );
+});
 function issue(
   number = 1,
   blocker = "Blocker: Upstream lacks a playable native player.\nResume condition: Upstream publishes a playable native player.",

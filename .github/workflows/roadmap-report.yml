@@ -1,4 +1,5 @@
 name: Publish consolidated Roadmap report
+run-name: Roadmap publication ${{ github.event.workflow_run.id || 'manual' }} / ${{ github.event.workflow_run.run_attempt || '0' }}
 
 on:
   workflow_run:

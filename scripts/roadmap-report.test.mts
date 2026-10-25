@@ -10,6 +10,7 @@ import {
   legacyRoadmapObservations,
   collectReplayWindows,
   ReplayWindowFull,
+  journalCollectorRun,
 } from "./roadmap-report.mts";
 import type { RoadmapReportState } from "./roadmap-report.mts";
 const repository = "boburning/portcove";
@@ -21,21 +22,85 @@ const blank = (): RoadmapReportState => ({
 });
 
 void test("legacy failures migrate without losing unrelated scopes or reviving recovered setup history", () => {
-  const comment = (id: number, issue: number, status: string) => ({ id, user: { type: "Bot", login: "github-actions[bot]" }, body: `<!-- portcove-roadmap-health:${JSON.stringify({ scope: JSON.stringify({kind: "issues", issues: [issue]}), status })} -->\nObserved: 2026-10-24T01:00:00.000Z.\nClassification: \`planning_findings\`.`, updated_at: "2026-10-24T01:00:00Z" });
-  const state = mergeRoadmapObservations(blank(), legacyRoadmapObservations([comment(1, 1, "failed"), comment(2, 2, "failed"), comment(3, 1, "passed"), { ...comment(4, 3, "failed"), user: { type: "User", login: "github-actions[bot]" } }], repository));
+  const comment = (id: number, issue: number, status: string) => ({
+    id,
+    user: { type: "Bot", login: "github-actions[bot]" },
+    body: `<!-- portcove-roadmap-health:${JSON.stringify({ scope: JSON.stringify({ kind: "issues", issues: [issue] }), status })} -->\nObserved: 2026-10-24T01:00:00.000Z.\nClassification: \`planning_findings\`.`,
+    updated_at: "2026-10-24T01:00:00Z",
+  });
+  const state = mergeRoadmapObservations(
+    blank(),
+    legacyRoadmapObservations(
+      [
+        comment(1, 1, "failed"),
+        comment(2, 2, "failed"),
+        comment(3, 1, "passed"),
+        { ...comment(4, 3, "failed"), user: { type: "User", login: "github-actions[bot]" } },
+      ],
+      repository,
+    ),
+  );
   assert.equal(state.observations["issue:1"]?.status, "passed");
   assert.equal(state.observations["issue:2"]?.status, "needs_attention");
   assert.equal(state.observations["issue:3"], undefined);
 });
 
 void test("replay partitions the provider ceiling and deduplicates inclusive boundaries", () => {
-  const start = "2026-10-24T00:00:00.000Z", end = "2026-10-24T02:00:00.000Z";
+  const start = "2026-10-24T00:00:00.000Z",
+    end = "2026-10-24T02:00:00.000Z";
   const values = collectReplayWindows(start, end, (since, until) => {
     if (since === start && until === end) throw new ReplayWindowFull();
     return since === start ? [{ id: 1 }, { id: 2 }] : [{ id: 2 }, { id: 3 }];
   });
-  assert.deepEqual(values.map((value) => value.id), [1, 2, 3]);
-  assert.throws(() => collectReplayWindows(start, "2026-10-24T00:00:00.001Z", () => { throw new ReplayWindowFull(); }), /one second/u);
+  assert.deepEqual(
+    values.map((value) => value.id),
+    [1, 2, 3],
+  );
+  assert.throws(
+    () =>
+      collectReplayWindows(start, "2026-10-24T00:00:00.001Z", () => {
+        throw new ReplayWindowFull();
+      }),
+    /one second/u,
+  );
+});
+
+void test("queued or cancelled publisher journal entries recover reruns of old collectors", () => {
+  const oldCollectorCreated = "2026-10-01T00:00:00Z";
+  const journal = journalCollectorRun({
+    path: ".github/workflows/roadmap-report.yml",
+    head_branch: "main",
+    event: "workflow_run",
+    status: "completed",
+    conclusion: "cancelled",
+    created_at: "2026-10-24T03:00:00Z",
+    display_title: "Roadmap publication 1 / 2",
+  });
+  assert(journal);
+  assert(Date.parse(oldCollectorCreated) < Date.parse(blank().cursor));
+  const state = replayRoadmapRuns(
+    blank(),
+    [{ ...journal, completed: true }],
+    "2026-10-24T04:00:00Z",
+    ({ run, attempt }) =>
+      observationFromReceipt(
+        receipt(1, "failed", "2026-10-24T02:59:00Z"),
+        run,
+        attempt,
+        repository,
+      ),
+  );
+  assert.equal(state.observations["issue:1"]?.attempt, 2);
+  assert.deepEqual(state.publication_gaps, []);
+  assert.throws(
+    () =>
+      journalCollectorRun({
+        path: ".github/workflows/foreign.yml",
+        head_branch: "main",
+        event: "workflow_run",
+      }),
+    /Untrusted/u,
+  );
 });
 const receipt = (
   issue: number,

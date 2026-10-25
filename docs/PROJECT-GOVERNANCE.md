@@ -424,6 +424,11 @@ from replacing a newer recovery. Shared provider incidents group their affected
 scopes and reset information. A scoped success clears only its own observation;
 it cannot establish global health or clear another issue.
 
+Publisher run titles retain the exact collector run and attempt as a completion
+journal, including cancelled or overflowed publisher runs. Replay follows this
+journal's creation times rather than collector creation times: rerunning an old
+collector creates a fresh journal entry and cannot disappear behind the cursor.
+
 The publisher uploads and verifies its complete state artifact before publishing
 the comment pointer, then reads back the exact comment. Unchanged scopes create
 no new comment. Historical per-scope comments and failed runs remain evidence.

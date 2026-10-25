@@ -549,6 +549,10 @@ void test("issue events and explicit requests select scoped checks; substantial 
     issue: 42,
   });
   assert.deepEqual(selectRoadmapHealth("workflow_dispatch", {}, read), { mode: "global" });
+  assert.deepEqual(
+    selectRoadmapHealth("workflow_dispatch", { inputs: { inventory_items: "PVTI_example" } }, read),
+    { mode: "none" },
+  );
   assert.throws(
     () => selectRoadmapHealth("issues", { issue: { number: "42; command" } }, read),
     /Invalid/,
