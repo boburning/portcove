@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "folklore-native-port-dawoodtogoo2020-code-dawoodtogoo2020-code-folklore",
+    "name": "Folklore — Folklore native port (dawoodtogoo2020-code) (dawoodtogoo2020-code)",
+    "original_game_title": "Folklore",
+    "summary": "Research project. Current Owner Build Kit publicrelease; localfreshZIPinstallcompleted on devPC. Private menu/gameplay does not establish publickit gameplay; cleanmachine/physicalmotionacceptance pending. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/dawoodtogoo2020-code/folklore-native-port",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dawoodtogoo2020-code/folklore-native-port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Owned decrypted Folklore data; exact serial/version needs clarification"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Public Windows Owner Build Kit local metadata/lift/build with Install.py; Python+MSYS2Clang64 installed separately; exactsupportedinputversion in INSTALL.md stillneedsinspection"
+        }
+      ],
+      "warnings": [
+        "Current Owner Build Kit publicrelease; localfreshZIPinstallcompleted on devPC. Private menu/gameplay does not establish publickit gameplay; cleanmachine/physicalmotionacceptance pending.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/dawoodtogoo2020-code/folklore-native-port"
+    },
+    "artwork": {
+      "game_id": 7307,
+      "cover_id": 525039,
+      "image_id": "cob94f",
+      "image_sha256": "d1ffd856cea68a9685dd75760cfd6aa02ba1119539511efa1d713558b809c956",
+      "game_slug": "folklore",
+      "match_kind": "underlying-game"
+    }
+  }
+}

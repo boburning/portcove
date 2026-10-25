@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "torchlight-recomp-yapel-torchlight-xbox-live-arcade",
+    "name": "Torchlight (Xbox Live Arcade) — Torchlight Recomp (YaPeL)",
+    "original_game_title": "Torchlight (Xbox Live Arcade)",
+    "summary": "Native town/dungeons/inventory/pets reported; Chinese/Japanese unsupported. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/YaPeL/torchlight-recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/YaPeL/torchlight-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Torchlight (Xbox Live Arcade) Xbox 360 XBLA package or its complete extracted files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows/Linux/macOS Torchlight runtime and import own XBLA files; source builds also need own executable."
+        }
+      ],
+      "warnings": [
+        "Native town/dungeons/inventory/pets reported; Chinese/Japanese unsupported.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/YaPeL/torchlight-recomp"
+    },
+    "artwork": {
+      "game_id": 2480,
+      "cover_id": 82643,
+      "image_id": "co1rrn",
+      "image_sha256": "286377ae8e414e6c00fe226220656fbfa77164f7fec91bea5e344386bbc7ac41",
+      "game_slug": "torchlight",
+      "match_kind": "underlying-game"
+    }
+  }
+}

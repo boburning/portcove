@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "maddennfl08-recompiled-anishchandra24-madden-nfl-08-xbox-360",
+    "name": "Madden NFL 08 (Xbox 360) — MaddenNFL08-Recompiled (anishchandra24)",
+    "original_game_title": "Madden NFL 08 (Xbox 360)",
+    "summary": "Early native port tested2PCs;40yarddash countdown beeps absent; vector alias and texturemip fixes documented. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "title4541081D default.xex size20529152 SHA256 962EA344FB966E1BE1C94667D4213A309A69A821AE3BEC0CB2FCA4166ECC6627; own extracted disc folder."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Installer/local source build using pinned patched ReXGlue, VS2022CommunityClang/CMake/Ninja. Windowsx64D3D12ROV."
+        }
+      ],
+      "warnings": [
+        "Early native port tested2PCs;40yarddash countdown beeps absent; vector alias and texturemip fixes documented.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled"
+    },
+    "issue_number": 3143,
+    "artwork": {
+      "game_id": 2746,
+      "cover_id": 141081,
+      "image_id": "co30ux",
+      "image_sha256": "f5536fd9ce283a8ee839d1910dafd3d947f63187dd96d84ade058f4335a126b5",
+      "game_slug": "madden-nfl-08",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "maddennfl08-recompiled-anishchandra24-madden-nfl-08-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/anishchandra24/MaddenNFL08-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1432652963"
+      }
+    },
+    "decisions": []
+  }
+}

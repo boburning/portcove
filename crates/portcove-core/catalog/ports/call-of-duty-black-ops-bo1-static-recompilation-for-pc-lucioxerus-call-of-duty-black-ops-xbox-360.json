@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "call-of-duty-black-ops-bo1-static-recompilation-for-pc-lucioxerus-call-of-duty-black-ops-xbox-360",
+    "name": "Call of Duty: Black Ops (Xbox 360) — Call of Duty Black Ops (BO1) — static recompilation for PC (LucioXerus)",
+    "original_game_title": "Call of Duty: Black Ops (Xbox 360)",
+    "summary": "Campaign starts with cinematics; full playthrough still being verified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/LucioXerus/bo1-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/LucioXerus/bo1-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Call of Duty: Black Ops (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Mandatory TU 11; both default/default_mp XEX and XEXP plus patched data."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build SDK, bootstrap TU 11-patched XEX dumps, generate both Black Ops programs and compile locally from own files."
+        }
+      ],
+      "warnings": [
+        "Campaign starts with cinematics; full playthrough still being verified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/LucioXerus/bo1-recomp"
+    },
+    "artwork": {
+      "game_id": 545,
+      "cover_id": 88869,
+      "image_id": "co1wkl",
+      "image_sha256": "d86af455b1db7b1247359a37eccd49eaa132857227ea5e3dcdae6a1a75ef5dfb",
+      "game_slug": "call-of-duty-black-ops",
+      "match_kind": "underlying-game"
+    }
+  }
+}

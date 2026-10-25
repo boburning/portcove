@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pvz-console-edition-itseniy-plants-vs-zombies-xbox-live-arcade",
+    "name": "Plants vs. Zombies (Xbox Live Arcade) — pvz-console-edition (ITSeniy)",
+    "original_game_title": "Plants vs. Zombies (Xbox Live Arcade)",
+    "summary": "0.7.0 beta claimed playable start to finish, with rough edges. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ITSeniy/pvz-console-edition",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ITSeniy/pvz-console-edition",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Plants vs. Zombies (Xbox Live Arcade) Xbox 360 XBLA package or its complete extracted files. Title 584109FF/version 0.0.1.4."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows archive and import own XBLA package or disc on first run; only version 0.0.1.4 is supported."
+        }
+      ],
+      "warnings": [
+        "0.7.0 beta claimed playable start to finish, with rough edges.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ITSeniy/pvz-console-edition"
+    }
+  }
+}

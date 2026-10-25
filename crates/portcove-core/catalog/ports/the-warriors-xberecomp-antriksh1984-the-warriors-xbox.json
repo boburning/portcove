@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-warriors-xberecomp-antriksh1984-the-warriors-xbox",
+    "name": "The Warriors (Xbox) — The Warriors - XBERecomp (Antriksh1984)",
+    "original_game_title": "The Warriors (Xbox)",
+    "summary": "Alpha: upstream openingmissions boot/play/audio correct; fullgame notplayedthrough; latercrashes,missingeffects/brokensound possible. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Antriksh1984/TheWarriors-XBERecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Antriksh1984/TheWarriors-XBERecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "OriginalXbox TheWarriors USA NTSC retail disc ISO/extracted data; PS2/PSP/PAL explicitly rejected. Exact supported default.xbe digest requires upstream importer/configread."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream alpha release/importer, supply own ISO/assets; first launch compiles game code locally via XboxXBERecomp runtime kit. Windows10/11x64,D3D12,XAudio2; no compiler command execution by Portcove research."
+        }
+      ],
+      "warnings": [
+        "Alpha: upstream openingmissions boot/play/audio correct; fullgame notplayedthrough; latercrashes,missingeffects/brokensound possible.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Antriksh1984/TheWarriors-XBERecomp"
+    },
+    "artwork": {
+      "game_id": 6030,
+      "cover_id": 138661,
+      "image_id": "co2yzp",
+      "image_sha256": "ef188058c4f8246f857510caac35af30aa9cbbdc9829a0fd3122ed3e31127ff2",
+      "game_slug": "the-warriors",
+      "match_kind": "underlying-game"
+    }
+  }
+}

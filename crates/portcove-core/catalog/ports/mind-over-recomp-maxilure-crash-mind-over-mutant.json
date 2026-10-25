@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mind-over-recomp-maxilure-crash-mind-over-mutant",
+    "name": "Crash: Mind over Mutant — Mind over Recomp (Maxilure)",
+    "original_game_title": "Crash: Mind over Mutant",
+    "summary": "Alpha: boots and plays, but has not been played through to the end. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Maxilure/MindOver-Recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Maxilure/MindOver-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Crash: Mind over Mutant Xbox 360 disc ISO. USA Xbox 360 disc."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download the launcher and select the own USA ISO; Setup obtains tools and compiles game code locally."
+        }
+      ],
+      "warnings": [
+        "Alpha: boots and plays, but has not been played through to the end.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Maxilure/MindOver-Recomp"
+    }
+  }
+}

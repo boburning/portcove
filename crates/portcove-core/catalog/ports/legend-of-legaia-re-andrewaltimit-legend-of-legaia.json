@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "legend-of-legaia-re-andrewaltimit-legend-of-legaia",
+    "name": "Legend of Legaia — legend-of-legaia-re (AndrewAltimit)",
+    "original_game_title": "Legend of Legaia",
+    "summary": "Upstream now explicitly claims full game New Game to credits with automated pad-driven milestone ladder, scenes, battles, menus and minigames. Retail parity still closing and some untraced sound effects use chosen substitutes. This is an upstream claim, not Portcove verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/AndrewAltimit/legend-of-legaia-re",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AndrewAltimit/legend-of-legaia-re",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own USA SCUS-94254 BIN or CUE. Engine reads original game data at runtime. Other regions may extract, but game engine/patcher target USA; whole-image reference digest may vary with dumping method."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README describes Releases platform archives carrying legaia-engine and supporting tools. Start the engine/desktop app, select the owned disc and Play. Browser play reads image locally. Source alternative cargo build --release with Rust edition 2024. Asset viewer/Studio are helpers, not separate port identities."
+        }
+      ],
+      "warnings": [
+        "Upstream now explicitly claims full game New Game to credits with automated pad-driven milestone ladder, scenes, battles, menus and minigames. Retail parity still closing and some untraced sound effects use chosen substitutes. This is an upstream claim, not Portcove verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/AndrewAltimit/legend-of-legaia-re"
+    },
+    "artwork": {
+      "game_id": 13676,
+      "cover_id": 120917,
+      "image_id": "co2lat",
+      "image_sha256": "885b91f94d9b98b87afa1c6acbf6d362ce642386551334ba52a02ddf283ed0fe",
+      "game_slug": "legend-of-legaia",
+      "match_kind": "underlying-game"
+    }
+  }
+}

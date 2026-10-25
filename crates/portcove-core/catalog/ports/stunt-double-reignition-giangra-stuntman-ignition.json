@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "stunt-double-reignition-giangra-stuntman-ignition",
+    "name": "Stuntman: Ignition — Stunt Double: Reignition (giangra)",
+    "original_game_title": "Stuntman: Ignition",
+    "summary": "Early development; menus/career/races play with bugs expected. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/giangra/stuntdouble-reignition",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/giangra/stuntdouble-reignition",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Stuntman: Ignition Xbox 360 disc ISO. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows setup extracts own ISO, obtains tools and compiles locally; updates rebuild from retained files."
+        }
+      ],
+      "warnings": [
+        "Early development; menus/career/races play with bugs expected.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/giangra/stuntdouble-reignition"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fight-night-round-3-recomp-djultra64-fight-night-round-3",
+    "name": "Fight Night Round 3 — Fight Night Round 3 Recomp (djultra64)",
+    "original_game_title": "Fight Night Round 3",
+    "summary": "Regular release with 60 FPS gameplay claim; intermittent loading/text/audio defects remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/djultra64/Fight-Night-Round-3-Recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/djultra64/Fight-Night-Round-3-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Fight Night Round 3 Xbox 360 disc ISO. Supported USA copy; exact hashes referenced by first-launch guide were not separately read."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Choose v1.0.2 Linux/Windows runtime package; first launch validates and imports own supported USA ISO."
+        }
+      ],
+      "warnings": [
+        "Regular release with 60 FPS gameplay claim; intermittent loading/text/audio defects remain.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/djultra64/Fight-Night-Round-3-Recomp"
+    },
+    "artwork": {
+      "game_id": 5836,
+      "cover_id": 238288,
+      "image_id": "co53v4",
+      "image_sha256": "852f816c4ec2d0fb24eac200a8cbef31e3ac821ee6ca45893ac7404b48d9d273",
+      "game_slug": "fight-night-round-3",
+      "match_kind": "underlying-game"
+    }
+  }
+}

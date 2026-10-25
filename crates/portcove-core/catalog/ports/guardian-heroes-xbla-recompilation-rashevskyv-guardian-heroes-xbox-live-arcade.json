@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "guardian-heroes-xbla-recompilation-rashevskyv-guardian-heroes-xbox-live-arcade",
+    "name": "Guardian Heroes (Xbox Live Arcade) — Guardian Heroes (XBLA) recompilation (rashevskyv)",
+    "original_game_title": "Guardian Heroes (Xbox Live Arcade)",
+    "summary": "Linux gameplay/input reported; audio not checked by ear. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/rashevskyv/guardian-heroes-recomp-public",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/rashevskyv/guardian-heroes-recomp-public",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Guardian Heroes (Xbox Live Arcade) Xbox 360 XBLA package or its complete extracted files. Full2011 XBLA retail package, title 58410B2B; XEX3178496 bytes and media folder."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use the Linux release archive and own full XBLA data; Windows currently fails at final link."
+        }
+      ],
+      "warnings": [
+        "Linux gameplay/input reported; audio not checked by ear.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/rashevskyv/guardian-heroes-recomp-public"
+    },
+    "artwork": {
+      "game_id": 51635,
+      "cover_id": 268723,
+      "image_id": "co5rcj",
+      "image_sha256": "ab7b30791c756e71086b73c719baceafa6eb82a32600e531ff6c151c27de6a37",
+      "game_slug": "guardian-heroes--1",
+      "match_kind": "underlying-game"
+    }
+  }
+}

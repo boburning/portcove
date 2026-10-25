@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tsapz-swapforcerecomp-tsapz-skylanders-swap-force",
+    "name": "Skylanders: Swap Force — tsapZ SwapForceRecomp (tsapZ)",
+    "original_game_title": "Skylanders: Swap Force",
+    "summary": "Tutorial/Woodburrowplays withswappers; latergameunplayed;clean-machineinstalleruntested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tsapZ/SwapForceRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tsapZ/SwapForceRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360PAL En/DeISO/extractedfolder; title415608E9; accepted executablefingerprints: dc58d3851bbd89935e9ecf2ee84b158ec400f049da46c937a4713477a50c79d7 default.xex"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python."
+        }
+      ],
+      "warnings": [
+        "Tutorial/Woodburrowplays withswappers; latergameunplayed;clean-machineinstalleruntested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tsapZ/SwapForceRecomp"
+    },
+    "issue_number": 3153
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tsapz-swapforcerecomp-tsapz-skylanders-swap-force",
+    "origin": {
+      "project_url": "https://github.com/tsapZ/SwapForceRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422398343"
+      }
+    },
+    "decisions": []
+  }
+}

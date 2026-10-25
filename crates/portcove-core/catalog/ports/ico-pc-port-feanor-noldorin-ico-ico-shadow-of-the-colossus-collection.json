@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ico-pc-port-feanor-noldorin-ico-ico-shadow-of-the-colossus-collection",
+    "name": "ICO (ICO & Shadow of the Colossus Collection) — ICO PC Port (feanor-noldorin)",
+    "original_game_title": "ICO (ICO & Shadow of the Colossus Collection)",
+    "summary": "Title/opening/gameplaycontrols30fps; longsessionsnottried Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/feanor-noldorin/ico-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/feanor-noldorin/ico-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "OwnedPS3collectiondiscdump; exactserial/revisionprofile in pipeline/ico_profile.json notinspected"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Alpha0.2.3 Setup.exe usesownRPCS3decryption andlocalrecompile"
+        }
+      ],
+      "warnings": [
+        "Title/opening/gameplaycontrols30fps; longsessionsnottried",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/feanor-noldorin/ico-recomp"
+    }
+  }
+}

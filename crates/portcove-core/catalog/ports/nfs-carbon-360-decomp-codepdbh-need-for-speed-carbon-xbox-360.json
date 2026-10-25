@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nfs-carbon-360-decomp-codepdbh-need-for-speed-carbon-xbox-360",
+    "name": "Need for Speed: Carbon (Xbox 360) — NFS CARBON 360 DECOMP (codepdbh)",
+    "original_game_title": "Need for Speed: Carbon (Xbox 360)",
+    "summary": "Experimental: Android menus/scenery/video render near60 FPS on S25. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Need for Speed: Carbon (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Title 454107EC/media 5E74E60D; exact XEX SHA256 in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Generate Carbon game code/shader library locally and package Android or Windows target from own disc."
+        }
+      ],
+      "warnings": [
+        "Experimental: Android menus/scenery/video render near60 FPS on S25.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP"
+    },
+    "artwork": {
+      "game_id": 99,
+      "cover_id": 93656,
+      "image_id": "co209k",
+      "image_sha256": "2819bcf9df96d507f27cdf3b3806b041198c79e882a4528254695b7f7ca55e6e",
+      "game_slug": "need-for-speed-carbon",
+      "match_kind": "underlying-game"
+    }
+  }
+}

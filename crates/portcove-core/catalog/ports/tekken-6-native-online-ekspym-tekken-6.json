@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekken-6-native-online-ekspym-tekken-6",
+    "name": "Tekken 6 — Tekken 6 Native Online (Ekspym)",
+    "original_game_title": "Tekken 6",
+    "summary": "Upstream native matches/lobby/rollback described; no campaign qualification. Credits mahmoud-mess faster recompiled code; reuse alone does not prove identical runtime ownership. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Ekspym/Tekken6-native-online",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Ekspym/Tekken6-native-online",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA/Europe Rev1 Xbox360 ISO or extracted folder; builder refuses other versions."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v2.4.2 release launcher locally codegens/compiles; source at Ekspym/tekken6-native-online-source. x64 D3D12."
+        }
+      ],
+      "warnings": [
+        "Upstream native matches/lobby/rollback described; no campaign qualification. Credits mahmoud-mess faster recompiled code; reuse alone does not prove identical runtime ownership.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Ekspym/Tekken6-native-online"
+    },
+    "issue_number": 3129
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tekken-6-native-online-ekspym-tekken-6",
+    "origin": {
+      "project_url": "https://github.com/Ekspym/Tekken6-native-online",
+      "repository": {
+        "host": "github.com",
+        "id": "1414754969"
+      }
+    },
+    "decisions": []
+  }
+}

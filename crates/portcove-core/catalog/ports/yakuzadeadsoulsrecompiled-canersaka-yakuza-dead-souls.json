@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yakuzadeadsoulsrecompiled-canersaka-yakuza-dead-souls",
+    "name": "Yakuza: Dead Souls — YakuzaDeadSoulsRecompiled (canersaka)",
+    "original_game_title": "Yakuza: Dead Souls",
+    "summary": "Intro/title/newgame/openingintogameplay;fullplaythroughnotclaimed Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/canersaka/Yakuza-Dead-Souls-Recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/canersaka/Yakuza-Dead-Souls-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NorthAmericaBLUS30826 disc1.00 ownedELF/shaderPRX/SPU/assets; nofirmwarerequired"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source localfindfunctions/lift PPUPRXSPU/build; generatedcodeexcluded"
+        }
+      ],
+      "warnings": [
+        "Intro/title/newgame/openingintogameplay;fullplaythroughnotclaimed",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/canersaka/Yakuza-Dead-Souls-Recompiled"
+    },
+    "artwork": {
+      "game_id": 7489,
+      "cover_id": 277003,
+      "image_id": "co5xqj",
+      "image_sha256": "1ef1bae65032be69398db30f91b34c72b5ef630537dc7854930c08d01e0ef2ee",
+      "game_slug": "yakuza-dead-souls",
+      "match_kind": "underlying-game"
+    }
+  }
+}

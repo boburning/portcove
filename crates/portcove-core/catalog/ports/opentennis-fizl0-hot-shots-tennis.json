@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "opentennis-fizl0-hot-shots-tennis",
+    "name": "Hot Shots Tennis — OpenTennis (FIZL0)",
+    "original_game_title": "Hot Shots Tennis",
+    "summary": "Released native runtime; gameplay claimed, second match camera/Set Handicap/Offbeat Rules missing and let serves not proven. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/FIZL0/opentennis",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/FIZL0/opentennis",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA v1.00 SCUS-97610 ISO required at runtime; other regions rejected; no BIOS."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Official Releases native runtimes for named hosts; first-run ISO picker, original ISO read at runtime; browser player is separate delivery target of same rewrite."
+        }
+      ],
+      "warnings": [
+        "Released native runtime; gameplay claimed, second match camera/Set Handicap/Offbeat Rules missing and let serves not proven.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/FIZL0/opentennis"
+    },
+    "issue_number": 2990,
+    "artwork": {
+      "game_id": 21537,
+      "cover_id": 265740,
+      "image_id": "co5p1o",
+      "image_sha256": "8515cbb4f7c29c638c5e257793739734270e01a85f9d445bcadf306f93326e3b",
+      "game_slug": "hot-shots-tennis",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "opentennis-fizl0-hot-shots-tennis",
+    "origin": {
+      "project_url": "https://github.com/FIZL0/opentennis",
+      "repository": {
+        "host": "github.com",
+        "id": "1408779668"
+      }
+    },
+    "decisions": []
+  }
+}

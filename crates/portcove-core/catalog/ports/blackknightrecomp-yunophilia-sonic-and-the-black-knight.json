@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blackknightrecomp-yunophilia-sonic-and-the-black-knight",
+    "name": "Sonic and the Black Knight — BlackKnightRecomp (yunophilia)",
+    "original_game_title": "Sonic and the Black Knight",
+    "summary": "Boot/gameplay claimed; Proton9/Experimental tests software Vulkan only; SteamDeck not tested Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/yunophilia/BlackKnightRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/yunophilia/BlackKnightRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA RENE8P/Europe RENP8P/Japan RENJ8P owned ISO/RVZ/WIA/WBFS; extracts once ~3.5GB"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release exe includes translated code; source build reads own discs; installer retains extracted data"
+        }
+      ],
+      "warnings": [
+        "Boot/gameplay claimed; Proton9/Experimental tests software Vulkan only; SteamDeck not tested",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/yunophilia/BlackKnightRecomp"
+    },
+    "artwork": {
+      "game_id": 5166,
+      "cover_id": 200629,
+      "image_id": "co4at1",
+      "image_sha256": "ce6bfee1f52d74342b18fbbb216bd1dbe6ad21f4aa435ffc84d174f6cbc2a0cf",
+      "game_slug": "sonic-and-the-black-knight",
+      "match_kind": "underlying-game"
+    }
+  }
+}

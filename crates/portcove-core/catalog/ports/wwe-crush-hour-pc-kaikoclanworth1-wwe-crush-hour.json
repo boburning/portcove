@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wwe-crush-hour-pc-kaikoclanworth1-wwe-crush-hour",
+    "name": "WWE Crush Hour — wwe-crush-hour-pc (KaikoClanworth1)",
+    "original_game_title": "WWE Crush Hour",
+    "summary": "Static EE and VU1 x64 + RenderWare D3D11; gameplay boundary not established by pipeline alone. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/KaikoClanworth1/wwe-crush-hour-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/KaikoClanworth1/wwe-crush-hour-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS20385 extracted disc and ELF"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local source-build from GameFiles; source runtime exists, no packaged runtime inferred."
+        }
+      ],
+      "warnings": [
+        "Static EE and VU1 x64 + RenderWare D3D11; gameplay boundary not established by pipeline alone.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/KaikoClanworth1/wwe-crush-hour-pc"
+    },
+    "issue_number": 3049,
+    "artwork": {
+      "game_id": 4570,
+      "cover_id": 319378,
+      "image_id": "co6ufm",
+      "image_sha256": "305a335bcea66d0de8b94041f07f466c33c7980a7c5449bcc273167d9234eee0",
+      "game_slug": "wwe-crush-hour",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wwe-crush-hour-pc-kaikoclanworth1-wwe-crush-hour",
+    "origin": {
+      "project_url": "https://github.com/KaikoClanworth1/wwe-crush-hour-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1410358826"
+      }
+    },
+    "decisions": []
+  }
+}

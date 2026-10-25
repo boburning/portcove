@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "downhill-domination-recomp-ekansh28-ekansh28-downhill-domination",
+    "name": "Downhill Domination — Downhill Domination Recomp (ekansh28) (ekansh28)",
+    "original_game_title": "Downhill Domination",
+    "summary": "Research project. Reaches textured PRESS X TO START; late X crashes and no playable race. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ekansh28/Recomp-Domination",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ekansh28/Recomp-Domination",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SCUS-97177 own extracted disc/ELF."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local Ghidra function map, config generation and native Linux runner build from owned extracted USA game; no package inferred."
+        }
+      ],
+      "warnings": [
+        "Reaches textured PRESS X TO START; late X crashes and no playable race.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ekansh28/Recomp-Domination"
+    },
+    "issue_number": 3001,
+    "artwork": {
+      "game_id": 6340,
+      "cover_id": 162031,
+      "image_id": "co3h0v",
+      "image_sha256": "e12a11410c2a7d150527f7c44a297717fca25f7c222c2d00be3a809decbdf711",
+      "game_slug": "downhill-domination",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "downhill-domination-recomp-ekansh28-ekansh28-downhill-domination",
+    "origin": {
+      "project_url": "https://github.com/ekansh28/Recomp-Domination",
+      "repository": {
+        "host": "github.com",
+        "id": "1426840108"
+      }
+    },
+    "decisions": []
+  }
+}

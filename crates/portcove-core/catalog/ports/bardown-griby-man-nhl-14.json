@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bardown-griby-man-nhl-14",
+    "name": "NHL 14 — bardown (griby-man)",
+    "original_game_title": "NHL 14",
+    "summary": "Listed offline modes reportedly completed by maintainer/friend. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/griby-man/bardown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/griby-man/bardown",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own NHL 14 Xbox 360 disc ISO or extracted full disc files. Base disc, title 454109BE; no TU."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Linux AppImage/Windows ZIP imports own NHL14 base ISO/folder and translates shaders; no TU accepted."
+        }
+      ],
+      "warnings": [
+        "Listed offline modes reportedly completed by maintainer/friend.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/griby-man/bardown"
+    },
+    "artwork": {
+      "game_id": 3003,
+      "cover_id": 128096,
+      "image_id": "co2qu8",
+      "image_sha256": "4ec863861f428a18e90c7ef61f5add5376c85e393905bb98a9964092ced7d74f",
+      "game_slug": "nhl-14",
+      "match_kind": "underlying-game"
+    }
+  }
+}

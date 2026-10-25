@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "melee-macos-recompilation-mcdandle-mcdandle-super-smash-bros-melee",
+    "name": "Super Smash Bros. Melee — Melee macOS Recompilation (McDandle) (McDandle)",
+    "original_game_title": "Super Smash Bros. Melee",
+    "summary": "~60fpsnativegameplay; strict mode; sourceonly Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/McDandle/melee-macos-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/McDandle/melee-macos-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GALE01revision2 ISO/GCM/CISO; RVZ/WBFSrefused"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source-only localcodegen/build; ownmoduleanddata"
+        }
+      ],
+      "warnings": [
+        "~60fpsnativegameplay; strict mode; sourceonly",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/McDandle/melee-macos-recomp"
+    },
+    "artwork": {
+      "game_id": 1627,
+      "cover_id": 95863,
+      "image_id": "co21yv",
+      "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
+      "game_slug": "super-smash-bros-melee",
+      "match_kind": "underlying-game"
+    }
+  }
+}

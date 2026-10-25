@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tsapz-trapteamrecomp-tsapz-skylanders-trap-team",
+    "name": "Skylanders: Trap Team — tsapZ TrapTeamRecomp (tsapZ)",
+    "original_game_title": "Skylanders: Trap Team",
+    "summary": "Chapter1plays; latergameunplayed;clean-machineinstalleruntested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tsapZ/TrapTeamRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tsapZ/TrapTeamRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360PALISO/extractedfolder; title41560911; accepted executablefingerprints: f1d2373e4507e21cc371e6f22d02e909602a1b5bc4704896c3c099cc64002a35 default.xex"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python."
+        }
+      ],
+      "warnings": [
+        "Chapter1plays; latergameunplayed;clean-machineinstalleruntested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tsapZ/TrapTeamRecomp"
+    },
+    "issue_number": 3152
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tsapz-trapteamrecomp-tsapz-skylanders-trap-team",
+    "origin": {
+      "project_url": "https://github.com/tsapZ/TrapTeamRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427712152"
+      }
+    },
+    "decisions": []
+  }
+}

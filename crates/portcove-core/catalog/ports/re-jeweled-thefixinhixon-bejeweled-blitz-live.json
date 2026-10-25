@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "re-jeweled-thefixinhixon-bejeweled-blitz-live",
+    "name": "Bejeweled Blitz Live — Re-Jeweled (thefixinhixon)",
+    "original_game_title": "Bejeweled Blitz Live",
+    "summary": "Test build1b described as playable; full-mode scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/thefixinhixon/Re-Jeweled",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/thefixinhixon/Re-Jeweled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Bejeweled Blitz Live Xbox 360 XBLA package or its complete extracted files. Title 58410A57; Default.xex and documented PAK files."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Linux test package imports own BejeweledBlitzLive default.xex/PAK files through launcher."
+        }
+      ],
+      "warnings": [
+        "Test build1b described as playable; full-mode scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/thefixinhixon/Re-Jeweled"
+    }
+  }
+}

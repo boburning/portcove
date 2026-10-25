@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dmc-recomp-gui-tora-devil-may-cry",
+    "name": "Devil May Cry — dmc-recomp (Gui-Tora)",
+    "original_game_title": "Devil May Cry",
+    "summary": "Research project. Source-only prereleases; explicitly not playable; late-stream MPEG/rendering blockers. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Gui-Tora/dmc-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Gui-Tora/dmc-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL Europe SLES-50358 v1.02 original disc/ELF."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source-only prereleases and documented Windows local generation/build route; expressly NOT PLAYABLE."
+        }
+      ],
+      "warnings": [
+        "Source-only prereleases; explicitly not playable; late-stream MPEG/rendering blockers.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Gui-Tora/dmc-recomp"
+    },
+    "issue_number": 2995
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dmc-recomp-gui-tora-devil-may-cry",
+    "origin": {
+      "project_url": "https://github.com/Gui-Tora/dmc-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1362556931"
+      }
+    },
+    "decisions": []
+  }
+}

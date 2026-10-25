@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yakuzarecomp-tatsunakyo-yakuza",
+    "name": "Yakuza — YakuzaRecomp (TatsunaKyo)",
+    "original_game_title": "Yakuza",
+    "summary": "Native boot probe/modules and movie-frame reconstruction; no playable game build. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TatsunaKyo/YakuzaRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TatsunaKyo/YakuzaRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe PAL SLES54171 owned disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local research build route; Windows eventual target not a working Windows package."
+        }
+      ],
+      "warnings": [
+        "Native boot probe/modules and movie-frame reconstruction; no playable game build.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TatsunaKyo/YakuzaRecomp"
+    },
+    "issue_number": 3039,
+    "artwork": {
+      "game_id": 2059,
+      "cover_id": 106045,
+      "image_id": "co29tp",
+      "image_sha256": "5829aa1e717f76e53a3527fb67d3cb1df4a6e42f2e9e7a25a099a82bc4fe68a2",
+      "game_slug": "yakuza",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "yakuzarecomp-tatsunakyo-yakuza",
+    "origin": {
+      "project_url": "https://github.com/TatsunaKyo/YakuzaRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1426397159"
+      }
+    },
+    "decisions": []
+  }
+}

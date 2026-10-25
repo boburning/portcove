@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "itc-recomp-spooky098529-import-tuner-challenge",
+    "name": "Import Tuner Challenge — ITC-Recomp (Spooky098529)",
+    "original_game_title": "Import Tuner Challenge",
+    "summary": "Native30Hzgame with frame interpolation; cannot keep logic speed if host slow. rexglue-removal-project branch is ongoing same implementation, not separate port. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Spooky098529/ITC-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Spooky098529/ITC-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 default.xex+disc files; exact edition/media/hash requires upstream manifest."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source ReXGlue/nativeVulkan1.3; x64SSE4.2. LinuxDeck/RX7900XT tested; Windows experimental."
+        }
+      ],
+      "warnings": [
+        "Native30Hzgame with frame interpolation; cannot keep logic speed if host slow. rexglue-removal-project branch is ongoing same implementation, not separate port.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Spooky098529/ITC-Recomp"
+    },
+    "issue_number": 3139,
+    "artwork": {
+      "game_id": 7017,
+      "cover_id": 417234,
+      "image_id": "co8xxu",
+      "image_sha256": "cefba31e2e891bb4346feabe15db0c48d91b05a96df42dad284af3ce0fcc136e",
+      "game_slug": "import-tuner-challenge",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "itc-recomp-spooky098529-import-tuner-challenge",
+    "origin": {
+      "project_url": "https://github.com/Spooky098529/ITC-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1413567635"
+      }
+    },
+    "decisions": []
+  }
+}

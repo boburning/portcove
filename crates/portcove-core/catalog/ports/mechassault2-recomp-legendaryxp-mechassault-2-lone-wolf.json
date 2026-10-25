@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
+    "name": "MechAssault 2: Lone Wolf — MechAssault2 Recomp (LegendaryXP)",
+    "original_game_title": "MechAssault 2: Lone Wolf",
+    "summary": "Native input/widescreen features described, gameplay maintainer tested; full campaign not claimed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/LegendaryXP/Mechassault2-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/LegendaryXP/Mechassault2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox disc ISO/XISO or extracted folder with ma2.xbe; exact source revision/hash unknown in reviewed README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "First-run ma2.exe imports data and creates local native build; optional Quiver launcher; source VS2022/CMake/Python capstone + xboxrecomp."
+        }
+      ],
+      "warnings": [
+        "Native input/widescreen features described, gameplay maintainer tested; full campaign not claimed.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/LegendaryXP/Mechassault2-recomp"
+    },
+    "issue_number": 3138,
+    "artwork": {
+      "game_id": 5911,
+      "cover_id": 161091,
+      "image_id": "co3gar",
+      "image_sha256": "9b34a54ffe2bc96d33ca4a8ba35b66400454e514516efd3600da9994d74e6b22",
+      "game_slug": "mechassault-2-lone-wolf",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
+    "origin": {
+      "project_url": "https://github.com/LegendaryXP/Mechassault2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432791514"
+      }
+    },
+    "decisions": []
+  }
+}

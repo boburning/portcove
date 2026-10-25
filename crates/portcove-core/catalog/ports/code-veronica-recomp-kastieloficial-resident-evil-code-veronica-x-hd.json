@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "code-veronica-recomp-kastieloficial-resident-evil-code-veronica-x-hd",
+    "name": "Resident Evil Code: Veronica X HD — Code Veronica Recomp (kastieloficial)",
+    "original_game_title": "Resident Evil Code: Veronica X HD",
+    "summary": "Upstream native game/60fps/speedrun route; exactcompletion claim to resolve Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PSN01.00 EuropeNPEB00553/USANPUB30467/Japan region executable; ownPKG+license/extracted data; exactJPserial to resolve"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v1.0 runtimeZIP plus optionalownPKGextractor; local gamecodebuild"
+        }
+      ],
+      "warnings": [
+        "Upstream native game/60fps/speedrun route; exactcompletion claim to resolve",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp"
+    }
+  }
+}

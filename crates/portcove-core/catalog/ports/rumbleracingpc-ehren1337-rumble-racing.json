@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rumbleracingpc-ehren1337-rumble-racing",
+    "name": "Rumble Racing — RumbleRacingPC (Ehren1337)",
+    "original_game_title": "Rumble Racing",
+    "summary": "Menus/track/car/races/laps/results; busyscenes/render/audioissues; unfinished source project. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Ehren1337/RumbleRacingPC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Ehren1337/RumbleRacingPC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS20174 extracted disc with GLBLDATA.PS2 DATA/ MODULES/; ELF/AUDIO.IRX hashes inport-lock"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local source extraction/generation/build, not finished downloadable game."
+        }
+      ],
+      "warnings": [
+        "Menus/track/car/races/laps/results; busyscenes/render/audioissues; unfinished source project.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Ehren1337/RumbleRacingPC"
+    },
+    "issue_number": 3085,
+    "artwork": {
+      "game_id": 43280,
+      "cover_id": 352618,
+      "image_id": "co7k2y",
+      "image_sha256": "dfa90f77a0249f9ed553ee4f4123eb4c3040114972515612994e2068f89fb387",
+      "game_slug": "rumble-racing",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "rumbleracingpc-ehren1337-rumble-racing",
+    "origin": {
+      "project_url": "https://github.com/Ehren1337/RumbleRacingPC",
+      "repository": {
+        "host": "github.com",
+        "id": "1384512353"
+      }
+    },
+    "decisions": []
+  }
+}

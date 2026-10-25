@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "table-tennis-rockstar-pc-davidptrssvea-rockstar-games-presents-table-tennis",
+    "name": "Rockstar Games Presents Table Tennis — Table Tennis Rockstar PC (davidptrssvea)",
+    "original_game_title": "Rockstar Games Presents Table Tennis",
+    "summary": "Upstream gameplay features described; clean-machine tool install/security-blocked SDK first-download path unverified; gameplay-progress save/load not fully revalidated. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA/Europe retail Xbox360 ISO title545407DF; unmodified supported revision; ISO stays required during play."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Install-Table-Tennis.exe v1.0.5 downloads verified toolchain/ReXGlue and builds locally; 25GB-class disk/build workflow; x64 AVX2 D3D12."
+        }
+      ],
+      "warnings": [
+        "Upstream gameplay features described; clean-machine tool install/security-blocked SDK first-download path unverified; gameplay-progress save/load not fully revalidated.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC"
+    },
+    "issue_number": 3125,
+    "artwork": {
+      "game_id": 2541,
+      "cover_id": 120986,
+      "image_id": "co2lcq",
+      "image_sha256": "512af1e90d933acea84e17303348cec279dac19e9bc51cfac0097e633d9d4fa5",
+      "game_slug": "rockstar-games-presents-table-tennis",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "table-tennis-rockstar-pc-davidptrssvea-rockstar-games-presents-table-tennis",
+    "origin": {
+      "project_url": "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1423489007"
+      }
+    },
+    "decisions": []
+  }
+}

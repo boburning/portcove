@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dw5xl-recomp-theslackbringer-dynasty-warriors-5-xtreme-legends",
+    "name": "Dynasty Warriors 5: Xtreme Legends — dw5xl-recomp (TheSlackbringer)",
+    "original_game_title": "Dynasty Warriors 5: Xtreme Legends",
+    "summary": "In development; tested scenes and modes are not complete playthrough; extended stability/scaling open. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TheSlackbringer/dw5xl-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TheSlackbringer/dw5xl-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "English PAL SLES53860 ISO; optional base DW5 SLES53339 for Load Original"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Released Windows self-building package; Linux source build only."
+        }
+      ],
+      "warnings": [
+        "In development; tested scenes and modes are not complete playthrough; extended stability/scaling open.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TheSlackbringer/dw5xl-recomp"
+    },
+    "issue_number": 3040,
+    "artwork": {
+      "game_id": 19618,
+      "cover_id": 194142,
+      "image_id": "co45su",
+      "image_sha256": "3cf2b50c6194db8dd49cfdfadea672e000b4c27392dda0412fc971f3dca1d18e",
+      "game_slug": "dynasty-warriors-5-xtreme-legends",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dw5xl-recomp-theslackbringer-dynasty-warriors-5-xtreme-legends",
+    "origin": {
+      "project_url": "https://github.com/TheSlackbringer/dw5xl-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1419907365"
+      }
+    },
+    "decisions": []
+  }
+}

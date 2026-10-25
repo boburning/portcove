@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tr-underworld-recomp-zenigatabloch-tomb-raider-underworld-xbox-360",
+    "name": "Tomb Raider: Underworld (Xbox 360) — tr-underworld-recomp (ZenigataBloch)",
+    "original_game_title": "Tomb Raider: Underworld (Xbox 360)",
+    "summary": "Milestone1/6: menu/audio work; START hits unregistered functions. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ZenigataBloch/tr-underworld-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ZenigataBloch/tr-underworld-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Tomb Raider: Underworld (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Run ReXGlue init/codegen on own Underworld XEX and build Windows source project."
+        }
+      ],
+      "warnings": [
+        "Milestone1/6: menu/audio work; START hits unregistered functions.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ZenigataBloch/tr-underworld-recomp"
+    },
+    "artwork": {
+      "game_id": 1163,
+      "cover_id": 87708,
+      "image_id": "co1voc",
+      "image_sha256": "4676ec94aa5c5de6736973df2c534adb72f16b258ae67ffca0d2a91d0f31a622",
+      "game_slug": "tomb-raider-underworld",
+      "match_kind": "underlying-game"
+    }
+  }
+}

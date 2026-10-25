@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "enchantedarmspc-iandrewjj-enchanted-arms",
+    "name": "Enchanted Arms — EnchantedArmsPC (IAndrewJJ)",
+    "original_game_title": "Enchanted Arms",
+    "summary": "Upstream Windows save/load/menus/earlygameplay tested; fullplaythrough inprogress, invisible/shadedcharacters/stutters. Linuxpreview gameplay onLinuxhardware explicitly unverified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/IAndrewJJ/EnchantedArmsRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/IAndrewJJ/EnchantedArmsRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own supported USA/Europe Xbox360 EnchantedArms ISO. Exact title/media/executable fingerprint is not specified in reviewed root README; read importer/SETUP_TROUBLESHOOTING before operational acquisition. Game files not included."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release Windows EnchantedArmsPC-0.5.8-windows-x64.zip then EnchantedArmsLauncher.exe: select ISO, Build game, Play. Local compilation and first-setup Internet; about20GB beyondISO. Linuxx86-64 AppImagepreview0.1.0 offers same ISO/localbuild flow."
+        }
+      ],
+      "warnings": [
+        "Upstream Windows save/load/menus/earlygameplay tested; fullplaythrough inprogress, invisible/shadedcharacters/stutters. Linuxpreview gameplay onLinuxhardware explicitly unverified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/IAndrewJJ/EnchantedArmsRecomp"
+    },
+    "issue_number": 3156,
+    "artwork": {
+      "game_id": 6988,
+      "cover_id": 213203,
+      "image_id": "co4kib",
+      "image_sha256": "1f2b278f4b75e3bf7342e812a0aa8ab24029453c291ed35b033c4f54397a9b3e",
+      "game_slug": "enchanted-arms",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "enchantedarmspc-iandrewjj-enchanted-arms",
+    "origin": {
+      "project_url": "https://github.com/IAndrewJJ/EnchantedArmsRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429298688"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killzonerecomp-drakolordx7-killzone",
+    "name": "Killzone — KillzoneRecomp (drakolordx7)",
+    "original_game_title": "Killzone",
+    "summary": "Native static EE recompilation with emulator-derived device libraries; latest-build route exists; README player features are upstream claims. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/drakolordx7/KillzoneRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/drakolordx7/KillzoneRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SCUS-97402 ISO; exact revision/hash unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README links latest build; download/unzip native Windows package and launch killzone.exe with owned SCUS97402 disc. Source build separately requires Visual Studio/CMake/Ninja/Python and emulator-derived dependencies."
+        }
+      ],
+      "warnings": [
+        "Native static EE recompilation with emulator-derived device libraries; latest-build route exists; README player features are upstream claims.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/drakolordx7/KillzoneRecomp"
+    },
+    "issue_number": 2991,
+    "artwork": {
+      "game_id": 1865,
+      "cover_id": 166759,
+      "image_id": "co3ko7",
+      "image_sha256": "7945841b0e901352c1a25d182678232d43ad07971ed5786864cae82f6b7ce9a3",
+      "game_slug": "killzone",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "killzonerecomp-drakolordx7-killzone",
+    "origin": {
+      "project_url": "https://github.com/drakolordx7/KillzoneRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1398817675"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "t5dr-online-thewishin-tekken-5-dark-resurrection-online",
+    "name": "Tekken 5: Dark Resurrection Online — T5DR Online (TheWishin)",
+    "original_game_title": "Tekken 5: Dark Resurrection Online",
+    "summary": "Upstream claims all offline modes 60fps and two-PC online tests; broader hardware not verified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TheWishin/T5DROnline",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TheWishin/T5DROnline",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA PSN NPUB30009 01.00; owned 619430240-byte PKG + 16-byte RAP; disc/EU/JP refused"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release 1.1.4 launcher zip; bundled compiler/runtime; translates and builds locally; retained installed data"
+        }
+      ],
+      "warnings": [
+        "Upstream claims all offline modes 60fps and two-PC online tests; broader hardware not verified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TheWishin/T5DROnline"
+    },
+    "artwork": {
+      "game_id": 1234,
+      "cover_id": 195392,
+      "image_id": "co46rk",
+      "image_sha256": "960531b11ba3dbb93643eb7818a7db983b02d801a5c185527b22a72bdb134971",
+      "game_slug": "tekken-5-dark-resurrection-online",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dwg2recomp-adeelshah001-dynasty-warriors-gundam-2",
+    "name": "Dynasty Warriors: Gundam 2 — DWG2Recomp (Adeelshah001)",
+    "original_game_title": "Dynasty Warriors: Gundam 2",
+    "summary": "Research project. Alpha: music interruptions, crashes, FOV/HUD defects and incomplete save testing. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Adeelshah001/DWG2Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Adeelshah001/DWG2Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Dynasty Warriors: Gundam 2 Xbox 360 disc ISO. USA only; modified/other-region images unsupported."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use v0.3-alpha player ZIP and START_DWG2.exe to import the own USA ISO; source is a separate archive."
+        }
+      ],
+      "warnings": [
+        "Alpha: music interruptions, crashes, FOV/HUD defects and incomplete save testing.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Adeelshah001/DWG2Recomp"
+    },
+    "artwork": {
+      "game_id": 6978,
+      "cover_id": 136780,
+      "image_id": "co2xjg",
+      "image_sha256": "fc6838d51020a8454581da137981a7dc1b64794ea4cc546167e25084a8b245d5",
+      "game_slug": "dynasty-warriors-gundam-2",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "conan2007recomp-crazyriddler-conan-2007",
+    "name": "Conan (2007) — Conan2007Recomp (crazyriddler)",
+    "original_game_title": "Conan (2007)",
+    "summary": "Research project. Native D3D12 project documented; controller-only and high-FPS physics defects noted. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/crazyriddler/Conan2007Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/crazyriddler/Conan2007Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Conan (2007) Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README describes own extracted Conan data in Data, but complete public build/runtime route is unclear."
+        }
+      ],
+      "warnings": [
+        "Native D3D12 project documented; controller-only and high-FPS physics defects noted.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/crazyriddler/Conan2007Recomp"
+    }
+  }
+}

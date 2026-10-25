@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "drakengard-recomp-boubou666-drakengard",
+    "name": "Drakengard — Drakengard_Recomp (boubou666)",
+    "original_game_title": "Drakengard",
+    "summary": "Boot/logos/title/menu and New Game path; explicitly not playable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/boubou666/Drakengard_Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/boubou666/Drakengard_Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SLES52322 ELF SHA13b06fe9b7dfd378a55f481135e273aaaf39604be + own disc files"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local Ghidra/recompile/build; keep distinct from PS3 Drakengard3."
+        }
+      ],
+      "warnings": [
+        "Boot/logos/title/menu and New Game path; explicitly not playable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/boubou666/Drakengard_Recomp"
+    },
+    "issue_number": 3057
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "drakengard-recomp-boubou666-drakengard",
+    "origin": {
+      "project_url": "https://github.com/boubou666/Drakengard_Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428971997"
+      }
+    },
+    "decisions": []
+  }
+}

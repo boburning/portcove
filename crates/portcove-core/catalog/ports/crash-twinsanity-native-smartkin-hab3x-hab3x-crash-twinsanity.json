@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crash-twinsanity-native-smartkin-hab3x-hab3x-crash-twinsanity",
+    "name": "Crash Twinsanity — Crash Twinsanity native (Smartkin/HAB3X) (HAB3X)",
+    "original_game_title": "Crash Twinsanity",
+    "summary": "Released runtime; sound/movies/saves; stable60fps and physical Intel testing unfinished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SLES-52568 ISO."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Released Crash-Twinsanity-macOS.zip native runtime asks for own PAL SLES52568 ISO; runtime package, not mandatory local compilation."
+        }
+      ],
+      "warnings": [
+        "Released runtime; sound/movies/saves; stable60fps and physical Intel testing unfinished.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac"
+    },
+    "issue_number": 3012
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crash-twinsanity-native-smartkin-hab3x-hab3x-crash-twinsanity",
+    "origin": {
+      "project_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac",
+      "repository": {
+        "host": "github.com",
+        "id": "1408537154"
+      }
+    },
+    "decisions": []
+  }
+}

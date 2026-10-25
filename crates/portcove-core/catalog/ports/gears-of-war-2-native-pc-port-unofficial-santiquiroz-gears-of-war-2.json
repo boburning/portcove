@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gears-of-war-2-native-pc-port-unofficial-santiquiroz-gears-of-war-2",
+    "name": "Gears of War 2 — Gears of War 2 — native PC port (unofficial) (santiquiroz)",
+    "original_game_title": "Gears of War 2",
+    "summary": "Act1 playable; Android throttles heavily and internet co-op remains experimental. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Gears of War 2 Xbox 360 complete extracted game files, including the original executable. Retail title 4D53082D; default.xex plus GearGame."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows runtime ZIP and supply own retail default.xex/GearGame; unfinished Android APK is also offered."
+        }
+      ],
+      "warnings": [
+        "Act1 playable; Android throttles heavily and internet co-op remains experimental.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port"
+    },
+    "artwork": {
+      "game_id": 548,
+      "cover_id": 104272,
+      "image_id": "co28gg",
+      "image_sha256": "dd7160c423dc5ceed153a3ceb9a77eca6ba2fa8b3bab0b93681af6fd9b21e5b4",
+      "game_slug": "gears-of-war-2",
+      "match_kind": "underlying-game"
+    }
+  }
+}

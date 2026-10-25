@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tenchu-z-recomp-8bitninja64-tenchu-z",
+    "name": "Tenchu Z — Tenchu Z Recomp (8bitninja64)",
+    "original_game_title": "Tenchu Z",
+    "summary": "Upstream boots/movies/audio/menus/hideout/missions withD3D11at30FPS;60+higher options described. Widerthan16:9/achievements unfinished; no fullcampaign claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/8bitninja64/TenchuZ-PC",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/8bitninja64/TenchuZ-PC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own TenchuZ USA/Europe EnFrDeEsIt disc default.xex SHA256 c727debeaad474dfcf8517202eebc388f9e51705ce3b01499486fa5ff47f9f06; XDK2.0.4552. Own ISO or extracted disc folder remains runtime data."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download TenchuZ-windows-x64.zip, supply own ISO/folder onfirststart; runtime kit locally generates/compiles tenchu_game.dll. Source tools/build.ps1 uses Python3.11+,VS2022Clang, pinnedXenonRecomp/FFmpeg/SDL3. Runtime executable itself contains no gamecode."
+        }
+      ],
+      "warnings": [
+        "Upstream boots/movies/audio/menus/hideout/missions withD3D11at30FPS;60+higher options described. Widerthan16:9/achievements unfinished; no fullcampaign claim.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/8bitninja64/TenchuZ-PC"
+    },
+    "artwork": {
+      "game_id": 7213,
+      "cover_id": 117781,
+      "image_id": "co2ivp",
+      "image_sha256": "c8766507012f95801aa20130cd8c097a7505f0804997c488e6e1d04e4f784900",
+      "game_slug": "tenchu-z",
+      "match_kind": "underlying-game"
+    }
+  }
+}

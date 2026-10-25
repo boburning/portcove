@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "infamous2-recomp-erikomis-infamous-2",
+    "name": "inFAMOUS 2 — infamous2-recomp (erikomis)",
+    "original_game_title": "inFAMOUS 2",
+    "summary": "Boot/menu/cutscenes and first NewMarais missions claimed; alpha never tested start-to-finish Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/erikomis/infamous2-recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/erikomis/infamous2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Digital NPUA80638; owned package/license and game files; exact update needs clarification"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v0.2.12 alpha app rebuilds locally from own copy; self-update since0.2.7"
+        }
+      ],
+      "warnings": [
+        "Boot/menu/cutscenes and first NewMarais missions claimed; alpha never tested start-to-finish",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/erikomis/infamous2-recomp"
+    },
+    "artwork": {
+      "game_id": 515,
+      "cover_id": 236082,
+      "image_id": "co525u",
+      "image_sha256": "5d78ae1550199b8334ee6e6702f26def187d3ea5f60e77cfd703b9ad24e06f11",
+      "game_slug": "infamous-2",
+      "match_kind": "underlying-game"
+    }
+  }
+}

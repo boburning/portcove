@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gow2-nativo-ps2-cxldsakeb-god-of-war-ii",
+    "name": "God of War II — GoW2-nativo-PS2 (cxldsakeb)",
+    "original_game_title": "God of War II",
+    "summary": "First playable area/cutscenes/saves claimed ~60FPS; explicitly no player release yet. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA NTSC-U SCUS97481 v1.01 ISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local extract/Ghidra/recompile/build native VU route; keep separate from PS3 HD and web engine."
+        }
+      ],
+      "warnings": [
+        "First playable area/cutscenes/saves claimed ~60FPS; explicitly no player release yet.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2"
+    },
+    "issue_number": 3051
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gow2-nativo-ps2-cxldsakeb-god-of-war-ii",
+    "origin": {
+      "project_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2",
+      "repository": {
+        "host": "github.com",
+        "id": "1421524395"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "oogie-s-revenge-recomp-josiahg2502-glitch-tim-burton-s-the-nightmare-before-christmas-oogie-s-revenge",
+    "name": "Tim Burton's The Nightmare Before Christmas: Oogie's Revenge — Oogie's Revenge Recomp (josiahg2502-glitch)",
+    "original_game_title": "Tim Burton's The Nightmare Before Christmas: Oogie's Revenge",
+    "summary": "Playable opening at60 FPS/4K; whole-executable translation is not whole-game completion. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Tim Burton's The Nightmare Before Christmas: Oogie's Revenge Original Xbox disc ISO or extracted full disc files. USA original-Original Xbox title 42560004; setup validates default.xbe SHA256, exact value not captured."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "PowerShell build downloads pinned tools and compiles from own USA Oogie'sRevenge ISO/XISO/folder."
+        }
+      ],
+      "warnings": [
+        "Playable opening at60 FPS/4K; whole-executable translation is not whole-game completion.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled"
+    },
+    "artwork": {
+      "game_id": 6200,
+      "cover_id": 129136,
+      "image_id": "co2rn4",
+      "image_sha256": "1dcef53476925a81838789d4f9d39ba6b6ea818876083353a51cbde733568923",
+      "game_slug": "the-nightmare-before-christmas-oogie-s-revenge",
+      "match_kind": "underlying-game"
+    }
+  }
+}

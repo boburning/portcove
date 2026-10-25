@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
+    "name": "War of the Monsters — War of the Monsters Recompiled (yanm1103)",
+    "original_game_title": "War of the Monsters",
+    "summary": "Fights with keyboard/gamepad, movies/sound and60fps claimed; source-build route. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SCUS97197 own disc/ELF."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Documented local Windows native port build using wotm PS2Recomp submodule and own extracted original; no release asset inferred."
+        }
+      ],
+      "warnings": [
+        "Fights with keyboard/gamepad, movies/sound and60fps claimed; source-build route.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp"
+    },
+    "issue_number": 3014
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
+    "origin": {
+      "project_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1406495271"
+      }
+    },
+    "decisions": []
+  }
+}

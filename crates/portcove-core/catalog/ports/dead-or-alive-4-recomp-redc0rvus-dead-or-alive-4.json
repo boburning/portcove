@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dead-or-alive-4-recomp-redc0rvus-dead-or-alive-4",
+    "name": "Dead or Alive 4 — Dead or Alive 4 Recomp (redC0rvus)",
+    "original_game_title": "Dead or Alive 4",
+    "summary": "Boot/mode-select smoke checks exist; complete mode coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/redC0rvus/doa4-recomp-suite",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/redC0rvus/doa4-recomp-suite",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Dead or Alive 4 Xbox 360 disc ISO or extracted full disc files. Title 544307D1."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "setup.bat installs tools and compiles DOA4 from own ISO."
+        }
+      ],
+      "warnings": [
+        "Boot/mode-select smoke checks exist; complete mode coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/redC0rvus/doa4-recomp-suite"
+    },
+    "artwork": {
+      "game_id": 1392,
+      "cover_id": 130884,
+      "image_id": "co2szo",
+      "image_sha256": "e6e558f187848bdfc23922eb184d911d4d16db0a4557a667ae3c4d4813be9e8f",
+      "game_slug": "dead-or-alive-4",
+      "match_kind": "underlying-game"
+    }
+  }
+}

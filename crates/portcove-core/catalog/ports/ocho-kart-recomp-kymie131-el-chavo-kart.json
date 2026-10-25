@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ocho-kart-recomp-kymie131-el-chavo-kart",
+    "name": "El Chavo Kart — ocho-kart-recomp (Kymie131)",
+    "original_game_title": "El Chavo Kart",
+    "summary": "Boots past intro and reaches gameplay; full progression unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Kymie131/ocho-kart-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Kymie131/ocho-kart-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own El Chavo Kart Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Follow docs/BUILD.md to generate/build from own ElChavoKart dump."
+        }
+      ],
+      "warnings": [
+        "Boots past intro and reaches gameplay; full progression unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Kymie131/ocho-kart-recomp"
+    },
+    "artwork": {
+      "game_id": 62461,
+      "cover_id": 210320,
+      "image_id": "co4ia8",
+      "image_sha256": "26920631f0dac8429c6db06d28f8961790a91c660fe63f3aab8112d3ca397ae0",
+      "game_slug": "el-chavo-kart",
+      "match_kind": "underlying-game"
+    }
+  }
+}

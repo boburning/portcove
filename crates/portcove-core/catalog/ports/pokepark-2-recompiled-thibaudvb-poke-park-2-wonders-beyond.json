@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokepark-2-recompiled-thibaudvb-poke-park-2-wonders-beyond",
+    "name": "PokéPark 2: Wonders Beyond — Pokepark-2-Recompiled (ThibaudVB)",
+    "original_game_title": "PokéPark 2: Wonders Beyond",
+    "summary": "Upstream reaches title, save flow, opening cinematic and first playable area; cave route is approximately 30 presented FPS. Black surfaces, wall blur and slow transitions remain. Full game, gestures and Wiimote speaker support are unverified. Interpreter fallback remains for copied exception code. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ThibaudVB/Pokepark-2-Recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ThibaudVB/Pokepark-2-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PAL S2LP01 rev 0 image; reference RVZ SHA-256 cfa61d2429a236c8980e9bbba3da837d3731c23845b9da1786c6d7dff07bc776. Extract DATA; main.dol SHA-256 23e996cbd2e00b0a7b24d39154a6d40662b1689a45044c78fc93b7644311aca0. Runtime reads extracted/DATA."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source/developer route: extract-game.ps1 uses Dolphin CLI as an image extractor, build-nwii.ps1 builds PokePark2NWii.exe, and play-nwii.ps1 or Lancer-PokePark2.cmd starts the interactive runtime. No player release package is established in this README."
+        }
+      ],
+      "warnings": [
+        "Upstream reaches title, save flow, opening cinematic and first playable area; cave route is approximately 30 presented FPS. Black surfaces, wall blur and slow transitions remain. Full game, gestures and Wiimote speaker support are unverified. Interpreter fallback remains for copied exception code.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ThibaudVB/Pokepark-2-Recompiled"
+    }
+  }
+}

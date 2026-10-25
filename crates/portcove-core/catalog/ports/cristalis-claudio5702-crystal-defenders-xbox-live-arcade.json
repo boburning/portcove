@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cristalis-claudio5702-crystal-defenders-xbox-live-arcade",
+    "name": "Crystal Defenders (Xbox Live Arcade) — Cristalis (Claudio5702)",
+    "original_game_title": "Crystal Defenders (Xbox Live Arcade)",
+    "summary": "Beta1.10playedbyfewpeople; noonlineleaderboards, noinstantstates, runtimehandlesmusicloops; noPortcoveplaythrough. NativeLinuxexperimental, WindowsviaProtondistinct. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Claudio5702/Cristalis",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Claudio5702/Cristalis",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own CrystalDefenders XBLA title58410989 package18F4739D37853F8596CE621540680922AFE9F23A size58126336 SHA1 118C64C901976CD8E2B570D77B0A5E01C15C7A46; default.xex size1658880 SHA1 31A90704D4233F6E730714515CD5F20BF08D7F0D; package or extracted default.xex/Mediafolder."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release native executable/DarkLauncher with firststart packageextract/import; generated C++ compiled byupstream atbuildtime, ownassets remainneeded. Windows and experimentalnativeLinux packages; upstream launcher owns updates."
+        }
+      ],
+      "warnings": [
+        "Beta1.10playedbyfewpeople; noonlineleaderboards, noinstantstates, runtimehandlesmusicloops; noPortcoveplaythrough. NativeLinuxexperimental, WindowsviaProtondistinct.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Claudio5702/Cristalis"
+    },
+    "artwork": {
+      "game_id": 21207,
+      "cover_id": 123340,
+      "image_id": "co2n64",
+      "image_sha256": "a0c002e75c63afbf240e32ed01e20932fec97ff5568c5ffde1b06ac40b0b4770",
+      "game_slug": "crystal-defenders",
+      "match_kind": "underlying-game"
+    }
+  }
+}

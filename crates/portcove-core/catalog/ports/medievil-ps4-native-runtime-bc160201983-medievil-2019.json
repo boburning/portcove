@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "medievil-ps4-native-runtime-bc160201983-medievil-2019",
+    "name": "MediEvil (2019) — MediEvil PS4 native runtime (bc160201983)",
+    "original_game_title": "MediEvil (2019)",
+    "summary": "Author Windows11RTX5080 captures; broad gameplay coverage not independently checked Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/bc160201983/medievil_2019_pc_port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bc160201983/medievil_2019_pc_port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "CUSA11227; Europe CUSA12982 also works; unpacked owned decrypted dump; exact update needs clarification"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Runtime release/source; original executable executes natively; data remains required"
+        }
+      ],
+      "warnings": [
+        "Author Windows11RTX5080 captures; broad gameplay coverage not independently checked",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/bc160201983/medievil_2019_pc_port"
+    }
+  }
+}

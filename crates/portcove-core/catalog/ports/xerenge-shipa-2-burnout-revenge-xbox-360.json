@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xerenge-shipa-2-burnout-revenge-xbox-360",
+    "name": "Burnout Revenge (Xbox 360) — Xerenge (shipa-2)",
+    "original_game_title": "Burnout Revenge (Xbox 360)",
+    "summary": "Both Europe/USA builds claimed playable through races and Crash mode. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/shipa-2/Xerenge",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/shipa-2/Xerenge",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Burnout Revenge (Xbox 360) Xbox 360 disc ISO or extracted full disc files. Europe or USA, each with matching native game build."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Linux/macOS setup supports region-specific builds; source bootstrap builds SDK/game, while some installer payloads carry regional runtimes."
+        }
+      ],
+      "warnings": [
+        "Both Europe/USA builds claimed playable through races and Crash mode.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/shipa-2/Xerenge"
+    },
+    "artwork": {
+      "game_id": 2626,
+      "cover_id": 123757,
+      "image_id": "co2nhp",
+      "image_sha256": "17ffbbf892889f90f17cfaa50f67d03cd57f79f856b895555ba9fb8c6a607b92",
+      "game_slug": "burnout-revenge",
+      "match_kind": "underlying-game"
+    }
+  }
+}

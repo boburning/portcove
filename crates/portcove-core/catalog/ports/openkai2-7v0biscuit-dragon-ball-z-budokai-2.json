@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
+    "name": "Dragon Ball Z: Budokai 2 — OpenKai2 (7v0biscuit)",
+    "original_game_title": "Dragon Ball Z: Budokai 2",
+    "summary": "Windows guide: runtime reaches level selection; complete matches/performance/gameplay unvalidated. CPU renderer, stable60gameFPS unverified; ALL host audio output disabled including movies/menus/fights. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/7v0biscuit/OpenKai2",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/7v0biscuit/OpenKai2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Original USA Budokai2 ISO, required every boot; supported executable SHA256431568221bb744a6affc47dc91144b24892839d4d1ab8236bee1e03d83e6b898. Whole-disc trusted hash not pinned; serial/revision remains to capture."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Published OpenKai2.exe self-contained portable launcher, OpenKai2-windows-x64.zip, or OpenKai2-Setup.exe; no Python/Visual Studio needed for downloaded package; owns ISO cache. Source generation/compilation only for developer route."
+        }
+      ],
+      "warnings": [
+        "Windows guide: runtime reaches level selection; complete matches/performance/gameplay unvalidated. CPU renderer, stable60gameFPS unverified; ALL host audio output disabled including movies/menus/fights.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/7v0biscuit/OpenKai2"
+    },
+    "issue_number": 2999,
+    "artwork": {
+      "game_id": 2564,
+      "cover_id": 85799,
+      "image_id": "co1u7b",
+      "image_sha256": "12621a05fbf14ba00a949c8a7e3ce3b099a5af54cdf9f957a1d1708e0ba98b8d",
+      "game_slug": "dragon-ball-z-budokai-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
+    "origin": {
+      "project_url": "https://github.com/7v0biscuit/OpenKai2",
+      "repository": {
+        "host": "github.com",
+        "id": "1426759385"
+      }
+    },
+    "decisions": []
+  }
+}

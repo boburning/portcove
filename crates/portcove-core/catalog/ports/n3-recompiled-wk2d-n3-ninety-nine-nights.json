@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n3-recompiled-wk2d-n3-ninety-nine-nights",
+    "name": "N3: Ninety-Nine Nights — N3 Recompiled (WK2D)",
+    "original_game_title": "N3: Ninety-Nine Nights",
+    "summary": "Opening mission, following cutscene and save/load reported; full-game coverage unvalidated. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp",
+    "platforms": ["windows-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own N3: Ninety-Nine Nights Xbox 360 disc ISO or extracted full disc files. USA/Europe XEX0.0.0.3, identified by game-build.json."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows alpha imports own USA/Europe ISO/folder after SHA256 validation; accepts XEX0.0.0.3 only."
+        }
+      ],
+      "warnings": [
+        "Opening mission, following cutscene and save/load reported; full-game coverage unvalidated.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp"
+    },
+    "artwork": {
+      "game_id": 7094,
+      "cover_id": 128041,
+      "image_id": "co2qsp",
+      "image_sha256": "17ed19cb7a1460efe1610188859596304216a2f8b85d1fda7a77f06945445891",
+      "game_slug": "n3-ninety-nine-nights",
+      "match_kind": "underlying-game"
+    }
+  }
+}

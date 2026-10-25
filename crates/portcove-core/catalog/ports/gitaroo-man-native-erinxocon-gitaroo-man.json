@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gitaroo-man-native-erinxocon-gitaroo-man",
+    "name": "Gitaroo Man — gitaroo-man-native (erinxocon)",
+    "original_game_title": "Gitaroo Man",
+    "summary": "Static game code + native renderer/runtime; exact gameplay boundary must be copied from progress docs. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/erinxocon/gitaroo-man-native",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/erinxocon/gitaroo-man-native",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS20294 own disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Documented source build from ISO/ELF; no Windows/macOS evidence."
+        }
+      ],
+      "warnings": [
+        "Static game code + native renderer/runtime; exact gameplay boundary must be copied from progress docs.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/erinxocon/gitaroo-man-native"
+    },
+    "issue_number": 3044
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gitaroo-man-native-erinxocon-gitaroo-man",
+    "origin": {
+      "project_url": "https://github.com/erinxocon/gitaroo-man-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1431864024"
+      }
+    },
+    "decisions": []
+  }
+}

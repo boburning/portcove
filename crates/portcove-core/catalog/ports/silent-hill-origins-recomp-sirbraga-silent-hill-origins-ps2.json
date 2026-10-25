@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "silent-hill-origins-recomp-sirbraga-silent-hill-origins-ps2",
+    "name": "Silent Hill: Origins (PS2) — silent-hill-origins-recomp (SirBraga)",
+    "original_game_title": "Silent Hill: Origins (PS2)",
+    "summary": "Upstream claims playable on both hosts; no Portcove qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SirBraga/silent-hill-origins-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SirBraga/silent-hill-origins-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS21731 ISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windowsv1.0-windows / Macv1.0 packages select own ISO; build/game-source ownership stays upstream."
+        }
+      ],
+      "warnings": [
+        "Upstream claims playable on both hosts; no Portcove qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/SirBraga/silent-hill-origins-recomp"
+    },
+    "issue_number": 3076,
+    "artwork": {
+      "game_id": 484,
+      "cover_id": 134738,
+      "image_id": "co2vyq",
+      "image_sha256": "e11eb5ef8e0bb1011064fb732e4ac69f6673ce951366af080f2c92da1ce76bef",
+      "game_slug": "silent-hill-origins",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "silent-hill-origins-recomp-sirbraga-silent-hill-origins-ps2",
+    "origin": {
+      "project_url": "https://github.com/SirBraga/silent-hill-origins-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422659401"
+      }
+    },
+    "decisions": []
+  }
+}

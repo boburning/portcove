@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "srwz-native-sloppywyn-super-robot-taisen-z",
+    "name": "Super Robot Taisen Z — SRWZ-native (SloppyWyn)",
+    "original_game_title": "Super Robot Taisen Z",
+    "summary": "Native scenarios/render/sound research; scenarios2onward/battle-speed/media polish WIP. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SloppyWyn/SRWZ-native",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SloppyWyn/SRWZ-native",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan SLPS25887 v1.04 own disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local Ghidra/MSVC/CMake/Python generation/build."
+        }
+      ],
+      "warnings": [
+        "Native scenarios/render/sound research; scenarios2onward/battle-speed/media polish WIP.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/SloppyWyn/SRWZ-native"
+    },
+    "issue_number": 3081,
+    "artwork": {
+      "game_id": 79342,
+      "cover_id": 199158,
+      "image_id": "co49o6",
+      "image_sha256": "1f279ee6591e0bc580f8305c47052c7ccfe2ccd819cdb0cf5895ae3760dbb8db",
+      "game_slug": "super-robot-taisen-z",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "srwz-native-sloppywyn-super-robot-taisen-z",
+    "origin": {
+      "project_url": "https://github.com/SloppyWyn/SRWZ-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1414286863"
+      }
+    },
+    "decisions": []
+  }
+}

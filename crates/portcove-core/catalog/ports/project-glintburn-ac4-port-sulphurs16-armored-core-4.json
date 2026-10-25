@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-glintburn-ac4-port-sulphurs16-armored-core-4",
+    "name": "Armored Core 4 — Project Glintburn AC4-Port (SulphurS16)",
+    "original_game_title": "Armored Core 4",
+    "summary": "Upstream presents missions/settings/play route; SPU interpreter safety net; no Portcove gameplay test Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SulphurS16/AC4-Port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SulphurS16/AC4-Port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA BLUS30027 disc folder PS3_GAME; own firmware 4.93 PUP and RPCS3 for one-time decryption; exact disc revision unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release launcher downloads compiler (~250MB) and compiles user dump locally"
+        }
+      ],
+      "warnings": [
+        "Upstream presents missions/settings/play route; SPU interpreter safety net; no Portcove gameplay test",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/SulphurS16/AC4-Port"
+    },
+    "artwork": {
+      "game_id": 5491,
+      "cover_id": 213192,
+      "image_id": "co4ki0",
+      "image_sha256": "f9686dda1cef5648cb84e52aac5ef215d035d00ef5ce8616287bd4063f02f73b",
+      "game_slug": "armored-core-4",
+      "match_kind": "underlying-game"
+    }
+  }
+}

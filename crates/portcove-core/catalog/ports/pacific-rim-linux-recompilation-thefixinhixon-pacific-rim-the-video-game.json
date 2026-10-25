@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pacific-rim-linux-recompilation-thefixinhixon-pacific-rim-the-video-game",
+    "name": "Pacific Rim: The Video Game — Pacific Rim — Linux Recompilation (thefixinhixon)",
+    "original_game_title": "Pacific Rim: The Video Game",
+    "summary": "Linux gameplay/DLC/saves reported; fault and shared-memory fixes noted. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/thefixinhixon/PacificRimRecomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/thefixinhixon/PacificRimRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Pacific Rim: The Video Game Xbox 360 XBLA package or its complete extracted files. Title 584112C1; own DLC optional."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Linux AppImage/folder release imports own PacificRim package; Windows not started as supported target."
+        }
+      ],
+      "warnings": [
+        "Linux gameplay/DLC/saves reported; fault and shared-memory fixes noted.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/thefixinhixon/PacificRimRecomp"
+    }
+  }
+}

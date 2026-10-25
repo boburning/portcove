@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vf2rekomped-donslopenberg-virtua-fighter-2-xbox-live-arcade-2012",
+    "name": "Virtua Fighter 2 (Xbox Live Arcade, 2012) — VF2reKOmped (DonSlopenberg)",
+    "original_game_title": "Virtua Fighter 2 (Xbox Live Arcade, 2012)",
+    "summary": "Matches/native high-resolution rendering described; full progression unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/DonSlopenberg/VF2reKOmped",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/DonSlopenberg/VF2reKOmped",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Virtua Fighter 2 (Xbox Live Arcade, 2012) Xbox 360 XBLA package or its complete extracted files. XBLA title 5841129C; package SHA256 2e4700ca9bc3ea747379a1d3648b59bcdff6c528d1aefe241a51b47757c74099."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract release ZIP and import exact VF2 XBLA package or RAR containing it; installer verifies/extracts locally."
+        }
+      ],
+      "warnings": [
+        "Matches/native high-resolution rendering described; full progression unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/DonSlopenberg/VF2reKOmped"
+    },
+    "artwork": {
+      "game_id": 1547,
+      "cover_id": 507960,
+      "image_id": "coavy0",
+      "image_sha256": "07292f451894dff05e235c12f487cb144b413e2ac614ef3d261a5ea2f1f94a06",
+      "game_slug": "virtua-fighter-2",
+      "match_kind": "underlying-game"
+    }
+  }
+}

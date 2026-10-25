@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dw2003recomp-gascarcella-digimon-world-2003",
+    "name": "Digimon World 2003 — dw2003recomp (gascarcella)",
+    "original_game_title": "Digimon World 2003",
+    "summary": "Claims byte-identical executable/overlays from C and native game/launcher/mods; exact campaign coverage not established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/gascarcella/dw2003recomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gascarcella/dw2003recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe SLES03936 single-track MODE2/2352 BIN/CUE692146560bytes SHA1 457cb233349ba841e03b33d8060f8fbcadd45cb3; 2048 ISO rejected"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README declares dw2003-<version>-x86_64.AppImage and SHA256SUMS. Launcher selects/checks own disc and reads it at runtime; native source build also available."
+        }
+      ],
+      "warnings": [
+        "Claims byte-identical executable/overlays from C and native game/launcher/mods; exact campaign coverage not established here.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/gascarcella/dw2003recomp"
+    },
+    "artwork": {
+      "game_id": 19678,
+      "cover_id": 372792,
+      "image_id": "co7znc",
+      "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
+      "game_slug": "digimon-world-3",
+      "match_kind": "underlying-game"
+    }
+  }
+}

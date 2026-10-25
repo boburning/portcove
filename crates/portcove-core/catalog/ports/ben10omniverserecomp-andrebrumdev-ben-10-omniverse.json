@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ben10omniverserecomp-andrebrumdev-ben-10-omniverse",
+    "name": "Ben 10: Omniverse — Ben10OmniverseRecomp (andrebrumdev)",
+    "original_game_title": "Ben 10: Omniverse",
+    "summary": "Boot/logos/video and27-59fpsmeasuredM5Air; exactmissioncoverage toresolve Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USABLUS31017 disc01.00 ownedgame/decryptedEBOOT/assets"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source build_macos.sh/run_ben10.sh localgeneratedcode"
+        }
+      ],
+      "warnings": [
+        "Boot/logos/video and27-59fpsmeasuredM5Air; exactmissioncoverage toresolve",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp"
+    }
+  }
+}

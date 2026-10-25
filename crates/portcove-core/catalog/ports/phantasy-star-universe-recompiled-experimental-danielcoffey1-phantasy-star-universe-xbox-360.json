@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "phantasy-star-universe-recompiled-experimental-danielcoffey1-phantasy-star-universe-xbox-360",
+    "name": "Phantasy Star Universe (Xbox 360) — Phantasy Star Universe Recompiled (experimental) (DanielCoffey1)",
+    "original_game_title": "Phantasy Star Universe (Xbox 360)",
+    "summary": "Chapter1 initial combat/NPC/save reload reported; later progression untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/DanielCoffey1/psu-decomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/DanielCoffey1/psu-decomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Phantasy Star Universe (Xbox 360) Xbox 360 disc ISO or extracted full disc files. USA/Europe; story-cutscene fix requires GPU ROV."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Experimental Windows installer validates/extracts own USA/Europe PSU ISO and prepares runtime; local code-generation behavior needs confirmation."
+        }
+      ],
+      "warnings": [
+        "Chapter1 initial combat/NPC/save reload reported; later progression untested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/DanielCoffey1/psu-decomp"
+    },
+    "artwork": {
+      "game_id": 7129,
+      "cover_id": 508376,
+      "image_id": "coaw9k",
+      "image_sha256": "20a5721d6ee8dfba9eb470b1c476f64cbf6da4253ccd7977b74ee728fe7c242d",
+      "game_slug": "phantasy-star-universe",
+      "match_kind": "underlying-game"
+    }
+  }
+}

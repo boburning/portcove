@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wii-party-recomp-arelkair-arelkair-wii-party",
+    "name": "Wii Party — Wii Party Recomp (arelkair) (arelkair)",
+    "original_game_title": "Wii Party",
+    "summary": "Alpha; complete BoardGameIsland/all79 FreePlay minigames claimed; other modes and real sensor bar incomplete Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/arelkair/wiiparty-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/arelkair/wiiparty-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Owned ISO/WBFS/RVZ/CISO/WIA/GCM; PAL60 observed; exact serial/revision needs clarification"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release single-file launcher local build; offline tool zip optional"
+        }
+      ],
+      "warnings": [
+        "Alpha; complete BoardGameIsland/all79 FreePlay minigames claimed; other modes and real sensor bar incomplete",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/arelkair/wiiparty-recomp"
+    },
+    "artwork": {
+      "game_id": 2189,
+      "cover_id": 109711,
+      "image_id": "co2cnj",
+      "image_sha256": "389c8cc18ee4453cd653f8fa3600f0a9c2abd7472abe32a625e94ed274fca025",
+      "game_slug": "wii-party",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yugiohforbiddenmemoriesrecomp-eduardocalafell-eduardocalafell-yu-gi-oh-forbidden-memories",
+    "name": "Yu-Gi-Oh! Forbidden Memories — YuGiOhForbiddenMemoriesRecomp (eduardocalafell) (eduardocalafell)",
+    "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
+    "summary": "Duel/fusion/save claimed; exactfullstorycoverageunknown Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/eduardocalafell/YuGiOhForbiddenMemoriesRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/eduardocalafell/YuGiOhForbiddenMemoriesRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS01411 NTSC own disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcegenerationbuild; launcher companionnotanotherimplementation"
+        }
+      ],
+      "warnings": [
+        "Duel/fusion/save claimed; exactfullstorycoverageunknown",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/eduardocalafell/YuGiOhForbiddenMemoriesRecomp"
+    },
+    "artwork": {
+      "game_id": 4108,
+      "cover_id": 86189,
+      "image_id": "co1ui5",
+      "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
+      "game_slug": "yu-gi-oh-forbidden-memories",
+      "match_kind": "underlying-game"
+    }
+  }
+}

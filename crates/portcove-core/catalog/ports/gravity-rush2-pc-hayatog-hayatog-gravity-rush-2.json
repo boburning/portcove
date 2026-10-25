@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gravity-rush2-pc-hayatog-hayatog-gravity-rush-2",
+    "name": "Gravity Rush 2 — Gravity Rush2 PC (HayatoG) (HayatoG)",
+    "original_game_title": "Gravity Rush 2",
+    "summary": "Image/audio/control30fps claimed LinuxRTX2060; distinct Prathewsh multi-title runtime; saves/openworldstilltesting; geometryoutlineoffbydefault Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/HayatoG/gr2_pc",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/HayatoG/gr2_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "CUSA03694 update01.11 owned decrypted dump; audio needs own libSceNgs2.sprx fromconsolefirmware"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Native runtime release/source launcher imports owned data"
+        }
+      ],
+      "warnings": [
+        "Image/audio/control30fps claimed LinuxRTX2060; distinct Prathewsh multi-title runtime; saves/openworldstilltesting; geometryoutlineoffbydefault",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/HayatoG/gr2_pc"
+    },
+    "artwork": {
+      "game_id": 12528,
+      "cover_id": 510581,
+      "image_id": "coaxyt",
+      "image_sha256": "3f073283b0abb724b426ef580bb2316c41b8a53695dc5d78438b124f6cf5d312",
+      "game_slug": "gravity-rush-2",
+      "match_kind": "underlying-game"
+    }
+  }
+}

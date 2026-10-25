@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alter-echo-recomp-wnbdev-alter-echo",
+    "name": "Alter Echo — Alter Echo Recomp (WNBDEV)",
+    "original_game_title": "Alter Echo",
+    "summary": "Upstream played start-to-finish onLinux; heavy moments dip below60; Windowsnot physically tested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/WNBDEV/alter-echo-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/WNBDEV/alter-echo-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NorthAmericanNTSC originalXbox ISO/extracted folder; exact release checks before build."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local x86-to-C build, custom xboxrecompD3D11fork; Linuxprimary; Windows10/11experimental untested realPC."
+        }
+      ],
+      "warnings": [
+        "Upstream played start-to-finish onLinux; heavy moments dip below60; Windowsnot physically tested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/WNBDEV/alter-echo-recomp"
+    },
+    "issue_number": 3147,
+    "artwork": {
+      "game_id": 1989,
+      "cover_id": 353821,
+      "image_id": "co7l0d",
+      "image_sha256": "3c5c3d74b3f553cf177b40a1449c120d02d8071d8429d9e1aee64be049f0398c",
+      "game_slug": "alter-echo",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "alter-echo-recomp-wnbdev-alter-echo",
+    "origin": {
+      "project_url": "https://github.com/WNBDEV/alter-echo-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431766382"
+      }
+    },
+    "decisions": []
+  }
+}

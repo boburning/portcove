@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "trials-hd-recompiled-snufflyyy-trials-hd",
+    "name": "Trials HD — Trials HD Recompiled (snufflyyy)",
+    "original_game_title": "Trials HD",
+    "summary": "Controller/keyboard play claimed; browser storage/audio/gameplay checks unfinished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/snufflyyy/trials-hd-recompiled",
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/snufflyyy/trials-hd-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Trials HD Xbox 360 XBLA package or its complete extracted files. XBLA title 5841095A; own default.xex and data."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "build.sh takes own TrialsHD package/default.xex for generation; built game imports own data on first start."
+        }
+      ],
+      "warnings": [
+        "Controller/keyboard play claimed; browser storage/audio/gameplay checks unfinished.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/snufflyyy/trials-hd-recompiled"
+    }
+  }
+}

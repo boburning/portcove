@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "carspsprecomp-danielperezl-disney-pixar-cars-psp",
+    "name": "Disney/Pixar Cars (PSP) — CarsPSPRecomp (DanielPerezL)",
+    "original_game_title": "Disney/Pixar Cars (PSP)",
+    "summary": "NativeCcustomruntime, graphics/audio/video; exact fullgamecompleteness notasserted. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/DanielPerezL/CarsPSPRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/DanielPerezL/CarsPSPRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "SpanishULES00324 ownISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Localbuildincludesowngameimage inprivatelocalpackage; no distributablegamepackageclaim."
+        }
+      ],
+      "warnings": [
+        "NativeCcustomruntime, graphics/audio/video; exact fullgamecompleteness notasserted.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/DanielPerezL/CarsPSPRecomp"
+    },
+    "issue_number": 3102,
+    "artwork": {
+      "game_id": 230423,
+      "cover_id": 571505,
+      "image_id": "coc8z5",
+      "image_sha256": "99edf952fb7a369667ca64ec9dfaf0218960d6a2ea299bb0aac366dabab61976",
+      "game_slug": "cars--1",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "carspsprecomp-danielperezl-disney-pixar-cars-psp",
+    "origin": {
+      "project_url": "https://github.com/DanielPerezL/CarsPSPRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417478400"
+      }
+    },
+    "decisions": []
+  }
+}

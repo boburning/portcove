@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "real-steel-linux-recompilation-thefixinhixon-real-steel",
+    "name": "Real Steel — Real Steel — Linux Recompilation (thefixinhixon)",
+    "original_game_title": "Real Steel",
+    "summary": "Linux boot/menus/robot builder/gameplay reported. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/thefixinhixon/RealSteelRecomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/thefixinhixon/RealSteelRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Real Steel Xbox 360 XBLA package or its complete extracted files. XBLA title 584111E0."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use Linux AppImage/folder release and import own RealSteel package; Windows build remains unfinished."
+        }
+      ],
+      "warnings": [
+        "Linux boot/menus/robot builder/gameplay reported.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/thefixinhixon/RealSteelRecomp"
+    }
+  }
+}

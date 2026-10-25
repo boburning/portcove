@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nhl2k8-recompiled-anishchandra24-nhl-2k8",
+    "name": "NHL 2K8 — NHL2K8-Recompiled (anishchandra24)",
+    "original_game_title": "NHL 2K8",
+    "summary": "Upstream boots/menus/quickGames/franchise/tournaments/saveLoad tested on2PCs; crowd stutter/paleRed/brightness defects; online unsupported; clean-machine dependency install unverified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/anishchandra24/NHL2K8-Recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/anishchandra24/NHL2K8-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "title54540809 v0.0.0.3 default.xex size9383936 SHA256 BA4E63334FAF296019657C6E86BBD444CB05646E29FA6C7B72F4BF9709CE4225; own extracted folder incl other game files."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v0.2.0 setup builds locally via pinned patched SDK; VS2022CommunityClang/CMake required; Windowsx64D3D12."
+        }
+      ],
+      "warnings": [
+        "Upstream boots/menus/quickGames/franchise/tournaments/saveLoad tested on2PCs; crowd stutter/paleRed/brightness defects; online unsupported; clean-machine dependency install unverified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/anishchandra24/NHL2K8-Recompiled"
+    },
+    "issue_number": 3135,
+    "artwork": {
+      "game_id": 7119,
+      "cover_id": 116161,
+      "image_id": "co2hmp",
+      "image_sha256": "7ebbba5b5ef5ea28ea5ebc8fb7aeb812c03e022d94178646d2bd3611c877f58b",
+      "game_slug": "nhl-2k8",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nhl2k8-recompiled-anishchandra24-nhl-2k8",
+    "origin": {
+      "project_url": "https://github.com/anishchandra24/NHL2K8-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1430557811"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ace-combat-04-static-recompilation-satyasujitpasupuleti-ace-combat-04-shattered-skies",
+    "name": "Ace Combat 04: Shattered Skies — Ace-Combat-04-Static-Recompilation (SatyaSujitPasupuleti)",
+    "original_game_title": "Ace Combat 04: Shattered Skies",
+    "summary": "Primary upstream Mission2 user-test claim; proof-of-concept, frame stalls/save-load and AltTab broader testing needed; campaign unverified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SatyaSujitPasupuleti/Ace-Combat-04-Static-Recompilation",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SatyaSujitPasupuleti/Ace-Combat-04-Static-Recompilation",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS20152 ISO; exact local verifier hash not obtained in this focused gate. Existing PresidentRaptor hash must not be copied as this project verifier evidence."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows source generation/build using build.cmd/build.ps1 + MSYS2; no game executable distributed."
+        }
+      ],
+      "warnings": [
+        "Primary upstream Mission2 user-test claim; proof-of-concept, frame stalls/save-load and AltTab broader testing needed; campaign unverified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/SatyaSujitPasupuleti/Ace-Combat-04-Static-Recompilation"
+    },
+    "issue_number": 3079,
+    "artwork": {
+      "game_id": 9763,
+      "cover_id": 548238,
+      "image_id": "cobr0u",
+      "image_sha256": "1cbbf9837d2368742175a7195bd6ab8c6693053968308f8efa71244c0fd23e42",
+      "game_slug": "ace-combat-04-shattered-skies",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ace-combat-04-static-recompilation-satyasujitpasupuleti-ace-combat-04-shattered-skies",
+    "origin": {
+      "project_url": "https://github.com/SatyaSujitPasupuleti/Ace-Combat-04-Static-Recompilation",
+      "repository": {
+        "host": "github.com",
+        "id": "1419991212"
+      }
+    },
+    "decisions": []
+  }
+}

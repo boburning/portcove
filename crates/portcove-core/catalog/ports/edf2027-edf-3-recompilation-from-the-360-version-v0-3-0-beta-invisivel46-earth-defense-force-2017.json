@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "edf2027-edf-3-recompilation-from-the-360-version-v0-3-0-beta-invisivel46-earth-defense-force-2017",
+    "name": "Earth Defense Force 2017 — EDF2027: EDF 3 recompilation from the 360 version (v0.3.0-beta) (invisivel46)",
+    "original_game_title": "Earth Defense Force 2017",
+    "summary": "Mission1 native-renderer screenshots; campaign scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/invisivel46/edf2027",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/invisivel46/edf2027",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Earth Defense Force 2017 Xbox 360 disc ISO or extracted full disc files. Title 445007D3; tested ISO7835492352bytes/SHA1 3F5DADC9BD11399E3EF260018A058F420EAFB1F6."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows setup imports own EDF ISO/folder and developer builds exist; public runtime-package route unclear."
+        }
+      ],
+      "warnings": [
+        "Mission1 native-renderer screenshots; campaign scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/invisivel46/edf2027"
+    },
+    "artwork": {
+      "game_id": 5583,
+      "cover_id": 115434,
+      "image_id": "co2h2i",
+      "image_sha256": "b123151d473952fbfdeb5860b170c1c1cfc0a7d13d4fbe36569bc0d4867622c0",
+      "game_slug": "earth-defense-force-2017",
+      "match_kind": "underlying-game"
+    }
+  }
+}

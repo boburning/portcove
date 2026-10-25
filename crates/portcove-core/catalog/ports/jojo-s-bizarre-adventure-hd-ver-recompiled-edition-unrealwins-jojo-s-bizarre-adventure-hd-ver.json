@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jojo-s-bizarre-adventure-hd-ver-recompiled-edition-unrealwins-jojo-s-bizarre-adventure-hd-ver",
+    "name": "JoJo's Bizarre Adventure HD Ver. — JoJo's Bizarre Adventure HD Ver. — Recompiled Edition (UNREALWINS)",
+    "original_game_title": "JoJo's Bizarre Adventure HD Ver.",
+    "summary": "Internal v1.0 Beta reportedly underwent full-game testing without earlier illegal-instruction crashes. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/UNREALWINS/jojo-hd-recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/UNREALWINS/jojo-hd-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own JoJo's Bizarre Adventure HD Ver. Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "BUILD_JOJO.bat builds the patched SDK, generates game C++ from extracted/default.xex and compiles runtime/launcher."
+        }
+      ],
+      "warnings": [
+        "Internal v1.0 Beta reportedly underwent full-game testing without earlier illegal-instruction crashes.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/UNREALWINS/jojo-hd-recompiled"
+    },
+    "artwork": {
+      "game_id": 47433,
+      "cover_id": 240913,
+      "image_id": "co55w1",
+      "image_sha256": "adc19ae58dd58bad970b4941554b27040953945ca97a08edebaf5da20cd8402b",
+      "game_slug": "jojos-bizarre-adventure-hd--1",
+      "match_kind": "underlying-game"
+    }
+  }
+}

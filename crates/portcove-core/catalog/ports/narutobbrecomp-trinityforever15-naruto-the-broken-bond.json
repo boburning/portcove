@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "narutobbrecomp-trinityforever15-naruto-the-broken-bond",
+    "name": "Naruto: The Broken Bond — NarutoBBRecomp (TrinityForever15)",
+    "original_game_title": "Naruto: The Broken Bond",
+    "summary": "Research project. Maintainer-run Windowsx64 D3D12 reaches portions of gameplay; explicitly not validated playable or complete. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TrinityForever15/NarutoBBRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TrinityForever15/NarutoBBRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own files under recomp/fase4/assets; default.xex fingerprint is declared in README evidence extract, unmodified supported executable required."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Pinned SDK bootstrap/build_clean_windows.ps1, source research route; no releases observed."
+        }
+      ],
+      "warnings": [
+        "Maintainer-run Windowsx64 D3D12 reaches portions of gameplay; explicitly not validated playable or complete.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TrinityForever15/NarutoBBRecomp"
+    },
+    "issue_number": 3124,
+    "artwork": {
+      "game_id": 7102,
+      "cover_id": 85892,
+      "image_id": "co1u9w",
+      "image_sha256": "6972453fdae5d42a13eb5888f31c4c666f580eb958e65f59a150584ef5f402f5",
+      "game_slug": "naruto-the-broken-bond",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "narutobbrecomp-trinityforever15-naruto-the-broken-bond",
+    "origin": {
+      "project_url": "https://github.com/TrinityForever15/NarutoBBRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1309534426"
+      }
+    },
+    "decisions": []
+  }
+}

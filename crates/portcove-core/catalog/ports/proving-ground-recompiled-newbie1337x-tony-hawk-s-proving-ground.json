@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground",
+    "name": "Tony Hawk's Proving Ground — Proving Ground Recompiled (Newbie1337x)",
+    "original_game_title": "Tony Hawk's Proving Ground",
+    "summary": "Performance/control features upstream-described; Linux/gameplay complete validation absent. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Newbie1337x/ProvingGroundRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Newbie1337x/ProvingGroundRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own extracted Xbox360 disc incl default.xex; launcher enforces specific hash, not captured in root README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release nativeVulkan runtime; WindowsandLinux; Linux compiles/starts but gameplay untested."
+        }
+      ],
+      "warnings": [
+        "Performance/control features upstream-described; Linux/gameplay complete validation absent.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Newbie1337x/ProvingGroundRecomp"
+    },
+    "issue_number": 3146
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground",
+    "origin": {
+      "project_url": "https://github.com/Newbie1337x/ProvingGroundRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431550875"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "reo-sp00nznet-resident-evil-outbreak",
+    "name": "Resident Evil Outbreak — reo (sp00nznet)",
+    "original_game_title": "Resident Evil Outbreak",
+    "summary": "First scenario J Bar draws~35x slower than real time; no sound output/card image mount; full scenario untried. File2 only builds. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/reo",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/reo",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS20765 owned disc/files SLUS_207.65 and BIN/"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "No tagged release; Setup.cmd checks local prerequisites and builds from own disc; File2 not a player listing."
+        }
+      ],
+      "warnings": [
+        "First scenario J Bar draws~35x slower than real time; no sound output/card image mount; full scenario untried. File2 only builds.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/reo"
+    },
+    "issue_number": 3058,
+    "artwork": {
+      "game_id": 972,
+      "cover_id": 134989,
+      "image_id": "co2w5p",
+      "image_sha256": "699dcde274fd49d4b7b7cc670b8a1d4554adc35e73b636612f48e6721867fff1",
+      "game_slug": "resident-evil-outbreak",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "reo-sp00nznet-resident-evil-outbreak",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/reo",
+      "repository": {
+        "host": "github.com",
+        "id": "1163601260"
+      }
+    },
+    "decisions": []
+  }
+}

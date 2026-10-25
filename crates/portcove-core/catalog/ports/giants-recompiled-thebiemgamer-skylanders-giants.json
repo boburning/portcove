@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "giants-recompiled-thebiemgamer-skylanders-giants",
+    "name": "Skylanders Giants — Giants Recompiled (TheBiemGamer)",
+    "original_game_title": "Skylanders Giants",
+    "summary": "Early playable; modes other thanStorynot tested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TheBiemGamer/GiantsRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TheBiemGamer/GiantsRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Xbox360 Giantsversion1.0 ISO/extracted folder; exact hash in source validation."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "GiantsRecompSetup.exe imports own disc; realUSBportal optional, virtualportal supported; Linuxsource experimentalVulkan."
+        }
+      ],
+      "warnings": [
+        "Early playable; modes other thanStorynot tested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TheBiemGamer/GiantsRecomp"
+    },
+    "issue_number": 3148
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "giants-recompiled-thebiemgamer-skylanders-giants",
+    "origin": {
+      "project_url": "https://github.com/TheBiemGamer/GiantsRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1389826311"
+      }
+    },
+    "decisions": []
+  }
+}

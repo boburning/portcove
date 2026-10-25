@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "halogen-0xjjjjjj-champions-of-norrath",
+    "name": "Champions of Norrath — halogen (0xjjjjjj)",
+    "original_game_title": "Champions of Norrath",
+    "summary": "Native engine boot/front-end main-menu reached upstream; menu asset lumpFind defects block actual game output. PCSX2 town dump replay is reference evidence, not rendered gameplay from game. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/0xjjjjjj/halogen",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/0xjjjjjj/halogen",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-20565 own extracted disc/ELF"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Ubuntu24.04x86_64 local generation + post-regeneration patches + CMake halogen-headless; live Vulkan presentation planned."
+        }
+      ],
+      "warnings": [
+        "Native engine boot/front-end main-menu reached upstream; menu asset lumpFind defects block actual game output. PCSX2 town dump replay is reference evidence, not rendered gameplay from game.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/0xjjjjjj/halogen"
+    },
+    "issue_number": 3090,
+    "artwork": {
+      "game_id": 9813,
+      "cover_id": 298345,
+      "image_id": "co6e7d",
+      "image_sha256": "4a52060eb3d399ed2991973104639feefac00ac6cd61ba2673eafa30215d6fc2",
+      "game_slug": "champions-of-norrath-realms-of-everquest",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "halogen-0xjjjjjj-champions-of-norrath",
+    "origin": {
+      "project_url": "https://github.com/0xjjjjjj/halogen",
+      "repository": {
+        "host": "github.com",
+        "id": "1162871194"
+      }
+    },
+    "decisions": []
+  }
+}

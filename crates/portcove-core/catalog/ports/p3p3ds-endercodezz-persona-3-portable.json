@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "p3p3ds-endercodezz-persona-3-portable",
+    "name": "Persona 3 Portable — P3P3DS (endercodezz)",
+    "original_game_title": "Persona 3 Portable",
+    "summary": "Playableearly28-30field/16-25battleFPS onNew3DSclaimed; nosound/openingmovie;PCheadlessimagesnotdesktopplayer. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/endercodezz/P3P3DS",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/endercodezz/P3P3DS",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NorthAmerica ULUS10512 ownPSPinput"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source/privategeneration forhandheld; sourcefile/region/revisionrequirementsneedguide; notNativeWindowsdownload."
+        }
+      ],
+      "warnings": [
+        "Playableearly28-30field/16-25battleFPS onNew3DSclaimed; nosound/openingmovie;PCheadlessimagesnotdesktopplayer.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/endercodezz/P3P3DS"
+    },
+    "issue_number": 3104
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "p3p3ds-endercodezz-persona-3-portable",
+    "origin": {
+      "project_url": "https://github.com/endercodezz/P3P3DS",
+      "repository": {
+        "host": "github.com",
+        "id": "1387837422"
+      }
+    },
+    "decisions": []
+  }
+}

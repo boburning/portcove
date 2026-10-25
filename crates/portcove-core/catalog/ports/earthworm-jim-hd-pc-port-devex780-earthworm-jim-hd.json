@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "earthworm-jim-hd-pc-port-devex780-earthworm-jim-hd",
+    "name": "Earthworm Jim HD — Earthworm Jim HD PC port (devEx780)",
+    "original_game_title": "Earthworm Jim HD",
+    "summary": "All16 levels/save/local multiplayer said to work; campaign/boss playthrough incomplete. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/devEx780/earthworm-jim-hd-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/devEx780/earthworm-jim-hd-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Earthworm Jim HD Xbox 360 XBLA package or its complete extracted files. Title 584109E2/v1.0.0.11."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use Windows ZIP/Linux archive, populate game with own files and run play.cmd/run.sh."
+        }
+      ],
+      "warnings": [
+        "All16 levels/save/local multiplayer said to work; campaign/boss playthrough incomplete.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/devEx780/earthworm-jim-hd-recomp"
+    },
+    "artwork": {
+      "game_id": 20420,
+      "cover_id": 117634,
+      "image_id": "co2irm",
+      "image_sha256": "471bf461081ae9a3a0737da24a5c559379bcf238bc1eca0f588b088be728051a",
+      "game_slug": "earthworm-jim-hd",
+      "match_kind": "underlying-game"
+    }
+  }
+}

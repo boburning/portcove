@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "disgaead2macos-sean13128-sean13128-disgaea-d2-a-brighter-darkness",
+    "name": "Disgaea D2: A Brighter Darkness — DisgaeaD2macOS (Sean13128) (Sean13128)",
+    "original_game_title": "Disgaea D2: A Brighter Darkness",
+    "summary": "Author installednativecopy; unmaintainedOctober2026; WindowscontinuationLUUKASR1separateplatformlineage Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Sean13128/disgaea-d2-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Sean13128/disgaea-d2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NorthAmericaBLUS31313 own disc; exactrevision unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcelocallift/build"
+        }
+      ],
+      "warnings": [
+        "Author installednativecopy; unmaintainedOctober2026; WindowscontinuationLUUKASR1separateplatformlineage",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Sean13128/disgaea-d2-recomp"
+    },
+    "artwork": {
+      "game_id": 7299,
+      "cover_id": 100653,
+      "image_id": "co25nx",
+      "image_sha256": "2b634bf5a1b84bcdd3bb4d10e9063a3187291781f36f49dc763b81266a9158fc",
+      "game_slug": "disgaea-d2-a-brighter-darkness",
+      "match_kind": "underlying-game"
+    }
+  }
+}

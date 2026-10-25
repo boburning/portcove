@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tsapz-giantsrecomp-tsapz-skylanders-giants",
+    "name": "Skylanders Giants — tsapZ GiantsRecomp (tsapZ)",
+    "original_game_title": "Skylanders Giants",
+    "summary": "Research project. Firstlevelplays; latergame/Battlemodeuntested;clean-machineinstalleruntested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tsapZ/GiantsRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tsapZ/GiantsRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360NorthAmericanregionfreeexecutableISO/extractedfolder; title415608DA; accepted executablefingerprints: 12d1e29e4f07fbc559bc1a4988dd6bf346c3d16e30cbf862e2683e862f9fc09e default.xex"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python."
+        }
+      ],
+      "warnings": [
+        "Firstlevelplays; latergame/Battlemodeuntested;clean-machineinstalleruntested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tsapZ/GiantsRecomp"
+    },
+    "issue_number": 3154
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tsapz-giantsrecomp-tsapz-skylanders-giants",
+    "origin": {
+      "project_url": "https://github.com/tsapZ/GiantsRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1426904849"
+      }
+    },
+    "decisions": []
+  }
+}

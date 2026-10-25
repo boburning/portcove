@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "syphon-filter-recompiled-danilopaulinodasilva-danilopaulinodasilva-syphon-filter",
+    "name": "Syphon Filter — Syphon Filter Recompiled (danilopaulinodasilva) (danilopaulinodasilva)",
+    "original_game_title": "Syphon Filter",
+    "summary": "FirstmissionGeorgiaStreetandattractmode; latermissionsunchecked Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SCUS94240 own disc generatedlocally; OpenBIOSbundled"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcelocalgeneration/build; generatedCnotdistributed"
+        }
+      ],
+      "warnings": [
+        "FirstmissionGeorgiaStreetandattractmode; latermissionsunchecked",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp"
+    }
+  }
+}

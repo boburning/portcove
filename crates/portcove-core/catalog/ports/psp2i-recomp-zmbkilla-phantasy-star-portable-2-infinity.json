@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "psp2i-recomp-zmbkilla-phantasy-star-portable-2-infinity",
+    "name": "Phantasy Star Portable 2 Infinity — PSP2I_Recomp (zmbkilla)",
+    "original_game_title": "Phantasy Star Portable 2 Infinity",
+    "summary": "Native runtime build instructions; no fullplayability inferred. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/zmbkilla/PSP2I_Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/zmbkilla/PSP2I_Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Owned game EBOOT.BIN/data; exact region/revision unresolved"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local emitfromEBOOT/buildport; capture exactgameedition before authoringsourcerequirements."
+        }
+      ],
+      "warnings": [
+        "Native runtime build instructions; no fullplayability inferred.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/zmbkilla/PSP2I_Recomp"
+    },
+    "issue_number": 3093,
+    "artwork": {
+      "game_id": 79771,
+      "cover_id": 119927,
+      "image_id": "co2kjb",
+      "image_sha256": "8aaf98f987962c89feeb300ea63078433a13a358235cc0211ac3bf43872f3ef1",
+      "game_slug": "phantasy-star-portable-2-infinity",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "psp2i-recomp-zmbkilla-phantasy-star-portable-2-infinity",
+    "origin": {
+      "project_url": "https://github.com/zmbkilla/PSP2I_Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1405285472"
+      }
+    },
+    "decisions": []
+  }
+}

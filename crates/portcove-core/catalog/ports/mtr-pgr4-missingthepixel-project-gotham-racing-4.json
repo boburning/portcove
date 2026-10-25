@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mtr-pgr4-missingthepixel-project-gotham-racing-4",
+    "name": "Project Gotham Racing 4 — MTR-PGR4 (MissingThePixel)",
+    "original_game_title": "Project Gotham Racing 4",
+    "summary": "Player package exists; broad race/progression scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/MissingThePixel/MTR-PGR4",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MissingThePixel/MTR-PGR4",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Project Gotham Racing 4 Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows ZIP and point launcher at own extracted PGR4 folder, not ISO."
+        }
+      ],
+      "warnings": [
+        "Player package exists; broad race/progression scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/MissingThePixel/MTR-PGR4"
+    },
+    "artwork": {
+      "game_id": 2540,
+      "cover_id": 86417,
+      "image_id": "co1uoh",
+      "image_sha256": "298c851b4b05844dc20d54b12ef826012aec8e15d5d32936a288b77a5c137ce8",
+      "game_slug": "project-gotham-racing-4",
+      "match_kind": "underlying-game"
+    }
+  }
+}

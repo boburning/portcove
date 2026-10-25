@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "splatterhouse-recompiled-native-xbox-360-pc-port-0c0de-splatterhouse-2010",
+    "name": "Splatterhouse (2010) — Splatterhouse Recompiled — native Xbox 360 → PC port (0c0de)",
+    "original_game_title": "Splatterhouse (2010)",
+    "summary": "Upstream claims end-to-end campaign/DLC play at60 FPS. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/0c0de/splatterhouse-decomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/0c0de/splatterhouse-decomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Splatterhouse (2010) Xbox 360 disc ISO. Title 4E4D07F0; DLC optional."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "install.bat extracts own Splatterhouse ISO and builds native runtime locally; DLC packages optional."
+        }
+      ],
+      "warnings": [
+        "Upstream claims end-to-end campaign/DLC play at60 FPS.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/0c0de/splatterhouse-decomp"
+    }
+  }
+}

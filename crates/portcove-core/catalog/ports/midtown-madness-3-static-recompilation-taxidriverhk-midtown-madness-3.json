@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3",
+    "name": "Midtown Madness 3 — Midtown Madness 3 — Static Recompilation (taxidriverhk)",
+    "original_game_title": "Midtown Madness 3",
+    "summary": "Rough 70% estimate; full races/audio/controller and ten-minute sessions reported. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/taxidriverhk/mm3recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/taxidriverhk/mm3recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Midtown Madness 3 Original Xbox complete extracted game files, including the original executable. Title 4D53002A; XBE build2003-05-08/XDK5233; SHA1 e63b03dd956544d3838bead8be5622da6cd189e1."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract own retail Xbox disc and run the full regenerate/MSVC pipeline; game data remains needed at runtime."
+        }
+      ],
+      "warnings": [
+        "Rough 70% estimate; full races/audio/controller and ten-minute sessions reported.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/taxidriverhk/mm3recomp"
+    },
+    "artwork": {
+      "game_id": 5929,
+      "cover_id": 205808,
+      "image_id": "co4esw",
+      "image_sha256": "888cf0e287d705f4688fc1a4e203efc7e8046965c260500f0412aa4f9d659451",
+      "game_slug": "midtown-madness-3",
+      "match_kind": "underlying-game"
+    }
+  }
+}

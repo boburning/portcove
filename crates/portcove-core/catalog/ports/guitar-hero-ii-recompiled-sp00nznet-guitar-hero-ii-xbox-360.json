@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "guitar-hero-ii-recompiled-sp00nznet-guitar-hero-ii-xbox-360",
+    "name": "Guitar Hero II (Xbox 360) — Guitar Hero II Recompiled (sp00nznet)",
+    "original_game_title": "Guitar Hero II (Xbox 360)",
+    "summary": "Gameplay marked working; guitar controller untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/gh2",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/gh2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Guitar Hero II (Xbox 360) Xbox 360 disc ISO or extracted full disc files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract own GH2 disc into assets, analyze XEX, generate/compile Windows runtime."
+        }
+      ],
+      "warnings": [
+        "Gameplay marked working; guitar controller untested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/gh2"
+    },
+    "artwork": {
+      "game_id": 2670,
+      "cover_id": 430248,
+      "image_id": "co97zc",
+      "image_sha256": "31cff9ee4bf15d460535fb3da9d11cbd7b15f9bdd104235b6150695003c1fa3c",
+      "game_slug": "guitar-hero-ii",
+      "match_kind": "underlying-game"
+    }
+  }
+}

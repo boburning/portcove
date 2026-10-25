@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-f-e-a-r-files-xbox-360",
+    "name": "F.E.A.R. / F.E.A.R. Files (Xbox 360) — F.E.A.R. 360 Recompiled (Juansolo457)",
+    "original_game_title": "F.E.A.R. / F.E.A.R. Files (Xbox 360)",
+    "summary": "Both titles reportedly boot/play; every level without a crash is the future 1.0 condition. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Juansolo457/fear360-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Juansolo457/fear360-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own F.E.A.R. / F.E.A.R. Files (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source-only v0.1.0 builds from own F.E.A.R./F.E.A.R. Files discs; optional PC textures require an own PC copy."
+        }
+      ],
+      "warnings": [
+        "Both titles reportedly boot/play; every level without a crash is the future 1.0 condition.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Juansolo457/fear360-recomp"
+    }
+  }
+}

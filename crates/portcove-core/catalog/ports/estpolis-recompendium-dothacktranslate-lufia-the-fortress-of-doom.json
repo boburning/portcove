@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "estpolis-recompendium-dothacktranslate-lufia-the-fortress-of-doom",
+    "name": "Lufia & the Fortress of Doom — Estpolis Recompendium (dothacktranslate)",
+    "original_game_title": "Lufia & the Fortress of Doom",
+    "summary": "Lufia1 runtime/video/input/audio working, stablegameplay needs more testing; postbattle text flickers Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/dothacktranslate/Estpolis-Recompendium",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dothacktranslate/Estpolis-Recompendium",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA Lufia1 ROM1048576bytes SHA25673731a5a7932965de02a9e98055dcf88b4d17b8f710a6ecfde3e36a1f248773b; Japanese/LufiaII all planned NOTsupported"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source CMake SDL2; owned ROM at runtime"
+        }
+      ],
+      "warnings": [
+        "Lufia1 runtime/video/input/audio working, stablegameplay needs more testing; postbattle text flickers",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/dothacktranslate/Estpolis-Recompendium"
+    },
+    "artwork": {
+      "game_id": 1177,
+      "cover_id": 552103,
+      "image_id": "cobu07",
+      "image_sha256": "141e89fa5ee1b2fc41bd6988c6c165935e9f09767c0a21cabd8f8551783564b7",
+      "game_slug": "lufia-the-fortress-of-doom",
+      "match_kind": "underlying-game"
+    }
+  }
+}

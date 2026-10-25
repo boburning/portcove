@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "smt-nine-recomp-gymzatan-shin-megami-tensei-nine",
+    "name": "Shin Megami Tensei NINE — SMT NINE Recomp (gymzatan)",
+    "original_game_title": "Shin Megami Tensei NINE",
+    "summary": "Upstream exercised startup, save/load, movies, streets/shops, story battles, RTS tutorials and chapter2 entry. Explicitly no full-playthrough/stable60 guarantee. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/gymzatan/smt-nine-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gymzatan/smt-nine-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japanese retail Xbox disc; ISO/XISO or extracted default.xbe + Media; default.xbe SHA256 6c249401369ed41c2a319762f0b56b80aefde3efe766ac0d8731889a4150deac, complete 3515-file manifest. Chinese optional; English separately patched ISO imported after initial Japanese build."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source build setup.cmd/build.cmd; Windows Python3.14 + VS2022 + Rustup. Release assets are updates for an existing installation, not initial game packages."
+        }
+      ],
+      "warnings": [
+        "Upstream exercised startup, save/load, movies, streets/shops, story battles, RTS tutorials and chapter2 entry. Explicitly no full-playthrough/stable60 guarantee.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/gymzatan/smt-nine-recomp"
+    },
+    "issue_number": 3114,
+    "artwork": {
+      "game_id": 6050,
+      "cover_id": 137727,
+      "image_id": "co2y9r",
+      "image_sha256": "1342bdbcc6616dcef7d7cac7824afa94f9e20913bf9ea90d9c45008c57635c6a",
+      "game_slug": "shin-megami-tensei-nine",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "smt-nine-recomp-gymzatan-shin-megami-tensei-nine",
+    "origin": {
+      "project_url": "https://github.com/gymzatan/smt-nine-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422970813"
+      }
+    },
+    "decisions": []
+  }
+}

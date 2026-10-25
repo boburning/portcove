@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fzerogx-recomp-ethannicholas-ethannicholas-f-zero-gx",
+    "name": "F-Zero GX — fzerogx-recomp (ethannicholas) (ethannicholas)",
+    "original_game_title": "F-Zero GX",
+    "summary": "Upstream claims complete desktop/VR, no known issues; no Portcove validation Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ethannicholas/fzerogx-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ethannicholas/fzerogx-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GFZE01 main.dol SHA1 421c88106697d3275a3fc26fb7a01bf6d816b271; own ISO/CISO; RVZ/GCZ convert first"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source build local codegen; first build briefly runs game to capture runtime-assembled module; image required at runtime"
+        }
+      ],
+      "warnings": [
+        "Upstream claims complete desktop/VR, no known issues; no Portcove validation",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ethannicholas/fzerogx-recomp"
+    },
+    "artwork": {
+      "game_id": 3492,
+      "cover_id": 236085,
+      "image_id": "co525x",
+      "image_sha256": "55e7f580c65cfb6b37ff66237efe3c53cc2d8ade706808ea9a1c32549852a8de",
+      "game_slug": "f-zero-gx",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-eleven-theplayer14-11eyes-crossover",
+    "name": "11eyes CrossOver — project-eleven (ThePlayer14)",
+    "original_game_title": "11eyes CrossOver",
+    "summary": "Research project. Concrete source/build route; boot/gameplay scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ThePlayer14/project-eleven-recomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ThePlayer14/project-eleven-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own 11eyes CrossOver Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract project-eleven source archive, run ReXGlue codegen on own XEX and compile CMake target."
+        }
+      ],
+      "warnings": [
+        "Concrete source/build route; boot/gameplay scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ThePlayer14/project-eleven-recomp"
+    }
+  }
+}

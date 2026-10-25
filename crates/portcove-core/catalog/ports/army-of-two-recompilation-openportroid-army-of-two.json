@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "army-of-two-recompilation-openportroid-army-of-two",
+    "name": "Army of Two — Army of Two Recompilation (OpenPortroid)",
+    "original_game_title": "Army of Two",
+    "summary": "Upstream claims solo/co-op completion without crashes on tested RTX2060/4060 PCs. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/OpenPortroid/ArmyOfTwoRecompilation",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenPortroid/ArmyOfTwoRecompilation",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Army of Two Xbox 360 disc ISO or extracted full disc files. Europe with mandatory TU 2; DLC optional."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract the Windows release and import own Europe disc plus mandatory TU 2; DLC is optional."
+        }
+      ],
+      "warnings": [
+        "Upstream claims solo/co-op completion without crashes on tested RTX2060/4060 PCs.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/OpenPortroid/ArmyOfTwoRecompilation"
+    },
+    "artwork": {
+      "game_id": 996,
+      "cover_id": 276344,
+      "image_id": "co5x88",
+      "image_sha256": "c18a22095f16a0cd9efc70383ce92291ff1b70f3aad6b7037630e51501c3c3c8",
+      "game_slug": "army-of-two",
+      "match_kind": "underlying-game"
+    }
+  }
+}

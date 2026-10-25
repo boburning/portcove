@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gravity-rush-for-windows-prathewsh-gravity-rush-remastered",
+    "name": "Gravity Rush Remastered — Gravity Rush for Windows (Prathewsh)",
+    "original_game_title": "Gravity Rush Remastered",
+    "summary": "Experimental; precise per-title gameplay coverage needs clarification Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Prathewsh/gravityrush_pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Prathewsh/gravityrush_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Remastered CUSA01113/CUSA01130; GR2 CUSA00547/CUSA03694/CUSA04934/CUSA04943 update01.11 patch target; owned decrypted dumps"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source Windows packaging/runtime imports dumps; build or available fork package"
+        }
+      ],
+      "warnings": [
+        "Experimental; precise per-title gameplay coverage needs clarification",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Prathewsh/gravityrush_pc"
+    },
+    "artwork": {
+      "game_id": 12529,
+      "cover_id": 380019,
+      "image_id": "co8583",
+      "image_sha256": "243ece6c8ab605ee2eb8dc104865838a89a7eabb079adc02a816102b1bfacf0b",
+      "game_slug": "gravity-rush-remastered",
+      "match_kind": "underlying-game"
+    }
+  }
+}

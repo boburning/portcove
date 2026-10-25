@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doax2-recomp-hibikifukui22-dead-or-alive-xtreme-2",
+    "name": "Dead or Alive Xtreme 2 — DOAX2 Recomp (hibikifukui22)",
+    "original_game_title": "Dead or Alive Xtreme 2",
+    "summary": "Release/input options documented; full progression coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Dead or Alive Xtreme 2 Xbox 360 complete extracted game files, including the original executable. Retail base version 3 / XEX2; title 544307D2/media 21B9628E; no TU."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract Windows release and populate game with own retail disc files; no title updates are supported."
+        }
+      ],
+      "warnings": [
+        "Release/input options documented; full progression coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation"
+    },
+    "artwork": {
+      "game_id": 1393,
+      "cover_id": 547559,
+      "image_id": "cobqhz",
+      "image_sha256": "b133fa50512b6eed441c1c76beb11d4cb5194ff76cf6b97a9c04225dfbb62cbb",
+      "game_slug": "dead-or-alive-xtreme-2",
+      "match_kind": "underlying-game"
+    }
+  }
+}

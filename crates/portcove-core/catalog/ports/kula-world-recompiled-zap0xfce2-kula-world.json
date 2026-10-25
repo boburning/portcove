@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kula-world-recompiled-zap0xfce2-kula-world",
+    "name": "Kula World — Kula World Recompiled (zap0xfce2)",
+    "original_game_title": "Kula World",
+    "summary": "All10worldsviaLevelSelect andendingFMV; not equivalent to fullplaythrough Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SCES01000 ownBIN+CUE"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source localbuild; owndisc at runtime"
+        }
+      ],
+      "warnings": [
+        "All10worldsviaLevelSelect andendingFMV; not equivalent to fullplaythrough",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/zap0xfce2/Kula-World-Recompiled"
+    }
+  }
+}

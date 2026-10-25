@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vp2s-recomp-boubou666-valkyrie-profile-2-silmeria",
+    "name": "Valkyrie Profile 2: Silmeria — VP2S_Recomp (boubou666)",
+    "original_game_title": "Valkyrie Profile 2: Silmeria",
+    "summary": "Title/music/opening movie/first field cutscene; corrupted field rendering25-35VSync/s; not playable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/boubou666/VP2S_Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/boubou666/VP2S_Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SLES54645 ELF SHA1541fa8d563b2834350fd0a635a4d3631574ad778 + own overlays/disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local Ghidra/extract/decrypt25overlays/recompile/build route; first field rendering is resume gate."
+        }
+      ],
+      "warnings": [
+        "Title/music/opening movie/first field cutscene; corrupted field rendering25-35VSync/s; not playable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/boubou666/VP2S_Recomp"
+    },
+    "issue_number": 3056,
+    "artwork": {
+      "game_id": 11793,
+      "cover_id": 78611,
+      "image_id": "co1onn",
+      "image_sha256": "c2b41b468fe2cbdfd3ca97918ddfb7440da3d307d6960e8b18f614fe9b4a0308",
+      "game_slug": "valkyrie-profile-2-silmeria",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "vp2s-recomp-boubou666-valkyrie-profile-2-silmeria",
+    "origin": {
+      "project_url": "https://github.com/boubou666/VP2S_Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429599038"
+      }
+    },
+    "decisions": []
+  }
+}

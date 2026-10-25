@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dead-space-2-recomp-bifftannen1-dead-space-2-xbox-360",
+    "name": "Dead Space 2 (Xbox 360) — Dead Space 2 Recomp (bifftannen1)",
+    "original_game_title": "Dead Space 2 (Xbox 360)",
+    "summary": "Campaign/Severed not fully playtested; online features untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/bifftannen1/Dead-Space-2-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bifftannen1/Dead-Space-2-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Dead Space 2 (Xbox 360) Xbox 360 complete extracted game files, including the original executable. World En/Fr/Es Disc 1 title 454108DF/media 2915C8F8; Disc 2 media 403243EC optional; mandatory TU 2 to 0.0.2.3; own Severed optional."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use TU 2-playtest Windows package and DS2Launcher to verify own Disc1/TU 2 plus optional Disc2/Severed."
+        }
+      ],
+      "warnings": [
+        "Campaign/Severed not fully playtested; online features untested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/bifftannen1/Dead-Space-2-Recomp"
+    },
+    "artwork": {
+      "game_id": 38,
+      "cover_id": 94526,
+      "image_id": "co20xq",
+      "image_sha256": "70e07dc3479832c9b783e4528ac2f76e38be692ac83fb978dad6f97d88727769",
+      "game_slug": "dead-space-2",
+      "match_kind": "underlying-game"
+    }
+  }
+}

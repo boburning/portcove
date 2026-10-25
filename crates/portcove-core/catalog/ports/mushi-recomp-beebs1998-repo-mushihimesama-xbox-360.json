@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mushi-recomp-beebs1998-repo-mushihimesama-xbox-360",
+    "name": "Mushihimesama (Xbox 360) — Mushi Recomp (beebs1998-repo)",
+    "original_game_title": "Mushihimesama (Xbox 360)",
+    "summary": "An initial playtest is reported; broad progression coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/beebs1998-repo/rexglue-mushi",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/beebs1998-repo/rexglue-mushi",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Mushihimesama (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Default.xex plus res/DISKDATA; extra mode needs own DLC."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build runtime and mode DLLs from public source; own Mushihimesama data is required to run, and extra mode needs own DLC."
+        }
+      ],
+      "warnings": [
+        "An initial playtest is reported; broad progression coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/beebs1998-repo/rexglue-mushi"
+    }
+  }
+}

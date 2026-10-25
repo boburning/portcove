@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "captain-america-super-soldier-recompiled-m1ndcrap-captain-america-super-soldier",
+    "name": "Captain America: Super Soldier — Captain America Super Soldier Recompiled (m1ndcrap)",
+    "original_game_title": "Captain America: Super Soldier",
+    "summary": "Title screen boots, story loading crashes due to missing function addresses. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Required original-game edition, exact data layout, region, revision and hash are Unknown from the retained short README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Short README does not describe complete player acquisition/setup; title-specific ReXGlue project exists."
+        }
+      ],
+      "warnings": [
+        "Title screen boots, story loading crashes due to missing function addresses.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"
+    }
+  }
+}

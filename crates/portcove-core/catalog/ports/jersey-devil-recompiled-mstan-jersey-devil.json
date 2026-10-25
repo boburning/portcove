@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jersey-devil-recompiled-mstan-jersey-devil",
+    "name": "Jersey Devil — Jersey Devil Recompiled (mstan)",
+    "original_game_title": "Jersey Devil",
+    "summary": "Boot/intros/levels/gameplayclaimed; brandnew Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mstan/JerseyDevilRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/JerseyDevilRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SCUS94907 own disc45tracks; bootSCUS_949.07"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcebuild now; README explicitly noReleaseyet"
+        }
+      ],
+      "warnings": [
+        "Boot/intros/levels/gameplayclaimed; brandnew",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mstan/JerseyDevilRecomp"
+    },
+    "artwork": {
+      "game_id": 45077,
+      "cover_id": 227123,
+      "image_id": "co4v8z",
+      "image_sha256": "8ac290eb748a3fbe81782db53f5ef91467b64f55842801c8591b6a703e7d6850",
+      "game_slug": "jersey-devil",
+      "match_kind": "underlying-game"
+    }
+  }
+}

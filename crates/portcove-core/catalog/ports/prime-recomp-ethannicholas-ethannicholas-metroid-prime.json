@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "prime-recomp-ethannicholas-ethannicholas-metroid-prime",
+    "name": "Metroid Prime — prime-recomp (ethannicholas) (ethannicholas)",
+    "original_game_title": "Metroid Prime",
+    "summary": "Upstream claims whole game complete/no significant bugs; VRfocus Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ethannicholas/prime-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ethannicholas/prime-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USARev2PlayersChoiceGM8E01v1.02 main.dolSHA139a2f928159ad46491e9b1ef0a72613d91e0cc40; ownISO/CISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source local codegen/build; image at runtime; no generated gamebinary redistribution"
+        }
+      ],
+      "warnings": [
+        "Upstream claims whole game complete/no significant bugs; VRfocus",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ethannicholas/prime-recomp"
+    }
+  }
+}

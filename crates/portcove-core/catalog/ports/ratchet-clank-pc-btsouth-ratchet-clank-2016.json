@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ratchet-clank-pc-btsouth-ratchet-clank-2016",
+    "name": "Ratchet & Clank (2016) — ratchet-clank-pc (btsouth)",
+    "original_game_title": "Ratchet & Clank (2016)",
+    "summary": "Preview 0.1: every planet loads/plays at 60 FPS preset with cutscenes, sound, controller and saves. No start-to-finish completion. Shadow flicker, first-visit shader stutter and unstable higher frame rates remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/btsouth/ratchet-clank-pc",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/btsouth/ratchet-clank-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own base 01.00 decrypted CUSA01073 directory with eboot.bin, sce_module and sce_sys; no update merged. Extract owned PKG using a recent extractor. Game files remain required at runtime."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README recommends Ratchet-Clank-port-x86_64.AppImage and adjacent sha256 file. Launcher selects game folder; first start prepares image and shader caches. Source alternative uses build.sh and optional GTK4 launcher. Saves/cache in ~/.local/share/ratchet-port; one running copy due to /tmp/.racS link."
+        }
+      ],
+      "warnings": [
+        "Preview 0.1: every planet loads/plays at 60 FPS preset with cutscenes, sound, controller and saves. No start-to-finish completion. Shadow flicker, first-visit shader stutter and unstable higher frame rates remain.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/btsouth/ratchet-clank-pc"
+    }
+  }
+}

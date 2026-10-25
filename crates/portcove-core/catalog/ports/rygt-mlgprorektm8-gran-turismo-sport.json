@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rygt-mlgprorektm8-gran-turismo-sport",
+    "name": "Gran Turismo Sport — RyGT (mlgprorektm8)",
+    "original_game_title": "Gran Turismo Sport",
+    "summary": "Native Windows route; two hardware configs tested upstream; exact gameplay limitations in README Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mlgprorektm8/RyGT",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mlgprorektm8/RyGT",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "CUSA03220 update1.69 owned decrypted dump + own system module/font folders"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release loader converts eboot into GTSport.exe locally; system modules separately supplied"
+        }
+      ],
+      "warnings": [
+        "Native Windows route; two hardware configs tested upstream; exact gameplay limitations in README",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mlgprorektm8/RyGT"
+    },
+    "artwork": {
+      "game_id": 14363,
+      "cover_id": 182162,
+      "image_id": "co3wk2",
+      "image_sha256": "799915bc463075cc3d9e541cf0b9c5653c7b296a32244dfb262cddbf1113b94c",
+      "game_slug": "gran-turismo-sport",
+      "match_kind": "underlying-game"
+    }
+  }
+}

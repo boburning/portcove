@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mcdub3-nx-laureladastra-midnight-club-3-dub-edition-dub-edition-remix",
+    "name": "Midnight Club 3: DUB Edition / DUB Edition Remix — mcdub3-nx (laureladastra)",
+    "original_game_title": "Midnight Club 3: DUB Edition / DUB Edition Remix",
+    "summary": "0.3.0 crashes/hangs; Windows experimental. Switch 100% claim is not desktop evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/laureladastra/mcdub3-nx",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/laureladastra/mcdub3-nx",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Midnight Club 3: DUB Edition / DUB Edition Remix Original Xbox disc ISO or extracted full disc files. USA/Europe original-Original Xbox DUBEdition or Remix; editions use distinct folders/build selection."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build desktop app via non-Switch instructions from own DUBEdition/Remix USA/Europe disc; editions use separate folders/build selection."
+        }
+      ],
+      "warnings": [
+        "0.3.0 crashes/hangs; Windows experimental. Switch 100% claim is not desktop evidence.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/laureladastra/mcdub3-nx"
+    }
+  }
+}

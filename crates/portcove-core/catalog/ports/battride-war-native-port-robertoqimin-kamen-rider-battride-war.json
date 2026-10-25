@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "battride-war-native-port-robertoqimin-kamen-rider-battride-war",
+    "name": "Kamen Rider: Battride War — Battride War native port (robertoqimin)",
+    "original_game_title": "Kamen Rider: Battride War",
+    "summary": "Gameplay opening mission validated on Fedora4600HGTX1650 only; originalvideo path not repeated inlatesttest Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/robertoqimin/battride-war-port",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/robertoqimin/battride-war-port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "JapanBLJS10220 owneddisc/ELF+assets; exactEBOOT digest in docs/BUILD"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "AppImage importsdisc via pinnedRPCS3helper then local bundledtoolchaincompile15-60min"
+        }
+      ],
+      "warnings": [
+        "Gameplay opening mission validated on Fedora4600HGTX1650 only; originalvideo path not repeated inlatesttest",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/robertoqimin/battride-war-port"
+    },
+    "artwork": {
+      "game_id": 63358,
+      "cover_id": 352485,
+      "image_id": "co7jz9",
+      "image_sha256": "ff1b0d0001d8964b38b00369d3ab379d4e09d5b64b033c7662835d5eccf9435d",
+      "game_slug": "kamen-rider-battride-war",
+      "match_kind": "underlying-game"
+    }
+  }
+}

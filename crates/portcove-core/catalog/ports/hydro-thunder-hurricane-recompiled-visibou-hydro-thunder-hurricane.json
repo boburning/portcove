@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hydro-thunder-hurricane-recompiled-visibou-hydro-thunder-hurricane",
+    "name": "Hydro Thunder Hurricane — Hydro Thunder Hurricane: Recompiled (visibou)",
+    "original_game_title": "Hydro Thunder Hurricane",
+    "summary": "Boot-to-title/features documented; full race/progression scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/visibou/htrecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/visibou/htrecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Hydro Thunder Hurricane Xbox 360 XBLA package or its complete extracted files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build CMake project with included generated C++; supply own HydroThunder data and local setup conversion."
+        }
+      ],
+      "warnings": [
+        "Boot-to-title/features documented; full race/progression scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/visibou/htrecomp"
+    },
+    "artwork": {
+      "game_id": 3704,
+      "cover_id": 87987,
+      "image_id": "co1vw3",
+      "image_sha256": "67d13983cb12bd7f3c32e7a43972aff2fea915c892627491c45611c06c76dc49",
+      "game_slug": "hydro-thunder-hurricane",
+      "match_kind": "underlying-game"
+    }
+  }
+}

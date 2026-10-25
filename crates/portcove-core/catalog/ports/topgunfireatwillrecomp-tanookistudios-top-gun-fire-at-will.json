@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "topgunfireatwillrecomp-tanookistudios-top-gun-fire-at-will",
+    "name": "Top Gun: Fire at Will — TopGunFireAtWillRecomp (TanookiStudios)",
+    "original_game_title": "Top Gun: Fire at Will",
+    "summary": "Native game playerroute; exactmissioncoverage tobound Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TanookiStudios/TopGunFireAtWillRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TanookiStudios/TopGunFireAtWillRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS00032 ownCUE/BIN SHA256c221dce3ef23863613a93611f29f4ddad10343c2a706b01720e56d95702e2cb1"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "ReleaseZIP/targz launcher; own-disc setup; no retailBIOS"
+        }
+      ],
+      "warnings": [
+        "Native game playerroute; exactmissioncoverage tobound",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TanookiStudios/TopGunFireAtWillRecomp"
+    },
+    "artwork": {
+      "game_id": 20129,
+      "cover_id": 469914,
+      "image_id": "coa2l6",
+      "image_sha256": "debf6fda35ec9fe983119ab6da79b18bf28e386bdd68230597c7f04436679a52",
+      "game_slug": "top-gun-fire-at-will",
+      "match_kind": "underlying-game"
+    }
+  }
+}

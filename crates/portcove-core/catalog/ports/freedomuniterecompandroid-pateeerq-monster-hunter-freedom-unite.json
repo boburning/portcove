@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "freedomuniterecompandroid-pateeerq-monster-hunter-freedom-unite",
+    "name": "Monster Hunter Freedom Unite — FreedomUniteRecomp (PateeerQ)",
+    "original_game_title": "Monster Hunter Freedom Unite",
+    "summary": "Retained README desktop bring-up boot/language-selection claim; ATRAC/MPEG bookkeeping without decoders, audio/music silent/movies black; Android native execution not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/PateeerQ/FreedomUniteRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/PateeerQ/FreedomUniteRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe ULES01213 ISO + decrypted EBOOT; PSP PGF font files from own allowed font folder/PPSSPP installation; no version/hash invented."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows local CMake/MSVC source generation using scripts/setup.ps1 +scripts/run.ps1. Overlays regenerate iteratively after misses; Android is intended only, no Android package/qualified host."
+        }
+      ],
+      "warnings": [
+        "Retained README desktop bring-up boot/language-selection claim; ATRAC/MPEG bookkeeping without decoders, audio/music silent/movies black; Android native execution not established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/PateeerQ/FreedomUniteRecomp"
+    },
+    "issue_number": 3067,
+    "artwork": {
+      "game_id": 20427,
+      "cover_id": 592783,
+      "image_id": "cocpe7",
+      "image_sha256": "4f36e8170fbe53a32d39088379641617c06d047c92f785db334bad2181621f09",
+      "game_slug": "monster-hunter-freedom-unite",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "freedomuniterecompandroid-pateeerq-monster-hunter-freedom-unite",
+    "origin": {
+      "project_url": "https://github.com/PateeerQ/FreedomUniteRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431760220"
+      }
+    },
+    "decisions": []
+  }
+}

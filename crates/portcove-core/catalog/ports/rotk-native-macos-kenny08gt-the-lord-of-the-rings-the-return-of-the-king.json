@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rotk-native-macos-kenny08gt-the-lord-of-the-rings-the-return-of-the-king",
+    "name": "The Lord of the Rings: The Return of the King — ROTK native macOS (kenny08gt)",
+    "original_game_title": "The Lord of the Rings: The Return of the King",
+    "summary": "Boot/menu/movies/HelmsDeepaudio/gameplaynear60fpsM1Max; biggestfightsdip Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/kenny08gt/rotk-native",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kenny08gt/rotk-native",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GKLE69 own disc; exactrevisionunknown"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source localcodegen/build"
+        }
+      ],
+      "warnings": [
+        "Boot/menu/movies/HelmsDeepaudio/gameplaynear60fpsM1Max; biggestfightsdip",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/kenny08gt/rotk-native"
+    }
+  }
+}

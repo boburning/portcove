@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "disruptor-recompiled-phroster-phroster-disruptor",
+    "name": "Disruptor — Disruptor Recompiled (Phroster) (Phroster)",
+    "original_game_title": "Disruptor",
+    "summary": "60fps/nativePC gameplay trailer claimed; releasecandidate Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Phroster/DisruptorRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Phroster/DisruptorRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA owned .bin/.iso; no BIOS; serial/revision unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v1.0.0-rc.2 installer locally builds from owned disc (~minute)"
+        }
+      ],
+      "warnings": [
+        "60fps/nativePC gameplay trailer claimed; releasecandidate",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Phroster/DisruptorRecomp"
+    },
+    "artwork": {
+      "game_id": 20654,
+      "cover_id": 116369,
+      "image_id": "co2hsh",
+      "image_sha256": "3ba4da16afa9e01bea79676ad58485d8a927898e9f615b185e68c48eef18bfab",
+      "game_slug": "disruptor",
+      "match_kind": "underlying-game"
+    }
+  }
+}

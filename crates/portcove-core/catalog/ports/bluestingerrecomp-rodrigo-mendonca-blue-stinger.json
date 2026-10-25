@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bluestingerrecomp-rodrigo-mendonca-blue-stinger",
+    "name": "Blue Stinger — BlueStingerRecomp (rodrigo-mendonca)",
+    "original_game_title": "Blue Stinger",
+    "summary": "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U T13001N V1.0001999-07-05 own CDI; exact 1ST_READ.BIN SHA256 profile must be read before setup"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source CMake/MSVC route and BlueStinger Builder/Recompiler turn owned CDI into native exe plus runtime data; remastered installer edition remains planned."
+        }
+      ],
+      "warnings": [
+        "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp"
+    },
+    "artwork": {
+      "game_id": 6715,
+      "cover_id": 506643,
+      "image_id": "coauxf",
+      "image_sha256": "580e9735786ce1d0c34ca13635f35902222ef8c783e554f2f1c5a909971270b9",
+      "game_slug": "blue-stinger",
+      "match_kind": "underlying-game"
+    }
+  }
+}

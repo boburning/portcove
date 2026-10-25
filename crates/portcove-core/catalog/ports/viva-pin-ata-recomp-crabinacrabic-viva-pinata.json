@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "viva-pin-ata-recomp-crabinacrabic-viva-pinata",
+    "name": "Viva Pinata — Viva Piñata Recomp (crabinacrabic)",
+    "original_game_title": "Viva Pinata",
+    "summary": "Garden/save-load work; rare title-idle crash and no full playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/crabinacrabic/VivaPinataRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/crabinacrabic/VivaPinataRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Viva Pinata Xbox 360 disc ISO or extracted full disc files. USA/Europe title 4D5307F2/media 690B3287/v0.0.0.1; no TU/bonus disc needed."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract own VivaPinata disc and build Windows project; Russian translation is separately supplied."
+        }
+      ],
+      "warnings": [
+        "Garden/save-load work; rare title-idle crash and no full playthrough.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/crabinacrabic/VivaPinataRecomp"
+    }
+  }
+}

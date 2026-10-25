@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "peggle-xbox-360-para-pc-recompilacio-n-esta-tica-con-rexglue-josuemora918-peggle-xbox-live-arcade",
+    "name": "Peggle (Xbox Live Arcade) — Peggle (Xbox 360) para PC — recompilación estática con ReXGlue (JosueMora918)",
+    "original_game_title": "Peggle (Xbox Live Arcade)",
+    "summary": "Gameplay/local multiplayer work; userdata-path write failures and gradual memory growth noted. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/JosueMora918/peggle360-decomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JosueMora918/peggle360-decomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Peggle (Xbox Live Arcade) Xbox 360 XBLA package or its complete extracted files. Title 58410889/media 111272B2/v0.0.1.2; no TU; exact XEX SHA256 in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows binary-package play and optional patched-SDK/codegen builds documented."
+        }
+      ],
+      "warnings": [
+        "Gameplay/local multiplayer work; userdata-path write failures and gradual memory growth noted.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/JosueMora918/peggle360-decomp"
+    },
+    "artwork": {
+      "game_id": 3751,
+      "cover_id": 492232,
+      "image_id": "coajt4",
+      "image_sha256": "c3fb1c9a61167d37a27cf9f28672cc4cf51499a1876c566c6ebad25819365b44",
+      "game_slug": "peggle",
+      "match_kind": "underlying-game"
+    }
+  }
+}

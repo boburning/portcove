@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tsapz-imaginatorsrecomp-tsapz-skylanders-imaginators",
+    "name": "Skylanders: Imaginators — tsapZ ImaginatorsRecomp (tsapZ)",
+    "original_game_title": "Skylanders: Imaginators",
+    "summary": "Firstlevelplays; latergameunplayed; PS3Germantextoptional,voicesexperimental;clean-machineinstalleruntested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tsapZ/ImaginatorsRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tsapZ/ImaginatorsRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360PAL Es/ItISO/extractedfolder; title41560930; accepted executablefingerprints: 4298c4f6fb1684bed34dd8d2292b508782b37e3709ba1ed58b08ec334a9f7029 default.xex"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python."
+        }
+      ],
+      "warnings": [
+        "Firstlevelplays; latergameunplayed; PS3Germantextoptional,voicesexperimental;clean-machineinstalleruntested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tsapZ/ImaginatorsRecomp"
+    },
+    "issue_number": 3150
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tsapz-imaginatorsrecomp-tsapz-skylanders-imaginators",
+    "origin": {
+      "project_url": "https://github.com/tsapZ/ImaginatorsRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427712241"
+      }
+    },
+    "decisions": []
+  }
+}

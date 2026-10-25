@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "xenogearsrecomp-opokxeno-xenogears",
+    "name": "Xenogears — XenogearsRecomp (OpokXeno)",
+    "original_game_title": "Xenogears",
+    "summary": "Alpha boots/title/intro/openinggameplay/audio/save; noendtoendqualification Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/OpokXeno/xenogears-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpokXeno/xenogears-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA own multi-disc images; sourcegeneration needsSLUS006.64 and matchingownSCPH1001BIOS; releasesOpenBIOSdefault"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Releasepackages or sourcegeneration/compile; discat runtime"
+        }
+      ],
+      "warnings": [
+        "Alpha boots/title/intro/openinggameplay/audio/save; noendtoendqualification",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/OpokXeno/xenogears-recomp"
+    },
+    "artwork": {
+      "game_id": 1346,
+      "cover_id": 556672,
+      "image_id": "cobxj4",
+      "image_sha256": "be44ec5ff1403e62e1a06b2a64b383d39ce3a1c7a164f137de4dee8b2013c2bc",
+      "game_slug": "xenogears",
+      "match_kind": "underlying-game"
+    }
+  }
+}

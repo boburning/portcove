@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "zandatsu-dfdx047-metal-gear-rising-revengeance-xbox-360",
+    "name": "Metal Gear Rising: Revengeance (Xbox 360) — Zandatsu (dfdx047)",
+    "original_game_title": "Metal Gear Rising: Revengeance (Xbox 360)",
+    "summary": "Experimental render options/known issues documented; full playthrough unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/dfdx047/Zandatsu",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dfdx047/Zandatsu",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Metal Gear Rising: Revengeance (Xbox 360) Xbox 360 disc ISO. USA/Europe; title 4B4E080A; retain ISO after import."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Install Zandatsu APK and select own USA/Europe ISO; validation reads it in place, so retain the ISO."
+        }
+      ],
+      "warnings": [
+        "Experimental render options/known issues documented; full playthrough unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/dfdx047/Zandatsu"
+    },
+    "artwork": {
+      "game_id": 378,
+      "cover_id": 120593,
+      "image_id": "co2l1t",
+      "image_sha256": "9e38ff366692b9e97fa1a5b449033c7256183ab8fcab92d6937867a9549390df",
+      "game_slug": "metal-gear-rising-revengeance",
+      "match_kind": "underlying-game"
+    }
+  }
+}

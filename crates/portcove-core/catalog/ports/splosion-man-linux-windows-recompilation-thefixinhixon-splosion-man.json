@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "splosion-man-linux-windows-recompilation-thefixinhixon-splosion-man",
+    "name": "'Splosion Man — 'Splosion Man — Linux & Windows Recompilation (thefixinhixon)",
+    "original_game_title": "'Splosion Man",
+    "summary": "Linux fully playable claimed; crashes may leak shared-memory files/poison shader cache. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/thefixinhixon/SplosionManRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/thefixinhixon/SplosionManRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own 'Splosion Man Xbox 360 XBLA package or its complete extracted files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Linux release imports own 'SplosionMan data; Windows is a test build only."
+        }
+      ],
+      "warnings": [
+        "Linux fully playable claimed; crashes may leak shared-memory files/poison shader cache.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/thefixinhixon/SplosionManRecomp"
+    }
+  }
+}

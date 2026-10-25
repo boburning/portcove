@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "manx-burnout3-retrorecompilations-burnout-3-takedown",
+    "name": "Burnout 3: Takedown — MANX Burnout3 (RetroRecompilations)",
+    "original_game_title": "Burnout 3: Takedown",
+    "summary": "Research project. Current header identifies own MANXFramework game app, title kernel bridge/transformed functions/RenderWare loaders/D3D8-Vulkan path. Detailed Windows screenshots/status below are explicitly historical predecessor research, not proof of current Linux gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/RetroRecompilations/MANXBurnout3",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RetroRecompilations/MANXBurnout3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own originalXbox Burnout3 Takedown extracted game directory containing default.xbe and game data. Exact accepted revision/hash not established; historical titleID0x4541005B/XDK5849 table is not new input-validation proof."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Current Linux source route requires sibling MANXFramework and MANXBurnout3; configure/build/test CMake project, then run build/MANXBurnout3 with own extracted game directory. No current packaged runtime asserted."
+        }
+      ],
+      "warnings": [
+        "Current header identifies own MANXFramework game app, title kernel bridge/transformed functions/RenderWare loaders/D3D8-Vulkan path. Detailed Windows screenshots/status below are explicitly historical predecessor research, not proof of current Linux gameplay.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/RetroRecompilations/MANXBurnout3"
+    },
+    "artwork": {
+      "game_id": 5761,
+      "cover_id": 90903,
+      "image_id": "co1y53",
+      "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
+      "game_slug": "burnout-3-takedown",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "azkali-kameorecomp-azkali-kameo-elements-of-power",
+    "name": "Kameo: Elements of Power — Azkali KameoRecomp (Azkali)",
+    "original_game_title": "Kameo: Elements of Power",
+    "summary": "Research project. Early bring-up: codegen produces a linkable Kameo target; most kernel imports stubbed in src/hooks.cpp. Boot/gameplay not claimed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Azkali/KameoRecomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Azkali/KameoRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 Kameo ISO extracted with extract-xiso into assets/game/ containing default.xex and the remaining game files. Exact accepted region/revision/executable digest not established."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source route: build/install ReXGlueSDK, run rexglue codegen Kameo_config.toml, configure LinuxAMD64 CMake preset with REXSDK_DIR and compile using Clang18+/CMake3.25+/Ninja. No player runtime release asserted."
+        }
+      ],
+      "warnings": [
+        "Early bring-up: codegen produces a linkable Kameo target; most kernel imports stubbed in src/hooks.cpp. Boot/gameplay not claimed.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Azkali/KameoRecomp"
+    }
+  }
+}

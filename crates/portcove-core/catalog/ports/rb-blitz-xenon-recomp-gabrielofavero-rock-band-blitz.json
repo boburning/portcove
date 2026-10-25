@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rb-blitz-xenon-recomp-gabrielofavero-rock-band-blitz",
+    "name": "Rock Band Blitz — rb-blitz-xenon-recomp (gabrielofavero)",
+    "original_game_title": "Rock Band Blitz",
+    "summary": "Upstream claims boots, renders2D/3D and finishes songs. Updated feature table claims Vulkan compatibility and RhythmVerse wiring done; shader/performance and widescreen work remains. Windows prerelease/soft-launch text is not a currently observed public release, and no Portcove runtime qualification was performed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/gabrielofavero/rb-blitz-xenon-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gabrielofavero/rb-blitz-xenon-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 RockBandBlitz package or extracted contents; local build needs game/default.xex. Exact region/revision and executable digest not established. Optional Ultimate mod is not required; PS3 assets only for an unimplemented optional button scheme."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows local source build: LLVM/Clang, CMake3.25+, Ninja, VisualStudioBuildTools/WindowsSDK, own game/default.xex; upstream repair/SDK patch steps then two build passes, outputs rb_blitz.exe. README advertises a Windows prerelease installer, but the current public Releases API returned zero records; no installer offer established. Linux/macOS/mobile remain planned."
+        }
+      ],
+      "warnings": [
+        "Upstream claims boots, renders2D/3D and finishes songs. Updated feature table claims Vulkan compatibility and RhythmVerse wiring done; shader/performance and widescreen work remains. Windows prerelease/soft-launch text is not a currently observed public release, and no Portcove runtime qualification was performed.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/gabrielofavero/rb-blitz-xenon-recomp"
+    },
+    "artwork": {
+      "game_id": 2696,
+      "cover_id": 89149,
+      "image_id": "co1wsd",
+      "image_sha256": "a42b68e97c4a2ad0e50adaa9349c1ab75c6392d486e6eec6167a934eca9faf0f",
+      "game_slug": "rock-band-blitz",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "infamous-second-son-pc-edition-kam0n4ik-infamous-second-son",
+    "name": "inFAMOUS Second Son — inFAMOUS-Second-Son-PC-Edition (kam0n4ik)",
+    "original_game_title": "inFAMOUS Second Son",
+    "summary": "Upstream reports playable city gameplay, saves and 46–51 FPS on one PC; lower frame times and experimental presets are measured separately. Full-game completion and hardware breadth are not established by this pass. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/kam0n4ik/inFAMOUS-Second-Son-PC-Edition",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kam0n4ik/inFAMOUS-Second-Son-PC-Edition",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own decrypted CUSA00004 update 01.07 directory containing eboot.bin, sce_module, sce_sys and art (about 30 GB). Upstream explicitly requires no PS4 firmware files."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README offers SecondSonPC-win64.zip. Extract beside owned eboot.bin and run play.cmd; first launch compiles shaders, not the game CPU executable. Alternative build.ps1 uses LLVM 20+, CMake/Ninja and Visual Studio headers/SDK, with pinned shadPS4 source patches. Saves stay in userdata and are backed up by play.cmd."
+        }
+      ],
+      "warnings": [
+        "Upstream reports playable city gameplay, saves and 46–51 FPS on one PC; lower frame times and experimental presets are measured separately. Full-game completion and hardware breadth are not established by this pass.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/kam0n4ik/inFAMOUS-Second-Son-PC-Edition"
+    }
+  }
+}

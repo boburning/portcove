@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ratchet-and-clank-3-ratchet-clank-up-your-arsenal-recopile-maselko-95-ratchet-clank-up-your-arsenal",
+    "name": "Ratchet & Clank: Up Your Arsenal — ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile (MASELKO-95)",
+    "original_game_title": "Ratchet & Clank: Up Your Arsenal",
+    "summary": "Intro/title/incomplete menu; NewGame unfinished; gameplay unverified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SCES52456 own disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Development source release; keep separate from OpenRAC US matching decomp target and OpenRatchet RAC1."
+        }
+      ],
+      "warnings": [
+        "Intro/title/incomplete menu; NewGame unfinished; gameplay unverified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile"
+    },
+    "issue_number": 3078
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ratchet-and-clank-3-ratchet-clank-up-your-arsenal-recopile-maselko-95-ratchet-clank-up-your-arsenal",
+    "origin": {
+      "project_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile",
+      "repository": {
+        "host": "github.com",
+        "id": "1420696513"
+      }
+    },
+    "decisions": []
+  }
+}

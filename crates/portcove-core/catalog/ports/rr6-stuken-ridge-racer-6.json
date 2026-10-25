@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rr6-stuken-ridge-racer-6",
+    "name": "Ridge Racer 6 — rr6 (stuken)",
+    "original_game_title": "Ridge Racer 6",
+    "summary": "Windows targets described; Linux CMake has not been built. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/stuken/rr6",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/stuken/rr6",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Ridge Racer 6 Xbox 360 complete extracted game files, including the original executable. NTSC-U/PAL title 4E4D07D3; XEX MD5 e09586f12a663d4ea7ba864c1510d764."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build SDK/code/shaders from own RR6 XEX and compile Windows targets; all disc data needed to run."
+        }
+      ],
+      "warnings": [
+        "Windows targets described; Linux CMake has not been built.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/stuken/rr6"
+    },
+    "artwork": {
+      "game_id": 7160,
+      "cover_id": 284750,
+      "image_id": "co63pq",
+      "image_sha256": "731ea4d96ffcccd7a38732608d576e488cb4b19c0a78b64cc4563dc966ca76c4",
+      "game_slug": "ridge-racer-6",
+      "match_kind": "underlying-game"
+    }
+  }
+}

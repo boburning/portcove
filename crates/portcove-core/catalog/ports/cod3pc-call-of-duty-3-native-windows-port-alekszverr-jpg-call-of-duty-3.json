@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cod3pc-call-of-duty-3-native-windows-port-alekszverr-jpg-call-of-duty-3",
+    "name": "Call of Duty 3 — cod3pc — Call of Duty 3 native Windows port (alekszverr-jpg)",
+    "original_game_title": "Call of Duty 3",
+    "summary": "Menus, Saint-Lo training and gameplay run; experimental. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/alekszverr-jpg/cod3pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alekszverr-jpg/cod3pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Call of Duty 3 Xbox 360 complete extracted game files, including the original executable. Default.xex and required saint_lo/island/nightd DLLs."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build Windows project from own COD3 executable/level DLLs using pinned SDK and tooling."
+        }
+      ],
+      "warnings": [
+        "Menus, Saint-Lo training and gameplay run; experimental.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/alekszverr-jpg/cod3pc"
+    }
+  }
+}

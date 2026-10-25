@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rumblerecomp-toshredsyousay-poke-mon-rumble",
+    "name": "Pokémon Rumble — RumbleRecomp (ToShredsYouSay)",
+    "original_game_title": "Pokémon Rumble",
+    "summary": "Beta; four-player fights fullspeed claimed; every-version full-playthrough pending; mostly NVIDIA tests Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ToShredsYouSay/RumbleRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ToShredsYouSay/RumbleRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA WiiWare WPSE01 owned WAD; optional owned WeekendEdition1.5/PATCH1 patches"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release launcher locally compiles first play20-40min; keeps installed game data"
+        }
+      ],
+      "warnings": [
+        "Beta; four-player fights fullspeed claimed; every-version full-playthrough pending; mostly NVIDIA tests",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ToShredsYouSay/RumbleRecomp"
+    },
+    "artwork": {
+      "game_id": 4562,
+      "cover_id": 115322,
+      "image_id": "co2gze",
+      "image_sha256": "eed9b7cc1785186d8aa106d010711b82881160b4b503fdfd1f0a433df6ebe758",
+      "game_slug": "pokemon-rumble",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "usf4-nx-thorhax-ultra-street-fighter-iv",
+    "name": "Ultra Street Fighter IV — usf4-nx (Thorhax)",
+    "original_game_title": "Ultra Street Fighter IV",
+    "summary": "Windows Vulkan boot/menus/fights at60 FPS reported. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Thorhax/usf4-nx",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Thorhax/usf4-nx",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Ultra Street Fighter IV Xbox 360 disc ISO or extracted full disc files. Plain Xbox 360 ISO or extracted folder; compressed CCI/GOD/ZAR not accepted by advertised browser importer."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows-specific source/player route needs clarification; advertised browser installer downloads a Switch build."
+        }
+      ],
+      "warnings": [
+        "Windows Vulkan boot/menus/fights at60 FPS reported.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Thorhax/usf4-nx"
+    }
+  }
+}

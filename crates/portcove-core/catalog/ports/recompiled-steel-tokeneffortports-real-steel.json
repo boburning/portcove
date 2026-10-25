@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "recompiled-steel-tokeneffortports-real-steel",
+    "name": "Real Steel — ReCompiled Steel (tokeneffortports)",
+    "original_game_title": "Real Steel",
+    "summary": "Vulkan/multiplayer/mods advertised; comprehensive completion scope unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tokeneffortports/ReCompiledSteel",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tokeneffortports/ReCompiledSteel",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Real Steel Xbox 360 XBLA package or its complete extracted files. Mandatory title update; add-ons optional; exact update identity unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Offered platform package imports own RealSteel game plus mandatory TU and optional add-ons; local compilation behavior requires clarification."
+        }
+      ],
+      "warnings": [
+        "Vulkan/multiplayer/mods advertised; comprehensive completion scope unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tokeneffortports/ReCompiledSteel"
+    }
+  }
+}

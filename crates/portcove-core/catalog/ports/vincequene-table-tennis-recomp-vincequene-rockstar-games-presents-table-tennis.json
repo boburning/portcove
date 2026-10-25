@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vincequene-table-tennis-recomp-vincequene-rockstar-games-presents-table-tennis",
+    "name": "Rockstar Games Presents Table Tennis — vincequene Table Tennis Recomp (vincequene)",
+    "original_game_title": "Rockstar Games Presents Table Tennis",
+    "summary": "Upstream claims full game playable/controller/keyboard; known limitations and local fixes listed. No Portcove gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vincequene/rockstar-table-tennis-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vincequene/rockstar-table-tennis-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 ISO title545407DF; exact region/media/revision unknown in reviewed README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build.bat local build/ReXGlue codegen; optional winget dependency installation under upstream route; no releases observed."
+        }
+      ],
+      "warnings": [
+        "Upstream claims full game playable/controller/keyboard; known limitations and local fixes listed. No Portcove gameplay.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vincequene/rockstar-table-tennis-recomp"
+    },
+    "issue_number": 3127,
+    "artwork": {
+      "game_id": 2541,
+      "cover_id": 120986,
+      "image_id": "co2lcq",
+      "image_sha256": "512af1e90d933acea84e17303348cec279dac19e9bc51cfac0097e633d9d4fa5",
+      "game_slug": "rockstar-games-presents-table-tennis",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "vincequene-table-tennis-recomp-vincequene-rockstar-games-presents-table-tennis",
+    "origin": {
+      "project_url": "https://github.com/vincequene/rockstar-table-tennis-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1409465970"
+      }
+    },
+    "decisions": []
+  }
+}

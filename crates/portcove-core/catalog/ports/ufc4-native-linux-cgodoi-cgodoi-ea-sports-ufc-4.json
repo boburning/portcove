@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ufc4-native-linux-cgodoi-cgodoi-ea-sports-ufc-4",
+    "name": "EA Sports UFC 4 — UFC4 native Linux (cgodoi) (cgodoi)",
+    "original_game_title": "EA Sports UFC 4",
+    "summary": "Boot/menu/fights60fps measured LenovoLegionGoBazzite; fullcareer unknown Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/cgodoi/UFC-4-PS4-PORT-LINUX",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/cgodoi/UFC-4-PS4-PORT-LINUX",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA CUSA14204 update28.00 merged owned base+update"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Native tar.gz release or source build; own dump; hardlink merge"
+        }
+      ],
+      "warnings": [
+        "Boot/menu/fights60fps measured LenovoLegionGoBazzite; fullcareer unknown",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/cgodoi/UFC-4-PS4-PORT-LINUX"
+    },
+    "artwork": {
+      "game_id": 136560,
+      "cover_id": 112465,
+      "image_id": "co2es1",
+      "image_sha256": "577638e28e7820042550512af99ae8e42c954556068e72ce71eae7f2f21e3f60",
+      "game_slug": "ea-sports-ufc-4",
+      "match_kind": "underlying-game"
+    }
+  }
+}

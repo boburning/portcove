@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fnc-reborn-whompay-fight-night-champion",
+    "name": "Fight Night Champion — FNC Reborn (whompay)",
+    "original_game_title": "Fight Night Champion",
+    "summary": "Upstream playable menus/FightNow/Legacy/Champion/CreateFighter; single supported disc and bugs remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/whompay/FNCReborn",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/whompay/FNCReborn",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 ISO or extracted folder containing default.xex and databigs; only original port-specific disc revision accepted. Exact region/media/fingerprint not in reviewed README or BUILDING."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "FNCReborn-Setup release locally downloads portable toolchain and recompiles; developer setup.bat uses VS2022. x64 D3D12, CPU v2/v3 selected locally;16GB RAM/25GB disk."
+        }
+      ],
+      "warnings": [
+        "Upstream playable menus/FightNow/Legacy/Champion/CreateFighter; single supported disc and bugs remain.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/whompay/FNCReborn"
+    },
+    "issue_number": 3119,
+    "artwork": {
+      "game_id": 6356,
+      "cover_id": 131802,
+      "image_id": "co2tp6",
+      "image_sha256": "c73c19aa7d34af0997834cadb7857fee5a60bff38658d2c99062720576a7ee1e",
+      "game_slug": "fight-night-champion",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fnc-reborn-whompay-fight-night-champion",
+    "origin": {
+      "project_url": "https://github.com/whompay/FNCReborn",
+      "repository": {
+        "host": "github.com",
+        "id": "1408056848"
+      }
+    },
+    "decisions": []
+  }
+}

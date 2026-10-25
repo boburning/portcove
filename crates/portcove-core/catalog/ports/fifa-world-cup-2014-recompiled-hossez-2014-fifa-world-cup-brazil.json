@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fifa-world-cup-2014-recompiled-hossez-2014-fifa-world-cup-brazil",
+    "name": "2014 FIFA World Cup Brazil — fifa-world-cup-2014-recompiled (HossEz)",
+    "original_game_title": "2014 FIFA World Cup Brazil",
+    "summary": "Release/known issues exist; full tournament coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/HossEz/fifa-world-cup-2014-recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/HossEz/fifa-world-cup-2014-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own 2014 FIFA World Cup Brazil Xbox 360 disc ISO or extracted full disc files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows WorldCup2014 release and select own ISO/default.xex folder."
+        }
+      ],
+      "warnings": [
+        "Release/known issues exist; full tournament coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/HossEz/fifa-world-cup-2014-recompiled"
+    },
+    "artwork": {
+      "game_id": 5471,
+      "cover_id": 126167,
+      "image_id": "co2pcn",
+      "image_sha256": "e26f1da077b98cb165b58872ed67b9a4b904cfa2a331ce1687609e8d91922f64",
+      "game_slug": "2014-fifa-world-cup-brazil",
+      "match_kind": "underlying-game"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gow3-recomp-flippage-gears-of-war-3",
+    "name": "Gears of War 3 — gow3-recomp (Flippage)",
+    "original_game_title": "Gears of War 3",
+    "summary": "Upstream claims boots/menus, early campaign chapters, persistent checkpoints and local two-instance SystemLink co-op; full campaign, internet co-op, Horde/Beast/Versus and AMD FSR remain untested. New release and expanded keybindings are upstream claims, not Portcove qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Flippage/gears-of-war-3-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Flippage/gears-of-war-3-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own base-disc Gears of War3 game directory containing default.xex and GearGame. TitleID4D5308AB, disc0.0.0.11, media58122AD6. Keep original data available at runtime; title updates unsupported."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream v0.1.0 publishes gow3-recomp-0.1.0-win64.zip (47571151 bytes; GitHub-reported SHA256f5faf42b9ac5d5b1f4c0236b7f454de1dd43f30da5309ddb6e4d84d5bcc9ee55). Extract, follow included QUICKSTART and point gow3_game_path.txt at own game directory. Release omits DLSS; optional local Windows source build for DLSS. Artifact bytes/runtime not verified by Portcove."
+        }
+      ],
+      "warnings": [
+        "Upstream claims boots/menus, early campaign chapters, persistent checkpoints and local two-instance SystemLink co-op; full campaign, internet co-op, Horde/Beast/Versus and AMD FSR remain untested. New release and expanded keybindings are upstream claims, not Portcove qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Flippage/gears-of-war-3-recomp"
+    },
+    "artwork": {
+      "game_id": 492,
+      "cover_id": 106345,
+      "image_id": "co2a21",
+      "image_sha256": "9d52d23bb2122aa4484bf3d971ecffea246fcced40234bae059106a95f950f40",
+      "game_slug": "gears-of-war-3",
+      "match_kind": "underlying-game"
+    }
+  }
+}

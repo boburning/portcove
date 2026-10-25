@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "p3fes-recompiled-poopoocacacacaca-persona-3-fes",
+    "name": "Persona 3 FES — p3fes-recompiled (poopoocacacacaca)",
+    "original_game_title": "Persona 3 FES",
+    "summary": "Boot/menu/NewGame work; exact gameplay scope must remain limited to primary status; preserve independent from VirtualAK runtime. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS21621 ELF SHA17ca061aac239e53e86bcd4c0ce8e19e987d8a75f + CVM/IRX disc data"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local code generation/build and own CVM/ELF adjacent runtime files."
+        }
+      ],
+      "warnings": [
+        "Boot/menu/NewGame work; exact gameplay scope must remain limited to primary status; preserve independent from VirtualAK runtime.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/poopoocacacacaca/p3fes-recompiled"
+    },
+    "issue_number": 3059,
+    "artwork": {
+      "game_id": 11437,
+      "cover_id": 304871,
+      "image_id": "co6j8n",
+      "image_sha256": "c6b1e4a86df1788363949e077f35ca78f772d61e4e627971ccab3168ca911d0e",
+      "game_slug": "persona-3-fes",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "p3fes-recompiled-poopoocacacacaca-persona-3-fes",
+    "origin": {
+      "project_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1419286783"
+      }
+    },
+    "decisions": []
+  }
+}

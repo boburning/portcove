@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ff7ccrecomp-adamfull-crisis-core-final-fantasy-vii",
+    "name": "Crisis Core: Final Fantasy VII — ff7ccrecomp (AdamFull)",
+    "original_game_title": "Crisis Core: Final Fantasy VII",
+    "summary": "Static recompilation/progressive decomp code+runtime, precise gameplayboundary not stated in README. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/AdamFull/ff7ccrecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AdamFull/ff7ccrecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe ULES01044 own game/decryptedBOOT.BIN"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local LLVM/CMake/Ninja/Vulkan build; no precompiledgameclaim."
+        }
+      ],
+      "warnings": [
+        "Static recompilation/progressive decomp code+runtime, precise gameplayboundary not stated in README.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/AdamFull/ff7ccrecomp"
+    },
+    "issue_number": 3092,
+    "artwork": {
+      "game_id": 2407,
+      "cover_id": 85223,
+      "image_id": "co1trb",
+      "image_sha256": "b5120abd3cfe847e4246c2e93f43cf21ab003aec5e85255baa95d4a592579acf",
+      "game_slug": "crisis-core-final-fantasy-vii",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ff7ccrecomp-adamfull-crisis-core-final-fantasy-vii",
+    "origin": {
+      "project_url": "https://github.com/AdamFull/ff7ccrecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1419739032"
+      }
+    },
+    "decisions": []
+  }
+}

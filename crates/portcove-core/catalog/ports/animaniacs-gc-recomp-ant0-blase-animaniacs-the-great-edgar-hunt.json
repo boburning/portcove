@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "animaniacs-gc-recomp-ant0-blase-animaniacs-the-great-edgar-hunt",
+    "name": "Animaniacs: The Great Edgar Hunt — Animaniacs GC Recomp (ant0-blase)",
+    "original_game_title": "Animaniacs: The Great Edgar Hunt",
+    "summary": "Publisherboot/gameplayworkingupstream; WIPnotfullplaythrough Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GANE7U own disc; main.dolSHA256aad70bd7c6e38bed47fa1218066a0ec770850b2e5706240d70d3e7ec4afeb0e1"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcebuildownnative module"
+        }
+      ],
+      "warnings": [
+        "Publisherboot/gameplayworkingupstream; WIPnotfullplaythrough",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP"
+    },
+    "artwork": {
+      "game_id": 3786,
+      "cover_id": 78794,
+      "image_id": "co1osq",
+      "image_sha256": "e007d2c0a609c457c5b0f5f5dc38cdf627621614669f5347db2dc0fe858b5e6a",
+      "game_slug": "animaniacs-the-great-edgar-hunt",
+      "match_kind": "underlying-game"
+    }
+  }
+}

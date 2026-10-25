@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dq8recomp-sinan-karakaya-dragon-quest-viii-journey-of-the-cursed-king",
+    "name": "Dragon Quest VIII: Journey of the Cursed King — DQ8Recomp (Sinan-Karakaya)",
+    "original_game_title": "Dragon Quest VIII: Journey of the Cursed King",
+    "summary": "Released launcher builds locally from owned ISO; boots, saves and field gameplay claimed; sustained playability/full-game coverage unestablished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
+    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-21207 ISO; revision/hash needs confirmation."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release platform launcher downloads/prepares tooling and compiles from owned USA ISO on local machine; it is not a precompiled game runtime."
+        }
+      ],
+      "warnings": [
+        "Released launcher builds locally from owned ISO; boots, saves and field gameplay claimed; sustained playability/full-game coverage unestablished.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled"
+    },
+    "issue_number": 2989
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dq8recomp-sinan-karakaya-dragon-quest-viii-journey-of-the-cursed-king",
+    "origin": {
+      "project_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1383035759"
+      }
+    },
+    "decisions": []
+  }
+}

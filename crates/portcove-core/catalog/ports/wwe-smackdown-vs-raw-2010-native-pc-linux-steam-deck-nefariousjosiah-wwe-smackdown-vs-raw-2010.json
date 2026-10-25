@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wwe-smackdown-vs-raw-2010-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2010",
+    "name": "WWE SmackDown vs. Raw 2010 — WWE SmackDown vs. Raw 2010 — native PC, Linux & Steam Deck (nefariousjosiah)",
+    "original_game_title": "WWE SmackDown vs. Raw 2010",
+    "summary": "Gameplay is described; keyboard and alternate aspect ratios remain untested/experimental. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/nefariousjosiah/WWE-SVR2010-RECOMP",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nefariousjosiah/WWE-SVR2010-RECOMP",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own WWE SmackDown vs. Raw 2010 Xbox 360 disc ISO. USA/Europe; title 54510844."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract Windows release and keep own ISO beside svr2010.exe; Steam Deck/Linux instructions use Proton."
+        }
+      ],
+      "warnings": [
+        "Gameplay is described; keyboard and alternate aspect ratios remain untested/experimental.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/nefariousjosiah/WWE-SVR2010-RECOMP"
+    }
+  }
+}

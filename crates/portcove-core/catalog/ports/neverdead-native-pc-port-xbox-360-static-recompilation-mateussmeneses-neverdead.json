@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "neverdead-native-pc-port-xbox-360-static-recompilation-mateussmeneses-neverdead",
+    "name": "NeverDead — NeverDead — Native PC Port (Xbox 360 Static Recompilation) (mateussmeneses)",
+    "original_game_title": "NeverDead",
+    "summary": "In-game scenes/input/audio/saves and bounded benchmarks reported, not campaign completion. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mateussmeneses/neverdead-port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mateussmeneses/neverdead-port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own NeverDead Xbox 360 complete extracted game files, including the original executable. Title 4B4E081F."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Run documented ReXGlue codegen/CMake build and point runtime at own NeverDead disc dump."
+        }
+      ],
+      "warnings": [
+        "In-game scenes/input/audio/saves and bounded benchmarks reported, not campaign completion.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mateussmeneses/neverdead-port"
+    },
+    "artwork": {
+      "game_id": 3215,
+      "cover_id": 208065,
+      "image_id": "co4gjl",
+      "image_sha256": "b2a7b2c074e784e666315d9ca7083aedda701ef160061b07a3df98d74554cddc",
+      "game_slug": "neverdead",
+      "match_kind": "underlying-game"
+    }
+  }
+}

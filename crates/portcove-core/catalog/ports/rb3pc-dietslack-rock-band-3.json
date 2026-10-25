@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rb3pc-dietslack-rock-band-3",
+    "name": "Rock Band 3 — rb3pc (dietslack)",
+    "original_game_title": "Rock Band 3",
+    "summary": "Linux-focused work with known issues; completion/instrument coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/dietslack/rb3pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dietslack/rb3pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Rock Band 3 Xbox 360 complete extracted game files, including the original executable. Deluxe additionally needs compatible mod/executable; exact revisions unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use Linux-oriented source build from own Rock Band3 files; Windows builds have not been attempted."
+        }
+      ],
+      "warnings": [
+        "Linux-focused work with known issues; completion/instrument coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/dietslack/rb3pc"
+    }
+  }
+}

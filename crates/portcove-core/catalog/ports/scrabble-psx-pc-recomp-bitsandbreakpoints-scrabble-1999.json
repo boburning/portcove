@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "scrabble-psx-pc-recomp-bitsandbreakpoints-scrabble-1999",
+    "name": "Scrabble (1999) — scrabble-psx-pc-recomp (Bitsandbreakpoints)",
+    "original_game_title": "Scrabble (1999)",
+    "summary": "Native playable board/word runtime and enhanced frontend described; full opponent/game-mode coverage not verified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Bitsandbreakpoints/scrabble-psx-pc-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Bitsandbreakpoints/scrabble-psx-pc-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS00903 own BIN/CUE or CHD; ISO loses opening movies XA audio"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README scrabble-pc.zip, run scrabble.exe and choose owned image; program reads assets from disc. Source game translation occurs when building."
+        }
+      ],
+      "warnings": [
+        "Native playable board/word runtime and enhanced frontend described; full opponent/game-mode coverage not verified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Bitsandbreakpoints/scrabble-psx-pc-recomp"
+    }
+  }
+}

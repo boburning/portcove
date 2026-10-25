@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tom-clancy-s-rainbow-six-3-xbox-static-recompilation-phobos665-tom-clancy-s-rainbow-six-3-xbox",
+    "name": "Tom Clancy's Rainbow Six 3 (Xbox) — Tom Clancy's Rainbow Six 3 (Xbox) — static recompilation (phobos665)",
+    "original_game_title": "Tom Clancy's Rainbow Six 3 (Xbox)",
+    "summary": "macOS boot through movies/menus and online play are reported; widescreen is unchecked. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/phobos665/Rainbow-six-three-recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/phobos665/Rainbow-six-three-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Tom Clancy's Rainbow Six 3 (Original Xbox) Original Xbox complete extracted game files, including the original executable. Title 55530013; Insignia needs own-console backup and TU 0x501."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Place DirectXbox-Recomp beside the checkout and run scripts/build.py on own disc files; Insignia additionally needs an own-console backup."
+        }
+      ],
+      "warnings": [
+        "macOS boot through movies/menus and online play are reported; widescreen is unchecked.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/phobos665/Rainbow-six-three-recomp"
+    }
+  }
+}

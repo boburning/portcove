@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bt3-recomp-z3xox-dragon-ball-z-budokai-tenkaichi-3",
+    "name": "Dragon Ball Z: Budokai Tenkaichi 3 — BT3-Recomp (z3xox)",
+    "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 3",
+    "summary": "Runtime release with front-end; build from owned disc locally; independent from Tenkaichi3Decomp matching-decomp identity. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/z3xox/BT3-Recomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/z3xox/BT3-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21678 own disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Released portable runtime/import route described; validate exact release generated-code provenance."
+        }
+      ],
+      "warnings": [
+        "Runtime release with front-end; build from owned disc locally; independent from Tenkaichi3Decomp matching-decomp identity.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/z3xox/BT3-Recomp"
+    },
+    "issue_number": 3036,
+    "artwork": {
+      "game_id": 2254,
+      "cover_id": 175142,
+      "image_id": "co3r52",
+      "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
+      "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bt3-recomp-z3xox-dragon-ball-z-budokai-tenkaichi-3",
+    "origin": {
+      "project_url": "https://github.com/z3xox/BT3-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1313900360"
+      }
+    },
+    "decisions": []
+  }
+}

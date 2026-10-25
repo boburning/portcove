@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "vcs-recomp-theurbanninja1993-sketch-grand-theft-auto-vice-city-stories-ps2",
+    "name": "Grand Theft Auto: Vice City Stories (PS2) — vcs-recomp (theurbanninja1993-sketch)",
+    "original_game_title": "Grand Theft Auto: Vice City Stories (PS2)",
+    "summary": "Source-only PS2 edition recompilation; independent from PSP VCS implementations/source editions. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21590 owned disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local five-stage extraction/generation/build; root should check gameplay boundary in primary status."
+        }
+      ],
+      "warnings": [
+        "Source-only PS2 edition recompilation; independent from PSP VCS implementations/source editions.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp"
+    },
+    "issue_number": 3055,
+    "artwork": {
+      "game_id": 3262,
+      "cover_id": 120968,
+      "image_id": "co2lc8",
+      "image_sha256": "fb6c19a35846e12f429222d8cbbfe8b04e48f6190143f4fbc7cd06173382d88f",
+      "game_slug": "grand-theft-auto-vice-city-stories",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "vcs-recomp-theurbanninja1993-sketch-grand-theft-auto-vice-city-stories-ps2",
+    "origin": {
+      "project_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422739027"
+      }
+    },
+    "decisions": []
+  }
+}

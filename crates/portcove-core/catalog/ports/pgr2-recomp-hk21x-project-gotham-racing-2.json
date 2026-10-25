@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pgr2-recomp-hk21x-project-gotham-racing-2",
+    "name": "Project Gotham Racing 2 — pgr2-recomp (hk21x)",
+    "original_game_title": "Project Gotham Racing 2",
+    "summary": "Native title runtime/graphics enhancements; precise race/career scope not established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/hk21x/pgr2-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/hk21x/pgr2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Title4D53004B PALv2 XBE SHA1 676895b86f01938804c5f1cdcad8b44044295cb4 or NTSCv5 ec6e902fc167de349f1dc1838a7441dfff932c62; media-patched profiles separately listed"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "PGR2Launcher.exe imports own ISO/files, obtains portable tools and builds game locally. Exact current launcher archive/digest needs readback."
+        }
+      ],
+      "warnings": [
+        "Native title runtime/graphics enhancements; precise race/career scope not established here.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/hk21x/pgr2-recomp"
+    }
+  }
+}

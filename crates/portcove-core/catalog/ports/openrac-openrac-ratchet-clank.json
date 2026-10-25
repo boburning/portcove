@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openrac-openrac-ratchet-clank",
+    "name": "Ratchet & Clank — OpenRAC (OpenRAC)",
+    "original_game_title": "Ratchet & Clank",
+    "summary": "Launcher release carries first native port; unmatched assembly skipped. SDK releases and matching progress do not imply all six playable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/OpenRAC/OpenRAC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenRAC/OpenRAC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "RAC1 PAL SCES-50916 is first native target; own ISO. RAC1 NTSC SCUS97199; RAC2 SCUS97268; RAC3 SCUS97353; Deadlocked SCUS97465; Size Matters SCUS97615; Secret Agent SCUS97623 are distinct decomp scopes, not established player ports."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download OpenRAC launcher; carries native RAC1 PAL runtime and preparation tools; select own ISO folder. Other game rows are matching-decomp research, not player targets."
+        }
+      ],
+      "warnings": [
+        "Launcher release carries first native port; unmatched assembly skipped. SDK releases and matching progress do not imply all six playable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/OpenRAC/OpenRAC"
+    },
+    "issue_number": 3003
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "openrac-openrac-ratchet-clank",
+    "origin": {
+      "project_url": "https://github.com/OpenRAC/OpenRAC",
+      "repository": {
+        "host": "github.com",
+        "id": "1403633426"
+      }
+    },
+    "decisions": []
+  }
+}

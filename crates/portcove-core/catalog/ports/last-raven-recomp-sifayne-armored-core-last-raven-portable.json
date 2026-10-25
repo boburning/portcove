@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "last-raven-recomp-sifayne-armored-core-last-raven-portable",
+    "name": "Armored Core: Last Raven Portable — last-raven-recomp (Sifayne)",
+    "original_game_title": "Armored Core: Last Raven Portable",
+    "summary": "Boot/movie/title/runtime; exactmissiongameplayneedsstatusbody. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Sifayne/last-raven-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Sifayne/last-raven-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "OwnPSPdisc/decryptedinput; exactserial/revisionmustbeestablished"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Localgamepipeline plus asset-freestand-aloneAppImage launcher; gamebuildrequiresowninput."
+        }
+      ],
+      "warnings": [
+        "Boot/movie/title/runtime; exactmissiongameplayneedsstatusbody.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Sifayne/last-raven-recomp"
+    },
+    "issue_number": 3103,
+    "artwork": {
+      "game_id": 38480,
+      "cover_id": 197885,
+      "image_id": "co48ot",
+      "image_sha256": "9f9f155bd8814de6d42011c5fd07b723f935c107138b197a31afe094274ecb63",
+      "game_slug": "armored-core-last-raven-portable",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "last-raven-recomp-sifayne-armored-core-last-raven-portable",
+    "origin": {
+      "project_url": "https://github.com/Sifayne/last-raven-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1375286658"
+      }
+    },
+    "decisions": []
+  }
+}

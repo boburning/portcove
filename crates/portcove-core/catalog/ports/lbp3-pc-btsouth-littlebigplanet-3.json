@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lbp3-pc-btsouth-littlebigplanet-3",
+    "name": "LittleBigPlanet 3 — lbp3-pc (btsouth)",
+    "original_game_title": "LittleBigPlanet 3",
+    "summary": "Early preview 0.1 reaches Pod, Prologue, completed Introduction/Legend of Bunkum, and walkable Needlepoint Peaks. Later levels, Create and saving untested; audio not checked in detail. Online servers unavailable, some imports stubbed; first cache fill can run 15–20 FPS. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/btsouth/lbp3-pc",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/btsouth/lbp3-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own decrypted base CUSA00063 01.00 directory with eboot.bin, sce_module and sce_sys; no update merged. Extract owned PKG with recent tooling."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README recommends LittleBigPlanet3-port-x86_64.AppImage and sha256 sidecar. Launcher chooses the owned folder, prepares image/shaders and starts Play. Source alternative build.sh plus GTK4 launcher. Data in ~/.local/share/lbp3-port; one copy due to /tmp/.lbpS link."
+        }
+      ],
+      "warnings": [
+        "Early preview 0.1 reaches Pod, Prologue, completed Introduction/Legend of Bunkum, and walkable Needlepoint Peaks. Later levels, Create and saving untested; audio not checked in detail. Online servers unavailable, some imports stubbed; first cache fill can run 15–20 FPS.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/btsouth/lbp3-pc"
+    },
+    "artwork": {
+      "game_id": 7330,
+      "cover_id": 177600,
+      "image_id": "co3t1c",
+      "image_sha256": "8eac08af983a66318e78c49bdd24cb80f4f19763ffa5cc5fe3f6404a4c15564a",
+      "game_slug": "littlebigplanet-3",
+      "match_kind": "underlying-game"
+    }
+  }
+}

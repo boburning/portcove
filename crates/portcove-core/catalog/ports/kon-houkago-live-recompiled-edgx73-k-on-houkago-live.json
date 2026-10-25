@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kon-houkago-live-recompiled-edgx73-k-on-houkago-live",
+    "name": "K-On! Houkago Live!! — KOn-Houkago-Live-Recompiled (EDGX73)",
+    "original_game_title": "K-On! Houkago Live!!",
+    "summary": "Nativeplayer/releasefirstbuild, no broadfullgamequalification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan ULJM05709 orspecifiedEnglishfantranslationownISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Releasezip EXE asksownISO/generates locally; Englishtranslationpreciseversionhashmustbevalidated."
+        }
+      ],
+      "warnings": [
+        "Nativeplayer/releasefirstbuild, no broadfullgamequalification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled"
+    },
+    "issue_number": 3105
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kon-houkago-live-recompiled-edgx73-k-on-houkago-live",
+    "origin": {
+      "project_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1412846037"
+      }
+    },
+    "decisions": []
+  }
+}

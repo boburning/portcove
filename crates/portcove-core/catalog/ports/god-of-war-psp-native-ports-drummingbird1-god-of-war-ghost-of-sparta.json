@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "god-of-war-psp-native-ports-drummingbird1-god-of-war-ghost-of-sparta",
+    "name": "God of War: Ghost of Sparta — God of War PSP native ports (DrummingBird1)",
+    "original_game_title": "God of War: Ghost of Sparta",
+    "summary": "v1.2.1 launcher generates locally using pinned portable tools; every level loads in automated tours claimed; neither full playthrough done. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/DrummingBird1/gow-psp-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/DrummingBird1/gow-psp-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA UCUS98737 CHD/ISO kept at runtime"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release GoW_PSP_Launcher-v1.2.1.zip; Build generates C/game binaries locally using hash-pinned portable Clang/CMake/Ninja after consent; no Visual Studio needed; CHD/ISO retained for runtime disc reads."
+        }
+      ],
+      "warnings": [
+        "v1.2.1 launcher generates locally using pinned portable tools; every level loads in automated tours claimed; neither full playthrough done.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/DrummingBird1/gow-psp-recomp"
+    },
+    "issue_number": 3005
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "god-of-war-psp-native-ports-drummingbird1-god-of-war-ghost-of-sparta",
+    "origin": {
+      "project_url": "https://github.com/DrummingBird1/gow-psp-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423239072"
+      }
+    },
+    "decisions": []
+  }
+}

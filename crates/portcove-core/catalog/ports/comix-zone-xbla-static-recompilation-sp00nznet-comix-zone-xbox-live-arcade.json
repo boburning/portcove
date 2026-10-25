@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "comix-zone-xbla-static-recompilation-sp00nznet-comix-zone-xbox-live-arcade",
+    "name": "Comix Zone (Xbox Live Arcade) — Comix Zone XBLA - Static Recompilation (sp00nznet)",
+    "original_game_title": "Comix Zone (Xbox Live Arcade)",
+    "summary": "Code generation complete; playable build remains future work. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/comixzone",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/comixzone",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Comix Zone (Xbox Live Arcade) Xbox 360 XBLA package or its complete extracted files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract/decrypt own ComixZone XEX, generate code and attempt documented Windows build."
+        }
+      ],
+      "warnings": [
+        "Code generation complete; playable build remains future work.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/comixzone"
+    },
+    "artwork": {
+      "game_id": 3071,
+      "cover_id": 95649,
+      "image_id": "co21sx",
+      "image_sha256": "1ea4c64687266ddb04262a56cec6e55533e7c94df83807868273d726112faa75",
+      "game_slug": "comix-zone",
+      "match_kind": "underlying-game"
+    }
+  }
+}

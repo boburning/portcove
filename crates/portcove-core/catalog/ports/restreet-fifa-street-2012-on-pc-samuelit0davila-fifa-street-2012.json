@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012",
+    "name": "FIFA Street (2012) — ReStreet — FIFA Street (2012) on PC (samuelit0davila)",
+    "original_game_title": "FIFA Street (2012)",
+    "summary": "2.0.8 fixes match/sign-in/save defects; complete progression not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/samuelit0davila/fifa-street-pc-port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/samuelit0davila/fifa-street-pc-port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own FIFA Street (2012) Xbox 360 disc ISO. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download ReStreet Windows setup and import own FIFA Street2012 ISO through its launcher."
+        }
+      ],
+      "warnings": [
+        "2.0.8 fixes match/sign-in/save defects; complete progression not established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/samuelit0davila/fifa-street-pc-port"
+    }
+  }
+}

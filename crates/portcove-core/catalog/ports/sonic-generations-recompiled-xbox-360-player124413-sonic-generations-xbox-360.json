@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-generations-recompiled-xbox-360-player124413-sonic-generations-xbox-360",
+    "name": "Sonic Generations (Xbox 360) — Sonic Generations Recompiled (Xbox 360) (Player124413)",
+    "original_game_title": "Sonic Generations (Xbox 360)",
+    "summary": "Windows build checks pass; actual level-loading/gameplay not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Player124413/Sonic-Generations-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Player124413/Sonic-Generations-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Sonic Generations (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use Windows/ReXGlue source workflow and own ISO/XISO or folder/update; current graphics API Vulkan."
+        }
+      ],
+      "warnings": [
+        "Windows build checks pass; actual level-loading/gameplay not established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Player124413/Sonic-Generations-Recomp"
+    },
+    "artwork": {
+      "game_id": 506,
+      "cover_id": 93163,
+      "image_id": "co1zvv",
+      "image_sha256": "fbf09b2310be210edf1ddf269a65e5b776c7c3495db3e989f2209de0d7660609",
+      "game_slug": "sonic-generations",
+      "match_kind": "underlying-game"
+    }
+  }
+}

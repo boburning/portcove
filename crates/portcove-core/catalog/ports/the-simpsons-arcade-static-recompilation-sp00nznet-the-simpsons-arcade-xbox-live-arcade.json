@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-simpsons-arcade-static-recompilation-sp00nznet-the-simpsons-arcade-xbox-live-arcade",
+    "name": "The Simpsons Arcade (Xbox Live Arcade) — The Simpsons Arcade - Static Recompilation (sp00nznet)",
+    "original_game_title": "The Simpsons Arcade (Xbox Live Arcade)",
+    "summary": "Full-speed menus/gameplay/audio/input reported. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/simpsonsarcade",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/simpsonsarcade",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own The Simpsons Arcade (Xbox Live Arcade) Xbox 360 XBLA package or its complete extracted files. XBLA title 584111FA."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Generate game C++ from own SimpsonsArcade package and build Windows project."
+        }
+      ],
+      "warnings": [
+        "Full-speed menus/gameplay/audio/input reported.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/simpsonsarcade"
+    }
+  }
+}

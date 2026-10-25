@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gh3-sp00nznet-guitar-hero-iii-legends-of-rock",
+    "name": "Guitar Hero III: Legends of Rock — gh3 (sp00nznet)",
+    "original_game_title": "Guitar Hero III: Legends of Rock",
+    "summary": "Upstream bot completed45 EasyQuickplay songs2026-09-28;30-40fps; real guitars/timing/career/coop not qualified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/gh3",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/gh3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA BLUS30074 disc owned EBOOT.elf+assets; revision unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source relift + clang-cl CMake/Ninja"
+        }
+      ],
+      "warnings": [
+        "Upstream bot completed45 EasyQuickplay songs2026-09-28;30-40fps; real guitars/timing/career/coop not qualified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/gh3"
+    },
+    "artwork": {
+      "game_id": 2671,
+      "cover_id": 89086,
+      "image_id": "co1wqm",
+      "image_sha256": "7e4c63c739ddd3765504cc44ce30a30596ab17d6c81535b494301b0e7bce472b",
+      "game_slug": "guitar-hero-iii-legends-of-rock",
+      "match_kind": "underlying-game"
+    }
+  }
+}
