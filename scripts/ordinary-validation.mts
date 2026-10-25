@@ -821,6 +821,18 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-hosted-native-job.mts", ["scripts/release-hosted-native-job.test.mts"]],
   [
+    "scripts/release-hosted-native-installation.mts",
+    ["scripts/release-hosted-native-installation.test.mts"],
+  ],
+  [
+    "scripts/prepare-hosted-native-linux-installation.py",
+    ["scripts/release-hosted-native-installation.test.mts"],
+  ],
+  [
+    "scripts/prepare-hosted-native-linux-installation.test.py",
+    ["scripts/release-hosted-native-installation.test.mts"],
+  ],
+  [
     "scripts/release-hosted-native-postsign-inputs.mts",
     ["scripts/release-hosted-native-job.test.mts", "scripts/release-controller-tools.test.mts"],
   ],

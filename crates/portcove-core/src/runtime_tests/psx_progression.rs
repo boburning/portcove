@@ -4,6 +4,15 @@ use crate::{ChildProcessClass, ChildProcessPolicy, GithubReleaseProvider};
 
 #[test]
 fn unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs() {
+    run_progression(false);
+}
+
+#[test]
+fn retained_direct_psx_runtime_updates_through_current_provider_without_rewriting_contract() {
+    run_progression(true);
+}
+
+fn run_progression(direct_transition: bool) {
     let started = std::time::Instant::now();
     // Isolate host-tool discovery in a child, never mutate the test host's PATH.
     let root = tempfile::tempdir().unwrap();
@@ -52,6 +61,10 @@ fn unchanged_psx_definition_completes_provider_install_and_update_with_registere
             ])
             .env("PATH", paths)
             .env("PORTCOVE_OWNED_PROGRESSION", root.path())
+            .env(
+                "PORTCOVE_OWNED_PROGRESSION_DIRECT",
+                if direct_transition { "1" } else { "0" },
+            )
             .status()
             .unwrap()
             .success()
@@ -137,6 +150,28 @@ async fn owned_progression_fixture() {
     });
     let catalog = fixture_catalog(&assets[0], platform);
     let unchanged_definition = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    let direct_transition =
+        std::env::var("PORTCOVE_OWNED_PROGRESSION_DIRECT").as_deref() == Ok("1");
+    let initial_catalog = if direct_transition {
+        let mut document = catalog.authoritative_document();
+        let release = &mut document.ports[0].release;
+        release.provider = crate::ReleaseSource::DirectManifest;
+        release.repository.clear();
+        release.asset_hints.clear();
+        release.direct.insert(
+            platform,
+            crate::DirectReleaseSpec {
+                version: "v1.0.0".into(),
+                url: format!("https://owned.example.invalid/{}", assets[0].name),
+                size: assets[0].size,
+                sha256: assets[0].sha256.clone(),
+                published_at: None,
+            },
+        );
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+    } else {
+        catalog.clone()
+    };
     let source = root.join("owned.chd");
     let mut header = vec![0; 156];
     header[..8].copy_from_slice(b"MComprHD");
@@ -154,7 +189,37 @@ async fn owned_progression_fixture() {
         &library.toolchains_dir().join("cmake-clang-v1/1.0.14"),
         &probe,
     );
-    let (first, server) = service(library.clone(), &catalog, &assets[0], "v1.0.0");
+    let (first, server) = if direct_transition {
+        // Resolve N through the real Direct provider with a valid HTTPS
+        // contract. Reuse the existing fixture transport only for its inert
+        // archive bytes; the retained URL and production validator stay intact.
+        let provider = crate::CompositeReleaseProvider::for_library(&library).unwrap();
+        let mut release = provider
+            .resolve(
+                initial_catalog.port("owned-psx").unwrap(),
+                ReleaseChannel::Stable,
+                platform,
+            )
+            .await
+            .unwrap();
+        assert_eq!(release.version, "v1.0.0");
+        assert_eq!(release.asset.name, assets[0].name);
+        assert_eq!(release.asset.sha256, assets[0].sha256);
+        assert_eq!(release.asset.size, assets[0].size);
+        assert_eq!(
+            release.asset.url,
+            initial_catalog.port("owned-psx").unwrap().release.direct[&platform].url
+        );
+        release.asset.url = assets[0].url.clone();
+        let mut first =
+            PortcoveService::with_provider(library.clone(), Arc::new(FixedRelease(release)))
+                .unwrap();
+        first.replace_catalog_for_test(initial_catalog.clone());
+        (first, None)
+    } else {
+        let (first, server) = service(library.clone(), &initial_catalog, &assets[0], "v1.0.0");
+        (first, Some(server))
+    };
     // Historical applicability does not grant unknown edition/BIOS admission.
     let mut unknown = header.clone();
     unknown[100] = 4;
@@ -174,8 +239,18 @@ async fn owned_progression_fixture() {
         .install("owned-psx", None, None, None, true, |_| {})
         .await
         .unwrap();
-    server.join().unwrap();
+    if let Some(server) = server {
+        server.join().unwrap();
+    }
     assert_eq!(old.version, "v1.0.0");
+    let old_manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
+    let retained_before = crate::install::retained_catalog_for_install(&old)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        retained_before.port("owned-psx").unwrap().release.provider,
+        initial_catalog.port("owned-psx").unwrap().release.provider
+    );
     eprintln!(
         "PSX progression N installed and prepared: {:?}",
         started.elapsed()
@@ -301,4 +376,46 @@ async fn owned_progression_fixture() {
         "PSX progression fresh N+1 installed: {:?}",
         started.elapsed()
     );
+    if direct_transition {
+        let retained_next = crate::install::retained_catalog_for_install(&updated)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            retained_next.port("owned-psx").unwrap().release.provider,
+            crate::ReleaseSource::Github
+        );
+        assert_eq!(
+            fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+            old_manifest
+        );
+        // Rollback selects N's old Direct contract but carries current player
+        // data. It neither rewinds saves nor changes update-provider ownership.
+        let current_data = [
+            ("saves/owned.sav", b"progress after update".as_slice()),
+            ("settings.toml", b"new player choices"),
+            ("mods/state.toml", b"current mod selection"),
+        ];
+        for (file, bytes) in current_data {
+            fs::write(updated.path.join("build-portcove").join(file), bytes).unwrap();
+        }
+        let rolled_back = next.rollback("owned-psx").unwrap();
+        assert_eq!(rolled_back.id, old.id);
+        assert!(next.verify("owned-psx").unwrap().valid);
+        for (file, bytes) in current_data {
+            assert_eq!(fs::read(old_runtime.join(file)).unwrap(), bytes);
+        }
+        let retained_after = crate::install::retained_catalog_for_install(&rolled_back)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained_after.authoritative_document()).unwrap(),
+            serde_json::to_value(retained_before.authoritative_document()).unwrap()
+        );
+        assert_eq!(
+            fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+            old_manifest
+        );
+        assert!(!old.path.join(".portcove-launched").exists());
+        assert!(!updated.path.join(".portcove-launched").exists());
+    }
 }

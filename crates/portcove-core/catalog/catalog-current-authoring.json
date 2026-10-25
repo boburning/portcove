@@ -18108,15 +18108,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
-            "size": 30155637,
-            "sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
-            "published_at": "2026-09-04T14:48:29Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Ape-Escape-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "ape-escape-psx",
@@ -18198,15 +18196,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152761,
-            "sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
-            "published_at": "2026-09-04T14:48:29Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alundra-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Alundra-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "alundra-psx",
@@ -18288,15 +18284,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152526,
-            "sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
-            "published_at": "2026-09-04T14:48:29Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/armored-core-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Armored-Core-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "armored-core-psx",
@@ -18378,15 +18372,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
-            "size": 30156064,
-            "sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
-            "published_at": "2026-09-04T14:48:30Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Blood-Omen-Legacy-of-Kain-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "blood-omen-psx",
@@ -18468,15 +18460,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152631,
-            "sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
-            "published_at": "2026-09-04T14:48:39Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Digimon-World-2003-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "digimon-world-2003-psx",
@@ -18558,15 +18548,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
-            "size": 30154371,
-            "sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
-            "published_at": "2026-09-04T14:48:44Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Duke-Nukem-Land-of-the-Babes-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "duke-nukem-land-of-the-babes-psx",
@@ -18648,15 +18636,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
-            "size": 30154093,
-            "sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
-            "published_at": "2026-09-04T14:48:39Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/driver-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Driver-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "driver-psx",
@@ -18738,15 +18724,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
-            "size": 30158026,
-            "sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
-            "published_at": "2026-09-04T14:48:44Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Duke-Nukem-Time-to-Kill-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "duke-nukem-time-to-kill-psx",
@@ -18828,15 +18812,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
-            "size": 30151839,
-            "sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
-            "published_at": "2026-09-04T14:48:44Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/fade-to-black-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Fade-to-Black-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "fade-to-black-psx",
@@ -18919,22 +18901,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
-            "size": 29909581,
-            "sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
-            "published_at": "2026-10-02T15:44:22Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip",
-            "size": 27803391,
-            "sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
-            "published_at": "2026-10-02T15:44:22Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/diablo-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "diablo-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "diablo-recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "diablo-europe-psx",
@@ -19026,22 +19003,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152495,
-            "sha256": "602843385f5d1e74560e39f7f4741ab8bcd1380711316e1cac80cf69f6a127d9",
-            "published_at": "2026-09-04T14:48:24Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
-            "size": 28046377,
-            "sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009",
-            "published_at": "2026-09-04T14:48:24Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "ace-combat-3-japan-psx",
@@ -19126,22 +19098,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-windows-x64.zip",
-            "size": 26206145,
-            "sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
-            "published_at": "2026-09-30T11:25:42Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-linux-x64.zip",
-            "size": 24179470,
-            "sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
-            "published_at": "2026-09-30T11:25:42Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dino-crisis-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dino-crisis-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "dino-crisis-usa-rev1-psx",
@@ -19240,22 +19207,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-windows-x64.zip",
-            "size": 26205977,
-            "sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
-            "published_at": "2026-09-30T11:26:25Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-linux-x64.zip",
-            "size": 24179506,
-            "sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
-            "published_at": "2026-09-30T11:26:25Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dino-crisis-2-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dino-crisis-2-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "dino-crisis-2-usa-psx",
@@ -19354,22 +19316,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip",
-            "size": 29907400,
-            "sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
-            "published_at": "2026-10-02T15:45:25Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
-            "size": 27800828,
-            "sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
-            "published_at": "2026-10-02T15:45:25Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "alien-resurrection-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "alien-resurrection-recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "alien-resurrection-europe-psx",
@@ -19468,22 +19425,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.3",
-            "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
-            "size": 29900215,
-            "sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
-            "published_at": "2026-09-30T11:40:52Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.3",
-            "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
-            "size": 27794465,
-            "sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
-            "published_at": "2026-09-30T11:40:52Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "brave-fencer-musashi-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "brave-fencer-musashi-recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "brave-fencer-musashi-usa-psx",

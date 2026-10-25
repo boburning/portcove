@@ -1111,7 +1111,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
   const psxProgressionFilter =
-    "package(portcove-core) & test(/^service::runtime_tests::psx_progression::unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs$/)";
+    "package(portcove-core) & test(/^service::runtime_tests::psx_progression::(unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs|retained_direct_psx_runtime_updates_through_current_provider_without_rewriting_contract)$/)";
   const namedSaveRestoreFilter =
     "package(portcove-core) & test(/^service::runtime_tests::named_save_restore_updates_every_version_and_preserves_import_policy$/)";
   const publicationFilters = [
