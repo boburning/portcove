@@ -5,6 +5,7 @@ import {
   fstatSync,
   lstatSync,
   mkdirSync,
+  mkdtempSync,
   openSync,
   realpathSync,
   writeFileSync,
@@ -33,6 +34,17 @@ export interface RustCoveragePins {
   package: "portcove-core";
   test_filter: "path::";
   module: "crates/portcove-core/src/path.rs";
+}
+
+export function rustCoverageBuildPrefix(supervisorTarget: string) {
+  if (!path.win32.isAbsolute(supervisorTarget))
+    throw new Error("Rust coverage requires an absolute ordinary Cargo target");
+  const prefix = path.win32.join(supervisorTarget, "rcov-");
+  if ((prefix + "XXXXXX").length > 64)
+    throw new Error(
+      "Rust coverage requires a short existing CARGO_TARGET_DIR for the Windows linker",
+    );
+  return prefix;
 }
 
 export function validateRustCoveragePins(value: unknown): RustCoveragePins {
@@ -363,16 +375,24 @@ export async function runRustCoverage() {
   const directory = path.join(parent, randomUUID());
   mkdirSync(directory);
   const physical = lstatSync(directory, { bigint: true });
+  const supervisorTarget = path.resolve(root, inspected.environment.CARGO_TARGET_DIR ?? "target");
+  const buildDirectory = mkdtempSync(rustCoverageBuildPrefix(supervisorTarget));
+  const buildPhysical = lstatSync(buildDirectory, { bigint: true });
   const verify = () => {
-    const stat = lstatSync(directory, { bigint: true });
-    if (
-      !stat.isDirectory() ||
-      stat.isSymbolicLink() ||
-      stat.dev !== physical.dev ||
-      stat.ino !== physical.ino ||
-      path.resolve(realpathSync(directory)) !== path.resolve(directory)
-    )
-      throw new Error("Rust coverage packet was redirected");
+    for (const [location, identity] of [
+      [directory, physical],
+      [buildDirectory, buildPhysical],
+    ] as const) {
+      const stat = lstatSync(location, { bigint: true });
+      if (
+        !stat.isDirectory() ||
+        stat.isSymbolicLink() ||
+        stat.dev !== identity.dev ||
+        stat.ino !== identity.ino ||
+        path.resolve(realpathSync(location)) !== path.resolve(location)
+      )
+        throw new Error("Rust coverage packet or instrumented build was redirected");
+    }
     if (JSON.stringify(gitSource()) !== JSON.stringify(source))
       throw new Error("Rust coverage source changed");
   };
@@ -406,8 +426,8 @@ export async function runRustCoverage() {
     arch: process.arch,
     commands,
     directories: {
-      instrumented_build: path.join(directory, "build"),
-      supervisor_target: path.resolve(root, inspected.environment.CARGO_TARGET_DIR ?? "target"),
+      instrumented_build: buildDirectory,
+      supervisor_target: supervisorTarget,
     },
     feature_selection: "Core default package features; no feature overrides",
     instrumentation: "nightly branch coverage; cfg(coverage) and cfg(coverage_nightly) disabled",
@@ -418,7 +438,7 @@ export async function runRustCoverage() {
   const receipt = openSync(path.join(directory, "receipt.json"), "wx");
   const environment = {
     ...inspected.environment,
-    CARGO_LLVM_COV_TARGET_DIR: path.join(directory, "build"),
+    CARGO_LLVM_COV_TARGET_DIR: buildDirectory,
     CARGO_BUILD_JOBS: "2",
     CARGO_INCREMENTAL: "0",
   };

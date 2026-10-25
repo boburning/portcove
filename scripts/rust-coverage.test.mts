@@ -11,6 +11,7 @@ import {
   rustCoverageOutcomes,
   rustBranchCoverage,
   publishRustCoverage,
+  rustCoverageBuildPrefix,
 } from "./rust-coverage.mts";
 
 void test("Rust coverage refuses widened boundaries and mutable compiler channels", () => {
@@ -54,6 +55,15 @@ void test("Rust coverage refuses widened boundaries and mutable compiler channel
   assert.deepEqual(
     commands.map(({ timeout_ms }) => timeout_ms),
     [1800000, 300000, 300000],
+  );
+});
+
+void test("coverage builds use a fresh child of a short existing ordinary target, avoiding Windows linker paths", () => {
+  assert.equal(rustCoverageBuildPrefix("C:\\target"), "C:\\target\\rcov-");
+  assert.throws(() => rustCoverageBuildPrefix("relative-target"), /absolute/u);
+  assert.throws(
+    () => rustCoverageBuildPrefix("C:\\" + "long-directory\\".repeat(8)),
+    /short existing/u,
   );
 });
 
