@@ -1308,6 +1308,25 @@ Other Windows hardware and newly created settings require their own applicable
 evidence. Retained installation contracts preserve their original declaration;
 indexed definitions require the N64 version 2 capability for this behavior.
 
+The optional `n64_runtime_at_executable_parent` contract keeps a reviewed ready
+N64 runtime and its declared data beside the selected executable when an archive
+wrapper changes between releases. It requires a managed portable archive,
+`portable_marker`, an admitted source with persistent N64 big-endian materialization,
+and no conflicting runtime root, external data environment or generated build.
+Review the actual package and component grants before enabling acquisition.
+Do not add this flag to an existing installation to migrate its data coordinates.
+
+This opt-in uses the existing staged lifecycle and conservative data-restore
+receipt. Declared data is collected before first Play, backup, replacement,
+rollback and removal. Without a matching restore receipt, conflicting runtime and
+canonical copies are preserved for explicit resolution. Full immutable verification
+holds modified runtime files and undeclared additions; current data crosses only
+compatible retained coordinates. Runtime rollback does not rewind saves.
+N64 engine capability 4 and retained-contract format 8 fence these semantics from
+older readers; omitted/false retains historical N64 coordinates and behavior.
+The contract itself supplies no platform, native, original-file or gameplay
+qualification, and does not grant ownership of external copies.
+
 Duke Nukem: Zero Hour Recompiled 0.0.3 has exact Windows structural and
 bounded automated lifecycle records for the checksum-qualified USA source and
 GitLab artifact. They cover mismatch refusal, archive-member normalization,

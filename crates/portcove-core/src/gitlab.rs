@@ -396,6 +396,22 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 })?;
             (link.name.clone(), 0, sha256)
         };
+        if port.n64_runtime_at_executable_parent
+            && native_archive_score(
+                &name.to_ascii_lowercase(),
+                platform,
+                port.release
+                    .asset_hints
+                    .get(&platform)
+                    .map(Vec::as_slice)
+                    .unwrap_or_default(),
+            )
+            .is_none()
+        {
+            return Err(PortcoveError::verification(
+                "GitLab package filename does not match the reviewed native archive rules",
+            ));
+        }
         let resolved = ResolvedRelease {
             version: release.tag_name.clone(),
             channel,
@@ -482,6 +498,18 @@ fn choose_link<'a>(
             if link.link_type != "package" || conflicts_with_platform(&name, platform) {
                 return None;
             }
+            if port.n64_runtime_at_executable_parent {
+                return crate::service::package_selection::assess_package_name(
+                    &name, true, platform, &hints,
+                )
+                .2
+                .filter(|_| {
+                    hints
+                        .iter()
+                        .all(|hint| name.contains(&hint.to_ascii_lowercase()))
+                })
+                .map(|score| (score as i32, link));
+            }
             let platform_score = platform
                 .asset_tokens()
                 .iter()
@@ -515,6 +543,22 @@ fn choose_link<'a>(
         )));
     }
     Ok(*best_link)
+}
+
+fn native_archive_score(name: &str, platform: Platform, hints: &[String]) -> Option<i32> {
+    let can_extract = [".zip", ".tar.gz", ".tgz"]
+        .iter()
+        .any(|extension| name.ends_with(extension));
+    if !can_extract
+        || !hints
+            .iter()
+            .all(|hint| name.contains(&hint.to_ascii_lowercase()))
+    {
+        return None;
+    }
+    crate::service::package_selection::assess_package_name(name, can_extract, platform, hints)
+        .2
+        .map(|score| score as i32)
 }
 
 fn gitlab_http_error(status: StatusCode, headers: &header::HeaderMap) -> PortcoveError {
@@ -993,6 +1037,98 @@ mod tests {
         let error = choose_link(port, Platform::WindowsX86_64, &links).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert!(error.message.contains("equally qualified"));
+    }
+
+    #[test]
+    fn executable_parent_n64_links_require_the_selected_native_archive_variant() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("road-rash-64-recompiled").unwrap().clone();
+        port.n64_runtime_at_executable_parent = true;
+        port.release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["win64".into()]);
+        let link = |name: &str| GitlabReleaseLink {
+            name: name.into(),
+            url: "https://example.invalid/package.zip".into(),
+            direct_asset_url: None,
+            link_type: "package".into(),
+        };
+        for name in [
+            "RoadRash64Recompiled-v1.4.9-Source.zip",
+            "RoadRash64Recompiled-v1.4.9-Win32.zip",
+            "RoadRash64Recompiled-v1.4.9-WinARM64.zip",
+            "RoadRash64Recompiled-v1.4.9-Win64-source.zip",
+        ] {
+            assert_eq!(
+                choose_link(&port, Platform::WindowsX86_64, &[link(name)])
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::NotFound,
+                "{name}"
+            );
+        }
+        let links = [link("RoadRash64Recompiled-v1.4.9-Win64.zip")];
+        assert_eq!(
+            choose_link(&port, Platform::WindowsX86_64, &links)
+                .unwrap()
+                .name,
+            links[0].name
+        );
+        let ambiguous = [
+            link("RoadRash64Recompiled-one-Win64.zip"),
+            link("RoadRash64Recompiled-two-Win64.zip"),
+        ];
+        assert_eq!(
+            choose_link(&port, Platform::WindowsX86_64, &ambiguous)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+    }
+
+    #[tokio::test]
+    async fn executable_parent_n64_checks_the_final_gitlab_package_filename_before_caching() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("road-rash-64-recompiled").unwrap().clone();
+        port.n64_runtime_at_executable_parent = true;
+        port.release
+            .asset_hints
+            .insert(Platform::WindowsX86_64, vec!["win64".into()]);
+        port.release.provider = ReleaseSource::Gitlab;
+        port.release.repository = "group/project".into();
+        let selected_name = "RoadRash64Recompiled-v1.4.8-Win64.zip";
+        let display_name = "RoadRash64Recompiled-v1.4.8-Win64";
+        for name in [
+            "RoadRash64Recompiled-v1.4.8-Source.zip",
+            "RoadRash64Recompiled-v1.4.8-Win64.exe",
+            selected_name,
+        ] {
+            let releases = serde_json::json!([{
+                "tag_name":"v1.4.8", "description":"", "assets":{"links":[{
+                    "name":display_name,"link_type":"package",
+                    "url":"https://gitlab.com/group/project/-/package_files/77/download"
+                }]}
+            }]);
+            let files = serde_json::json!([{"id":77,"file_name":name,"size":42,"file_sha256":"b".repeat(64)}]);
+            let (root, requests, server) = serve_http(vec![
+                ok_json(r#"{"id":9,"archived":false}"#, ""),
+                ok_json(&releases.to_string(), ""),
+                ok_json(r#"[{"id":501,"version":"v1.4.8"}]"#, ""),
+                ok_json(&files.to_string(), ""),
+            ]);
+            let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+            let result = provider
+                .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await;
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 4);
+            if name == selected_name {
+                assert_eq!(result.unwrap().asset.name, selected_name);
+            } else {
+                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+                assert!(provider.cache.read().await.is_empty());
+            }
+        }
     }
 
     #[tokio::test]

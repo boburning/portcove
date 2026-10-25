@@ -1378,6 +1378,11 @@ export interface PortDefinition {
   manually_validated_platforms: Platform[];
   mod_package_policy?: ModPackagePolicy | null;
   /**
+   * Keep a reviewed N64 package's runtime and data beside its selected player,
+   * including when upstream changes the outer archive wrapper name.
+   */
+  n64_runtime_at_executable_parent?: boolean;
+  /**
    * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
    */
   n64_windows_initial_d3d12?: boolean;

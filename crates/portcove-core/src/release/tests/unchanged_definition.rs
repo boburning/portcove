@@ -405,9 +405,11 @@ async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_
     for adapter in [
         AdapterKind::NativePortable,
         AdapterKind::StagedSourcePortable,
+        AdapterKind::N64RecompPortable,
     ] {
         let mut port = variant_port();
         port.adapter = adapter;
+        port.n64_runtime_at_executable_parent = adapter == AdapterKind::N64RecompPortable;
         let old = release(
             "v1.0.0",
             vec![asset("Game-hd-v1.0.0-windows-x64.zip", Some('a'))],
@@ -520,6 +522,38 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
         4,
         "native archive restrictions must be evaluated again"
     );
+}
+
+#[tokio::test]
+async fn cached_package_selection_cannot_cross_n64_root_package_contracts() {
+    let mut port = variant_port();
+    port.adapter = AdapterKind::N64RecompPortable;
+    // Historical N64 hints were preferences. A definition opting in to strict
+    // executable-parent packages must not reuse that cached selection.
+    let current = release(
+        "v1.0.0",
+        vec![asset("Game-hd-v1.0.0-windows-x86.zip", Some('a'))],
+    );
+    let (api_root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(&[current.clone()]),
+        metadata(),
+        releases(&[current]),
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+    let historical = provider
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert!(historical.asset.name.ends_with("windows-x86.zip"));
+    port.n64_runtime_at_executable_parent = true;
+    let failure = provider
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(failure.code, crate::ErrorCode::NotFound);
+    assert_eq!(requests.try_iter().count(), 4);
 }
 
 // Actual reviewed package names paired with controlled version-only successors.
