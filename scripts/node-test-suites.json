@@ -2685,6 +2685,14 @@
         ["catalog-full", 1200],
         ["roadmap-check", 1200]
       ]
+    },
+    {
+      "file": "scripts/release-native-runtime-custody.test.mts",
+      "memberships": [
+        ["windows-helpers-3", 400],
+        ["catalog-full-2", 16001],
+        ["release-check", 16201]
+      ]
     }
   ]
 }

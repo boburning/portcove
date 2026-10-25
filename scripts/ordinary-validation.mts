@@ -1750,6 +1750,7 @@ explicitNodeTests.set("scripts/runtime-values.mts", [
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/release-native-runtime-custody.test.mts",
   "scripts/hosted-native-continuity.test.mts",
   "scripts/recover-local-worker-empty-setup.test.mts",
   "scripts/release-native-account-capability.test.mts",

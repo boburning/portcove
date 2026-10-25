@@ -1029,3 +1029,47 @@ The held controller now calls the prepared Linux producer twice on one `native_l
 Source-only Actions request/ack readers now defer the signing-producer dependency until the attested worker actually runs. A clean package-denial loader checks that the source entrypoints remain usable without installing signing dependencies. Fixed public lifecycle rows are collected after success/refusal into one bounded diagnostic artifact; missing, oversized or invalid rows remain explicitly unavailable. Raw logs, candidate data, configuration, proof contents and credentials are outside that allowlist. Diagnostics do not stop, retry, settle or accept a worker.
 
 The actual application estimate is85job-minutes (previous75 plus Linux10), with catalog40 as the mutually exclusive alternative; a future Windows10 would make95, below the unchanged100-minute ceiling. Diagnostic artifacts increase10→11, within the existing66files/64KiB-per-file contract; cache/archive/seven-day/no-spend restrictions remain. These changed workflow/resource-policy and executable identities invalidate previous ratification before use. The source is preparation only: the actual Windows two-stage producer, native/full client evidence, eligible reservation and final runnable-source reconciliation remain pending. No protected dispatch or new manual setup is performed; production remains held, #254 Done, #315/#534/#246 pending, Chameleon protected acceptance unset and slice5 excluded.
+
+## Windows executing-file custody preparation (October 25)
+
+The shared executable-custody reader now supports the selected Windows host path
+with actual OS owner/ACL observations. Linux ownership/mode behavior is preserved.
+The fixed Windows OS reader receives only inert UTF-8 JSON paths through stdin,
+with a cleared child environment, no profiles, no caller script and no ACL/owner
+mutation. It requires the fixed `C:\Windows` system root and canonical OS reader.
+It allows only the broker, SYSTEM, Administrators and the existing OS
+TrustedInstaller identity as owners/writers. Applicable explicit and inherited
+foreign file-write or ancestor-replacement permissions refuse; inherited-only
+rules are interpreted at the object where they apply.
+
+Canonical local paths, regular single-link files and non-reparse ancestry are
+required. Retained observations join broker SID, owner and complete DACL SDDL
+with file/volume identity, creation/size/change timestamps and relevant mode.
+File identity and canonical resolution are checked around the ACL read;
+subsequent rechecks compare the complete retained map. Directory child-list
+timestamps are excluded so ordinary unrelated child creation does not invalidate
+protected ancestry. Unsupported, unreadable, changed or over-bound information
+refuses without a fallback. Limits are128 files,4096 unique ancestry entries,
+64 levels,256KiB request,1MiB output and15 seconds per OS read.
+
+Actual ordinary, non-elevated local Windows fixtures establish unchanged
+readback, same-byte replacement refusal, hard-link/junction/invalid-path refusal,
+and foreign file-write/ancestor-replacement ACL refusal. Only owned inert fixture
+ACLs were changed and restored by the tests; the production reader is read-only.
+The initial Windows PowerShell5 JSON-array decoding failure remains retained;
+explicit array assignment and text/UTF-8 transport repaired that reader boundary.
+Final exact-source test/review/CI identities belong to the owning delivery receipt.
+The new test is registered in ordinary Windows helper, full catalog and release
+checks, and selected by the existing release-security ownership rule.
+
+This delivers filesystem-custody preparation, not a Windows native producer or
+tool-artifact credential. The current controller-tool manifest and runtime still
+select Linux binaries; Windows tools/materialization, separate candidate-account
+execution, direct capture/report/proof and same-worker pre/post-sign upload joins
+remain necessary. No Linux tool artifact is relabeled as Windows-capable. Actual
+Windows Server continuity remains distinct from Windows client-minimum acceptance.
+No new admin, credential, authority or resource-policy action is requested.
+Production stays held; final source/digest/configuration reconciliation and all
+existing admission/custody/recovery prerequisites remain mandatory. D1/D2/D3,
+Unknown availability/headroom, no capacity reservation, #254 Done,
+#315/#534/#246 pending, Chameleon acceptance hold and Slice5 exclusion remain.
