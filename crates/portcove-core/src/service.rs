@@ -16810,8 +16810,8 @@ fn main() {
             .unwrap();
         fs::write(install.path.join("general.json"), b"recovered save").unwrap();
         let user = library.user_dir("zelda64-recomp");
-        fs::create_dir_all(&user).unwrap();
-        fs::create_dir(user.join("general.json")).unwrap();
+        fs::create_dir_all(user.parent().unwrap()).unwrap();
+        fs::write(&user, b"block creation of the save destination").unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
 
         assert!(service.recover_launch_session(&activity.id).is_err());
@@ -16822,7 +16822,7 @@ fn main() {
         assert_eq!(retained.phase, LaunchSessionPhase::Collecting);
         assert!(retained.child_identity.is_none());
         assert!(library.try_lock_port("zelda64-recomp", "update").is_err());
-        fs::remove_dir(user.join("general.json")).unwrap();
+        fs::remove_file(&user).unwrap();
         drop(service);
 
         PortcoveService::new(library.clone())
