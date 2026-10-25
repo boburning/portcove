@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import type { ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { lstatSync, readFileSync, writeFileSync } from "node:fs";
@@ -69,8 +70,13 @@ function same(a: CapturedNativeProcess, b: CapturedNativeProcess) {
     path.resolve(a.path).toLowerCase() === path.resolve(b.path).toLowerCase()
   );
 }
+type NativeAccountDriverProcess = Pick<
+  ChildProcess,
+  "pid" | "exitCode" | "signalCode" | "stdout" | "stderr"
+>;
+
 /** A view of an actual broker root, not a local ChildProcess or acceptance receipt. */
-export class AccountDriverView extends EventEmitter {
+export class AccountDriverView extends EventEmitter implements NativeAccountDriverProcess {
   readonly signalCode = null;
   readonly stdout = new PassThrough();
   readonly stderr = new PassThrough();

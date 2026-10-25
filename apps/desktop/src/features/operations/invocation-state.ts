@@ -18,7 +18,7 @@ export type InvocationRecord = {
   refreshFailure?: unknown;
 };
 
-export function invocationContextsConflict(left: InvocationContext, right: InvocationContext) {
+function invocationContextsConflict(left: InvocationContext, right: InvocationContext) {
   if (left.exclusionScope === "application" || right.exclusionScope === "application") return true;
   if (left.libraryGeneration !== right.libraryGeneration) return false;
   if (left.exclusionScope === "library" || right.exclusionScope === "library") return true;

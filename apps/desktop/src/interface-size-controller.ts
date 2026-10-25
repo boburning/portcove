@@ -3,7 +3,7 @@ export type InterfaceSize = (typeof INTERFACE_SIZES)[number];
 export const INTERFACE_SIZE_KEY = "portcove.appearance.interface-size";
 
 type PreferenceStorage = Pick<Storage, "getItem" | "setItem">;
-export type InterfaceSizeSnapshot = {
+type InterfaceSizeSnapshot = {
   applied: InterfaceSize;
   requested: InterfaceSize;
   pending: boolean;
@@ -11,7 +11,7 @@ export type InterfaceSizeSnapshot = {
   sessionOnly: boolean;
 };
 
-export function isInterfaceSize(value: number): value is InterfaceSize {
+function isInterfaceSize(value: number): value is InterfaceSize {
   return INTERFACE_SIZES.some((size) => size === value);
 }
 

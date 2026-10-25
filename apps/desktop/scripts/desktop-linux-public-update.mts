@@ -219,7 +219,7 @@ async function seedInitialImage(
   return { ...copied, scope: "initial V0 installation only" };
 }
 
-export async function runLinuxPublicUpdateJourney(
+async function runLinuxPublicUpdateJourney(
   rawBinding: unknown,
   versions: { prior: string; candidate: string },
   originalDeadline: number,
@@ -648,7 +648,7 @@ export async function runLinuxPublicUpdateJourney(
 }
 
 /** Fixed credential-free guest CLI. A pinned plan is instructions, not a grant. */
-export async function runFixedLinuxPublicUpdateConfiguration(
+async function runFixedLinuxPublicUpdateConfiguration(
   filename: string,
   expectedSha256: string,
   remainingMilliseconds: number,

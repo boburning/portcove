@@ -389,15 +389,38 @@ void test("native-test export credits retain outside consumers without masking o
       }),
     );
     put("src/main.ts", "console.log('production');");
-    put("scripts/desktop-test.mts", 'import "../test/capture-target";');
+    put(
+      "scripts/desktop-test.mts",
+      'import "../test/capture-target"; import "./native-linux-driver-http.mts"; import "./native-linux-isolated-session.mts";',
+    );
     put(
       "test/capture-target.ts",
       'import axe from "axe-core"; console.log(axe); export const requireCompleteCaptureTarget = 1; export const unconsumed = 2;',
     );
+    const nativeExports = [
+      [
+        "scripts/native-linux-driver-http.mts",
+        ["privateNativeDriverAgentState", "inspectPrivateNativeDriverRequest"],
+      ],
+      ["scripts/native-linux-isolated-session.mts", ["createNativeNamespaceStreamCapture"]],
+    ] as const;
+    for (const [source, names] of nativeExports)
+      put(source, [...names, "unconsumed"].map((name) => `export const ${name} = 1;`).join("\n"));
     const raw = record(analyze(directory, ["dead-code"]));
     const unused = values(raw.unused_exports).map(record);
     assert.ok(unused.some((item) => item.export_name === "unconsumed"));
     assert.ok(!unused.some((item) => item.export_name === "requireCompleteCaptureTarget"));
+    for (const [source, names] of nativeExports) {
+      const findings = unused.filter((item) =>
+        findingPath(item).replaceAll("\\", "/").endsWith(source),
+      );
+      assert.ok(
+        findings.some((item) => item.export_name === "unconsumed"),
+        source,
+      );
+      for (const name of names)
+        assert.ok(!findings.some((item) => item.export_name === name), `${source}: ${name}`);
+    }
     assert.equal(
       values(raw.dev_dependencies_in_production).length,
       0,
@@ -421,6 +444,21 @@ void test("native-test export credits retain outside consumers without masking o
     ],
     ["scripts/transport-values.mts", "checkTransportSchemas", "scripts/transport-values.test.mts"],
     ["test/capture-target.ts", "requireCompleteCaptureTarget", "scripts/capture-target.test.mts"],
+    [
+      "scripts/native-linux-driver-http.mts",
+      "privateNativeDriverAgentState",
+      "scripts/native-linux-driver-http.test.mts",
+    ],
+    [
+      "scripts/native-linux-driver-http.mts",
+      "inspectPrivateNativeDriverRequest",
+      "scripts/native-linux-driver-http.test.mts",
+    ],
+    [
+      "scripts/native-linux-isolated-session.mts",
+      "createNativeNamespaceStreamCapture",
+      "scripts/release-native-linux-driver.test.mts",
+    ],
   ]) {
     const text = readFileSync(path.join(root, consumer!), "utf8");
     assert.ok(
@@ -429,4 +467,81 @@ void test("native-test export credits retain outside consumers without masking o
     );
     assert.ok(text.includes(`apps/desktop/${source}`), `${consumer} no longer imports ${source}`);
   }
+});
+
+void test("native process member credits preserve unrelated and unconsumed member findings", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-fallow-process-members-"));
+  const members = ["signalCode", "stdout", "stderr"];
+  function put(name: string, contents: string) {
+    const target = path.join(directory, name);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, contents);
+  }
+  try {
+    put(".fallow-tooling.json", JSON.stringify(desktopConfig));
+    put("package.json", JSON.stringify({ type: "module", main: "src/main.ts" }));
+    put("src/main.ts", "console.log('production');");
+    put(
+      "scripts/desktop-test.mts",
+      'import { DeclaredDriver, UnrelatedDriver } from "./account-view.mts"; new DeclaredDriver(); new UnrelatedDriver();',
+    );
+    put(
+      "scripts/account-view.mts",
+      `interface NativeAccountDriverProcess {}
+       export class DeclaredDriver implements NativeAccountDriverProcess {
+         signalCode = null; stdout = 1; stderr = 2; unconsumed = 3;
+       }
+       export class UnrelatedDriver { signalCode = null; stdout = 1; stderr = 2; }`,
+    );
+    const findings = values(record(analyze(directory, ["dead-code"])).unused_class_members).map(
+      record,
+    );
+    assert.ok(
+      findings.some(
+        (item) => item.parent_name === "DeclaredDriver" && item.member_name === "unconsumed",
+      ),
+    );
+    for (const name of members) {
+      assert.ok(
+        !findings.some(
+          (item) => item.parent_name === "DeclaredDriver" && item.member_name === name,
+        ),
+        name,
+      );
+      assert.ok(
+        findings.some(
+          (item) => item.parent_name === "UnrelatedDriver" && item.member_name === name,
+        ),
+        name,
+      );
+    }
+    const withoutCredit = structuredClone(desktopConfig);
+    for (const plugin of withoutCredit.framework) delete record(plugin).usedClassMembers;
+    put(".fallow-tooling.json", JSON.stringify(withoutCredit));
+    const uncredited = values(record(analyze(directory, ["dead-code"])).unused_class_members).map(
+      record,
+    );
+    for (const name of members)
+      assert.ok(
+        uncredited.some(
+          (item) => item.parent_name === "DeclaredDriver" && item.member_name === name,
+        ),
+        name,
+      );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+  const source = readFileSync(
+    path.join(root, "apps/desktop/scripts/desktop-native-account-session.mts"),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /class AccountDriverView extends EventEmitter implements NativeAccountDriverProcess/u,
+  );
+  const consumer = readFileSync(
+    path.join(root, "scripts/desktop-native-account-session.test.mts"),
+    "utf8",
+  );
+  for (const name of members) assert.ok(consumer.includes(`view.${name}`), name);
 });
