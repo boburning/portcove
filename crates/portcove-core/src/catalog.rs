@@ -2151,7 +2151,7 @@ mod tests {
             (
                 "sonic-3-and-knuckles-recomp",
                 "game.bin",
-                Some("v0.5.3"),
+                None,
                 "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
             ),
         ] {
@@ -2196,8 +2196,9 @@ mod tests {
                 Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath),
                 "{id}"
             );
-            assert!(
-                port.presentation.as_ref().unwrap().manual_setup.is_none(),
+            assert_eq!(
+                port.presentation.as_ref().unwrap().manual_setup.is_some(),
+                id == "sonic-3-and-knuckles-recomp",
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
@@ -2215,6 +2216,31 @@ mod tests {
                 assert!(!port.persistent_paths.iter().any(|path| path == diagnostic));
             }
         }
+        // Existing captures keep the original pin and exact source identity.
+        let historical = crate::test_fixture::historical_runtime_maintenance_catalog();
+        let retained = crate::installed_contract::InstalledContract::capture(
+            &historical,
+            "sonic-3-and-knuckles-recomp",
+        )
+        .unwrap()
+        .catalog("sonic-3-and-knuckles-recomp")
+        .unwrap();
+        let old = retained.port("sonic-3-and-knuckles-recomp").unwrap();
+        let current = catalog.port(&old.id).unwrap();
+        assert_eq!(old.release.provider, ReleaseSource::DirectManifest);
+        assert_eq!(
+            old.release.direct[&Platform::WindowsX86_64].version,
+            "v0.5.3"
+        );
+        assert_eq!(old.runtime_source_hashes, current.runtime_source_hashes);
+        assert_eq!(old.launch_arguments, current.launch_arguments);
+        assert!(!old.persistent_paths.iter().any(|p| p.ends_with(".thumb")));
+        assert!(
+            current
+                .persistent_paths
+                .iter()
+                .any(|p| p == "native_save_1.bin.thumb")
+        );
         let sonic2 = catalog.port("sonic-the-hedgehog-2-recomp").unwrap();
         for campaign in [
             "sonic2-campaign.srm",
@@ -3584,7 +3610,7 @@ mod tests {
 
     #[test]
     fn road_rash_64_pins_its_windows_artifact_and_canonical_source_without_qualification() {
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::historical_runtime_maintenance_catalog();
         let port = catalog.port("road-rash-64-recompiled").unwrap();
         assert_eq!(port.platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.channels, [ReleaseChannel::Stable]);
@@ -3710,90 +3736,130 @@ mod tests {
 
     #[test]
     fn road_rash_64_manifest_projects_persistence_and_keeps_package_helpers_immutable() {
-        let catalog = Catalog::embedded().unwrap();
-        let port = catalog.port("road-rash-64-recompiled").unwrap();
-        let temporary = tempfile::tempdir().unwrap();
-        let library = crate::Library::open(temporary.path().join("library")).unwrap();
-        let install = temporary.path().join("install");
-        let wrapper = "RoadRash64Recompiled-v1.4.3-Win64";
-        let runtime = install.join(wrapper);
-        std::fs::create_dir_all(runtime.join("tools/mk64-importer")).unwrap();
-        for relative in [
-            "RoadRash64Recompiled.exe",
-            "tools/mk64-importer/rr64-mk64-importer.exe",
+        for (catalog, wrapper, executable_parent) in [
+            (
+                crate::test_fixture::historical_runtime_maintenance_catalog(),
+                "RoadRash64Recompiled-v1.4.3-Win64",
+                false,
+            ),
+            (
+                Catalog::embedded().unwrap(),
+                "RoadRash64Recompiled-v1.4.8-Win64",
+                true,
+            ),
         ] {
-            std::fs::write(runtime.join(relative), b"inert package fixture; never run").unwrap();
-        }
-        let qualification = crate::install::InstallQualification::from_catalog(
-            &catalog,
-            &port.id,
-            Platform::WindowsX86_64,
-        )
-        .unwrap();
-        assert_eq!(
-            qualification.persistence_root(&install, &runtime.join("RoadRash64Recompiled.exe")),
-            install
-        );
-        let installer = crate::Installer::new(library).unwrap();
-        let artifact = crate::ArtifactIdentity {
-            asset_name: "inert-road-rash-layout.zip".into(),
-            sha256: "a".repeat(64),
-            size: 32,
-        };
-        installer
-            .create_manifest(
-                "fixture",
+            let port = catalog.port("road-rash-64-recompiled").unwrap();
+            let temporary = tempfile::tempdir().unwrap();
+            let library = crate::Library::open(temporary.path().join("library")).unwrap();
+            let install = temporary.path().join("install");
+            let runtime = install.join(wrapper);
+            std::fs::create_dir_all(runtime.join("tools/mk64-importer")).unwrap();
+            for relative in [
+                "RoadRash64Recompiled.exe",
+                "tools/mk64-importer/rr64-mk64-importer.exe",
+            ] {
+                std::fs::write(runtime.join(relative), b"inert package fixture; never run")
+                    .unwrap();
+            }
+            let qualification = crate::install::InstallQualification::from_catalog(
+                &catalog,
                 &port.id,
-                "fixture",
-                &artifact,
-                &qualification,
-                &install,
+                Platform::WindowsX86_64,
             )
             .unwrap();
-        let manifest: serde_json::Value = serde_json::from_slice(
-            &std::fs::read(install.join(".portcove-manifest.json")).unwrap(),
-        )
-        .unwrap();
-        let actual: std::collections::BTreeSet<String> = manifest["mutable_paths"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|path| path.as_str().unwrap().to_owned())
-            .collect();
-        assert_eq!(port.persistent_paths.len(), 35);
-        assert!(
-            port.persistent_paths
+            assert_eq!(
+                qualification.persistence_root(&install, &runtime.join("RoadRash64Recompiled.exe")),
+                if executable_parent {
+                    runtime.clone()
+                } else {
+                    install.clone()
+                }
+            );
+            let installer = crate::Installer::new(library).unwrap();
+            let artifact = crate::ArtifactIdentity {
+                asset_name: "inert-road-rash-layout.zip".into(),
+                sha256: "a".repeat(64),
+                size: 32,
+            };
+            installer
+                .create_manifest(
+                    "fixture",
+                    &port.id,
+                    "fixture",
+                    &artifact,
+                    &qualification,
+                    &install,
+                )
+                .unwrap();
+            let manifest: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(install.join(".portcove-manifest.json")).unwrap(),
+            )
+            .unwrap();
+            let actual: std::collections::BTreeSet<String> = manifest["mutable_paths"]
+                .as_array()
+                .unwrap()
                 .iter()
-                .all(|path| path.starts_with(&format!("{wrapper}/")))
-        );
-        let mut expected: std::collections::BTreeSet<String> =
-            port.persistent_paths.iter().cloned().collect();
-        expected.extend([
-            format!("{wrapper}/RoadRash64Recompiled-runtime.log"),
-            format!("{wrapper}/traffic-events.log"),
-            format!("{wrapper}/portable.txt"),
-            format!("{wrapper}/rr64.n64.us.1.0.z64.portcove-source.json"),
-        ]);
-        assert_eq!(actual, expected);
-        for relative in [
-            "RoadRash64Recompiled.exe",
-            "tools/mk64-importer/rr64-mk64-importer.exe",
-        ] {
-            assert!(manifest["files"].as_array().unwrap().iter().any(|file| {
-                file["path"].as_str() == Some(format!("{wrapper}/{relative}").as_str())
-            }));
+                .map(|path| path.as_str().unwrap().to_owned())
+                .collect();
+            assert_eq!(port.n64_runtime_at_executable_parent, executable_parent);
+            assert_eq!(
+                port.persistent_paths.len(),
+                if executable_parent { 36 } else { 35 }
+            );
+            assert!(
+                port.persistent_paths
+                    .iter()
+                    .all(|path| path.starts_with(&format!("{wrapper}/")) != executable_parent)
+            );
+            let mut expected: std::collections::BTreeSet<String> = port
+                .persistent_paths
+                .iter()
+                .map(|p| {
+                    if executable_parent {
+                        format!("{wrapper}/{p}")
+                    } else {
+                        p.clone()
+                    }
+                })
+                .collect();
+            expected.extend([
+                format!("{wrapper}/RoadRash64Recompiled-runtime.log"),
+                format!("{wrapper}/traffic-events.log"),
+                format!("{wrapper}/portable.txt"),
+                format!("{wrapper}/rr64.n64.us.1.0.z64.portcove-source.json"),
+            ]);
+            assert_eq!(actual, expected);
+            for relative in [
+                "RoadRash64Recompiled.exe",
+                "tools/mk64-importer/rr64-mk64-importer.exe",
+            ] {
+                assert!(manifest["files"].as_array().unwrap().iter().any(|file| {
+                    file["path"].as_str() == Some(format!("{wrapper}/{relative}").as_str())
+                }));
+            }
+            let data_root = if executable_parent {
+                &runtime
+            } else {
+                &install
+            };
+            let backup_entries = crate::persistence::entries(port, &[data_root]).unwrap();
+            let prefix = if executable_parent {
+                String::new()
+            } else {
+                format!("{wrapper}/")
+            };
+            assert!(backup_entries.contains(&format!("{prefix}rr64.n64.us.1.0.z64")));
+            assert!(!backup_entries.contains(&format!("{prefix}portable.txt")));
+            assert!(
+                !backup_entries
+                    .contains(&format!("{prefix}rr64.n64.us.1.0.z64.portcove-source.json"))
+            );
+            assert!(
+                !backup_entries
+                    .iter()
+                    .any(|path| path.contains("tools/") || path.ends_with(".log"))
+            );
         }
-        let backup_entries = crate::persistence::entries(port, &[&install]).unwrap();
-        assert!(backup_entries.contains(&format!("{wrapper}/rr64.n64.us.1.0.z64")));
-        assert!(!backup_entries.contains(&format!("{wrapper}/portable.txt")));
-        assert!(!backup_entries.contains(&format!(
-            "{wrapper}/rr64.n64.us.1.0.z64.portcove-source.json"
-        )));
-        assert!(
-            !backup_entries
-                .iter()
-                .any(|path| path.contains("tools/") || path.ends_with(".log"))
-        );
     }
 
     #[test]

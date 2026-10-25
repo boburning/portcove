@@ -183,3 +183,24 @@ replacement and both changed legacy data-contract transitions remain unfinished.
 This is not full #1113/#154 or #2510/#2926 acceptance. Individual fit, broader
 inventory joins, protected publication and physical/native acceptance keep their
 own canonical owners.
+
+## Initial broad-run evidence and repair
+
+CI `40245243440/a1` failed three catalog cases that still expected the former
+live Direct pins and Road Rash installation-root persistence. All failed leaves,
+the aggregate and the complete run identity are retained. An immutable two-port
+snapshot bound to pre-adoption main keeps every old artifact/source assertion;
+the manifest test exercises both historical and current data roots, exact
+mutable-path projection, ROM backup membership and immutable packaged helpers.
+The current Sonic3K test checks dynamic selection and its delivered optional
+upstream guide while retaining the old v0.5.3 capture separately. One initial
+focused repair run found the additional obsolete no-guide expectation; it is
+retained and corrected to assert the new guide's presence. No product guard,
+coverage or deadline is weakened. A focused repair pass is not a green broad
+suite; the repaired candidate requires the complete selected hosted plan anew.
+
+Historical source-release applicability and qualification bindings remain
+historical. Profile admission and canonical source-byte verification still govern
+recognized-original reuse and runtime preparation; an unreviewed release is
+distinct from a known incompatible original. No exact v1.4.8 source-release
+qualification or positive optional `files_available` observation is claimed.
