@@ -45,6 +45,9 @@ try {
     [Console]::Out.WriteLine(($observation | ConvertTo-Json -Depth 8 -Compress))
     [Console]::Error.WriteLine('inert-probe:message-loop')
     # The isolated window station is non-interactive; a modal dialog refuses it.
+    # Consume inherited SW_HIDE before the loop shows this same private form.
+    $form.Show()
+    $form.Hide()
     [Windows.Forms.Application]::Run($form)
 } finally {
     $timer.Stop()
