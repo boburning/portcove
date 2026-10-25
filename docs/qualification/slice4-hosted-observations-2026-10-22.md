@@ -1264,3 +1264,9 @@ producer/custody/protection/coordinator prerequisites remain separate. D1/D2/D3,
 the $0 stop-usage boundary and all existing restrictions remain; availability and
 headroom Unknown, no capacity reservation. #254 Done; #315/#534/#246 pending;
 Chameleon protected acceptance unset; production held; Slice5 excluded.
+
+### October 25 resumed Windows account diagnostic
+
+Source `e971816e4026764aea9ff36cdf80a1c30594e3ec` run `40194530285/1`, Windows job `121172405416`, failed at the original-parent fence before the fresh account/root intent. Retained `account-command.json` records status 1 and the actual parent/lifetime refusal; no account result exists. Artifact `12599008871`, 9554 bytes, SHA-256 `c8ec954380b62d7d53e115b5b5bcc6309f468a9ae3326f97e348c231501ba31a` was independently checked against provider metadata and ZIP CRC/member bounds. The caller used existing CIM UTC ticks while the callee compared FILETIME. The prepared repair names and compares the same CIM UTC-tick generation identity through the existing process-identity contract; its actual Windows fence regression now includes positive identity acceptance before stale-generation/deadline refusals. Missing result readback no longer masks the retained command failure.
+
+The same source CI `40194530216/1` failed only its fast-catalog leaf (`121172477374`) and dependent catalog aggregate: the workflow-registration assertion omitted the newly registered setup suite in both maintained Windows lanes. Windows helpers and the other required aggregates passed at their actual scope. The expectation is repaired; original failed logs remain retained. These repairs do not establish a successful hosted account, GUI, native package or protected execution outcome.

@@ -5,12 +5,12 @@ Set-StrictMode -Version Latest
 function Read-HostedNativeSetupContext([string]$Encoded) {
     if($Encoded.Length -gt 8192){throw 'Hosted setup context exceeds bound'}
     $value=[Text.UTF8Encoding]::new($false,$true).GetString([Convert]::FromBase64String($Encoded))|ConvertFrom-Json
-    if(($value.PSObject.Properties.Name|Sort-Object)-join ',' -cne 'binding,broker_created_filetime,broker_pid,run_attempt,run_id,schema_version,source_commit,source_tree' -or
+    if(($value.PSObject.Properties.Name|Sort-Object)-join ',' -cne 'binding,broker_created_ticks,broker_pid,run_attempt,run_id,schema_version,source_commit,source_tree' -or
         $value.schema_version -isnot [long] -or $value.schema_version -ne 1 -or $value.binding -cnotmatch '^[a-f0-9]{64}$' -or
         $value.source_commit -cnotmatch '^[a-f0-9]{40}$' -or $value.source_tree -cnotmatch '^[a-f0-9]{40}$' -or
         $value.run_id -cnotmatch '^[1-9][0-9]{0,19}$' -or $value.run_attempt -isnot [long] -or $value.run_attempt -ne 1 -or
         $value.broker_pid -isnot [long] -or $value.broker_pid -lt 1 -or $value.broker_pid -gt 4294967295 -or
-        $value.broker_created_filetime -cnotmatch '^[1-9][0-9]{0,19}$'){throw 'Fixed hosted setup context differs'}
+        $value.broker_created_ticks -cnotmatch '^[1-9][0-9]{0,19}$'){throw 'Fixed hosted setup context differs'}
     return $value
 }
 function Write-HostedNativeSetupRecord([string]$Path,$Value) {
@@ -49,7 +49,7 @@ $clock=[Diagnostics.Stopwatch]::StartNew()
 function Assert-OriginalHostedSetup {
     $parent=Get-Process -Id $context.broker_pid -ErrorAction Stop
     try{
-        if($parent.HasExited -or $parent.StartTime.ToFileTimeUtc().ToString() -cne $context.broker_created_filetime -or
+        if($parent.HasExited -or (Get-CimInstance Win32_Process -Filter ('ProcessId = '+$context.broker_pid) -OperationTimeoutSec 5 -ErrorAction Stop).CreationDate.ToUniversalTime().Ticks.ToString() -cne $context.broker_created_ticks -or
             $clock.Elapsed.TotalSeconds -ge 60){throw 'Original hosted setup parent or lifetime unavailable'}
     }finally{$parent.Dispose()}
 }

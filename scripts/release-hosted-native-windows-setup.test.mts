@@ -18,7 +18,7 @@ const valid = {
   source_tree: "b".repeat(40),
   binding: "c".repeat(64),
   broker_pid: 42,
-  broker_created_filetime: "123456789",
+  broker_created_ticks: "123456789",
   run_id: "123",
   run_attempt: 1,
 };
@@ -267,9 +267,12 @@ $statements=@($ast.EndBlock.Statements);$index=-1
 for($i=0;$i -lt $statements.Count;$i++){if($statements[$i].Extent.Text.StartsWith('[Portcove.HostedNative.Setup]::Directory($root,')){$index=$i;break}}
 if($index -lt 1){throw 'Actual first-directory boundary absent'}
 $owner=[Security.Principal.WindowsIdentity]::GetCurrent()
+$context=@{broker_pid=$PID;broker_created_ticks=(Get-CimInstance Win32_Process -Filter ('ProcessId = '+$PID)).CreationDate.ToUniversalTime().Ticks.ToString()}
+$clock=[pscustomobject]@{Elapsed=[pscustomobject]@{TotalSeconds=0}}
+Assert-OriginalHostedSetup
 foreach($kind in @('generation','deadline')){
 $root=Join-Path '${root.replaceAll("'", "''")}' ('not-created-'+$kind)
-$context=@{broker_pid=$PID;broker_created_filetime=$(if($kind -ceq 'generation'){'1'}else{([Diagnostics.Process]::GetCurrentProcess()).StartTime.ToFileTimeUtc().ToString()})}
+$context=@{broker_pid=$PID;broker_created_ticks=$(if($kind -ceq 'generation'){'1'}else{(Get-CimInstance Win32_Process -Filter ('ProcessId = '+$PID)).CreationDate.ToUniversalTime().Ticks.ToString()})}
 $clock=[pscustomobject]@{Elapsed=[pscustomobject]@{TotalSeconds=$(if($kind -ceq 'deadline'){60}else{0})}}
 $refused=$false;try{. ([scriptblock]::Create(($statements[($index-1)..($index+1)].Extent.Text -join [Environment]::NewLine)))}catch{$refused=$true}
 if(-not $refused -or (Test-Path -LiteralPath $root)){throw 'Stale parent permitted the first directory effect'}

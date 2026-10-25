@@ -253,7 +253,7 @@ async function main() {
       source_tree: expected.tree,
       binding: randomBytes(32).toString("hex"),
       broker_pid: process.pid,
-      broker_created_filetime: broker.split(":")[2],
+      broker_created_ticks: broker.split(":")[2],
       run_id: process.env.GITHUB_RUN_ID,
       run_attempt: 1,
     };
@@ -335,13 +335,17 @@ async function main() {
     }
     assert.deepEqual(readbackFailures, []);
     assert.equal(command.stderr.observation, "read");
+    assert.equal(
+      accountStatus,
+      0,
+      "hosted account command failed; inspect retained account-command.json",
+    );
     const account: unknown = JSON.parse(
       (await readControllerToolFile(path.join(directory, "account-result.json"), 65536)).toString(
         "utf8",
       ),
     );
     assert.ok(isRecord(account));
-    assert.equal(accountStatus, 0);
     assert.deepEqual(account.context, context);
     assert.equal(account.disabled, true);
     assert.equal(account.job_empty, true);
