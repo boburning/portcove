@@ -131,27 +131,7 @@ async function bootstrapChromium() {
   }
 }
 
-async function probeBrowserTrace() {
-  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
-  let browser;
-  try {
-    browser = await chromium.launch({ headless: true });
-  } catch (error) {
-    throw new Error("Chromium is unavailable; run pnpm --dir apps/desktop browser:bootstrap", {
-      cause: error,
-    });
-  } finally {
-    await browser?.close();
-  }
-  const traceRoot = path.join(root, "work", "bt");
-  mkdirSync(traceRoot, { recursive: true });
-  const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
-  if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
-    throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
-  }
-  process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
-  const artifacts = createProbeArtifactReader(traceRun);
-  const reportFile = path.join(traceRun, "result.json");
+async function runFailureProbe(reportFile: string) {
   const { createVitest } = await import("vite-plus/test/node");
   const runner = await createVitest({
     root,
@@ -174,6 +154,13 @@ async function probeBrowserTrace() {
     // of rejecting close(). Keep that result distinct from the expected failure.
     await closeProbeRunner(runner);
   }
+}
+
+function inspectTraceArtifacts(
+  artifacts: ReturnType<typeof createProbeArtifactReader>,
+  traceRun: string,
+  reportFile: string,
+) {
   const files = artifacts.list();
   const read = artifacts.read;
   const outcomes = files.filter((file) => file.isFile() && file.name === "run-outcome.json");
@@ -201,6 +188,32 @@ async function probeBrowserTrace() {
   const png = read(path.join(screenshot.parentPath, screenshot.name), 16 * 1024 * 1024);
   if (!png.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex")))
     throw new Error("Browser probe screenshot is not PNG");
+  return { inspection, png };
+}
+
+async function probeBrowserTrace() {
+  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (error) {
+    throw new Error("Chromium is unavailable; run pnpm --dir apps/desktop browser:bootstrap", {
+      cause: error,
+    });
+  } finally {
+    await browser?.close();
+  }
+  const traceRoot = path.join(root, "work", "bt");
+  mkdirSync(traceRoot, { recursive: true });
+  const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
+  if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
+    throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
+  }
+  process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
+  const artifacts = createProbeArtifactReader(traceRun);
+  const reportFile = path.join(traceRun, "result.json");
+  await runFailureProbe(reportFile);
+  const { inspection, png } = inspectTraceArtifacts(artifacts, traceRun, reportFile);
   browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
@@ -224,23 +237,27 @@ async function probeBrowserTrace() {
   process.exitCode = 0;
 }
 
+function verifyScreenshotArtifacts() {
+  const context = screenshotContext(process.env);
+  const directory = path.resolve(process.argv[3] ?? "");
+  const jobs: unknown = JSON.parse(readFileSync(process.argv[4] ?? "", "utf8"));
+  verifyScreenshotJobs(jobs, context);
+  for (const route of screenshotRoutes) {
+    const packet = path.join(
+      directory,
+      `browser-traces-${route}-${context.run}-${context.attempt}`,
+    );
+    console.log(JSON.stringify(verifyScreenshotPacket(packet, route, context)));
+  }
+}
+
 async function runBrowserRuntime() {
   if (process.argv[2] === "bootstrap") await bootstrapChromium();
   else if (process.argv[2] === "probe") await probeBrowserTrace();
   else if (process.argv[2] === "screenshot-only")
     await runScreenshotOnlyProbe(chromium, root, process.argv[3] ?? "", process.env);
   else if (process.argv[2] === "verify-screenshot-only") {
-    const context = screenshotContext(process.env);
-    const directory = path.resolve(process.argv[3] ?? "");
-    const jobs: unknown = JSON.parse(readFileSync(process.argv[4] ?? "", "utf8"));
-    verifyScreenshotJobs(jobs, context);
-    for (const route of screenshotRoutes) {
-      const packet = path.join(
-        directory,
-        `browser-traces-${route}-${context.run}-${context.attempt}`,
-      );
-      console.log(JSON.stringify(verifyScreenshotPacket(packet, route, context)));
-    }
+    verifyScreenshotArtifacts();
   } else
     throw new Error(
       "Usage: browser-runtime.mts bootstrap|probe|screenshot-only ROUTE|verify-screenshot-only DIRECTORY JOBS",
