@@ -516,22 +516,26 @@ export function selectWorkspaceRustImpact(
         "crates/portcove-core/catalog/catalog-current-authoring.json",
       ].includes(file),
     ) &&
-    !selected.some((group) => group.packageName === "portcove-cli")
+    !selected.some(
+      (group) => group.packageName === "portcove-cli" && group.filter === "package(=portcove-cli)",
+    )
   ) {
     const group = map?.packages?.["portcove-cli"]?.groups.find(
       (entry) => entry.id === "artwork-fixtures",
     );
     const certain =
       group &&
+      !selected.some((entry) => entry.filter === "package(=portcove-core)") &&
       plan.changes.every(
         (change) => change.oldPath === change.newPath && ["A", "M"].includes(change.status),
       );
-    selected.push({
-      id: "portcove-cli:artwork-consumer",
-      packageName: "portcove-cli",
-      filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
-      reason: "public CLI artwork consumer",
-    });
+    if (!certain || !selected.some((entry) => entry.id === "portcove-cli:artwork-fixtures"))
+      selected.push({
+        id: "portcove-cli:artwork-consumer",
+        packageName: "portcove-cli",
+        filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
+        reason: "public CLI artwork consumer",
+      });
   }
   // The CLI fixtures exercise shared host policy and the exact Desktop startup
   // functions without Tauri. Preserve these consumers across boundary changes.
@@ -578,6 +582,41 @@ export function selectWorkspaceRustImpact(
       filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
       reason: "complete typed runtime diagnostics, frontend report and Core/CLI outcome fixture",
     });
+  }
+  // Capability inventory and API schema changes retain their compiled CLI consumer.
+  if (
+    plan.changes.some((change) =>
+      [change.oldPath, change.newPath].some((file) =>
+        [
+          "crates/portcove-core/src/definition_capabilities.rs",
+          "crates/portcove-core/src/types.rs",
+          "crates/portcove-core/src/lib.rs",
+        ].includes(file),
+      ),
+    ) &&
+    !selected.some(
+      (group) => group.packageName === "portcove-cli" && group.filter === "package(=portcove-cli)",
+    )
+  ) {
+    const group = map?.packages?.["portcove-cli"]?.groups.find(
+      (entry) => entry.id === "definition-capability-fixtures",
+    );
+    const certain =
+      group &&
+      !selected.some((entry) => entry.filter === "package(=portcove-core)") &&
+      plan.changes.every(
+        (change) => change.oldPath === change.newPath && ["A", "M"].includes(change.status),
+      );
+    if (
+      !certain ||
+      !selected.some((entry) => entry.id === "portcove-cli:definition-capability-fixtures")
+    )
+      selected.push({
+        id: "portcove-cli:definition-capability-consumer",
+        packageName: "portcove-cli",
+        filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
+        reason: "compiled CLI advertised capability inventory, negotiation and API schema consumer",
+      });
   }
   return selected;
 }
