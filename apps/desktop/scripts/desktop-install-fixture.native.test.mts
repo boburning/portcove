@@ -41,7 +41,11 @@ void describe("owned Windows probe fixture", () => {
 
   void test(
     "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route",
-    { skip: process.platform !== "win32" },
+    {
+      skip:
+        process.platform !== "win32" &&
+        "platform: win32; requires the compiled Windows probe fixture; route: ci.yml/windows_storage (native helper contracts)",
+    },
     async () => {
       const output = await mkdtemp(path.join(tmpdir(), "portcove-probe-mode-"));
       try {

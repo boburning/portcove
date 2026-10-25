@@ -365,7 +365,11 @@ void test("actual relay stream refuses an over-budget write before any downstrea
 
 void test(
   "actual Linux profile snapshot restores full library/WebView bytes and refuses changed or imported paths",
-  { skip: process.platform !== "linux" },
+  {
+    skip:
+      process.platform !== "linux" &&
+      "platform: linux; requires Linux private profile boundaries; route: ci.yml/frontend_full (native:tools)",
+  },
   async (context) => {
     const root = await mkdtemp(path.join(tmpdir(), "portcove-public-profile-"));
     context.after(() => rm(root, { recursive: true, force: true }));
