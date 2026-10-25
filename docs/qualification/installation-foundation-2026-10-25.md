@@ -96,6 +96,16 @@ The full original 78-case selection is retained for rerun; focused passes do not
 establish a green complete batch. The earlier real transferred-backup metadata
 assertion failure remains distinct and requires import→backup→restore evidence.
 
+The first reduced-candidate authoring/workflow run passed57 cases, failed two
+owned hook subprocesses at their30s harness limits, and retained one existing
+Windows skip for Unix process-group interruption. The100-path staged formatter
+case retains both formatting batches and failed-batch/index preservation
+assertions. Only its two owned Windows commit waits gain60s, within an explicit
+180s outer test limit; the installed-runtime setup probe gains60s within its
+existing180s outer limit. Default child limits, cleanup/retention guards and
+product deadlines remain unchanged. These calibrations still require a complete
+affected-suite rerun; earlier failures and unproven-writer fixtures are retained.
+
 Final reduced-source regressions, ordinary/narrow/keyboard/error/recovery
 browser flows, compatibility checks, complete-candidate independent review,
 five required exact-head hosted contexts with their selected producers,
