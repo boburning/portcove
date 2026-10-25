@@ -16,7 +16,27 @@
       "game_slug": "sonic-the-hedgehog-3-and-knuckles",
       "match_kind": "underlying-game"
     },
-    "issue_number": 154
+    "issue_number": 154,
+    "setup_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
+    "release_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases",
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Choose the managed base game or the upstream launcher",
+          "instruction": "The managed Windows route uses your matching Sonic 3 & Knuckles raw Genesis original and starts the combined base game directly. Portcove manages its declared local saves, settings and quickstate thumbnails. For the full launcher and optional imported campaigns, extract the complete official Sonic3KRecomp package into a separate folder you control, keep that folder stable across upstream updates, and select your own matching ROM there. Sonic3Recomp and SonicAndKnucklesRecomp are different game variants."
+        },
+        {
+          "title": "Keep optional campaign preparation with upstream",
+          "instruction": "The optional Sonic CD, Sonic 1/2 and Megamix campaigns and Mighty/Shadow are experimental and off by default. Follow the included upstream guides and supply the extra originals only if you choose those features. Sonic CD import needs Python 3.11+ and Pillow, and records absolute paths under sonic-cd-imports beside that copy’s settings. Use that importer in your stable external copy, not a managed version folder that will change after updates. Portcove never runs the converter during discovery. Register the external player or launcher deliberately, save launch details, then choose Play separately."
+        },
+        {
+          "title": "Keep current progress and the creating build for quickstates",
+          "instruction": "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs. Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility. Upstream or you update the external copy, which has no Portcove-managed Backup or Rollback. An older managed v0.5.3 installation keeps its retained definition; changed data coordinates remain held until a supported transition is available. Keep that working version and its data rather than deleting it to get the newer copy."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -26,15 +46,10 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.5.3",
-          "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
-          "size": 16694619,
-          "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
-          "published_at": "2026-10-18T14:30:37Z"
-        }
+      "provider": "github",
+      "repository": "mstan/Sonic3AndKnucklesRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["Sonic3KRecomp-windows-x64-", ".zip"]
       }
     },
     "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
@@ -52,7 +67,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted."
+      "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. This managed route starts the combined base game directly and preserves declared local saves, settings and quickstate thumbnails. Quickstates require their creating build and configuration and can be refused after an update; retain that version when needed. For optional Sonic CD/campaign conversion, use the upstream launcher in a separate stable folder: its importer records paths to that folder. Imported packs and custom external paths are outside managed backups; unknown additions keep the current installation preserved and stop replacement rather than being silently adopted."
     },
     "launch_arguments": ["--no-launcher", "game.bin"],
     "runtime_source_filename": "game.bin",
@@ -76,7 +91,29 @@
       "native_save_6.bin",
       "native_save_7.bin",
       "native_save_8.bin",
-      "native_save_9.bin"
+      "native_save_9.bin",
+      "native_save_1.bin.thumb",
+      "native_save_2.bin.thumb",
+      "native_save_3.bin.thumb",
+      "native_save_4.bin.thumb",
+      "native_save_5.bin.thumb",
+      "native_save_6.bin.thumb",
+      "native_save_7.bin.thumb",
+      "native_save_8.bin.thumb",
+      "native_save_9.bin.thumb",
+      "game.srm.tmp",
+      "sonic3k-stage-pack.ini",
+      "sonic3k-stage-pack.ini.tmp",
+      "game.srm.pre-campaign.bak",
+      "sonic3k-stage-pack.srm",
+      "sonic3k-megamix.srm",
+      "game.srm.campaign",
+      "game.srm.campaign.tmp",
+      "game.srm.campaign.bak",
+      "game.srm.campaign.bak.tmp",
+      "game.srm.campaign.pre-v2.bak",
+      "game.srm.campaign.pre-shadow.bak",
+      "game.srm.campaign.pre-v3-cap3.bak"
     ],
     "runtime_mutable_paths": [
       "dispatch_misses.toml",
@@ -85,7 +122,17 @@
       "floor_unsafe.log",
       "interior_label_misses.log",
       "ramdump_native.bin",
-      "last_error.log"
+      "last_error.log",
+      "dispatch_misses.toml.tmp",
+      "dispatch_misses.prev.toml",
+      "floor_coverage.toml.tmp",
+      "floor_coverage.prev.toml",
+      "interior_label_misses.toml",
+      "interior_label_misses.toml.tmp",
+      "interior_label_misses.prev.toml",
+      "floor_unsafe.toml",
+      "floor_unsafe.toml.tmp",
+      "floor_unsafe.prev.toml"
     ]
   }
 }

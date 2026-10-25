@@ -2151,7 +2151,7 @@ mod tests {
             (
                 "sonic-3-and-knuckles-recomp",
                 "game.bin",
-                Some("v0.5.3"),
+                None,
                 "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
             ),
         ] {
@@ -2196,10 +2196,9 @@ mod tests {
                 Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath),
                 "{id}"
             );
-            assert!(
-                port.presentation.as_ref().unwrap().manual_setup.is_none(),
-                "{id}"
-            );
+            // Informational external-launcher guides do not introduce a
+            // managed setup step; these routes stage their exact source.
+            assert!(port.setup_marker.is_none(), "{id}");
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
             assert!(port.manually_validated_platforms.is_empty(), "{id}");
         }

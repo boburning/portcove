@@ -169,6 +169,14 @@ async fn unchanged_managed_definitions_follow_versioned_packages_after_cache_exp
             "v0.9.0",
             "SonicTheHedgehog2Recomp-windows-x64-v0.9.0.zip",
         ),
+        // v0.6.1 is a controlled successor, not a published-release claim.
+        (
+            "sonic-3-and-knuckles-recomp",
+            "v0.6.0",
+            "Sonic3KRecomp-windows-x64-v0.6.0.zip",
+            "v0.6.1",
+            "Sonic3KRecomp-windows-x64-v0.6.1.zip",
+        ),
         (
             "super-bomberman-recomp",
             "v0.1.1",
