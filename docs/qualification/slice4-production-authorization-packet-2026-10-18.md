@@ -1,6 +1,6 @@
 # Slice 4 protected execution and custody decision packet
 
-The [attested Linux WebDriver preparation](slice4-hosted-observations-2026-10-22.md#attested-linux-webdriver-preparation-october25) adds the existing maintained driver pin to the closed trusted-tool build and admitted archive, with actual build/version/help verification before delivery. It selects no new authority, job, resource allowance or execution grant. Native runtime installation/capture composition and actual acceptance remain pending; production stays held.
+The [attested Linux WebDriver preparation](slice4-hosted-observations-2026-10-22.md#attested-linux-webdriver-preparation-october25) adds the existing maintained driver pin to the closed trusted-tool build and admitted archive, with actual pinned-build/help/refusal verification before delivery. It selects no new authority, job, resource allowance or execution grant. Native runtime installation/capture composition and actual acceptance remain pending; production stays held.
 
 ## October25 selected standard Windows evidence boundary
 

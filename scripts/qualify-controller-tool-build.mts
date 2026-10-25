@@ -306,11 +306,31 @@ async function main() {
     assert.equal(nodeResult.stdout.trim(), `v${controllerNodeVersion}`);
     phase = "actual-native-webdriver";
     const nativeDriver = path.join(built.tools, "bin/tauri-driver");
+    // The pinned upstream CLI has no version flag. Build provenance supplies
+    // the pin; its inert refusal/help interface is the actual runtime smoke.
     const driverVersion = invoke(nativeDriver, ["--version"]);
-    assert.equal(driverVersion.error, undefined);
-    assert.equal(driverVersion.status, 0);
-    assert.equal(driverVersion.stdout.trim(), `tauri-driver ${controllerNativeDriverVersion}`);
     const driverHelp = invoke(nativeDriver, ["--help"]);
+    await record("native-driver-smoke.json", {
+      pinned_build_version: controllerNativeDriverVersion,
+      version_source: "fixed Cargo install pin, not an executable version query",
+      unsupported_version: {
+        status: driverVersion.status,
+        error: driverVersion.error?.message ?? null,
+        stdout: boundedFixtureOutput(driverVersion.stdout),
+        stderr: boundedFixtureOutput(driverVersion.stderr),
+      },
+      help: {
+        status: driverHelp.status,
+        error: driverHelp.error?.message ?? null,
+        stdout: boundedFixtureOutput(driverHelp.stdout),
+        stderr: boundedFixtureOutput(driverHelp.stderr),
+      },
+      native_acceptance: "not-established",
+      authority: "none",
+    });
+    assert.equal(driverVersion.error, undefined);
+    assert.equal(driverVersion.status, 1);
+    assert.match(driverVersion.stderr, /unused arguments left:.*--version/u);
     assert.equal(driverHelp.error, undefined);
     assert.equal(driverHelp.status, 0);
     assert.match(driverHelp.stdout, /--native-driver/u);
@@ -509,7 +529,8 @@ async function main() {
       evidence_scope: "ordinary-hosted-fixture",
       rust_smoke: "usage-refusal-only",
       tauri_smoke: "version-and-supported-sign-build-flags-only",
-      native_driver_smoke: "pinned-version-and-help-only; no WebDriver server or candidate",
+      native_driver_smoke:
+        "pinned-build/help-and-unsupported-version-refusal; no server or candidate",
       connected_release:
         "actual-disposable-payload-and-five-role-Tough; controlled-provider-site-renewal-journal-recovery; no hosted authorization or native execution",
       node_bundles: controllerToolEntries,
