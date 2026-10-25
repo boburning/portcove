@@ -1,15 +1,15 @@
 {
   "format_version": 1,
   "title": "Non-Switch ecosystem reconciliation, 2026-10-25",
-  "snapshot_started_at": "2026-10-25T18:29:25.908Z",
-  "snapshot_completed_at": "2026-10-25T18:29:29.891Z",
+  "snapshot_started_at": "2026-10-25T20:19:51.802Z",
+  "snapshot_completed_at": "2026-10-25T20:21:52.291Z",
   "authority": "Dated evidence snapshot, not a live backlog. GitHub issues/Project and authored catalog retain their respective authorities.",
   "owning_issue": "https://github.com/boburning/portcove/issues/2931",
   "baseline_main": "8ac0a9c1dfd906ef98798a8b5e3e9bc52fdc59e8",
   "main_merged_into_discovery_source": "338956ce99f7c14d3b4ec718b8138f55289f3c11",
   "final_target_head": "a9c84a34f4bc1084584a81b16285204c686c0b2b",
   "target_head_scope": "Caller-supplied exact target observation; generator performs no remote refresh",
-  "generator_checkout_head": "a43209b4ece74b03af3dff50254648a90b855a23",
+  "generator_checkout_head": "734f0427e76ce273632684671c524293496a8daf",
   "baseline_inventory": {
     "issues": 1257,
     "port_issues": 860,
@@ -17468,7 +17468,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:44.785Z",
-      "remaining_blocker": "For Alisia Dragoon, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Alisia Dragoon, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -19138,7 +19138,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:22.166Z",
-      "remaining_blocker": "For Aero the Acro-Bat, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Aero the Acro-Bat, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -20130,7 +20130,7 @@
       "acquisition_route": "README advertises v0.4.1 AppImage containing tools/public sources and optimization profiles, not a compiled game. It imports the owned Japan BLJS10220 ISO using a pinned official RPCS3 import helper, translates the owned EBOOT and compiles locally with its bundled toolchain; original game data remains needed. First launch needs the helper download unless already present, about8GB RAM/8GB free space, and an estimated15–60min compile (12–14min measured on4600H). Build is reused until AppImage version or CPU changes. Manual source generation/CMake build is also documented; no new release asset or build was verified in this review.",
       "source_requirements": "JapanBLJS10220 owneddisc/ELF+assets; exactEBOOT digest in docs/BUILD",
       "host_platforms": "Linuxx86-64 SSSE3/SSE4.1",
-      "maturity": "Upstream October25 status reports intro/title/menus/opening cutscene and STG02 gameplay, with STG02 completed manually and return to mission select; the rest of the game remains unplayed. End-to-end tested route is Fedora/Ryzen54600H/GTX1650; Arch container build and Ubuntu22.04 import-helper checks are separate. Scripted STG02 v0.4.x AppImage measurements average47.9 guestFPS on4600H/GTX1650; crowded manual fights had lower historical rates and audio breakups. A transient untextured polygon remains; full game, sessions overabout30min, clean exit on every path and ATRAC audio are unvalidated. Broad CPU/GPU/distribution tables describe checks, not equivalent gameplay verification; SteamOS rem",
+      "maturity": "Upstream October25 status reports intro/title/menus/opening cutscene and STG02 gameplay, with STG02 completed manually and return to mission select; the rest of the game remains unplayed. End-to-end tested route is Fedora/Ryzen54600H/GTX1650; Arch container build and Ubuntu22.04 import-helper checks are separate. Scripted STG02 v0.4.x AppImage measurements average47.9 guestFPS on4600H/GTX1650; crowded manual fights had lower historical rates and audio breakups. A transient untextured polygon remains; full game, sessions overabout30min, clean exit on every path and ATRAC audio are unvalidated. Broad CPU/GPU/distribution tables describe checks, not equivalent gameplay verification; SteamOS remains likely/unverified. No Portcove runtime/gameplay qualification is established.",
       "artwork": {
         "status": "Explicit authored artwork metadata present; image bytes not validated by this generator",
         "metadata": {
@@ -20857,7 +20857,7 @@
         }
       ],
       "evidence_date": "2026-10-25T04:02:16.294Z",
-      "remaining_blocker": "For Blast Corps, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Blast Corps, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -20953,7 +20953,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:21.978Z",
-      "remaining_blocker": "For Fire Emblem: The Blazing Blade, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Fire Emblem: The Blazing Blade, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -21610,7 +21610,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:32.345Z",
-      "remaining_blocker": "For Blue Stinger, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Blue Stinger, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -21724,7 +21724,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:24.598Z",
-      "remaining_blocker": "For Breath of Fire IV, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Breath of Fire IV, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -23220,8 +23220,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:35.422050+00:00",
-      "remaining_blocker": "do not assume identical to Takedawn.",
-      "next_action": "do not assume identical to Takedawn.",
+      "remaining_blocker": " do not assume identical to Takedawn.",
+      "next_action": " do not assume identical to Takedawn.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -24536,8 +24536,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:35.072791+00:00",
-      "remaining_blocker": "retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification.",
-      "next_action": "retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification.",
+      "remaining_blocker": " retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification.",
+      "next_action": " retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -25650,7 +25650,7 @@
         }
       ],
       "evidence_date": "2026-10-25T04:02:15.878Z",
-      "remaining_blocker": "For Conker's Bad Fur Day, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Conker's Bad Fur Day, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -27253,8 +27253,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:30.732237+00:00",
-      "remaining_blocker": "reconcile with existing DAO owner before any new intake.",
-      "next_action": "reconcile with existing DAO owner before any new intake.",
+      "remaining_blocker": " reconcile with existing DAO owner before any new intake.",
+      "next_action": " reconcile with existing DAO owner before any new intake.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -32168,7 +32168,7 @@
       "disposition": "New canonical intake",
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
-      "acquisition_route": "README declares dw2003--x86_64.AppImage and SHA256SUMS. Launcher selects/checks own disc and reads it at runtime; native source build also available.",
+      "acquisition_route": "README declares dw2003-<version>-x86_64.AppImage and SHA256SUMS. Launcher selects/checks own disc and reads it at runtime; native source build also available.",
       "source_requirements": "Europe SLES03936 single-track MODE2/2352 BIN/CUE692146560bytes SHA1 457cb233349ba841e03b33d8060f8fbcadd45cb3; 2048 ISO rejected",
       "host_platforms": "Linux x86-64 glibc2.39+; Windows planned, macOS not planned",
       "maturity": "Claims byte-identical executable/overlays from C and native game/launcher/mods; exact campaign coverage not established here.",
@@ -32196,7 +32196,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:17.153Z",
-      "remaining_blocker": "For Digimon World 2003, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Digimon World 2003, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -71000,7 +71000,7 @@
         }
       ],
       "evidence_date": "2026-10-25T12:39:05.090Z",
-      "remaining_blocker": "For Genma Onimusha, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Genma Onimusha, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -77258,7 +77258,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:55:06.612Z",
-      "remaining_blocker": "For Hotel Mario, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Hotel Mario, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -78486,7 +78486,7 @@
         }
       ],
       "evidence_date": "2026-10-25T04:02:14.364Z",
-      "remaining_blocker": "For International Superstar Soccer 2000, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For International Superstar Soccer 2000, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -78823,7 +78823,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:55:03.170Z",
-      "remaining_blocker": "For Jet Force Gemini, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Jet Force Gemini, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -82701,7 +82701,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:13.443Z",
-      "remaining_blocker": "For Magician's Quest: Mysterious Times, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Magician's Quest: Mysterious Times, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -83135,8 +83135,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:40.927210+00:00",
-      "remaining_blocker": "extraAndroidsupport alone not sufficient.",
-      "next_action": "extraAndroidsupport alone not sufficient.",
+      "remaining_blocker": " extraAndroidsupport alone not sufficient.",
+      "next_action": " extraAndroidsupport alone not sufficient.",
       "delivery": {
         "status": "Issue and Project intake verified",
         "public_intake_expected": true,
@@ -83224,8 +83224,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:36.537052+00:00",
-      "remaining_blocker": "PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner.",
-      "next_action": "PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner.",
+      "remaining_blocker": " PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner.",
+      "next_action": " PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner.",
       "delivery": {
         "status": "Issue and Project intake verified",
         "public_intake_expected": true,
@@ -83686,8 +83686,8 @@
       "disposition": "New canonical intake",
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
-      "acquisition_route": "Source preparation owned by upstream/player. macOS: install Xcode command-line tools/Homebrew, make setup, extract own DUB Edition disc, make lift, then make mac-app DISC= or make build run. Linux: make setup, own-disc extraction, make lift and make build run; CPU matrix remains Unknown. Windows: install_windows.bat installs MSYS2 in C:\\msys64 if absent, obtains dependencies, lifts code and builds the personal runtime; this is local compilation, not a precompiled player download. No commands were executed by Portcove. Desktop Remix preparation is not established.",
-      "source_requirements": "Own original Xbox Midnight Club 3: DUB Edition NTSC-U or PAL Europe disc. Supply extracted default.xbe plus all disc files; make extract ISO= prepares Unix routes and the Windows installer can extract the owned ISO. Regional discs use separate game/ and game-eur/ folders. Exact XBE revision/hash is Unknown. Do not treat the separate Remix PAL development/NRO claim as an accepted desktop source profile.",
+      "acquisition_route": "Source preparation owned by upstream/player. macOS: install Xcode command-line tools/Homebrew, make setup, extract own DUB Edition disc, make lift, then make mac-app DISC=<disc-folder> or make build run. Linux: make setup, own-disc extraction, make lift and make build run; CPU matrix remains Unknown. Windows: install_windows.bat installs MSYS2 in C:\\msys64 if absent, obtains dependencies, lifts code and builds the personal runtime; this is local compilation, not a precompiled player download. No commands were executed by Portcove. Desktop Remix preparation is not established.",
+      "source_requirements": "Own original Xbox Midnight Club 3: DUB Edition NTSC-U or PAL Europe disc. Supply extracted default.xbe plus all disc files; make extract ISO=<own.iso> prepares Unix routes and the Windows installer can extract the owned ISO. Regional discs use separate game/ and game-eur/ folders. Exact XBE revision/hash is Unknown. Do not treat the separate Remix PAL development/NRO claim as an accepted desktop source profile.",
       "host_platforms": "Windows x86-64 experimental source build, with Windows11 VM/Intel i7 test row; macOS Apple Silicon M1/Sequoia15.6 player route. Linux Ubuntu22.04.5 VM/source route exists but native CPU width is not stated. Windows ARM64 developer path is outside current desktop schema; no Linux CPU architecture inferred.",
       "maturity": "Version0.3.0 is experimental: crashes, latency and occasional race hangs remain. Upstream claims Mac/Linux30FPS with5x upscale; M1/macOS15.6 and Ubuntu22.04.5 VM are the named tests. Windows11 VM/Intel i7 support is still experimental. Switch100% career progress is a separate destination observation and is not desktop completion evidence. No Portcove runtime/gameplay qualification.",
       "artwork": {
@@ -86323,8 +86323,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:28.702571+00:00",
-      "remaining_blocker": "preserve legitimate native research identity.",
-      "next_action": "preserve legitimate native research identity.",
+      "remaining_blocker": " preserve legitimate native research identity.",
+      "next_action": " preserve legitimate native research identity.",
       "delivery": {
         "status": "Issue and Project intake verified",
         "public_intake_expected": true,
@@ -89943,8 +89943,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:36.193288+00:00",
-      "remaining_blocker": "outside Xbox source ecosystem. Hand off PC/native taxonomy.",
-      "next_action": "outside Xbox source ecosystem. Hand off PC/native taxonomy.",
+      "remaining_blocker": " outside Xbox source ecosystem. Hand off PC/native taxonomy.",
+      "next_action": " outside Xbox source ecosystem. Hand off PC/native taxonomy.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -90000,8 +90000,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:41.153972+00:00",
-      "remaining_blocker": "outside Xbox console-source scope.",
-      "next_action": "outside Xbox console-source scope.",
+      "remaining_blocker": " outside Xbox console-source scope.",
+      "next_action": " outside Xbox console-source scope.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -90057,8 +90057,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:30.200303+00:00",
-      "remaining_blocker": "route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references.",
-      "next_action": "route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references.",
+      "remaining_blocker": " route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references.",
+      "next_action": " route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -96966,7 +96966,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:38.323Z",
-      "remaining_blocker": "For Project Gotham Racing, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Project Gotham Racing, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -101367,8 +101367,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:39.484603+00:00",
-      "remaining_blocker": "not new Xbox-native port.",
-      "next_action": "not new Xbox-native port.",
+      "remaining_blocker": " not new Xbox-native port.",
+      "next_action": " not new Xbox-native port.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -105277,7 +105277,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:50.800Z",
-      "remaining_blocker": "For Roll Away / Kula World / KulaQuest, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Roll Away / Kula World / KulaQuest, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -106337,8 +106337,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:37.310141+00:00",
-      "remaining_blocker": "hand off if non-PC console ports catalog scope permits.",
-      "next_action": "hand off if non-PC console ports catalog scope permits.",
+      "remaining_blocker": " hand off if non-PC console ports catalog scope permits.",
+      "next_action": " hand off if non-PC console ports catalog scope permits.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -106857,7 +106857,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:31.564Z",
-      "remaining_blocker": "For Scrabble (1999), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Scrabble (1999), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -107697,7 +107697,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:25.246Z",
-      "remaining_blocker": "For Sin and Punishment, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Sin and Punishment, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -108093,8 +108093,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:32.313042+00:00",
-      "remaining_blocker": "USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package.",
-      "next_action": "USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package.",
+      "remaining_blocker": " USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package.",
+      "next_action": " USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -108256,7 +108256,7 @@
       "disposition": "New canonical intake",
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
-      "acquisition_route": "README SonicRiders-PC-Setup-.zip or Switch setup, own disc first local build10–30min. Generated binaries contain game-derived code and remain private.",
+      "acquisition_route": "README SonicRiders-PC-Setup-<version>.zip or Switch setup, own disc first local build10–30min. Generated binaries contain game-derived code and remain private.",
       "source_requirements": "USA GXEE8P full1.4GB ISO",
       "host_platforms": "Windows10(1803+)/11 x86-64 build host; native Windows and Switch destinations",
       "maturity": "Native title/player setup described; exact race/story/completion boundary unresolved. Switch is destination, not source.",
@@ -108277,7 +108277,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:55:05.816Z",
-      "remaining_blocker": "For Sonic Riders, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Sonic Riders, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -108386,7 +108386,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:55:02.913Z",
-      "remaining_blocker": "For Sonic Rivals 2, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Sonic Rivals 2, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -108922,8 +108922,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:32.545526+00:00",
-      "remaining_blocker": "attach lineage, no independent owner.",
-      "next_action": "attach lineage, no independent owner.",
+      "remaining_blocker": " attach lineage, no independent owner.",
+      "next_action": " attach lineage, no independent owner.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -108981,8 +108981,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:39.749355+00:00",
-      "remaining_blocker": "same implementation despite destination support. Do not duplicate current SpeedBreaker owner.",
-      "next_action": "same implementation despite destination support. Do not duplicate current SpeedBreaker owner.",
+      "remaining_blocker": " same implementation despite destination support. Do not duplicate current SpeedBreaker owner.",
+      "next_action": " same implementation despite destination support. Do not duplicate current SpeedBreaker owner.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -110536,8 +110536,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:36.777881+00:00",
-      "remaining_blocker": "screenshots multiplelevels but no Portcove qualification.",
-      "next_action": "screenshots multiplelevels but no Portcove qualification.",
+      "remaining_blocker": " screenshots multiplelevels but no Portcove qualification.",
+      "next_action": " screenshots multiplelevels but no Portcove qualification.",
       "delivery": {
         "status": "Issue and Project intake verified",
         "public_intake_expected": true,
@@ -110636,7 +110636,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:21.242Z",
-      "remaining_blocker": "For Street Fighter Alpha 3 (Dreamcast), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Street Fighter Alpha 3 (Dreamcast), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -112486,7 +112486,7 @@
       "disposition": "New canonical intake",
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
-      "acquisition_route": "Select plain TagForceRecomp--win64.zip, which README identifies as runtime/translator/TinyCC/FFmpeg without mods or textures. InstallandPlay imports own EUISO and locally translates/compiles into gen/jitcache; later Play noISOneeded. Mods/EnhancedTextures/Fullsplitpacks are separate optional downloads, not default selected payload.",
+      "acquisition_route": "Select plain TagForceRecomp-<version>-win64.zip, which README identifies as runtime/translator/TinyCC/FFmpeg without mods or textures. InstallandPlay imports own EUISO and locally translates/compiles into gen/jitcache; later Play noISOneeded. Mods/EnhancedTextures/Fullsplitpacks are separate optional downloads, not default selected payload.",
       "source_requirements": "Own European ULES00600 v1.01 ISO; installed assets and generated C/jitcache kept locally. ISO is needed at installation, not after import.",
       "host_platforms": "Native Windows x64; developer build Windows10/11MSYS2UCRT64.",
       "maturity": "Early publicpreview. Upstream claims end-to-end play on mainly one machine/version/save, Story/field/dialogue/duels/DeckEdit/shop/saves/audio/video. No network/ad-hoc; logic30FPS, presentation60/120interpolationexperimental; APIs/formats/settings/folders maychange.",
@@ -117626,7 +117626,7 @@
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
       "acquisition_route": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python.",
-      "source_requirements": "Own Xbox360NorthAmericanregionfreeexecutableISO/extractedfolder; title415608DA; accepted executablefingerprints: 12d1e29e4f07fbc559bc1a4988dd6bf346c3d16e30cbf862e2683e862f9fc09e default.xex",
+      "source_requirements": "Own Xbox360NorthAmericanregionfreeexecutableISO/extractedfolder; title415608DA; accepted executablefingerprints: 12d1e29e4f07fbc559bc1a4988dd6bf346c3d16e30cbf862e2683e862f9fc09e  default.xex",
       "host_platforms": ["windows"],
       "maturity": "Firstlevelplays; latergame/Battlemodeuntested;clean-machineinstalleruntested.",
       "artwork": {
@@ -117734,7 +117734,7 @@
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
       "acquisition_route": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python.",
-      "source_requirements": "Own Xbox360PAL Es/ItISO/extractedfolder; title41560930; accepted executablefingerprints: 4298c4f6fb1684bed34dd8d2292b508782b37e3709ba1ed58b08ec334a9f7029 default.xex",
+      "source_requirements": "Own Xbox360PAL Es/ItISO/extractedfolder; title41560930; accepted executablefingerprints: 4298c4f6fb1684bed34dd8d2292b508782b37e3709ba1ed58b08ec334a9f7029  default.xex",
       "host_platforms": ["windows"],
       "maturity": "Firstlevelplays; latergameunplayed; PS3Germantextoptional,voicesexperimental;clean-machineinstalleruntested.",
       "artwork": {
@@ -117842,7 +117842,7 @@
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
       "acquisition_route": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python.",
-      "source_requirements": "Own Xbox360regionfree10languageexecutableISO/extractedfolder; title415608AB; accepted executablefingerprints: e195f5130c1e23fb4654baf7c383ef97d02c89aeb7d4389705ae31235646ef7b default.xex",
+      "source_requirements": "Own Xbox360regionfree10languageexecutableISO/extractedfolder; title415608AB; accepted executablefingerprints: e195f5130c1e23fb4654baf7c383ef97d02c89aeb7d4389705ae31235646ef7b  default.xex",
       "host_platforms": ["windows"],
       "maturity": "Chapter1plays; latergameunplayed;clean-machineinstalleruntested.",
       "artwork": {
@@ -117950,7 +117950,7 @@
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
       "acquisition_route": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python.",
-      "source_requirements": "Own Xbox360TwoPAL discsEn/De andEs/ItISO/extractedfolder; titlenotcaptured; accepted executablefingerprints: 02ff6672d460c9aaa54e69d584af67a7138c6c93cde5e04b0da4284207be7c61 default.xex 02846647633e93c627e74b92d3ad63a90e1504546958fc8d81e28ac65de1f9bc default.xex",
+      "source_requirements": "Own Xbox360TwoPAL discsEn/De andEs/ItISO/extractedfolder; titlenotcaptured; accepted executablefingerprints: 02ff6672d460c9aaa54e69d584af67a7138c6c93cde5e04b0da4284207be7c61  default.xex\n02846647633e93c627e74b92d3ad63a90e1504546958fc8d81e28ac65de1f9bc  default.xex",
       "host_platforms": ["windows"],
       "maturity": "Firstlevelplays; latergameunplayed;clean-machineinstalleruntested.",
       "artwork": {
@@ -118058,7 +118058,7 @@
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
       "acquisition_route": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python.",
-      "source_requirements": "Own Xbox360PAL En/DeISO/extractedfolder; title415608E9; accepted executablefingerprints: dc58d3851bbd89935e9ecf2ee84b158ec400f049da46c937a4713477a50c79d7 default.xex",
+      "source_requirements": "Own Xbox360PAL En/DeISO/extractedfolder; title415608E9; accepted executablefingerprints: dc58d3851bbd89935e9ecf2ee84b158ec400f049da46c937a4713477a50c79d7  default.xex",
       "host_platforms": ["windows"],
       "maturity": "Tutorial/Woodburrowplays withswappers; latergameunplayed;clean-machineinstalleruntested.",
       "artwork": {
@@ -118166,7 +118166,7 @@
       "identity_reason": "No matching game plus implementation in the supplied complete canonical snapshot",
       "related_repository": null,
       "acquisition_route": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python.",
-      "source_requirements": "Own Xbox360PALISO/extractedfolder; title41560911; accepted executablefingerprints: f1d2373e4507e21cc371e6f22d02e909602a1b5bc4704896c3c099cc64002a35 default.xex",
+      "source_requirements": "Own Xbox360PALISO/extractedfolder; title41560911; accepted executablefingerprints: f1d2373e4507e21cc371e6f22d02e909602a1b5bc4704896c3c099cc64002a35  default.xex",
       "host_platforms": ["windows"],
       "maturity": "Chapter1plays; latergameunplayed;clean-machineinstalleruntested.",
       "artwork": {
@@ -118504,8 +118504,8 @@
         }
       ],
       "evidence_date": "2026-10-25T04:23:40.244000+00:00",
-      "remaining_blocker": "engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation.",
-      "next_action": "engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation.",
+      "remaining_blocker": " engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation.",
+      "next_action": " engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation.",
       "delivery": {
         "status": "No new public intake planned",
         "public_intake_expected": false,
@@ -120016,7 +120016,7 @@
         }
       ],
       "evidence_date": "2026-10-25T03:54:02.918Z",
-      "remaining_blocker": "For Ultima IV: Quest of the Avatar (Master System), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For Ultima IV: Quest of the Avatar (Master System), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -131335,7 +131335,7 @@
         }
       ],
       "evidence_date": "2026-10-25T16:24:05.465208+00:00",
-      "remaining_blocker": "For World Driver Championship, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe.",
+      "remaining_blocker": "For World Driver Championship, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. ",
       "next_action": "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass.",
       "delivery": {
         "status": "Issue and Project intake verified",
@@ -137207,8 +137207,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:32.545526+00:00"],
-      "remaining_blocker": ["attach lineage, no independent owner."],
-      "next_action": ["attach lineage, no independent owner."]
+      "remaining_blocker": [" attach lineage, no independent owner."],
+      "next_action": [" attach lineage, no independent owner."]
     },
     {
       "lead_id": "github:adumah/mhnwis-nx",
@@ -150420,7 +150420,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:02.918Z"],
       "remaining_blocker": [
-        "For Ultima IV: Quest of the Avatar (Master System), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Ultima IV: Quest of the Avatar (Master System), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -151016,7 +151016,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:29.015Z", "2026-10-25T16:24:05.465208+00:00"],
       "remaining_blocker": [
-        "For World Driver Championship, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For World Driver Championship, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -157590,7 +157590,7 @@
       "ecosystem": ["PSP"],
       "framework": ["Independent translator/runtime; TinyCC for local generated-code compilation."],
       "acquisition_route": [
-        "Select plain TagForceRecomp--win64.zip, which README identifies as runtime/translator/TinyCC/FFmpeg without mods or textures. InstallandPlay imports own EUISO and locally translates/compiles into gen/jitcache; later Play noISOneeded. Mods/EnhancedTextures/Fullsplitpacks are separate optional downloads, not default selected payload."
+        "Select plain TagForceRecomp-<version>-win64.zip, which README identifies as runtime/translator/TinyCC/FFmpeg without mods or textures. InstallandPlay imports own EUISO and locally translates/compiles into gen/jitcache; later Play noISOneeded. Mods/EnhancedTextures/Fullsplitpacks are separate optional downloads, not default selected payload."
       ],
       "maturity": [
         "Early publicpreview. Upstream claims end-to-end play on mainly one machine/version/save, Story/field/dialogue/duels/DeckEdit/shop/saves/audio/video. No network/ad-hoc; logic30FPS, presentation60/120interpolationexperimental; APIs/formats/settings/folders maychange."
@@ -164442,7 +164442,7 @@
       ],
       "evidence_date": ["2026-10-25T03:54:50.800Z"],
       "remaining_blocker": [
-        "For Roll Away / Kula World / KulaQuest, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Roll Away / Kula World / KulaQuest, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -164556,7 +164556,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:31.564Z"],
       "remaining_blocker": [
-        "For Scrabble (1999), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Scrabble (1999), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -174208,8 +174208,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:28.702571+00:00"],
-      "remaining_blocker": ["preserve legitimate native research identity."],
-      "next_action": ["preserve legitimate native research identity."]
+      "remaining_blocker": [" preserve legitimate native research identity."],
+      "next_action": [" preserve legitimate native research identity."]
     },
     {
       "lead_id": "github:christiannagel26-nknx/alien2",
@@ -176169,7 +176169,7 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:02:15.878Z"],
       "remaining_blocker": [
-        "For Conker's Bad Fur Day, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Conker's Bad Fur Day, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -187542,10 +187542,10 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:32.313042+00:00"],
       "remaining_blocker": [
-        "USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package."
+        " USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package."
       ],
       "next_action": [
-        "USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package."
+        " USA/Europe default.xex SHA256 3d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7. Preserve same owner, unsigned sideload IPA is not Windows package."
       ]
     },
     {
@@ -191248,10 +191248,10 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:40.244000+00:00"],
       "remaining_blocker": [
-        "engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation."
+        " engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation."
       ],
       "next_action": [
-        "engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation."
+        " engine code lives upstream shihabal3amri, existing canonical owner. Title4E4D0859 TU3, no new native implementation."
       ]
     },
     {
@@ -191702,7 +191702,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T04:02:14.364Z"],
       "remaining_blocker": [
-        "For International Superstar Soccer 2000, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For International Superstar Soccer 2000, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -193894,7 +193894,7 @@
       ],
       "evidence_date": ["2026-10-25T04:02:16.294Z"],
       "remaining_blocker": [
-        "For Blast Corps, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Blast Corps, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -204764,8 +204764,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:35.422050+00:00"],
-      "remaining_blocker": ["do not assume identical to Takedawn."],
-      "next_action": ["do not assume identical to Takedawn."]
+      "remaining_blocker": [" do not assume identical to Takedawn."],
+      "next_action": [" do not assume identical to Takedawn."]
     },
     {
       "lead_id": "github:falk/chaostheory-nx",
@@ -204857,10 +204857,10 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:35.072791+00:00"],
       "remaining_blocker": [
-        "retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification."
+        " retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification."
       ],
       "next_action": [
-        "retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification."
+        " retain shared framework evidence, hand off Switch destination ownership rather than repeat its qualification."
       ]
     },
     {
@@ -205521,7 +205521,7 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T03:54:21.978Z"],
       "remaining_blocker": [
-        "For Fire Emblem: The Blazing Blade, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Fire Emblem: The Blazing Blade, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -212310,7 +212310,7 @@
         "Decompilation-derived native C game port; independent from Alexbeav PSXRecomp #436"
       ],
       "acquisition_route": [
-        "README declares dw2003--x86_64.AppImage and SHA256SUMS. Launcher selects/checks own disc and reads it at runtime; native source build also available."
+        "README declares dw2003-<version>-x86_64.AppImage and SHA256SUMS. Launcher selects/checks own disc and reads it at runtime; native source build also available."
       ],
       "maturity": [
         "Claims byte-identical executable/overlays from C and native game/launcher/mods; exact campaign coverage not established here."
@@ -212320,7 +212320,7 @@
       ],
       "evidence_date": ["2026-10-25T03:54:17.153Z"],
       "remaining_blocker": [
-        "For Digimon World 2003, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Digimon World 2003, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -223636,7 +223636,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:38.323Z"],
       "remaining_blocker": [
-        "For Project Gotham Racing, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Project Gotham Racing, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -227996,7 +227996,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:21.242Z"],
       "remaining_blocker": [
-        "For Street Fighter Alpha 3 (Dreamcast), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Street Fighter Alpha 3 (Dreamcast), confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -230314,7 +230314,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:55:02.913Z"],
       "remaining_blocker": [
-        "For Sonic Rivals 2, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Sonic Rivals 2, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -234166,8 +234166,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:36.193288+00:00"],
-      "remaining_blocker": ["outside Xbox source ecosystem. Hand off PC/native taxonomy."],
-      "next_action": ["outside Xbox source ecosystem. Hand off PC/native taxonomy."]
+      "remaining_blocker": [" outside Xbox source ecosystem. Hand off PC/native taxonomy."],
+      "next_action": [" outside Xbox source ecosystem. Hand off PC/native taxonomy."]
     },
     {
       "lead_id": "github:jimmyglasscock/alttp-ds",
@@ -238317,8 +238317,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:39.484603+00:00"],
-      "remaining_blocker": ["not new Xbox-native port."],
-      "next_action": ["not new Xbox-native port."]
+      "remaining_blocker": [" not new Xbox-native port."],
+      "next_action": [" not new Xbox-native port."]
     },
     {
       "lead_id": "github:juanxd2006/ns3fb-ios",
@@ -247477,7 +247477,7 @@
       "ecosystem": ["Original Xbox"],
       "framework": ["xboxrecomp"],
       "acquisition_route": [
-        "Source preparation owned by upstream/player. macOS: install Xcode command-line tools/Homebrew, make setup, extract own DUB Edition disc, make lift, then make mac-app DISC= or make build run. Linux: make setup, own-disc extraction, make lift and make build run; CPU matrix remains Unknown. Windows: install_windows.bat installs MSYS2 in C:\\msys64 if absent, obtains dependencies, lifts code and builds the personal runtime; this is local compilation, not a precompiled player download. No commands were executed by Portcove. Desktop Remix preparation is not established."
+        "Source preparation owned by upstream/player. macOS: install Xcode command-line tools/Homebrew, make setup, extract own DUB Edition disc, make lift, then make mac-app DISC=<disc-folder> or make build run. Linux: make setup, own-disc extraction, make lift and make build run; CPU matrix remains Unknown. Windows: install_windows.bat installs MSYS2 in C:\\msys64 if absent, obtains dependencies, lifts code and builds the personal runtime; this is local compilation, not a precompiled player download. No commands were executed by Portcove. Desktop Remix preparation is not established."
       ],
       "maturity": [
         "Version0.3.0 is experimental: crashes, latency and occasional race hangs remain. Upstream claims Mac/Linux30FPS with5x upscale; M1/macOS15.6 and Ubuntu22.04.5 VM are the named tests. Windows11 VM/Intel i7 support is still experimental. Switch100% career progress is a separate destination observation and is not desktop completion evidence. No Portcove runtime/gameplay qualification."
@@ -256896,8 +256896,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:40.927210+00:00"],
-      "remaining_blocker": ["extraAndroidsupport alone not sufficient."],
-      "next_action": ["extraAndroidsupport alone not sufficient."]
+      "remaining_blocker": [" extraAndroidsupport alone not sufficient."],
+      "next_action": [" extraAndroidsupport alone not sufficient."]
     },
     {
       "lead_id": "github:masterllgod/naruto-storm-2-port-nativo",
@@ -256999,10 +256999,10 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:36.537052+00:00"],
       "remaining_blocker": [
-        "PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner."
+        " PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner."
       ],
       "next_action": [
-        "PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner."
+        " PAL unsupported. Release APK/WindowsZIP claims. Public repo docs/source completeness and runtime lineage need inspection before independent owner."
       ]
     },
     {
@@ -260816,8 +260816,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:41.153972+00:00"],
-      "remaining_blocker": ["outside Xbox console-source scope."],
-      "next_action": ["outside Xbox console-source scope."]
+      "remaining_blocker": [" outside Xbox console-source scope."],
+      "next_action": [" outside Xbox console-source scope."]
     },
     {
       "lead_id": "github:mikazuu-56/l4d1-xbox360-recompiled-android.",
@@ -276489,7 +276489,7 @@
       ],
       "evidence_date": ["2026-10-25T03:54:44.785Z"],
       "remaining_blocker": [
-        "For Alisia Dragoon, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Alisia Dragoon, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -287051,7 +287051,7 @@
       ],
       "evidence_date": ["2026-10-25T03:54:24.598Z"],
       "remaining_blocker": [
-        "For Breath of Fire IV, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Breath of Fire IV, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -292492,7 +292492,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:07.268Z", "2026-10-25T12:39:05.090Z"],
       "remaining_blocker": [
-        "For Genma Onimusha, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Genma Onimusha, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -292682,10 +292682,10 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:39.749355+00:00"],
       "remaining_blocker": [
-        "same implementation despite destination support. Do not duplicate current SpeedBreaker owner."
+        " same implementation despite destination support. Do not duplicate current SpeedBreaker owner."
       ],
       "next_action": [
-        "same implementation despite destination support. Do not duplicate current SpeedBreaker owner."
+        " same implementation despite destination support. Do not duplicate current SpeedBreaker owner."
       ]
     },
     {
@@ -300217,7 +300217,7 @@
         "README advertises v0.4.1 AppImage containing tools/public sources and optimization profiles, not a compiled game. It imports the owned Japan BLJS10220 ISO using a pinned official RPCS3 import helper, translates the owned EBOOT and compiles locally with its bundled toolchain; original game data remains needed. First launch needs the helper download unless already present, about8GB RAM/8GB free space, and an estimated15–60min compile (12–14min measured on4600H). Build is reused until AppImage version or CPU changes. Manual source generation/CMake build is also documented; no new release asset or build was verified in this review."
       ],
       "maturity": [
-        "Upstream October25 status reports intro/title/menus/opening cutscene and STG02 gameplay, with STG02 completed manually and return to mission select; the rest of the game remains unplayed. End-to-end tested route is Fedora/Ryzen54600H/GTX1650; Arch container build and Ubuntu22.04 import-helper checks are separate. Scripted STG02 v0.4.x AppImage measurements average47.9 guestFPS on4600H/GTX1650; crowded manual fights had lower historical rates and audio breakups. A transient untextured polygon remains; full game, sessions overabout30min, clean exit on every path and ATRAC audio are unvalidated. Broad CPU/GPU/distribution tables describe checks, not equivalent gameplay verification; SteamOS rem"
+        "Upstream October25 status reports intro/title/menus/opening cutscene and STG02 gameplay, with STG02 completed manually and return to mission select; the rest of the game remains unplayed. End-to-end tested route is Fedora/Ryzen54600H/GTX1650; Arch container build and Ubuntu22.04 import-helper checks are separate. Scripted STG02 v0.4.x AppImage measurements average47.9 guestFPS on4600H/GTX1650; crowded manual fights had lower historical rates and audio breakups. A transient untextured polygon remains; full game, sessions overabout30min, clean exit on every path and ATRAC audio are unvalidated. Broad CPU/GPU/distribution tables describe checks, not equivalent gameplay verification; SteamOS remains likely/unverified. No Portcove runtime/gameplay qualification is established."
       ],
       "artwork": [
         "Explicit authored artwork metadata present; image bytes not validated by this generator"
@@ -300656,7 +300656,7 @@
       ],
       "evidence_date": ["2026-10-25T03:54:32.345Z"],
       "remaining_blocker": [
-        "For Blue Stinger, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Blue Stinger, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -301792,7 +301792,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:22.166Z"],
       "remaining_blocker": [
-        "For Aero the Acro-Bat, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Aero the Acro-Bat, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -321934,8 +321934,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:36.777881+00:00"],
-      "remaining_blocker": ["screenshots multiplelevels but no Portcove qualification."],
-      "next_action": ["screenshots multiplelevels but no Portcove qualification."]
+      "remaining_blocker": [" screenshots multiplelevels but no Portcove qualification."],
+      "next_action": [" screenshots multiplelevels but no Portcove qualification."]
     },
     {
       "lead_id": "github:stephane-dedu/tenkaichi-3-in-web-browser",
@@ -326711,8 +326711,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:37.310141+00:00"],
-      "remaining_blocker": ["hand off if non-PC console ports catalog scope permits."],
-      "next_action": ["hand off if non-PC console ports catalog scope permits."]
+      "remaining_blocker": [" hand off if non-PC console ports catalog scope permits."],
+      "next_action": [" hand off if non-PC console ports catalog scope permits."]
     },
     {
       "lead_id": "github:teamgdb/portablekit",
@@ -328663,7 +328663,7 @@
         "Static recompilation using title-specific tools/runtime; exact framework lineage requires build manifest"
       ],
       "acquisition_route": [
-        "README SonicRiders-PC-Setup-.zip or Switch setup, own disc first local build10–30min. Generated binaries contain game-derived code and remain private."
+        "README SonicRiders-PC-Setup-<version>.zip or Switch setup, own disc first local build10–30min. Generated binaries contain game-derived code and remain private."
       ],
       "maturity": [
         "Native title/player setup described; exact race/story/completion boundary unresolved. Switch is destination, not source."
@@ -328671,7 +328671,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:55:05.816Z"],
       "remaining_blocker": [
-        "For Sonic Riders, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Sonic Riders, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -330803,10 +330803,10 @@
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:30.200303+00:00"],
       "remaining_blocker": [
-        "route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references."
+        " route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references."
       ],
       "next_action": [
-        "route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references."
+        " route to PC-native ecosystem separately. Exact SHA256 in primary README. Do not misclassify from Xenon references."
       ]
     },
     {
@@ -335417,7 +335417,7 @@
       ],
       "evidence_date": ["2026-10-25T03:55:06.612Z"],
       "remaining_blocker": [
-        "For Hotel Mario, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Hotel Mario, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -338476,8 +338476,8 @@
       ],
       "artwork": ["No authored listing bound; artwork not an ownership gate"],
       "evidence_date": ["2026-10-25T04:23:30.732237+00:00"],
-      "remaining_blocker": ["reconcile with existing DAO owner before any new intake."],
-      "next_action": ["reconcile with existing DAO owner before any new intake."]
+      "remaining_blocker": [" reconcile with existing DAO owner before any new intake."],
+      "next_action": [" reconcile with existing DAO owner before any new intake."]
     },
     {
       "lead_id": "github:uhub/awesome-cpp",
@@ -340583,7 +340583,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:55:03.170Z"],
       "remaining_blocker": [
-        "For Jet Force Gemini, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Jet Force Gemini, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -344306,7 +344306,7 @@
       ],
       "evidence_date": ["2026-10-25T03:54:13.443Z"],
       "remaining_blocker": [
-        "For Magician's Quest: Mysterious Times, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Magician's Quest: Mysterious Times, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."
@@ -347618,7 +347618,7 @@
       "artwork": ["Fallback/no explicit artwork in authored listing"],
       "evidence_date": ["2026-10-25T03:54:25.246Z"],
       "remaining_blocker": [
-        "For Sin and Punishment, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe."
+        "For Sin and Punishment, confirm the pinned accepted source revision/program or track fingerprints and any inputs explicitly unresolved in source_requirements; confirm the exact title-owned native route in acquisition_route rather than inheriting a generic framework recipe. "
       ],
       "next_action": [
         "Reuse any matching canonical owner after fresh readback; otherwise create the exact game + implementation research/intake issue and Project state. Resume player acquisition on the specific source/architecture conditions above, without full-game qualification in this pass."

@@ -2,7 +2,7 @@
 
 Dated evidence for [#2931](https://github.com/boburning/portcove/issues/2931). This is a reproducible snapshot, not a live backlog. Issues/Project and authored catalog retain their authorities.
 
-Baseline main: `8ac0a9c1dfd906ef98798a8b5e3e9bc52fdc59e8`; main merged into discovery source: `338956ce99f7c14d3b4ec718b8138f55289f3c11`. Target observed at snapshot: `a9c84a34f4bc1084584a81b16285204c686c0b2b`. Generated from checkout `a43209b4ece74b03af3dff50254648a90b855a23` at 2026-10-25T18:29:29.891Z.
+Baseline main: `8ac0a9c1dfd906ef98798a8b5e3e9bc52fdc59e8`; main merged into discovery source: `338956ce99f7c14d3b4ec718b8138f55289f3c11`. Target observed at snapshot: `a9c84a34f4bc1084584a81b16285204c686c0b2b`. Generated from checkout `734f0427e76ce273632684671c524293496a8daf` at 2026-10-25T20:21:52.291Z.
 
 The [standalone JSON ledger](non-switch-ecosystem-reconciliation-2026-10-25.json) accounts for **all 2344 original leads plus 134 extra repository leads**, with **zero omissions/unassigned dispositions**. Overlapping source/slice observations remain attributable; final plan facts override historical interpretations. It contains 1126 implementation/edition records, exact source hashes/clocks, primary URLs, canonical/listing identities and concrete follow-ons.
 
