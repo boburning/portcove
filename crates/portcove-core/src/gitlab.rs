@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -307,6 +307,172 @@ impl GitlabReleaseProvider {
         )))
     }
 
+    async fn generic_package_file(
+        &self,
+        project_url: &str,
+        project_id: u64,
+        release: &GitlabRelease,
+        link: &GitlabReleaseLink,
+    ) -> Result<Option<(GitlabPackageFile, reqwest::Url)>> {
+        let Some(url) = generic_package_url(project_url, &self.api_root, project_id, &link.url)?
+        else {
+            return Ok(None);
+        };
+        let normalized_tag = release.tag_name.trim_start_matches('v');
+        let packages: Vec<_> = self
+            .packages(project_url)
+            .await?
+            .into_iter()
+            .filter(|package| {
+                package.version == release.tag_name || package.version == normalized_tag
+            })
+            .collect();
+        if packages.len() > GITLAB_MAX_MATCHING_PACKAGES {
+            return Err(PortcoveError::verification(
+                "GitLab generic release exceeds the matching-package lookup bound",
+            ));
+        }
+        let selected = &url;
+        let requests = packages.into_iter().map(|package| async move {
+            self.generic_files_in_package(project_url, project_id, &package, selected)
+                .await
+        });
+        let results = stream::iter(requests)
+            .buffered(GITLAB_PACKAGE_LOOKUP_CONCURRENCY)
+            .collect::<Vec<_>>()
+            .await;
+        let mut candidates = Vec::new();
+        let mut identities = HashSet::new();
+        for result in results {
+            for file in result? {
+                if !identities.insert(file.id) {
+                    return Err(PortcoveError::verification(
+                        "GitLab generic registry repeats a package-file identity",
+                    ));
+                }
+                candidates.push(file);
+            }
+        }
+        if candidates.len() > 1 {
+            // The official versioned endpoint identifies its current upload;
+            // expected integrity still comes from an independently joined row.
+            let response = self
+                .client
+                .head(url.clone())
+                .send()
+                .await
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            if !response.status().is_success() {
+                return Err(gitlab_http_error(response.status(), response.headers()));
+            }
+            let headers = response.headers();
+            let checksums: Vec<_> = headers.get_all("x-checksum-sha256").iter().collect();
+            let checksum = checksums
+                .first()
+                .filter(|_| checksums.len() == 1)
+                .and_then(|value| value.to_str().ok())
+                .filter(|value| {
+                    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+                })
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "GitLab generic upload needs one published SHA-256 header to resolve duplicate registry files",
+                    )
+                })?;
+            let size = headers
+                .get(header::CONTENT_LENGTH)
+                .map(|value| {
+                    value
+                        .to_str()
+                        .ok()
+                        .and_then(|value| value.parse::<u64>().ok())
+                        .ok_or_else(|| {
+                            PortcoveError::verification(
+                                "GitLab generic upload has an invalid published size",
+                            )
+                        })
+                })
+                .transpose()?;
+            candidates.retain(|file| {
+                file.file_sha256.eq_ignore_ascii_case(checksum)
+                    && size.is_none_or(|size| file.size == size)
+            });
+        }
+        if candidates.len() != 1 {
+            return Err(PortcoveError::verification(
+                "GitLab generic upload does not identify exactly one published registry file",
+            ));
+        }
+        let file = candidates.pop().unwrap();
+        if file.id == 0
+            || file.size == 0
+            || file.file_sha256.len() != 64
+            || !file
+                .file_sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(PortcoveError::verification(
+                "GitLab generic registry file lacks a valid identity, size or SHA-256",
+            ));
+        }
+        Ok(Some((file, url)))
+    }
+
+    async fn generic_files_in_package(
+        &self,
+        project_url: &str,
+        project_id: u64,
+        package: &GitlabPackage,
+        selected: &reqwest::Url,
+    ) -> Result<Vec<GitlabPackageFile>> {
+        let package_url = format!(
+            "{}/projects/{project_id}/packages/{}",
+            self.api_root, package.id
+        );
+        let mut matched = Vec::new();
+        let mut identities = HashSet::new();
+        for page in 1..=GITLAB_MAX_PACKAGE_FILE_PAGES {
+            let url = paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)?;
+            let files: Vec<GitlabPackageFile> = self.get_json(&url).await?;
+            let has_more = files.len() == PROVIDER_PAGE_SIZE;
+            for file in files {
+                if !identities.insert(file.id) {
+                    return Err(PortcoveError::verification(
+                        "GitLab package-file pages repeat an identity",
+                    ));
+                }
+                for project in [
+                    project_url.to_owned(),
+                    format!("{}/projects/{project_id}", self.api_root),
+                ] {
+                    let mut expected = reqwest::Url::parse(&project)
+                        .map_err(|error| PortcoveError::state(error.to_string()))?;
+                    expected
+                        .path_segments_mut()
+                        .map_err(|_| PortcoveError::state("invalid GitLab package URL"))?
+                        .extend([
+                            "packages",
+                            "generic",
+                            &package.name,
+                            &package.version,
+                            &file.file_name,
+                        ]);
+                    if expected == *selected {
+                        matched.push(file);
+                        break;
+                    }
+                }
+            }
+            if !has_more {
+                return Ok(matched);
+            }
+        }
+        Err(PortcoveError::verification(
+            "GitLab generic upload exceeds the complete package-file lookup bound",
+        ))
+    }
+
     async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
         let mut cache = self.cache.write().await;
         cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
@@ -384,17 +550,54 @@ impl ReleaseProvider for GitlabReleaseProvider {
         let package_file = self
             .package_file(&project_url, project.id, release, link)
             .await?;
-        let (name, size, sha256) = if let Some(file) = package_file {
-            (file.file_name, file.size, file.file_sha256)
+        let description_digest = digest_from_description(&release.description, &link.name);
+        let generic = if package_file.is_none() && description_digest.is_none() {
+            self.generic_package_file(&project_url, project.id, release, link)
+                .await?
         } else {
-            let sha256 =
-                digest_from_description(&release.description, &link.name).ok_or_else(|| {
-                    PortcoveError::verification(format!(
-                        "{} does not publish a SHA-256 digest for {}",
-                        port.name, link.name
-                    ))
-                })?;
-            (link.name.clone(), 0, sha256)
+            None
+        };
+        let (name, size, sha256, download_url) = if let Some((file, url)) = generic {
+            if native_archive_score(
+                &file.file_name.to_ascii_lowercase(),
+                platform,
+                port.release
+                    .asset_hints
+                    .get(&platform)
+                    .map(Vec::as_slice)
+                    .unwrap_or_default(),
+            )
+            .is_none()
+            {
+                return Err(PortcoveError::verification(
+                    "GitLab generic registry filename does not match the selected native archive",
+                ));
+            }
+            (file.file_name, file.size, file.file_sha256, url.into())
+        } else if let Some(file) = package_file {
+            (
+                file.file_name,
+                file.size,
+                file.file_sha256,
+                link.direct_asset_url
+                    .clone()
+                    .unwrap_or_else(|| link.url.clone()),
+            )
+        } else {
+            let sha256 = description_digest.ok_or_else(|| {
+                PortcoveError::verification(format!(
+                    "{} does not publish a SHA-256 digest for {}",
+                    port.name, link.name
+                ))
+            })?;
+            (
+                link.name.clone(),
+                0,
+                sha256,
+                link.direct_asset_url
+                    .clone()
+                    .unwrap_or_else(|| link.url.clone()),
+            )
         };
         if port.n64_runtime_at_executable_parent
             && native_archive_score(
@@ -418,10 +621,7 @@ impl ReleaseProvider for GitlabReleaseProvider {
             published_at: release.released_at.clone(),
             asset: ReleaseAsset {
                 name,
-                url: link
-                    .direct_asset_url
-                    .clone()
-                    .unwrap_or_else(|| link.url.clone()),
+                url: download_url,
                 size,
                 sha256,
             },
@@ -470,6 +670,8 @@ struct GitlabReleaseLink {
 struct GitlabPackage {
     id: u64,
     version: String,
+    #[serde(default)]
+    name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -605,6 +807,41 @@ fn package_file_id(url: &str) -> Option<u64> {
         .windows(2)
         .find(|parts| parts[0] == "package_files")
         .and_then(|parts| parts[1].parse().ok())
+}
+
+fn generic_package_url(
+    project_url: &str,
+    api_root: &str,
+    project_id: u64,
+    link: &str,
+) -> Result<Option<reqwest::Url>> {
+    let url = reqwest::Url::parse(link)
+        .map_err(|_| PortcoveError::verification("invalid GitLab release URL"))?;
+    if !url.path().contains("/packages/generic/") {
+        return Ok(None);
+    }
+    let scoped = [
+        format!("{project_url}/packages/generic/"),
+        format!("{api_root}/projects/{project_id}/packages/generic/"),
+    ]
+    .iter()
+    .any(|prefix| {
+        url.as_str().strip_prefix(prefix).is_some_and(|tail| {
+            let parts: Vec<_> = tail.split('/').collect();
+            parts.len() == 3 && parts.iter().all(|part| !part.is_empty())
+        })
+    });
+    if !scoped
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return Err(PortcoveError::verification(
+            "GitLab generic release URL must name this project's exact official package endpoint",
+        ));
+    }
+    Ok(Some(url))
 }
 
 fn digest_from_description(description: &str, asset_name: &str) -> Option<String> {
@@ -888,6 +1125,556 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    fn generic_test_port() -> PortDefinition {
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("extreme-g-recompiled")
+            .unwrap()
+            .clone();
+        port.release.repository = "group/project".into();
+        port.release.asset_hints.insert(
+            Platform::WindowsX86_64,
+            vec!["game-".into(), "windows".into()],
+        );
+        port
+    }
+
+    fn generic_test_file(id: u64, name: &str, digest: char) -> serde_json::Value {
+        serde_json::json!({"id":id,"file_name":name,"size":42,"file_sha256":digest.to_string().repeat(64)})
+    }
+
+    fn generic_test_response(
+        request: &str,
+        tag: &str,
+        name: &str,
+        files: &serde_json::Value,
+        head: &str,
+    ) -> String {
+        if request.starts_with("HEAD ") {
+            return head.into();
+        }
+        if request.contains("/package_files?") {
+            return ok_json(&files.to_string(), "");
+        }
+        if request.contains("/packages?") {
+            return ok_json(
+                &serde_json::json!([{"id":501,"name":"game","version":tag.trim_start_matches('v')}]).to_string(),
+                "",
+            );
+        }
+        if request.contains("/releases?") {
+            let host = request
+                .lines()
+                .find_map(|line| {
+                    let (key, value) = line.split_once(':')?;
+                    key.eq_ignore_ascii_case("host").then_some(value.trim())
+                })
+                .unwrap();
+            let mut url = reqwest::Url::parse(&format!(
+                "http://{host}/api/v4/projects/group%2Fproject/packages/generic/game/{}",
+                tag.trim_start_matches('v')
+            ))
+            .unwrap();
+            url.path_segments_mut().unwrap().push(name);
+            return ok_json(
+                &serde_json::json!([{
+                    "tag_name":tag,"assets":{"links":[{
+                        "name":"game-Windows","link_type":"package","url":url.as_str(),
+                        "direct_asset_url":"https://unrelated.invalid/other.zip"
+                    }]}
+                }])
+                .to_string(),
+                "",
+            );
+        }
+        ok_json(r#"{"id":9,"archived":false}"#, "")
+    }
+
+    #[tokio::test]
+    async fn generic_packages_follow_successors_with_one_unchanged_definition() {
+        let version = Arc::new(AtomicUsize::new(1));
+        let published = version.clone();
+        let (root, requests, server) = serve_routed_http(16, move |request| {
+            let version = published.load(Ordering::SeqCst);
+            let name = format!("game-v{version}-windows-x64.zip");
+            let digest = if version == 1 { 'b' } else { 'd' };
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: 42\r\nX-Checksum-Sha256: {}\r\nConnection: close\r\n\r\n",
+                digest.to_string().repeat(64)
+            );
+            generic_test_response(
+                request,
+                &format!("v{version}.0.0"),
+                &name,
+                &serde_json::json!([
+                    generic_test_file(77, &name, 'a'),
+                    generic_test_file(78, &name, digest)
+                ]),
+                &head,
+            )
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let port = generic_test_port();
+        let original = serde_json::to_value(&port).unwrap();
+        let first = provider
+            .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(first.version, "v1.0.0");
+        assert_eq!(first.asset.sha256, "b".repeat(64));
+        version.store(2, Ordering::SeqCst);
+        let cached = provider
+            .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(cached.version, first.version);
+        for value in provider.cache.write().await.values_mut() {
+            value.stored_at -= RELEASE_CACHE_TTL + Duration::from_secs(1);
+        }
+        let next = provider
+            .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        let fresh = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4"))
+            .unwrap()
+            .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(next.version, "v2.0.0");
+        assert_eq!(next.asset.name, "game-v2-windows-x64.zip");
+        assert_eq!(next.asset.sha256, "d".repeat(64));
+        assert_eq!(fresh.asset, next.asset);
+        assert_eq!(
+            next.asset.url,
+            format!(
+                "{root}/api/v4/projects/group%2Fproject/packages/generic/game/2.0.0/game-v2-windows-x64.zip"
+            )
+        );
+        assert_eq!(serde_json::to_value(&port).unwrap(), original);
+        server.join().unwrap();
+        let requests: Vec<_> = requests.try_iter().collect();
+        assert_eq!(requests.len(), 16);
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|request| request.starts_with("HEAD "))
+                .count(),
+            3
+        );
+        assert!(!requests.iter().any(|request| {
+            request.starts_with("GET /api/v4/projects/group%2Fproject/packages/generic/")
+        }));
+    }
+
+    #[tokio::test]
+    async fn generic_packages_refuse_ambiguous_or_invalid_integrity_without_caching() {
+        let valid = "b".repeat(64);
+        for (headers, same_hash) in [
+            (String::new(), false),
+            ("X-Checksum-Sha256: bad\r\n".into(), false),
+            (
+                format!("X-Checksum-Sha256: {valid}\r\nX-Checksum-Sha256: {valid}\r\n"),
+                false,
+            ),
+            (format!("X-Checksum-Sha256: {}\r\n", "c".repeat(64)), false),
+            (
+                format!("X-Checksum-Sha256: {valid}\r\nContent-Length: 41\r\n"),
+                false,
+            ),
+            (format!("X-Checksum-Sha256: {valid}\r\n"), true),
+        ] {
+            let (root, requests, server) = serve_routed_http(5, move |request| {
+                let name = "game-windows-x64.zip";
+                generic_test_response(
+                    request,
+                    "v1.0.0",
+                    name,
+                    &serde_json::json!([
+                        generic_test_file(77, name, if same_hash { 'b' } else { 'a' }),
+                        generic_test_file(78, name, 'b')
+                    ]),
+                    &format!("HTTP/1.1 200 OK\r\n{headers}Connection: close\r\n\r\n"),
+                )
+            });
+            let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+            let result = provider
+                .resolve(
+                    &generic_test_port(),
+                    ReleaseChannel::Stable,
+                    Platform::WindowsX86_64,
+                )
+                .await;
+            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+            assert!(provider.cache.read().await.is_empty());
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 5);
+        }
+    }
+
+    #[tokio::test]
+    async fn generic_packages_check_real_filenames_and_unique_row_integrity() {
+        for (name, digest) in [
+            ("game-windows-x64.zip", 'b'),
+            ("game windows-x64.zip", 'b'),
+            ("game-linux-x64.zip", 'b'),
+            ("game-windows-arm64.zip", 'b'),
+            ("game-windows-x64.exe", 'b'),
+            ("game-windows-x64.zip", 'z'),
+        ] {
+            let (root, requests, server) = serve_routed_http(4, move |request| {
+                generic_test_response(
+                    request,
+                    "v1.0.0",
+                    name,
+                    &serde_json::json!([generic_test_file(77, name, digest)]),
+                    "unexpected HEAD",
+                )
+            });
+            let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+            let mut port = generic_test_port();
+            port.release.asset_hints.insert(
+                Platform::WindowsX86_64,
+                vec!["game".into(), "windows".into()],
+            );
+            let result = provider
+                .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await;
+            if name.ends_with("x64.zip") && !name.contains("linux") && digest == 'b' {
+                let resolved = result.unwrap();
+                assert_eq!(resolved.asset.name, name);
+                assert_eq!(resolved.asset.sha256, "b".repeat(64));
+                assert!(resolved.asset.url.starts_with(&root));
+            } else {
+                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
+                assert!(provider.cache.read().await.is_empty());
+            }
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 4);
+        }
+    }
+
+    #[tokio::test]
+    async fn generic_packages_consume_later_pages_and_refuse_repeated_identities() {
+        for repeated_id in [false, true] {
+            let (root, requests, server) = serve_routed_http(6, move |request| {
+                let name = "game-windows-x64.zip";
+                let files = if request.contains("&page=1 ") {
+                    let mut files: Vec<_> = (100..199)
+                        .map(|id| generic_test_file(id, "other-windows.zip", 'a'))
+                        .collect();
+                    files.push(generic_test_file(77, name, 'b'));
+                    serde_json::json!(files)
+                } else {
+                    serde_json::json!([generic_test_file(
+                        if repeated_id { 77 } else { 300 },
+                        name,
+                        'b'
+                    )])
+                };
+                generic_test_response(
+                    request,
+                    "v1.0.0",
+                    name,
+                    &files,
+                    &format!(
+                        "HTTP/1.1 200 OK\r\nX-Checksum-Sha256: {}\r\nContent-Length: 42\r\nConnection: close\r\n\r\n",
+                        "b".repeat(64)
+                    ),
+                )
+            });
+            let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+            let error = provider
+                .resolve(
+                    &generic_test_port(),
+                    ReleaseChannel::Stable,
+                    Platform::WindowsX86_64,
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert!(error.message.contains(if repeated_id {
+                "repeat an identity"
+            } else {
+                "exactly one published"
+            }));
+            assert!(provider.cache.read().await.is_empty());
+            server.join().unwrap();
+            let requests: Vec<_> = requests.try_iter().collect();
+            assert_eq!(requests.len(), if repeated_id { 5 } else { 6 });
+            assert!(
+                requests
+                    .iter()
+                    .any(|request| request.contains("/package_files?per_page=100&page=2 "))
+            );
+            assert_eq!(
+                requests
+                    .iter()
+                    .filter(|request| request.starts_with("HEAD "))
+                    .count(),
+                usize::from(!repeated_id)
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn generic_packages_refuse_incomplete_file_pagination_before_head() {
+        let (root, requests, server) = serve_routed_http(8, move |request| {
+            let name = "game-windows-x64.zip";
+            let files = if request.contains("/package_files?") {
+                let target = request.split_whitespace().nth(1).unwrap();
+                let query = target.split_once('?').unwrap().1;
+                let page: u64 = query
+                    .split('&')
+                    .find_map(|part| part.strip_prefix("page="))
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+                serde_json::json!(
+                    (0..100)
+                        .map(|index| generic_test_file(
+                            page * 100 + index,
+                            if page == 1 && index == 0 {
+                                name
+                            } else {
+                                "other-windows.zip"
+                            },
+                            'b'
+                        ))
+                        .collect::<Vec<_>>()
+                )
+            } else {
+                serde_json::json!([])
+            };
+            generic_test_response(request, "v1.0.0", name, &files, "unexpected HEAD")
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let error = provider
+            .resolve(
+                &generic_test_port(),
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("complete package-file lookup bound"));
+        assert!(provider.cache.read().await.is_empty());
+        server.join().unwrap();
+        let requests: Vec<_> = requests.try_iter().collect();
+        assert_eq!(requests.len(), 8);
+        assert!(!requests.iter().any(|request| request.starts_with("HEAD ")));
+    }
+
+    #[tokio::test]
+    async fn generic_packages_head_respects_cancellation_and_network_deadlines() {
+        for cancel in [false, true] {
+            let entered = Arc::new(tokio::sync::Notify::new());
+            let observed = entered.clone();
+            let (release, wait) = std::sync::mpsc::channel();
+            let (root, requests, server) = serve_routed_http(5, move |request| {
+                if request.starts_with("HEAD ") {
+                    observed.notify_one();
+                    wait.recv_timeout(Duration::from_secs(3)).unwrap();
+                }
+                let name = "game-windows-x64.zip";
+                generic_test_response(
+                    request,
+                    "v1.0.0",
+                    name,
+                    &serde_json::json!([
+                        generic_test_file(77, name, 'a'),
+                        generic_test_file(78, name, 'b')
+                    ]),
+                    &format!(
+                        "HTTP/1.1 200 OK\r\nX-Checksum-Sha256: {}\r\nContent-Length: 42\r\nConnection: close\r\n\r\n",
+                        "b".repeat(64)
+                    ),
+                )
+            });
+            let provider = GitlabReleaseProvider::with_api_root_and_bounds(
+                format!("{root}/api/v4"),
+                ProviderNetworkBounds {
+                    connect: Duration::from_secs(2),
+                    read_idle: if cancel {
+                        Duration::from_secs(2)
+                    } else {
+                        Duration::from_millis(200)
+                    },
+                    request: if cancel {
+                        Duration::from_secs(4)
+                    } else {
+                        Duration::from_millis(500)
+                    },
+                },
+            )
+            .unwrap();
+            let current = provider.clone();
+            let task = tokio::spawn(async move {
+                current
+                    .resolve(
+                        &generic_test_port(),
+                        ReleaseChannel::Stable,
+                        Platform::WindowsX86_64,
+                    )
+                    .await
+            });
+            tokio::time::timeout(Duration::from_secs(2), entered.notified())
+                .await
+                .unwrap();
+            if cancel {
+                task.abort();
+                assert!(task.await.unwrap_err().is_cancelled());
+            } else {
+                assert_eq!(
+                    task.await.unwrap().unwrap_err().code,
+                    crate::ErrorCode::Network
+                );
+            }
+            assert!(provider.cache.read().await.is_empty());
+            release.send(()).unwrap();
+            if let Err(error) = server.join() {
+                assert!(
+                    matches!(
+                        error.kind(),
+                        std::io::ErrorKind::BrokenPipe
+                            | std::io::ErrorKind::ConnectionReset
+                            | std::io::ErrorKind::ConnectionAborted
+                    ),
+                    "{error}"
+                );
+            }
+            assert!(requests.try_iter().all(|request| {
+                !request.starts_with("GET /api/v4/projects/group%2Fproject/packages/generic/")
+            }));
+        }
+    }
+
+    #[tokio::test]
+    async fn generic_packages_refuse_foreign_or_decorated_urls_before_registry_or_head() {
+        for replacement in [
+            "/projects/other%2Fproject/packages/generic/game/1.0.0/game-windows-x64.zip",
+            "https://elsewhere.invalid/api/v4/projects/9/packages/generic/game/1.0.0/game-windows-x64.zip",
+            "/projects/group%2Fproject/packages/generic/game/1.0.0/game-windows-x64.zip?token=hidden",
+            "/projects/group%2Fproject/packages/generic/game/1.0.0/game-windows-x64.zip#fragment",
+        ] {
+            let (root, requests, server) = serve_routed_http(2, move |request| {
+                let response = generic_test_response(
+                    request,
+                    "v1.0.0",
+                    "game-windows-x64.zip",
+                    &serde_json::json!([]),
+                    "unexpected HEAD",
+                );
+                if request.contains("/releases?") {
+                    let mut releases: serde_json::Value =
+                        serde_json::from_str(response.split_once("\r\n\r\n").unwrap().1).unwrap();
+                    let old = releases[0]["assets"]["links"][0]["url"].as_str().unwrap();
+                    let origin = old.split("/api/v4/").next().unwrap();
+                    releases[0]["assets"]["links"][0]["url"] =
+                        serde_json::json!(if replacement.starts_with("https:") {
+                            replacement.to_owned()
+                        } else {
+                            format!("{origin}/api/v4{replacement}")
+                        });
+                    ok_json(&releases.to_string(), "")
+                } else {
+                    response
+                }
+            });
+            let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+            let error = provider
+                .resolve(
+                    &generic_test_port(),
+                    ReleaseChannel::Stable,
+                    Platform::WindowsX86_64,
+                )
+                .await
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert!(error.message.contains("exact official package endpoint"));
+            assert!(provider.cache.read().await.is_empty());
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2);
+        }
+    }
+
+    #[tokio::test]
+    async fn generic_packages_do_not_follow_head_redirects_or_cache_them() {
+        let (root, requests, server) = serve_routed_http(6, move |request| {
+            let name = "game-windows-x64.zip";
+            if request.starts_with("HEAD /alternate ") {
+                return format!(
+                    "HTTP/1.1 200 OK\r\nX-Checksum-Sha256: {}\r\nContent-Length: 42\r\nConnection: close\r\n\r\n",
+                    "b".repeat(64)
+                );
+            }
+            generic_test_response(
+                request,
+                "v1.0.0",
+                name,
+                &serde_json::json!([
+                    generic_test_file(77, name, 'a'),
+                    generic_test_file(78, name, 'b')
+                ]),
+                "HTTP/1.1 302 Found\r\nLocation: /alternate\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            )
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let error = provider
+            .resolve(
+                &generic_test_port(),
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(error.message.contains("302"));
+        assert!(provider.cache.read().await.is_empty());
+        server.join().unwrap();
+        let requests: Vec<_> = requests.try_iter().collect();
+        assert_eq!(requests.len(), 5);
+        assert!(
+            !requests
+                .iter()
+                .any(|request| request.contains("/alternate "))
+        );
+    }
+
+    #[test]
+    fn generic_package_urls_bind_the_official_project_and_exact_path() {
+        let api = "https://gitlab.example/api/v4";
+        let project = format!("{api}/projects/group%2Fproject");
+        for prefix in [&project, &format!("{api}/projects/9")] {
+            assert!(
+                generic_package_url(
+                    &project,
+                    api,
+                    9,
+                    &format!("{prefix}/packages/generic/game/1/game-windows.zip")
+                )
+                .unwrap()
+                .is_some()
+            );
+        }
+        for url in [
+            format!("{api}/projects/10/packages/generic/game/1/game.zip"),
+            "https://elsewhere.invalid/api/v4/projects/9/packages/generic/game/1/game.zip".into(),
+            "https://user@gitlab.example/api/v4/projects/9/packages/generic/game/1/game.zip".into(),
+            format!("{project}/packages/generic/game/1/game.zip?token=hidden"),
+            format!("{project}/packages/generic/game/1/game.zip#fragment"),
+            format!("{project}/packages/generic/game/1/../game.zip"),
+            format!("{project}/packages/generic/game//game.zip"),
+        ] {
+            assert!(generic_package_url(&project, api, 9, &url).is_err());
+        }
+        assert!(
+            generic_package_url(&project, api, 9, "https://downloads.example/game.zip")
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]

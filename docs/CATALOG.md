@@ -1108,6 +1108,23 @@ routes, changed accepted bytes, failed integrity and unsafe operations still
 hold at their actual scope. Exact direct manifests retain their existing
 per-platform HTTPS URL, nonzero size, version and SHA-256 requirements.
 
+GitLab generic-package links can use the same reusable project, channel and
+native-archive selectors. Core joins the selected versioned URL to independently
+published package names, versions, filenames, sizes and SHA-256 values. It reads
+all relevant bounded registry pages before claiming a unique match. If upstream
+has uploaded different files to the same package/version/filename, a bounded,
+redirect-free HEAD of that exact official project URL must identify exactly one
+registry row through its published checksum and optional size. Repeated identities,
+missing or conflicting integrity, ambiguous uploads and incomplete pagination
+refuse resolution without caching a result. The joined filename must satisfy the
+actual native archive/platform/variant rules; a display label is insufficient.
+The new route downloads the exact URL it validated, then applies ordinary Core
+byte verification and staged lifecycle protections. A mutable URL changing after
+resolution can fail integrity safely; five-minute cache reuse is not a fresh
+HEAD observation. Existing explicit package-file and published-description
+checksum routes retain their behavior. This adds no per-release definition edit
+or new approval/publication authority.
+
 The earlier archive-state veto was completed under
 [issue #212](https://github.com/boburning/portcove/issues/212) and remains
 historical evidence. This availability-first contract supersedes that veto;
