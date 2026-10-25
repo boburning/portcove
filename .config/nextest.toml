@@ -7,6 +7,14 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# The October 25 source-status regression completed in 24.690s, then hit
+# the 30s harness cutoff under shared-host load. Keep this exact Linux case
+# bounded at 60s; retain assertions, two slots, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # Qualification40182282476/a1 cut this exact Intel lifecycle off at30.016s.
 # Preserve the real CLI operations, phase output, cleanup, slots and zero retries
 # with finite90s harness headroom; product and child deadlines are unchanged.
