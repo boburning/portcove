@@ -16499,7 +16499,26 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "This managed route retains the accepted v0.1.4 runtime and its original setup/data contract. To use the current upstream player, prepare a separate copy through the official OpenPete guide. Keep your working runtime and its generated library and states until your saves work in the new copy. Upstream or you provide updates for that external copy.",
         "original_game_title": "Spyro the Dragon",
+        "manual_setup": {
+          "help_url": "https://openpete.com/",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Choose the accepted managed copy or current upstream player",
+              "instruction": "The managed route retains its accepted v0.1.4 setup and data contract. For the current upstream Windows release, download the complete player from the official OpenPete page and prepare it in a separate writable folder. Compare the download with the checksum published there. Keep your existing working copy intact."
+            },
+            {
+              "title": "Supply your own Spyro disc through upstream setup",
+              "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
+            },
+            {
+              "title": "Keep progress and generated files with their working version",
+              "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 413542,
           "cover_id": 602369,
@@ -17918,15 +17937,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v1.4.3",
-            "url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
-            "size": 47276827,
-            "sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
-            "published_at": "2026-10-02T05:47:21Z"
-          }
+        "provider": "github",
+        "repository": "linkssy2/RoadRash64Recompiled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "RoadRash64Recompiled-",
+            "-Win64.zip"
+          ]
         }
       },
       "source_profile": "road-rash-64",
@@ -17936,43 +17953,43 @@
         ]
       },
       "persistent_paths": [
-        "RoadRash64Recompiled-v1.4.3-Win64/general.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/general.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/general.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/controls.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/sound.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods",
-        "RoadRash64Recompiled-v1.4.3-Win64/mod_config",
-        "RoadRash64Recompiled-v1.4.3-Win64/saves",
-        "RoadRash64Recompiled-v1.4.3-Win64/achievements.txt",
-        "RoadRash64Recompiled-v1.4.3-Win64/local-race-options.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/thrash-race-options.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/mk64-item-options.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg.tmp",
-        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg.tmp",
-        "RoadRash64Recompiled-v1.4.3-Win64/imgui.ini",
-        "RoadRash64Recompiled-v1.4.3-Win64/music",
-        "RoadRash64Recompiled-v1.4.3-Win64/race-packs",
-        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/rr64.n64.us.1.0.z64"
+        "general.json",
+        "general.json.bak",
+        "general.json.temp",
+        "graphics.json",
+        "graphics.json.bak",
+        "graphics.json.temp",
+        "controls.json",
+        "controls.json.bak",
+        "controls.json.temp",
+        "sound.json",
+        "sound.json.bak",
+        "sound.json.temp",
+        "mods.json",
+        "mods.json.bak",
+        "mods.json.temp",
+        "cheats.json",
+        "cheats.json.bak",
+        "cheats.json.temp",
+        "mods",
+        "mod_config",
+        "saves",
+        "achievements.txt",
+        "local-race-options.cfg",
+        "thrash-race-options.cfg",
+        "mk64-item-options.cfg",
+        "character-preferences.cfg",
+        "character-preferences.cfg.tmp",
+        "rider-skin-preferences.cfg",
+        "rider-skin-preferences.cfg.tmp",
+        "imgui.ini",
+        "music",
+        "race-packs",
+        "race_packs.json",
+        "race_packs.json.bak",
+        "rr64.n64.us.1.0.z64",
+        "cpu-weapon-options.cfg"
       ],
-      "runtime_subdirectory": "RoadRash64Recompiled-v1.4.3-Win64",
       "runtime_source_filename": "rr64.n64.us.1.0.z64",
       "runtime_source_materialization": "n64-big-endian",
       "runtime_source_hashes": {
@@ -17998,8 +18015,26 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy.",
+        "manual_preparation": "Supply your own matching Road Rash 64 USA v1.0 original. Core verifies it and prepares the canonical ROM beside the Windows portable player. This route preserves declared settings, saves, mods, custom music and local imported race packs, including importer logs and previous-pack backups beneath race-packs. Close the game and any importer before updates or backups. Custom external pack paths, including RR64_PRIVATE_COURSE_PACK, remain outside managed backups. Runtime rollback carries current declared data; it does not rewind progress or establish old-reader compatibility. Historical v1.4.3 installations retain their wrapper-prefixed contract: a changed data-coordinate transition remains held until supported, so keep the working copy and its data.",
         "original_game_title": "Road Rash 64",
+        "manual_setup": {
+          "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Use the complete Windows package",
+              "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core. Linux experimental AppImage packages have different storage and upstream installation instructions; the Windows contract does not establish their managed support or native qualification."
+            },
+            {
+              "title": "Keep optional setup with the game",
+              "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically. Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+            },
+            {
+              "title": "Keep your current copy while changing routes",
+              "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable. For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately. Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3589,
           "cover_id": 77133,
@@ -18008,7 +18043,9 @@
           "game_slug": "road-rash-64",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "n64_runtime_at_executable_parent": true,
+      "portable_marker": true
     },
     {
       "id": "dkc3-recomp",
@@ -19736,7 +19773,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial.",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Sonic the Hedgehog",
         "artwork": {
           "game_id": 3192,
@@ -20678,7 +20715,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Super Metroid",
         "artwork": {
           "game_id": 1103,
@@ -20769,7 +20806,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Mega Man X2",
         "artwork": {
           "game_id": 1742,

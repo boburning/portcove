@@ -133,6 +133,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     }
     assert!(pairs.contains(&("n64-recomp-portable", 2)));
     assert!(pairs.contains(&("n64-recomp-portable", 3)));
+    assert!(pairs.contains(&("n64-recomp-portable", 4)));
     assert!(pairs.contains(&("psx-recomp-managed", 2)));
     assert!(pairs.contains(&("native-portable", 2)));
     let staged_versions = [
@@ -144,7 +145,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }
-    assert_eq!(templates.len(), adapters.len() + 4 + staged_versions.len());
+    assert_eq!(templates.len(), adapters.len() + 5 + staged_versions.len());
     let requirements = temporary.path().join("prepared-directory.json");
     std::fs::write(&requirements, serde_json::to_vec(&json!({
         "capability_contract_schema": 1,

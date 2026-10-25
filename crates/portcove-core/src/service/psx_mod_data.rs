@@ -683,8 +683,12 @@ impl PortcoveService {
         for relative in crate::persistence::entries(port, &[persistent_root, user_root])? {
             let from = persistent_root.join(&relative);
             let to = user_root.join(&relative);
-            let plan =
-                AdditiveTree::prepare(&from, &to, crate::persistence::ready_staged_archive(port))?;
+            let plan = AdditiveTree::prepare(
+                &from,
+                &to,
+                crate::persistence::ready_staged_archive(port)
+                    || port.n64_runtime_at_executable_parent,
+            )?;
             if relative == "mods" && owns_mods(port) {
                 mods = Some(ModRestore::prepare(&from, &to)?);
             }

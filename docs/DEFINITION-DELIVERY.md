@@ -11,7 +11,7 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises native portable version 2,
-managed PS1 version 2, N64 portable versions 2 and 3 and
+managed PS1 version 2, N64 portable versions 2–4 and
 staged-source portable versions 2–5, 8, 10–12 and 15–23. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
@@ -23,6 +23,17 @@ including the retired CVLoD recipe associated with the still-advertised N64
 portable version 3 and staged-source version 11 path capability. Advertising those
 versions does not restore CVLoD source creation or authorize compilers or scripts.
 Shared path capabilities remain available to their other consumers.
+
+N64 portable version 4 supports an explicit executable-parent runtime/data root
+for reviewed managed archives whose wrapper directory changes between releases.
+New indexed entries using that opt-in require minimum version 4. Embedded,
+unscoped and admitted captures use retained format 7 around their original
+interpretation; older clients refuse that envelope before using historical
+outer-root coordinates. The retained opt-in controls complete package verification,
+pre-Play data collection and staged restoration/activation, including recovery.
+Historical default roots and contracts are unchanged. Coordinate/source/data
+contract changes remain held before collection; this is not a migration promise.
+See [versioned N64 folders](CATALOG.md#versioned-n64-archive-folders).
 
 Native portable version 2 observes an upstream-owned manual setup completion
 record beneath declared player data. New and retained indexed entries using

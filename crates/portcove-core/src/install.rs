@@ -161,7 +161,7 @@ impl InstallQualification {
             strict_staged_source: matches!(
                 port.adapter,
                 AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
-            ),
+            ) || port.n64_runtime_at_executable_parent,
             runtime_data_policy: port.runtime_data_policy,
             managed_shared_preferences: port.managed_shared_preferences,
             shared_preferences: None,
@@ -175,8 +175,7 @@ impl InstallQualification {
             persistent_file_patterns: port.persistent_file_patterns.clone(),
             runtime_mutable_paths: port.runtime_mutable_paths.clone(),
             runtime_mutable_file_patterns: port.runtime_mutable_file_patterns.clone(),
-            persistence_at_install_root: port.adapter == AdapterKind::N64RecompPortable
-                || port.launch_from_install_root,
+            persistence_at_install_root: crate::runtime::persistence_at_install_root(port),
             runtime: port.bundled_runtime.get(&platform).cloned(),
             runtime_origin: RuntimeOrigin::VerifiedDownload,
             generated_metadata: crate::adapter::generated_metadata(port)?,
@@ -3147,13 +3146,12 @@ fn full_immutable_integrity(
 ) -> Result<bool> {
     let staged_source = match &manifest.retained_contract {
         Some(contract) => {
+            let catalog = contract.catalog(&install.port_id)?;
+            let port = catalog.port(&install.port_id)?;
             matches!(
-                contract
-                    .catalog(&install.port_id)?
-                    .port(&install.port_id)?
-                    .adapter,
+                port.adapter,
                 AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
-            )
+            ) || port.n64_runtime_at_executable_parent
         }
         None => fallback,
     };

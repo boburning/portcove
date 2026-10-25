@@ -27,6 +27,27 @@ impl BundledRuntime {
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    if port.n64_runtime_at_executable_parent
+        && (port.adapter != crate::AdapterKind::N64RecompPortable
+            || port.runtime_subdirectory.is_some()
+            || port.launch_from_install_root
+            || port.user_data_environment.is_some()
+            || !port.portable_marker
+            || port.source_profile.is_none()
+            || port.runtime_source_materialization
+                != Some(crate::RuntimeSourceMaterialization::N64BigEndian)
+            || !port
+                .runtime_source_filename
+                .as_ref()
+                .is_some_and(|filename| port.persistent_paths.contains(filename))
+            || !port.release.user_prepared.is_empty()
+            || !port.release.managed_build.is_empty()
+            || !port.bundled_runtime.is_empty())
+    {
+        return Err(PortcoveError::usage(
+            "executable-parent N64 runtimes require a managed portable archive, persistent canonical ROM and local data without a conflicting runtime root",
+        ));
+    }
     crate::managed_shared_preferences::validate(port)?;
     crate::managed_tfe::validate(port)?;
     crate::runtime_data_policy::validate(port)?;
@@ -130,19 +151,31 @@ pub(crate) fn required(port: &PortDefinition, platform: Platform) -> Option<Runt
         .map(BundledRuntime::identity)
 }
 
+pub(crate) fn persistence_at_install_root(port: &PortDefinition) -> bool {
+    port.launch_from_install_root
+        || (port.adapter == crate::AdapterKind::N64RecompPortable
+            && !port.n64_runtime_at_executable_parent)
+}
+
 pub(crate) fn working_root(port: &PortDefinition, install: &InstallRecord) -> PathBuf {
+    working_root_for_executable(
+        port,
+        &install.path,
+        &install.path.join(&install.selected_executable),
+    )
+}
+
+pub(crate) fn working_root_for_executable(
+    port: &PortDefinition,
+    install_root: &Path,
+    executable: &Path,
+) -> PathBuf {
     if let Some(directory) = &port.runtime_subdirectory {
-        install.path.join(directory)
-    } else if port.launch_from_install_root || port.adapter == crate::AdapterKind::N64RecompPortable
-    {
-        install.path.clone()
+        install_root.join(directory)
+    } else if persistence_at_install_root(port) {
+        install_root.to_path_buf()
     } else {
-        install
-            .path
-            .join(&install.selected_executable)
-            .parent()
-            .unwrap_or(&install.path)
-            .to_path_buf()
+        executable.parent().unwrap_or(install_root).to_path_buf()
     }
 }
 

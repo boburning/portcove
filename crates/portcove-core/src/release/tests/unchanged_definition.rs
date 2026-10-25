@@ -177,6 +177,14 @@ async fn unchanged_managed_definitions_follow_versioned_packages_after_cache_exp
             "v0.6.1",
             "Sonic3KRecomp-windows-x64-v0.6.1.zip",
         ),
+        // v1.4.9 is a controlled successor to the inspected Windows package.
+        (
+            "road-rash-64-recompiled",
+            "v1.4.8",
+            "RoadRash64Recompiled-v1.4.8-Win64.zip",
+            "v1.4.9",
+            "RoadRash64Recompiled-v1.4.9-Win64.zip",
+        ),
         (
             "super-bomberman-recomp",
             "v0.1.1",
@@ -195,12 +203,14 @@ async fn unchanged_managed_definitions_follow_versioned_packages_after_cache_exp
                     &new_name
                         .replace("windows", "linux")
                         .replace("Windows", "Linux")
+                        .replace("Win64", "Linux64")
                         .replace("win64", "linux64"),
                     Some('c'),
                 ),
                 asset(
                     &new_name
                         .replace("x64", "arm64")
+                        .replace("Win64", "WinARM64")
                         .replace("win64", "win-arm64")
                         .replace(".windows.zip", ".windows-arm64.zip"),
                     Some('d'),
@@ -364,9 +374,11 @@ async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_
     for adapter in [
         AdapterKind::NativePortable,
         AdapterKind::StagedSourcePortable,
+        AdapterKind::N64RecompPortable,
     ] {
         let mut port = variant_port();
         port.adapter = adapter;
+        port.n64_runtime_at_executable_parent = adapter == AdapterKind::N64RecompPortable;
         let old = release(
             "v1.0.0",
             vec![asset("Game-hd-v1.0.0-windows-x64.zip", Some('a'))],
@@ -393,6 +405,11 @@ async fn successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_
             (
                 "source archive only",
                 vec![asset("Game-hd-source-v2.0.0-windows-x64.zip", Some('b'))],
+                crate::ErrorCode::NotFound,
+            ),
+            (
+                "wrong Windows bitness",
+                vec![asset("Game-hd-v2.0.0-windows-x86.zip", Some('b'))],
                 crate::ErrorCode::NotFound,
             ),
             (
@@ -479,6 +496,38 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
         4,
         "native archive restrictions must be evaluated again"
     );
+}
+
+#[tokio::test]
+async fn cached_package_selection_cannot_cross_n64_root_package_contracts() {
+    let mut port = variant_port();
+    port.adapter = AdapterKind::N64RecompPortable;
+    // Historical N64 hints were preferences. A definition opting in to strict
+    // executable-parent packages must not reuse that cached selection.
+    let current = release(
+        "v1.0.0",
+        vec![asset("Game-hd-v1.0.0-windows-x86.zip", Some('a'))],
+    );
+    let (api_root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(&[current.clone()]),
+        metadata(),
+        releases(&[current]),
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+    let historical = provider
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert!(historical.asset.name.ends_with("windows-x86.zip"));
+    port.n64_runtime_at_executable_parent = true;
+    let failure = provider
+        .resolve(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(failure.code, crate::ErrorCode::NotFound);
+    assert_eq!(requests.try_iter().count(), 4);
 }
 
 // Actual reviewed package names paired with controlled version-only successors.

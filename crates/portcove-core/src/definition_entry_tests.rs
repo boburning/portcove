@@ -31,6 +31,54 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn n64_executable_parent_requires_a_new_reader_and_nonconflicting_root() {
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|p| p.id == "road-rash-64-recompiled")
+        .unwrap();
+    port.n64_runtime_at_executable_parent = true;
+    if let Some(root) = port.runtime_subdirectory.take() {
+        let prefix = format!("{root}/");
+        port.persistent_paths = port
+            .persistent_paths
+            .iter()
+            .map(|p| p.strip_prefix(&prefix).unwrap().to_owned())
+            .collect();
+    }
+    port.portable_marker = true;
+    let catalog = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let mut entry = entry_for_port(catalog.port("road-rash-64-recompiled").unwrap());
+    for version in [1, 2, 3] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(4);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 4"));
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(4);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    for (field, value) in [
+        ("runtime_subdirectory", json!("old-version")),
+        ("launch_from_install_root", json!(true)),
+        ("user_data_environment", json!("EXTERNAL_DATA")),
+        ("adapter", json!("native-portable")),
+    ] {
+        let mut changed = serde_json::to_value(&document).unwrap();
+        let changed_port = changed["ports"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|port| port["id"] == "road-rash-64-recompiled")
+            .unwrap();
+        changed_port[field] = value;
+        assert!(
+            crate::Catalog::from_json(&changed.to_string()).is_err(),
+            "{field}"
+        );
+    }
+}
+
+#[test]
 fn native_manual_progress_requires_its_reader_and_owned_data_boundary() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("re-rac-rerac").unwrap();
@@ -387,6 +435,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             && port.runtime_subdirectory.is_some()
         {
             3
+        } else if port.n64_runtime_at_executable_parent {
+            4
         } else if port.n64_windows_initial_d3d12
             || port
                 .release
