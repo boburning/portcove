@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+    "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
+    "summary": "Upstream route: Windows N64Recomp package; own USA ROM Limits: Early0.1.0 prerelease; upstream says start-to-finish playable with rough edges. Upstream platforms: Windows10/11 x86-64 runtime ZIP. Linux is planned rather than an established player package. Original data: Own North American/USA Toy Story 2: Buzz Lightyear to the Rescue N64 dump. Upstream loads assets directly from .z64, .n64 or .v64, selected by the launcher or placed beside SpaceRanger.exe. Exact supported revision/digest is not specified in reviewed README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
+    "project_url": "https://github.com/Capridog/SpaceRanger",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Capridog/SpaceRanger",
+    "issue_number": 2618
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+    "origin": {
+      "project_url": "https://github.com/Capridog/SpaceRanger",
+      "repository": {
+        "host": "github.com",
+        "id": "1415549886"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "supermedo-uncharted-2",
+    "name": "Uncharted2: Among Thieves — PS4 remaster (Supermedo uncharted_pc)",
+    "summary": "Upstream route: Upstream runtime package for uncharted_pc; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Collectionacquisition is shared, while this recordtargets only Uncharted2: Among Thieves. Limits: Upstream only: Upstream says all three collection games run. Per-game complete campaign Unknown here; separate Supermedo implementation. Supermedo implementation distinct from bc160201983 row43. Split game targets1/2/3 while sharing package, supported title/version constraints retained. Upstream platforms: Windows 10/11, direct PS4 x86-64 CPU execution and Vulkan graphics. Other OS routes not established. Original data: Own decrypted PS4 NathanDrakeCollection dump containing Uncharted2: Among Thieves. Exact patch/revision and firmware-module requirements not stated in the reviewed primary summary remain Unknown. Separate game identity shares collection acquisition and implementation, without inherited gameplay qualification. Portcove setup/gameplay not verified.",
+    "original_game_title": "Uncharted2: Among Thieves",
+    "project_url": "https://github.com/Supermedo/uncharted_pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Supermedo/uncharted_pc",
+    "issue_number": 2817
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "supermedo-uncharted-2",
+    "origin": {
+      "project_url": "https://github.com/Supermedo/uncharted_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1419982962"
+      }
+    },
+    "decisions": []
+  }
+}

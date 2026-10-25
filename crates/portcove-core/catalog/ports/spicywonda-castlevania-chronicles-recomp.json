@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "spicywonda-castlevania-chronicles-recomp",
+    "name": "Castlevania Chronicles (Castlevania Chronicles Recomp)",
+    "summary": "Upstream route: Upstream ZIP/tar.gz includes launcher+runtime and bundled.NETruntime. SelectUSA disc thenPlay; first start prepares game code locally. Launcher0.3.10owns checks, backgrounddownload, deferred update/failed-start rollback. Not separate.NETSDKinstall forplayer. Limits: Upstream only: Normal0.3.10release; full-game compatibility still being tested. Boss/orb sound issue open. Update tests are not complete gameplay qualification. Windows/macOSARM64/Linux packages; launcher self-update owns runtime setup. Preserve revision and first-launch compile requirements; not other Castlevania editions. Upstream platforms: Windows x64, Linux x64, macOS AppleSilicon packages with bundled .NET runtime. Other CPU/OS routes not established. Original data: Own CastlevaniaChronicles PlayStation USA SLUS01384 CUE/BIN orCHD. Keep CUE and all referencedBIN tracks together. Exact mastering/hash and separate BIOS needs Unknown in this reviewed source; launch/setup route must retain those checks. Portcove setup/gameplay not verified.",
+    "original_game_title": "Castlevania Chronicles",
+    "project_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
+    "artwork": {
+      "game_id": 19468,
+      "cover_id": 352905,
+      "image_id": "co7kax",
+      "image_sha256": "c0ecbda38f7753d82e1270dc62a442c79f22a479c1d8a70f8cbdbe3a192ee4cc",
+      "game_slug": "castlevania-chronicles",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2854
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "spicywonda-castlevania-chronicles-recomp",
+    "origin": {
+      "project_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1380028681"
+      }
+    },
+    "decisions": []
+  }
+}

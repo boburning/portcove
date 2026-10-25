@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-darkness-xbox-360-2007-estacado",
+    "name": "The Darkness (Xbox 360, 2007) (Estacado)",
+    "summary": "Upstream route: Portable Windows x64 ZIP; TheDarknessSettings.exe imports owned disc or game folder Limits: Prerelease with limited maintainer hardware testing; whole-campaign completion is upstream claim only. Upstream platforms: Windows10/11 x86-64 portable ZIP, D3D12; upstream test coverage limited. Other desktop packages not established. Original data: Owned supported Xbox 360 release Portcove setup/gameplay not verified.",
+    "original_game_title": "The Darkness (Xbox 360, 2007)",
+    "project_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
+    "issue_number": 2615
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-darkness-xbox-360-2007-estacado",
+    "origin": {
+      "project_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1395477927"
+      }
+    },
+    "decisions": []
+  }
+}

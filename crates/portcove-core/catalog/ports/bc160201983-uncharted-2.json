@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bc160201983-uncharted-2",
+    "name": "Uncharted2: Among Thieves — PS4 remaster (bc160201983 Uncharted PC port)",
+    "summary": "Upstream route: Upstream runtime package for Uncharted: The Nathan Drake Collection - PC port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Collectionacquisition is shared, while this recordtargets only Uncharted2: Among Thieves. Limits: Upstream only: Upstream says the three collection games run. Per-game complete campaigns remain Unknown here; CPU execution is direct through a compatibility layer. x86-64 executes directly with PS4 library/Vulkan layer. Separate implementation from Supermedo row73; three independently catalogable games may need expansion, not title-only dedup. Upstream platforms: Windows PS4/Vulkan layer for CUSA02344 collection; direct x86-64 execution documented. Other OS routes not established. Original data: Own decrypted PS4 NathanDrakeCollection CUSA02344 dump containing Uncharted2: Among Thieves. Exact patch/revision and firmware-module requirements not stated in the reviewed primary summary remain Unknown. Separate game identity shares collection acquisition and implementation, without inherited gameplay qualification. Portcove setup/gameplay not verified.",
+    "original_game_title": "Uncharted2: Among Thieves",
+    "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
+    "issue_number": 2774
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bc160201983-uncharted-2",
+    "origin": {
+      "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
+      "repository": {
+        "host": "github.com",
+        "id": "1419850273"
+      }
+    },
+    "decisions": []
+  }
+}

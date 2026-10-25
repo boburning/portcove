@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-vkquake",
+    "name": "Quake (vkQuake)",
+    "summary": "Upstream route: Maintained Vulkan source port with recent Windows/Linux packages. Limits: Original data required; choose alongside other Quake implementations deliberately. Upstream platforms: Windows package, Linux AppImage/source routes and ARM64 Windows CI build configuration documented. Selected release package CPUs unknown in frozen evidence; Vulkan required. Original data: Original data required; choose alongside other Quake implementations deliberately. Portcove setup/gameplay not verified.",
+    "original_game_title": "Quake",
+    "project_url": "https://github.com/Novum/vkQuake",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Novum/vkQuake",
+    "issue_number": 2697
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "quake-vkquake",
+    "origin": {
+      "project_url": "https://github.com/Novum/vkQuake",
+      "repository": {
+        "host": "github.com",
+        "id": "63755042"
+      }
+    },
+    "decisions": []
+  }
+}

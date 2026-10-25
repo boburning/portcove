@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jazz-jackrabbit-2-jazz2-resurrection",
+    "name": "Jazz Jackrabbit 2 (Jazz² Resurrection)",
+    "summary": "Upstream route: Native C++ reimplementation with detailed desktop original-data setup. Limits: Supports several original editions; downloads use project site/release channel outside this code repo. Upstream platforms: Official project-site Windows/Linux/macOS downloads with original-data setup. Selected artifact CPU architectures unknown in frozen research. Original data: Supports several original editions; downloads use project site/release channel outside this code repo. Portcove setup/gameplay not verified.",
+    "original_game_title": "Jazz Jackrabbit 2",
+    "project_url": "https://github.com/deathkiller/jazz2-native",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/deathkiller/jazz2-native",
+    "artwork": {
+      "game_id": 764,
+      "cover_id": 461824,
+      "image_id": "co9wcg",
+      "image_sha256": "48bf49d7b1fce3b9254fda0b7e13ae7ba142602ca9dbef17425e9f55b8426fe3",
+      "game_slug": "jazz-jackrabbit-2",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2682
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jazz-jackrabbit-2-jazz2-resurrection",
+    "origin": {
+      "project_url": "https://github.com/deathkiller/jazz2-native",
+      "repository": {
+        "host": "github.com",
+        "id": "514256691"
+      }
+    },
+    "decisions": []
+  }
+}

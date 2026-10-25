@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "commander-keen-6-omnispeak",
+    "name": "Commander Keen 6 (Omnispeak)",
+    "summary": "Upstream route: Native reimplementation compatible with original saves; exact episode/version data contract documented. Limits: Use official homepage binaries rather than latest GitHub modding-preview package; separate episode identities. Keen4/5 need v1.4 EGA, Keen6 v1.4 or v1.5 EGA. Documented shareware route applies to Keen4 only; Keen6 has separate unavailable-retail acquisition caveat. Upstream platforms: Official v1.1 Windows x86 and x86-64 binaries, Linux x86/x86-64; later GitHub modding preview is a separate selection. Original data: Own Commander Keen6 v1.4 or v1.5 EGA data, with GAMEMAPS.CK6, EGAGRAPH.CK6, AUDIO.CK6 and corresponding version support data. Other revisions need compatible conversion; no supported new retail acquisition is established. Portcove setup/gameplay not verified.",
+    "original_game_title": "Commander Keen 6",
+    "project_url": "https://github.com/sulix/omnispeak",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sulix/omnispeak",
+    "artwork": {
+      "game_id": 2446,
+      "cover_id": 100805,
+      "image_id": "co25s5",
+      "image_sha256": "499adc30d2b42ce4851b58a757b3990836988ed246f334a1817dacd31fbd5cc9",
+      "game_slug": "commander-keen-in-aliens-ate-my-baby-sitter",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2650
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "commander-keen-6-omnispeak",
+    "origin": {
+      "project_url": "https://github.com/sulix/omnispeak",
+      "repository": {
+        "host": "github.com",
+        "id": "7305085"
+      }
+    },
+    "decisions": []
+  }
+}

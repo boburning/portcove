@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "djultra64-clayfighter64",
+    "name": "ClayFighter63andOneThird: ClayFighter64 fusion edition (djultra64 ClayFighter64)",
+    "summary": "Upstream route: Upstream runtime package for ClayFighter 64; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream fusion has16fighters/training and requires both ROMs. Uses63andOneThird rules with donor characters, not complete SculptorsCut behavior. Validation is bounded. Fusion of two editions; determine whether independently catalogable edition records or fused product; do not map generic ClayFighter64 title to only one game without requirements check. Upstream platforms: Windows10/11 x64 SSSE3/SSE4.1/Vulkan; Linux x86-64 glibc2.38+, GLIBCXX3.4.31, X11/XWayland/Python3.10+. Windows Python bundled. Original data: Both own USA ROMs required, normalized z64 SHA256: ClayFighter63andOneThird357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07; SculptorsCut9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f. z64/v64/n64 or single-ROMZIP accepted. One fusion edition uses63andOneThird gameplay plus donor characters; not a full alternate SculptorsCut recreation. No original BIOS requested. Portcove setup/gameplay not verified.",
+    "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
+    "project_url": "https://github.com/djultra64/ClayFighter64",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/djultra64/ClayFighter64",
+    "issue_number": 2830
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "djultra64-clayfighter64",
+    "origin": {
+      "project_url": "https://github.com/djultra64/ClayFighter64",
+      "repository": {
+        "host": "github.com",
+        "id": "1418345372"
+      }
+    },
+    "decisions": []
+  }
+}

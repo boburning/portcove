@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "half-life-xash3d-fwgs",
+    "name": "Half-Life (Xash3D FWGS)",
+    "summary": "Upstream route: Native cross-platform engine with current continuous binary packages. Limits: Original valve data and compatible HLSDK game library; separate game targets/mods only with evidence. Upstream platforms: Windows/Linux official continuous packages default to x86/32-bit on x86 hosts for Half-Life compatibility. x86/ARM and other platform source ports documented; CPU/game-library pairing matters. Original data: Original valve data and compatible HLSDK game library; separate game targets/mods only with evidence. Portcove setup/gameplay not verified.",
+    "original_game_title": "Half-Life",
+    "project_url": "https://github.com/FWGS/xash3d-fwgs",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/FWGS/xash3d-fwgs",
+    "issue_number": 2678
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "half-life-xash3d-fwgs",
+    "origin": {
+      "project_url": "https://github.com/FWGS/xash3d-fwgs",
+      "repository": {
+        "host": "github.com",
+        "id": "127814982"
+      }
+    },
+    "decisions": []
+  }
+}

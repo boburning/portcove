@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "overkilllabs3-sos-ps5",
+    "name": "God of War: Sons of Sparta (Sons Of Sparta PS5 Native)",
+    "summary": "Upstream route: Upstream runtime package for Sons Of Sparta PS5 Native; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream says SonsOfSparta runs. Other versions/regions/repacked dumps untested; no broader PS5 compatibility or complete-game qualification here. Windows through AnyPS5 with Vulkan1.3. Exact tested version only, no genericPS5 scope; source title/native naming not proof full-game compatibility. Upstream platforms: Windows10/11 x64 Vulkan1.3 AnyPS5 route. PPSA28997v01.008.001 only tested upstream; other hosts Unknown. Original data: PS5 GodOfWarSonsSparta PPSA28997 v01.008.001 own decrypted files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "God of War: Sons of Sparta",
+    "project_url": "https://github.com/OverkillLabs3/SoS-PS5",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OverkillLabs3/SoS-PS5",
+    "issue_number": 2848
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "overkilllabs3-sos-ps5",
+    "origin": {
+      "project_url": "https://github.com/OverkillLabs3/SoS-PS5",
+      "repository": {
+        "host": "github.com",
+        "id": "1405603947"
+      }
+    },
+    "decisions": []
+  }
+}

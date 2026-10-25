@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-emerald-gen1recomp",
+    "name": "Pokémon Emerald (Gen1Recomp / G1R Deluxe)",
+    "summary": "Research listing. Upstream route: Use upstream ROM import and player-prepared native runtime; game-specific integration remains research. Red #98 scope is separate. Limits: beta research; no inherited Red qualification or managed update/save ownership. Upstream platforms: The shared engine documents Windows x64, Linux x64, and macOS Intel/Apple Silicon host routes. Compatibility of current packages with this additional game remains research and is not inherited from the Red #98 qualification. Original data: Own canonical US English Emerald ROM; exact accepted revisions and SHA-1 are listed in current upstream README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Pokémon Emerald",
+    "project_url": "https://github.com/bryanthaboi/gen1recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+    "artwork": {
+      "game_id": 1517,
+      "cover_id": 92655,
+      "image_id": "co1zhr",
+      "image_sha256": "f044cb533d5abbe24cca261e4785ce37a957bb2507aeb1a6c0dc541005c73d51",
+      "game_slug": "pokemon-emerald-version",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2875
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-emerald-gen1recomp",
+    "origin": {
+      "project_url": "https://github.com/bryanthaboi/gen1recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1304486109"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "burnout-xbox-burnout-recompilation",
+    "name": "Burnout (Xbox) (Burnout Recompilation)",
+    "summary": "Upstream route: Upstream Windows launcher compiles from owned disc Limits: Version0.1.0 is explicitly early and incomplete; local compilation route exists. Upstream platforms: Windows10/11 x86-64 source/setup package; local Xbox game compilation. Early incomplete release. Original data: Own Burnout USA original Xbox disc as ISO. Upstream launcher extracts the data and compiles the game on the player computer. This is the 2001/2002 original Burnout Xbox edition, not Burnout 2/3; exact executable revision/hash is not specified in reviewed README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Burnout (Xbox)",
+    "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Heromachine/Burnout-Recompilation",
+    "issue_number": 2637
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "burnout-xbox-burnout-recompilation",
+    "origin": {
+      "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
+      "repository": {
+        "host": "github.com",
+        "id": "1419956393"
+      }
+    },
+    "decisions": []
+  }
+}

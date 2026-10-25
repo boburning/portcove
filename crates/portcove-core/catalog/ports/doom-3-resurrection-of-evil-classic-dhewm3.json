@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-3-resurrection-of-evil-classic-dhewm3",
+    "name": "Doom 3: Resurrection of Evil (classic) (dhewm3)",
+    "summary": "Upstream route: Established Doom 3 source port with Windows and Linux release assets. Limits: Established Doom 3 classic source port; BFG unsupported and game patch1.3.1 required upstream. Upstream platforms: Official Windows binaries are x86/32-bit per README; Windows x86-64 source build documented. Linux releases and Linux/macOS source builds documented; selected non-Windows archive CPU unknown. Original data: Own original classic Doom3 base/*.pk4 files and Resurrection of Evil d3xp/*.pk4 expansion files. Doom3 BFG Edition files are unsupported. Portcove setup/gameplay not verified.",
+    "original_game_title": "Doom 3: Resurrection of Evil (classic)",
+    "project_url": "https://github.com/dhewm/dhewm3",
+    "issue_number": 2568,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dhewm/dhewm3"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doom-3-resurrection-of-evil-classic-dhewm3",
+    "origin": {
+      "project_url": "https://github.com/dhewm/dhewm3",
+      "repository": {
+        "host": "github.com",
+        "id": "3179095"
+      }
+    },
+    "decisions": []
+  }
+}

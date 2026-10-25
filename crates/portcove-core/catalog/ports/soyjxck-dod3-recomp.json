@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "soyjxck-dod3-recomp",
+    "name": "Drakengard 3 (Drakengard 3 Recompiled)",
+    "summary": "Upstream route: Upstream runtime package for Drakengard 3 Recompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream PPU/SPU static translation and native-service claims. Full-game/end-to-end playability and hardware breadth not established here. Alpha Windows/macOSARM64; PPU/SPU statically translated, PS3 services replaced. Native heading not full playthrough proof; preserve toolchain/local generation requirements. Upstream platforms: Windows/macOS ARM64 alpha PS3 static port. Host renderer D3D12/Metal/Vulkan; other player OS routes Unknown. Original data: PS3 Drakengard3 BLUS31197 own game. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Drakengard 3",
+    "project_url": "https://github.com/soyjxck/dod3-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/soyjxck/dod3-recomp",
+    "artwork": {
+      "game_id": 8576,
+      "cover_id": 576595,
+      "image_id": "coccwj",
+      "image_sha256": "643e910a8a02433964237fe92fa48ad2fc34272f1dd6ba1601eaa0026c51c571",
+      "game_slug": "drakengard-3",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2842
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "soyjxck-dod3-recomp",
+    "origin": {
+      "project_url": "https://github.com/soyjxck/dod3-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1402608128"
+      }
+    },
+    "decisions": []
+  }
+}

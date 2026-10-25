@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "abilliontokens-bustinout-recomp",
+    "name": "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
+    "summary": "Upstream route: Upstream runtime package for The Sims: Bustin' Out - Static Recompilation; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports a playable Linux household. Gamepad and visible save/reload unproven; Hor+ experimental. Windows runtime status remains Unknown. Linux playable-household claim; README says Windows never compiled while release exposes win64 ZIP. Resolve that evidence mismatch before Windows route claims; physical gamepad/save-reload unproven. Upstream platforms: Native Linux Vulkan/SDL3; intended Windows D3D12/XAudio2. Windows ZIP conflicts with README saying Windows never compiled. Original data: Own originalXbox SimsBustinOut NorthAmerica disc; default.xbe3211264bytes, SHA1 6feea04a12fb134253abe2b5662da634d0048232. Other regions/revisions need separate analysis. Source/generated code is local; separate console BIOS requirement not stated. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Sims: Bustin' Out",
+    "project_url": "https://github.com/abilliontokens/bustinout-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/abilliontokens/bustinout-recomp",
+    "issue_number": 2745
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "abilliontokens-bustinout-recomp",
+    "origin": {
+      "project_url": "https://github.com/abilliontokens/bustinout-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1426267715"
+      }
+    },
+    "decisions": []
+  }
+}

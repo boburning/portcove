@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "abilliontokens-sims1-recomp",
+    "name": "The Sims — Original Xbox (The Sims - Static Recompilation)",
+    "summary": "Upstream route: Upstream runtime package for The Sims - Static Recompilation; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports live households, sound and a real Windows run. Fullscreen movie cropping and unanalysed Hor+ behavior remain. Distinct console game from Windows Sims edition. Upstream live household/Windows boot evidence; fullscreen movie cropping and unanalysed Hor+ path remain. Upstream platforms: Linux Vulkan/SDL3 and Windows D3D12/XAudio2 routes. Windows has local MSVC/LLVM and cross-build documentation. Original data: Original Xbox The Sims USA retail disc ISO/extracted default.xbe and data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Sims",
+    "project_url": "https://github.com/abilliontokens/sims1-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/abilliontokens/sims1-recomp",
+    "issue_number": 2733
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "abilliontokens-sims1-recomp",
+    "origin": {
+      "project_url": "https://github.com/abilliontokens/sims1-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427716017"
+      }
+    },
+    "decisions": []
+  }
+}

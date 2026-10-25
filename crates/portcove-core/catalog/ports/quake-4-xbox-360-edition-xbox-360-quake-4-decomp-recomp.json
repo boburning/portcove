@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp",
+    "name": "Quake 4 (Xbox 360 edition) (Xbox 360 Quake 4 decomp/recomp)",
+    "summary": "Upstream route: Windows setup EXE builds game from user's ISO/default.xex, not a prebuilt playable game binary. Limits: Only early levels tested upstream; later levels rough and audio lightly tested. Setup/build route is substantial. Upstream platforms: Windows setup EXE/local compiler route; selected host CPU unknown in frozen evidence. D3D11 native renderer variant and legacy executable remain distinct outputs. Original data: User-owned Xbox 360 Quake 4 ISO; code generated locally. Portcove setup/gameplay not verified.",
+    "original_game_title": "Quake 4 (Xbox 360 edition)",
+    "project_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
+    "artwork": {
+      "game_id": 356,
+      "cover_id": 77825,
+      "image_id": "co1o1t",
+      "image_sha256": "36a2169de892ca30d7d094c0612bbda1f0f80cc6ccb11a9b9e4ebbe2dc8b2615",
+      "game_slug": "quake-4",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2699
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp",
+    "origin": {
+      "project_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422658435"
+      }
+    },
+    "decisions": []
+  }
+}

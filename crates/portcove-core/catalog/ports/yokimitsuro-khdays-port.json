@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yokimitsuro-khdays-port",
+    "name": "Kingdom Hearts 358/2 Days (khdays-port)",
+    "summary": "Upstream route: Windowsupstreamsetup asks for EuropeanROM and prepares the native port; included updater fetches/checks newinstaller and restarts. Source-from-decompilation generation/build is documented separately. Installer owns runtime replacement; exact first-setup mechanism follows upstreamguide. Limits: Upstream only: Upstream features claimed; wireless between two PCs untried. European ROM required. Full campaign/platform qualification not established here. Desktop decompilation C native with no ARM interpreter; Windows setup builds locally. Wireless multiplayer implementation not tried between two PCs; port/game ownership distinct from KH Studio tooling. Upstream platforms: Windows installer and source build documented. Decompilation C executes without ARM interpreter; broader host coverage follows BUILD guide. Original data: Own KingdomHearts358/2Days NintendoDS European ROM, as required by Windows installer. Local setup compiles decompilation C; no DS ARM interpreter claimed. Exact accepted revision/hash and separate firmware requirements remain Unknown here. Portcove setup/gameplay not verified.",
+    "original_game_title": "Kingdom Hearts 358/2 Days",
+    "project_url": "https://github.com/Yokimitsuro/khdays-port",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Yokimitsuro/khdays-port",
+    "artwork": {
+      "game_id": 1223,
+      "cover_id": 142219,
+      "image_id": "co31qj",
+      "image_sha256": "a31b588913aad82af2a8252ac46dc8ef8cccd9f101a919506a3cf3c8ddced35b",
+      "game_slug": "kingdom-hearts-358-2-days",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2794
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "yokimitsuro-khdays-port",
+    "origin": {
+      "project_url": "https://github.com/Yokimitsuro/khdays-port",
+      "repository": {
+        "host": "github.com",
+        "id": "1298591675"
+      }
+    },
+    "decisions": []
+  }
+}

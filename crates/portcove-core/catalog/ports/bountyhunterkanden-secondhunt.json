@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bountyhunterkanden-secondhunt",
+    "name": "Metroid Prime Hunters (Second Hunt)",
+    "summary": "Upstream route: Upstream runtime package for Second Hunt; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims campaign completion/crossplay. Optional imported Metroid content has separate inputs; no independent campaign/device test here. SecondHunt fork of NoneGiven/MphRead, game-native engine; compare parent existing ownership before standalone issue. Windows/Android beta; original campaign/multiplayer claims attributed. Upstream platforms: Windows x64/Android ARM64 beta runtimes from MphRead C# recreation. Exact OS minimums beyond reviewed docs Unknown. Original data: Own MetroidPrimeHunters NintendoDS USA v1.0 orv1.1, gamecodeAMHE; other regions unsupported. Optional additional content requires own MetroidPrime1/2/3/Trilogy discs or Prime4Beyond Switch files/keys, but these are not required for base Hunters. Exact baseROM hashes/BIOS requirements remain Unknown here. Portcove setup/gameplay not verified.",
+    "original_game_title": "Metroid Prime Hunters",
+    "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/BountyHunterKanden/SecondHunt",
+    "artwork": {
+      "game_id": 1110,
+      "cover_id": 351569,
+      "image_id": "co7j9t",
+      "image_sha256": "88f320e3b09e0184754d87712cee5f28ca0020a1001de4678129db4694985a14",
+      "game_slug": "metroid-prime-hunters",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2845
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bountyhunterkanden-secondhunt",
+    "origin": {
+      "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
+      "repository": {
+        "host": "github.com",
+        "id": "1405318387"
+      }
+    },
+    "decisions": []
+  }
+}

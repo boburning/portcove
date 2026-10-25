@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diablo-devilutionx",
+    "name": "Diablo (DevilutionX)",
+    "summary": "Upstream route: Mature native port with desktop packages and explicit original-data setup. Limits: Established Diablo/Hellfire engine; separate game data and shareware limits apply. Portcove gameplay/lifecycle untested. Upstream platforms: Official desktop runtime packages for Windows/Linux/macOS. README documents Windows x86-64, Linux x86/x86-64/AArch64 and macOS x86-64 build jobs; selected package architectures require asset selection. Original data: Own Diablo DIABDAT.MPQ, or upstream-supported spawn.mpq for limited Diablo shareware play. Hellfire expansion files are not needed for base Diablo; full-game qualification is separate from shareware. Portcove setup/gameplay not verified.",
+    "original_game_title": "Diablo",
+    "project_url": "https://github.com/diasurgical/DevilutionX",
+    "issue_number": 2563,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/diasurgical/DevilutionX"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "diablo-devilutionx",
+    "origin": {
+      "project_url": "https://github.com/diasurgical/DevilutionX",
+      "repository": {
+        "host": "github.com",
+        "id": "143324737"
+      }
+    },
+    "decisions": []
+  }
+}

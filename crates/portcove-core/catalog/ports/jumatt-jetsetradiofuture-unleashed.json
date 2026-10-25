@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jumatt-jetsetradiofuture-unleashed",
+    "name": "Jet Set Radio Future (Jet Set Radio Future Unleashed)",
+    "summary": "Upstream route: Upstream runtime package for Jet Set Radio Future Unleashed; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Early playable, not start-to-finish played. Android boot/attract in emulator does not establish physical phone gameplay. Early playable, full playthrough not done. Android boots only emulator not physical phone; iOS user signing and platform package evidence separate. Upstream platforms: macOS ARM64, Windows/Linux x86-64, Android ARM64 and iOS. Android only emulator-tested; iOS user signing required. Original data: Original Xbox JetSetRadioFuture standalone USA NTSC-U disc; not SegaGT combo/Europe/Japan. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Jet Set Radio Future",
+    "project_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
+    "artwork": {
+      "game_id": 1570,
+      "cover_id": 382964,
+      "image_id": "co87hw",
+      "image_sha256": "374eb365f6d13c121330b7e11a392fc13b3792108ca314aac088e36ed40c3de7",
+      "game_slug": "jet-set-radio-future",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2820
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jumatt-jetsetradiofuture-unleashed",
+    "origin": {
+      "project_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
+      "repository": {
+        "host": "github.com",
+        "id": "1367650032"
+      }
+    },
+    "decisions": []
+  }
+}

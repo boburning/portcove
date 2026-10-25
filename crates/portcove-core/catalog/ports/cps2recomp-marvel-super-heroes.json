@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cps2recomp-marvel-super-heroes",
+    "name": "Marvel Super Heroes (CPS-2 Recomp)",
+    "summary": "Upstream route: UpstreamcollectionZIP/tar.gz includes cps2recomp-launcher plus per-game program. Choose own ROM set folder, thenPlay this game; launcher can update sharedruntime onlyaftergamesclose. Development make GAME build is separate. This target is Marvel Super Heroes (CPS2 Europe951024 msh). Limits: Upstream only: Beta. Upstream claims fighting-game endings and newer beat-em-up first stages in scripted play; few machines/controllers tested. Exact sets mandatory. Workbook Street Fighter Alpha 2 row is not entire engine scope. Expand only actually documented supported games to game+implementation records, sharing acquisition; no blanket whole-board-family admission. Upstream platforms: Windows 10/11 x64, Linux x86-64/SteamOS, macOS 13+ Apple Silicon/Intel. Shared launcher plus game-specific programs. Original data: Own arcade ROM set CPS2 Europe951024 msh. CPS2 sets require their game key file; parent ROM ZIP must be adjacent if shared files are split. Other region/revision sets refused. VampireSaviorDefinitive specifically requires both vsavjJapan970519 and vsav2Japan970913. No separate general consoleBIOS input specified. Portcove setup/gameplay not verified.",
+    "original_game_title": "Marvel Super Heroes",
+    "project_url": "https://github.com/tmcleroy/cps2recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tmcleroy/cps2recomp",
+    "artwork": {
+      "game_id": 27890,
+      "cover_id": 393313,
+      "image_id": "co8fhd",
+      "image_sha256": "d73248d9ec6f349745c21bb48b66c257fb1501a40637ec1f04c01f9cd576fb41",
+      "game_slug": "marvel-super-heroes",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2764
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "cps2recomp-marvel-super-heroes",
+    "origin": {
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417252543"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -5,6 +5,7 @@ import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { fixtureProjectDetails } from "./fixtures/roadmap-fixtures.mts";
 
 import { renderPortIssueBody } from "./roadmap.mts";
 import {
@@ -844,7 +845,8 @@ void test("live enrichment calls only bounded read commands and API errors do no
     projectNumber: 1,
     run(args, input) {
       calls.push({ args, ...(input !== undefined ? { input } : {}) });
-      if (args[0] === "project") return { id: "PVT" };
+      const project = fixtureProjectDetails(args, input, "PVT", 1);
+      if (project !== undefined) return project;
       if (args[0] === "api" && args[1] === "--include" && !input) return included([]);
       const page = {
         totalCount: 0,
@@ -870,21 +872,28 @@ void test("live enrichment calls only bounded read commands and API errors do no
       ["api", "graphql"],
       ["api", "graphql"],
       ["api", "graphql"],
-      ["project", "view"],
+      ["api", "--include"],
+      ["api", "graphql"],
       ["api", "graphql"],
     ],
   );
-  assert.ok(
+  assert.deepEqual(
     calls
       .filter(({ args }) => args[0] === "api" && args[1] === "--include" && args[2])
-      .every(({ args }) => fixtureElement(args, 2).includes("/issues?state=all")),
+      .map(({ args }) => fixtureElement(args, 2)),
+    ["users/boburning"],
   );
   for (const { input } of calls.filter((call) => call.input)) {
     const query = fixtureGraphql(input).query;
     assert.match(query, /^query(?: |\()/);
-    assert.match(query, /(?:issues\(first:(?:1|50)|items\(first: 50)/);
-    assert.match(query, /totalCount/);
     assert.doesNotMatch(query, /\bmutation\b/);
+    if (query.includes("projectV2(number: $number)")) {
+      assert.match(query, /projectV2\(number: \$number\) \{ id number/);
+      assert.deepEqual(fixtureGraphql(input).variables, { login: "boburning", number: 1 });
+    } else {
+      assert.match(query, /(?:issues\(first:(?:1|50)|items\(first: 50)/);
+      assert.match(query, /totalCount/);
+    }
   }
 
   const secret = "github_pat_secret_value_that_must_not_appear";
@@ -952,7 +961,8 @@ function paginatedLiveRunner(
   intercept: (call: PageCall) => void = () => {},
 ): ReadCommand {
   return (args, input) => {
-    if (args[0] === "project") return { id: "PVT" };
+    const project = fixtureProjectDetails(args, input, "PVT", 1);
+    if (project !== undefined) return project;
     const { query, variables } = fixtureGraphql(input);
     if (query.includes("RepositoryIssue")) {
       const marker = query.includes("RepositoryIssueMarker");

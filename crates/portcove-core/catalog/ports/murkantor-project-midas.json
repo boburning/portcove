@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "murkantor-project-midas",
+    "name": "GoldenEye 007 — Nintendo 64 (Project Midas)",
+    "summary": "Upstream route: Upstream runtime package for Project Midas; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream calls Project Midas a work-in-progress GoldenEye decompilation port. Full campaign scope and hardware qualification Unknown here. Project Midas decompilation-based WIP, distinct XBLA edition and independent N64 recompilation. Windows/Linux/Deck packages; preserve upstream limitations. Upstream platforms: Windows/Linux packages and Steam Deck archive. Exact CPU/OS minimums beyond package documentation Unknown. Original data: N64 GoldenEye USA own cartridge ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "GoldenEye 007",
+    "project_url": "https://github.com/murkantor/Project-Midas",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/murkantor/Project-Midas",
+    "issue_number": 2789
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "murkantor-project-midas",
+    "origin": {
+      "project_url": "https://github.com/murkantor/Project-Midas",
+      "repository": {
+        "host": "github.com",
+        "id": "1422126675"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ssx-3-xbox-pal-ssx3-recomp-bertibertig",
+    "name": "SSX 3 (Xbox, PAL) (SSX3-Recomp (bertibertig))",
+    "summary": "Upstream route: Linux packages; Windows route held Limits: Experimental Linux racing route; Windows crashes loading races and is explicitly unplayable; macOS not started. Upstream platforms: Linux x86-64 is primary package. Windows x86-64 preview crashes when racing and is explicitly unplayable; Wine/Proton-only testing is not native Windows evidence. macOS not started. Original data: Own SSX 3 PAL/EU original Xbox build 2003-09-19, title 4541003C, supporting English/French/German/Spanish. Installer accepts full ISO, trimmed XISO or extracted tree into game_files/. XBE SHA-1: ba876cc11ad38650eac9831b1c7f8c4dbf7c5ba9 original, or 409141774025fce02ab4743d1e669d35bb1d190e for its documented region/media-free patched form. Portcove setup/gameplay not verified.",
+    "original_game_title": "SSX 3 (Xbox, PAL)",
+    "project_url": "https://github.com/bertibertig/SSX3-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bertibertig/SSX3-Recomp",
+    "issue_number": 2712
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ssx-3-xbox-pal-ssx3-recomp-bertibertig",
+    "origin": {
+      "project_url": "https://github.com/bertibertig/SSX3-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1424159596"
+      }
+    },
+    "decisions": []
+  }
+}

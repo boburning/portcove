@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "abilliontokens-urbz-recomp",
+    "name": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
+    "summary": "Upstream route: Upstream runtime package for Urbz recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream port/features available. Full-game completion Unknown here; sibling titles using the SDK do not transfer evidence. WindowsD3D12/LinuxVulkan1.3 x64 packages; distinct from DS/GBA Urbz. Full-game completion not inferred from common SDK. Upstream platforms: Windows 10/11 x64 D3D12 and Linux x86-64 Vulkan1.3; original Xbox edition, not DS/GBA. Original data: Original Xbox Urbz SimsInCity USA own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Urbz: Sims in the City",
+    "project_url": "https://github.com/abilliontokens/urbz-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/abilliontokens/urbz-recomp",
+    "issue_number": 2813
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "abilliontokens-urbz-recomp",
+    "origin": {
+      "project_url": "https://github.com/abilliontokens/urbz-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1418727437"
+      }
+    },
+    "decisions": []
+  }
+}
