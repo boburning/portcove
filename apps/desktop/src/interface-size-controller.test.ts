@@ -134,3 +134,51 @@ it("still applies queued reset after a failed in-flight enlargement", async () =
     error: undefined,
   });
 });
+
+it("keeps detached subscriptions bound and stops notifications after unsubscribe", async () => {
+  const controller = new InterfaceSizeController(
+    async () => {},
+    () => ({
+      getItem: () => null,
+      setItem: vi.fn(),
+    }),
+  );
+  const snapshots: ReturnType<typeof controller.getSnapshot>[] = [];
+  const listener = vi.fn(() => snapshots.push(controller.getSnapshot()));
+  const subscribe = controller.subscribe;
+  const unsubscribe = subscribe(listener);
+  controller.request(125);
+  await vi.waitFor(() => expect(controller.getSnapshot().pending).toBe(false));
+  expect(snapshots[0]).toMatchObject({ applied: 100, requested: 125, pending: true });
+  expect(snapshots.at(-1)).toMatchObject({ applied: 125, requested: 125, pending: false });
+  unsubscribe();
+  const notifications = listener.mock.calls.length;
+  controller.request(150);
+  await vi.waitFor(() => expect(controller.getSnapshot().applied).toBe(150));
+  expect(listener).toHaveBeenCalledTimes(notifications);
+});
+
+it("keeps detached error dismissal bound without retrying zoom or rewriting the preference", async () => {
+  const apply = vi
+    .fn()
+    .mockResolvedValueOnce(undefined)
+    .mockRejectedValueOnce(new Error("native failure"));
+  const setItem = vi.fn();
+  const controller = new InterfaceSizeController(apply, () => ({ getItem: () => null, setItem }));
+  controller.request(150);
+  await vi.waitFor(() => expect(controller.getSnapshot().pending).toBe(false));
+  controller.request(400);
+  await vi.waitFor(() => expect(controller.getSnapshot().pending).toBe(false));
+  const failed = controller.getSnapshot();
+  expect(failed.error).toContain("could not be confirmed");
+  expect(failed.applied).toBe(150);
+  const listener = vi.fn();
+  const unsubscribe = controller.subscribe(listener);
+  const dismissError = controller.dismissError;
+  dismissError();
+  expect(controller.getSnapshot()).toEqual({ ...failed, error: undefined });
+  expect(listener).toHaveBeenCalled();
+  expect(apply.mock.calls).toEqual([[1.5], [4]]);
+  expect(setItem.mock.calls).toEqual([[INTERFACE_SIZE_KEY, "150"]]);
+  unsubscribe();
+});

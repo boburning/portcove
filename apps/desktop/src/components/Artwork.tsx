@@ -105,7 +105,7 @@ export function ArtworkFrame({
   );
 }
 
-export function DetailArtwork({ port }: { port: Pick<PortDefinition, "id"> }) {
+function DetailArtwork({ port }: { port: Pick<PortDefinition, "id"> }) {
   const { display } = useArtwork(port.id, "detail");
   if (!display.state?.selection) return null;
   return (
