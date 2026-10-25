@@ -965,6 +965,10 @@ recorded supervisor has exited. The CLI delegates to the same core recovery used
 by Desktop startup: live supervisors, spawning ambiguity, missing process-start
 identity and changed installs still fail closed, while a recoverable request waits
 only its exact child identity, collects from its exact install and finishes failed.
+After child exit is verified, recovery persists `Collecting` before copying saves.
+A failed copy retains that phase for retry, including sessions whose child exited
+before its process-start identity could be recorded. Ambiguous running sessions
+still require manual review.
 No daemon, adapter job store or machine output inside raw game streams is added.
 
 API schema 50 exposes core's independent operation-event schema version in the
