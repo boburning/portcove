@@ -9,6 +9,7 @@ import {
   admitProductionProtectionObserver,
   admitProductionClassificationObserver,
   readProductionControllerWorkflowBytes,
+  isSharedApplicationProtectionObserverSource,
 } from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
@@ -40,7 +41,10 @@ import {
   checkCoordinatorDeadline,
   withCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
-import { currentClassificationJobDeadline } from "./release-signing-job-budget.mts";
+import {
+  currentClassificationJobDeadline,
+  currentSharedProtectionJobDeadline,
+} from "./release-signing-job-budget.mts";
 import {
   requireProductionClassificationWriterAuthorities,
   requireProductionClassificationObserverAuthorities,
@@ -90,15 +94,24 @@ export async function retainProtectionObservationOutputs(
   requireFresh();
 }
 
-async function runOperation(classification?: {
-  namespace: string;
-  producer: ReturnType<typeof inspectApplicationReviewProducerConfiguration>;
-  selected?: Awaited<ReturnType<typeof requireSelectedProductionClassificationAuthorities>>;
-  environment: NodeJS.ProcessEnv;
-  deadline: number;
-  observerSource?: ReturnType<typeof admitProductionClassificationObserver>;
-}) {
-  const environment = classification?.environment ?? { ...process.env };
+async function runOperation(
+  classification?: {
+    namespace: string;
+    producer: ReturnType<typeof inspectApplicationReviewProducerConfiguration>;
+    selected?: Awaited<ReturnType<typeof requireSelectedProductionClassificationAuthorities>>;
+    environment: NodeJS.ProcessEnv;
+    deadline: number;
+    observerSource?: ReturnType<typeof admitProductionClassificationObserver>;
+  },
+  sharedObserver?: {
+    environment: NodeJS.ProcessEnv;
+    deadline: number;
+    source: ReturnType<typeof admitProductionProtectionObserver>;
+  },
+) {
+  const environment = classification?.environment ??
+    sharedObserver?.environment ?? { ...process.env };
+  const originalDeadline = classification?.deadline ?? sharedObserver?.deadline;
   const mode = process.argv[2];
   if (
     (process.argv.length !== 3 &&
@@ -176,7 +189,8 @@ async function runOperation(classification?: {
   );
   const phaseProfile = releaseControlPhaseProfile(phase);
   const observerSource = productionObservation
-    ? (catalogPurpose
+    ? (sharedObserver?.source ??
+      (catalogPurpose
         ? admitProductionCatalogProtectionObserver
         : admitProductionProtectionObserver)(
         catalogPurpose
@@ -185,7 +199,7 @@ async function runOperation(classification?: {
         environment,
         await readProductionControllerWorkflowBytes(),
         phase,
-      )
+      ))
     : classification?.observerSource;
   const observing = mode === "observe" || productionObservation || classificationObserver;
   const persisting =
@@ -353,7 +367,7 @@ async function runOperation(classification?: {
         expected.audience,
         environment,
         fetch,
-        classification?.deadline,
+        originalDeadline,
       );
       const verify = classificationObserver
         ? verifyProductionClassificationObserverJobIdentity
@@ -370,10 +384,11 @@ async function runOperation(classification?: {
         {
           transport: {
             cwd: process.cwd(),
-            ...(classification ? { deadline: classification.deadline } : {}),
+            ...(originalDeadline === undefined ? {} : { deadline: originalDeadline }),
           },
         },
         phase,
+        productionObservation ? observerSource : undefined,
       );
       if (observing) {
         observerIdentity = identity;
@@ -632,7 +647,39 @@ async function main() {
           mode === "observe-production-classification"
         ? "observer"
         : null;
-  if (!role) return runOperation();
+  if (!role) {
+    const environment = { ...process.env };
+    if (
+      environment.GITHUB_JOB === "protection_observation" &&
+      mode?.startsWith("observe-production")
+    ) {
+      const phase = inspectReleaseControlPhase(
+        mode === "observe-production" ? "admission" : mode.slice("observe-production-".length),
+      );
+      const source = admitProductionProtectionObserver(
+        environment.PORTCOVE_CONTROLLER_ADMISSION,
+        environment,
+        await readProductionControllerWorkflowBytes(),
+        phase,
+      );
+      if (isSharedApplicationProtectionObserverSource(source)) {
+        const deadline = currentSharedProtectionJobDeadline(
+          {
+            run_id: String(source.run_id),
+            run_attempt: 1,
+            controller_revision: source.revision,
+            controller_ref: source.execution_ref,
+          },
+          process.cwd(),
+          performance.now() + 570000,
+        );
+        return withCoordinatorDeadline(deadline, () =>
+          runOperation(undefined, { environment, deadline, source }),
+        );
+      }
+    }
+    return runOperation();
+  }
   if (process.argv.length !== 3) throw new Error("fixed classification operation required");
   const { inspectApplicationReviewProducerConfiguration } =
     await import("./release-control-inputs.mts");

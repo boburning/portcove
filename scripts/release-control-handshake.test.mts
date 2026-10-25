@@ -18,6 +18,7 @@ import {
 } from "./fixtures/release-live-control-fixture.mts";
 import { authenticateReleaseControlSource } from "./release-live-control-admission.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import { applicationProtectionObserver } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -119,6 +120,34 @@ async function fixture(
     collect: () => waitForControlArtifact(root, role, input, options),
   };
 }
+
+void test("legacy phase inventory keeps its own producer when the admission/shared name also exists", async (t) => {
+  const f = await fixture(t, "observation", "payload");
+  const request = f.options.api.request;
+  f.options.api.request = (method, endpoint) => {
+    const result = request(method, endpoint);
+    if (endpoint.includes("/jobs?"))
+      return {
+        ...result,
+        body: {
+          total_count: 2,
+          jobs: [
+            structuredClone(f.job),
+            {
+              ...f.job,
+              id: 999,
+              name: applicationProtectionObserver.name,
+              check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/999",
+            },
+          ],
+        },
+      };
+    return result;
+  };
+  const proof = await f.collect();
+  assert.equal(proof.job.id, f.job.id);
+  assert.equal(proof.job.name, releaseControlPhaseProfile("payload").observer_name);
+});
 
 void test("the caller's monotonic phase deadline survives handshake pagination and refuses before another read", async (t) => {
   const f = await fixture(t);

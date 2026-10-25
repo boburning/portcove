@@ -19,6 +19,24 @@ export type CatalogControlPhase =
   | "catalog-snapshot"
   | "catalog-timestamp";
 export type TufSigningRole = "releases" | "preview" | "stable" | "snapshot" | "timestamp";
+/** One isolated GET-only job; phase audiences, readiness and freshness stay separate. */
+export const applicationProtectionObserver = Object.freeze({
+  job: "protection_observation",
+  name: "Observe production release input protections",
+  source_marker: "# portcove-shared-application-observer-v1",
+});
+export function isSharedApplicationObserverPhase(phase: unknown) {
+  return (
+    phase === "admission" ||
+    phase === "payload" ||
+    phase === "release-publication" ||
+    phase === "tuf-releases" ||
+    phase === "tuf-preview" ||
+    phase === "tuf-stable" ||
+    phase === "tuf-snapshot" ||
+    phase === "tuf-timestamp"
+  );
+}
 /** Routing data only. Each selected purpose still requires its named admission. */
 export function inspectControllerExecutionPurpose(raw: unknown = "application") {
   if (raw !== "application" && raw !== "catalog-publication")
@@ -141,6 +159,16 @@ export function inspectReleaseControlPhase(raw: unknown = "admission"): ReleaseC
   )
     throw new Error("only fixed admitted control phases are supported");
   return raw;
+}
+
+/** Legacy name first: a historical multi-job inventory must never select its
+ * admission observer as a different phase's producer. No caller-selected names. */
+export function protectionObserverJobNames(raw: unknown): readonly string[] {
+  const phase = inspectReleaseControlPhase(raw);
+  const legacy = releaseControlPhaseProfile(phase).observer_name;
+  return isSharedApplicationObserverPhase(phase) && legacy !== applicationProtectionObserver.name
+    ? [legacy, applicationProtectionObserver.name]
+    : [legacy];
 }
 export function isMaintenanceReleaseControlPhase(
   raw: unknown,
