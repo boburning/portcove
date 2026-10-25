@@ -1,4 +1,4 @@
-# Opt-in measured JavaScript coverage
+# Opt-in measured coverage
 
 Coverage is an investigation of explicitly selected modules. It is separate from
 ordinary checks, and adds no percentage gate. Use the repository-pinned Node and
@@ -70,3 +70,70 @@ The implementation follows the pinned runtime and SDK, with the
 and [Vitest coverage guide](https://vitest.dev/guide/coverage.html) as upstream
 references. Coverage from Node/V8 or Chromium does not establish support for
 Firefox, another JavaScript engine, Rust paths or installed native operations.
+
+## Rust path branch investigation
+
+`just rust-coverage` investigates the Windows x64 Core path module with its existing
+`path::` library tests, default package features and two test threads. It uses
+the optional `cargo-llvm-cov` pin in `.github/quality-tools.json` and the dated
+nightly compiler/LLVM identities in `.config/rust-coverage.json`. The normal Rust
+toolchain stays separate. Branch instrumentation is experimental and does not
+establish complete path coverage or uninstrumented behavior/performance.
+
+Provision the optional tool through the existing deep-tool setup, and install the
+specific toolchain named in the preset with the minimal profile and
+`llvm-tools-preview`, using `rustup toolchain install <preset-toolchain> --profile
+minimal --component llvm-tools-preview --no-self-update`. Provision ordinary Cargo
+dependencies first. The recipe verifies tool/compiler/component versions and runs
+Cargo offline and locked; it downloads nothing. Other targets, Desktop/Tauri,
+packages and filesystem/operation paths outside the selected tests remain
+unqualified by this preset.
+
+Each call requires clean committed source and creates a fresh
+`work/rust-coverage/<uuid>/` packet. `request.json` records the Git head/tree,
+copied source/manifest/executor hashes, exact commands, requested feature selection,
+platform and compiler/LLVM/tool identities. Discovery must be nonempty and its
+case names reconcile with original libtest terminal outcomes. `coverage.json`
+retains the LLVM export; `receipt.json` binds its hash and the selected module's
+actual branch/line/function/region counts. The module report includes embedded
+test code and is not a whole-Core production score. Inspect uncovered regions
+against the copied source before choosing missing behavior tests.
+
+Compilation, discovery, tests and reporting retain raw output and finite resource
+admission/supervision. Failed tests preserve their original nonzero status even
+when report generation succeeds; incomplete outcomes, source drift, redirected
+packets or missing branch measurements refuse completeness. No retry or percentage
+gate is added. The fresh instrumented build directory isolates ordinary artifacts.
+The supervisor retains the ordinary Cargo target/cache. Cargo-llvm-cov uses a
+fresh `rcov-*` child of that existing target through `CARGO_LLVM_COV_TARGET_DIR`;
+the request records its path and physical directory identity is checked alongside
+the packet. Keep `CARGO_TARGET_DIR` short: the generated coverage root must be at
+most 64 characters for Windows linker paths. Failed builds remain retained there.
+The second invocation reuses only this packet's instrumented build; raw counters
+include its recorded discovery and test invocations. Stage wall times include
+queueing/setup and are not test execution or performance measurements.
+Coverage uses Cargo's instrumentation flags directly (`--no-rustc-wrapper`).
+The retained default-wrapper native attempt compiled and passed its three tests,
+but its Core executable had no coverage-mapping sections and LLVM export failed.
+That attempt remains failed; successful test execution is not coverage evidence.
+Direct flags also instrument applicable dependencies; the reported scope remains
+the selected Core path module. The cold build/discovery permits 45 minutes,
+allowing finite headroom over that attempt's 15m54s compilation; warm tests and export
+permit five minutes each, with a separate 15-minute admission bound per stage.
+
+The first measured Windows run on source `dbdf7c5842a5908b5bf03b96e7aec3ff8613e6aa`
+passed its three selected tests and covered 2 of 22 reported branch outcomes.
+Inspecting those uncovered locations led to two bounded-reader tests for exact
+limits, empty files, oversize refusal, nonregular inputs and missing files.
+Source `835de32e66bb02555b73aabf75a82ed7a2b5560a` passed all five selected tests
+and covered 8 of the same 22 branch outcomes, with 33/98 lines, 4/12 functions
+and 49/160 regions covered. Production `path.rs` remained byte-identical.
+These are bounded module observations; symlink, path-resolution and read-race
+branches remain unmeasured or uncovered by this selection.
+
+The retained packet identities are `f78ae947-2187-498e-b966-26a7021adb87` and
+`68750e15-fc9b-42a3-8eb0-a536553e66d9`, respectively. Their LLVM export SHA-256s
+are `48adba498eda844c57dd25310362ec4f6f8e6ab9c03d878390e38b8263309e8e` and
+`92dedf3b15bcdf2eb595b29740e5f89643102288c7a84e2555f3a8f59eaf024c`.
+The receipts retain the original source identities, complete outcomes, counters
+and copied inputs. These instrumented runs establish no execution-time gain.

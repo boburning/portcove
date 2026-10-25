@@ -493,6 +493,14 @@
       ]
     },
     {
+      "file": "scripts/rust-coverage.test.mts",
+      "memberships": [
+        ["windows-storage-3", 108],
+        ["catalog-full-2", 4508],
+        ["repository-tools-2", 108]
+      ]
+    },
+    {
       "file": "scripts/cleanup-intel-artifacts.test.mts",
       "memberships": [
         ["catalog-full-2", 7900],
