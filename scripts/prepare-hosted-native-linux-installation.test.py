@@ -63,6 +63,58 @@ class Installation(unittest.TestCase):
 
 @unittest.skipUnless(sys.platform == "linux", "actual Linux file/link custody contracts")
 class DependencyGraph(unittest.TestCase):
+    def test_frozen_install_controls_and_partial_refusal_retention(self):
+        for refused in (False, True):
+            with self.subTest(refused=refused), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                source = root / "native-source"
+                (source / "apps/desktop").mkdir(parents=True)
+                (source / "package.json").write_text('{"packageManager":"pnpm@12.14.0"}')
+                (source / "apps/desktop/package.json").write_text('{}')
+                workspace = b"packages: [apps/desktop]\n"
+                (source / "pnpm-workspace.yaml").write_bytes(workspace)
+                executable = root / "pnpm"
+                executable.write_bytes(b"inert executable fixture")
+                settings = {"pnpm": {"path": str(executable), "bytes": executable.stat().st_size,
+                            "sha256": hashlib.sha256(executable.read_bytes()).hexdigest()},
+                            "workspace_sha256": hashlib.sha256(workspace).hexdigest(), "patches": []}
+                calls = []
+                def invoke(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536,
+                           environment=None, calls=calls, source=source, refused=refused):
+                    check()
+                    calls.append((arguments, environment, maximum_file_bytes))
+                    if "--version" in arguments:
+                        return "12.14.0"
+                    (source / "node_modules").mkdir()
+                    (source / "apps/desktop/node_modules").mkdir()
+                    if refused:
+                        raise RuntimeError("provider refusal after partial progress")
+                    return ""
+                with patch.object(installation, "WORKSPACE", root), patch.object(installation, "fence"), \
+                        patch.object(installation.os, "getuid", return_value=1001), \
+                        patch.object(installation, "verify_installed_source"), \
+                        patch.object(installation, "inspect_plan"), \
+                        patch.object(installation, "command", side_effect=invoke):
+                    if refused:
+                        with self.assertRaisesRegex(RuntimeError, "partial progress"):
+                            installation.prepare_source_dependencies(plan(), settings)
+                    else:
+                        self.assertTrue(installation.prepare_source_dependencies(plan(), settings)["dependencies_prepared"])
+                    with self.assertRaisesRegex(RuntimeError, "retained dependency"):
+                        installation.prepare_source_dependencies(plan(), settings)
+                self.assertTrue((root / "native-dependency-home/intent.json").is_file())
+                self.assertTrue((source / "node_modules").is_dir())
+                self.assertEqual(len(calls), 2)
+                args, environment, maximum = calls[1]
+                for flag in ("--frozen-lockfile", "--ignore-scripts", "--ignore-pnpmfile", "--pm-on-fail=error",
+                             "--runtime-on-fail=error", "--package-import-method=copy", "--config.fetch-retries=0",
+                             "--config.enable-global-virtual-store=false"):
+                    self.assertIn(flag, args)
+                self.assertEqual(maximum, 128 * 1024 ** 2)
+                self.assertEqual(environment["HOME"], str(root / "native-dependency-home"))
+                self.assertEqual(environment["COREPACK_ENABLE_NETWORK"], "0")
+                self.assertFalse(any("TOKEN" in key or "AUTH" in key for key in environment))
+
     def test_public_acquisition_exact_inputs_and_changed_input_refusals(self):
         original_command = installation.command
         for alteration in (None, "source_tree", "harness_sha256"):

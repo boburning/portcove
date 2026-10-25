@@ -1,0 +1,461 @@
+{
+  "format_version": 1,
+  "generated_at": "2026-10-25T04:45:25.189160+00:00",
+  "source_preservation_commit": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "before_snapshot_source": "b30ea95c17e32cf8b8b6b7840309928b9984090f",
+  "scope": "15 richer existing PSX integrations; Core declaration and fresh selected-release metadata only. No new upstream artifact or gameplay qualification.",
+  "ports": 15,
+  "platform_scopes": 21,
+  "errors": [],
+  "entries": [
+    {
+      "id": "alexbeav-ace-combat-3-electrosphere-recomp",
+      "canonical_issue": 427,
+      "candidate_record_sha256": "8ab720e9965385e7c28312abb55c1e77cb74da438cab098dfa45c6b18885f649",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-ace-combat-3-electrosphere-recomp\\completion-bdd456de732b5b294670635bf989275c6bcd120aa216d486d64fe0317c47708f.json",
+      "report_sha256": "bdd456de732b5b294670635bf989275c6bcd120aa216d486d64fe0317c47708f",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-ace-combat-3-electrosphere-recomp\\upstream-aa5d8d15d944cc0ec2b982994add43c971fefbdc1775dd20c824e63cfc11597c.json",
+      "upstream_receipt_sha256": "aa5d8d15d944cc0ec2b982994add43c971fefbdc1775dd20c824e63cfc11597c",
+      "validation_input_sha256": "cdb2fd7079fe75165a07ae43587bbd5b57b47f773e050b255f1aae983bb75fd0",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544443851,
+          "name": "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+          "size": 30152495,
+          "publisher_sha256": "602843385f5d1e74560e39f7f4741ab8bcd1380711316e1cac80cf69f6a127d9",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544443633,
+          "name": "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+          "size": 28046377,
+          "publisher_sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "1c0c156fca1dd8ea8978efe3c66b5f3667760efa"
+    },
+    {
+      "id": "alexbeav-alien-resurrection-recomp",
+      "canonical_issue": 428,
+      "candidate_record_sha256": "d949adf782ae960b18cbd2e549a8d85ae13576c363400918441a8fad5e27763f",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-alien-resurrection-recomp\\completion-3ea8d1b753780a3c70004e1b3dc9bd7079a4d84584cf0b24d1ff43a7619050ae.json",
+      "report_sha256": "3ea8d1b753780a3c70004e1b3dc9bd7079a4d84584cf0b24d1ff43a7619050ae",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-alien-resurrection-recomp\\upstream-be6a19cbe0deff0b4c5a8881424f9f478affa44724358f571d2dece78dd53c47.json",
+      "upstream_receipt_sha256": "be6a19cbe0deff0b4c5a8881424f9f478affa44724358f571d2dece78dd53c47",
+      "validation_input_sha256": "cc2bffa445145b44a4f7ed6a8cc889e7f2aaa1b35cdec4fe1dac154d38457fe2",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.4",
+          "asset_id": 605929045,
+          "name": "alien-resurrection-recomp-0.1.4-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip",
+          "size": 29907400,
+          "publisher_sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.1.4",
+          "asset_id": 605929047,
+          "name": "alien-resurrection-recomp-0.1.4-linux-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
+          "size": 27800828,
+          "publisher_sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c"
+    },
+    {
+      "id": "alexbeav-alundra-recomp",
+      "canonical_issue": 425,
+      "candidate_record_sha256": "fe9bf37a12152eef76dcc67901f340bebb2da94db039e34ebfe4aa601b4b3927",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-alundra-recomp\\completion-ceed4a94da998d547cc31fd54cc64724c2668c21b8854f7fe2f4df049e921898.json",
+      "report_sha256": "ceed4a94da998d547cc31fd54cc64724c2668c21b8854f7fe2f4df049e921898",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-alundra-recomp\\upstream-ac3d84c45c3e46e23c6de01a3b65b86687615026dd0eb7b0497c27dd8dc7fd37.json",
+      "upstream_receipt_sha256": "ac3d84c45c3e46e23c6de01a3b65b86687615026dd0eb7b0497c27dd8dc7fd37",
+      "validation_input_sha256": "90b32e86e2b5d67896195d379783f6e5865d3d4c4355c6dd3bbb81f67c002f69",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544444294,
+          "name": "Alundra-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
+          "size": 30152761,
+          "publisher_sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "afb9151fd48ae90ca5979dcd4ad53ee1c0f16329"
+    },
+    {
+      "id": "alexbeav-ape-escape-recomp",
+      "canonical_issue": 424,
+      "candidate_record_sha256": "d8c15c1867f000138a76dfe5ab56f417b6708855812c40df3580a0dbb7a4c9d8",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-ape-escape-recomp\\completion-a8125cafbabcd7988dc63217b49b589bee8f7bcc9db9679d7e6a15319cb1723e.json",
+      "report_sha256": "a8125cafbabcd7988dc63217b49b589bee8f7bcc9db9679d7e6a15319cb1723e",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-ape-escape-recomp\\upstream-90e8b9c4ad5fb68df0642fb37524621061baeee85a6bc2c961543eb743290564.json",
+      "upstream_receipt_sha256": "90e8b9c4ad5fb68df0642fb37524621061baeee85a6bc2c961543eb743290564",
+      "validation_input_sha256": "fcc66cbdfe4e0e3d475a811ec8924680d8cea1505653fa11cf4d77559482a22a",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544444303,
+          "name": "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+          "size": 30155637,
+          "publisher_sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "53687196c5d93f3a77f89893e0a3f56b9d726a0e"
+    },
+    {
+      "id": "alexbeav-armored-core-recomp",
+      "canonical_issue": 431,
+      "candidate_record_sha256": "24f7a91b4246722d0653ea3d5765f56838c1af7aeb07543a837875ed2ad92975",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-armored-core-recomp\\completion-a0dbcc4e394ed9c896766739e4c8a7456d730618229d3f96c94a197bc7db16c8.json",
+      "report_sha256": "a0dbcc4e394ed9c896766739e4c8a7456d730618229d3f96c94a197bc7db16c8",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-armored-core-recomp\\upstream-fb7b9bfd7b7a61a812bf6a745d1e0472cd89d133d33b026c51e20d2f0b696814.json",
+      "upstream_receipt_sha256": "fb7b9bfd7b7a61a812bf6a745d1e0472cd89d133d33b026c51e20d2f0b696814",
+      "validation_input_sha256": "9f6d93dfe5c0f15853ec273318f672ba2bc0e04908e0b574eebde93252ca29ae",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544444321,
+          "name": "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+          "size": 30152526,
+          "publisher_sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "80060c45a009ed8963e83fbb742eb3ef956cc9fc"
+    },
+    {
+      "id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "canonical_issue": 434,
+      "candidate_record_sha256": "6bbb2fe5f9a7ced4375e3f8efa487e8cf7a435d9e26a5f030cbdf0db1a6917f4",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-blood-omen-legacy-of-kain-recomp\\completion-6d98e48b39db9ee7b72612e4c9a6606a11b645703d46ce9cd1cfd757816d4652.json",
+      "report_sha256": "6d98e48b39db9ee7b72612e4c9a6606a11b645703d46ce9cd1cfd757816d4652",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-blood-omen-legacy-of-kain-recomp\\upstream-551242eaebd1ec2e2503997f5a8d65b5340d38cbe729e1fbfbea7a75007df12b.json",
+      "upstream_receipt_sha256": "551242eaebd1ec2e2503997f5a8d65b5340d38cbe729e1fbfbea7a75007df12b",
+      "validation_input_sha256": "a78a61a254d4ace8de4e9ac114f9fc1182b6790e4cde1a82112c7dc534f703cf",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544444399,
+          "name": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+          "size": 30156064,
+          "publisher_sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "b289b9c2d7163968aa679dcc0cb40b2ccf7bb053"
+    },
+    {
+      "id": "alexbeav-brave-fencer-musashi-recomp",
+      "canonical_issue": 429,
+      "candidate_record_sha256": "ec0369707309d7792b18a892b03481337bd26b57b6f0d795490b8ad252ca22b9",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-brave-fencer-musashi-recomp\\completion-10d8f41deef9b897a2f5df2c9f2aa31a06e84ac760ab13f6411e65e33642a138.json",
+      "report_sha256": "10d8f41deef9b897a2f5df2c9f2aa31a06e84ac760ab13f6411e65e33642a138",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-brave-fencer-musashi-recomp\\upstream-490be7ae5cccd5d514ce94c9440e212b2d7e0ee2759a251c969a3707ed13c5e5.json",
+      "upstream_receipt_sha256": "490be7ae5cccd5d514ce94c9440e212b2d7e0ee2759a251c969a3707ed13c5e5",
+      "validation_input_sha256": "10083bec135d345f6bfdf93b7d5cb2b635a8d07d5e9d4d063a6f33af2400c886",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.3",
+          "asset_id": 600784962,
+          "name": "brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
+          "size": 29900215,
+          "publisher_sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.1.3",
+          "asset_id": 600784963,
+          "name": "brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+          "size": 27794465,
+          "publisher_sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "54ddfe971dfd79134f2593b00dbd9b78ae51536b"
+    },
+    {
+      "id": "alexbeav-diablo-recomp",
+      "canonical_issue": 435,
+      "candidate_record_sha256": "8ecc422de40a6489fa552c76dcd3e288530b70ce915c9bb780881b3d7b2f0314",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-diablo-recomp\\completion-ee554d25ac127c8ec1bf00e29a24a54e40386f2ffed5c064a4ee7e24e5550f79.json",
+      "report_sha256": "ee554d25ac127c8ec1bf00e29a24a54e40386f2ffed5c064a4ee7e24e5550f79",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-diablo-recomp\\upstream-df4e659690f3ae03a7c2178dee204811458a1daa72a30a60e8a9dd5f636d6ae7.json",
+      "upstream_receipt_sha256": "df4e659690f3ae03a7c2178dee204811458a1daa72a30a60e8a9dd5f636d6ae7",
+      "validation_input_sha256": "d9bf56802cb2b2be015ea00748fa7c9b38960c6240355771a3ed1b9e6d743419",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.4",
+          "asset_id": 605927357,
+          "name": "diablo-recomp-0.1.4-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
+          "size": 29909581,
+          "publisher_sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.1.4",
+          "asset_id": 605927354,
+          "name": "diablo-recomp-0.1.4-linux-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip",
+          "size": 27803391,
+          "publisher_sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "1e71257166f6a2c0e087f7a36e0e3bde984132d4"
+    },
+    {
+      "id": "alexbeav-digimon-world-2003-recomp",
+      "canonical_issue": 436,
+      "candidate_record_sha256": "daf499994c1050bd1d0ba21d01f94d101432d608051727ea9ecc9d6fa8c78393",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-digimon-world-2003-recomp\\completion-8708db0f55b177d2b03d0c3baa402b720255314ef6227afcd8ffdb46f5913d3e.json",
+      "report_sha256": "8708db0f55b177d2b03d0c3baa402b720255314ef6227afcd8ffdb46f5913d3e",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-digimon-world-2003-recomp\\upstream-e59d412c9525d47643351f518115918744518c43bec21d929df83e57db82bcbb.json",
+      "upstream_receipt_sha256": "e59d412c9525d47643351f518115918744518c43bec21d929df83e57db82bcbb",
+      "validation_input_sha256": "b1bcceedda3e1abfc9522c926aa55a07d8c2ab01e67eb46a0a1496dc5ec3c59d",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544445450,
+          "name": "Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+          "size": 30152631,
+          "publisher_sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "cebada963263459d292da7e3dee07b0fbc9f01e9"
+    },
+    {
+      "id": "alexbeav-dino-crisis-2-recomp",
+      "canonical_issue": 444,
+      "candidate_record_sha256": "4a0dcf7eff7aa552d56efaa13c257535669b3b42f169221fc3f2af77d30b5e6f",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-dino-crisis-2-recomp\\completion-8b31d0e721f09f2aa26e9d2e7147ebab9977b214675ac393d6a4020479ac29e0.json",
+      "report_sha256": "8b31d0e721f09f2aa26e9d2e7147ebab9977b214675ac393d6a4020479ac29e0",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-dino-crisis-2-recomp\\upstream-d0d5a2ef89b57cf97b2414a9805d4056523070ebf2f9e9f67ffbb59f725cf0cd.json",
+      "upstream_receipt_sha256": "d0d5a2ef89b57cf97b2414a9805d4056523070ebf2f9e9f67ffbb59f725cf0cd",
+      "validation_input_sha256": "b58d12a8539552a1701e285ebe1a238a8b74c292de3c6cd288efee4d34bece11",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.1",
+          "asset_id": 600758315,
+          "name": "dino-crisis-2-0.1.1-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-windows-x64.zip",
+          "size": 26205977,
+          "publisher_sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.1.1",
+          "asset_id": 600758318,
+          "name": "dino-crisis-2-0.1.1-linux-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-linux-x64.zip",
+          "size": 24179506,
+          "publisher_sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "38514024f3a7cea54ff05ae3afdad0929920cb5a"
+    },
+    {
+      "id": "alexbeav-dino-crisis-recomp",
+      "canonical_issue": 445,
+      "candidate_record_sha256": "3d145f717cb1e8dc7561c77ebbe18ebc214b41f6ead44bb28bbb6b2544624390",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-dino-crisis-recomp\\completion-824b078a6231471ef904124d62ff0c9cf43be0d9ccd662e2e79067ec81da1fc1.json",
+      "report_sha256": "824b078a6231471ef904124d62ff0c9cf43be0d9ccd662e2e79067ec81da1fc1",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-dino-crisis-recomp\\upstream-f90906a2ce61dd7d2d8f801cf7597a65f023b432bff6cbca9af8182968be8d55.json",
+      "upstream_receipt_sha256": "f90906a2ce61dd7d2d8f801cf7597a65f023b432bff6cbca9af8182968be8d55",
+      "validation_input_sha256": "d261d2ca3f2b3f765d3f73c5057364afb32339b5ca1f75e93ff0ec684bb73e02",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.1",
+          "asset_id": 600756803,
+          "name": "dino-crisis-0.1.1-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-windows-x64.zip",
+          "size": 26206145,
+          "publisher_sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.1.1",
+          "asset_id": 600756802,
+          "name": "dino-crisis-0.1.1-linux-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-linux-x64.zip",
+          "size": 24179470,
+          "publisher_sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db"
+    },
+    {
+      "id": "alexbeav-driver-recomp",
+      "canonical_issue": 442,
+      "candidate_record_sha256": "d097b1f3fb628dde1b95d68d76e375de494e0faa35b0175f421097e4026a17ba",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-driver-recomp\\completion-85f2502498e264508ca1d7933140feac26b599b61b6fb86265e24e60361e9419.json",
+      "report_sha256": "85f2502498e264508ca1d7933140feac26b599b61b6fb86265e24e60361e9419",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-driver-recomp\\upstream-67cf3a16cf988d63f6a5880600604c60112a7320a0644c239f77ad90b99acb07.json",
+      "upstream_receipt_sha256": "67cf3a16cf988d63f6a5880600604c60112a7320a0644c239f77ad90b99acb07",
+      "validation_input_sha256": "fcaa0c6f11f553d2001fe97a9ca72b332b85920e7e2155cdae0fa71549c48c99",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544445443,
+          "name": "Driver-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
+          "size": 30154093,
+          "publisher_sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "8dd843a427386d8d44aeaab4aca783774df95cd8"
+    },
+    {
+      "id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+      "canonical_issue": 441,
+      "candidate_record_sha256": "cb0c16acff2142dc8707c02e0702c2576ac5e7dff29619da542847d1d5c23fc5",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-duke-nukem-land-of-the-babes-recomp\\completion-c39715a9912a85a19c887e27444f03b543fb57bd1a0fdb89917388adc0dc7966.json",
+      "report_sha256": "c39715a9912a85a19c887e27444f03b543fb57bd1a0fdb89917388adc0dc7966",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-duke-nukem-land-of-the-babes-recomp\\upstream-11a4652a975e198329197cce11b5859d51f359fd8e50c70531c324aff5f4d2fb.json",
+      "upstream_receipt_sha256": "11a4652a975e198329197cce11b5859d51f359fd8e50c70531c324aff5f4d2fb",
+      "validation_input_sha256": "b9813d1c85dc6d9ac22eb5bf428e887f6e825909bb3f1c53153745f7cd8444b4",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544445831,
+          "name": "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+          "size": 30154371,
+          "publisher_sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "bc7f7e4e15f024bf821d58b4216673b3dd47036b"
+    },
+    {
+      "id": "alexbeav-duke-nukem-time-to-kill-recomp",
+      "canonical_issue": 443,
+      "candidate_record_sha256": "d5f1f2d5c88f3dd8aa685870419b0fabc7bd7a6b47d0f96558000cbb7fbfefa9",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-duke-nukem-time-to-kill-recomp\\completion-fd1196a4e4c1857c646bdf6299b8514eca5824924f7b22a56837e58ad5b278c5.json",
+      "report_sha256": "fd1196a4e4c1857c646bdf6299b8514eca5824924f7b22a56837e58ad5b278c5",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-duke-nukem-time-to-kill-recomp\\upstream-4808aa78178932dd7ab96e0cb29bd4b0e61944e88bed70481e520b8c18ba99b4.json",
+      "upstream_receipt_sha256": "4808aa78178932dd7ab96e0cb29bd4b0e61944e88bed70481e520b8c18ba99b4",
+      "validation_input_sha256": "aa4d0e108ee0cf703f8cd715bf41bc9d25a5730e089f72f3578fe9fd904e0de5",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544445845,
+          "name": "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+          "size": 30158026,
+          "publisher_sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "62f7313c39e96a1146967df3beecae06a81df18b"
+    },
+    {
+      "id": "alexbeav-fade-to-black-recomp",
+      "canonical_issue": 446,
+      "candidate_record_sha256": "c3c1ee72cef1bcf42f897d70a84acfabba3b92c33317478c05bfca01f3cc33ef",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-fade-to-black-recomp\\completion-0aa09e53dc83e01b93ac1333cdb30d0a4a7a3c8f5e4fbbd300f1e72a26012e1f.json",
+      "report_sha256": "0aa09e53dc83e01b93ac1333cdb30d0a4a7a3c8f5e4fbbd300f1e72a26012e1f",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\psx-rollout-batch2\\prepare-alexbeav-fade-to-black-recomp\\upstream-069b31f8803155c0acdfe47fea2b7089515cb516256c85fbc516a5989427d440.json",
+      "upstream_receipt_sha256": "069b31f8803155c0acdfe47fea2b7089515cb516256c85fbc516a5989427d440",
+      "validation_input_sha256": "92a8aa25b39d4404cfe9d8ed491565923f8735dd94948b4145db704f6eb45bac",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.3.6",
+          "asset_id": 544445910,
+          "name": "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+          "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+          "size": 30151839,
+          "publisher_sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+          "scope": "Fresh complete selected-release metadata exactly matches the previously accepted Direct artifact. No new archive download, extraction, helper or game execution."
+        }
+      ],
+      "source_review_commit": "25df871d2185eb45ec0e9253b96a2667e2feca6b"
+    }
+  ],
+  "kind": "dated partial rollout evidence; not a live backlog",
+  "delivery_owner": 2926,
+  "parent_owner": 2510,
+  "base": "e152b987bd0ce38d1d5ba7c4f46ecfc18e3f7c07",
+  "delivery_status": "Candidate implementation; review, exact-head CI and guarded merge pending at this source checkpoint",
+  "local_feedback": {
+    "selection": "all catalog tests, all PSX progression cases, adopted21scope provider progression and all PSX mod-data lifecycle cases",
+    "passed": 132,
+    "log_sha256": "eff60b77d066d49a5612dbda4dc0c6c38ec8cfc18e03dfdd439cbdbbdc5e635a",
+    "retained_failures": [
+      "core-feedback-1.log repeated wrapper-owned --locked and executed no tests",
+      "core-feedback-2.log:131passed/1failed; synthetic Direct HTTP manifest correctly refused before lifecycle; repaired fixture uses valid HTTPS retained contract and existing inert transport seam"
+    ],
+    "scope": "First-party fixtures only; no new upstream executable, gameplay, Desktop or real-save observations"
+  },
+  "test_source_lf_sha256": {
+    ".config/nextest.toml": "f2182f00eedcee5da79e84606cfd4bf9ed13ee376a6745bd039e8ecae7dfeaa6",
+    "scripts/ci-rust-workflow.test.mts": "81f79465134946ae39eef4aead2a3005f244efd5ba0c32119540c0bbd97f1ce1",
+    "crates/portcove-core/src/catalog.rs": "3558f6ffa2210b12ed2ef78d1cb64840c44063855c93d32bb12fb7862d4c323c",
+    "crates/portcove-core/src/release/tests/unchanged_definition.rs": "58a4d55b96f9ac787ec1648e32db85e580119f87b3f2806c259a05203a300c78",
+    "crates/portcove-core/src/runtime_tests/psx_progression.rs": "e66b4bd05c527dbae85932501566b25306dcb37b13372f5583149e68ab476cec"
+  },
+  "workflow_feedback": {
+    "file": "scripts/ci-rust-workflow.test.mts",
+    "passed": 24,
+    "failed": 0,
+    "skipped": 0,
+    "log_sha256": "3124c3010587dc92f90e969585a56646d8dc14f71388479041ade9c3f9aca421"
+  }
+}

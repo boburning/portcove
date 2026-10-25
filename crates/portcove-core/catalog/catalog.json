@@ -16499,7 +16499,26 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "This managed route retains the accepted v0.1.4 runtime and its original setup/data contract. To use the current upstream player, prepare a separate copy through the official OpenPete guide. Keep your working runtime and its generated library and states until your saves work in the new copy. Upstream or you provide updates for that external copy.",
         "original_game_title": "Spyro the Dragon",
+        "manual_setup": {
+          "help_url": "https://openpete.com/",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Choose the accepted managed copy or current upstream player",
+              "instruction": "The managed route retains its accepted v0.1.4 setup and data contract. For the current upstream Windows release, download the complete player from the official OpenPete page and prepare it in a separate writable folder. Compare the download with the checksum published there. Keep your existing working copy intact."
+            },
+            {
+              "title": "Supply your own Spyro disc through upstream setup",
+              "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
+            },
+            {
+              "title": "Keep progress and generated files with their working version",
+              "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 413542,
           "cover_id": 602369,
@@ -17830,15 +17849,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v1.8.3",
-            "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
-            "size": 8247843,
-            "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
-            "published_at": "2026-09-22T03:42:21Z"
-          }
+        "provider": "github",
+        "repository": "mstan/FZeroSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "FZeroSNESRecomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "f-zero-snes-usa",
@@ -18028,15 +18045,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.0.6",
-            "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
-            "size": 6009000,
-            "sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
-            "published_at": "2026-09-13T04:22:33Z"
-          }
+        "provider": "github",
+        "repository": "elliotttate/DKC3Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DKC3Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "dkc3-na-en-fr",
@@ -18056,7 +18071,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. This build has a known game-logic failure during startup. Gameplay, visual correctness and save/load remain unqualified.",
+        "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
         "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
         "artwork": {
           "game_id": 1094,
@@ -18108,15 +18123,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
-            "size": 30155637,
-            "sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
-            "published_at": "2026-09-04T14:48:29Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Ape-Escape-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "ape-escape-psx",
@@ -18198,15 +18211,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152761,
-            "sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
-            "published_at": "2026-09-04T14:48:29Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alundra-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Alundra-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "alundra-psx",
@@ -18288,15 +18299,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152526,
-            "sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
-            "published_at": "2026-09-04T14:48:29Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/armored-core-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Armored-Core-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "armored-core-psx",
@@ -18378,15 +18387,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
-            "size": 30156064,
-            "sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
-            "published_at": "2026-09-04T14:48:30Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Blood-Omen-Legacy-of-Kain-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "blood-omen-psx",
@@ -18468,15 +18475,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152631,
-            "sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
-            "published_at": "2026-09-04T14:48:39Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Digimon-World-2003-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "digimon-world-2003-psx",
@@ -18558,15 +18563,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
-            "size": 30154371,
-            "sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
-            "published_at": "2026-09-04T14:48:44Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Duke-Nukem-Land-of-the-Babes-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "duke-nukem-land-of-the-babes-psx",
@@ -18648,15 +18651,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
-            "size": 30154093,
-            "sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
-            "published_at": "2026-09-04T14:48:39Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/driver-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Driver-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "driver-psx",
@@ -18738,15 +18739,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
-            "size": 30158026,
-            "sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
-            "published_at": "2026-09-04T14:48:44Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Duke-Nukem-Time-to-Kill-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "duke-nukem-time-to-kill-psx",
@@ -18828,15 +18827,13 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
-            "size": 30151839,
-            "sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
-            "published_at": "2026-09-04T14:48:44Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/fade-to-black-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Fade-to-Black-Recomp-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "fade-to-black-psx",
@@ -18919,22 +18916,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
-            "size": 29909581,
-            "sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
-            "published_at": "2026-10-02T15:44:22Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip",
-            "size": 27803391,
-            "sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
-            "published_at": "2026-10-02T15:44:22Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/diablo-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "diablo-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "diablo-recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "diablo-europe-psx",
@@ -19026,22 +19018,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
-            "size": 30152495,
-            "sha256": "602843385f5d1e74560e39f7f4741ab8bcd1380711316e1cac80cf69f6a127d9",
-            "published_at": "2026-09-04T14:48:24Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.3.6",
-            "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
-            "size": 28046377,
-            "sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009",
-            "published_at": "2026-09-04T14:48:24Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "ace-combat-3-japan-psx",
@@ -19126,22 +19113,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-windows-x64.zip",
-            "size": 26206145,
-            "sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
-            "published_at": "2026-09-30T11:25:42Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-linux-x64.zip",
-            "size": 24179470,
-            "sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
-            "published_at": "2026-09-30T11:25:42Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dino-crisis-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dino-crisis-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "dino-crisis-usa-rev1-psx",
@@ -19240,22 +19222,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-windows-x64.zip",
-            "size": 26205977,
-            "sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
-            "published_at": "2026-09-30T11:26:25Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-linux-x64.zip",
-            "size": 24179506,
-            "sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
-            "published_at": "2026-09-30T11:26:25Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dino-crisis-2-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dino-crisis-2-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "dino-crisis-2-usa-psx",
@@ -19354,22 +19331,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip",
-            "size": 29907400,
-            "sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
-            "published_at": "2026-10-02T15:45:25Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
-            "size": 27800828,
-            "sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
-            "published_at": "2026-10-02T15:45:25Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "alien-resurrection-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "alien-resurrection-recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "alien-resurrection-europe-psx",
@@ -19468,22 +19440,17 @@
       "manually_validated_platforms": [],
       "adapter": "psx-recomp-managed",
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.3",
-            "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
-            "size": 29900215,
-            "sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
-            "published_at": "2026-09-30T11:40:52Z"
-          },
-          "linux-x86-64": {
-            "version": "v0.1.3",
-            "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
-            "size": 27794465,
-            "sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
-            "published_at": "2026-09-30T11:40:52Z"
-          }
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "brave-fencer-musashi-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "brave-fencer-musashi-recomp-",
+            "-linux-x64.zip"
+          ]
         }
       },
       "source_profile": "brave-fencer-musashi-usa-psx",
@@ -19581,15 +19548,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.12.0",
-            "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.12.0/SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
-            "size": 9490376,
-            "sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
-            "published_at": "2026-09-11T08:01:27Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SuperMarioWorldRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SuperMarioWorldRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "super-mario-world-snes-usa",
@@ -19609,7 +19574,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified.",
+        "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
         "original_game_title": "Super Mario World",
         "artwork": {
           "game_id": 1070,
@@ -19672,15 +19637,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.6.1",
-            "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.1/ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
-            "size": 11388312,
-            "sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
-            "published_at": "2026-08-06T01:58:24Z"
-          }
+        "provider": "github",
+        "repository": "mstan/ZeldaAlttPSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ZeldaALttPSNESRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "a-link-to-the-past-snes-usa",
@@ -19700,7 +19663,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Upstream documents prebuilt use but has not declared a project license; the package is downloaded unchanged from its original publisher.",
+        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.5 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms.",
         "original_game_title": "The Legend of Zelda: A Link to the Past",
         "artwork": {
           "game_id": 1026,
@@ -19792,7 +19755,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial.",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Sonic the Hedgehog",
         "artwork": {
           "game_id": 3192,
@@ -20316,15 +20279,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.8.3",
-            "url": "https://github.com/mstan/SonicTheHedgehog2Recomp/releases/download/v0.8.3/SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
-            "size": 7204657,
-            "sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
-            "published_at": "2026-10-18T14:31:39Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SonicTheHedgehog2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SonicTheHedgehog2Recomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "sonic-the-hedgehog-2-genesis-world-reva",
@@ -20344,7 +20305,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged.",
+        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups.",
         "original_game_title": "Sonic the Hedgehog 2",
         "artwork": {
           "game_id": 4438,
@@ -20688,7 +20649,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Super Metroid",
         "artwork": {
           "game_id": 1103,
@@ -20779,7 +20740,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included.",
+        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
         "original_game_title": "Mega Man X2",
         "artwork": {
           "game_id": 1742,
@@ -21065,15 +21026,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.1.1",
-            "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
-            "size": 1245795,
-            "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
-            "published_at": "2026-08-26T16:01:04Z"
-          }
+        "provider": "github",
+        "repository": "elliotttate/BombermanRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BombermanRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "super-bomberman-snes-usa",

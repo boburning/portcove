@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "listings": [
     {
       "id": "shipwright",
@@ -1371,6 +1371,25 @@
         "match_kind": "port"
       },
       "issue_number": 113,
+      "setup_url": "https://openpete.com/",
+      "manual_setup": {
+        "help_url": "https://openpete.com/",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Choose the accepted managed copy or current upstream player",
+            "instruction": "The managed route retains its accepted v0.1.4 setup and data contract. For the current upstream Windows release, download the complete player from the official OpenPete page and prepare it in a separate writable folder. Compare the download with the checksum published there. Keep your existing working copy intact."
+          },
+          {
+            "title": "Supply your own Spyro disc through upstream setup",
+            "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
+          },
+          {
+            "title": "Keep progress and generated files with their working version",
+            "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -2459,13 +2478,41 @@
     {
       "id": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
       "name": "3D Pinball for Windows: Space Cadet (SpaceCadetPinball)",
-      "summary": "Upstream route: Complete reverse-engineered desktop game with Windows/macOS release archives. Limits: Complete reverse-engineered game according to upstream; original Windows/Full Tilt data is separate. Upstream platforms: Windows/macOS release archives; Linux source build. Windows x86-64 cross-build and Intel/Apple-Silicon macOS builds documented; selected archive architectures otherwise unknown in frozen evidence. Original data: Original Windows or Full Tilt resources not included; verify lawful data acquisition/setup. Portcove setup/gameplay not verified.",
+      "summary": "Space Cadet on modern desktop systems using your own Windows or Full Tilt game resources. The official Windows player is a ZIP; upstream or you provide updates.",
       "original_game_title": "3D Pinball for Windows: Space Cadet",
       "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
       "issue_number": 2553,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/k4zmu2a/SpaceCadetPinball"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md",
+      "release_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SpaceCadetPinball",
+          "x64Win.zip"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Keep the player and your game resources together",
+            "instruction": "For the modern Windows x64 player, extract the complete SpaceCadetPinballx64Win.zip into a separate folder you control. Keep SpaceCadetPinball.exe, SDL2.dll and SDL2_mixer.dll together. Add your own original Windows Space Cadet or supported Full Tilt resources to that folder; the port download does not include them. The x86 and Windows XP packages are different alternatives. There is no installer or converter to finish."
+          },
+          {
+            "title": "Save the player, then choose Play",
+            "instruction": "Select SpaceCadetPinball.exe with that folder as its working directory, save launch details, then choose Play separately. If the game reports missing resources, follow its folder search message and the upstream guide. macOS application packages and Linux distribution/Flatpak or source-build routes keep their own upstream installation instructions; a Windows ZIP does not establish their native qualification."
+          },
+          {
+            "title": "Keep your profile and resources when updating",
+            "instruction": "You or upstream provide updates to this external copy. Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions. On Windows the normal profile is %APPDATA%\\SpaceCadetPinball and includes imgui_pb.ini; it is separate from the downloaded player folder. Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."
+          }
+        ]
+      }
     },
     {
       "id": "abilliontokens-bustinout-recomp",
@@ -7989,6 +8036,61 @@
       "issue_number": 2680
     },
     {
+      "id": "hybrid-heaven-ogdanimal",
+      "name": "Hybrid Heaven: Recompiled (ogdanimal)",
+      "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. Upstream performs first-launch setup; existing permitted copies keep their own updates and player data.",
+      "original_game_title": "Hybrid Heaven",
+      "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
+      "issue_number": 2546,
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "release_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/releases",
+      "setup_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
+      "download_block_reason": "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts.",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "HybridHeaven-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "HybridHeaven-",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
+        "warnings": [
+          "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts."
+        ],
+        "steps": [
+          {
+            "title": "Keep a permitted complete copy",
+            "instruction": "Keep the complete upstream package in a folder you control. The reviewed Windows player is HybridHeavenRecompiled.exe; on Linux it is HybridHeavenRecompiled and needs Vulkan, SDL2 and GTK 3. Keep assets beside the player and use that folder as its working directory. Android APK installation remains an upstream device setup route."
+          },
+          {
+            "title": "Add the player, then supply your original on Play",
+            "instruction": "Select your completed player and save its launch details, then choose Play separately. First launch asks once for your own ordinary USA Hybrid Heaven cartridge dump (upstream SHA-1 16dbc21620b52deab5c5abf8a309ac60adfbee85). The game verifies and copies it into its own storage, then offers Start Game. No decompression or converter is needed, and Portcove does not run a discovered helper during setup."
+          },
+          {
+            "title": "Keep the game profile when updating",
+            "instruction": "You or upstream update this external copy. Close the game and back up its actual profile before changing versions: normally %LOCALAPPDATA%\\HybridHeavenRecompiled on Windows or ~/.config/HybridHeavenRecompiled on Linux. An existing portable copy can use its own folder instead; retain the mode you already use. Keep the ROM, settings, saves and mods together with that profile. The game can import a compatible save through Settings → Saves before starting; its existing save is retained as hybridheaven.us.bin.pre-import.bak. Controller Pak .mpk files are not accepted by that importer. Verify progress in the new copy before retiring the old one. Removing a Portcove registration preserves all external files; it does not provide managed Update, Backup or Rollback."
+          }
+        ]
+      },
+      "artwork": {
+        "game_id": 3513,
+        "cover_id": 152879,
+        "image_id": "co39yn",
+        "image_sha256": "bf0007c9b9a4ef9b1d297695a5dcfce8154960e72d9860e15da72cdb89bcf3f5",
+        "game_slug": "hybrid-heaven",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "icewind-dale-ii-gemrb",
       "name": "Icewind Dale II (GemRB)",
       "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Icewind Dale II game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
@@ -11968,12 +12070,14 @@
     {
       "id": "re-volt-rvgl",
       "name": "Re-Volt (RVGL)",
-      "summary": "Upstream route: Official project describes native cross-platform rewrite; patch-only desktop downloads available, version 23.1030a1. Windows/macOS setup, Windows/Linux portable, Android packages. Limits: Use original Re-Volt data with patch-only package; separately review any bundled full-game assets. Launcher is not the port identity. Website version is observed, not a claim of recent updates.  separately review any... Upstream platforms: Official patch-only Windows x86/32-bit and x86-64 installers/portable packages, macOS setup and Linux portable. Mac/Linux package CPU variants unknown in frozen page; Android is separate. Original data: Use original Re-Volt data with patch-only package; separately review any bundled full-game assets. Launcher is not the port identity. Website version is observed, not a claim of recent updates. Portcove setup/gameplay not verified.",
+      "summary": "Re-Volt through the upstream RVGL Launcher or your own completed Windows copy. Keep original game data and chosen content with upstream; its launcher provides runtime and package updates.",
       "original_game_title": "Re-Volt",
       "project_url": "https://rvgl.org/",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://rvgl.org/",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
       "artwork": {
         "game_id": 3585,
         "cover_id": 76545,
@@ -11982,7 +12086,30 @@
         "game_slug": "re-volt",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2705
+      "issue_number": 2705,
+      "release_url": "https://rvgl.org/#download",
+      "manual_setup": {
+        "help_url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up through RVGL Launcher",
+            "instruction": "Follow the official RVGL Launcher guide. For Windows, extract the complete launcher ZIP into a writable folder, then deliberately open rvgl_launcher.exe yourself. Use its Custom install option to keep your existing game folder, original data and saves, and retain the default pack for files already in that folder. Choose extra content only when you want and may use it. The launcher keeps its own runtime and package state."
+          },
+          {
+            "title": "Add the completed Windows launcher or player",
+            "instruction": "Select rvgl_launcher.exe from your completed launcher folder and save its launch details, then choose Play separately. In that launcher, select your preset and Launch RVGL. For an already complete manual Windows game folder, you may instead select its RVGL executable with that game folder as the working directory. Keep the upstream Windows installer when you need its registry, lobby or shortcut integration. Portcove does not run an installer during discovery."
+          },
+          {
+            "title": "Update and preserve data with upstream",
+            "instruction": "Close the game before package updates. RVGL Launcher offers runtime-only updates and package review, plus its own Repair command for interrupted installs. Back up your actual game folder and profile, local content and launcher configuration separately before repair or changing copies. Portcove does not replace this externally managed runtime or provide managed Backup or Rollback. Removing the registration preserves all external files."
+          },
+          {
+            "title": "Use the platform-specific guide for other systems",
+            "instruction": "Linux launcher setup uses its documented Python dependencies and game launch wrapper; macOS uses its supported application and user data folder. Follow those upstream routes separately. Registering a Windows executable does not establish a supported Linux script or macOS bundle invocation."
+          }
+        ]
+      }
     },
     {
       "id": "redahm-destroy-all-humans-path-of-the-furon",

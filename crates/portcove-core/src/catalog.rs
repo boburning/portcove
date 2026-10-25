@@ -2121,49 +2121,58 @@ mod tests {
             (
                 "dkc3-recomp",
                 "dkc3.sfc",
-                "v0.0.6",
+                None,
                 "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
             ),
             (
                 "super-mario-world-recomp",
                 "smw.sfc",
-                "v0.12.0",
+                None,
                 "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "zelda.sfc",
-                "v0.6.1",
+                None,
                 "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
             ),
             (
                 "sonic-the-hedgehog-recomp",
                 "game.bin",
-                "v0.6.0",
+                Some("v0.6.0"),
                 "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
             ),
             (
                 "sonic-the-hedgehog-2-recomp",
                 "game.bin",
-                "v0.8.3",
+                None,
                 "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b",
             ),
             (
                 "sonic-3-and-knuckles-recomp",
                 "game.bin",
-                "v0.5.3",
+                Some("v0.5.3"),
                 "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
             ),
         ] {
             let port = catalog.port(id).unwrap();
-            assert_eq!(port.release.provider, ReleaseSource::DirectManifest, "{id}");
+            if let Some(version) = version {
+                assert_eq!(port.release.provider, ReleaseSource::DirectManifest, "{id}");
+                assert_eq!(
+                    port.release.direct[&Platform::WindowsX86_64].version,
+                    version,
+                    "{id}"
+                );
+            } else {
+                assert_eq!(port.release.provider, ReleaseSource::Github, "{id}");
+                assert!(port.release.direct.is_empty(), "{id}");
+                assert!(
+                    !port.release.asset_hints[&Platform::WindowsX86_64].is_empty(),
+                    "{id}"
+                );
+            }
             assert!(port.release.user_prepared.is_empty(), "{id}");
             assert_eq!(port.platforms, [Platform::WindowsX86_64], "{id}");
-            assert_eq!(
-                port.release.direct[&Platform::WindowsX86_64].version,
-                version,
-                "{id}"
-            );
             assert_eq!(
                 port.runtime_source_filename.as_deref(),
                 Some(filename),
@@ -2267,7 +2276,7 @@ mod tests {
     }
 
     #[test]
-    fn f_zero_snes_recomp_pins_a_scoped_managed_windows_route_without_gameplay_claims() {
+    fn f_zero_snes_recomp_keeps_its_scoped_source_and_historical_qualification() {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("f-zero-snes-recomp").unwrap();
         assert_eq!(
@@ -2306,9 +2315,14 @@ mod tests {
         );
         assert!(port.setup_executable_hints.is_empty());
         assert_eq!(port.launch_arguments, ["fzero.sfc"]);
-        assert_eq!(port.release.provider, ReleaseSource::DirectManifest);
+        assert_eq!(port.release.provider, ReleaseSource::Github);
         assert!(port.release.user_prepared.is_empty());
-        assert!(port.release.asset_hints.is_empty());
+        assert!(port.release.direct.is_empty());
+        assert_eq!(port.release.repository, "mstan/FZeroSNESRecomp");
+        assert_eq!(
+            port.release.asset_hints[&Platform::WindowsX86_64],
+            ["FZeroSNESRecomp-", "-windows-x64.zip"]
+        );
         assert_eq!(
             port.runtime_mutable_paths,
             [
@@ -2324,23 +2338,14 @@ mod tests {
                 {"prefix": "crash_minidump_", "suffix": ".dmp"}
             ])
         );
-        let runtime = &port.release.direct[&Platform::WindowsX86_64];
-        assert_eq!(runtime.version, "v1.8.3");
-        assert_eq!(
-            runtime.url,
-            "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip"
-        );
-        assert_eq!(runtime.size, 8_247_843);
-        assert_eq!(
-            runtime.sha256,
-            "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
-        );
         let source_catalog = catalog.source_catalog().unwrap();
         let scope = crate::SourceEvidenceScope {
             port_id: port.id.clone(),
             platform: Platform::WindowsX86_64,
-            artifact_sha256: Some(runtime.sha256.clone()),
-            upstream_ref: Some(runtime.version.clone()),
+            artifact_sha256: Some(
+                "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658".into(),
+            ),
+            upstream_ref: Some("v1.8.3".into()),
             contract_id: Some("f-zero-snes-recomp-game-source".into()),
             variant: crate::SourceVariantScope::Exact {
                 identity: crate::SourceIdentity {
@@ -4638,9 +4643,9 @@ mod tests {
                 "0ef3326f26f1d97f4ab467023ac6be5e1189a6d3",
                 "Dino_Crisis_Recompiled.exe",
                 "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
-                26206145u64,
                 "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
-                "dino-crisis-0.1.1-windows-x64.zip",
+                "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
+                "dino-crisis-",
             ),
             (
                 "alexbeav-dino-crisis-2-recomp",
@@ -4650,13 +4655,23 @@ mod tests {
                 "f7c71427c4c8726c9114514746c42f10928fbaee",
                 "Dino_Crisis_2_Recompiled.exe",
                 "38514024f3a7cea54ff05ae3afdad0929920cb5a",
-                26205977u64,
                 "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
-                "dino-crisis-2-0.1.1-windows-x64.zip",
+                "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+                "dino-crisis-2-",
             ),
         ];
-        for (id, profile_id, variant, serial, data_sha1, executable, commit, size, sha256, asset) in
-            cases
+        for (
+            id,
+            profile_id,
+            variant,
+            serial,
+            data_sha1,
+            executable,
+            commit,
+            sha256,
+            linux_sha256,
+            prefix,
+        ) in cases
         {
             let port = catalog.port(id).unwrap();
             assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
@@ -4671,23 +4686,18 @@ mod tests {
                 port.executable_hints[&crate::Platform::WindowsX86_64],
                 [executable]
             );
-            let declaration = document["ports"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|p| p["id"] == id)
-                .unwrap();
-            let pin = &declaration["release"]["direct"]["windows-x86-64"];
-            assert_eq!(pin["version"], "v0.1.1");
-            assert_eq!(pin["size"], size);
-            assert_eq!(pin["sha256"], sha256);
+            assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+            assert!(port.release.direct.is_empty());
             assert_eq!(
-                pin["url"],
-                format!("{}/releases/download/v0.1.1/{asset}", port.project_url)
+                port.release.repository,
+                format!(
+                    "alexbeavs-ps1-ports/{}",
+                    id.strip_prefix("alexbeav-").unwrap()
+                )
             );
             assert_eq!(
-                declaration["release"]["direct"].as_object().unwrap().len(),
-                2
+                port.release.asset_hints[&crate::Platform::WindowsX86_64],
+                [prefix, "-windows-x64.zip"]
             );
             let profile = document["source_catalog"]["identities"]
                 .as_array()
@@ -4728,7 +4738,7 @@ mod tests {
                         { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
                         {
                             "upstream_ref": "v0.1.1",
-                            "artifact_sha256": declaration["release"]["direct"]["linux-x86-64"]["sha256"]
+                            "artifact_sha256": linux_sha256
                         }
                     ])
                 );
@@ -4855,8 +4865,9 @@ mod tests {
             bios_variant,
             exe,
             version,
-            size,
             digest,
+            linux_digest,
+            prefix,
             commit,
         ) in [
             (
@@ -4869,8 +4880,9 @@ mod tests {
                 "europe-v3-0",
                 "Alien_Resurrection_Recompiled.exe",
                 "v0.1.4",
-                29907400u64,
                 "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+                "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+                "alien-resurrection-recomp-",
                 "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
             ),
             (
@@ -4883,8 +4895,9 @@ mod tests {
                 "legacy-accepted",
                 "Brave_Fencer_Musashi_Recompiled.exe",
                 "v0.1.3",
-                29900215u64,
                 "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
+                "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
+                "brave-fencer-musashi-recomp-",
                 "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
             ),
         ] {
@@ -4914,19 +4927,18 @@ mod tests {
                 assert!(port.persistent_paths.iter().any(|path| path == owned));
                 assert!(!port.runtime_mutable_paths.iter().any(|path| path == owned));
             }
-            let declaration = document["ports"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|value| value["id"] == id)
-                .unwrap();
-            let pin = &declaration["release"]["direct"]["windows-x86-64"];
-            assert_eq!(pin["version"], version);
-            assert_eq!(pin["size"], size);
-            assert_eq!(pin["sha256"], digest);
+            assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+            assert!(port.release.direct.is_empty());
             assert_eq!(
-                declaration["release"]["direct"].as_object().unwrap().len(),
-                2
+                port.release.repository,
+                format!(
+                    "alexbeavs-ps1-ports/{}",
+                    id.strip_prefix("alexbeav-").unwrap()
+                )
+            );
+            assert_eq!(
+                port.release.asset_hints[&crate::Platform::WindowsX86_64],
+                [prefix, "-windows-x64.zip"]
             );
             let identity = document["source_catalog"]["identities"]
                 .as_array()
@@ -4956,13 +4968,15 @@ mod tests {
             for contract in contracts {
                 assert_eq!(contract["admission_mode"], "enforced");
                 assert_eq!(contract["authority_ref"], commit);
+                // Historical release-specific source evidence stays exact;
+                // it does not pin the current provider's reusable selection.
                 assert_eq!(
                     contract["applicability"],
                     serde_json::json!([
                         { "upstream_ref": version, "artifact_sha256": digest },
                         {
                             "upstream_ref": version,
-                            "artifact_sha256": declaration["release"]["direct"]["linux-x86-64"]["sha256"]
+                            "artifact_sha256": linux_digest
                         }
                     ])
                 );
@@ -4991,37 +5005,33 @@ mod tests {
     fn managed_psx_linux_parity_binds_four_exact_assets_without_runtime_qualification() {
         let catalog = Catalog::embedded().unwrap();
         let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
-        for (id, executable, version, asset, size, sha256) in [
+        for (id, executable, version, prefix, sha256) in [
             (
                 "alexbeav-dino-crisis-recomp",
                 "Dino_Crisis_Recompiled",
                 "v0.1.1",
-                "dino-crisis-0.1.1-linux-x64.zip",
-                24179470u64,
+                "dino-crisis-",
                 "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
             ),
             (
                 "alexbeav-dino-crisis-2-recomp",
                 "Dino_Crisis_2_Recompiled",
                 "v0.1.1",
-                "dino-crisis-2-0.1.1-linux-x64.zip",
-                24179506u64,
+                "dino-crisis-2-",
                 "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
             ),
             (
                 "alexbeav-alien-resurrection-recomp",
                 "Alien_Resurrection_Recompiled",
                 "v0.1.4",
-                "alien-resurrection-recomp-0.1.4-linux-x64.zip",
-                27800828u64,
+                "alien-resurrection-recomp-",
                 "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
             ),
             (
                 "alexbeav-brave-fencer-musashi-recomp",
                 "Brave_Fencer_Musashi_Recompiled",
                 "v0.1.3",
-                "brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
-                27794465u64,
+                "brave-fencer-musashi-recomp-",
                 "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
             ),
         ] {
@@ -5039,19 +5049,18 @@ mod tests {
             assert_eq!(port.launch_arguments, ["--no-launcher"]);
             assert!(port.automated_tested_platforms.is_empty());
             assert!(port.manually_validated_platforms.is_empty());
-            let declaration = document["ports"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|value| value["id"] == id)
-                .unwrap();
-            let pin = &declaration["release"]["direct"]["linux-x86-64"];
-            assert_eq!(pin["version"], version);
-            assert_eq!(pin["size"], size);
-            assert_eq!(pin["sha256"], sha256);
+            assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+            assert!(port.release.direct.is_empty());
             assert_eq!(
-                pin["url"],
-                format!("{}/releases/download/{version}/{asset}", port.project_url)
+                port.release.repository,
+                format!(
+                    "alexbeavs-ps1-ports/{}",
+                    id.strip_prefix("alexbeav-").unwrap()
+                )
+            );
+            assert_eq!(
+                port.release.asset_hints[&crate::Platform::LinuxX86_64],
+                [prefix, "-linux-x64.zip"]
             );
             let evidence_id = format!("{id}-{}-linux-static-contract", version.replace('.', "-"));
             assert!(

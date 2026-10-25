@@ -185,8 +185,8 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
     ] {
-        // MC2 and the three portable selectors below are shipped definitions.
-        // Other inputs stay frozen proposals until their #2926 batches arrive.
+        // Adopted portable and original-driven routes use their shipped rules.
+        // Sonic3K stays a frozen proposal pending its separate data transition.
         let proposed;
         let port = if matches!(
             id,
@@ -194,6 +194,12 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                 | "battletanx-global-assault-pc-port"
                 | "brawmario-infinite-mario-64-ever"
                 | "dkc1-recomp"
+                | "f-zero-snes-recomp"
+                | "dkc3-recomp"
+                | "super-mario-world-recomp"
+                | "the-legend-of-zelda-a-link-to-the-past-snes-recomp"
+                | "sonic-the-hedgehog-2-recomp"
+                | "super-bomberman-recomp"
         ) {
             catalog.port(id).unwrap()
         } else {
@@ -498,7 +504,8 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
 // Actual reviewed package names paired with controlled version-only successors.
 // v999.123.456 is fixture data, not an observed upstream release or game test.
 #[tokio::test]
-async fn frozen_proposed_psx_rules_follow_successors_for_every_reviewed_platform_scope() {
+async fn adopted_psx_rules_follow_successors_for_every_reviewed_platform_scope() {
+    let catalog = crate::Catalog::embedded().unwrap();
     for (id, platform, old_tag, old_name, new_name) in [
         (
             "alexbeav-ace-combat-3-electrosphere-recomp",
@@ -648,8 +655,7 @@ async fn frozen_proposed_psx_rules_follow_successors_for_every_reviewed_platform
             "Fade-to-Black-Recomp-999.123.456-windows-x64.zip",
         ),
     ] {
-        let proposed = crate::test_fixture::proposed_rollout_port(id);
-        let port = &proposed;
+        let port = catalog.port(id).unwrap();
         assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
         assert_eq!(port.release.provider, crate::ReleaseSource::Github);
         let old = release(old_tag, vec![asset(old_name, Some('a'))]);

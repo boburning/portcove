@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
+import { acquireNativePnpm, nativePnpmVersion } from "./release-pnpm-runtime.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
@@ -237,6 +238,26 @@ export async function buildControllerTools(
     guard();
     const tools = path.join(directory, "tools");
     await mkdir(tools, { mode: 0o700 });
+    phase = "fixed-native-package-manager";
+    const packageMetadata: unknown = JSON.parse(
+      (await readControllerToolFile(path.join(sourceRoot, "package.json"), 65536)).toString("utf8"),
+    );
+    if (
+      !isRecord(packageMetadata) ||
+      packageMetadata.packageManager !== `pnpm@${nativePnpmVersion}`
+    )
+      throw new Error("maintained package-manager pin differs");
+    const pnpm = await acquireNativePnpm();
+    await mkdir(path.join(tools, "bin"), { mode: 0o700 });
+    for (const [name, bytes] of [
+      ["bin/pnpm", pnpm.binary],
+      ["pnpm-license.txt", pnpm.license],
+      ["pnpm-notices.txt", pnpm.notices],
+    ] as const)
+      await writeFile(path.join(tools, name), bytes, {
+        flag: "wx",
+        mode: name.startsWith("bin/") ? 0o700 : 0o600,
+      });
     phase = "fixed-node-bundles";
     await bundleControllerEntries(sourceRoot, tools);
     phase = "fixed-rust-build";
@@ -297,7 +318,6 @@ export async function buildControllerTools(
       throw new Error(`fixed native driver build refused; retain ${directory}`);
     guard();
     phase = "tool-inventory";
-    await mkdir(path.join(tools, "bin"), { mode: 0o700 });
     const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
     const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
     const cli = createRequire(cliPackage);

@@ -3,12 +3,12 @@
   "listing": {
     "id": "re-volt-rvgl",
     "name": "Re-Volt (RVGL)",
-    "summary": "Upstream route: Official project describes native cross-platform rewrite; patch-only desktop downloads available, version 23.1030a1. Windows/macOS setup, Windows/Linux portable, Android packages. Limits: Use original Re-Volt data with patch-only package; separately review any bundled full-game assets. Launcher is not the port identity. Website version is observed, not a claim of recent updates.  separately review any... Upstream platforms: Official patch-only Windows x86/32-bit and x86-64 installers/portable packages, macOS setup and Linux portable. Mac/Linux package CPU variants unknown in frozen page; Android is separate. Original data: Use original Re-Volt data with patch-only package; separately review any bundled full-game assets. Launcher is not the port identity. Website version is observed, not a claim of recent updates. Portcove setup/gameplay not verified.",
+    "summary": "Re-Volt through the upstream RVGL Launcher or your own completed Windows copy. Keep original game data and chosen content with upstream; its launcher provides runtime and package updates.",
     "original_game_title": "Re-Volt",
     "project_url": "https://rvgl.org/",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://rvgl.org/",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
     "artwork": {
       "game_id": 3585,
       "cover_id": 76545,
@@ -17,6 +17,29 @@
       "game_slug": "re-volt",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2705
+    "issue_number": 2705,
+    "release_url": "https://rvgl.org/#download",
+    "manual_setup": {
+      "help_url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Set up through RVGL Launcher",
+          "instruction": "Follow the official RVGL Launcher guide. For Windows, extract the complete launcher ZIP into a writable folder, then deliberately open rvgl_launcher.exe yourself. Use its Custom install option to keep your existing game folder, original data and saves, and retain the default pack for files already in that folder. Choose extra content only when you want and may use it. The launcher keeps its own runtime and package state."
+        },
+        {
+          "title": "Add the completed Windows launcher or player",
+          "instruction": "Select rvgl_launcher.exe from your completed launcher folder and save its launch details, then choose Play separately. In that launcher, select your preset and Launch RVGL. For an already complete manual Windows game folder, you may instead select its RVGL executable with that game folder as the working directory. Keep the upstream Windows installer when you need its registry, lobby or shortcut integration. Portcove does not run an installer during discovery."
+        },
+        {
+          "title": "Update and preserve data with upstream",
+          "instruction": "Close the game before package updates. RVGL Launcher offers runtime-only updates and package review, plus its own Repair command for interrupted installs. Back up your actual game folder and profile, local content and launcher configuration separately before repair or changing copies. Portcove does not replace this externally managed runtime or provide managed Backup or Rollback. Removing the registration preserves all external files."
+        },
+        {
+          "title": "Use the platform-specific guide for other systems",
+          "instruction": "Linux launcher setup uses its documented Python dependencies and game launch wrapper; macOS uses its supported application and user data folder. Follow those upstream routes separately. Registering a Windows executable does not establish a supported Linux script or macOS bundle invocation."
+        }
+      ]
+    }
   }
 }

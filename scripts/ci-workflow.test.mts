@@ -16,6 +16,7 @@ import {
   workflowStep,
   executableLines,
   qualificationWorkflow,
+  qualificationCoreArchive,
   desktopScripts,
   windowsQualificationRunner,
   classify,
@@ -146,6 +147,7 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   });
   for (const section of [
     rustTests,
+    qualificationCoreArchive,
     rustWorkspaceTests,
     rustClippy,
     windowsStorage,
@@ -158,7 +160,12 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
     catalog,
   ]) {
     assert.notEqual(section, "");
-    assert.match(section, /^ {4}needs: (?:classify|\[classify, intel_build\])$/m);
+    assert.match(
+      section,
+      section === rustTests
+        ? /^ {4}needs: \[classify, qualification_core_archive\]$/m
+        : /^ {4}needs: (?:classify|\[classify, intel_build\])$/m,
+    );
     assert.match(
       section,
       /^ {4}if: .*classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/m,

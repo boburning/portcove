@@ -81,7 +81,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. This route stays pinned to its reviewed release until another build passes compatibility review. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included."
+      "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
     }
   }
 }

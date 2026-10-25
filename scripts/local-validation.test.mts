@@ -49,6 +49,33 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("qualification archive helper and oracle retain surviving contracts without sibling inference", () => {
+  for (const file of [
+    "scripts/windows-qualification-rust.mts",
+    "scripts/fixtures/windows-qualification-selection.json",
+  ])
+    for (const change of [
+      { status: "M", path: file },
+      { status: "A", path: file },
+      { status: "D", path: file },
+      { status: "R100", previousPath: file, path: "docs/moved.md" },
+      { status: "R100", previousPath: "docs/moved.md", path: file },
+    ]) {
+      const selected = classifyChanges([change], { fileExists: () => false });
+      assert.equal(selected.workspaceRustTests, true, JSON.stringify(change));
+      for (const contract of [
+        "windows-rust-tests",
+        "ci-rust-workflow",
+        "qualification-coverage",
+        "ci-result-gate",
+      ])
+        assert.ok(
+          selected.nodeTests.has(`scripts/${contract}.test.mts`),
+          `${JSON.stringify(change)}:${contract}`,
+        );
+    }
+});
+
 void test("workflow contract families preserve surviving consumers across direct, missing and renamed inputs", () => {
   const contracts = [
     "scripts/ci-workflow.test.mts",

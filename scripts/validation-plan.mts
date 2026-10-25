@@ -471,6 +471,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-public-build-provenance.mts",
   "scripts/release-control-handshake.mts",
   "scripts/release-controller-tool-build.mts",
+  "scripts/release-pnpm-runtime.mts",
   "scripts/qualify-controller-tool-build.mts",
   ".github/workflows/controller-tool-build-fixture.yml",
   "scripts/release-controller-tool-bootstrap.mts",
@@ -684,6 +685,8 @@ function classifyPath(file: string): PathOwnership {
     ".config/rust-test-impact.json",
     ".config/rust-test-timing-hints.json",
     "scripts/windows-rust-tests.mts",
+    "scripts/windows-qualification-rust.mts",
+    "scripts/fixtures/windows-qualification-selection.json",
     "scripts/nextest-outcomes.mts",
   ].includes(file);
   match(documentation, "documentation", ["catalog", "rust-quality"], "documentation-contract");
@@ -942,6 +945,8 @@ function classifyAuditPath(file: string): PathOwnership {
         ".config/nextest.toml",
         ".config/rust-test-timing-hints.json",
         "scripts/windows-rust-tests.mts",
+        "scripts/windows-qualification-rust.mts",
+        "scripts/fixtures/windows-qualification-selection.json",
         "scripts/nextest-outcomes.mts",
       ].includes(file),
     "rust",

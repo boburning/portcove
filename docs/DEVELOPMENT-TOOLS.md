@@ -2051,9 +2051,12 @@ the maintained qualification inventory. Supported conditions are normalized outs
 string literals. The actual pure matrix producer is checked against independent
 platform/runner/partition tuples, then connected to active workflow consumers and
 the protected aggregates' dependencies and result bindings. Display names and
-comments cannot satisfy coverage. The reviewed Windows shard dispatch has a
-pinned source oracle because it is executable PowerShell; changing its partition
-logic requires updating that expectation after review. YAML layout and folded
+comments cannot satisfy coverage. The Windows Core archive retains a frozen
+pre-change PowerShell selection oracle for all five workers and eight invocations.
+The producer compares original and reused selections; consumers verify the bound
+archive and phase inventories. Guards retain the producer, every independent worker
+and their attempt-scoped transfer. Partition changes require reviewed oracle and
+runtime parity evidence. YAML layout and folded
 equivalent conditions do not change the inventory. Actionlint retains ownership
 of the broader GitHub expression and workflow syntax checks.
 

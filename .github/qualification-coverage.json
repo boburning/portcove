@@ -11,6 +11,7 @@
     "rust_clippy",
     "rust_docs",
     "rust_quality_full",
+    "qualification_core_archive",
     "rust_tests",
     "rust_workspace_tests",
     "windows_storage"
