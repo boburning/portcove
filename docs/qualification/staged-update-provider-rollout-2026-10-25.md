@@ -36,8 +36,8 @@ to the Past and Sonic 2 select newer releases. The accompanying JSON retains
 both tuples rather than treating all six as the former artifact.
 
 These are useful existing integrations, not new gameplay qualifications. DKC3's
-historical startup failure remains exact to its observed artifact. F-Zero's
-external cache remains outside managed backups. A Link to the Past retains its
+historical startup failure remains exact to its observed artifact. Mario World's
+optional external Falcon cache remains outside managed backups. A Link to the Past retains its
 upstream license constraints. Sonic 2's guarded build-dependent quickstates can
 be refused after an update; guidance explains retaining the working version and
 using Notify when needed. Its ordinary campaign progress and custom external
