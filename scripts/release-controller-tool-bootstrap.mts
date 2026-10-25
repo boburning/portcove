@@ -1,5 +1,6 @@
 /** Fixed held workflow entrypoint; no candidate arguments, role key or publisher. */
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdtemp } from "node:fs/promises";
+import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,10 +8,22 @@ import { buildControllerTools } from "./release-controller-tool-build.mts";
 import { prepareControllerToolPredicate } from "./release-controller-tool-admission.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
-import { controllerOidcSubject } from "./assembler-job-identity.mts";
+import {
+  controllerOidcSubject,
+  controllerToolBootstrapProfile,
+} from "./assembler-job-identity.mts";
 const project = fileURLToPath(new URL("..", import.meta.url));
 const mode = process.argv[2];
 try {
+  if (process.arch !== "x64" || (process.platform !== "linux" && process.platform !== "win32"))
+    throw new Error("fixed controller bootstrap host required");
+  const windows = process.platform === "win32";
+  const profile = controllerToolBootstrapProfile(windows ? "windows-x86_64" : "linux-x86_64");
+  if (
+    windows &&
+    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) !== "application"
+  )
+    throw new Error("Windows tool bootstrap is application-only");
   if (
     process.argv.length !== 3 ||
     (mode !== "build" && mode !== "bind-upload") ||
@@ -44,7 +57,10 @@ try {
         GIT_NO_REPLACE_OBJECTS: "1",
       },
     }).trim();
-    const built = await buildControllerTools(project, process.env.RUNNER_TEMP, { commit, tree });
+    const outputParent = windows
+      ? await mkdtemp(path.join(homedir(), ".pct-"))
+      : process.env.RUNNER_TEMP;
+    const built = await buildControllerTools(project, outputParent, { commit, tree });
     if (!process.env.GITHUB_OUTPUT) throw new Error("fixed bootstrap output channel unavailable");
     await appendFile(process.env.GITHUB_OUTPUT, `tools=${built.tools}\nsource_tree=${tree}\n`);
   } else {
@@ -59,6 +75,7 @@ try {
     const binding = await prepareControllerToolPredicate(
       process.env.RUNNER_TEMP,
       {
+        ...(windows ? { platform: "windows-x86_64" as const } : {}),
         controller_revision: commit,
         source_tree: process.env.PORTCOVE_CONTROLLER_TREE ?? "",
         controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
@@ -68,7 +85,7 @@ try {
         sha256: process.env.PORTCOVE_TOOL_ARTIFACT_SHA256 ?? "",
       },
       {
-        audience: "portcove-controller-tool-bootstrap",
+        audience: profile.audience,
         subject: controllerOidcSubject(process.env.PORTCOVE_CONTROLLER_REF ?? ""),
         controller_revision: commit,
         controller_ref: process.env.PORTCOVE_CONTROLLER_REF,

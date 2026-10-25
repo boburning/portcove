@@ -9,10 +9,11 @@ import { verifiedControllerToolPaths } from "./release-controller-tool-admission
 import {
   readControllerToolFile,
   inspectControllerToolManifest,
+  type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 import { requireActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
 import {
-  nativeRuntimeSupport,
+  nativeRuntimeSupportProfile,
   inspectNativeRuntimeSupport,
   preparedNativeSupportDependencies,
 } from "./release-native-runtime-support.mts";
@@ -39,13 +40,14 @@ const runtimes = new WeakMap<
     root: string;
     binary: Buffer;
     metadata: ReturnType<typeof inspectNativeRuntimeSupport>;
+    platform: ControllerToolPlatform;
     stopped: boolean;
     custody_files: string[];
     custody: NativeRuntimeCustody;
   }
 >();
 async function sameParentTools(toolsReceipt: object, parentReceipt: object) {
-  assert.equal(process.platform, "linux");
+  assert.ok(process.platform === "linux" || process.platform === "win32");
   assert.equal(process.arch, "x64");
   const parent = await requireActualHostedNativeParentSource(parentReceipt);
   const tools = await verifiedControllerToolPaths(toolsReceipt);
@@ -53,7 +55,11 @@ async function sameParentTools(toolsReceipt: object, parentReceipt: object) {
   assert.equal(tools.identity.controller_ref, parent.producer.controller_ref);
   assert.equal(tools.identity.run_id, parent.producer.run_id);
   assert.equal(tools.identity.run_attempt, parent.producer.run_attempt);
-  assert.equal(parent.platform_label, "linux-x86_64");
+  assert.equal(
+    parent.platform_label,
+    process.platform === "linux" ? "linux-x86_64" : "windows-x86_64",
+  );
+  assert.equal(tools.platform, parent.platform_label);
   assert.ok(
     parent.stage === "payload-signing" || parent.stage === "release-publication",
     "authenticated native stage required",
@@ -75,6 +81,7 @@ export async function prepareHostedNativeRuntime(
   );
   attemptedParents.add(parentReceipt);
   const { tools, parent } = await sameParentTools(toolsReceipt, parentReceipt);
+  const profile = nativeRuntimeSupportProfile(tools.platform);
   assert.ok(path.isAbsolute(executingEntry));
   assert.equal(path.basename(executingEntry), "release-hosted-native-runner.bundle.mjs");
   assert.equal(await realpath(executingEntry), executingEntry);
@@ -85,7 +92,10 @@ export async function prepareHostedNativeRuntime(
   );
   assert.equal(await realpath(executingRoot), executingRoot);
   const manifestBytes = await readControllerToolFile(path.join(tools.root, "manifest.json"), 65536);
-  const manifest = inspectControllerToolManifest(JSON.parse(manifestBytes.toString("utf8")));
+  const manifest = inspectControllerToolManifest(
+    JSON.parse(manifestBytes.toString("utf8")),
+    tools.platform,
+  );
   assert.equal(manifest.source_commit, tools.identity.controller_revision);
   assert.equal(manifest.source_tree, tools.identity.source_tree);
   const custodyFiles = [
@@ -107,25 +117,26 @@ export async function prepareHostedNativeRuntime(
   );
   const node = await readControllerToolFile(process.execPath);
   assert.ok(node.equals(await readControllerToolFile(tools.node)));
-  const sourceFile = path.join(executingRoot, nativeRuntimeSupport.source);
+  const sourceFile = path.join(executingRoot, profile.source);
   const source = await readControllerToolFile(sourceFile, 65536);
-  const binaryFile = path.join(executingRoot, nativeRuntimeSupport.binary);
-  const binary = await readControllerToolFile(binaryFile, nativeRuntimeSupport.maximumBinaryBytes);
+  const binaryFile = path.join(executingRoot, profile.binary);
+  const binary = await readControllerToolFile(binaryFile, profile.maximumBinaryBytes);
   const metadata = inspectNativeRuntimeSupport(
     JSON.parse(
-      (
-        await readControllerToolFile(path.join(tools.root, nativeRuntimeSupport.metadata), 65536)
-      ).toString("utf8"),
+      (await readControllerToolFile(path.join(tools.root, profile.metadata), 65536)).toString(
+        "utf8",
+      ),
     ),
     source,
     binary,
+    tools.platform,
   );
   const input = rustSupportInputIdentity({
-    product: nativeRuntimeSupport.product,
+    product: profile.product,
     source: sourceFile,
     compiler: metadata.compiler,
-    rustcArgs: nativeRuntimeSupport.arguments,
-    platform: "linux",
+    rustcArgs: profile.arguments,
+    platform: process.platform,
     architecture: "x64",
   });
   assert.equal(input.fingerprint, metadata.input_fingerprint);
@@ -148,6 +159,7 @@ export async function prepareHostedNativeRuntime(
     root: executingRoot,
     binary,
     metadata,
+    platform: tools.platform,
     stopped: false,
     custody_files: custodyFiles,
     custody,
@@ -180,10 +192,16 @@ export async function requireHostedNativeRuntime(receipt: object, parentReceipt:
     const node = await readControllerToolFile(process.execPath, state.node.bytes);
     assert.equal(node.length, state.node.bytes);
     assert.equal(hash(node), state.node.sha256);
-    const binary = await lstat(path.join(state.root, nativeRuntimeSupport.binary));
+    const binary = await lstat(
+      path.join(state.root, nativeRuntimeSupportProfile(state.platform).binary),
+    );
     assert.equal(binary.mode & 0o777, state.metadata.output.mode);
     recheckNativeRuntimeCustody(state.custody_files, state.custody);
     parent.recheck();
+    assert.ok(
+      !state.stopped && performance.now() < parent.deadline,
+      "original native runtime stopped or expired",
+    );
     return { root: state.root, deadline: parent.deadline, authority: "none" as const };
   } catch (error) {
     state.stopped = true;
@@ -200,33 +218,40 @@ export async function hostedNativeSupportDependencies(
 ): Promise<Pick<RustRunDependencies, "rustSupportCompilerIdentity" | "prepareSupportArtifact">> {
   const runtime = await requireHostedNativeRuntime(receipt, parentReceipt);
   const state = runtimes.get(receipt)!;
-  assert.equal(await realpath(outputParent), outputParent);
-  const active = () => {
-    if (state.stopped || performance.now() >= runtime.deadline) {
-      state.stopped = true;
-      throw new Error("original native runtime expired");
-    }
-    try {
-      recheckNativeRuntimeCustody(state.custody_files, state.custody);
-      if (performance.now() >= runtime.deadline) throw new Error("original native runtime expired");
-    } catch (error) {
-      state.stopped = true;
-      throw error;
-    }
-  };
-  const sourceFile = path.join(state.root, nativeRuntimeSupport.source);
-  return preparedNativeSupportDependencies(
-    {
-      caller_root: state.root + path.sep,
-      output_parent: outputParent,
-      source_file: sourceFile,
-      source: await readControllerToolFile(sourceFile, 65536),
-      binary: state.binary,
-      metadata: state.metadata,
-    },
-    active,
-    () => {
-      state.stopped = true;
-    },
-  );
+  try {
+    assert.equal(await realpath(outputParent), outputParent);
+    const active = () => {
+      if (state.stopped || performance.now() >= runtime.deadline) {
+        state.stopped = true;
+        throw new Error("original native runtime expired");
+      }
+      try {
+        recheckNativeRuntimeCustody(state.custody_files, state.custody);
+        if (performance.now() >= runtime.deadline)
+          throw new Error("original native runtime expired");
+      } catch (error) {
+        state.stopped = true;
+        throw error;
+      }
+    };
+    const sourceFile = path.join(state.root, nativeRuntimeSupportProfile(state.platform).source);
+    return preparedNativeSupportDependencies(
+      {
+        caller_root: state.root + path.sep,
+        output_parent: outputParent,
+        source_file: sourceFile,
+        source: await readControllerToolFile(sourceFile, 65536),
+        binary: state.binary,
+        metadata: state.metadata,
+      },
+      active,
+      () => {
+        state.stopped = true;
+      },
+      state.platform,
+    );
+  } catch (error) {
+    state.stopped = true;
+    throw error;
+  }
 }

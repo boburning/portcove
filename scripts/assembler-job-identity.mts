@@ -12,6 +12,7 @@ import {
   inspectReleaseControlPhase,
 } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
+import type { ControllerToolPlatform } from "./release-controller-tools.mts";
 
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
@@ -70,6 +71,7 @@ type JobIdentityProfile = {
   workflow: string;
   job: string;
   environment?: ControllerOidcEnvironment | undefined;
+  labels?: readonly string[];
 };
 const verifiedJobs = new WeakMap<
   object,
@@ -387,12 +389,19 @@ async function verifyJobIdentity(
       job.check_run_url === `https://api.github.com/repos/${repository}/check-runs/${checkRunId}`,
   );
   const job = matching[0];
+  const labelsMatch = (value: Record<string, unknown>) =>
+    profile.labels === undefined ||
+    (Array.isArray(value.labels) &&
+      value.labels.length <= 16 &&
+      value.labels.every((label: unknown) => typeof label === "string" && label.length <= 128) &&
+      profile.labels.every((label) => (value.labels as unknown[]).includes(label)));
   if (
     matching.length !== 1 ||
     !job ||
     typeof job.id !== "number" ||
     job.status !== "in_progress" ||
-    job.name !== profile.job
+    job.name !== profile.job ||
+    !labelsMatch(job)
   )
     throw new Error("signed check-run identity does not identify one active trusted assembly job");
   const refreshed = get(`/actions/jobs/${job.id}`);
@@ -404,7 +413,8 @@ async function verifyJobIdentity(
     refreshed.head_sha !== expected.controller_revision ||
     refreshed.check_run_url !== job.check_run_url ||
     refreshed.name !== job.name ||
-    refreshed.status !== "in_progress"
+    refreshed.status !== "in_progress" ||
+    !labelsMatch(refreshed)
   )
     throw new Error("selected assembler job changed during collection");
   const after = runIdentity(get(runPath));
@@ -722,15 +732,47 @@ export async function verifyCapacityExecutorJobIdentity(
 }
 /** Fresh producer identity only; receivers authenticate the existing GitHub
  * attestation instead of retaining or accepting an expired bearer token. */
-export function verifyControllerToolBootstrapJobIdentity(
+export function controllerToolBootstrapProfile(platform: ControllerToolPlatform = "linux-x86_64"): {
+  job: string;
+  audience: string;
+  labels?: readonly string[];
+} {
+  if (platform !== "linux-x86_64" && platform !== "windows-x86_64")
+    throw new Error("fixed tool bootstrap platform required");
+  return Object.freeze(
+    platform === "linux-x86_64"
+      ? {
+          job: "Prepare trusted application controller tools",
+          audience: "portcove-controller-tool-bootstrap",
+        }
+      : {
+          job: "Prepare trusted Windows controller tools",
+          audience: "portcove-controller-tool-bootstrap-windows",
+          labels: Object.freeze(["windows-2022"]),
+        },
+  );
+}
+export async function verifyControllerToolBootstrapJobIdentity(
   token: string,
   expected: unknown,
   options: IdentityOptions = {},
+  platform: ControllerToolPlatform = "linux-x86_64",
 ) {
+  const profile = controllerToolBootstrapProfile(platform);
+  const bound = inspectAssemblerIdentityExpectation(expected);
+  if (
+    bound.audience !== profile.audience ||
+    bound.subject !== controllerOidcSubject(bound.controller_ref)
+  )
+    throw new Error("fixed tool bootstrap audience/subject differs");
   return verifyJobIdentity(
-    { workflow: productionControllerWorkflow, job: "Prepare trusted application controller tools" },
+    {
+      workflow: productionControllerWorkflow,
+      job: profile.job,
+      ...(profile.labels ? { labels: profile.labels } : {}),
+    },
     token,
-    expected,
+    bound,
     options,
   );
 }

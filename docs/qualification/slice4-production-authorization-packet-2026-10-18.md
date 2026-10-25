@@ -1573,3 +1573,12 @@ The held Linux job wiring and explicit85/40 alternative resource estimate are re
 The [subsequent #144 resource-path and bundled-compiler observations](slice4-144-repaired-package-native-2026-10-25.md#subsequent-resource-path-observations) establish enabled-default relocation and explicit-selection behavior at their native scope. Both real packages also reached advancing frames through their bundled TinyC route without host GCC. Earlier freeze dumps and the failed inventory/cold diagnostic remain retained; full suitability, launcher/Core lifecycle and the unchanged-client protected journey remain pending. Exact owned fixture-lease recovery required no operator/admin action. This independent work does not activate production, appoint authority or change any #315/#534/#246 acceptance hold.
 
 The [Windows executing-file custody preparation](slice4-hosted-observations-2026-10-22.md#windows-executing-file-custody-preparation-october-25) adds actual bounded owner/ACL/identity readback through the shared custody reader, with unchanged Linux checks and ordinary non-elevated inert Windows refusals. This is a prerequisite for the missing Windows producer, not a usable Windows tool artifact, direct capture or native acceptance. The Linux-only tool/runtime path is not reused as a false Windows implementation. Existing resource/admission/authority boundaries and production hold remain; no owner action is required for this independent engineering.
+
+The [Windows native tool custody/runtime binding](slice4-hosted-observations-2026-10-22.md#windows-native-tool-custody-and-runtime-binding-october-25)
+prepares a distinct authenticated Windows tool receiver and fixed prepared
+supervisor under the original parent and executing-file custody. Linux defaults
+remain unchanged. Actual hosted qualification belongs to its delivery receipt;
+this does not wire a protected Windows job or establish direct capture/native
+acceptance. Remaining producer/account/capture/proof joins, resource fit and final
+runnable source/digest/grant reconciliation stay pending. No new owner action is
+requested; all existing issue acceptance and production holds remain.

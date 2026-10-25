@@ -73,6 +73,7 @@ const windowsAssets = Object.freeze([
   ".github/qualification-coverage.json",
   "release/package-policy.json",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
+  "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ] as const);
 const windowsPaths = Object.freeze(
   [
@@ -84,6 +85,8 @@ const windowsPaths = Object.freeze(
     "bin/pnpm.exe",
     "pnpm-license.txt",
     "pnpm-notices.txt",
+    "bin/native-windows-tree-supervisor.exe",
+    "native-windows-support.json",
     controllerCompilerSourceAsset,
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
     ...windowsAssets,
@@ -135,6 +138,8 @@ export async function readControllerToolFile(filename: string, maximum = 128 * 1
 }
 
 export const controllerToolPredicateType = "https://portcove.dev/attestations/controller-tools/v1";
+export const windowsControllerToolPredicateType =
+  "https://portcove.dev/attestations/controller-tools/windows-v1";
 export function inspectControllerToolManifest(
   raw: unknown,
   platform: ControllerToolPlatform = "linux-x86_64",

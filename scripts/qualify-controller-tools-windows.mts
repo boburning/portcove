@@ -19,6 +19,13 @@ import {
   recheckNativeRuntimeCustody,
 } from "./release-native-runtime-custody.mts";
 import { readCatalogCoreMachineEnvelope } from "./release-catalog-inspection.mts";
+import {
+  nativeRuntimeSupportProfile,
+  inspectNativeRuntimeSupport,
+  preparedNativeSupportDependencies,
+} from "./release-native-runtime-support.mts";
+import { runResourceCommand } from "./resource-command.mts";
+import { runRustTests } from "./run-rust-tests.mts";
 
 async function main() {
   assert.ok(process.argv.length === 2 && process.platform === "win32" && process.arch === "x64");
@@ -169,6 +176,69 @@ async function main() {
       assert.ok(result.stderr.trim(), name);
       assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u, name);
     }
+    phase = "actual-prepared-Windows-supervisor";
+    const support = nativeRuntimeSupportProfile("windows-x86_64");
+    const supportSource = await readControllerToolFile(
+      path.join(built.tools, support.source),
+      65536,
+    );
+    const supportBinary = await readControllerToolFile(
+      path.join(built.tools, support.binary),
+      support.maximumBinaryBytes,
+    );
+    const supportMetadata = inspectNativeRuntimeSupport(
+      JSON.parse(
+        (await readControllerToolFile(path.join(built.tools, support.metadata), 65536)).toString(
+          "utf8",
+        ),
+      ),
+      supportSource,
+      supportBinary,
+      "windows-x86_64",
+    );
+    let stopped = false;
+    const prepared = preparedNativeSupportDependencies(
+      {
+        caller_root: source,
+        output_parent: buildParent,
+        source_file: path.join(built.tools, support.source),
+        source: supportSource,
+        binary: supportBinary,
+        metadata: supportMetadata,
+      },
+      () => {
+        assert.ok(!stopped);
+        recheckNativeRuntimeCustody(files, custody);
+      },
+      () => {
+        stopped = true;
+      },
+      "windows-x86_64",
+    );
+    const supervised = await runResourceCommand(
+      "analysis",
+      path.join(built.tools, "bin/node.exe"),
+      ["-e", 'process.stdout.write("prepared-Windows-supervisor\\n")'],
+      {
+        cwd: source,
+        environment: { ...environment, GITHUB_ACTIONS: "true" },
+        executionTimeoutMilliseconds: 5000,
+        supervise: (args, dependencies) =>
+          runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+      },
+    );
+    assert.equal(supervised, 0);
+    assert.equal(stopped, false);
+    await record("prepared-supervisor.json", {
+      status: supervised,
+      product: support.product,
+      sha256: supportMetadata.output.sha256,
+      compiler_queries: "prepared-metadata-only",
+      runtime_compilation: false,
+      shared_cache_queries: false,
+      scope: "inert resource-admitted child only; no candidate/native acceptance",
+      authority: "none",
+    });
     recheckNativeRuntimeCustody(files, custody);
     await record("result.json", {
       status: "pass",

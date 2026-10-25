@@ -1154,3 +1154,53 @@ credential, publisher authority or protected execution is requested. D1/D2/D3,
 $0 stop-usage and all other resource/admission restrictions remain. Availability
 and headroom Unknown; no capacity reservation. #254 Done; #315/#534/#246 pending;
 Chameleon protected_acceptance unset; production held; Slice5 excluded.
+
+## Windows native tool custody and runtime binding (October 25)
+
+The explicit Windows schema3 inventory now includes the fixed Windows process-tree
+supervisor source, prepared AMD64 PE executable and exact build metadata. Both
+runtime compiler identity and support-artifact callbacks consume that prepared
+product; runtime compilation and shared-cache fallback remain refused. Windows
+uses owner/ACL/file-identity custody, including an exclusively created intent in
+the exact fresh output directory before executable materialization. Linux keeps
+its existing ELF product, file modes, inventory and default wire selection.
+
+The prepared Windows bootstrap has a distinct OIDC audience, numeric job identity,
+`windows-2022` runner label, artifact and attestation names, subject and signed
+predicate. Only an explicit Windows expectation selects that receiver; default
+callers still select Linux. Exact signed source/tree/run/attempt and bounded
+provider readback remain required. Injected verification fixtures cannot mint a
+production receipt. The shared native runtime binds the actual OS and original
+parent's platform to the privately verified tools, checks the executing Node and
+entry bytes, and rechecks custody before use. Preparation refusal permanently
+stops that runtime. A concurrent refusal must also stop an already suspended
+getter after its final await; restored inputs cannot revive it.
+
+The credential-free ordinary Windows qualification adds actual execution of this
+prepared supervisor through the existing resource-admitted runner seam. It retains
+`prepared-supervisor.json` alongside its existing executable, package-manager and
+custody observations. Current-source hosted outcomes and independent review belong
+to the owning delivery receipt; synthetic PE metadata or controlled getter tests
+are not actual Windows execution or protected acceptance. The Linux interleaving
+regression is skipped on Windows and must execute in its applicable hosted route.
+The previous bootstrap delivery #3451 remains evidence only for its earlier
+inventory and actual six-tool smoke scope.
+
+Initial source `1a4f08593efe11f7f521f4e84f06ddc0686ab3dc` passed both tool
+fixtures in40190590510/a1, including the actual Windows prepared supervisor and
+Linux controlled-runtime interleaving regression. Required CI40190590531/a1
+retained a receiver source-only dependency-closure failure: importing runtime
+support merely to name three fixed inventory paths pulled an absent module into
+credential-free startup. The repair keeps those inventory paths literal, as for
+the existing Linux paths, without importing execution code. Local source-only
+closure and Windows inventory/receiver checks pass after that repair. Subsequent
+exact-source CI and fixture outcomes remain independently scoped.
+
+This adds no protected job, workflow permission, credential or resource-policy
+allocation. The Windows producer/account/direct capture/report and original-worker
+pre/post-sign proof joins remain engineering work, together with final whole-job
+resource fit and source/digest/grant reconciliation. No owner setup step is needed
+for this preparation. D1/D2/D3 and all spending/admission/recovery restrictions
+remain: availability/headroom Unknown, no capacity reservation, #254 Done,
+#315/#534/#246 pending, Chameleon protected acceptance unset, production held and
+Slice5 excluded.
