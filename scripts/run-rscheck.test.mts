@@ -6,8 +6,95 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import pins from "../.github/quality-tools.json" with { type: "json" };
+import portabilityBaseline from "./fixtures/rscheck-portability-baseline.json" with { type: "json" };
 
 import { assessRscheckReport, parseRscheckReport } from "./run-rscheck.mts";
+
+void test("reviewed portability literals apply only to exact files and exact values", async (t) => {
+  const command = process.platform === "win32" ? "rscheck.exe" : "rscheck";
+  const version = spawnSync(command, ["--version"], { encoding: "utf8", timeout: 5_000 });
+  if (version.error && "code" in version.error && version.error.code === "ENOENT") {
+    t.skip("Pinned rscheck is not installed; run the maintained rscheck route for this control");
+    return;
+  }
+  assert.equal(version.status, 0, version.stderr);
+  assert.equal(
+    version.stdout.trim(),
+    `rscheck ${pins.tools.find((tool) => tool.id === "rscheck-cli")?.version}`,
+  );
+  assert.equal(portabilityBaseline.source, "fe45fb8f73308e5ef40e218faa5a756ded598175");
+  assert.equal(portabilityBaseline.raw_findings, 88);
+  assert.equal(portabilityBaseline.scopes.length, 16);
+  const created = await mkdtemp(path.join(os.tmpdir(), "pcv-rscheck-literals-"));
+  t.after(() => rm(created, { recursive: true, force: true }));
+  const directory = await realpath(created);
+  await copyFile(
+    fileURLToPath(new URL("../.rscheck.toml", import.meta.url)),
+    path.join(directory, ".rscheck.toml"),
+  );
+  await mkdir(path.join(directory, "src"));
+  await writeFile(
+    path.join(directory, "Cargo.toml"),
+    '[package]\nname="rscheck-literal-controls"\nversion="0.0.0"\nedition="2024"\n',
+  );
+  await writeFile(path.join(directory, "src/lib.rs"), "");
+  const rustString = (value: string) =>
+    JSON.stringify(value).replace(/\\u([a-f0-9]{4})/gu, "\\u{$1}");
+  const expected: { file: string; value: string }[] = [];
+  const allowed: { file: string; value: string }[] = [];
+  for (const [index, scope] of portabilityBaseline.scopes.entries()) {
+    const deniedValue = `/portcove-unreviewed-${index}`;
+    const neighbor = scope.file.replace(/\.rs$/u, "_unreviewed.rs");
+    const inherited = "inherited_global_values" in scope ? scope.inherited_global_values : [];
+    for (const [file, values] of [
+      [scope.file, [...scope.values, ...inherited, deniedValue]],
+      [neighbor, [...scope.values, ...inherited]],
+    ] as const) {
+      const filename = path.join(directory, file);
+      await mkdir(path.dirname(filename), { recursive: true });
+      await writeFile(
+        filename,
+        `fn fixture() { let _ = [${values.map(rustString).join(",")}]; }\n`,
+      );
+    }
+    expected.push(
+      { file: scope.file, value: deniedValue },
+      ...scope.values.map((value) => ({ file: neighbor, value })),
+    );
+    allowed.push(...scope.values.map((value) => ({ file: scope.file, value })));
+    allowed.push(
+      ...inherited.flatMap((value) => [scope.file, neighbor].map((file) => ({ file, value }))),
+    );
+  }
+  const result = spawnSync(command, ["check", "--format", "json"], {
+    cwd: directory,
+    encoding: "utf8",
+    timeout: 60_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  assert.equal(result.status, 2, result.stderr);
+  const denies = assessRscheckReport(parseRscheckReport(result)).denies;
+  assert.equal(denies.length, expected.length);
+  for (const { file, value } of expected)
+    assert.ok(
+      denies.some(
+        (finding) =>
+          finding.rule_id === "portability.absolute_literal_paths" &&
+          finding.primary?.file === path.join(directory, file) &&
+          finding.message?.endsWith(": " + value),
+      ),
+      `Missing exact denial for ${file}: ${JSON.stringify(value)}`,
+    );
+  for (const { file, value } of allowed)
+    assert.ok(
+      !denies.some(
+        (finding) =>
+          finding.primary?.file === path.join(directory, file) &&
+          finding.message?.endsWith(": " + value),
+      ),
+      `Reviewed literal was denied in ${file}: ${JSON.stringify(value)}`,
+    );
+});
 
 void test("scanner collection preserves a denial after a report larger than the default buffer", () => {
   const producer = `

@@ -373,6 +373,7 @@ const workflowFeatureTests = [
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
   ...[
     ".github/actions/retain-browser-diagnostics/action.yml",
     ".github/workflows/browser-artifact-custody.yml",
