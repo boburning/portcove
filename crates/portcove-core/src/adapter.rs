@@ -1765,7 +1765,13 @@ fn materialize_psx_bin_cue(
         pinned_tool,
         checkpoint,
         crate::tool_process::ToolProcessObserver {
-            diagnostics: observer.diagnostics.take(),
+            diagnostics: observer.diagnostics.as_mut().map(|sink| {
+                crate::tool_process::ToolDiagnosticSink {
+                    activity_id: sink.activity_id,
+                    phase: sink.phase,
+                    record: &mut *sink.record,
+                }
+            }),
             quiesced: Some(&mut || {
                 command_quiesced = true;
                 Ok(())
