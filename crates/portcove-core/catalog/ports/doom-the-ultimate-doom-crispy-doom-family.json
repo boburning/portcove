@@ -3,7 +3,7 @@
   "listing": {
     "id": "doom-the-ultimate-doom-crispy-doom-family",
     "name": "Doom / The Ultimate Doom (Crispy Doom family)",
-    "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Use the matching Doom/Ultimate Doom IWAD; the retained README explicitly allows Doom shareware DOOM1.WAD for limited shareware play and mentions BFG Doom Classic WAD support. Exact retail IWAD/revision for the selected full-game mode remains Unknown here; optional Freedoom is an alternative game-data route, not ownership of Doom. Portcove setup/gameplay not verified.",
     "original_game_title": "Doom / The Ultimate Doom",
     "project_url": "https://github.com/fabiangreffrath/crispy-doom",
     "platforms": [],

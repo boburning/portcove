@@ -3,7 +3,7 @@
   "listing": {
     "id": "descent-ii-dxx-rebirth",
     "name": "Descent II (DXX-Rebirth)",
-    "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: No binary assets on last GitHub release; resolve official current package source. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: Original-data contract remains Unknown in the retained DXX-Rebirth README for Descent II. Establish the selected game's accepted retail/shareware/demo edition, patch/revision and required data location before offering setup. Descent and Descent II are distinct inputs; package availability is separate from supplying the corresponding game data. Portcove setup/gameplay not verified.",
     "original_game_title": "Descent II",
     "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
     "platforms": [],

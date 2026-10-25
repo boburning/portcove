@@ -3,7 +3,7 @@
   "listing": {
     "id": "jagged-alliance-2-ja2-stracciatella",
     "name": "Jagged Alliance 2 (JA2 Stracciatella)",
-    "summary": "Upstream route: Mature desktop port with explicit original-data directory and localization setup. Limits: Established Jagged Alliance 2 source-port route; preserve exact edition/localization and mod lineage. Upstream platforms: Desktop Windows/Linux/macOS source/package routes; exact selected artifact CPU architectures unknown in frozen research. Original data: Exact edition/localization; do not silently substitute another JA2 mod lineage. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Mature desktop port with explicit original-data directory and localization setup. Limits: Established Jagged Alliance 2 source-port route; preserve exact edition/localization and mod lineage. Upstream platforms: Desktop Windows/Linux/macOS source/package routes; exact selected artifact CPU architectures unknown in frozen research. Original data: Use original Jagged Alliance 2 installation data and point the JA2 Data Directory/game_dir at that installation. Select its matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty, or Russian Gold. Exact accepted release/patch fingerprints are not specified in the retained README. Portcove setup/gameplay not verified.",
     "original_game_title": "Jagged Alliance 2",
     "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
     "platforms": [],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "cannon-fodder-open-fodder",
     "name": "Cannon Fodder (Open Fodder)",
-    "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Confirm supported edition per game and clean source-data setup. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Supply Cannon Fodder data from an upstream-supported Amiga, Amiga CD32 or DOS CD release. Included cover-disk/PC demos provide their limited demo content, not the full retail game. Exact language/revision requirements remain Unknown in the retained README. Portcove setup/gameplay not verified.",
     "original_game_title": "Cannon Fodder",
     "project_url": "https://github.com/OpenFodder/openfodder",
     "platforms": [],
