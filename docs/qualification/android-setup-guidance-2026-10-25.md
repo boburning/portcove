@@ -59,8 +59,9 @@ blanket statement that all existing-copy operations are unsupported.
 ## Evidence and delivery scope
 
 All seventeen release histories and selected-release asset inventories are
-completely paginated. Their latest selected stable tags match the reviewed guides;
-all twenty-four pinned primary guide/source blobs are unchanged and verified
+completely paginated. The selected release tags remain current in the publisher metadata; explicit
+APK/guide differences, including SMA3's version mismatch, remain recorded per ID.
+All twenty-four pinned primary guide/source blobs are unchanged and verified
 against Git blob identity and content SHA-256. Each actual proposed record passed
 maintained Core listing preparation with unchanged operational projection. Dual
 Souls' repaired held proposal has its own input/output/receipt, preserving the
