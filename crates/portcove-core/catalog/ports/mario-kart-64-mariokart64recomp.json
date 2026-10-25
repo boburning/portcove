@@ -6,9 +6,9 @@
     "summary": "Explore Mario Kart 64 / MarioKart64Recomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
     "issue_number": 332,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
     "artwork": {
       "game_id": 2342,
       "cover_id": 289642,
@@ -16,6 +16,33 @@
       "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
       "game_slug": "mario-kart-64",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases",
+    "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+    "manual_setup": {
+      "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
+      "warnings": [
+        "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+        "The reviewed v0.9.2 release currently supports single-player modes."
+      ],
+      "steps": [
+        {
+          "title": "Keep a complete permitted copy",
+          "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is MarioKart64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+        },
+        {
+          "title": "Supply your original when you choose Play",
+          "instruction": "Save the reviewed launch details, then choose Play explicitly. The upstream player selects and validates your own matching North American Mario Kart 64 original; keep it available and follow its edition checks. No local compiler or separate installer is needed for the reviewed Windows package."
+        },
+        {
+          "title": "Preserve the actual profile before updating",
+          "instruction": "You or upstream replace this external runtime. Close the game and preserve its original, saves, settings and mods at the actual current profile location. Windows normally uses %LOCALAPPDATA%/MarioKart64Recompiled/; portable.txt mode instead uses the working folder beside the runtime. Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
+        },
+        {
+          "title": "Linux and macOS copies",
+          "instruction": "The reviewed Linux ZIP contains MarioKart64Recompiled.tar.gz: unpack both layers yourself before registering the existing player. Keep the complete upstream macOS application bundle and follow its setup instructions. Normal data roots are ~/.config/MarioKart64Recompiled/ on Linux and ~/Library/Application Support/MarioKart64Recompiled/ on macOS; portable mode instead uses the working folder or bundle-parent folder containing portable.txt. Preserve that actual location separately."
+        }
+      ]
     }
   }
 }

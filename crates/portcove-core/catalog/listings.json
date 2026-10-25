@@ -8708,8 +8708,8 @@
       "project_url": "https://gitlab.com/bighead.0/ladxhd_updated",
       "issue_number": 1838,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated",
+      "availability": "packages",
+      "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated/-/blob/718195bf972cb3fd87ed73af88e44899197d7a0e/README.md",
       "artwork": {
         "game_id": 1027,
         "cover_id": 217879,
@@ -8717,6 +8717,27 @@
         "image_sha256": "270128e2277a26e22faa7bcb2e24550952e1d1a9719de9d858f51cf6ffef67ea",
         "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://gitlab.com/bighead.0/ladxhd_updated/-/releases",
+      "manual_setup": {
+        "help_url": "https://gitlab.com/bighead.0/ladxhd_updated/-/blob/718195bf972cb3fd87ed73af88e44899197d7a0e/README.md",
+        "warnings": [
+          "Upstream patching requires a permitted existing v1.0.0 (or compatible v1.1.4+) PC-port copy and its Content/Data assets. A Game Boy ROM is not a substitute, and Portcove does not supply missing original PC-port assets."
+        ],
+        "steps": [
+          {
+            "title": "Use upstream preparation for your existing copy",
+            "instruction": "Keep a backup of your permitted original PC-port copy. Follow upstream Patching to the Latest Version: place its platform-specific patcher in that copy’s root, select the target platform/graphics backend, and apply the patch yourself. Keep the complete resulting game, Content and Data folders together. Portcove does not run the patcher, migration tool, signing script or installer during discovery or registration."
+          },
+          {
+            "title": "Add the completed game executable",
+            "instruction": "For Windows, select Link's Awakening DX HD.exe from the finished game folder; for an already prepared native Linux copy, select Link's Awakening DX HD. Use that game folder as the working directory, review and save the launch details, then choose Play explicitly. The separate Launcher starts another player and exits; use upstream’s Launcher yourself for its configuration, mods and update features. macOS application-bundle preparation remains with upstream’s specific guide."
+          },
+          {
+            "title": "Preserve the actual game profile",
+            "instruction": "Upstream’s Launcher and patcher own runtime replacement. On Windows, normal saves/settings/achievements and launcher state use %LOCALAPPDATA%/Zelda_LA, with SaveFiles/ under that profile; existing portable.txt mode instead uses the game folder. Mods normally stay in the game folder’s Mods/; an AppImage uses its external Zelda_LA/Mods profile. Preserve the actual profile, mods and permitted original assets before updating and keep the old working copy until progress is checked. Registration grants no managed Update, Backup or Rollback; removing it preserves all external files."
+          }
+        ]
       }
     },
     {
@@ -12518,9 +12539,11 @@
       "summary": "Explore Digimon World / psx-recomp-port and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://gitlab.com/ethan4love/psx-recomp-port",
       "issue_number": 357,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://gitlab.com/ethan4love/psx-recomp-port",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",
       "artwork": {
         "game_id": 8614,
         "cover_id": 76556,
@@ -12528,6 +12551,27 @@
         "image_sha256": "bd8b2a3b450776072e2d55a7d8f861e1717f206e8fd6acef9e5d4f18393f56ab",
         "game_slug": "digimon-world",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/releases",
+      "manual_setup": {
+        "help_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",
+        "warnings": [
+          "The official download is an upstream setup kit, not a ready game. Its own wizard generates and rebuilds the runtime from your disc. Keep the entire prepared project and originals; Portcove does not own its compiler, caches or runtime updates."
+        ],
+        "steps": [
+          {
+            "title": "Finish upstream setup once",
+            "instruction": "Use the complete official Windows x64 setup ZIP and follow its README-SETUP.txt. Supply your own Digimon World USA SLUS-01032 BIN and matching CUE, choose the CUE, and let upstream validate it. Setup requires Python 3 and offers its own build tools; a retail SCPH-1001 BIOS is optional because upstream can generate OpenBIOS locally. Run the upstream setup yourself and keep its folder/progress if interrupted. Portcove does not run a discovered setup host, compiler or helper."
+          },
+          {
+            "title": "Register the finished game player",
+            "instruction": "After upstream Generate & rebuild succeeds, select build-release/Digimon_World_Recompiled.exe inside that project, rather than the root setup-forwarding executable or the Play batch file. Set the working directory to the project root. In Arguments, enter --game, game.toml and --launcher on three separate lines, one argument per line, matching the reviewed upstream product handoff. Review and save these launch details, then choose Play explicitly."
+          },
+          {
+            "title": "Keep saves and upstream updates together",
+            "instruction": "You or upstream update and regenerate this external project. Close the game and preserve the complete prepared folder, including saves/, mods/, game.toml and build-release/, as well as any originals or BIOS stored elsewhere. Ordinary memory-card saves are the long-term progress route; upstream warns that save states and rewind depend on matching mods. Retain the old working copy until progress works after an update. Removing registration preserves every external file; this route does not provide managed Update, Backup or Rollback."
+          }
+        ]
       }
     },
     {
@@ -20766,9 +20810,11 @@
       "summary": "Explore Mario Kart 64 / MarioKart64Recomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
       "issue_number": 332,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
       "artwork": {
         "game_id": 2342,
         "cover_id": 289642,
@@ -20776,6 +20822,33 @@
         "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
         "game_slug": "mario-kart-64",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases",
+      "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+      "manual_setup": {
+        "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
+        "warnings": [
+          "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+          "The reviewed v0.9.2 release currently supports single-player modes."
+        ],
+        "steps": [
+          {
+            "title": "Keep a complete permitted copy",
+            "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is MarioKart64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+          },
+          {
+            "title": "Supply your original when you choose Play",
+            "instruction": "Save the reviewed launch details, then choose Play explicitly. The upstream player selects and validates your own matching North American Mario Kart 64 original; keep it available and follow its edition checks. No local compiler or separate installer is needed for the reviewed Windows package."
+          },
+          {
+            "title": "Preserve the actual profile before updating",
+            "instruction": "You or upstream replace this external runtime. Close the game and preserve its original, saves, settings and mods at the actual current profile location. Windows normally uses %LOCALAPPDATA%/MarioKart64Recompiled/; portable.txt mode instead uses the working folder beside the runtime. Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
+          },
+          {
+            "title": "Linux and macOS copies",
+            "instruction": "The reviewed Linux ZIP contains MarioKart64Recompiled.tar.gz: unpack both layers yourself before registering the existing player. Keep the complete upstream macOS application bundle and follow its setup instructions. Normal data roots are ~/.config/MarioKart64Recompiled/ on Linux and ~/Library/Application Support/MarioKart64Recompiled/ on macOS; portable mode instead uses the working folder or bundle-parent folder containing portable.txt. Preserve that actual location separately."
+          }
+        ]
       }
     },
     {
@@ -30849,9 +30922,11 @@
       "summary": "Explore Star Fox 64 / Starfox64Recomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
       "issue_number": 333,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
       "artwork": {
         "game_id": 2591,
         "cover_id": 524514,
@@ -30859,6 +30934,28 @@
         "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
         "game_slug": "star-fox-64",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/releases",
+      "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+      "manual_setup": {
+        "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
+        "warnings": [
+          "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package."
+        ],
+        "steps": [
+          {
+            "title": "Keep a complete permitted copy",
+            "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is Starfox64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+          },
+          {
+            "title": "Supply your original when you choose Play",
+            "instruction": "Save the reviewed launch details, then choose Play explicitly. The upstream player selects and validates your own matching North American revision 1.1 Star Fox 64 original; keep it available and follow its edition checks. No local compiler or separate installer is needed for the reviewed Windows package."
+          },
+          {
+            "title": "Preserve the actual profile before updating",
+            "instruction": "You or upstream replace this external runtime. Close the game and preserve its original, saves, settings and mods at the actual current profile location. Windows normally uses %LOCALAPPDATA%/Starfox64Recompiled/; portable.txt mode instead uses the working folder beside the runtime. Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
+          }
+        ]
       }
     },
     {

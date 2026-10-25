@@ -6,9 +6,9 @@
     "summary": "Explore Star Fox 64 / Starfox64Recomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
     "issue_number": 333,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
     "artwork": {
       "game_id": 2591,
       "cover_id": 524514,
@@ -16,6 +16,28 @@
       "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
       "game_slug": "star-fox-64",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/releases",
+    "download_block_reason": "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+    "manual_setup": {
+      "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
+      "warnings": [
+        "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package."
+      ],
+      "steps": [
+        {
+          "title": "Keep a complete permitted copy",
+          "instruction": "Keep the complete upstream Windows runtime together with its assets and DLLs. The player is Starfox64Recompiled.exe; select that existing executable and use its containing folder as the working directory. Retain any existing portable.txt choice. Registration preserves external ownership and does not execute setup or the game."
+        },
+        {
+          "title": "Supply your original when you choose Play",
+          "instruction": "Save the reviewed launch details, then choose Play explicitly. The upstream player selects and validates your own matching North American revision 1.1 Star Fox 64 original; keep it available and follow its edition checks. No local compiler or separate installer is needed for the reviewed Windows package."
+        },
+        {
+          "title": "Preserve the actual profile before updating",
+          "instruction": "You or upstream replace this external runtime. Close the game and preserve its original, saves, settings and mods at the actual current profile location. Windows normally uses %LOCALAPPDATA%/Starfox64Recompiled/; portable.txt mode instead uses the working folder beside the runtime. Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
+        }
+      ]
     }
   }
 }
