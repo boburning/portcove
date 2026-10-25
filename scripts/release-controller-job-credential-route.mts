@@ -6,12 +6,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { requireControllerJobCredentialRoute } from "./release-authority-configuration.mts";
 import { errorMessage } from "./runtime-values.mts";
+import { waitForOriginalPayloadNativeProof } from "./release-native-presign-readiness.mts";
 
 export async function writeControllerJobCredentialRoute(phase: unknown) {
   const output = process.env.GITHUB_OUTPUT;
   if (!output || !path.isAbsolute(output))
     throw new Error("actual runner credential-routing output required");
   const captured = await requireControllerJobCredentialRoute(phase);
+  await waitForOriginalPayloadNativeProof(captured);
   captured.recheck();
   await appendFile(output, `credential_transport=${captured.route.credential_transport}\n`);
   captured.recheck();

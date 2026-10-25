@@ -64,6 +64,8 @@ void test("qualification archive inputs retain ordinary Rust coverage across eve
 void test("hosted report source, its actual companion and shared fixtures retain release security ownership", () => {
   for (const file of [
     "scripts/release-native-source-provider.mts",
+    "scripts/release-native-presign-readiness.mts",
+    "scripts/release-native-presign-readiness.test.mts",
     "scripts/release-native-postsign-readiness.mts",
     "scripts/release-native-source-provider.test.mts",
     "scripts/release-hosted-native-linux-report.test.mts",

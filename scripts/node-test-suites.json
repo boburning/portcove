@@ -1786,6 +1786,13 @@
       ]
     },
     {
+      "file": "scripts/release-native-presign-readiness.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15901],
+        ["release-check", 16101]
+      ]
+    },
+    {
       "file": "scripts/release-hosted-native-runner.test.mts",
       "memberships": [
         ["catalog-full-2", 15145],
