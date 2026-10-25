@@ -1298,6 +1298,8 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/nextest-outcomes.test.mts",
       "scripts/ci-rust-workflow.test.mts",
       "scripts/qualification-coverage.test.mts",
+      "scripts/audit.test.mts",
+      "scripts/precommit-check.test.mts",
     ],
   ],
   [
@@ -1313,6 +1315,8 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/rust-test-impact.test.mts",
       "scripts/ci-rust-workflow.test.mts",
       "scripts/ci-workflow.test.mts",
+      "scripts/audit.test.mts",
+      "scripts/precommit-check.test.mts",
     ],
   ],
   ...["passed.jsonl", "failing.jsonl", "ignored.jsonl", "inventory.json", "provenance.json"].map(
@@ -1741,6 +1745,8 @@ explicitNodeTests.set("scripts/runtime-values.mts", [
   "scripts/qualification-nextest.test.mts",
   "scripts/nextest-outcomes.test.mts",
   "scripts/qualification-coverage.test.mts",
+  "scripts/audit.test.mts",
+  "scripts/precommit-check.test.mts",
 ]);
 
 const releaseContractTests = Object.freeze([

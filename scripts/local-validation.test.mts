@@ -90,6 +90,16 @@ void test("qualification outcome helpers retain all direct consumers across life
           expected,
           JSON.stringify(change),
         );
+      if (
+        [
+          "scripts/qualification-nextest.mts",
+          "scripts/nextest-outcomes.mts",
+          "scripts/runtime-values.mts",
+        ].includes(file)
+      )
+        for (const selected of [local.nodeTests, new Set(hosted)])
+          for (const consumer of ["scripts/audit.test.mts", "scripts/precommit-check.test.mts"])
+            assert.ok(selected.has(consumer), `${JSON.stringify(change)} must retain ${consumer}`);
     }
 });
 

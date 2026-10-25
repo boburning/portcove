@@ -302,6 +302,8 @@ void test("candidate coverage constants cannot authorize their own reduced trans
     "scripts/development-evidence.mts",
     "scripts/retained-evidence.mts",
     "scripts/qualification-coverage.mts",
+    "scripts/qualification-nextest.mts",
+    "scripts/nextest-outcomes.mts",
     ".github/qualification-coverage.json",
     ".github/workflows/ci.yml",
   ]) {
