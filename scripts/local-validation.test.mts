@@ -75,7 +75,10 @@ void test("native input observation and its fixed oracle retain direct consumers
         head: "b".repeat(40),
         checkout: "b".repeat(40),
       });
-      const local = classifyChanges([change], { fileExists: () => false });
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
       const hosted = baselineContractTests(plan, { fileExists: () => false });
       assert.equal(local.nodeTests.has(consumer), file !== sibling, JSON.stringify(change));
       assert.equal(hosted.includes(consumer), file !== sibling, JSON.stringify(change));
