@@ -3,13 +3,36 @@
   "listing": {
     "id": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
     "name": "3D Pinball for Windows: Space Cadet (SpaceCadetPinball)",
-    "summary": "Upstream route: Complete reverse-engineered desktop game with Windows/macOS release archives. Limits: Complete reverse-engineered game according to upstream; original Windows/Full Tilt data is separate. Upstream platforms: Windows/macOS release archives; Linux source build. Windows x86-64 cross-build and Intel/Apple-Silicon macOS builds documented; selected archive architectures otherwise unknown in frozen evidence. Original data: Original Windows or Full Tilt resources not included; verify lawful data acquisition/setup. Portcove setup/gameplay not verified.",
+    "summary": "Space Cadet on modern desktop systems using your own Windows or Full Tilt game resources. The official Windows player is a ZIP; upstream or you provide updates.",
     "original_game_title": "3D Pinball for Windows: Space Cadet",
     "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
     "issue_number": 2553,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/k4zmu2a/SpaceCadetPinball"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md",
+    "release_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["SpaceCadetPinball", "x64Win.zip"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Keep the player and your game resources together",
+          "instruction": "For the modern Windows x64 player, extract the complete SpaceCadetPinballx64Win.zip into a separate folder you control. Keep SpaceCadetPinball.exe, SDL2.dll and SDL2_mixer.dll together. Add your own original Windows Space Cadet or supported Full Tilt resources to that folder; the port download does not include them. The x86 and Windows XP packages are different alternatives. There is no installer or converter to finish."
+        },
+        {
+          "title": "Save the player, then choose Play",
+          "instruction": "Select SpaceCadetPinball.exe with that folder as its working directory, save launch details, then choose Play separately. If the game reports missing resources, follow its folder search message and the upstream guide. macOS application packages and Linux distribution/Flatpak or source-build routes keep their own upstream installation instructions; a Windows ZIP does not establish their native qualification."
+        },
+        {
+          "title": "Keep your profile and resources when updating",
+          "instruction": "You or upstream provide updates to this external copy. Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions. On Windows the normal profile is %APPDATA%\\SpaceCadetPinball and includes imgui_pb.ini; it is separate from the downloaded player folder. Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

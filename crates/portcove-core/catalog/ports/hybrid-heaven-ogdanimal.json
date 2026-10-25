@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hybrid-heaven-ogdanimal",
+    "name": "Hybrid Heaven: Recompiled (ogdanimal)",
+    "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. Upstream performs first-launch setup; existing permitted copies keep their own updates and player data.",
+    "original_game_title": "Hybrid Heaven",
+    "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
+    "issue_number": 2546,
+    "availability": "packages",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "release_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/releases",
+    "setup_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
+    "download_block_reason": "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts.",
+    "download_asset_hints": {
+      "windows-x86-64": ["HybridHeaven-", "-windows-x64.zip"],
+      "linux-x86-64": ["HybridHeaven-", "-linux-x86_64.tar.gz"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
+      "warnings": [
+        "Portcove downloads are paused until redistribution permission for the included Chiaro fonts is established. The reviewed package identifies Fontworks Japan as their owner; the project code license does not establish that separate font grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable grant or publishes a package using appropriately licensed replacement fonts."
+      ],
+      "steps": [
+        {
+          "title": "Keep a permitted complete copy",
+          "instruction": "Keep the complete upstream package in a folder you control. The reviewed Windows player is HybridHeavenRecompiled.exe; on Linux it is HybridHeavenRecompiled and needs Vulkan, SDL2 and GTK 3. Keep assets beside the player and use that folder as its working directory. Android APK installation remains an upstream device setup route."
+        },
+        {
+          "title": "Add the player, then supply your original on Play",
+          "instruction": "Select your completed player and save its launch details, then choose Play separately. First launch asks once for your own ordinary USA Hybrid Heaven cartridge dump (upstream SHA-1 16dbc21620b52deab5c5abf8a309ac60adfbee85). The game verifies and copies it into its own storage, then offers Start Game. No decompression or converter is needed, and Portcove does not run a discovered helper during setup."
+        },
+        {
+          "title": "Keep the game profile when updating",
+          "instruction": "You or upstream update this external copy. Close the game and back up its actual profile before changing versions: normally %LOCALAPPDATA%\\HybridHeavenRecompiled on Windows or ~/.config/HybridHeavenRecompiled on Linux. An existing portable copy can use its own folder instead; retain the mode you already use. Keep the ROM, settings, saves and mods together with that profile. The game can import a compatible save through Settings → Saves before starting; its existing save is retained as hybridheaven.us.bin.pre-import.bak. Controller Pak .mpk files are not accepted by that importer. Verify progress in the new copy before retiring the old one. Removing a Portcove registration preserves all external files; it does not provide managed Update, Backup or Rollback."
+        }
+      ]
+    },
+    "artwork": {
+      "game_id": 3513,
+      "cover_id": 152879,
+      "image_id": "co39yn",
+      "image_sha256": "bf0007c9b9a4ef9b1d297695a5dcfce8154960e72d9860e15da72cdb89bcf3f5",
+      "game_slug": "hybrid-heaven",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hybrid-heaven-ogdanimal",
+    "origin": {
+      "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1319620620"
+      }
+    },
+    "decisions": []
+  }
+}

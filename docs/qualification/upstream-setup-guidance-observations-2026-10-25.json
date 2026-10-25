@@ -1,0 +1,3440 @@
+{
+  "format_version": 1,
+  "generated_at": "2026-10-25T06:13:16.866766+00:00",
+  "kind": "Dated partial rollout evidence; not a live registry",
+  "parent_owner": 2510,
+  "delivery_owner": 2926,
+  "source_preservation_commit": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "before_snapshot_source": "9316d54124ab372ada42c318bdf95d315d213b10",
+  "before_snapshot_relation": "Catalog tree equality to delivered59c9afe4 already verified after3031 merge",
+  "ports": 7,
+  "entries": [
+    {
+      "id": "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+      "canonical_issue": 2553,
+      "path": "crates/portcove-core/catalog/ports/3d-pinball-for-windows-space-cadet-spacecadetpinball.json",
+      "before_sha256": "6497de6f407c80c3294c5cf09bee91454b65e6ca4ab94ca44d1604880837f255",
+      "preserved_record_sha256": "1c8127356fcc1f1762c196da5f8d20b00a06cca10e4c933bab6f64d8cf48a556",
+      "candidate_sha256": "1c8127356fcc1f1762c196da5f8d20b00a06cca10e4c933bab6f64d8cf48a556",
+      "route": "download",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-3d-pinball-for-windows-space-cadet-spacecadetpinball\\completion-06a5c7558d536e26612612c070ee76b031fe9fbfced95239ecbab277b1f76ef3.json",
+      "report_sha256": "06a5c7558d536e26612612c070ee76b031fe9fbfced95239ecbab277b1f76ef3",
+      "preparation_validation": {
+        "status": "unchanged-operational-projection",
+        "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+      },
+      "operational_declaration_changed": false,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI.",
+      "upstream_receipt": {
+        "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-3d-pinball-for-windows-space-cadet-spacecadetpinball\\upstream-2daed14967060a4e0dae86c74ae92542748cd47fc2ab54db29db8ff6fd064784.json",
+        "sha256": "2daed14967060a4e0dae86c74ae92542748cd47fc2ab54db29db8ff6fd064784",
+        "assets_complete": true,
+        "assets": [
+          {
+            "id": 130801712,
+            "name": "SpaceCadetPinballMac.zip",
+            "size": 5392736,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballMac.zip"
+          },
+          {
+            "id": 130961994,
+            "name": "SpaceCadetPinballx64Win.zip",
+            "size": 1495776,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballx64Win.zip"
+          },
+          {
+            "id": 130961991,
+            "name": "SpaceCadetPinballx86Win.zip",
+            "size": 1346928,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballx86Win.zip"
+          },
+          {
+            "id": 130961993,
+            "name": "SpaceCadetPinballx86WinXP.zip",
+            "size": 1346931,
+            "digest": null,
+            "browser_download_url": "https://github.com/k4zmu2a/SpaceCadetPinball/releases/download/Release_2.1.0/SpaceCadetPinballx86WinXP.zip"
+          }
+        ],
+        "publisher_integrity": "No independent publisher digest or checksum sidecar; computed local inspection hash does not authenticate package"
+      }
+    },
+    {
+      "id": "hybrid-heaven-ogdanimal",
+      "canonical_issue": 2546,
+      "path": "crates/portcove-core/catalog/ports/hybrid-heaven-ogdanimal.json",
+      "before_sha256": null,
+      "preserved_record_sha256": "2f9f4a2664cf80826a9255cd2ca426d0ae6b84850d06538a64fe180833771a4d",
+      "candidate_sha256": "2f9f4a2664cf80826a9255cd2ca426d0ae6b84850d06538a64fe180833771a4d",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-hybrid-heaven-ogdanimal\\completion-7a84cdf711ed5d9a1fc021bf275220f7296f9af156b0a330979d6e26f780df6d.json",
+      "report_sha256": "7a84cdf711ed5d9a1fc021bf275220f7296f9af156b0a330979d6e26f780df6d",
+      "preparation_validation": {
+        "status": "unchanged-operational-projection",
+        "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+      },
+      "operational_declaration_changed": false,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "re-volt-rvgl",
+      "canonical_issue": 2705,
+      "path": "crates/portcove-core/catalog/ports/re-volt-rvgl.json",
+      "before_sha256": "f25dc3d02155f5ace4d79014ab7057b9ef15b3a3bc1cc2574568ef3db120793a",
+      "preserved_record_sha256": "caf44284021344836dd8f8d842f6caa8fee84682581e3cc9d237c1aefb67da57",
+      "candidate_sha256": "caf44284021344836dd8f8d842f6caa8fee84682581e3cc9d237c1aefb67da57",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-re-volt-rvgl\\completion-4005a57d958d63b10d969973b9578dc071e35fd9a58510510a86aae2e9d05353.json",
+      "report_sha256": "4005a57d958d63b10d969973b9578dc071e35fd9a58510510a86aae2e9d05353",
+      "preparation_validation": {
+        "status": "unchanged-operational-projection",
+        "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+      },
+      "operational_declaration_changed": false,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "openpete",
+      "canonical_issue": 113,
+      "path": "crates/portcove-core/catalog/ports/openpete.json",
+      "before_sha256": "7acafd72a96d412a5066d4dbd16116fc91df0447aacaf78933917402e6287fcc",
+      "preserved_record_sha256": "4d4f2593adeb46d2906f4f915c58d1509c88a2203bdd8a223b8c179aeff47ad8",
+      "candidate_sha256": "4d4f2593adeb46d2906f4f915c58d1509c88a2203bdd8a223b8c179aeff47ad8",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-openpete\\completion-a5ca4554b18db87463e5b6ea1aba0a0e7e08ddaa1698c2d36067751651085992.json",
+      "report_sha256": "a5ca4554b18db87463e5b6ea1aba0a0e7e08ddaa1698c2d36067751651085992",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "4e1a5d2e658f0171bb6c67b69fe9876e5218bac0e0bb8b4fc6c404cb363a5b8d",
+        "input_bytes": 929645,
+        "catalog_schema": 2,
+        "ports": [
+          {
+            "port_id": "shipwright",
+            "definition_sha256": "66cfdc1ce644a230452b883d3e7034d5317014bb4ed8c037cf5cff247634e533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "2ship2harkinian",
+            "definition_sha256": "e3bf57897271405f8647293995c133e25161c3d3ab2c7d6816c9ddaa9f7e92d2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "spaghetti-kart",
+            "definition_sha256": "8cf3fcf32720398c5d088ea149c43a1dbdbf800859ca51edc9dbd1fa4e2280c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ghostship",
+            "definition_sha256": "30b8c6c66dd783d221b8354755a6e96076c31252935c04ecf1f8c8c316582b05",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paperboat",
+            "definition_sha256": "0ea231064a19ccb84631e401df3e1990c05b9d2caba68700e83efe8e00fc8407",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starship",
+            "definition_sha256": "f07ce6e31ba5c0aeb433f7f1d773a92ab6a402ee64a277fe45426f6c542e488b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "lighthouse",
+            "definition_sha256": "07e2b0fac61a2466cb6a850261724fc1217ef4874bb4f3a37b6f9189b1217b28",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dusklight",
+            "definition_sha256": "ec2f7eb5853ee753721377b2558051ba8756e3806cced49dab4a109e5cd649c1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "zelda64-recomp",
+            "definition_sha256": "2a6750993785e67fa173f30ea85302883aec4e1b1bf36d21c03226f7eb3ff1d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-recomp",
+            "definition_sha256": "d0a50a3144b4fb9ef1c5a54d8af6b2e31d18d1a48b71692dc376ddeca338e552",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bm64-recomp",
+            "definition_sha256": "cfd2688c70c6221d036f239652eaa0d30f91eab93d47642a0cfcc4d15c91f256",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "harvest-moon-64-recomp",
+            "definition_sha256": "7258c7982b92d9935b1d9b20ccfefcb81cc9705c400007d79e827f44394b56a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dinosaur-planet",
+            "definition_sha256": "c873e0ea10e3007ae94de5d318505144a68edddd9af18ea76e82744be51e8067",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkr-r",
+            "definition_sha256": "f5a098b4368987efd3c2876cef0875cfc6754055195c8c5c0f1003a7c5e2a4d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "donkey-kong-64-recompiled",
+            "definition_sha256": "fcc3a599a53658e13434a67c187ade7deab58736468f192e83e526c15f90dab4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "automobili-lamborghini-recompiled",
+            "definition_sha256": "7c514559936bab7a1cf51d7144cfaf104532336508cfc962aa3bcdd24b8daf08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "aerogauge-recompiled",
+            "definition_sha256": "eec46e6c8e661b2d136f9485cbe39413f8d75e7d20234814df9aefcc49888515",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "extreme-g-recompiled",
+            "definition_sha256": "09ec10a007d66d65a77d262bd4c3a1fd802f345eb858c3ae04931b9c95a1359b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-fantasy-race-recompiled",
+            "definition_sha256": "7b5714e7c05d34c720c088a2ac52d26f9642ed044a4d881905eefae3606c82ee",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-party-edition-recompiled",
+            "definition_sha256": "23b875cc6640d1eda7d7d047b22a56e47432346177c33c9a43b8500226b77490",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-world-recompiled",
+            "definition_sha256": "62da8edba2fcfc5be5665b8856ac5810ebf8e3e8178bdb75ffe35f519a348abb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "final-fantasy-vii-recompiled",
+            "definition_sha256": "4a75a14e52af7cd7adb0df6da6b7f1570407a613a7ada6fbda9ac4787c2ba422",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "klonoa-door-to-phantomile-recompiled",
+            "definition_sha256": "6b11e676f22d8f7cac2ef4a8ae01fd1ae9197fe78c74b6351ac4fbe822166edc",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "legend-of-mana-recompiled",
+            "definition_sha256": "21cc80f8ba4049bf2a4fd2f46be0971a578fe45fa495b3e84e73cbe6ddfdb3a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "marvel-vs-capcom-recompiled",
+            "definition_sha256": "702ca0cb05eae32d53e6f08572af4bbb65bd3bf4fcb87685c490d1c7a8741114",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "masters-of-teras-kasi-recompiled",
+            "definition_sha256": "a71675820b56d789107cf9d13c12fa5cb195e6e9ab637d53ed379279fdd14155",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "metal-slug-x-recompiled",
+            "definition_sha256": "51369f785c6428f0e15e0138af5578c0451f63cf4db2b8e70255eb5b6659b20a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mortal-kombat-4-recompiled",
+            "definition_sha256": "4583ea71a8eb3ac87a0e08814558710a479e2badefd25b2332cb6351f31aab4f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rampage-through-time-recompiled",
+            "definition_sha256": "178102ab245c2ad7abb2a80f72a3673aa7c8a1fc3498ec55c9db1a4dbcd40db0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jedi-power-battles-recompiled",
+            "definition_sha256": "dfab55493903138546ad6166a5d924868688fca4242980074649db636ff35f5b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "street-fighter-alpha-3-recompiled",
+            "definition_sha256": "16ea191cb56dcc0270d56b9f4490c7c6a7c510161271dda3b20b833d700573d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "tomba-recompiled",
+            "definition_sha256": "13763a57f428a3a9f0cd03041d8b9baae98b1b34eea9f2405b03ce8df1a79e88",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "twisted-metal-4-recompiled",
+            "definition_sha256": "ddce2f0eb97c6eef0179bba0b91caac77d412eecd124beedf43985f4b787d95c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yu-gi-oh-forbidden-memories-recompiled",
+            "definition_sha256": "b9cc0a26239ba1700d452757802ac0d9cd3c7bf31521e6737d086faf1f760e9e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "revelations-persona-recompiled",
+            "definition_sha256": "bd50492692460cc96757c319980bf33d7873df0b10dd08386534b33dcb1b41f3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "beetle-recomp",
+            "definition_sha256": "11f9618a9d146bea2e5e58043fae18671c8d830aadf1a279eecf48fda9797944",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "quest-64-recompiled",
+            "definition_sha256": "34133877645e86b26e917310017b3bfa22b9d4c01082036a8047c1ec98e40ba8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-world-tour-recompiled",
+            "definition_sha256": "0030a9a866e57e0dffa76b37453b050c8fdac2432cae101b2c5509e8f752da26",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw64-recompiled",
+            "definition_sha256": "f7d1fbc4de6dbb8dab3fb14d185c4ba1821daf9b98ce8bda3ee1eda0f3d6a904",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-nwo-revenge-recompiled",
+            "definition_sha256": "b3a19d520e13a5ce9fe185e7ffd8112e0b996cc273335e60576304de359673c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-wrestlemania-2000-recompiled",
+            "definition_sha256": "e3c9e1b3c5e2e145b03157c64caec7c27b0f77bfbea6a16eb4f49d80cb403be9",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw2-recompiled",
+            "definition_sha256": "d92ec20da6a95e0897b691bc7a7d41c5ded58c91edadc3968c6d70c7bbbb1a29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-no-mercy-recompiled",
+            "definition_sha256": "64c418957018d050965a05af9a30e4dd2c18886cb1fd321920be67104e3e9c97",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-64-recompiled",
+            "definition_sha256": "ff84289cf1c0d8c4c4e3503e91831de0f320d0ad8431a467c023968d01ed63b2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-64-recomp",
+            "definition_sha256": "0ac236e5e05ecf2897cc3abeb8fa1fd6e13f8b445cb8a77aa3fbf7b093ef4bfe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen1recomp",
+            "definition_sha256": "3978540873ef0da3f11cb17302f47d4d8af158be14ec58457cc10f067deb1c49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-gold",
+            "definition_sha256": "6904bd6ad77f0c55308247b67e9fae60f76fdc7b098a868babb8de801c0d35d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-silver",
+            "definition_sha256": "eb0ec48def739610dd9e1903ca981626023352b796ea41cb4fa20d0902c6e194",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-crystal",
+            "definition_sha256": "275644ebff02823de603e9ed437c7352f03a111e1e09705564f7b8f52e7f602d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "nocturne-recomp",
+            "definition_sha256": "2d93c8842cd1aac8edb3e2e0d3029a6c2171580737d7d89362c97364b42a60ec",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-blue",
+            "definition_sha256": "c8a1b3b4076753980710f2a4b097f4324e100aa45368ae20dfe28cf1416207e0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-hero-recomp",
+            "definition_sha256": "990be2f9dabd94dca4239a58449eac7279b9d999e6175be45cc65d1ee90a24b5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snowboard-kids-2-recomp",
+            "definition_sha256": "7e2a39d7df500962fee7441ab5111b82f85c4546f4a4cfd1cc973a591a657533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "trouble-makers-recomp",
+            "definition_sha256": "23f2a9caafd8970454e1fd5acd3740ce8bfd9dca7eb1be6604a06a74fe5e8758",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "goemon64-recomp",
+            "definition_sha256": "d5b937536930f7187e8dbe4c1cc742fca4495dda35ec7ae0e75e84255d63d346",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "perfect-dark",
+            "definition_sha256": "d3caa238953347a254f75acfaf3ff4cd66ade16f48ef9d36c05ba7a64252a0e6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sssv-recompiled",
+            "definition_sha256": "260f94ab83ce7cf4dc451bd6327a9448d7bc8a05d40e78fa0e458e629c212736",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "animal-crossing-pc-port",
+            "definition_sha256": "e5aa6cd084c85679d7e9c1d77bb66b393b5e0f753a27a29f3fa5355014a0462b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "project-picori",
+            "definition_sha256": "6ca21f345b9643af648dab516c14b24976bdf1622075548851b90c512f685086",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battleship",
+            "definition_sha256": "fedf92f482485f3df5d15607e8a8aa99a1b87b371c6a9f177b26bfaa941249f5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "g-diffuser",
+            "definition_sha256": "ccc0239f8b90868d4a67d6a64ca08dd94885e18e74c943267f3f3ceb0dcb35ae",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "severed-chains",
+            "definition_sha256": "3884eb98306280826cd372c260a20965afef6316207428114cc14d5505c15aeb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openpete",
+            "definition_sha256": "ced9399dab430b235b91a68dde2c7340efe807051b0cea1695666ae1db1e480f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak1",
+            "definition_sha256": "377deda0f972d15089ffc925b39bb8d3b85eb9618afadae5a4559e6d6c5fe00f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak2",
+            "definition_sha256": "32d9e08b1250b149d6bdc5624f539beccf30483e1188b5c8c5e52ec4a8f19ef5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak3",
+            "definition_sha256": "f8a7a6c5f9e1d46ce598bb119b8aebc1f86bb8193d10695eb4cb4b2fd75fb04a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x6-recompiled",
+            "definition_sha256": "f5cbec8f8c137206e5e2f97eb7336449ad041e5d38bbaac2ed898d66c2f750da",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paper-mario-recut",
+            "definition_sha256": "9c951cedf0793bc38bb87cd0c9072bc2fdfd0665bf27f44bcc7e95dad228143e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snap64-recomp",
+            "definition_sha256": "acc63422649c1f5763d0a80314d9737dd856223f016f3e65076e74c844b8b162",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "cvlod-recomp",
+            "definition_sha256": "f750a26f7620c7b8db84cbbf2f15e267c3d0fd1ba94cd053feb11845c16878bf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "diddy-kong-racing-golden-balloon",
+            "definition_sha256": "6c54206add5302f7621c277fbc3ac70ebc2ac1fc68d467f3b129f01b90212d93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "star-fox-enhanced",
+            "definition_sha256": "6689f4afca82bbc7b348f13863c55496fe4e491b0e5cc3ffafefc878c8a57098",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "duke-nukem-zero-hour-recompiled",
+            "definition_sha256": "17c34ae0ea172e4155c477e45ecebf9090d4d6c40eee38c0583a1bc1156676cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ape-escape-recompiled",
+            "definition_sha256": "17b0f8a623813005d5d0d508636a33de7733e6bcb6a6ac69ddf9f4b8c89ce3f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x5-recompiled",
+            "definition_sha256": "64a949b74e1c32e0ef4f146d8be0c547dc324228c15e53c35553194a75707ec1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "open-nectar-pikmin",
+            "definition_sha256": "b79c934b372b61d13adc9c9ad96d843b29de964466242ee7b875bef7342b5773",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-recomp",
+            "definition_sha256": "757812b5a9e9d8f553a627d3825e079bcfbdd9b38ce0a7908243255cbb7ae924",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-racewave46",
+            "definition_sha256": "cfc7530951c4567936341807d2a2feae28a6189adf8dcb5ecdb8672077ca987e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "f-zero-snes-recomp",
+            "definition_sha256": "890a8dc7fc028649cba16da3c6dae32ce5be3b75313eda0c0cf3fcf7cd26bb92",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "road-rash-64-recompiled",
+            "definition_sha256": "74565adec67c1d1898b1bfca9bd15b15cf6efcde6f1036c6b85c4634eca052d0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc3-recomp",
+            "definition_sha256": "fb4a39c73ed8b8f41e33955ecff121044a26dd67b92e84ad5a948027b6332e29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ape-escape-recomp",
+            "definition_sha256": "f155b0cb16336c16e19abdcd9533e9bade314e3e41b052743d8f53dba5bffdda",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alundra-recomp",
+            "definition_sha256": "a740b50ed9c727f46da5db785051186b9ffeb072591b357600f3502d1f0ee3df",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-armored-core-recomp",
+            "definition_sha256": "daae127b4b4a48bb82922bdd4bd92628fd1ae4a0778839586cae09cd7c84ce54",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+            "definition_sha256": "358ccf6aa839b2f81044e1c4dc822b8bb5eac90d47c6b015565e04150d2eb10f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-digimon-world-2003-recomp",
+            "definition_sha256": "d2ee5dc6634ba81e43581b62a6d6d1d74a36a730e1a2c61f6561433943103e49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+            "definition_sha256": "4829937085eb900b16b93e420d82f0786c51e253f08f62f42b4b16b606e84602",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-driver-recomp",
+            "definition_sha256": "9ecd5162b43ebbc4b3efa1e3a67c065dd0e56d31e66066dc6e5d49bae6da4ffe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
+            "definition_sha256": "e81e0638fb48dc7dae5e52701ddc775a2e38ebe7711ce8b62fcbc4f9b56a9756",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-fade-to-black-recomp",
+            "definition_sha256": "d9d419bc6eb1c1ac637715c2ca2907e771d6de03d227ed905d2a16973378c083",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-diablo-recomp",
+            "definition_sha256": "2a51fefdf3fe44e442dbcf78b8631e30d08068ecdef357d644cd7db121544ded",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+            "definition_sha256": "6ce4e6538d845e4eed198ddf91ef559f9ee82225726866d257c3ced88acf2180",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-recomp",
+            "definition_sha256": "04773457fcd70ea5018202f0b88f4bbd9c09eade8509c7cf3a712215cebdd7d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-2-recomp",
+            "definition_sha256": "bbeddbba202e802549b62f5645f748dac870c796e15856e64675beb2543526ff",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alien-resurrection-recomp",
+            "definition_sha256": "379781d7e2f05f3a4fbe024b124d8f138bd885363ddf55effe1934dd51f0092f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-brave-fencer-musashi-recomp",
+            "definition_sha256": "f8f6a325018d9218d214118a885f6fd850997b63163a333ad75c71c01cb058f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-world-recomp",
+            "definition_sha256": "1569cbc730fd7166801e7e754e36c7025bfe33dcdcf38ae0d12f7f3a346c8ff1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+            "definition_sha256": "185a0f5413142cbe6ab321e583c4f91b0dda4a8e08de452f94d2c5330957d56b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-recomp",
+            "definition_sha256": "78b85b8df71fe55ae01dc5906166c2f29caf52f7b7131633ca10d59889870848",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-force-engine-dark-forces",
+            "definition_sha256": "9a644049db2332db7955674e929cabcc50b67d90dfa9757b9a317f05fcfff04f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-recomp",
+            "definition_sha256": "3632bd6b6730a8e823dd3061e96773c8bf5f9f117635ae300b320a7aeb2a07b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-3-and-knuckles-recomp",
+            "definition_sha256": "f63b5cae8f34300cb57614f6f0f4d66efe0af51617235c9129c20f962296c4f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yoshis-cookie-recomp",
+            "definition_sha256": "b2ac80e77e2b57bfa1371f987a4479eb8c8ee08787d8ba034b43bae47ebabb8e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-nes-recomp",
+            "definition_sha256": "05d297b1e353541da2bf33c96226bafa6ce199cece80b10571913317fd16ac53",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-metroid-recomp",
+            "definition_sha256": "58465d2188ff658b36e2258d949902a29a31b483749af5244401adf2794be479",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x2-snes-recomp",
+            "definition_sha256": "36f4d4ccdb9439855e084eea80369706ddff5b35825e6962ec59c1083164c447",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "resident-evil-gaiden-recomp",
+            "definition_sha256": "aea9247b1e0a7f40264e3020b546ec6e271561031d1bdaa093b9ae4d9fabf3b0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "earthbound-recomp",
+            "definition_sha256": "12d5b7b739e32e0a5c0bdec2ad09c1eaacdd6d36cc2bd7d064378f438c39e7f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-bros-remastered",
+            "definition_sha256": "d107b9212f9162bc8b3a797610adc255870d3853ea375d21c7e1322d5d211872",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "render96ex",
+            "definition_sha256": "81716d5925a71ac1f0d87284c53519060c83f86821a8607e49b1e3bb0090705a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-bomberman-recomp",
+            "definition_sha256": "f8656c015ef841e9824c6a3f176b0d129032583fa6946e6f4a953563468a4127",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gundam-wing-endless-duel-recomp",
+            "definition_sha256": "ff4b587cea3cc68cfea22804d49984aef8f3f386badbc8fccf477c29ff4c0487",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc2-recomp",
+            "definition_sha256": "5fabafc074f201618fd97dd3251ce1c29adbf3fe649ed912cb38d2a0ea8f5440",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ace-combat-6-recomp",
+            "definition_sha256": "8a0f3926c0ec08a4ecbe6288b015383ccfd14329e6bfbb2534c3b47f8cd2d168",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alariq-mc2",
+            "definition_sha256": "f63da751d11a623ad6680d7b78ddfe0dc1fdb038df40cbc16c59475f4629129b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-medievil-ii-recomp",
+            "definition_sha256": "7825ae7ea245d0d1dd731fddc90ee220896b2eaacfe64dde0049ec09fa2cfa08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alistert-openjazz",
+            "definition_sha256": "2c05508754834aa1f6577f0339b964ff0841d8b97e06f368be8169f738c2f4c2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-tooie-recompiled-some-scurvy-dog",
+            "definition_sha256": "44b5c960f3485ee3bb93af5f28a2a2e7cb7d393d508f3e5bedb94fdbd5a04763",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battletanx-global-assault-pc-port",
+            "definition_sha256": "adacb3887fcd212b520d57ec9e2153c94eeb9feb35fbf27986d9f88b08932257",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "brawmario-infinite-mario-64-ever",
+            "definition_sha256": "12e331d2ae6d62be29613f670cccacc78a6d9a7c18b37e89433be220fa1f9d1e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bvschaik-julius",
+            "definition_sha256": "000d01af1ac3cab924919a98eda4ac51ee7bd3900b1e19c320ffe67e106ac8cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "citrongames-dora64",
+            "definition_sha256": "989d3db90607533d5da9e32c767db068d7b5d73d25053bedbf90b1b1cc015613",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "colin-mcrae-rally-2-opencmr2",
+            "definition_sha256": "3a02939e0fba3827cb8c2c7228b8a3476f88029f0eda9b6ef8d1ff588300250f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "corsixth-corsixth",
+            "definition_sha256": "de95f9b2fd9ce5f9e2efe26f5ed8a095ed1ce9a8ada4179100a1ff9e0d93ad93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "craigshaw-fzerorecomp",
+            "definition_sha256": "db163e58ff891be7205131c900fee6558b740cc8da6fab305f5d1c1451fb4b62",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "crash-team-racing-ctr-native",
+            "definition_sha256": "a7f8caed7c1b53d95aafad08e6801fd4b7c761dfff1ab53784e7113cb42e5498",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dethrace-labs-dethrace",
+            "definition_sha256": "9a1ed879acbd999c3b1a87b4a179d83368700625f9fbd25f2b0ff4ac39477f2e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "djultra64-blocksphere",
+            "definition_sha256": "b4b618a369d953df53e40f044a4242e10acadd8d57e7817c5c2fa53cc9d0bc9b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc1-recomp",
+            "definition_sha256": "a174fc1faed66634b9f166d9831ef749937867e18879659eae414d4ec8ae8ac3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "elliotttate-dkc2recomp",
+            "definition_sha256": "10ad5c846a7ac4df8ecb26ba4239fc552bdc11c3c397e56b8d1e4f572dfa9bbf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "fragglet-sdl-sopwith",
+            "definition_sha256": "e41ab13add4294cc4ebc2a10e2d74b465aeafdc04abf1ef117bb821d95e880b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gearhead-garage-opengg",
+            "definition_sha256": "1a7010bdf73e58d54f18c612ea7edb15db017c50d3c4372e353ca6e356f3e2fe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gladiator-openglad",
+            "definition_sha256": "05e52084a8f2fbd29c2f03fc08506273c85f3d901025a73275d9ab354817a8d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ico-pc-nathanialf",
+            "definition_sha256": "76a48bd860a68fdb169f6b3910826c50bd74d3e04b4540bcaea3d0a53695a4ab",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "infinite-undiscovery-doc-haz",
+            "definition_sha256": "920cee6a8f8fac9b1b1ba42b981d58761117ef9cb7ab70d373805db5bd9cd452",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "insanitybringer-piccuengine",
+            "definition_sha256": "164cadb14b8fb8fdfff29d318f7ba6a3ae7ac880f4931f18ea4b4c5afd6c578c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "interkarma-daggerfall-unity",
+            "definition_sha256": "b6e27b333718f853582bf78dee4085ff1910987f0f7f47b08a3c799425124a4a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "isledecomp-isle-portable",
+            "definition_sha256": "a1557909c803f471da902dc3b785f884bec89ea1d46aa61dd31bddd620abbc63",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jgrennison-openttd-patches",
+            "definition_sha256": "4a9346e46a2acbebb8a7c22737efa33b01ffeeceb9976d4e0291cf1f9dccf8e7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "knuckles-chaotix-recompiled",
+            "definition_sha256": "5582fc579450ff5b257f99744457bb1b627ae29f0a2c188cdfeedb4e87ade009",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mdk-sdl-nemo22",
+            "definition_sha256": "b83de8c294465759b8709be32e950b1e902c098a5f0c942b503937bdc52176b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "noahvl-birdman64",
+            "definition_sha256": "79b367052f8ea7bb4f1d1ba660d99d3a8b39a6493721f33b502da903f76a1230",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "omf2097-openomf",
+            "definition_sha256": "155fb1d5e9962dde0e25b298ca58e32ac488dba3dd100aece06b6932571120f4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openapoc-openapoc",
+            "definition_sha256": "8d6042ee123c263ea5a707840f228a7343a101bc64216d04f52860606729a694",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openloco-openloco",
+            "definition_sha256": "e3cbf1cc8a15dc72dadb8e8a066b65b9d0e01db1d6bdf7715a264a1ad47f4b1a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openrct2-openrct2",
+            "definition_sha256": "cec3516bb2abf3d6bacd676d0d35dcb2e47be7ed1755e58c17f0610b852e7f8d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opentyrian-opentyrian",
+            "definition_sha256": "186fc7d76c2b26c7b78553a316a7db77e3e51965d4645b3556331ca66dd6812a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-rac-rerac",
+            "definition_sha256": "4cab71920225ac1c980414ddd38826857a99488f738fe0b29d688de19a8daee1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rise-of-the-triad-barrett-lunarmeadow",
+            "definition_sha256": "30a80e150c7daec8e05c5b45db5fd15a37f6f66ddf051958954b52d2b4fb0f32",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rocket-robot-on-wheels-rocket-r",
+            "definition_sha256": "dcf6d12d2efa880c615329438d29d71121f39ff35b0d565583c77708004c53cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sdw-community-sheep-dog-n-wolf-rewooled",
+            "definition_sha256": "533525816cd8c1f27bd1d66f2712bc583469fccc4895e834c15be4123cf6dd09",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-cd-2011-rsdkv3",
+            "definition_sha256": "a2b92d42d18f8b44ede790bc6d8041c73eceef7322cbd9fd26cf654b6d73a378",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "f87bcb9a3cdea6497ede4e87990a22af43ad391b06ff3315891f1d07b89c99e3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "4eecefe6272ebbc73fdf4fd3d943ff4141d2460c347bbb4990b25938fc2af9c6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starlancer-openreliant",
+            "definition_sha256": "65c5af5661e5ed8dd1214c3cb34bddd832cea04404d80cf499d4e62205167b2f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "thatguymcd-glover-r",
+            "definition_sha256": "ac5ddf21127e74b55b08ef55c7ea2ee4fcf6d8f1950d4e6d333d393f086b251b",
+            "check": "catalog-declared-contract-validation"
+          }
+        ],
+        "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620"
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "sonic-the-hedgehog-recomp",
+      "canonical_issue": 152,
+      "path": "crates/portcove-core/catalog/ports/sonic-the-hedgehog-recomp.json",
+      "before_sha256": "ae4e60a2ecfd579cdff949aa879f6358ede9d1301bd05037e84a02864a0a8628",
+      "preserved_record_sha256": "9a1ee8502367e9e3d71da314c02adee1c75a80852f4af9f8e8e357efd86890c4",
+      "candidate_sha256": "9a1ee8502367e9e3d71da314c02adee1c75a80852f4af9f8e8e357efd86890c4",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-sonic-the-hedgehog-recomp\\completion-c95a3a2079ac67b1d4968953a052252ad15538f4158497bf9c216f29a0971cf4.json",
+      "report_sha256": "c95a3a2079ac67b1d4968953a052252ad15538f4158497bf9c216f29a0971cf4",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "934149b75aacc285762cf8c9a1e4fc860bd2a7c620963a4d9a575080744e0f7b",
+        "input_bytes": 927726,
+        "catalog_schema": 2,
+        "ports": [
+          {
+            "port_id": "shipwright",
+            "definition_sha256": "66cfdc1ce644a230452b883d3e7034d5317014bb4ed8c037cf5cff247634e533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "2ship2harkinian",
+            "definition_sha256": "e3bf57897271405f8647293995c133e25161c3d3ab2c7d6816c9ddaa9f7e92d2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "spaghetti-kart",
+            "definition_sha256": "8cf3fcf32720398c5d088ea149c43a1dbdbf800859ca51edc9dbd1fa4e2280c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ghostship",
+            "definition_sha256": "30b8c6c66dd783d221b8354755a6e96076c31252935c04ecf1f8c8c316582b05",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paperboat",
+            "definition_sha256": "0ea231064a19ccb84631e401df3e1990c05b9d2caba68700e83efe8e00fc8407",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starship",
+            "definition_sha256": "f07ce6e31ba5c0aeb433f7f1d773a92ab6a402ee64a277fe45426f6c542e488b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "lighthouse",
+            "definition_sha256": "07e2b0fac61a2466cb6a850261724fc1217ef4874bb4f3a37b6f9189b1217b28",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dusklight",
+            "definition_sha256": "ec2f7eb5853ee753721377b2558051ba8756e3806cced49dab4a109e5cd649c1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "zelda64-recomp",
+            "definition_sha256": "2a6750993785e67fa173f30ea85302883aec4e1b1bf36d21c03226f7eb3ff1d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-recomp",
+            "definition_sha256": "d0a50a3144b4fb9ef1c5a54d8af6b2e31d18d1a48b71692dc376ddeca338e552",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bm64-recomp",
+            "definition_sha256": "cfd2688c70c6221d036f239652eaa0d30f91eab93d47642a0cfcc4d15c91f256",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "harvest-moon-64-recomp",
+            "definition_sha256": "7258c7982b92d9935b1d9b20ccfefcb81cc9705c400007d79e827f44394b56a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dinosaur-planet",
+            "definition_sha256": "c873e0ea10e3007ae94de5d318505144a68edddd9af18ea76e82744be51e8067",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkr-r",
+            "definition_sha256": "f5a098b4368987efd3c2876cef0875cfc6754055195c8c5c0f1003a7c5e2a4d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "donkey-kong-64-recompiled",
+            "definition_sha256": "fcc3a599a53658e13434a67c187ade7deab58736468f192e83e526c15f90dab4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "automobili-lamborghini-recompiled",
+            "definition_sha256": "7c514559936bab7a1cf51d7144cfaf104532336508cfc962aa3bcdd24b8daf08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "aerogauge-recompiled",
+            "definition_sha256": "eec46e6c8e661b2d136f9485cbe39413f8d75e7d20234814df9aefcc49888515",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "extreme-g-recompiled",
+            "definition_sha256": "09ec10a007d66d65a77d262bd4c3a1fd802f345eb858c3ae04931b9c95a1359b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-fantasy-race-recompiled",
+            "definition_sha256": "7b5714e7c05d34c720c088a2ac52d26f9642ed044a4d881905eefae3606c82ee",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-party-edition-recompiled",
+            "definition_sha256": "23b875cc6640d1eda7d7d047b22a56e47432346177c33c9a43b8500226b77490",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-world-recompiled",
+            "definition_sha256": "62da8edba2fcfc5be5665b8856ac5810ebf8e3e8178bdb75ffe35f519a348abb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "final-fantasy-vii-recompiled",
+            "definition_sha256": "4a75a14e52af7cd7adb0df6da6b7f1570407a613a7ada6fbda9ac4787c2ba422",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "klonoa-door-to-phantomile-recompiled",
+            "definition_sha256": "6b11e676f22d8f7cac2ef4a8ae01fd1ae9197fe78c74b6351ac4fbe822166edc",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "legend-of-mana-recompiled",
+            "definition_sha256": "21cc80f8ba4049bf2a4fd2f46be0971a578fe45fa495b3e84e73cbe6ddfdb3a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "marvel-vs-capcom-recompiled",
+            "definition_sha256": "702ca0cb05eae32d53e6f08572af4bbb65bd3bf4fcb87685c490d1c7a8741114",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "masters-of-teras-kasi-recompiled",
+            "definition_sha256": "a71675820b56d789107cf9d13c12fa5cb195e6e9ab637d53ed379279fdd14155",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "metal-slug-x-recompiled",
+            "definition_sha256": "51369f785c6428f0e15e0138af5578c0451f63cf4db2b8e70255eb5b6659b20a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mortal-kombat-4-recompiled",
+            "definition_sha256": "4583ea71a8eb3ac87a0e08814558710a479e2badefd25b2332cb6351f31aab4f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rampage-through-time-recompiled",
+            "definition_sha256": "178102ab245c2ad7abb2a80f72a3673aa7c8a1fc3498ec55c9db1a4dbcd40db0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jedi-power-battles-recompiled",
+            "definition_sha256": "dfab55493903138546ad6166a5d924868688fca4242980074649db636ff35f5b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "street-fighter-alpha-3-recompiled",
+            "definition_sha256": "16ea191cb56dcc0270d56b9f4490c7c6a7c510161271dda3b20b833d700573d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "tomba-recompiled",
+            "definition_sha256": "13763a57f428a3a9f0cd03041d8b9baae98b1b34eea9f2405b03ce8df1a79e88",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "twisted-metal-4-recompiled",
+            "definition_sha256": "ddce2f0eb97c6eef0179bba0b91caac77d412eecd124beedf43985f4b787d95c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yu-gi-oh-forbidden-memories-recompiled",
+            "definition_sha256": "b9cc0a26239ba1700d452757802ac0d9cd3c7bf31521e6737d086faf1f760e9e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "revelations-persona-recompiled",
+            "definition_sha256": "bd50492692460cc96757c319980bf33d7873df0b10dd08386534b33dcb1b41f3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "beetle-recomp",
+            "definition_sha256": "11f9618a9d146bea2e5e58043fae18671c8d830aadf1a279eecf48fda9797944",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "quest-64-recompiled",
+            "definition_sha256": "34133877645e86b26e917310017b3bfa22b9d4c01082036a8047c1ec98e40ba8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-world-tour-recompiled",
+            "definition_sha256": "0030a9a866e57e0dffa76b37453b050c8fdac2432cae101b2c5509e8f752da26",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw64-recompiled",
+            "definition_sha256": "f7d1fbc4de6dbb8dab3fb14d185c4ba1821daf9b98ce8bda3ee1eda0f3d6a904",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-nwo-revenge-recompiled",
+            "definition_sha256": "b3a19d520e13a5ce9fe185e7ffd8112e0b996cc273335e60576304de359673c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-wrestlemania-2000-recompiled",
+            "definition_sha256": "e3c9e1b3c5e2e145b03157c64caec7c27b0f77bfbea6a16eb4f49d80cb403be9",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw2-recompiled",
+            "definition_sha256": "d92ec20da6a95e0897b691bc7a7d41c5ded58c91edadc3968c6d70c7bbbb1a29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-no-mercy-recompiled",
+            "definition_sha256": "64c418957018d050965a05af9a30e4dd2c18886cb1fd321920be67104e3e9c97",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-64-recompiled",
+            "definition_sha256": "ff84289cf1c0d8c4c4e3503e91831de0f320d0ad8431a467c023968d01ed63b2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-64-recomp",
+            "definition_sha256": "0ac236e5e05ecf2897cc3abeb8fa1fd6e13f8b445cb8a77aa3fbf7b093ef4bfe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen1recomp",
+            "definition_sha256": "3978540873ef0da3f11cb17302f47d4d8af158be14ec58457cc10f067deb1c49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-gold",
+            "definition_sha256": "6904bd6ad77f0c55308247b67e9fae60f76fdc7b098a868babb8de801c0d35d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-silver",
+            "definition_sha256": "eb0ec48def739610dd9e1903ca981626023352b796ea41cb4fa20d0902c6e194",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-crystal",
+            "definition_sha256": "275644ebff02823de603e9ed437c7352f03a111e1e09705564f7b8f52e7f602d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "nocturne-recomp",
+            "definition_sha256": "2d93c8842cd1aac8edb3e2e0d3029a6c2171580737d7d89362c97364b42a60ec",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-blue",
+            "definition_sha256": "c8a1b3b4076753980710f2a4b097f4324e100aa45368ae20dfe28cf1416207e0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-hero-recomp",
+            "definition_sha256": "990be2f9dabd94dca4239a58449eac7279b9d999e6175be45cc65d1ee90a24b5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snowboard-kids-2-recomp",
+            "definition_sha256": "7e2a39d7df500962fee7441ab5111b82f85c4546f4a4cfd1cc973a591a657533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "trouble-makers-recomp",
+            "definition_sha256": "23f2a9caafd8970454e1fd5acd3740ce8bfd9dca7eb1be6604a06a74fe5e8758",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "goemon64-recomp",
+            "definition_sha256": "d5b937536930f7187e8dbe4c1cc742fca4495dda35ec7ae0e75e84255d63d346",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "perfect-dark",
+            "definition_sha256": "d3caa238953347a254f75acfaf3ff4cd66ade16f48ef9d36c05ba7a64252a0e6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sssv-recompiled",
+            "definition_sha256": "260f94ab83ce7cf4dc451bd6327a9448d7bc8a05d40e78fa0e458e629c212736",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "animal-crossing-pc-port",
+            "definition_sha256": "e5aa6cd084c85679d7e9c1d77bb66b393b5e0f753a27a29f3fa5355014a0462b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "project-picori",
+            "definition_sha256": "6ca21f345b9643af648dab516c14b24976bdf1622075548851b90c512f685086",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battleship",
+            "definition_sha256": "fedf92f482485f3df5d15607e8a8aa99a1b87b371c6a9f177b26bfaa941249f5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "g-diffuser",
+            "definition_sha256": "ccc0239f8b90868d4a67d6a64ca08dd94885e18e74c943267f3f3ceb0dcb35ae",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "severed-chains",
+            "definition_sha256": "3884eb98306280826cd372c260a20965afef6316207428114cc14d5505c15aeb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openpete",
+            "definition_sha256": "b7349e349fa418fffab9fc1c4b801b9f1716d3882495a29e5a586a34ae54b4b1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak1",
+            "definition_sha256": "377deda0f972d15089ffc925b39bb8d3b85eb9618afadae5a4559e6d6c5fe00f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak2",
+            "definition_sha256": "32d9e08b1250b149d6bdc5624f539beccf30483e1188b5c8c5e52ec4a8f19ef5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak3",
+            "definition_sha256": "f8a7a6c5f9e1d46ce598bb119b8aebc1f86bb8193d10695eb4cb4b2fd75fb04a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x6-recompiled",
+            "definition_sha256": "f5cbec8f8c137206e5e2f97eb7336449ad041e5d38bbaac2ed898d66c2f750da",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paper-mario-recut",
+            "definition_sha256": "9c951cedf0793bc38bb87cd0c9072bc2fdfd0665bf27f44bcc7e95dad228143e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snap64-recomp",
+            "definition_sha256": "acc63422649c1f5763d0a80314d9737dd856223f016f3e65076e74c844b8b162",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "cvlod-recomp",
+            "definition_sha256": "f750a26f7620c7b8db84cbbf2f15e267c3d0fd1ba94cd053feb11845c16878bf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "diddy-kong-racing-golden-balloon",
+            "definition_sha256": "6c54206add5302f7621c277fbc3ac70ebc2ac1fc68d467f3b129f01b90212d93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "star-fox-enhanced",
+            "definition_sha256": "6689f4afca82bbc7b348f13863c55496fe4e491b0e5cc3ffafefc878c8a57098",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "duke-nukem-zero-hour-recompiled",
+            "definition_sha256": "17c34ae0ea172e4155c477e45ecebf9090d4d6c40eee38c0583a1bc1156676cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ape-escape-recompiled",
+            "definition_sha256": "17b0f8a623813005d5d0d508636a33de7733e6bcb6a6ac69ddf9f4b8c89ce3f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x5-recompiled",
+            "definition_sha256": "64a949b74e1c32e0ef4f146d8be0c547dc324228c15e53c35553194a75707ec1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "open-nectar-pikmin",
+            "definition_sha256": "b79c934b372b61d13adc9c9ad96d843b29de964466242ee7b875bef7342b5773",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-recomp",
+            "definition_sha256": "757812b5a9e9d8f553a627d3825e079bcfbdd9b38ce0a7908243255cbb7ae924",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-racewave46",
+            "definition_sha256": "cfc7530951c4567936341807d2a2feae28a6189adf8dcb5ecdb8672077ca987e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "f-zero-snes-recomp",
+            "definition_sha256": "890a8dc7fc028649cba16da3c6dae32ce5be3b75313eda0c0cf3fcf7cd26bb92",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "road-rash-64-recompiled",
+            "definition_sha256": "74565adec67c1d1898b1bfca9bd15b15cf6efcde6f1036c6b85c4634eca052d0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc3-recomp",
+            "definition_sha256": "fb4a39c73ed8b8f41e33955ecff121044a26dd67b92e84ad5a948027b6332e29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ape-escape-recomp",
+            "definition_sha256": "f155b0cb16336c16e19abdcd9533e9bade314e3e41b052743d8f53dba5bffdda",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alundra-recomp",
+            "definition_sha256": "a740b50ed9c727f46da5db785051186b9ffeb072591b357600f3502d1f0ee3df",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-armored-core-recomp",
+            "definition_sha256": "daae127b4b4a48bb82922bdd4bd92628fd1ae4a0778839586cae09cd7c84ce54",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+            "definition_sha256": "358ccf6aa839b2f81044e1c4dc822b8bb5eac90d47c6b015565e04150d2eb10f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-digimon-world-2003-recomp",
+            "definition_sha256": "d2ee5dc6634ba81e43581b62a6d6d1d74a36a730e1a2c61f6561433943103e49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+            "definition_sha256": "4829937085eb900b16b93e420d82f0786c51e253f08f62f42b4b16b606e84602",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-driver-recomp",
+            "definition_sha256": "9ecd5162b43ebbc4b3efa1e3a67c065dd0e56d31e66066dc6e5d49bae6da4ffe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
+            "definition_sha256": "e81e0638fb48dc7dae5e52701ddc775a2e38ebe7711ce8b62fcbc4f9b56a9756",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-fade-to-black-recomp",
+            "definition_sha256": "d9d419bc6eb1c1ac637715c2ca2907e771d6de03d227ed905d2a16973378c083",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-diablo-recomp",
+            "definition_sha256": "2a51fefdf3fe44e442dbcf78b8631e30d08068ecdef357d644cd7db121544ded",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+            "definition_sha256": "6ce4e6538d845e4eed198ddf91ef559f9ee82225726866d257c3ced88acf2180",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-recomp",
+            "definition_sha256": "04773457fcd70ea5018202f0b88f4bbd9c09eade8509c7cf3a712215cebdd7d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-2-recomp",
+            "definition_sha256": "bbeddbba202e802549b62f5645f748dac870c796e15856e64675beb2543526ff",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alien-resurrection-recomp",
+            "definition_sha256": "379781d7e2f05f3a4fbe024b124d8f138bd885363ddf55effe1934dd51f0092f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-brave-fencer-musashi-recomp",
+            "definition_sha256": "f8f6a325018d9218d214118a885f6fd850997b63163a333ad75c71c01cb058f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-world-recomp",
+            "definition_sha256": "1569cbc730fd7166801e7e754e36c7025bfe33dcdcf38ae0d12f7f3a346c8ff1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+            "definition_sha256": "185a0f5413142cbe6ab321e583c4f91b0dda4a8e08de452f94d2c5330957d56b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-recomp",
+            "definition_sha256": "80ec3d9b8c31e8848e4c380ff028740fe03d9e72eb1e516a5e2466f8425e7895",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-force-engine-dark-forces",
+            "definition_sha256": "9a644049db2332db7955674e929cabcc50b67d90dfa9757b9a317f05fcfff04f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-recomp",
+            "definition_sha256": "3632bd6b6730a8e823dd3061e96773c8bf5f9f117635ae300b320a7aeb2a07b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-3-and-knuckles-recomp",
+            "definition_sha256": "f63b5cae8f34300cb57614f6f0f4d66efe0af51617235c9129c20f962296c4f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yoshis-cookie-recomp",
+            "definition_sha256": "b2ac80e77e2b57bfa1371f987a4479eb8c8ee08787d8ba034b43bae47ebabb8e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-nes-recomp",
+            "definition_sha256": "05d297b1e353541da2bf33c96226bafa6ce199cece80b10571913317fd16ac53",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-metroid-recomp",
+            "definition_sha256": "58465d2188ff658b36e2258d949902a29a31b483749af5244401adf2794be479",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x2-snes-recomp",
+            "definition_sha256": "36f4d4ccdb9439855e084eea80369706ddff5b35825e6962ec59c1083164c447",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "resident-evil-gaiden-recomp",
+            "definition_sha256": "aea9247b1e0a7f40264e3020b546ec6e271561031d1bdaa093b9ae4d9fabf3b0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "earthbound-recomp",
+            "definition_sha256": "12d5b7b739e32e0a5c0bdec2ad09c1eaacdd6d36cc2bd7d064378f438c39e7f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-bros-remastered",
+            "definition_sha256": "d107b9212f9162bc8b3a797610adc255870d3853ea375d21c7e1322d5d211872",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "render96ex",
+            "definition_sha256": "81716d5925a71ac1f0d87284c53519060c83f86821a8607e49b1e3bb0090705a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-bomberman-recomp",
+            "definition_sha256": "f8656c015ef841e9824c6a3f176b0d129032583fa6946e6f4a953563468a4127",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gundam-wing-endless-duel-recomp",
+            "definition_sha256": "ff4b587cea3cc68cfea22804d49984aef8f3f386badbc8fccf477c29ff4c0487",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc2-recomp",
+            "definition_sha256": "5fabafc074f201618fd97dd3251ce1c29adbf3fe649ed912cb38d2a0ea8f5440",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ace-combat-6-recomp",
+            "definition_sha256": "8a0f3926c0ec08a4ecbe6288b015383ccfd14329e6bfbb2534c3b47f8cd2d168",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alariq-mc2",
+            "definition_sha256": "f63da751d11a623ad6680d7b78ddfe0dc1fdb038df40cbc16c59475f4629129b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-medievil-ii-recomp",
+            "definition_sha256": "7825ae7ea245d0d1dd731fddc90ee220896b2eaacfe64dde0049ec09fa2cfa08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alistert-openjazz",
+            "definition_sha256": "2c05508754834aa1f6577f0339b964ff0841d8b97e06f368be8169f738c2f4c2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-tooie-recompiled-some-scurvy-dog",
+            "definition_sha256": "44b5c960f3485ee3bb93af5f28a2a2e7cb7d393d508f3e5bedb94fdbd5a04763",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battletanx-global-assault-pc-port",
+            "definition_sha256": "adacb3887fcd212b520d57ec9e2153c94eeb9feb35fbf27986d9f88b08932257",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "brawmario-infinite-mario-64-ever",
+            "definition_sha256": "12e331d2ae6d62be29613f670cccacc78a6d9a7c18b37e89433be220fa1f9d1e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bvschaik-julius",
+            "definition_sha256": "000d01af1ac3cab924919a98eda4ac51ee7bd3900b1e19c320ffe67e106ac8cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "citrongames-dora64",
+            "definition_sha256": "989d3db90607533d5da9e32c767db068d7b5d73d25053bedbf90b1b1cc015613",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "colin-mcrae-rally-2-opencmr2",
+            "definition_sha256": "3a02939e0fba3827cb8c2c7228b8a3476f88029f0eda9b6ef8d1ff588300250f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "corsixth-corsixth",
+            "definition_sha256": "de95f9b2fd9ce5f9e2efe26f5ed8a095ed1ce9a8ada4179100a1ff9e0d93ad93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "craigshaw-fzerorecomp",
+            "definition_sha256": "db163e58ff891be7205131c900fee6558b740cc8da6fab305f5d1c1451fb4b62",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "crash-team-racing-ctr-native",
+            "definition_sha256": "a7f8caed7c1b53d95aafad08e6801fd4b7c761dfff1ab53784e7113cb42e5498",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dethrace-labs-dethrace",
+            "definition_sha256": "9a1ed879acbd999c3b1a87b4a179d83368700625f9fbd25f2b0ff4ac39477f2e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "djultra64-blocksphere",
+            "definition_sha256": "b4b618a369d953df53e40f044a4242e10acadd8d57e7817c5c2fa53cc9d0bc9b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc1-recomp",
+            "definition_sha256": "a174fc1faed66634b9f166d9831ef749937867e18879659eae414d4ec8ae8ac3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "elliotttate-dkc2recomp",
+            "definition_sha256": "10ad5c846a7ac4df8ecb26ba4239fc552bdc11c3c397e56b8d1e4f572dfa9bbf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "fragglet-sdl-sopwith",
+            "definition_sha256": "e41ab13add4294cc4ebc2a10e2d74b465aeafdc04abf1ef117bb821d95e880b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gearhead-garage-opengg",
+            "definition_sha256": "1a7010bdf73e58d54f18c612ea7edb15db017c50d3c4372e353ca6e356f3e2fe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gladiator-openglad",
+            "definition_sha256": "05e52084a8f2fbd29c2f03fc08506273c85f3d901025a73275d9ab354817a8d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ico-pc-nathanialf",
+            "definition_sha256": "76a48bd860a68fdb169f6b3910826c50bd74d3e04b4540bcaea3d0a53695a4ab",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "infinite-undiscovery-doc-haz",
+            "definition_sha256": "920cee6a8f8fac9b1b1ba42b981d58761117ef9cb7ab70d373805db5bd9cd452",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "insanitybringer-piccuengine",
+            "definition_sha256": "164cadb14b8fb8fdfff29d318f7ba6a3ae7ac880f4931f18ea4b4c5afd6c578c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "interkarma-daggerfall-unity",
+            "definition_sha256": "b6e27b333718f853582bf78dee4085ff1910987f0f7f47b08a3c799425124a4a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "isledecomp-isle-portable",
+            "definition_sha256": "a1557909c803f471da902dc3b785f884bec89ea1d46aa61dd31bddd620abbc63",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jgrennison-openttd-patches",
+            "definition_sha256": "4a9346e46a2acbebb8a7c22737efa33b01ffeeceb9976d4e0291cf1f9dccf8e7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "knuckles-chaotix-recompiled",
+            "definition_sha256": "5582fc579450ff5b257f99744457bb1b627ae29f0a2c188cdfeedb4e87ade009",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mdk-sdl-nemo22",
+            "definition_sha256": "b83de8c294465759b8709be32e950b1e902c098a5f0c942b503937bdc52176b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "noahvl-birdman64",
+            "definition_sha256": "79b367052f8ea7bb4f1d1ba660d99d3a8b39a6493721f33b502da903f76a1230",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "omf2097-openomf",
+            "definition_sha256": "155fb1d5e9962dde0e25b298ca58e32ac488dba3dd100aece06b6932571120f4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openapoc-openapoc",
+            "definition_sha256": "8d6042ee123c263ea5a707840f228a7343a101bc64216d04f52860606729a694",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openloco-openloco",
+            "definition_sha256": "e3cbf1cc8a15dc72dadb8e8a066b65b9d0e01db1d6bdf7715a264a1ad47f4b1a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openrct2-openrct2",
+            "definition_sha256": "cec3516bb2abf3d6bacd676d0d35dcb2e47be7ed1755e58c17f0610b852e7f8d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opentyrian-opentyrian",
+            "definition_sha256": "186fc7d76c2b26c7b78553a316a7db77e3e51965d4645b3556331ca66dd6812a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-rac-rerac",
+            "definition_sha256": "4cab71920225ac1c980414ddd38826857a99488f738fe0b29d688de19a8daee1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rise-of-the-triad-barrett-lunarmeadow",
+            "definition_sha256": "30a80e150c7daec8e05c5b45db5fd15a37f6f66ddf051958954b52d2b4fb0f32",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rocket-robot-on-wheels-rocket-r",
+            "definition_sha256": "dcf6d12d2efa880c615329438d29d71121f39ff35b0d565583c77708004c53cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sdw-community-sheep-dog-n-wolf-rewooled",
+            "definition_sha256": "533525816cd8c1f27bd1d66f2712bc583469fccc4895e834c15be4123cf6dd09",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-cd-2011-rsdkv3",
+            "definition_sha256": "a2b92d42d18f8b44ede790bc6d8041c73eceef7322cbd9fd26cf654b6d73a378",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "f87bcb9a3cdea6497ede4e87990a22af43ad391b06ff3315891f1d07b89c99e3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "4eecefe6272ebbc73fdf4fd3d943ff4141d2460c347bbb4990b25938fc2af9c6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starlancer-openreliant",
+            "definition_sha256": "65c5af5661e5ed8dd1214c3cb34bddd832cea04404d80cf499d4e62205167b2f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "thatguymcd-glover-r",
+            "definition_sha256": "ac5ddf21127e74b55b08ef55c7ea2ee4fcf6d8f1950d4e6d333d393f086b251b",
+            "check": "catalog-declared-contract-validation"
+          }
+        ],
+        "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620"
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "super-metroid-recomp",
+      "canonical_issue": 164,
+      "path": "crates/portcove-core/catalog/ports/super-metroid-recomp.json",
+      "before_sha256": "e9ec0fa7bdca03b548025132876137637152f599a1ca5426c081b7e1650a9234",
+      "preserved_record_sha256": "7d70d686cb83490654457f338bad7a3b329be37706a917c63c6e96bd9a8e4622",
+      "candidate_sha256": "752c3ed5b3f8eec4f4d283b7ab1c0d6697fd51e88e925f61031ee867cf0cc848",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-super-metroid-recomp\\completion-e81467278d6390ecf19c6438146bb50b776d0f1032d72e54ad8d4bed74e1486d.json",
+      "report_sha256": "e81467278d6390ecf19c6438146bb50b776d0f1032d72e54ad8d4bed74e1486d",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "657fa2ee0448781f3129f914d1e2e48ed1597b1043d38750ce1956433625e69d",
+        "input_bytes": 927629,
+        "catalog_schema": 2,
+        "ports": [
+          {
+            "port_id": "shipwright",
+            "definition_sha256": "66cfdc1ce644a230452b883d3e7034d5317014bb4ed8c037cf5cff247634e533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "2ship2harkinian",
+            "definition_sha256": "e3bf57897271405f8647293995c133e25161c3d3ab2c7d6816c9ddaa9f7e92d2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "spaghetti-kart",
+            "definition_sha256": "8cf3fcf32720398c5d088ea149c43a1dbdbf800859ca51edc9dbd1fa4e2280c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ghostship",
+            "definition_sha256": "30b8c6c66dd783d221b8354755a6e96076c31252935c04ecf1f8c8c316582b05",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paperboat",
+            "definition_sha256": "0ea231064a19ccb84631e401df3e1990c05b9d2caba68700e83efe8e00fc8407",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starship",
+            "definition_sha256": "f07ce6e31ba5c0aeb433f7f1d773a92ab6a402ee64a277fe45426f6c542e488b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "lighthouse",
+            "definition_sha256": "07e2b0fac61a2466cb6a850261724fc1217ef4874bb4f3a37b6f9189b1217b28",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dusklight",
+            "definition_sha256": "ec2f7eb5853ee753721377b2558051ba8756e3806cced49dab4a109e5cd649c1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "zelda64-recomp",
+            "definition_sha256": "2a6750993785e67fa173f30ea85302883aec4e1b1bf36d21c03226f7eb3ff1d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-recomp",
+            "definition_sha256": "d0a50a3144b4fb9ef1c5a54d8af6b2e31d18d1a48b71692dc376ddeca338e552",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bm64-recomp",
+            "definition_sha256": "cfd2688c70c6221d036f239652eaa0d30f91eab93d47642a0cfcc4d15c91f256",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "harvest-moon-64-recomp",
+            "definition_sha256": "7258c7982b92d9935b1d9b20ccfefcb81cc9705c400007d79e827f44394b56a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dinosaur-planet",
+            "definition_sha256": "c873e0ea10e3007ae94de5d318505144a68edddd9af18ea76e82744be51e8067",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkr-r",
+            "definition_sha256": "f5a098b4368987efd3c2876cef0875cfc6754055195c8c5c0f1003a7c5e2a4d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "donkey-kong-64-recompiled",
+            "definition_sha256": "fcc3a599a53658e13434a67c187ade7deab58736468f192e83e526c15f90dab4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "automobili-lamborghini-recompiled",
+            "definition_sha256": "7c514559936bab7a1cf51d7144cfaf104532336508cfc962aa3bcdd24b8daf08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "aerogauge-recompiled",
+            "definition_sha256": "eec46e6c8e661b2d136f9485cbe39413f8d75e7d20234814df9aefcc49888515",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "extreme-g-recompiled",
+            "definition_sha256": "09ec10a007d66d65a77d262bd4c3a1fd802f345eb858c3ae04931b9c95a1359b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-fantasy-race-recompiled",
+            "definition_sha256": "7b5714e7c05d34c720c088a2ac52d26f9642ed044a4d881905eefae3606c82ee",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-party-edition-recompiled",
+            "definition_sha256": "23b875cc6640d1eda7d7d047b22a56e47432346177c33c9a43b8500226b77490",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-world-recompiled",
+            "definition_sha256": "62da8edba2fcfc5be5665b8856ac5810ebf8e3e8178bdb75ffe35f519a348abb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "final-fantasy-vii-recompiled",
+            "definition_sha256": "4a75a14e52af7cd7adb0df6da6b7f1570407a613a7ada6fbda9ac4787c2ba422",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "klonoa-door-to-phantomile-recompiled",
+            "definition_sha256": "6b11e676f22d8f7cac2ef4a8ae01fd1ae9197fe78c74b6351ac4fbe822166edc",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "legend-of-mana-recompiled",
+            "definition_sha256": "21cc80f8ba4049bf2a4fd2f46be0971a578fe45fa495b3e84e73cbe6ddfdb3a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "marvel-vs-capcom-recompiled",
+            "definition_sha256": "702ca0cb05eae32d53e6f08572af4bbb65bd3bf4fcb87685c490d1c7a8741114",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "masters-of-teras-kasi-recompiled",
+            "definition_sha256": "a71675820b56d789107cf9d13c12fa5cb195e6e9ab637d53ed379279fdd14155",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "metal-slug-x-recompiled",
+            "definition_sha256": "51369f785c6428f0e15e0138af5578c0451f63cf4db2b8e70255eb5b6659b20a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mortal-kombat-4-recompiled",
+            "definition_sha256": "4583ea71a8eb3ac87a0e08814558710a479e2badefd25b2332cb6351f31aab4f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rampage-through-time-recompiled",
+            "definition_sha256": "178102ab245c2ad7abb2a80f72a3673aa7c8a1fc3498ec55c9db1a4dbcd40db0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jedi-power-battles-recompiled",
+            "definition_sha256": "dfab55493903138546ad6166a5d924868688fca4242980074649db636ff35f5b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "street-fighter-alpha-3-recompiled",
+            "definition_sha256": "16ea191cb56dcc0270d56b9f4490c7c6a7c510161271dda3b20b833d700573d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "tomba-recompiled",
+            "definition_sha256": "13763a57f428a3a9f0cd03041d8b9baae98b1b34eea9f2405b03ce8df1a79e88",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "twisted-metal-4-recompiled",
+            "definition_sha256": "ddce2f0eb97c6eef0179bba0b91caac77d412eecd124beedf43985f4b787d95c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yu-gi-oh-forbidden-memories-recompiled",
+            "definition_sha256": "b9cc0a26239ba1700d452757802ac0d9cd3c7bf31521e6737d086faf1f760e9e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "revelations-persona-recompiled",
+            "definition_sha256": "bd50492692460cc96757c319980bf33d7873df0b10dd08386534b33dcb1b41f3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "beetle-recomp",
+            "definition_sha256": "11f9618a9d146bea2e5e58043fae18671c8d830aadf1a279eecf48fda9797944",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "quest-64-recompiled",
+            "definition_sha256": "34133877645e86b26e917310017b3bfa22b9d4c01082036a8047c1ec98e40ba8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-world-tour-recompiled",
+            "definition_sha256": "0030a9a866e57e0dffa76b37453b050c8fdac2432cae101b2c5509e8f752da26",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw64-recompiled",
+            "definition_sha256": "f7d1fbc4de6dbb8dab3fb14d185c4ba1821daf9b98ce8bda3ee1eda0f3d6a904",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-nwo-revenge-recompiled",
+            "definition_sha256": "b3a19d520e13a5ce9fe185e7ffd8112e0b996cc273335e60576304de359673c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-wrestlemania-2000-recompiled",
+            "definition_sha256": "e3c9e1b3c5e2e145b03157c64caec7c27b0f77bfbea6a16eb4f49d80cb403be9",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw2-recompiled",
+            "definition_sha256": "d92ec20da6a95e0897b691bc7a7d41c5ded58c91edadc3968c6d70c7bbbb1a29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-no-mercy-recompiled",
+            "definition_sha256": "64c418957018d050965a05af9a30e4dd2c18886cb1fd321920be67104e3e9c97",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-64-recompiled",
+            "definition_sha256": "ff84289cf1c0d8c4c4e3503e91831de0f320d0ad8431a467c023968d01ed63b2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-64-recomp",
+            "definition_sha256": "0ac236e5e05ecf2897cc3abeb8fa1fd6e13f8b445cb8a77aa3fbf7b093ef4bfe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen1recomp",
+            "definition_sha256": "3978540873ef0da3f11cb17302f47d4d8af158be14ec58457cc10f067deb1c49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-gold",
+            "definition_sha256": "6904bd6ad77f0c55308247b67e9fae60f76fdc7b098a868babb8de801c0d35d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-silver",
+            "definition_sha256": "eb0ec48def739610dd9e1903ca981626023352b796ea41cb4fa20d0902c6e194",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-crystal",
+            "definition_sha256": "275644ebff02823de603e9ed437c7352f03a111e1e09705564f7b8f52e7f602d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "nocturne-recomp",
+            "definition_sha256": "2d93c8842cd1aac8edb3e2e0d3029a6c2171580737d7d89362c97364b42a60ec",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-blue",
+            "definition_sha256": "c8a1b3b4076753980710f2a4b097f4324e100aa45368ae20dfe28cf1416207e0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-hero-recomp",
+            "definition_sha256": "990be2f9dabd94dca4239a58449eac7279b9d999e6175be45cc65d1ee90a24b5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snowboard-kids-2-recomp",
+            "definition_sha256": "7e2a39d7df500962fee7441ab5111b82f85c4546f4a4cfd1cc973a591a657533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "trouble-makers-recomp",
+            "definition_sha256": "23f2a9caafd8970454e1fd5acd3740ce8bfd9dca7eb1be6604a06a74fe5e8758",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "goemon64-recomp",
+            "definition_sha256": "d5b937536930f7187e8dbe4c1cc742fca4495dda35ec7ae0e75e84255d63d346",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "perfect-dark",
+            "definition_sha256": "d3caa238953347a254f75acfaf3ff4cd66ade16f48ef9d36c05ba7a64252a0e6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sssv-recompiled",
+            "definition_sha256": "260f94ab83ce7cf4dc451bd6327a9448d7bc8a05d40e78fa0e458e629c212736",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "animal-crossing-pc-port",
+            "definition_sha256": "e5aa6cd084c85679d7e9c1d77bb66b393b5e0f753a27a29f3fa5355014a0462b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "project-picori",
+            "definition_sha256": "6ca21f345b9643af648dab516c14b24976bdf1622075548851b90c512f685086",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battleship",
+            "definition_sha256": "fedf92f482485f3df5d15607e8a8aa99a1b87b371c6a9f177b26bfaa941249f5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "g-diffuser",
+            "definition_sha256": "ccc0239f8b90868d4a67d6a64ca08dd94885e18e74c943267f3f3ceb0dcb35ae",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "severed-chains",
+            "definition_sha256": "3884eb98306280826cd372c260a20965afef6316207428114cc14d5505c15aeb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openpete",
+            "definition_sha256": "b7349e349fa418fffab9fc1c4b801b9f1716d3882495a29e5a586a34ae54b4b1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak1",
+            "definition_sha256": "377deda0f972d15089ffc925b39bb8d3b85eb9618afadae5a4559e6d6c5fe00f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak2",
+            "definition_sha256": "32d9e08b1250b149d6bdc5624f539beccf30483e1188b5c8c5e52ec4a8f19ef5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak3",
+            "definition_sha256": "f8a7a6c5f9e1d46ce598bb119b8aebc1f86bb8193d10695eb4cb4b2fd75fb04a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x6-recompiled",
+            "definition_sha256": "f5cbec8f8c137206e5e2f97eb7336449ad041e5d38bbaac2ed898d66c2f750da",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paper-mario-recut",
+            "definition_sha256": "9c951cedf0793bc38bb87cd0c9072bc2fdfd0665bf27f44bcc7e95dad228143e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snap64-recomp",
+            "definition_sha256": "acc63422649c1f5763d0a80314d9737dd856223f016f3e65076e74c844b8b162",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "cvlod-recomp",
+            "definition_sha256": "f750a26f7620c7b8db84cbbf2f15e267c3d0fd1ba94cd053feb11845c16878bf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "diddy-kong-racing-golden-balloon",
+            "definition_sha256": "6c54206add5302f7621c277fbc3ac70ebc2ac1fc68d467f3b129f01b90212d93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "star-fox-enhanced",
+            "definition_sha256": "6689f4afca82bbc7b348f13863c55496fe4e491b0e5cc3ffafefc878c8a57098",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "duke-nukem-zero-hour-recompiled",
+            "definition_sha256": "17c34ae0ea172e4155c477e45ecebf9090d4d6c40eee38c0583a1bc1156676cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ape-escape-recompiled",
+            "definition_sha256": "17b0f8a623813005d5d0d508636a33de7733e6bcb6a6ac69ddf9f4b8c89ce3f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x5-recompiled",
+            "definition_sha256": "64a949b74e1c32e0ef4f146d8be0c547dc324228c15e53c35553194a75707ec1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "open-nectar-pikmin",
+            "definition_sha256": "b79c934b372b61d13adc9c9ad96d843b29de964466242ee7b875bef7342b5773",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-recomp",
+            "definition_sha256": "757812b5a9e9d8f553a627d3825e079bcfbdd9b38ce0a7908243255cbb7ae924",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-racewave46",
+            "definition_sha256": "cfc7530951c4567936341807d2a2feae28a6189adf8dcb5ecdb8672077ca987e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "f-zero-snes-recomp",
+            "definition_sha256": "890a8dc7fc028649cba16da3c6dae32ce5be3b75313eda0c0cf3fcf7cd26bb92",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "road-rash-64-recompiled",
+            "definition_sha256": "74565adec67c1d1898b1bfca9bd15b15cf6efcde6f1036c6b85c4634eca052d0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc3-recomp",
+            "definition_sha256": "fb4a39c73ed8b8f41e33955ecff121044a26dd67b92e84ad5a948027b6332e29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ape-escape-recomp",
+            "definition_sha256": "f155b0cb16336c16e19abdcd9533e9bade314e3e41b052743d8f53dba5bffdda",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alundra-recomp",
+            "definition_sha256": "a740b50ed9c727f46da5db785051186b9ffeb072591b357600f3502d1f0ee3df",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-armored-core-recomp",
+            "definition_sha256": "daae127b4b4a48bb82922bdd4bd92628fd1ae4a0778839586cae09cd7c84ce54",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+            "definition_sha256": "358ccf6aa839b2f81044e1c4dc822b8bb5eac90d47c6b015565e04150d2eb10f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-digimon-world-2003-recomp",
+            "definition_sha256": "d2ee5dc6634ba81e43581b62a6d6d1d74a36a730e1a2c61f6561433943103e49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+            "definition_sha256": "4829937085eb900b16b93e420d82f0786c51e253f08f62f42b4b16b606e84602",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-driver-recomp",
+            "definition_sha256": "9ecd5162b43ebbc4b3efa1e3a67c065dd0e56d31e66066dc6e5d49bae6da4ffe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
+            "definition_sha256": "e81e0638fb48dc7dae5e52701ddc775a2e38ebe7711ce8b62fcbc4f9b56a9756",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-fade-to-black-recomp",
+            "definition_sha256": "d9d419bc6eb1c1ac637715c2ca2907e771d6de03d227ed905d2a16973378c083",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-diablo-recomp",
+            "definition_sha256": "2a51fefdf3fe44e442dbcf78b8631e30d08068ecdef357d644cd7db121544ded",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+            "definition_sha256": "6ce4e6538d845e4eed198ddf91ef559f9ee82225726866d257c3ced88acf2180",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-recomp",
+            "definition_sha256": "04773457fcd70ea5018202f0b88f4bbd9c09eade8509c7cf3a712215cebdd7d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-2-recomp",
+            "definition_sha256": "bbeddbba202e802549b62f5645f748dac870c796e15856e64675beb2543526ff",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alien-resurrection-recomp",
+            "definition_sha256": "379781d7e2f05f3a4fbe024b124d8f138bd885363ddf55effe1934dd51f0092f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-brave-fencer-musashi-recomp",
+            "definition_sha256": "f8f6a325018d9218d214118a885f6fd850997b63163a333ad75c71c01cb058f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-world-recomp",
+            "definition_sha256": "1569cbc730fd7166801e7e754e36c7025bfe33dcdcf38ae0d12f7f3a346c8ff1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+            "definition_sha256": "185a0f5413142cbe6ab321e583c4f91b0dda4a8e08de452f94d2c5330957d56b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-recomp",
+            "definition_sha256": "78b85b8df71fe55ae01dc5906166c2f29caf52f7b7131633ca10d59889870848",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-force-engine-dark-forces",
+            "definition_sha256": "9a644049db2332db7955674e929cabcc50b67d90dfa9757b9a317f05fcfff04f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-recomp",
+            "definition_sha256": "3632bd6b6730a8e823dd3061e96773c8bf5f9f117635ae300b320a7aeb2a07b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-3-and-knuckles-recomp",
+            "definition_sha256": "f63b5cae8f34300cb57614f6f0f4d66efe0af51617235c9129c20f962296c4f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yoshis-cookie-recomp",
+            "definition_sha256": "b2ac80e77e2b57bfa1371f987a4479eb8c8ee08787d8ba034b43bae47ebabb8e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-nes-recomp",
+            "definition_sha256": "05d297b1e353541da2bf33c96226bafa6ce199cece80b10571913317fd16ac53",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-metroid-recomp",
+            "definition_sha256": "d5943e52a4597b304bc11b5f8df6922288e71e69e98fa08690496201ca71d5bc",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x2-snes-recomp",
+            "definition_sha256": "36f4d4ccdb9439855e084eea80369706ddff5b35825e6962ec59c1083164c447",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "resident-evil-gaiden-recomp",
+            "definition_sha256": "aea9247b1e0a7f40264e3020b546ec6e271561031d1bdaa093b9ae4d9fabf3b0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "earthbound-recomp",
+            "definition_sha256": "12d5b7b739e32e0a5c0bdec2ad09c1eaacdd6d36cc2bd7d064378f438c39e7f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-bros-remastered",
+            "definition_sha256": "d107b9212f9162bc8b3a797610adc255870d3853ea375d21c7e1322d5d211872",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "render96ex",
+            "definition_sha256": "81716d5925a71ac1f0d87284c53519060c83f86821a8607e49b1e3bb0090705a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-bomberman-recomp",
+            "definition_sha256": "f8656c015ef841e9824c6a3f176b0d129032583fa6946e6f4a953563468a4127",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gundam-wing-endless-duel-recomp",
+            "definition_sha256": "ff4b587cea3cc68cfea22804d49984aef8f3f386badbc8fccf477c29ff4c0487",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc2-recomp",
+            "definition_sha256": "5fabafc074f201618fd97dd3251ce1c29adbf3fe649ed912cb38d2a0ea8f5440",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ace-combat-6-recomp",
+            "definition_sha256": "8a0f3926c0ec08a4ecbe6288b015383ccfd14329e6bfbb2534c3b47f8cd2d168",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alariq-mc2",
+            "definition_sha256": "f63da751d11a623ad6680d7b78ddfe0dc1fdb038df40cbc16c59475f4629129b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-medievil-ii-recomp",
+            "definition_sha256": "7825ae7ea245d0d1dd731fddc90ee220896b2eaacfe64dde0049ec09fa2cfa08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alistert-openjazz",
+            "definition_sha256": "2c05508754834aa1f6577f0339b964ff0841d8b97e06f368be8169f738c2f4c2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-tooie-recompiled-some-scurvy-dog",
+            "definition_sha256": "44b5c960f3485ee3bb93af5f28a2a2e7cb7d393d508f3e5bedb94fdbd5a04763",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battletanx-global-assault-pc-port",
+            "definition_sha256": "adacb3887fcd212b520d57ec9e2153c94eeb9feb35fbf27986d9f88b08932257",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "brawmario-infinite-mario-64-ever",
+            "definition_sha256": "12e331d2ae6d62be29613f670cccacc78a6d9a7c18b37e89433be220fa1f9d1e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bvschaik-julius",
+            "definition_sha256": "000d01af1ac3cab924919a98eda4ac51ee7bd3900b1e19c320ffe67e106ac8cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "citrongames-dora64",
+            "definition_sha256": "989d3db90607533d5da9e32c767db068d7b5d73d25053bedbf90b1b1cc015613",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "colin-mcrae-rally-2-opencmr2",
+            "definition_sha256": "3a02939e0fba3827cb8c2c7228b8a3476f88029f0eda9b6ef8d1ff588300250f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "corsixth-corsixth",
+            "definition_sha256": "de95f9b2fd9ce5f9e2efe26f5ed8a095ed1ce9a8ada4179100a1ff9e0d93ad93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "craigshaw-fzerorecomp",
+            "definition_sha256": "db163e58ff891be7205131c900fee6558b740cc8da6fab305f5d1c1451fb4b62",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "crash-team-racing-ctr-native",
+            "definition_sha256": "a7f8caed7c1b53d95aafad08e6801fd4b7c761dfff1ab53784e7113cb42e5498",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dethrace-labs-dethrace",
+            "definition_sha256": "9a1ed879acbd999c3b1a87b4a179d83368700625f9fbd25f2b0ff4ac39477f2e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "djultra64-blocksphere",
+            "definition_sha256": "b4b618a369d953df53e40f044a4242e10acadd8d57e7817c5c2fa53cc9d0bc9b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc1-recomp",
+            "definition_sha256": "a174fc1faed66634b9f166d9831ef749937867e18879659eae414d4ec8ae8ac3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "elliotttate-dkc2recomp",
+            "definition_sha256": "10ad5c846a7ac4df8ecb26ba4239fc552bdc11c3c397e56b8d1e4f572dfa9bbf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "fragglet-sdl-sopwith",
+            "definition_sha256": "e41ab13add4294cc4ebc2a10e2d74b465aeafdc04abf1ef117bb821d95e880b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gearhead-garage-opengg",
+            "definition_sha256": "1a7010bdf73e58d54f18c612ea7edb15db017c50d3c4372e353ca6e356f3e2fe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gladiator-openglad",
+            "definition_sha256": "05e52084a8f2fbd29c2f03fc08506273c85f3d901025a73275d9ab354817a8d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ico-pc-nathanialf",
+            "definition_sha256": "76a48bd860a68fdb169f6b3910826c50bd74d3e04b4540bcaea3d0a53695a4ab",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "infinite-undiscovery-doc-haz",
+            "definition_sha256": "920cee6a8f8fac9b1b1ba42b981d58761117ef9cb7ab70d373805db5bd9cd452",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "insanitybringer-piccuengine",
+            "definition_sha256": "164cadb14b8fb8fdfff29d318f7ba6a3ae7ac880f4931f18ea4b4c5afd6c578c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "interkarma-daggerfall-unity",
+            "definition_sha256": "b6e27b333718f853582bf78dee4085ff1910987f0f7f47b08a3c799425124a4a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "isledecomp-isle-portable",
+            "definition_sha256": "a1557909c803f471da902dc3b785f884bec89ea1d46aa61dd31bddd620abbc63",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jgrennison-openttd-patches",
+            "definition_sha256": "4a9346e46a2acbebb8a7c22737efa33b01ffeeceb9976d4e0291cf1f9dccf8e7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "knuckles-chaotix-recompiled",
+            "definition_sha256": "5582fc579450ff5b257f99744457bb1b627ae29f0a2c188cdfeedb4e87ade009",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mdk-sdl-nemo22",
+            "definition_sha256": "b83de8c294465759b8709be32e950b1e902c098a5f0c942b503937bdc52176b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "noahvl-birdman64",
+            "definition_sha256": "79b367052f8ea7bb4f1d1ba660d99d3a8b39a6493721f33b502da903f76a1230",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "omf2097-openomf",
+            "definition_sha256": "155fb1d5e9962dde0e25b298ca58e32ac488dba3dd100aece06b6932571120f4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openapoc-openapoc",
+            "definition_sha256": "8d6042ee123c263ea5a707840f228a7343a101bc64216d04f52860606729a694",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openloco-openloco",
+            "definition_sha256": "e3cbf1cc8a15dc72dadb8e8a066b65b9d0e01db1d6bdf7715a264a1ad47f4b1a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openrct2-openrct2",
+            "definition_sha256": "cec3516bb2abf3d6bacd676d0d35dcb2e47be7ed1755e58c17f0610b852e7f8d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opentyrian-opentyrian",
+            "definition_sha256": "186fc7d76c2b26c7b78553a316a7db77e3e51965d4645b3556331ca66dd6812a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-rac-rerac",
+            "definition_sha256": "4cab71920225ac1c980414ddd38826857a99488f738fe0b29d688de19a8daee1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rise-of-the-triad-barrett-lunarmeadow",
+            "definition_sha256": "30a80e150c7daec8e05c5b45db5fd15a37f6f66ddf051958954b52d2b4fb0f32",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rocket-robot-on-wheels-rocket-r",
+            "definition_sha256": "dcf6d12d2efa880c615329438d29d71121f39ff35b0d565583c77708004c53cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sdw-community-sheep-dog-n-wolf-rewooled",
+            "definition_sha256": "533525816cd8c1f27bd1d66f2712bc583469fccc4895e834c15be4123cf6dd09",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-cd-2011-rsdkv3",
+            "definition_sha256": "a2b92d42d18f8b44ede790bc6d8041c73eceef7322cbd9fd26cf654b6d73a378",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "f87bcb9a3cdea6497ede4e87990a22af43ad391b06ff3315891f1d07b89c99e3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "4eecefe6272ebbc73fdf4fd3d943ff4141d2460c347bbb4990b25938fc2af9c6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starlancer-openreliant",
+            "definition_sha256": "65c5af5661e5ed8dd1214c3cb34bddd832cea04404d80cf499d4e62205167b2f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "thatguymcd-glover-r",
+            "definition_sha256": "ac5ddf21127e74b55b08ef55c7ea2ee4fcf6d8f1950d4e6d333d393f086b251b",
+            "check": "catalog-declared-contract-validation"
+          }
+        ],
+        "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620"
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    },
+    {
+      "id": "mega-man-x2-snes-recomp",
+      "canonical_issue": 165,
+      "path": "crates/portcove-core/catalog/ports/mega-man-x2-snes-recomp.json",
+      "before_sha256": "b5d6c818d96b033efb0c548475b051595e26eb1b3e204b98cfe800d2989845e6",
+      "preserved_record_sha256": "71268ecd3dc56baf6dc7196aa69a5cdeb7314d9cd8f5eceb4c4f502c3ba55065",
+      "candidate_sha256": "51c9e83f398c18c70307b677d330a7367281d5eadd6be2216f1c57c2a75b0eb7",
+      "route": "listing",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-guide-batch4\\prepare-mega-man-x2-snes-recomp\\completion-ca8a87b4367d20ace604ce82c1410db73fc68b63fb8c1cbe09e86afa75c71ac1.json",
+      "report_sha256": "ca8a87b4367d20ace604ce82c1410db73fc68b63fb8c1cbe09e86afa75c71ac1",
+      "preparation_validation": {
+        "format_version": 1,
+        "input_sha256": "e4ee82eaad4887f57962973e2949ff4c65535508579285dda8e218737df62c8c",
+        "input_bytes": 927629,
+        "catalog_schema": 2,
+        "ports": [
+          {
+            "port_id": "shipwright",
+            "definition_sha256": "66cfdc1ce644a230452b883d3e7034d5317014bb4ed8c037cf5cff247634e533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "2ship2harkinian",
+            "definition_sha256": "e3bf57897271405f8647293995c133e25161c3d3ab2c7d6816c9ddaa9f7e92d2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "spaghetti-kart",
+            "definition_sha256": "8cf3fcf32720398c5d088ea149c43a1dbdbf800859ca51edc9dbd1fa4e2280c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ghostship",
+            "definition_sha256": "30b8c6c66dd783d221b8354755a6e96076c31252935c04ecf1f8c8c316582b05",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paperboat",
+            "definition_sha256": "0ea231064a19ccb84631e401df3e1990c05b9d2caba68700e83efe8e00fc8407",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starship",
+            "definition_sha256": "f07ce6e31ba5c0aeb433f7f1d773a92ab6a402ee64a277fe45426f6c542e488b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "lighthouse",
+            "definition_sha256": "07e2b0fac61a2466cb6a850261724fc1217ef4874bb4f3a37b6f9189b1217b28",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dusklight",
+            "definition_sha256": "ec2f7eb5853ee753721377b2558051ba8756e3806cced49dab4a109e5cd649c1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "zelda64-recomp",
+            "definition_sha256": "2a6750993785e67fa173f30ea85302883aec4e1b1bf36d21c03226f7eb3ff1d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-recomp",
+            "definition_sha256": "d0a50a3144b4fb9ef1c5a54d8af6b2e31d18d1a48b71692dc376ddeca338e552",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bm64-recomp",
+            "definition_sha256": "cfd2688c70c6221d036f239652eaa0d30f91eab93d47642a0cfcc4d15c91f256",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "harvest-moon-64-recomp",
+            "definition_sha256": "7258c7982b92d9935b1d9b20ccfefcb81cc9705c400007d79e827f44394b56a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dinosaur-planet",
+            "definition_sha256": "c873e0ea10e3007ae94de5d318505144a68edddd9af18ea76e82744be51e8067",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkr-r",
+            "definition_sha256": "f5a098b4368987efd3c2876cef0875cfc6754055195c8c5c0f1003a7c5e2a4d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "donkey-kong-64-recompiled",
+            "definition_sha256": "fcc3a599a53658e13434a67c187ade7deab58736468f192e83e526c15f90dab4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "automobili-lamborghini-recompiled",
+            "definition_sha256": "7c514559936bab7a1cf51d7144cfaf104532336508cfc962aa3bcdd24b8daf08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "aerogauge-recompiled",
+            "definition_sha256": "eec46e6c8e661b2d136f9485cbe39413f8d75e7d20234814df9aefcc49888515",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "extreme-g-recompiled",
+            "definition_sha256": "09ec10a007d66d65a77d262bd4c3a1fd802f345eb858c3ae04931b9c95a1359b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-fantasy-race-recompiled",
+            "definition_sha256": "7b5714e7c05d34c720c088a2ac52d26f9642ed044a4d881905eefae3606c82ee",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-party-edition-recompiled",
+            "definition_sha256": "23b875cc6640d1eda7d7d047b22a56e47432346177c33c9a43b8500226b77490",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-world-recompiled",
+            "definition_sha256": "62da8edba2fcfc5be5665b8856ac5810ebf8e3e8178bdb75ffe35f519a348abb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "final-fantasy-vii-recompiled",
+            "definition_sha256": "4a75a14e52af7cd7adb0df6da6b7f1570407a613a7ada6fbda9ac4787c2ba422",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "klonoa-door-to-phantomile-recompiled",
+            "definition_sha256": "6b11e676f22d8f7cac2ef4a8ae01fd1ae9197fe78c74b6351ac4fbe822166edc",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "legend-of-mana-recompiled",
+            "definition_sha256": "21cc80f8ba4049bf2a4fd2f46be0971a578fe45fa495b3e84e73cbe6ddfdb3a7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "marvel-vs-capcom-recompiled",
+            "definition_sha256": "702ca0cb05eae32d53e6f08572af4bbb65bd3bf4fcb87685c490d1c7a8741114",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "masters-of-teras-kasi-recompiled",
+            "definition_sha256": "a71675820b56d789107cf9d13c12fa5cb195e6e9ab637d53ed379279fdd14155",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "metal-slug-x-recompiled",
+            "definition_sha256": "51369f785c6428f0e15e0138af5578c0451f63cf4db2b8e70255eb5b6659b20a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mortal-kombat-4-recompiled",
+            "definition_sha256": "4583ea71a8eb3ac87a0e08814558710a479e2badefd25b2332cb6351f31aab4f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rampage-through-time-recompiled",
+            "definition_sha256": "178102ab245c2ad7abb2a80f72a3673aa7c8a1fc3498ec55c9db1a4dbcd40db0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jedi-power-battles-recompiled",
+            "definition_sha256": "dfab55493903138546ad6166a5d924868688fca4242980074649db636ff35f5b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "street-fighter-alpha-3-recompiled",
+            "definition_sha256": "16ea191cb56dcc0270d56b9f4490c7c6a7c510161271dda3b20b833d700573d1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "tomba-recompiled",
+            "definition_sha256": "13763a57f428a3a9f0cd03041d8b9baae98b1b34eea9f2405b03ce8df1a79e88",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "twisted-metal-4-recompiled",
+            "definition_sha256": "ddce2f0eb97c6eef0179bba0b91caac77d412eecd124beedf43985f4b787d95c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yu-gi-oh-forbidden-memories-recompiled",
+            "definition_sha256": "b9cc0a26239ba1700d452757802ac0d9cd3c7bf31521e6737d086faf1f760e9e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "revelations-persona-recompiled",
+            "definition_sha256": "bd50492692460cc96757c319980bf33d7873df0b10dd08386534b33dcb1b41f3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "beetle-recomp",
+            "definition_sha256": "11f9618a9d146bea2e5e58043fae18671c8d830aadf1a279eecf48fda9797944",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "quest-64-recompiled",
+            "definition_sha256": "34133877645e86b26e917310017b3bfa22b9d4c01082036a8047c1ec98e40ba8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-world-tour-recompiled",
+            "definition_sha256": "0030a9a866e57e0dffa76b37453b050c8fdac2432cae101b2c5509e8f752da26",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw64-recompiled",
+            "definition_sha256": "f7d1fbc4de6dbb8dab3fb14d185c4ba1821daf9b98ce8bda3ee1eda0f3d6a904",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wcw-nwo-revenge-recompiled",
+            "definition_sha256": "b3a19d520e13a5ce9fe185e7ffd8112e0b996cc273335e60576304de359673c5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-wrestlemania-2000-recompiled",
+            "definition_sha256": "e3c9e1b3c5e2e145b03157c64caec7c27b0f77bfbea6a16eb4f49d80cb403be9",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "vpw2-recompiled",
+            "definition_sha256": "d92ec20da6a95e0897b691bc7a7d41c5ded58c91edadc3968c6d70c7bbbb1a29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wwf-no-mercy-recompiled",
+            "definition_sha256": "64c418957018d050965a05af9a30e4dd2c18886cb1fd321920be67104e3e9c97",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-64-recompiled",
+            "definition_sha256": "ff84289cf1c0d8c4c4e3503e91831de0f320d0ad8431a467c023968d01ed63b2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-64-recomp",
+            "definition_sha256": "0ac236e5e05ecf2897cc3abeb8fa1fd6e13f8b445cb8a77aa3fbf7b093ef4bfe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen1recomp",
+            "definition_sha256": "3978540873ef0da3f11cb17302f47d4d8af158be14ec58457cc10f067deb1c49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-gold",
+            "definition_sha256": "6904bd6ad77f0c55308247b67e9fae60f76fdc7b098a868babb8de801c0d35d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-silver",
+            "definition_sha256": "eb0ec48def739610dd9e1903ca981626023352b796ea41cb4fa20d0902c6e194",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gen2recomp-crystal",
+            "definition_sha256": "275644ebff02823de603e9ed437c7352f03a111e1e09705564f7b8f52e7f602d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "nocturne-recomp",
+            "definition_sha256": "2d93c8842cd1aac8edb3e2e0d3029a6c2171580737d7d89362c97364b42a60ec",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-blue",
+            "definition_sha256": "c8a1b3b4076753980710f2a4b097f4324e100aa45368ae20dfe28cf1416207e0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bomberman-hero-recomp",
+            "definition_sha256": "990be2f9dabd94dca4239a58449eac7279b9d999e6175be45cc65d1ee90a24b5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snowboard-kids-2-recomp",
+            "definition_sha256": "7e2a39d7df500962fee7441ab5111b82f85c4546f4a4cfd1cc973a591a657533",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "trouble-makers-recomp",
+            "definition_sha256": "23f2a9caafd8970454e1fd5acd3740ce8bfd9dca7eb1be6604a06a74fe5e8758",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "goemon64-recomp",
+            "definition_sha256": "d5b937536930f7187e8dbe4c1cc742fca4495dda35ec7ae0e75e84255d63d346",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "perfect-dark",
+            "definition_sha256": "d3caa238953347a254f75acfaf3ff4cd66ade16f48ef9d36c05ba7a64252a0e6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sssv-recompiled",
+            "definition_sha256": "260f94ab83ce7cf4dc451bd6327a9448d7bc8a05d40e78fa0e458e629c212736",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "animal-crossing-pc-port",
+            "definition_sha256": "e5aa6cd084c85679d7e9c1d77bb66b393b5e0f753a27a29f3fa5355014a0462b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "project-picori",
+            "definition_sha256": "6ca21f345b9643af648dab516c14b24976bdf1622075548851b90c512f685086",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battleship",
+            "definition_sha256": "fedf92f482485f3df5d15607e8a8aa99a1b87b371c6a9f177b26bfaa941249f5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "g-diffuser",
+            "definition_sha256": "ccc0239f8b90868d4a67d6a64ca08dd94885e18e74c943267f3f3ceb0dcb35ae",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "severed-chains",
+            "definition_sha256": "3884eb98306280826cd372c260a20965afef6316207428114cc14d5505c15aeb",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openpete",
+            "definition_sha256": "b7349e349fa418fffab9fc1c4b801b9f1716d3882495a29e5a586a34ae54b4b1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak1",
+            "definition_sha256": "377deda0f972d15089ffc925b39bb8d3b85eb9618afadae5a4559e6d6c5fe00f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak2",
+            "definition_sha256": "32d9e08b1250b149d6bdc5624f539beccf30483e1188b5c8c5e52ec4a8f19ef5",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opengoal-jak3",
+            "definition_sha256": "f8a7a6c5f9e1d46ce598bb119b8aebc1f86bb8193d10695eb4cb4b2fd75fb04a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x6-recompiled",
+            "definition_sha256": "f5cbec8f8c137206e5e2f97eb7336449ad041e5d38bbaac2ed898d66c2f750da",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "paper-mario-recut",
+            "definition_sha256": "9c951cedf0793bc38bb87cd0c9072bc2fdfd0665bf27f44bcc7e95dad228143e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "snap64-recomp",
+            "definition_sha256": "acc63422649c1f5763d0a80314d9737dd856223f016f3e65076e74c844b8b162",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "cvlod-recomp",
+            "definition_sha256": "f750a26f7620c7b8db84cbbf2f15e267c3d0fd1ba94cd053feb11845c16878bf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "diddy-kong-racing-golden-balloon",
+            "definition_sha256": "6c54206add5302f7621c277fbc3ac70ebc2ac1fc68d467f3b129f01b90212d93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "star-fox-enhanced",
+            "definition_sha256": "6689f4afca82bbc7b348f13863c55496fe4e491b0e5cc3ffafefc878c8a57098",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "duke-nukem-zero-hour-recompiled",
+            "definition_sha256": "17c34ae0ea172e4155c477e45ecebf9090d4d6c40eee38c0583a1bc1156676cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ape-escape-recompiled",
+            "definition_sha256": "17b0f8a623813005d5d0d508636a33de7733e6bcb6a6ac69ddf9f4b8c89ce3f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x5-recompiled",
+            "definition_sha256": "64a949b74e1c32e0ef4f146d8be0c547dc324228c15e53c35553194a75707ec1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "open-nectar-pikmin",
+            "definition_sha256": "b79c934b372b61d13adc9c9ad96d843b29de964466242ee7b875bef7342b5773",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-recomp",
+            "definition_sha256": "757812b5a9e9d8f553a627d3825e079bcfbdd9b38ce0a7908243255cbb7ae924",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "wave-race-64-racewave46",
+            "definition_sha256": "cfc7530951c4567936341807d2a2feae28a6189adf8dcb5ecdb8672077ca987e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "f-zero-snes-recomp",
+            "definition_sha256": "890a8dc7fc028649cba16da3c6dae32ce5be3b75313eda0c0cf3fcf7cd26bb92",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "road-rash-64-recompiled",
+            "definition_sha256": "74565adec67c1d1898b1bfca9bd15b15cf6efcde6f1036c6b85c4634eca052d0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc3-recomp",
+            "definition_sha256": "fb4a39c73ed8b8f41e33955ecff121044a26dd67b92e84ad5a948027b6332e29",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ape-escape-recomp",
+            "definition_sha256": "f155b0cb16336c16e19abdcd9533e9bade314e3e41b052743d8f53dba5bffdda",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alundra-recomp",
+            "definition_sha256": "a740b50ed9c727f46da5db785051186b9ffeb072591b357600f3502d1f0ee3df",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-armored-core-recomp",
+            "definition_sha256": "daae127b4b4a48bb82922bdd4bd92628fd1ae4a0778839586cae09cd7c84ce54",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+            "definition_sha256": "358ccf6aa839b2f81044e1c4dc822b8bb5eac90d47c6b015565e04150d2eb10f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-digimon-world-2003-recomp",
+            "definition_sha256": "d2ee5dc6634ba81e43581b62a6d6d1d74a36a730e1a2c61f6561433943103e49",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+            "definition_sha256": "4829937085eb900b16b93e420d82f0786c51e253f08f62f42b4b16b606e84602",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-driver-recomp",
+            "definition_sha256": "9ecd5162b43ebbc4b3efa1e3a67c065dd0e56d31e66066dc6e5d49bae6da4ffe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
+            "definition_sha256": "e81e0638fb48dc7dae5e52701ddc775a2e38ebe7711ce8b62fcbc4f9b56a9756",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-fade-to-black-recomp",
+            "definition_sha256": "d9d419bc6eb1c1ac637715c2ca2907e771d6de03d227ed905d2a16973378c083",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-diablo-recomp",
+            "definition_sha256": "2a51fefdf3fe44e442dbcf78b8631e30d08068ecdef357d644cd7db121544ded",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+            "definition_sha256": "6ce4e6538d845e4eed198ddf91ef559f9ee82225726866d257c3ced88acf2180",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-recomp",
+            "definition_sha256": "04773457fcd70ea5018202f0b88f4bbd9c09eade8509c7cf3a712215cebdd7d6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-dino-crisis-2-recomp",
+            "definition_sha256": "bbeddbba202e802549b62f5645f748dac870c796e15856e64675beb2543526ff",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-alien-resurrection-recomp",
+            "definition_sha256": "379781d7e2f05f3a4fbe024b124d8f138bd885363ddf55effe1934dd51f0092f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-brave-fencer-musashi-recomp",
+            "definition_sha256": "f8f6a325018d9218d214118a885f6fd850997b63163a333ad75c71c01cb058f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-world-recomp",
+            "definition_sha256": "1569cbc730fd7166801e7e754e36c7025bfe33dcdcf38ae0d12f7f3a346c8ff1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+            "definition_sha256": "185a0f5413142cbe6ab321e583c4f91b0dda4a8e08de452f94d2c5330957d56b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-recomp",
+            "definition_sha256": "78b85b8df71fe55ae01dc5906166c2f29caf52f7b7131633ca10d59889870848",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "the-force-engine-dark-forces",
+            "definition_sha256": "9a644049db2332db7955674e929cabcc50b67d90dfa9757b9a317f05fcfff04f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-recomp",
+            "definition_sha256": "3632bd6b6730a8e823dd3061e96773c8bf5f9f117635ae300b320a7aeb2a07b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-3-and-knuckles-recomp",
+            "definition_sha256": "f63b5cae8f34300cb57614f6f0f4d66efe0af51617235c9129c20f962296c4f8",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "yoshis-cookie-recomp",
+            "definition_sha256": "b2ac80e77e2b57bfa1371f987a4479eb8c8ee08787d8ba034b43bae47ebabb8e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dr-mario-nes-recomp",
+            "definition_sha256": "05d297b1e353541da2bf33c96226bafa6ce199cece80b10571913317fd16ac53",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-metroid-recomp",
+            "definition_sha256": "58465d2188ff658b36e2258d949902a29a31b483749af5244401adf2794be479",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mega-man-x2-snes-recomp",
+            "definition_sha256": "ca662815591f9b35c60b2fc8256fdcdb37e7c22114278ea21afd3d7816abfb37",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "resident-evil-gaiden-recomp",
+            "definition_sha256": "aea9247b1e0a7f40264e3020b546ec6e271561031d1bdaa093b9ae4d9fabf3b0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "earthbound-recomp",
+            "definition_sha256": "12d5b7b739e32e0a5c0bdec2ad09c1eaacdd6d36cc2bd7d064378f438c39e7f0",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-mario-bros-remastered",
+            "definition_sha256": "d107b9212f9162bc8b3a797610adc255870d3853ea375d21c7e1322d5d211872",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "render96ex",
+            "definition_sha256": "81716d5925a71ac1f0d87284c53519060c83f86821a8607e49b1e3bb0090705a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "super-bomberman-recomp",
+            "definition_sha256": "f8656c015ef841e9824c6a3f176b0d129032583fa6946e6f4a953563468a4127",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gundam-wing-endless-duel-recomp",
+            "definition_sha256": "ff4b587cea3cc68cfea22804d49984aef8f3f386badbc8fccf477c29ff4c0487",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc2-recomp",
+            "definition_sha256": "5fabafc074f201618fd97dd3251ce1c29adbf3fe649ed912cb38d2a0ea8f5440",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ace-combat-6-recomp",
+            "definition_sha256": "8a0f3926c0ec08a4ecbe6288b015383ccfd14329e6bfbb2534c3b47f8cd2d168",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alariq-mc2",
+            "definition_sha256": "f63da751d11a623ad6680d7b78ddfe0dc1fdb038df40cbc16c59475f4629129b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alexbeav-medievil-ii-recomp",
+            "definition_sha256": "7825ae7ea245d0d1dd731fddc90ee220896b2eaacfe64dde0049ec09fa2cfa08",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "alistert-openjazz",
+            "definition_sha256": "2c05508754834aa1f6577f0339b964ff0841d8b97e06f368be8169f738c2f4c2",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "banjo-tooie-recompiled-some-scurvy-dog",
+            "definition_sha256": "44b5c960f3485ee3bb93af5f28a2a2e7cb7d393d508f3e5bedb94fdbd5a04763",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "battletanx-global-assault-pc-port",
+            "definition_sha256": "adacb3887fcd212b520d57ec9e2153c94eeb9feb35fbf27986d9f88b08932257",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "brawmario-infinite-mario-64-ever",
+            "definition_sha256": "12e331d2ae6d62be29613f670cccacc78a6d9a7c18b37e89433be220fa1f9d1e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "bvschaik-julius",
+            "definition_sha256": "000d01af1ac3cab924919a98eda4ac51ee7bd3900b1e19c320ffe67e106ac8cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "citrongames-dora64",
+            "definition_sha256": "989d3db90607533d5da9e32c767db068d7b5d73d25053bedbf90b1b1cc015613",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "colin-mcrae-rally-2-opencmr2",
+            "definition_sha256": "3a02939e0fba3827cb8c2c7228b8a3476f88029f0eda9b6ef8d1ff588300250f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "corsixth-corsixth",
+            "definition_sha256": "de95f9b2fd9ce5f9e2efe26f5ed8a095ed1ce9a8ada4179100a1ff9e0d93ad93",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "craigshaw-fzerorecomp",
+            "definition_sha256": "db163e58ff891be7205131c900fee6558b740cc8da6fab305f5d1c1451fb4b62",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "crash-team-racing-ctr-native",
+            "definition_sha256": "a7f8caed7c1b53d95aafad08e6801fd4b7c761dfff1ab53784e7113cb42e5498",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dethrace-labs-dethrace",
+            "definition_sha256": "9a1ed879acbd999c3b1a87b4a179d83368700625f9fbd25f2b0ff4ac39477f2e",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "djultra64-blocksphere",
+            "definition_sha256": "b4b618a369d953df53e40f044a4242e10acadd8d57e7817c5c2fa53cc9d0bc9b",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "dkc1-recomp",
+            "definition_sha256": "a174fc1faed66634b9f166d9831ef749937867e18879659eae414d4ec8ae8ac3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "elliotttate-dkc2recomp",
+            "definition_sha256": "10ad5c846a7ac4df8ecb26ba4239fc552bdc11c3c397e56b8d1e4f572dfa9bbf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "fragglet-sdl-sopwith",
+            "definition_sha256": "e41ab13add4294cc4ebc2a10e2d74b465aeafdc04abf1ef117bb821d95e880b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gearhead-garage-opengg",
+            "definition_sha256": "1a7010bdf73e58d54f18c612ea7edb15db017c50d3c4372e353ca6e356f3e2fe",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "gladiator-openglad",
+            "definition_sha256": "05e52084a8f2fbd29c2f03fc08506273c85f3d901025a73275d9ab354817a8d7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "ico-pc-nathanialf",
+            "definition_sha256": "76a48bd860a68fdb169f6b3910826c50bd74d3e04b4540bcaea3d0a53695a4ab",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "infinite-undiscovery-doc-haz",
+            "definition_sha256": "920cee6a8f8fac9b1b1ba42b981d58761117ef9cb7ab70d373805db5bd9cd452",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "insanitybringer-piccuengine",
+            "definition_sha256": "164cadb14b8fb8fdfff29d318f7ba6a3ae7ac880f4931f18ea4b4c5afd6c578c",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "interkarma-daggerfall-unity",
+            "definition_sha256": "b6e27b333718f853582bf78dee4085ff1910987f0f7f47b08a3c799425124a4a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "isledecomp-isle-portable",
+            "definition_sha256": "a1557909c803f471da902dc3b785f884bec89ea1d46aa61dd31bddd620abbc63",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "jgrennison-openttd-patches",
+            "definition_sha256": "4a9346e46a2acbebb8a7c22737efa33b01ffeeceb9976d4e0291cf1f9dccf8e7",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "knuckles-chaotix-recompiled",
+            "definition_sha256": "5582fc579450ff5b257f99744457bb1b627ae29f0a2c188cdfeedb4e87ade009",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "mdk-sdl-nemo22",
+            "definition_sha256": "b83de8c294465759b8709be32e950b1e902c098a5f0c942b503937bdc52176b4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "noahvl-birdman64",
+            "definition_sha256": "79b367052f8ea7bb4f1d1ba660d99d3a8b39a6493721f33b502da903f76a1230",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "omf2097-openomf",
+            "definition_sha256": "155fb1d5e9962dde0e25b298ca58e32ac488dba3dd100aece06b6932571120f4",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openapoc-openapoc",
+            "definition_sha256": "8d6042ee123c263ea5a707840f228a7343a101bc64216d04f52860606729a694",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openloco-openloco",
+            "definition_sha256": "e3cbf1cc8a15dc72dadb8e8a066b65b9d0e01db1d6bdf7715a264a1ad47f4b1a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "openrct2-openrct2",
+            "definition_sha256": "cec3516bb2abf3d6bacd676d0d35dcb2e47be7ed1755e58c17f0610b852e7f8d",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "opentyrian-opentyrian",
+            "definition_sha256": "186fc7d76c2b26c7b78553a316a7db77e3e51965d4645b3556331ca66dd6812a",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "re-rac-rerac",
+            "definition_sha256": "4cab71920225ac1c980414ddd38826857a99488f738fe0b29d688de19a8daee1",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rise-of-the-triad-barrett-lunarmeadow",
+            "definition_sha256": "30a80e150c7daec8e05c5b45db5fd15a37f6f66ddf051958954b52d2b4fb0f32",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "rocket-robot-on-wheels-rocket-r",
+            "definition_sha256": "dcf6d12d2efa880c615329438d29d71121f39ff35b0d565583c77708004c53cf",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sdw-community-sheep-dog-n-wolf-rewooled",
+            "definition_sha256": "533525816cd8c1f27bd1d66f2712bc583469fccc4895e834c15be4123cf6dd09",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-cd-2011-rsdkv3",
+            "definition_sha256": "a2b92d42d18f8b44ede790bc6d8041c73eceef7322cbd9fd26cf654b6d73a378",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "f87bcb9a3cdea6497ede4e87990a22af43ad391b06ff3315891f1d07b89c99e3",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+            "definition_sha256": "4eecefe6272ebbc73fdf4fd3d943ff4141d2460c347bbb4990b25938fc2af9c6",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "starlancer-openreliant",
+            "definition_sha256": "65c5af5661e5ed8dd1214c3cb34bddd832cea04404d80cf499d4e62205167b2f",
+            "check": "catalog-declared-contract-validation"
+          },
+          {
+            "port_id": "thatguymcd-glover-r",
+            "definition_sha256": "ac5ddf21127e74b55b08ef55c7ea2ee4fcf6d8f1950d4e6d333d393f086b251b",
+            "check": "catalog-declared-contract-validation"
+          }
+        ],
+        "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620"
+      },
+      "operational_declaration_changed": true,
+      "scope": "Authored guidance/listing only; existing runtime/source/launch/persistence contracts unchanged. Listing-only structure checks are distinct from Core declaration inspection and final catalog/listing CI."
+    }
+  ],
+  "retained_evidence": [
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\spacecadet-upstream-guide-preparation.json",
+      "sha256": "90a4c739ab699198208de6573baaec548b400a37d2e1961d28414e20b8e524be",
+      "bytes": 1664
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\spacecadet-runtime-config\\receipt.json",
+      "sha256": "c72678a57a9dec7d55dae1de27acaf1d69b72e398efbaf15ffd2a380843b6e42",
+      "bytes": 1247
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\3d-pinball-for-windows-space-cadet-spacecadetpinball.json",
+      "sha256": "e5925bec3c05bf0ee6820cd929de0c22a675a893559344d8ddb74a2670506e6f",
+      "bytes": 208702
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\spacecadet-package.json",
+      "sha256": "5dc39901fd22190abb57304529ab8e119723422497367193547d4dc9f28f1eeb",
+      "bytes": 19439
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\spacecadet-package-contents.json",
+      "sha256": "89b2e066f675689c60c82405b194f1a5260bc8d3821bdc9b2b98468e3f790ac1",
+      "bytes": 799
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\hybrid-heaven-ogdanimal.json",
+      "sha256": "7e363a0359aad02663e92217fba7ba087b9646501a9095bb509cb4a636318115",
+      "bytes": 107318
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\hybrid-heaven-ogdanimal-package.json",
+      "sha256": "a6e113c3ae4234ade7c9c923f0705d9b090c1226506921e1317ebc3163973565",
+      "bytes": 135844
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\checkpoint14-primary-contracts\\hybrid-heaven-ogdanimal-package-contents.json",
+      "sha256": "b886a410a3b812a89cf0a3ee59bf6baac21306f752e3696548035e307f8440f4",
+      "bytes": 21311
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\hybrid-heaven-font-notices.json",
+      "sha256": "0de50626ebe31a190487daa9894940b83d62fe6b5f953c6d64b5c6bcfc9e2b9b",
+      "bytes": 7357
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\rvgl-upstream-guide-preparation.json",
+      "sha256": "59d66564e50c7f5da839e0b57e668134bcbc00791f7616df3d6bad0c10852cc6",
+      "bytes": 1314
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\rvgl-website-contract\\receipt.json",
+      "sha256": "4407e1e18c219fac88b50be5d072c36ef0c47c7d77690f84cd894616866013f7",
+      "bytes": 2458
+    },
+    {
+      "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\remaining-direct-review\\assessment.json",
+      "sha256": "5bb99ca1ddbd52140593dca3b44610dbcabebb4be95e3f3b8531922691c00e52",
+      "bytes": 11197
+    }
+  ],
+  "remaining_direct_assessments": [
+    {
+      "id": "sonic-the-hedgehog-recomp",
+      "issue": 152,
+      "retained_release": "v0.6.0",
+      "observed_release": "v0.7.1",
+      "source_commit": "cb898070c9bd408786e8956fd0162ec51d899f0f",
+      "framework_commit": "d694c2736a2dd287f4c20506f1a3ddb95d3a3128",
+      "disposition": "Existing exact-build pin remains justified for retained whole-host-state data; do not substitute Sonic3 GRHOST2 semantics.",
+      "operation": "Automatic replacement carrying native_save_1..9.bin",
+      "evidence": [
+        "GameSpec sonic1_spec.c omits state_size/state_build_id callbacks.",
+        "runner_main.c1072-1080 explicitly calls GROWNS2 raw-struct format private to a build.1089/1119 only choose guarded host_state if state_size exists;1144-1148 otherwise mutate glue/RAM/machine/chips before a complete-read result."
+      ],
+      "reconsideration": "Upstream Sonic1 opts into preflighted producer/build-compatible states, or an existing supported explicit preservation transition keeps build-local states separate while retaining the current runtime. Current missing .thumb and other write metadata still needs route-specific review before a fresh revised contract; a pin is not new qualification."
+    },
+    {
+      "id": "super-metroid-recomp",
+      "issue": 164,
+      "retained_release": "v0.3.12",
+      "observed_release": "v0.3.15",
+      "source_commit": "b59876e75d2cafc6a05a63f68a865b92b80740f0",
+      "framework_commit": "53bc03e5eafff8cea292cdae4316c62de5237fb6",
+      "disposition": "Retain existing intentional exact-build pin while whole saves/ includes host snapshots; ordinary compatible successor selection is not established by the inspected contract.",
+      "operation": "Automatic replacement carrying host snapshots inside saves/",
+      "evidence": [
+        "README141-145 says preserve settings/saves on updating but specifically restricts host snapshots to matching runtime builds; guest SRAM is the upgrade path.",
+        "src/sm_cpu_infra.c28-44 has state extras but no snapshot_guard_identity/snapshot_preflight. Framework common_rtl.c964-976 applies guest state after only magic/version checks, then game extra validation occurs. RtlSaveExecutionState1295-1302 writes sized/versioned native-layout residue with CPU pointer nulled; no serialized fiber/stack claim is made.",
+        "Current README59-73 newly documents automatic logs/replay sidecars; those need accurate runtime-write treatment if a revised package contract is offered."
+      ],
+      "reconsideration": "Upstream preflight rejects incompatible host-state ABI before any guest mutation and documents producer compatibility, or a supported scoped migration separates SRAM/config from retained same-build snapshots without silently discarding the richer contract. Do not claim all optional save states inherently require pins."
+    },
+    {
+      "id": "mega-man-x2-snes-recomp",
+      "issue": 165,
+      "retained_release": "v0.1.4",
+      "observed_release": "v0.1.4",
+      "source_commit": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
+      "framework_commit": "f68aa0fe8edae75cbc7d4b9473c71687b45ce702",
+      "disposition": "Retain existing documented exact-build pin; current release is already the accepted baseline.",
+      "operation": "Automatic future replacement carrying host snapshots inside saves/",
+      "evidence": [
+        "docs/SAVE_STATES.md explicitly says states intended for matching runtime builds, with earlier compatibility path for old states.",
+        "src/x2_cpu_infra.c6-15 has no snapshot_guard_identity/snapshot_preflight. common_rtl applies guest state before X2StateLoadExtra975-1003 reads native X2LleSaveChunk/CPU registers and execution residue. Framework does have a general guard implementation but the title does not opt into it."
+      ],
+      "reconsideration": "Same producer/preflight or supported explicit SRAM/state separation condition as the actual title contract, with packaged mod-state coordinate review preserved. The absence of a newer release is not itself the pin reason."
+    },
+    {
+      "id": "openpete",
+      "issue": 113,
+      "retained_release": "v0.1.4",
+      "observed_release": "v0.4.2",
+      "disposition": "Preserve existing accepted legacy contract; current managed replacement remains unresolved rather than assumed unsupported or compatible. A current upstream-owned separate-copy handoff is useful within existing capabilities.",
+      "operation": "Current/successor runtime replacement carrying library/ generated code and states/",
+      "evidence": [
+        "Official homepage publishes Windows v0.4.2, versioned URL and SHA25653c7c4a5925fb64937b951a968a15d02ce36b1a2834e7aaa2f2666614e965619. Source is coming soon. First run copies disc into library/ and writes compiled code alongside; current mod C/shader source also compiles at launch. Ordinary memory cards use .mcr; this is separate from host states/generated code.",
+        "Existing facts/openpete.json has zero observations/assets_complete=false; readmes/openpete.json mistakenly points to unrelated GitLab ladxhd_updated and cannot support the prior guide-review claim.",
+        "No machine-readable progression feed or producer-bound library regeneration/invalidation contract was established by the inspected homepage; direct-manifest can retain exact releases but does not follow HTML automatically."
+      ],
+      "reconsideration": "Obtain exact current package/setup/storage docs and an attributable generated-library regeneration/ABI contract plus a supported release-discovery channel. Until then preserve old managed installs and offer the current official runtime in a separate user-owned folder with external update/data ownership; do not call the entire current port unsupported."
+    }
+  ],
+  "qualification_scope": "Pinned primary sources/docs and inert package/header/name-table inspection; no program/font/helper/original execution, new gameplay, packaged Desktop or real-save acceptance. No support-stage promotion or completed-fit classification follows from guide delivery.",
+  "delivery_status": "Candidate implementation; independent complete-candidate review, exact-head hosted checks and guarded merge pending at source checkpoint",
+  "base": "2f78978ad4bd5b40383502427d7ab82743cb132d",
+  "before_record_reconciliation": "All seven unchanged/absent preimages verified against delivered2f78978a before application; preparation snapshot remains genuine prior delivered59c9afe4 catalog, with six unrelated provider conversions since then"
+}
