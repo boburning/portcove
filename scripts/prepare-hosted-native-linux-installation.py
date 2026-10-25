@@ -423,7 +423,13 @@ def prepare_source_dependencies(plan, settings):
                 for child in children:
                     count += 1
                     need(count <= MAX_FILES, "dependency preparation inventory exceeds bound")
-                    info = child.stat(follow_symlinks=False)
+                    try:
+                        info = child.stat(follow_symlinks=False)
+                    except FileNotFoundError:
+                        # pnpm atomically renames/removes live staging leaves.
+                        # Keep the entry count; a vanished leaf stores no bytes.
+                        # The settled dependency graph is still read strictly.
+                        continue
                     total += info.st_size
                     need(total <= MAX_BYTES, "dependency preparation bytes exceed bound")
                     if stat.S_ISDIR(info.st_mode):
