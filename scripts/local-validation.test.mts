@@ -2583,6 +2583,13 @@ void test("upstream families retain shared owners and narrow planner and retaine
   ];
   const retainedArtifact = "scripts/fixtures/upstream-health-retained-artifacts.json";
   const sibling = "scripts/fixtures/upstream-health-retained-artifacts-sibling.json";
+  const retainedConsumers = [
+    "scripts/upstream-observer.test.mts",
+    "scripts/upstream-health-providers.test.mts",
+    "scripts/upstream-health-planning.test.mts",
+    "scripts/upstream-health-accounting.test.mts",
+    "scripts/upstream-health-source-archives.test.mts",
+  ];
   for (const file of [
     "scripts/upstream-observer.mts",
     "scripts/observe-configured-upstream.mts",
@@ -2628,7 +2635,7 @@ void test("upstream families retain shared owners and narrow planner and retaine
         file === "scripts/upstream-health-plan.mts"
           ? planner
           : file === retainedArtifact
-            ? ["scripts/upstream-observer.test.mts"]
+            ? retainedConsumers
             : file === sibling
               ? []
               : broad;
