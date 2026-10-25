@@ -7,8 +7,8 @@
     "project_url": "https://github.com/ZinexDa/sonic-r-android",
     "issue_number": 1888,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ZinexDa/sonic-r-android",
+    "availability": "packages",
+    "setup_url": "https://github.com/ZinexDa/sonic-r-android/blob/v1.3.1/README.md",
     "artwork": {
       "game_id": 19091,
       "cover_id": 325945,
@@ -16,6 +16,21 @@
       "image_sha256": "ffed3ba38e53270366c1445363e31f546d051e9374fef8ab0dcaa8e3b3ecb1c0",
       "game_slug": "sonic-r",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK and use its guided asset installer to choose your own complete retail Sonic R PC game folder. This is the Android GLES2/SDL2 wrapper; a Windows player or another Sonic game’s files do not replace the required retail data. Choose Play through the upstream app after it accepts the folder."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep your original game files and preserve the Android app’s actual save/config data before changing or removing it. The selected guide does not establish the exact save/export location. Multiplayer is a planned feature, not a delivered cross-platform promise. The upstream custom license permits free download/build/modification and forbids sale; this route retains those terms and upstream update ownership. Portcove does not manage APK replacement or its data backup."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/ZinexDa/sonic-r-android/blob/v1.3.1/README.md"
+    },
+    "release_url": "https://github.com/ZinexDa/sonic-r-android/releases"
   }
 }

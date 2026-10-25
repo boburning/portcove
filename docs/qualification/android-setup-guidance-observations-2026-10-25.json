@@ -1,0 +1,1568 @@
+{
+  "format_version": 1,
+  "purpose": "Dated17-Android-upstream-guide evidence for partial #2510/#2926, not a live backlog or device qualification",
+  "preparation_base": "6ec6f7195e5e1b2c3d94b46d56cebed41d736616",
+  "preserved_source": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "coverage": {
+    "selected_identities": 17,
+    "complete_release_inventories": 17,
+    "complete_selected_release_asset_inventories": 17,
+    "unchanged_primary_blobs": 24,
+    "actual_core_listing_preparations": 17,
+    "new_managed_integrations": 0,
+    "precise_acquisition_conditions": 1,
+    "preserved_operational_integrations": 158,
+    "preserved_authored_identities": 878
+  },
+  "cohort_reconciliation": {
+    "original_private_handoff_rows": 18,
+    "selected_android": 17,
+    "separately_active_windows": [
+      {
+        "id": "need-for-speed-most-wanted-2005-xbox-360-recompiled",
+        "canonical_issue": 1580,
+        "reason": "Fresh current main/release differs from historical pseudo-latest guide: actual Windows v1.0.1 archive exists. Active assessment separately acquires and inspects it; no Android handoff inferred.",
+        "evidence": "../nfsmw-ready-assessment"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "id": "andreyvelsk-com-mobilerpgpack-phone",
+      "canonical_issue": 1848,
+      "path": "crates/portcove-core/catalog/ports/andreyvelsk-com-mobilerpgpack-phone.json",
+      "before_sha256": "7119fc50a418b4d6dbf5f1ad84541440a0453ae205c2ee193f551e04f482e233",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/andreyvelsk-com-mobilerpgpack-phone.json",
+      "proposal_input_sha256": "676e2b528fb44b3e5a233d6578b81a00339d51618aab00db6e2566e25439944f",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-andreyvelsk-com-mobilerpgpack-phone\\andreyvelsk-com-mobilerpgpack-phone-676e2b528fb44b3e5a233d6578b81a00339d51618aab00db6e2566e25439944f.json",
+      "prepared_record_sha256": "676e2b528fb44b3e5a233d6578b81a00339d51618aab00db6e2566e25439944f",
+      "authored_sha256": "676e2b528fb44b3e5a233d6578b81a00339d51618aab00db6e2566e25439944f",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1244281207,
+        "repository": "andreyvelsk/com.mobilerpgpack.phone",
+        "observed_at": "2026-10-25T09:31:58.372Z",
+        "complete_release_inventory": true,
+        "release_count": 3,
+        "selected_release": "2.9.1-ds.1.0.2",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 443480805,
+            "name": "Classic.Core.Dualscreen_fdroid_release_v2.9.1-ds.1.0.2_b67_2026_06_10_10_20.apk",
+            "size": 96047488,
+            "digest": "sha256:adb06abf15cffe3aab113ad7a8813b060704e1b9af1532f3ac4f750e47a731d1",
+            "url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/releases/download/2.9.1-ds.1.0.2/Classic.Core.Dualscreen_fdroid_release_v2.9.1-ds.1.0.2_b67_2026_06_10_10_20.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "b426c93675418ab6876f1ce8137cbb084cef0738",
+          "blob_sha": "de7cb8fa2100ec8d87536b2f999c410080c7e2b4",
+          "sha256": "1d3b21fa48a25d5176af4654a5b2c6479ec48130fbed8fd6dfd72ab7e3b93447",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/andreyvelsk-com-mobilerpgpack-phone-README.md",
+          "url": "https://github.com/andreyvelsk/com.mobilerpgpack.phone/blob/b426c93675418ab6876f1ce8137cbb084cef0738/README.md",
+          "previous_blob": "de7cb8fa2100ec8d87536b2f999c410080c7e2b4",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "This fork’s published APK is for Android, specifically the AYN Thor dual-screen UZDoom route. Install this fork’s APK on the Android device, open its launcher deliberately, and select your own compatible Doom-family IWAD/content through the UZDoom setup. Other engines named in the inherited parent README have been excluded from this fork; do not prepare Doom RPG, Wolfenstein RPG or another parent engine for this APK."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep your selected IWADs, mods and actual Android app data backed up before changing versions. This fork’s reviewed guide does not establish an exact save/export location. Its UZDoom renderer notes distinguish Adreno from Mali/PowerVR; follow the fork’s device guidance. Updates and device setup belong to the upstream Android app, outside Portcove runtime backup and rollback."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "28721fcad4fc767c3e73fba5bfde5231e07397e859078201856d795c92be8a47",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-andreyvelsk-com-mobilerpgpack-phone\\completion-82505d6f701d5143a66f6e37c12ae52ed1eb3ff35916c78e4a745c89eb9f76ed.json",
+        "receipt_sha256": "82505d6f701d5143a66f6e37c12ae52ed1eb3ff35916c78e4a745c89eb9f76ed"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "aureliob-banjorecomp-android",
+      "canonical_issue": 1794,
+      "path": "crates/portcove-core/catalog/ports/aureliob-banjorecomp-android.json",
+      "before_sha256": "4a929a35b2e392a993590062032457586feecf5313bd4589d3eddb022a8e89b2",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/aureliob-banjorecomp-android.json",
+      "proposal_input_sha256": "3d57eada6dca962b0b89fc935c578dbc98a22437dc6471c05fd8d9b842bde7bc",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-aureliob-banjorecomp-android\\aureliob-banjorecomp-android-3d57eada6dca962b0b89fc935c578dbc98a22437dc6471c05fd8d9b842bde7bc.json",
+      "prepared_record_sha256": "3d57eada6dca962b0b89fc935c578dbc98a22437dc6471c05fd8d9b842bde7bc",
+      "authored_sha256": "3d57eada6dca962b0b89fc935c578dbc98a22437dc6471c05fd8d9b842bde7bc",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1249944561,
+        "repository": "AurelioB/BanjoRecomp-Android",
+        "observed_at": "2026-10-25T09:32:01.916Z",
+        "complete_release_inventory": true,
+        "release_count": 2,
+        "selected_release": "android-v0.1.1",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 447032221,
+            "name": "BanjoRecompiled-v0.1.1-Android-ARM64.apk",
+            "size": 8718192,
+            "digest": "sha256:0d9b5a72de34ea4fa5f2d6175cbe7bb801ecc011c935a9472368d6c886944d8f",
+            "url": "https://github.com/AurelioB/BanjoRecomp-Android/releases/download/android-v0.1.1/BanjoRecompiled-v0.1.1-Android-ARM64.apk"
+          },
+          {
+            "id": 447033068,
+            "name": "BanjoRecompiled-v0.1.1-Android-ARM64.apk.sha256",
+            "size": 107,
+            "digest": "sha256:954907e4fd840879ae1fd5f15b2a51210274853b6496af7da88d97df77e0ba9c",
+            "url": "https://github.com/AurelioB/BanjoRecomp-Android/releases/download/android-v0.1.1/BanjoRecompiled-v0.1.1-Android-ARM64.apk.sha256"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "6b7852b0c9448e45360942ddb3a0f7e904ad2108",
+          "blob_sha": "d90b9ce56460dbe009782178a7be48b9173968f9",
+          "sha256": "688820d57f01414ec850597c8d286fd445eb648ff6a6bc4c25621e4e1f79ccc8",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/aureliob-banjorecomp-android-README.md",
+          "url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/6b7852b0c9448e45360942ddb3a0f7e904ad2108/README.md",
+          "previous_blob": "d90b9ce56460dbe009782178a7be48b9173968f9",
+          "unchanged": true
+        },
+        {
+          "path": "docs/android-port.md",
+          "source_commit": "6b7852b0c9448e45360942ddb3a0f7e904ad2108",
+          "blob_sha": "380119a31aef76dd3ba1190b0ef2cfaee7f01468",
+          "sha256": "a2a6c5df64c4fb20e31189ce94122e8f3fa455cdfb36334999074cbc6f9fcf08",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/aureliob-banjorecomp-android-docs_android-port.md",
+          "url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/6b7852b0c9448e45360942ddb3a0f7e904ad2108/docs/android-port.md",
+          "previous_blob": "380119a31aef76dd3ba1190b0ef2cfaee7f01468",
+          "unchanged": true
+        },
+        {
+          "path": "README.original.md",
+          "source_commit": "6b7852b0c9448e45360942ddb3a0f7e904ad2108",
+          "blob_sha": "06e74e037189207e7bde720cc7041f0b2abaceeb",
+          "sha256": "7641b540fccdbc66bfe0e0a510de6c9b799f9d98cfffd620bd81d056ed4abe32",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/aureliob-banjorecomp-android-README.original.md",
+          "url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/6b7852b0c9448e45360942ddb3a0f7e904ad2108/README.original.md",
+          "previous_blob": "06e74e037189207e7bde720cc7041f0b2abaceeb",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install the Android ARM64 APK from this fork’s selected release, then open the app and choose your own North American 1.0 Banjo-Kazooie ROM when asked. The app handles its supported ROM import; there is no PC extraction/build step for the player. Desktop Banjo releases and another fork’s setup are separate choices."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Saves, configuration, imported ROM, mods, texture packs and caches use app-private storage under com.aure.banjorecomp. Preserve that data before uninstalling or clearing app data. Follow the upstream Android update process so the installed app identity/signature can be retained. Portcove does not back up this Android profile or manage APK replacement."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "33989d849c52e593a9bdf404d4db44788774f7373f10b5f629b88b6285ad5a2a",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-aureliob-banjorecomp-android\\completion-0100cd947fd124d1c8e9747f111dcb66cce167010f6190f7e24a73ecd80ed8b6.json",
+        "receipt_sha256": "0100cd947fd124d1c8e9747f111dcb66cce167010f6190f7e24a73ecd80ed8b6"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "edwin2929-sma3-recomp-android",
+      "canonical_issue": 1885,
+      "path": "crates/portcove-core/catalog/ports/edwin2929-sma3-recomp-android.json",
+      "before_sha256": "303cd973c28789f6cdaab82cba7ab468472defec1e5fcfee005e26b0973105db",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/edwin2929-sma3-recomp-android.json",
+      "proposal_input_sha256": "e1e8e035c3abec3032fd0cab4edf964a32013efd99ff96befde3d21128d73d3d",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-edwin2929-sma3-recomp-android\\edwin2929-sma3-recomp-android-e1e8e035c3abec3032fd0cab4edf964a32013efd99ff96befde3d21128d73d3d.json",
+      "prepared_record_sha256": "e1e8e035c3abec3032fd0cab4edf964a32013efd99ff96befde3d21128d73d3d",
+      "authored_sha256": "e1e8e035c3abec3032fd0cab4edf964a32013efd99ff96befde3d21128d73d3d",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1404521742,
+        "repository": "Edwin2929/sma3-recomp-android.",
+        "observed_at": "2026-10-25T09:32:04.294Z",
+        "complete_release_inventory": true,
+        "release_count": 1,
+        "selected_release": "Descarga",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 674569883,
+            "name": "sma3-recomp-0.10.6-beta-arm64.apk",
+            "size": 27895064,
+            "digest": "sha256:4847efea9629a76348c7e3aa2ac623a9865ef4de1946a3ffa9732d9f050e21b8",
+            "url": "https://github.com/Edwin2929/sma3-recomp-android./releases/download/Descarga/sma3-recomp-0.10.6-beta-arm64.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "cb15acdc019c917f86bd7dfb4ef34488ccfba388",
+          "blob_sha": "7ee3cb1bdb62f7102b4f67b4da1994bc524e31e4",
+          "sha256": "2a2916655691a437e8022da6c6ca3aa5947c9085b19930120c9b675a4af8ea4d",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/edwin2929-sma3-recomp-android-README.md",
+          "url": "https://github.com/Edwin2929/sma3-recomp-android./blob/cb15acdc019c917f86bd7dfb4ef34488ccfba388/README.md",
+          "previous_blob": "7ee3cb1bdb62f7102b4f67b4da1994bc524e31e4",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "The upstream guide describes this Android ARM64 setup: CHOOSE ROM for your own Yoshi’s Island: Super Mario Advance 3 USA ROM, CHOOSE BIOS for your own GBA BIOS, then PLAY. It identifies the 4,194,304-byte ROM by SHA-1 7352d2bd064d9ebaec579e264228aa21c7345b80 and the 16,384-byte BIOS by SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The published APK names a different version from that guide, so check its release instructions before changing a working copy. Portcove supplies neither original file."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The published APK and setup guide name different versions (0.10.6 beta and 0.4). The input and save-transfer details for that APK are still being checked. Keep existing saves, app data and your originals separately before changing builds; a locally signed build cannot update a differently signed app in place. Preserve a working copy’s data before any uninstall required by a signing change."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "f21b289104e25ca6d5143a64b28588a8233f80d6033170f0ed2aa8219fd1ce79",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-edwin2929-sma3-recomp-android\\completion-293f0afd1679141dbd9daaa532f9bc47b36dc00ad1937592b749275f6dbe76df.json",
+        "receipt_sha256": "293f0afd1679141dbd9daaa532f9bc47b36dc00ad1937592b749275f6dbe76df"
+      },
+      "unresolved": {
+        "fact": "Current published APK names0.10.6 beta while its pinned source guide describes0.4; actual selected APK input/save-transfer behavior remains to reconcile.",
+        "affected_operation": "Exact APK-specific setup and safe cross-signature/data transition, not package visibility or upstream-owned instructions.",
+        "next_action": "Obtain attributable instructions/source binding for the published0.10.6 beta APK and verify its input/export/signature facts before claiming that stronger operation.",
+        "historical": "Previous review named0.9; fresh selected asset changed, so active evidence and guide now name0.10.6 beta."
+      },
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "greennaugahyde-zeldawwhdrecompandroid",
+      "canonical_issue": 1896,
+      "path": "crates/portcove-core/catalog/ports/greennaugahyde-zeldawwhdrecompandroid.json",
+      "before_sha256": "74959c46d4a1aa080604943109c88e77cc3592c0dbf02037d6132a6b89e6b284",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/greennaugahyde-zeldawwhdrecompandroid.json",
+      "proposal_input_sha256": "21f6a73d731eb1f86d2cf879ff851c508929806f7ae5abb9f3b6c5511e39ac6e",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-greennaugahyde-zeldawwhdrecompandroid\\greennaugahyde-zeldawwhdrecompandroid-21f6a73d731eb1f86d2cf879ff851c508929806f7ae5abb9f3b6c5511e39ac6e.json",
+      "prepared_record_sha256": "21f6a73d731eb1f86d2cf879ff851c508929806f7ae5abb9f3b6c5511e39ac6e",
+      "authored_sha256": "21f6a73d731eb1f86d2cf879ff851c508929806f7ae5abb9f3b6c5511e39ac6e",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1403642493,
+        "repository": "GreenNaugahyde/ZeldaWWHDRecompAndroid",
+        "observed_at": "2026-10-25T09:32:06.695Z",
+        "complete_release_inventory": true,
+        "release_count": 15,
+        "selected_release": "v0.9.5",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 656831311,
+            "name": "tloz_tww_hd_recomp-0.9.5.apk",
+            "size": 61162572,
+            "digest": "sha256:0d71d88b1a7c24880ede21bd7d2c347290f04c06dbda6706b4ad45d8b2cd68fe",
+            "url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/releases/download/v0.9.5/tloz_tww_hd_recomp-0.9.5.apk"
+          },
+          {
+            "id": 656833151,
+            "name": "tloz_tww_hd_recomp-0.9.5.apk.sha256",
+            "size": 95,
+            "digest": "sha256:18bd6a49c6c578e1ce88d7a2ec2a7bf23b59d51bfaf6fae76cc061495881d051",
+            "url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/releases/download/v0.9.5/tloz_tww_hd_recomp-0.9.5.apk.sha256"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "b1993cf31b5ef146daa718ace570ea592150614d",
+          "blob_sha": "c353ca56831b14919f5229d9cd9c4c75c1169f22",
+          "sha256": "2900982f68e7b4524a936375cbd492ad4264ad8b5fe0080b75cc393e2352e700",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/greennaugahyde-zeldawwhdrecompandroid-README.md",
+          "url": "https://github.com/GreenNaugahyde/ZeldaWWHDRecompAndroid/blob/b1993cf31b5ef146daa718ace570ea592150614d/README.md",
+          "previous_blob": "c353ca56831b14919f5229d9cd9c4c75c1169f22",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "On an Android 11+ ARM64 device with Vulkan 1.1, install this fork’s stable APK and choose Extract from your disc image or .wua. Use your own Wind Waker HD USA, European or Japanese Wii U dump: .wud/.wux with its same-name disc .key and your own common.key in one folder, or an already decrypted .wua. The app extracts and compiles on the device once; it shows progress and supports continuation. No PC recompiler or desktop setup is required."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Allow roughly 2 GB of free storage and memory for the upstream setup. Keep original inputs and exported game saves/save states separately before app updates or deletion; use the app’s save import/export controls. Save-state compatibility can depend on the app build. Optional Lossless Scaling frame generation requires your own separate licensed copy; it is not included or needed for ordinary setup. The PowerVR test release is an alternative to the stable release, not a general device guarantee."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "ea59f296fe17d3e32590f0fe2f4369692ad1f5af375c9d7db717db841f5acd85",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-greennaugahyde-zeldawwhdrecompandroid\\completion-74522b3b5542f763f47ef043cc55f85cd0ef2520bcd939959dfcc9ffb5225211.json",
+        "receipt_sha256": "74522b3b5542f763f47ef043cc55f85cd0ef2520bcd939959dfcc9ffb5225211"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "igawa6-dualsouls",
+      "canonical_issue": 1829,
+      "path": "crates/portcove-core/catalog/ports/igawa6-dualsouls.json",
+      "before_sha256": "a7f971b32d1035c4174f8173d86e8235d1c067d14448ede79dd164f742eda217",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/igawa6-dualsouls-acquisition-input.json",
+      "proposal_input_sha256": "c91b5c5da1ab68f5313b7f6da247aaff94cdeb9ca86790f851211a3d7d86c1b3",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-dualsouls-acquisition-condition\\igawa6-dualsouls-c91b5c5da1ab68f5313b7f6da247aaff94cdeb9ca86790f851211a3d7d86c1b3.json",
+      "prepared_record_sha256": "c91b5c5da1ab68f5313b7f6da247aaff94cdeb9ca86790f851211a3d7d86c1b3",
+      "authored_sha256": "c91b5c5da1ab68f5313b7f6da247aaff94cdeb9ca86790f851211a3d7d86c1b3",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with precise Core acquisition hold; permitted-existing-copy setup retained",
+      "release_observation": {
+        "repository_id": 1342393149,
+        "repository": "igawa6/dualsouls",
+        "observed_at": "2026-10-25T09:32:09.399Z",
+        "complete_release_inventory": true,
+        "release_count": 3,
+        "selected_release": "1.0.3",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 526369851,
+            "name": "dualsouls-v1.0.3-thor-arm64.apk",
+            "size": 35914254,
+            "digest": "sha256:dfa57c1087f81bb2f8672be84e63bd517be7d2d72eef56982c9d05c859d8536c",
+            "url": "https://github.com/igawa6/dualsouls/releases/download/1.0.3/dualsouls-v1.0.3-thor-arm64.apk"
+          },
+          {
+            "id": 526370030,
+            "name": "hk-android-gog.xdelta",
+            "size": 924220540,
+            "digest": "sha256:57d79c5f39a6175654f014be6af1a293613aa6c9f7e061ad4bc04cbacd85017d",
+            "url": "https://github.com/igawa6/dualsouls/releases/download/1.0.3/hk-android-gog.xdelta"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "5c22451435b772acde0c7e6456f9019bc1baef73",
+          "blob_sha": "b041f37f6bcf1b3a6a36ef7e6109ef4b86d623e9",
+          "sha256": "c28e3da2a29827f951c011b446c6596bf132985afeef5623d5d79cbdfda5d67c",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/igawa6-dualsouls-README.md",
+          "url": "https://github.com/igawa6/dualsouls/blob/5c22451435b772acde0c7e6456f9019bc1baef73/README.md",
+          "previous_blob": "b041f37f6bcf1b3a6a36ef7e6109ef4b86d623e9",
+          "unchanged": true
+        },
+        {
+          "path": "REDISTRIBUTION-AUDIT.md",
+          "source_commit": "5c22451435b772acde0c7e6456f9019bc1baef73",
+          "blob_sha": "2c2844d12c301606b3990a86147ffa3708aaee33",
+          "sha256": "e1a05b5401367d1bb94166bcfbdcecf8c30c5145ea6631031fc4d1773fcc743e",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/igawa6-dualsouls-REDISTRIBUTION-AUDIT.md",
+          "url": "https://github.com/igawa6/dualsouls/blob/5c22451435b772acde0c7e6456f9019bc1baef73/REDISTRIBUTION-AUDIT.md",
+          "previous_blob": "2c2844d12c301606b3990a86147ffa3708aaee33",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Keep a permitted prepared copy",
+          "instruction": "For an already obtained permitted copy, follow this fork’s on-device Import Game flow with your own complete Hollow Knight GOG/Steam v1.5.12620 Voidheart folder and its matching release patch. The folder contains Hollow Knight_Data or hollow_knight_Data. Choose the game folder and patch, then Build game data and START GAME. Do not substitute another game version or describe the published patch as containing no game content."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The upstream Save Files page exports/imports slots; saves use Android/data/igawa6.dualsouls/files and imports retain the previous slot as .bak. Preserve an export before changing the app. Upstream says to update over the same signed app and never uninstall first: uninstall or Clear storage deletes saves and built data. A required data rebuild uses the matching new patch; PC save wrapping is not directly compatible."
+        }
+      ],
+      "acquisition_condition": "The selected upstream README states that the APK contains Hollow Knight compiled game code; its redistribution audit also identifies the patch as carrying game content. No publisher permission for that distribution is established here. Fresh Portcove downloads remain unavailable until an attributable grant or a package that creates those materials from the player’s own inputs resolves this boundary. Existing permitted copies keep their files and upstream ownership.",
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "e19ff4b984329038c3c1f27b2a2210b1d3f605fcfc7cb31a59ca54c7d7e6515d",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-dualsouls-acquisition-condition\\completion-7364d6d3829766bfe1fa741ae7fa6b59535e4714cbdbe6332164bb3adf9a5006.json",
+        "receipt_sha256": "7364d6d3829766bfe1fa741ae7fa6b59535e4714cbdbe6332164bb3adf9a5006"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "izzy2lost-lighthouse",
+      "canonical_issue": 1841,
+      "path": "crates/portcove-core/catalog/ports/izzy2lost-lighthouse.json",
+      "before_sha256": "2998685a9471dda61e13d7e17f189bb4be484b8ba493ea42f3ca8ce4849d5fe8",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-lighthouse.json",
+      "proposal_input_sha256": "f73a30a920e859a331c9d54ac2549c1c72d55d66cead1fb46d0015699efbe35a",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-lighthouse\\izzy2lost-lighthouse-f73a30a920e859a331c9d54ac2549c1c72d55d66cead1fb46d0015699efbe35a.json",
+      "prepared_record_sha256": "f73a30a920e859a331c9d54ac2549c1c72d55d66cead1fb46d0015699efbe35a",
+      "authored_sha256": "f73a30a920e859a331c9d54ac2549c1c72d55d66cead1fb46d0015699efbe35a",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1322472052,
+        "repository": "izzy2lost/Lighthouse",
+        "observed_at": "2026-10-25T09:32:11.951Z",
+        "complete_release_inventory": true,
+        "release_count": 1,
+        "selected_release": "1.0.2",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 504371773,
+            "name": "app-release.apk",
+            "size": 32402042,
+            "digest": "sha256:e30da13b4b5d1803403ae09c34ff19dfd39fa7a0b6166b4b8ba93d9bc0294f8e",
+            "url": "https://github.com/izzy2lost/Lighthouse/releases/download/1.0.2/app-release.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "b0acff83a19913213de439aa9b4f7138c68cbad9",
+          "blob_sha": "73167c2a10a4c918bf3e17bb42d254cb440df0bf",
+          "sha256": "e05b23ace9e59c6f0a73a128eb582ce79b7a815a5b5efb034c4ef625ad5ae801",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-lighthouse-README.md",
+          "url": "https://github.com/izzy2lost/Lighthouse/blob/b0acff83a19913213de439aa9b4f7138c68cbad9/README.md",
+          "previous_blob": "73167c2a10a4c918bf3e17bb42d254cb440df0bf",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK and open it to generate the Banjo-Kazooie O2R on the device. No PC or separate extraction app is needed. Supply your own supported .z64 ROM; the selected guide lists US 1.0, US 1.1, Japanese and PAL versions. US 1.0 is the recommended base if you need the fork’s ROM-hack support. Follow the app’s own import and Play flow."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep your original ROM and back up the Android app’s actual saves, configuration, generated O2R and mods before changing or removing it. The selected release confirms on-device generation and mod/ROM-hack support, but does not establish an Android save/export path. Parent desktop paths are not an Android storage contract. Updates remain upstream-owned."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "3947c7548b6dae8db88633a92f871bc9ec85ec4a3e4293faa5c4826c720b2053",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-lighthouse\\completion-2576ecae09bb53108ddf776b4bf5ffd13e81677d8cc8dc0edf1f5c4c8549844e.json",
+        "receipt_sha256": "2576ecae09bb53108ddf776b4bf5ffd13e81677d8cc8dc0edf1f5c4c8549844e"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "izzy2lost-perfect-dark",
+      "canonical_issue": 1867,
+      "path": "crates/portcove-core/catalog/ports/izzy2lost-perfect-dark.json",
+      "before_sha256": "2d8f854a1794be4f67bb8de9a0fe8e9dbf325c3782e3d2f6366345cf24075570",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-perfect-dark.json",
+      "proposal_input_sha256": "b89be70010532b4dbaa58079414ef9f85e3b0b956f96e940a2ad952b034bb523",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-perfect-dark\\izzy2lost-perfect-dark-b89be70010532b4dbaa58079414ef9f85e3b0b956f96e940a2ad952b034bb523.json",
+      "prepared_record_sha256": "b89be70010532b4dbaa58079414ef9f85e3b0b956f96e940a2ad952b034bb523",
+      "authored_sha256": "b89be70010532b4dbaa58079414ef9f85e3b0b956f96e940a2ad952b034bb523",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1031571008,
+        "repository": "izzy2lost/perfect_dark",
+        "observed_at": "2026-10-25T09:32:14.678Z",
+        "complete_release_inventory": true,
+        "release_count": 2,
+        "selected_release": "2.0.0",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 532624683,
+            "name": "app-release.apk",
+            "size": 15177462,
+            "digest": "sha256:7b782d785d4f3fd012da94157aec61379cbb295e525777adb27128c6235d19cb",
+            "url": "https://github.com/izzy2lost/perfect_dark/releases/download/2.0.0/app-release.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "0bc2e28d142bdfbf9b4aa7b19014ccb0e5202c80",
+          "blob_sha": "dbc7cd25829cbd131775896f30d75356e978ad98",
+          "sha256": "2815c7fef1bf66564111e56d89fe6ac3012c874bfc93bc49390e5eefe6ac7ec6",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-perfect-dark-README.md",
+          "url": "https://github.com/izzy2lost/perfect_dark/blob/0bc2e28d142bdfbf9b4aa7b19014ccb0e5202c80/README.md",
+          "previous_blob": "dbc7cd25829cbd131775896f30d75356e978ad98",
+          "unchanged": true
+        },
+        {
+          "path": "android/app/src/main/java/com/perfectdark/port/LauncherActivity.java",
+          "source_commit": "0bc2e28d142bdfbf9b4aa7b19014ccb0e5202c80",
+          "blob_sha": "89d2f01ade170fe951d2d5852ebfdf04bc07a07b",
+          "sha256": "50bde84041085c636cdf37cdd6a4cfd4279522331eb51ef4f385dff1f3e66eab",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-perfect-dark-android_app_src_main_java_com_perfectdark_port_LauncherActivity.java",
+          "url": "https://github.com/izzy2lost/perfect_dark/blob/0bc2e28d142bdfbf9b4aa7b19014ccb0e5202c80/android/app/src/main/java/com/perfectdark/port/LauncherActivity.java",
+          "previous_blob": "89d2f01ade170fe951d2d5852ebfdf04bc07a07b",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Open this fork’s Android APK and use its ROM picker for your own Perfect Dark NTSC-U Rev 1/US 1.1 .z64, the recommended edition (MD5 e03b088b6ac9e0080440efed07c1e40f). The app verifies and copies it to Android/data/com.perfectdark.port/files/data/pd.ntsc-final.z64. US 1.0 is a separate warned alternative; do not assume the parent’s custom PAL/Japanese desktop executables are Android builds."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Before moving from the older signed app to version 2.0.0, preserve and verify a separate copy of Android/data/com.perfectdark.port/files/eeprom.bin and any other app data you need. The maintainer lost the former signing key: this release requires a manual uninstall/reinstall, which must not precede preservation of the working copy’s data. Keep the saved copy until the new app works and the upstream restore path is confirmed. Portcove does not perform this Android transition or promise an automatic restore. Optional local netplay/mod support remains upstream-limited."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "271e6fbf5f0287835d76196a2f83467f2365817f44f58e7c8b116bd23ed55d2b",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-perfect-dark\\completion-88a697523756f6cda61f6b03b8d9994eb8348c576aa93b84375860beaa6389b1.json",
+        "receipt_sha256": "88a697523756f6cda61f6b03b8d9994eb8348c576aa93b84375860beaa6389b1"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "izzy2lost-spaghettikart",
+      "canonical_issue": 1889,
+      "path": "crates/portcove-core/catalog/ports/izzy2lost-spaghettikart.json",
+      "before_sha256": "b13dbcf44436b06163ca3d93e041c0acab9feb3521ceb81c829e856b9b2466cc",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-spaghettikart.json",
+      "proposal_input_sha256": "9f83060bd64eba0d2baaa8af4a48ddf7bff9a808bd1ed839bc3a2a260141a442",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-spaghettikart\\izzy2lost-spaghettikart-9f83060bd64eba0d2baaa8af4a48ddf7bff9a808bd1ed839bc3a2a260141a442.json",
+      "prepared_record_sha256": "9f83060bd64eba0d2baaa8af4a48ddf7bff9a808bd1ed839bc3a2a260141a442",
+      "authored_sha256": "9f83060bd64eba0d2baaa8af4a48ddf7bff9a808bd1ed839bc3a2a260141a442",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1022891030,
+        "repository": "izzy2lost/SpaghettiKart",
+        "observed_at": "2026-10-25T09:32:16.991Z",
+        "complete_release_inventory": true,
+        "release_count": 2,
+        "selected_release": "2.0.0",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 499481368,
+            "name": "app-release.apk",
+            "size": 34135999,
+            "digest": "sha256:530beca60c7d55a901e621ddfcbaf8ba32d87b88a718b6d7793fb9ee03f9d4e2",
+            "url": "https://github.com/izzy2lost/SpaghettiKart/releases/download/2.0.0/app-release.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "9253aad869c96a8e660f707a74fe57c5d4ebdd2a",
+          "blob_sha": "7c972290008e0e6e07d67a032cbc7fa31a001f3c",
+          "sha256": "b35d02a0b9dbf70fd122a834ccbe481879c45b8a75002f2ded7368ef5a4bea25",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-spaghettikart-README.md",
+          "url": "https://github.com/izzy2lost/SpaghettiKart/blob/9253aad869c96a8e660f707a74fe57c5d4ebdd2a/README.md",
+          "previous_blob": "7c972290008e0e6e07d67a032cbc7fa31a001f3c",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK, open it, and choose your own Mario Kart 64 US .z64 ROM. The upstream guide identifies SHA-1 579c48e211ae952530ffc8738709f078d5dd215e. This app verifies the ROM and creates mk64.o2r on the device; no PC Spaghettify/Torch step is required."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The Android guide puts game data under Android/data/com.izzy.kart/files. Mods go in its mods folder as supported .o2r, .zip or plain folders and load next launch; .otr is not supported. Preserve your app data, saves, generated O2R and mods before updating or removing the app. Android/upstream owns replacement and storage; Portcove backup and runtime rollback do not cover it."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "9e9a5c5ebb50140f32b84586f98cdc3373e4f380c6af625d6819d5c019d8da00",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-spaghettikart\\completion-76334717b9dfbda5167cd19e56c207541c85118ee36d4af04542c3dfaa4b27b1.json",
+        "receipt_sha256": "76334717b9dfbda5167cd19e56c207541c85118ee36d4af04542c3dfaa4b27b1"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "izzy2lost-starship",
+      "canonical_issue": 1890,
+      "path": "crates/portcove-core/catalog/ports/izzy2lost-starship.json",
+      "before_sha256": "b4570d3c56217ad315c5b84ceda8b31c95db34f4d59070645afcbbdeb3878e9b",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-starship.json",
+      "proposal_input_sha256": "ecc58d67e7880adc6b310d910f90c7e6a4f14e47d442ab3f135cc99103c0cbb9",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-starship\\izzy2lost-starship-ecc58d67e7880adc6b310d910f90c7e6a4f14e47d442ab3f135cc99103c0cbb9.json",
+      "prepared_record_sha256": "ecc58d67e7880adc6b310d910f90c7e6a4f14e47d442ab3f135cc99103c0cbb9",
+      "authored_sha256": "ecc58d67e7880adc6b310d910f90c7e6a4f14e47d442ab3f135cc99103c0cbb9",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1027050750,
+        "repository": "izzy2lost/Starship",
+        "observed_at": "2026-10-25T09:32:19.686Z",
+        "complete_release_inventory": true,
+        "release_count": 2,
+        "selected_release": "v2.0.0",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 500854424,
+            "name": "checksums.txt",
+            "size": 86,
+            "digest": "sha256:105c5c8c44d77d8ba7026f751c48370887a819d24a95c68c20b9c14f6613a52b",
+            "url": "https://github.com/izzy2lost/Starship/releases/download/v2.0.0/checksums.txt"
+          },
+          {
+            "id": 500854423,
+            "name": "starship-v2.0.0.apk",
+            "size": 24221247,
+            "digest": "sha256:092818cc7f3a6bef4207f1403db601b6ebd875a6e775b0f6a657df364fc985df",
+            "url": "https://github.com/izzy2lost/Starship/releases/download/v2.0.0/starship-v2.0.0.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "cb19785b51698185a688e17ba1a34c7889195bdb",
+          "blob_sha": "a7076a6b162c1e76018730f19ac06acac3fdc37c",
+          "sha256": "66b0fc03aaffbcf55b0ce81e8d8363526347472720d850094cf4d459c58cc471",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/izzy2lost-starship-README.md",
+          "url": "https://github.com/izzy2lost/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
+          "previous_blob": "a7076a6b162c1e76018730f19ac06acac3fdc37c",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Starship Android APK, open it and use the system file picker for your own Star Fox 64 US 1.0 or US 1.1 .z64 ROM. The app converts the ROM on the device; no PC Torch or copied sf64.o2r is needed. Japanese/European ROMs may supply optional voice language data with a US base; they are not base-game replacements."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The release provides in-game mods and saves managers. Use those to preserve your data before changing or removing the app, and retain your original ROM. It reads the chosen ROM through the system picker rather than requiring a broad storage grant. The release lists Android 7+ with ARM64 or ARMv7; these are upstream requirements, not Portcove device observations. Updates and profile handling remain upstream-owned."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "df7d2a1694bd25e54d37293ec560903dddcb367e8cc746ad7dc3f867bca27017",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-izzy2lost-starship\\completion-06cd62955aed92e4b344462090256c690d42a671e155e31a16d8d9ddf0e10c6b.json",
+        "receipt_sha256": "06cd62955aed92e4b344462090256c690d42a671e155e31a16d8d9ddf0e10c6b"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "jakobkhansen-silksongandroid",
+      "canonical_issue": 1884,
+      "path": "crates/portcove-core/catalog/ports/jakobkhansen-silksongandroid.json",
+      "before_sha256": "03ca3742385fdc23e5a45a32c4c7412f22fc7240732f551070e1f0aee0736711",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/jakobkhansen-silksongandroid.json",
+      "proposal_input_sha256": "d8344b9455a5ecac8f85a8618bd37bf288e0c950f25f208261c3b5084afee005",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-jakobkhansen-silksongandroid\\jakobkhansen-silksongandroid-d8344b9455a5ecac8f85a8618bd37bf288e0c950f25f208261c3b5084afee005.json",
+      "prepared_record_sha256": "d8344b9455a5ecac8f85a8618bd37bf288e0c950f25f208261c3b5084afee005",
+      "authored_sha256": "d8344b9455a5ecac8f85a8618bd37bf288e0c950f25f208261c3b5084afee005",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1249255928,
+        "repository": "jakobkhansen/SilksongAndroid",
+        "observed_at": "2026-10-25T09:32:21.733Z",
+        "complete_release_inventory": true,
+        "release_count": 14,
+        "selected_release": "v2.0.0",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 589070951,
+            "name": "SilksongAndroid-2.0.0.apk",
+            "size": 69694538,
+            "digest": "sha256:159ff7ba759dcac612d5085981286125419c79971643154475327738906c8568",
+            "url": "https://github.com/jakobkhansen/SilksongAndroid/releases/download/v2.0.0/SilksongAndroid-2.0.0.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "4fcde8e856808bdbde67e19333d0770b440beddb",
+          "blob_sha": "03ce1bbfab61726b455300c3530214285873d7a0",
+          "sha256": "f236f83661af84729031b66480b19eed17c0fb498f36d07c0f79b4bf8ecdfc76",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/jakobkhansen-silksongandroid-README.md",
+          "url": "https://github.com/jakobkhansen/SilksongAndroid/blob/4fcde8e856808bdbde67e19333d0770b440beddb/README.md",
+          "previous_blob": "03ce1bbfab61726b455300c3530214285873d7a0",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK. Supply your own Silksong Linux game files by choosing the complete folder containing Hollow Knight Silksong.x86_64, UnityPlayer.so and Hollow Knight Silksong_Data; the Windows and macOS depots are not compatible. You can copy that folder from your own PC without signing in. The app also offers optional Steam sign-in on the device. Portcove does not request or handle your account credentials. Start the app’s build and then Play; this can take substantial time on the device."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Leave the selected Linux game folder on the device: the app reads it every Play and during rebuilds instead of copying the whole game into app storage. Moving or deleting it stops the game. Keep a separate save backup before updates or Steam Cloud synchronization; cloud pull/push is an optional app feature, not a Portcove data-restore guarantee. The APK is an upstream build system that downloads its toolchain and builds from your inputs, outside the native-portable replacement contract."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "da3c3d72e1614176e977fc8029a4f6df41c3895f337ef2f4458883fca2468338",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-jakobkhansen-silksongandroid\\completion-4531f17168cc1dbfe7b000412dcd7224392317ca91b10897f41a4c7e4adaf724.json",
+        "receipt_sha256": "4531f17168cc1dbfe7b000412dcd7224392317ca91b10897f41a4c7e4adaf724"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "linkzenic-2ship2harkinian-android",
+      "canonical_issue": 1787,
+      "path": "crates/portcove-core/catalog/ports/linkzenic-2ship2harkinian-android.json",
+      "before_sha256": "bf8f4b6d3929978d596cf94f50fce152e1a484fb1703a4333373bafe27eb0984",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/linkzenic-2ship2harkinian-android.json",
+      "proposal_input_sha256": "7119390962f221799fc08efc9a5ba34a0ca0bd6ce8e031d4b6902e2d8623cc0b",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-linkzenic-2ship2harkinian-android\\linkzenic-2ship2harkinian-android-7119390962f221799fc08efc9a5ba34a0ca0bd6ce8e031d4b6902e2d8623cc0b.json",
+      "prepared_record_sha256": "7119390962f221799fc08efc9a5ba34a0ca0bd6ce8e031d4b6902e2d8623cc0b",
+      "authored_sha256": "7119390962f221799fc08efc9a5ba34a0ca0bd6ce8e031d4b6902e2d8623cc0b",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1247229859,
+        "repository": "linkzenic/2ship2harkinian-Android",
+        "observed_at": "2026-10-25T09:32:23.958Z",
+        "complete_release_inventory": true,
+        "release_count": 23,
+        "selected_release": "v5.0.1-android.3",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 667852669,
+            "name": "2Ship-Android-v5.0.1-android.3.apk",
+            "size": 36675891,
+            "digest": "sha256:23121c8645e6baf1f27c2f55518aa2a77e69ef108c2538317ef3fc46a26da98d",
+            "url": "https://github.com/linkzenic/2ship2harkinian-Android/releases/download/v5.0.1-android.3/2Ship-Android-v5.0.1-android.3.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "c0b987f092e84aa9014aa3d5f153016057608a15",
+          "blob_sha": "b2fcbacd914c404acaff4e7bcda05004b1fca443",
+          "sha256": "a5c1b708c8c7b4b5735b0b2cc97c4cd3355c35dc31b1059a82e3b517a5634d6b",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/linkzenic-2ship2harkinian-android-README.md",
+          "url": "https://github.com/linkzenic/2ship2harkinian-Android/blob/c0b987f092e84aa9014aa3d5f153016057608a15/README.md",
+          "previous_blob": "b2fcbacd914c404acaff4e7bcda05004b1fca443",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install the APK from this fork, open it once to create its data folder and support files, and select your own supported Majora’s Mask MM.z64 when prompted. The app creates mm.o2r on the device. Its Android route needs no desktop 2Ship extraction or separate native plugin package."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The selected 2S2H data folder is shown and changed under Settings > General, including an SD card location. Preserve that actual folder’s saves, configuration, generated mm.o2r, mods and presets before changing or removing the app. If diagnosing an O2R problem, preserve the existing data before regenerating it from your own ROM. Android 7+/OpenGL ES 3.0 are upstream requirements; Portcove does not qualify every device or back up this external app profile."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "4984dc5437932062b976a73969167f1140a472e440f43b773baef1d34f4b1f52",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-linkzenic-2ship2harkinian-android\\completion-f34f47e06bff558c115994f6f53a3815d49c67aeaab546481541677f31ac3cb8.json",
+        "receipt_sha256": "f34f47e06bff558c115994f6f53a3815d49c67aeaab546481541677f31ac3cb8"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "linkzenic-zelda64recomp-android",
+      "canonical_issue": 1915,
+      "path": "crates/portcove-core/catalog/ports/linkzenic-zelda64recomp-android.json",
+      "before_sha256": "b0ee3255649ee1a8e8ceda2a2c1c1f07c99cf4e41d4f5202087830515f361a59",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/linkzenic-zelda64recomp-android.json",
+      "proposal_input_sha256": "a3d0e89cc689922339cdd1315bb04c40c91f1f80d16290440d99d50022c44672",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-linkzenic-zelda64recomp-android\\linkzenic-zelda64recomp-android-a3d0e89cc689922339cdd1315bb04c40c91f1f80d16290440d99d50022c44672.json",
+      "prepared_record_sha256": "a3d0e89cc689922339cdd1315bb04c40c91f1f80d16290440d99d50022c44672",
+      "authored_sha256": "a3d0e89cc689922339cdd1315bb04c40c91f1f80d16290440d99d50022c44672",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1271522744,
+        "repository": "linkzenic/Zelda64Recomp-Android",
+        "observed_at": "2026-10-25T09:32:26.264Z",
+        "complete_release_inventory": true,
+        "release_count": 40,
+        "selected_release": "0.6.10",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 494275190,
+            "name": "MMRecompRando-Android-Mod-arm64-v0.9.5-android.2.zip",
+            "size": 1304056,
+            "digest": "sha256:aa0c79f8c9004e906dd73b64533b95556282cbbda835166e1136ea41bce01c4e",
+            "url": "https://github.com/linkzenic/Zelda64Recomp-Android/releases/download/0.6.10/MMRecompRando-Android-Mod-arm64-v0.9.5-android.2.zip"
+          },
+          {
+            "id": 494275192,
+            "name": "Zelda64-Recompiled-Android-App-0.6.10.apk",
+            "size": 36736604,
+            "digest": "sha256:ba7c8f838eb7d2e598db2241fc2c0cf5361a8fe1de3e275dbd623541d1d8c57b",
+            "url": "https://github.com/linkzenic/Zelda64Recomp-Android/releases/download/0.6.10/Zelda64-Recompiled-Android-App-0.6.10.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "e29c4ff7d9339b8acac1ae92b1e06543efca4d60",
+          "blob_sha": "b6ef2a0deea91892af1d90b4defd829128042eca",
+          "sha256": "0d63f127b13ea190f0843e4b5d1fe03f18f6d426c49e8244d14e4387c7a059ef",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/linkzenic-zelda64recomp-android-README.md",
+          "url": "https://github.com/linkzenic/Zelda64Recomp-Android/blob/e29c4ff7d9339b8acac1ae92b1e06543efca4d60/README.md",
+          "previous_blob": "b6ef2a0deea91892af1d90b4defd829128042eca",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Choose the Android App APK from this fork, not its separate Android randomizer-mod ZIP, and install it on an ARM64 Android device with a working Vulkan driver. Open the app and choose your own supported Majora’s Mask ROM when asked; it contains no game assets. Grant the requested storage access for its /sdcard/Zelda64 profile."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Back up /sdcard/Zelda64, including saves, config and mods, before replacing or removing this beta app. Install mods through its own Mods menu. Native-code mods require Android ARM64 .so libraries; desktop Linux, Windows or macOS plugins cannot substitute for them. This beta APK is debug-signed, so keep data safe before a future signing change. Its profile and updates remain upstream-owned and outside Portcove runtime backup/rollback."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "d821e1ce4630f01ead9154dc41d987426fb5a33195d9ea8e978cdce74cbd3b0d",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-linkzenic-zelda64recomp-android\\completion-a79da795b77cc4911b9d889ae4756709cc1e6bfb8fa6643937916983a6b114d3.json",
+        "receipt_sha256": "a79da795b77cc4911b9d889ae4756709cc1e6bfb8fa6643937916983a6b114d3"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "ogdanimal-goemon64recomp-android",
+      "canonical_issue": 1823,
+      "path": "crates/portcove-core/catalog/ports/ogdanimal-goemon64recomp-android.json",
+      "before_sha256": "1dda4ea4e4f6113740793bee724763e215e4b838687ca1d3dfdf0b18195bad4d",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/ogdanimal-goemon64recomp-android.json",
+      "proposal_input_sha256": "c986cc149fd41a6815724d7d446aee937dd4ff5a4fa39775a9067cb00f162bde",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-ogdanimal-goemon64recomp-android\\ogdanimal-goemon64recomp-android-c986cc149fd41a6815724d7d446aee937dd4ff5a4fa39775a9067cb00f162bde.json",
+      "prepared_record_sha256": "c986cc149fd41a6815724d7d446aee937dd4ff5a4fa39775a9067cb00f162bde",
+      "authored_sha256": "c986cc149fd41a6815724d7d446aee937dd4ff5a4fa39775a9067cb00f162bde",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1303510966,
+        "repository": "ogdanimal/Goemon64Recomp-Android",
+        "observed_at": "2026-10-25T09:32:33.745Z",
+        "complete_release_inventory": true,
+        "release_count": 9,
+        "selected_release": "v1.0.8",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 610286581,
+            "name": "Goemon64Recomp-1.0.8-arm64-v8a.apk",
+            "size": 25477319,
+            "digest": "sha256:0c7a6490e0c9d22cd51aac217461bd8aee6e6bd23540a052430e325d34d3e559",
+            "url": "https://github.com/ogdanimal/Goemon64Recomp-Android/releases/download/v1.0.8/Goemon64Recomp-1.0.8-arm64-v8a.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "367b1017907d08867d70a4b2e9730b21d75577ff",
+          "blob_sha": "996ff51bbcc4c4bb376b1345756fc08e49582a12",
+          "sha256": "f3e178d8fc3be68c461b1ec0eae8603ec8a5907be7087b3e52f34bac5b27c09a",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/ogdanimal-goemon64recomp-android-README.md",
+          "url": "https://github.com/ogdanimal/Goemon64Recomp-Android/blob/367b1017907d08867d70a4b2e9730b21d75577ff/README.md",
+          "previous_blob": "996ff51bbcc4c4bb376b1345756fc08e49582a12",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android ARM64 APK, open it and choose your own supported Mystical Ninja Starring Goemon ROM through its file picker. The app verifies and copies the ROM into app-scoped storage; no manual folder placement or legacy storage permission is needed. Then choose Start. Upstream requires Android 9+ and Vulkan; a physical controller is useful but current releases also have touch controls."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Saves and settings share the app-scoped profile. Before starting a game, Settings > Saves can import a checked compatible save and keeps the previous file alongside as .pre-import.bak. That is an upstream import safeguard, not a complete backup or compatibility promise for arbitrary emulator saves. Preserve app data using the upstream Android methods before uninstalling or clearing storage. For an affected Adreno launch crash, the guide offers disabling Framebuffer Effects before selecting an optional custom driver. Portcove does not install drivers, update the APK or back up its profile."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "5ab1d7bb0279c9ff39d95b8fa5fcdcc2308d663c25b703c7a98c7a778084a8cc",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-ogdanimal-goemon64recomp-android\\completion-db2e5ce508a35a7a6d2cb1ca19d2738b126707d79ed0aa3566efa9fef6ccafe6.json",
+        "receipt_sha256": "db2e5ce508a35a7a6d2cb1ca19d2738b126707d79ed0aa3566efa9fef6ccafe6"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "simon358-ctr-native-android",
+      "canonical_issue": 1808,
+      "path": "crates/portcove-core/catalog/ports/simon358-ctr-native-android.json",
+      "before_sha256": "e0f283cc56064e0cf1ca2836195688b41555f17db4131d33475e09afa7d93f8d",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/simon358-ctr-native-android.json",
+      "proposal_input_sha256": "063596fedc5ea0f0fce1969aa355ce24f83a4e9e5f4295fc8cd879618c6c6bad",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-simon358-ctr-native-android\\simon358-ctr-native-android-063596fedc5ea0f0fce1969aa355ce24f83a4e9e5f4295fc8cd879618c6c6bad.json",
+      "prepared_record_sha256": "063596fedc5ea0f0fce1969aa355ce24f83a4e9e5f4295fc8cd879618c6c6bad",
+      "authored_sha256": "063596fedc5ea0f0fce1969aa355ce24f83a4e9e5f4295fc8cd879618c6c6bad",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1296411201,
+        "repository": "Simon358/ctr-native-android",
+        "observed_at": "2026-10-25T09:32:36.306Z",
+        "complete_release_inventory": true,
+        "release_count": 4,
+        "selected_release": "Android-Build4",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 490456904,
+            "name": "CTR-native-android.26.07.2026.apk",
+            "size": 6912189,
+            "digest": "sha256:a14cb6fc5d39bedeff2c1c5479a50aeba6ade022428d5ac9196dcd50cc79ca38",
+            "url": "https://github.com/Simon358/ctr-native-android/releases/download/Android-Build4/CTR-native-android.26.07.2026.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "7d3403bf91d4771255fad35203f4b6b88ba83c2f",
+          "blob_sha": "cf1de43b1ef2ebc468f91ba4f96d908e60143172",
+          "sha256": "dea0611823d1218f4ab3c3aa1f2924a5a27b7b4a8952db883582b4c33f466a90",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/simon358-ctr-native-android-README.md",
+          "url": "https://github.com/Simon358/ctr-native-android/blob/7d3403bf91d4771255fad35203f4b6b88ba83c2f/README.md",
+          "previous_blob": "cf1de43b1ef2ebc468f91ba4f96d908e60143172",
+          "unchanged": true
+        },
+        {
+          "path": "README_ANDROID.md",
+          "source_commit": "7d3403bf91d4771255fad35203f4b6b88ba83c2f",
+          "blob_sha": "7ff4a6af28e200cd3422a17ce99b42f222382184",
+          "sha256": "daef251b6b035abc2d2b6ab4f89287b1779be3b48aea42ffc97c510c7d0c1ee9",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/simon358-ctr-native-android-README_ANDROID.md",
+          "url": "https://github.com/Simon358/ctr-native-android/blob/7d3403bf91d4771255fad35203f4b6b88ba83c2f/README_ANDROID.md",
+          "previous_blob": "7ff4a6af28e200cd3422a17ce99b42f222382184",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK and open its Missing Assets screen. Follow its storage-permission handoff, choose Select File, and select your own Crash Team Racing NTSC-U raw BIN or supported BIGFILE.BIG. The app copies the chosen data to its own assets storage; restart the app after the copy. Do not use another region or the parent’s desktop executable as an Android package. The source targets a 32-bit Android memory model and requires OpenGL ES 3.0."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep your original disc data and preserve the app’s saves/data before Android app replacement or removal. The Android guide describes /data/data/com.ctrnative/files/assets for picker copies and a different external assets path for manual PC/root setup; use the picker instead of guessing between them. Release Build4 adds touch controls when no controller is detected. Full-game and device coverage remain unqualified; Portcove owns neither APK updates nor its profile backup."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "f069f939ae1df19bb794f52ea937c8773bf9f5aab91cdd65c18d0906870fed73",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-simon358-ctr-native-android\\completion-433ba393b8bf33479f1444b30c03c686c12390c6a96629fd507eb60d45186b5f.json",
+        "receipt_sha256": "433ba393b8bf33479f1444b30c03c686c12390c6a96629fd507eb60d45186b5f"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "ssunnking-zeldawwhdrecompandroid-enhanced",
+      "canonical_issue": 1907,
+      "path": "crates/portcove-core/catalog/ports/ssunnking-zeldawwhdrecompandroid-enhanced.json",
+      "before_sha256": "88afa933ee265d9d4be836729d41c4b5121a6272d6179efedb4aab69650a4ddb",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/ssunnking-zeldawwhdrecompandroid-enhanced.json",
+      "proposal_input_sha256": "70fbc8aa1a5bc842e7e9d3558a84f6dd36ca00c1b9dd3396d26715c6cb197d3f",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-ssunnking-zeldawwhdrecompandroid-enhanced\\ssunnking-zeldawwhdrecompandroid-enhanced-70fbc8aa1a5bc842e7e9d3558a84f6dd36ca00c1b9dd3396d26715c6cb197d3f.json",
+      "prepared_record_sha256": "70fbc8aa1a5bc842e7e9d3558a84f6dd36ca00c1b9dd3396d26715c6cb197d3f",
+      "authored_sha256": "70fbc8aa1a5bc842e7e9d3558a84f6dd36ca00c1b9dd3396d26715c6cb197d3f",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1407937442,
+        "repository": "SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED",
+        "observed_at": "2026-10-25T09:32:39.591Z",
+        "complete_release_inventory": true,
+        "release_count": 8,
+        "selected_release": "1.7",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 657352079,
+            "name": "ZeldaWWHD-Enhanced-v1.7.apk",
+            "size": 67475575,
+            "digest": "sha256:4af9d888781c6bb7a6c96a7b7feb8cd49b5966cc615a29408ff42898580fd633",
+            "url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/releases/download/1.7/ZeldaWWHD-Enhanced-v1.7.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "2f28a4012fd2b5001695d1c8fd96d453d6304878",
+          "blob_sha": "0b2394f0928453914e1e4bca99c579d32224eb3a",
+          "sha256": "d3f790dac099f064f01505d977dda046c5034177494867431047b5d9a5a16c6e",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/ssunnking-zeldawwhdrecompandroid-enhanced-README.md",
+          "url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/2f28a4012fd2b5001695d1c8fd96d453d6304878/README.md",
+          "previous_blob": "0b2394f0928453914e1e4bca99c579d32224eb3a",
+          "unchanged": true
+        },
+        {
+          "path": "docs/android-port-readme.md",
+          "source_commit": "2f28a4012fd2b5001695d1c8fd96d453d6304878",
+          "blob_sha": "7833489b5ee0ad7a04d66dac440a3d08a00629cc",
+          "sha256": "ee4e1ae1195fedbb0b0f1c6283c8eaf1d1639e85c761d24edc91b2f57f5d4066",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/ssunnking-zeldawwhdrecompandroid-enhanced-docs_android-port-readme.md",
+          "url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/2f28a4012fd2b5001695d1c8fd96d453d6304878/docs/android-port-readme.md",
+          "previous_blob": "7833489b5ee0ad7a04d66dac440a3d08a00629cc",
+          "unchanged": true
+        },
+        {
+          "path": "android/app/src/main/java/org/wwhdrecomp/app/MainActivity.java",
+          "source_commit": "2f28a4012fd2b5001695d1c8fd96d453d6304878",
+          "blob_sha": "08d0c6ac47110e13cf019b1c8005726920a0527e",
+          "sha256": "7395ca13806896c3fe7378348eb5412efb677b9f3a7531b1667caf5d06ac7bf7",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/ssunnking-zeldawwhdrecompandroid-enhanced-android_app_src_main_java_org_wwhdrecomp_app_MainActivity.java",
+          "url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/2f28a4012fd2b5001695d1c8fd96d453d6304878/android/app/src/main/java/org/wwhdrecomp/app/MainActivity.java",
+          "previous_blob": "08d0c6ac47110e13cf019b1c8005726920a0527e",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this Enhanced fork’s Android APK on an Android 11+ ARM64 device with Vulkan 1.1. Use your own Wind Waker HD USA, European or Japanese Wii U dump: a .wud/.wux with its same-name disc .key and your own common.key in one folder, or an already decrypted Cemu .wua without keys. Choose the app’s extraction action and select that folder. It extracts and compiles on the device once; no PC recompiler is needed."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Allow about 2 GB of free storage and memory for the upstream setup. Use the app’s save/save-state export controls and retain a separate copy before changing the app. Save states are tied to the build that created them and are distinct from normal game saves. Game-specific extracted/compiled data stays on your device; no game content or keys are supplied by Portcove. The Android app and its optional graphics features retain upstream ownership."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "039a97fa941e6d0b6a48d915110279b6a6fedbc8ca16b9d3f1ec3a06e965fd8c",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-ssunnking-zeldawwhdrecompandroid-enhanced\\completion-4e1ce2578d4a04f7bc56ec7dcd53786b8598a3bc6d0446a4042b6cb2fe60ec01.json",
+        "receipt_sha256": "4e1ce2578d4a04f7bc56ec7dcd53786b8598a3bc6d0446a4042b6cb2fe60ec01"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "wootbeer-jillandroid",
+      "canonical_issue": 1834,
+      "path": "crates/portcove-core/catalog/ports/wootbeer-jillandroid.json",
+      "before_sha256": "9b8cbebeb9ff1d2d20683dd69ba122b2778a07570afd897c2791fc934889be90",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/wootbeer-jillandroid.json",
+      "proposal_input_sha256": "35f9f47e157d41deb2242c3cbbcf6b39d39bfae42ee727fbd87e37710318a581",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-wootbeer-jillandroid\\wootbeer-jillandroid-35f9f47e157d41deb2242c3cbbcf6b39d39bfae42ee727fbd87e37710318a581.json",
+      "prepared_record_sha256": "35f9f47e157d41deb2242c3cbbcf6b39d39bfae42ee727fbd87e37710318a581",
+      "authored_sha256": "35f9f47e157d41deb2242c3cbbcf6b39d39bfae42ee727fbd87e37710318a581",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1388126896,
+        "repository": "wootbeer/jillandroid",
+        "observed_at": "2026-10-25T09:32:42.180Z",
+        "complete_release_inventory": true,
+        "release_count": 1,
+        "selected_release": "0.1",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 589145422,
+            "name": "jillandroid-release.apk",
+            "size": 1506986,
+            "digest": "sha256:e62afb1187b0b37e4299762ba0a6034c44bd2052b295496f115a1d8c0fc83b4c",
+            "url": "https://github.com/wootbeer/jillandroid/releases/download/0.1/jillandroid-release.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "87c8f1a44875bcac631d2ee5ebe05682e9a00f48",
+          "blob_sha": "25d00b99e0fb22fc30fd80399d19b5e655d401d9",
+          "sha256": "e3cf5e74e82263cd103d1a600c0cd7e8bf7c847999f19519737622e3eb8d1c72",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/wootbeer-jillandroid-README.md",
+          "url": "https://github.com/wootbeer/jillandroid/blob/87c8f1a44875bcac631d2ee5ebe05682e9a00f48/README.md",
+          "previous_blob": "25d00b99e0fb22fc30fd80399d19b5e655d401d9",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK and choose the folder containing your own licensed Jill of the Jungle data on first launch. The guide recommends the GOG data and accepts one episode or all three. Keep the episode files together: .sha, .vcl, .mac, .dem, .ddt, jill.dma and numbered files 0–50. Copying your complete original game folder avoids a missing-file sort; no desktop executable is the Android player."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep the chosen game folder available and preserve it plus the Android app’s actual save/config data before an update or uninstall. The reviewed guide does not establish an exact save/export path or transferable-save contract. A close immediately after folder selection can indicate the wrong data version. This is an upstream beta; Portcove has no device/gameplay qualification or Android runtime backup/rollback promise."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "e3b8c8ff6363934147605619cf328163b4beedb3a00542506d7e72aed3da3d22",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-wootbeer-jillandroid\\completion-2d15aa68bbb3dfaf2e56650c3a56773ea153ea0774270368e7613aed3e006f9f.json",
+        "receipt_sha256": "2d15aa68bbb3dfaf2e56650c3a56773ea153ea0774270368e7613aed3e006f9f"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    },
+    {
+      "id": "zinexda-sonic-r-android",
+      "canonical_issue": 1888,
+      "path": "crates/portcove-core/catalog/ports/zinexda-sonic-r-android.json",
+      "before_sha256": "d044c48f60fae5ae7ce57b5ccffb0a7e9fc44a76d7036a65480604017a13c75e",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/zinexda-sonic-r-android.json",
+      "proposal_input_sha256": "fb5d2e5f738f520b72aec3f7942e36c70c6809937b3096a1e112683913392f7b",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-zinexda-sonic-r-android\\zinexda-sonic-r-android-fb5d2e5f738f520b72aec3f7942e36c70c6809937b3096a1e112683913392f7b.json",
+      "prepared_record_sha256": "fb5d2e5f738f520b72aec3f7942e36c70c6809937b3096a1e112683913392f7b",
+      "authored_sha256": "fb5d2e5f738f520b72aec3f7942e36c70c6809937b3096a1e112683913392f7b",
+      "platform_scope": [
+        "Upstream Android APK/device setup; no native Desktop or managed runtime claim"
+      ],
+      "current_route": "Existing listing; unknown availability with project link",
+      "selected_route": "Published Android package observation with exact upstream setup/data guide",
+      "release_observation": {
+        "repository_id": 1373021083,
+        "repository": "ZinexDa/sonic-r-android",
+        "observed_at": "2026-10-25T09:32:44.337Z",
+        "complete_release_inventory": true,
+        "release_count": 13,
+        "selected_release": "v1.3.1",
+        "selected_release_assets_complete": true,
+        "assets": [
+          {
+            "id": 662443727,
+            "name": "SonicR-release.apk",
+            "size": 13724051,
+            "digest": "sha256:4f3aa1564ddb132f518bcddf9c2b36bdd2e6f2cee64a126b1a19f318a2fe631a",
+            "url": "https://github.com/ZinexDa/sonic-r-android/releases/download/v1.3.1/SonicR-release.apk"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "source_commit": "474bb559458655e2013064074e13d0f7af4bcb0f",
+          "blob_sha": "f069035667bbf26c1d147e0caa531a338520fcd0",
+          "sha256": "96e3fdae41c0f384349aefc97c35d2a614ef2d3ba560a5173b2deb42842767fc",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/zinexda-sonic-r-android-README.md",
+          "url": "https://github.com/ZinexDa/sonic-r-android/blob/474bb559458655e2013064074e13d0f7af4bcb0f/README.md",
+          "previous_blob": "f069035667bbf26c1d147e0caa531a338520fcd0",
+          "unchanged": true
+        }
+      ],
+      "update_owner": "Android package manager/upstream or the player local build; no Core replacement, backup, restore or runtime rollback authority",
+      "setup_data_boundary": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK and use its guided asset installer to choose your own complete retail Sonic R PC game folder. This is the Android GLES2/SDL2 wrapper; a Windows player or another Sonic game’s files do not replace the required retail data. Choose Play through the upstream app after it accepts the folder."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep your original game files and preserve the Android app’s actual save/config data before changing or removing it. The selected guide does not establish the exact save/export location. Multiplayer is a planned feature, not a delivered cross-platform promise. The upstream custom license permits free download/build/modification and forbids sale; this route retains those terms and upstream update ownership. Portcove does not manage APK replacement or its data backup."
+        }
+      ],
+      "acquisition_condition": null,
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "2a1f3fad41452fd6c55cf5ea284c631b653b83f48864e552ec4e4aa24e0b66d8",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\android-guidance-batch8\\prepare-zinexda-sonic-r-android\\completion-94c489baaae99a635aee4f19032d4814e166f3c391cf7f92b9787af8a22aa4da.json",
+        "receipt_sha256": "94c489baaae99a635aee4f19032d4814e166f3c391cf7f92b9787af8a22aa4da"
+      },
+      "unresolved": null,
+      "delivery_status": "Authored; exact prepared record reconciled with delivered main. Complete-candidate review, required exact-head CI and guarded delivery remain required."
+    }
+  ],
+  "review_repairs": [
+    {
+      "id": "igawa6-dualsouls",
+      "reason": "Independent review restored the exact already-preserved acquisition condition supported by unchanged upstream README/redistribution audit. Conditional existing-copy setup/data instructions remain available.",
+      "original_input": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/igawa6-dualsouls.json",
+      "repaired_input": "E:/Codex-Evidence/simpler-installation-rollout-20261023/android-guidance-batch8/igawa6-dualsouls-acquisition-input.json"
+    },
+    {
+      "id": "edwin2929-sma3-recomp-android",
+      "reason": "Actual current APK is0.10.6 beta, not historical0.9. Guide and this packet preserve the0.4 README mismatch and exact remaining input/export fact."
+    }
+  ],
+  "scope": "Current official release/asset metadata, pinned primary guides and Core listing preparations. No APK/archive acquired, extracted, installed or executed for these17; no device/gameplay/native Desktop/real-save/managed replacement observation.",
+  "remaining": "Full #2510/#2926 Public beta / Required acceptance remains open. Original524 identities,312affected additions,22original roadmap-only joins, canonical owners and explicit deferrals preserved. Catalog presence is not Reviewed/Supported.",
+  "delivery_base": "70459c15b60c0597c5d6bcc995175a59057cb6c9",
+  "reconciled_at": "2026-10-25T09:56:30.257Z"
+}

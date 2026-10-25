@@ -7,8 +7,8 @@
     "project_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED",
     "issue_number": 1907,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED",
+    "availability": "packages",
+    "setup_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/1.7/README.md",
     "artwork": {
       "game_id": 2276,
       "cover_id": 172350,
@@ -16,6 +16,21 @@
       "image_sha256": "2a1bbeb196640888a17f5911593796fe7fe73c25fff25201c789ad6ea0cec8f6",
       "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this Enhanced fork’s Android APK on an Android 11+ ARM64 device with Vulkan 1.1. Use your own Wind Waker HD USA, European or Japanese Wii U dump: a .wud/.wux with its same-name disc .key and your own common.key in one folder, or an already decrypted Cemu .wua without keys. Choose the app’s extraction action and select that folder. It extracts and compiles on the device once; no PC recompiler is needed."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Allow about 2 GB of free storage and memory for the upstream setup. Use the app’s save/save-state export controls and retain a separate copy before changing the app. Save states are tied to the build that created them and are distinct from normal game saves. Game-specific extracted/compiled data stays on your device; no game content or keys are supplied by Portcove. The Android app and its optional graphics features retain upstream ownership."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/blob/1.7/README.md"
+    },
+    "release_url": "https://github.com/SSunnKing/ZeldaWWHDRecompAndroid---ENHANCED/releases"
   }
 }

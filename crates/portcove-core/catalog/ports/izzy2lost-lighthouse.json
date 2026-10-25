@@ -7,8 +7,8 @@
     "project_url": "https://github.com/izzy2lost/Lighthouse",
     "issue_number": 1841,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/izzy2lost/Lighthouse",
+    "availability": "packages",
+    "setup_url": "https://github.com/izzy2lost/Lighthouse/blob/1.0.2/README.md",
     "artwork": {
       "game_id": 2148,
       "cover_id": 528449,
@@ -16,6 +16,21 @@
       "image_sha256": "578beb8f394d692c83b886b70aad4effd70a6d9f29bb872c3714b9703e9a69fa",
       "game_slug": "banjo-kazooie",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Android APK and open it to generate the Banjo-Kazooie O2R on the device. No PC or separate extraction app is needed. Supply your own supported .z64 ROM; the selected guide lists US 1.0, US 1.1, Japanese and PAL versions. US 1.0 is the recommended base if you need the fork’s ROM-hack support. Follow the app’s own import and Play flow."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Keep your original ROM and back up the Android app’s actual saves, configuration, generated O2R and mods before changing or removing it. The selected release confirms on-device generation and mod/ROM-hack support, but does not establish an Android save/export path. Parent desktop paths are not an Android storage contract. Updates remain upstream-owned."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/izzy2lost/Lighthouse/blob/1.0.2/README.md"
+    },
+    "release_url": "https://github.com/izzy2lost/Lighthouse/releases"
   }
 }
