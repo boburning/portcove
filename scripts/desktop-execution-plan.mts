@@ -6,11 +6,12 @@ import type { DesktopSelection } from "./desktop-scenarios.mts";
 
 // The preparation journey is statically imported by the harness. Its validator
 // reads these schemas during module initialization, including smoke selections.
-// Shared display-identity and review-presentation helpers are runtime imports.
+// Shared display-identity, review-presentation and staged-layout helpers are runtime imports.
 // Package/lock files are reproduction inputs, never claims of executed source.
 export const nativeTransportReceiptSources = Object.freeze([
   "apps/desktop/scripts/desktop-scenario-state.mts",
   "apps/desktop/scripts/desktop-review-presentation.mts",
+  "apps/desktop/scripts/desktop-staged-layout.mts",
   "apps/desktop/scripts/transport-values.mts",
   "apps/desktop/src/port-identity.ts",
   "apps/desktop/src/transport-schemas.generated.json",
