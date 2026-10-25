@@ -273,7 +273,7 @@ Assert-OriginalHostedSetup
 foreach($kind in @('generation','deadline')){
 $root=Join-Path '${root.replaceAll("'", "''")}' ('not-created-'+$kind)
 $context=@{broker_pid=$PID;broker_created_ticks=$(if($kind -ceq 'generation'){'1'}else{(Get-CimInstance Win32_Process -Filter ('ProcessId = '+$PID)).CreationDate.ToUniversalTime().Ticks.ToString()})}
-$clock=[pscustomobject]@{Elapsed=[pscustomobject]@{TotalSeconds=$(if($kind -ceq 'deadline'){60}else{0})}}
+$clock=[pscustomobject]@{Elapsed=[pscustomobject]@{TotalSeconds=$(if($kind -ceq 'deadline'){120}else{0})}}
 $refused=$false;try{. ([scriptblock]::Create(($statements[($index-1)..($index+1)].Extent.Text -join [Environment]::NewLine)))}catch{$refused=$true}
 if(-not $refused -or (Test-Path -LiteralPath $root)){throw 'Stale parent permitted the first directory effect'}
 }

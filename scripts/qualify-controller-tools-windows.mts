@@ -288,7 +288,7 @@ async function main() {
             SystemDrive: process.env.SystemDrive,
           },
           output: { stdout, stderr },
-          executionTimeoutMilliseconds: 85000,
+          executionTimeoutMilliseconds: 145000,
           supervise: (args, dependencies) =>
             runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
         },

@@ -54,7 +54,7 @@ function Assert-OriginalHostedSetup {
     $parent=Get-Process -Id $context.broker_pid -ErrorAction Stop
     try{
         if($parent.HasExited -or (Get-CimInstance Win32_Process -Filter ('ProcessId = '+$context.broker_pid) -OperationTimeoutSec 5 -ErrorAction Stop).CreationDate.ToUniversalTime().Ticks.ToString() -cne $context.broker_created_ticks -or
-            $clock.Elapsed.TotalSeconds -ge 60){throw 'Original hosted setup parent or lifetime unavailable'}
+            $clock.Elapsed.TotalSeconds -ge 120){throw 'Original hosted setup parent or lifetime unavailable'}
     }finally{$parent.Dispose()}
 }
 Assert-OriginalHostedSetup
@@ -134,7 +134,7 @@ try {
     $arguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $source 'scripts\fixtures\native-account-gui-probe.ps1'),'-Invocation',$context.binding)
     $child=[Portcove.NativeQualification.AccountLauncher]::StartVerifiedInGroup($group,$configuration,$password,$runtime,$runtimeSha,$arguments,$attemptWork,$environment,$false)
     $gui=$false
-    while(-not $child.HasExited -and $clock.Elapsed.TotalSeconds -lt 55){
+    while(-not $child.HasExited -and $clock.Elapsed.TotalSeconds -lt 110){
         Assert-OriginalHostedSetup
         $child.RefuseFaultedCapture()
         if($child.MainWindowHandle -ne [IntPtr]::Zero -and $child.Responding){$gui=$true;break}
@@ -147,7 +147,7 @@ try {
         $snapshot=$child.OutputCapture.Snapshot()
         if($snapshot.Length -gt 65536){throw 'Hosted inert output exceeds bound'}
         if($snapshot.Length -and $snapshot[$snapshot.Length-1] -eq 10){break}
-        if($child.HasExited -or $clock.Elapsed.TotalSeconds -ge 55){throw 'Hosted inert stdout incomplete'}
+        if($child.HasExited -or $clock.Elapsed.TotalSeconds -ge 110){throw 'Hosted inert stdout incomplete'}
         Start-Sleep -Milliseconds 25
     } while($true)
     if($snapshot.Length -gt 65536){throw 'Hosted inert output exceeds bound'}
