@@ -373,6 +373,7 @@ void test("native receipt capture binds schema validation and reproduction input
   );
   const expected = [
     "apps/desktop/scripts/desktop-scenario-state.mts",
+    "apps/desktop/scripts/desktop-review-presentation.mts",
     "apps/desktop/scripts/transport-values.mts",
     "apps/desktop/src/port-identity.ts",
     "apps/desktop/src/transport-schemas.generated.json",
