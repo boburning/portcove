@@ -5,7 +5,10 @@ import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectSelectedPublicationAuthorityConfiguration } from "./release-authority-configuration.mts";
-import { inspectNativeReleaseQualification } from "./release-native-qualification-contract.mts";
+import {
+  inspectNativeReleaseQualification,
+  hostedWindowsContinuityPlatform,
+} from "./release-native-qualification-contract.mts";
 import { serializeHostedNativeStageCapture } from "./release-native-stage-capture.mts";
 import {
   hostedNativeJobProfile,
@@ -43,7 +46,11 @@ function atLeast(raw: string, floor: string) {
   }
   return true;
 }
-function hostIdentity(raw: unknown, report: ReturnType<typeof inspectNativeReleaseQualification>) {
+function hostIdentity(
+  raw: unknown,
+  report: ReturnType<typeof inspectNativeReleaseQualification>,
+  selectedPlatform: string,
+) {
   exact(raw, "architecture,machine_id_sha256,os,platform_label");
   if (
     raw.architecture !== "x86_64" ||
@@ -54,6 +61,23 @@ function hostIdentity(raw: unknown, report: ReturnType<typeof inspectNativeRelea
   const os = raw.os;
   if (report.platform_label === "windows-x86_64") {
     exact(os, "build_number,caption,display_version,product_type,version");
+    if (selectedPlatform === hostedWindowsContinuityPlatform) {
+      if (
+        os.product_type !== 3 ||
+        typeof os.caption !== "string" ||
+        os.caption.length > 128 ||
+        !/^Microsoft Windows Server 2022(?: |$)/u.test(os.caption) ||
+        os.display_version !== "21H2" ||
+        typeof os.version !== "string" ||
+        !/^10\.0\.20348(?:\.[0-9]{1,10})?$/u.test(os.version) ||
+        os.version !== report.host.os_version ||
+        os.build_number !== "20348"
+      )
+        throw new Error("hosted native actual Windows Server continuity observation differs");
+      // Server build numbers do not establish the supported Windows client
+      // minimum. The separate client-floor acceptance remains mandatory.
+      return structuredClone(raw);
+    }
     if (
       os.product_type !== 1 ||
       typeof os.caption !== "string" ||
@@ -155,12 +179,13 @@ export function prepareHostedNativeProofSubject(
   const reportBytes = bounded(rawReport, hostedNativeProofLimits.report);
   const captureBytes = bounded(rawCapture, hostedNativeProofLimits.capture);
   const report = inspectNativeReleaseQualification(json(reportBytes));
-  const hostObservation = hostIdentity(rawHostObservation, report);
   const authorities = inspectSelectedPublicationAuthorityConfiguration(rawAuthorities);
   if (authorities.purpose !== "application")
     throw new Error("hosted native application authority required");
   const producer = inspectHostedNativeProducer(rawProducer, report.platform_label);
   const fixed = authorities.hosted_native[report.platform_label];
+  const hostObservation = hostIdentity(rawHostObservation, report, fixed.minimum_platform);
+  const continuityOnly = fixed.minimum_platform === hostedWindowsContinuityPlatform;
   const { invocation_id: _invocation, started_at: _started, ...actualProducer } = report.producer;
   if (
     producer.configuration_sha256 !== digest(authorities) ||
@@ -223,7 +248,7 @@ export function prepareHostedNativeProofSubject(
   const subject = Buffer.from(
     JSON.stringify({
       schema_version: 1,
-      purpose: "hosted-native-qualification",
+      purpose: continuityOnly ? "hosted-native-continuity" : "hosted-native-qualification",
       platform_label: report.platform_label,
       stage: report.stage,
       producer,
@@ -244,6 +269,7 @@ export function prepareHostedNativeProofSubject(
     report,
     capture: reconstructed.capture,
     producer,
+    qualification_scope: continuityOnly ? ("continuity-only" as const) : ("native-stage" as const),
     authority: "none" as const,
   };
 }

@@ -7,6 +7,7 @@ import {
   nativePrepublicationProfile,
   nativePrepublicationPending,
   nativePrepublicationScenarios,
+  hostedWindowsContinuityPlatform,
 } from "../release-native-qualification-contract.mts";
 import {
   prepareHostedNativeStageRequest,
@@ -18,9 +19,15 @@ import { releaseCanonicalDigest as digest } from "../release-canonical.mts";
 export function hostedNativeProofFixture(
   platform: "windows-x86_64" | "linux-x86_64" = "windows-x86_64",
   stage: "payload-signing" | "release-publication" = "payload-signing",
+  profile: "client-minimum" | "server-continuity" = "client-minimum",
 ) {
   const authorities = selectedPublicationAuthoritiesFixture("application");
   if (!("hosted_native" in authorities)) throw new Error("application fixture required");
+  if (profile === "server-continuity") {
+    if (platform !== "windows-x86_64") throw new Error("Windows fixture profile required");
+    authorities.hosted_native[platform].minimum_platform = hostedWindowsContinuityPlatform;
+  }
+  const server = profile === "server-continuity";
   const windows = platform === "windows-x86_64",
     base = nativeQualificationFixture(stage),
     fixed = authorities.hosted_native[platform];
@@ -68,7 +75,7 @@ export function hostedNativeProofFixture(
       ...base.host,
       ...host,
       minimum_platform: fixed.minimum_platform,
-      os_version: windows ? "10.0.26200.1000" : "6.8.0-ubuntu-fixture",
+      os_version: server ? "10.0.20348.1000" : windows ? "10.0.26200.1000" : "6.8.0-ubuntu-fixture",
       execution_context: "inert-hosted-proof-fixture",
       loaded_engine: {
         ...base.host.loaded_engine,
@@ -165,11 +172,11 @@ export function hostedNativeProofFixture(
     machine_id_sha256: report.host.machine_id_sha256,
     os: windows
       ? {
-          product_type: 1,
-          caption: "Microsoft Windows 11 Pro",
-          display_version: "26H2",
+          product_type: server ? 3 : 1,
+          caption: server ? "Microsoft Windows Server 2022 Datacenter" : "Microsoft Windows 11 Pro",
+          display_version: server ? "21H2" : "26H2",
           version: report.host.os_version,
-          build_number: "26200",
+          build_number: server ? "20348" : "26200",
         }
       : { id: "ubuntu", version_id: "24.04", kernel_release: report.host.os_version },
   };

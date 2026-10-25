@@ -16,6 +16,7 @@ import {
   inspectNativeQualificationHarnessPath,
   inspectNativeQualificationAccount,
   inspectNativeQualificationCompatibility,
+  hostedWindowsContinuityPlatform,
 } from "./release-native-qualification-contract.mts";
 import {
   requireAdmittedProductionSource,
@@ -58,15 +59,15 @@ function text(value: unknown, maximum = 184): string {
     throw new Error("release authority fixed text unavailable");
   return value;
 }
-function minimumVersion(value: unknown, minimum: string) {
+function minimumVersion(value: unknown, minimum: string, label = "engine") {
   const declared = text(value, 64);
   if (!/^[0-9]{1,10}(?:\.[0-9]{1,10}){1,3}$/u.test(declared))
-    throw new Error("release authority engine minimum is invalid");
+    throw new Error(`release authority ${label} minimum is invalid`);
   const parts = declared.split(".").map(BigInt),
     floor = minimum.split(".").map(BigInt);
   for (let index = 0; index < Math.max(parts.length, floor.length); index++) {
     if ((parts[index] ?? 0n) < (floor[index] ?? 0n))
-      throw new Error("release authority engine floor weakened");
+      throw new Error(`release authority ${label} floor weakened`);
     if ((parts[index] ?? 0n) > (floor[index] ?? 0n)) return;
   }
 }
@@ -355,11 +356,19 @@ function inspectSelectedHostedNative(raw: unknown) {
     exact(value.producer.harness, "path,sha256");
     exact(value.engine, "minimum_version,name");
     const windows = platform === "windows-x86_64";
-    const minimumPlatform = windows ? "windows-11-26h2-x64" : "ubuntu-24.04-x64";
+    const minimumPlatform =
+      windows && value.minimum_platform === hostedWindowsContinuityPlatform
+        ? hostedWindowsContinuityPlatform
+        : windows
+          ? "windows-11-26h2-x64"
+          : "ubuntu-24.04-x64";
     const engineName = windows ? "WebView2" : "WebKitGTK";
     if (value.minimum_platform !== minimumPlatform || value.engine.name !== engineName)
       throw new Error("selected native minimum platform or engine family differs");
     minimumVersion(value.engine.minimum_version, windows ? "155.0.4283.62" : "2.52.6");
+    const compatibility = inspectNativeQualificationCompatibility(value.compatibility);
+    if (minimumPlatform === hostedWindowsContinuityPlatform)
+      minimumVersion(compatibility.minimum_os_version, "10.0.26200", "Windows client");
     return {
       minimum_platform: minimumPlatform,
       engine: { name: engineName, minimum_version: text(value.engine.minimum_version, 64) },
@@ -371,7 +380,7 @@ function inspectSelectedHostedNative(raw: unknown) {
           sha256: hex(value.producer.harness.sha256, 64),
         },
       },
-      compatibility: inspectNativeQualificationCompatibility(value.compatibility),
+      compatibility,
     };
   };
   return {

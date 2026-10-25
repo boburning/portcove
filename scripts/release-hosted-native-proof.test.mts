@@ -10,6 +10,85 @@ import {
 } from "./release-hosted-native-proof-contract.mts";
 import { prepareHostedNativeStageRequest } from "./release-native-stage-capture.mts";
 import { inspectSelectedPublicationAuthorityConfiguration } from "./release-authority-configuration.mts";
+import { isRecord } from "./runtime-values.mts";
+
+for (const stage of ["payload-signing", "release-publication"] as const) {
+  void test(`${stage} source-selected Server proof states continuity only and preserves client compatibility`, () => {
+    const f = hostedNativeProofFixture("windows-x86_64", stage, "server-continuity");
+    const checked = inspectHostedNativeProofFiles(f.files, f.authorities, f.producer);
+    assert.equal(checked.qualification_scope, "continuity-only");
+    const subject: unknown = JSON.parse(checked.subject.toString());
+    assert.ok(isRecord(subject));
+    assert.equal(subject.purpose, "hosted-native-continuity");
+    assert.equal(checked.report.host.minimum_platform, "windows-server-2022-x64-continuity");
+    assert.equal(checked.report.host.os_version, "10.0.20348.1000");
+    assert.equal(checked.report.compatibility.minimum_os_version, "10.0.26200");
+    assert.equal(checked.signature_verification, "not-performed");
+    assert.equal(checked.authority, "none");
+    for (const minimum of ["10.0.20348", "unknown"]) {
+      const altered = structuredClone(f.authorities);
+      altered.hosted_native["windows-x86_64"].compatibility.minimum_os_version = minimum;
+      assert.throws(() => inspectSelectedPublicationAuthorityConfiguration(altered));
+    }
+    for (const os of [
+      { ...f.hostObservation.os, product_type: 1 },
+      { ...f.hostObservation.os, caption: "Microsoft Windows Server 2025" },
+      { ...f.hostObservation.os, version: "10.0.20347.1000" },
+      { ...f.hostObservation.os, display_version: "26H2" },
+    ])
+      assert.throws(
+        () =>
+          prepareHostedNativeProofSubject(
+            f.authorities,
+            f.producer,
+            f.files.report,
+            f.files.capture,
+            { ...f.hostObservation, os },
+          ),
+        /observation differs/,
+      );
+    assert.throws(
+      () =>
+        prepareHostedNativeProofSubject(
+          f.authorities,
+          f.producer,
+          f.files.report,
+          f.files.capture,
+          { ...f.hostObservation, architecture: "arm64" },
+        ),
+      /host identity/,
+    );
+    const client = hostedNativeProofFixture("windows-x86_64", stage);
+    assert.throws(
+      () =>
+        prepareHostedNativeProofSubject(
+          client.authorities,
+          client.producer,
+          client.files.report,
+          client.files.capture,
+          f.hostObservation,
+        ),
+      /observation differs/,
+    );
+    assert.throws(
+      () =>
+        inspectHostedNativeProofFiles(
+          {
+            ...f.files,
+            subject: Buffer.from(
+              JSON.stringify({
+                ...subject,
+                purpose: "hosted-native-qualification",
+              }),
+            ),
+          },
+          f.authorities,
+          f.producer,
+        ),
+      /manifest differs/,
+    );
+  });
+}
 
 for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
   for (const stage of ["payload-signing", "release-publication"] as const) {

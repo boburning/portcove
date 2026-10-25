@@ -1,5 +1,8 @@
 import { isRecord } from "./runtime-values.mts";
 
+/** Standard hosted Windows proves installed continuity, never the client floor. */
+export const hostedWindowsContinuityPlatform = "windows-server-2022-x64-continuity" as const;
+
 export type NativeQualificationStage = "payload-signing" | "release-publication";
 export const nativePrepublicationProfile = "signed-package-compatibility-v1" as const;
 export const nativePrepublicationScenarios = Object.freeze([
