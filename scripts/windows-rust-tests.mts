@@ -21,6 +21,14 @@ import {
   selectWorkspaceRustImpact,
 } from "./rust-test-impact.mts";
 import { readValidationPlanInput, validateValidationPlan } from "./validation-plan.mts";
+import {
+  qualificationCoreScope,
+  qualificationCoreProfile,
+  qualificationCoreWorkers,
+  reusedQualificationArguments,
+  nextestListArguments,
+  type QualificationCoreWorkerInventory,
+} from "./windows-qualification-rust.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const packetDirectory = path.join(root, "work", "windows-rust-tests");
@@ -57,6 +65,16 @@ export interface WindowsRustManifest {
   complete: string[];
   selected: string[];
   partitions: WindowsRustPartition[];
+}
+
+export interface WindowsQualificationCoreManifest {
+  format_version: 2;
+  identity: ArchiveIdentity;
+  profile: "default";
+  scope: string[];
+  archive_sha256: string;
+  complete: string[];
+  workers: QualificationCoreWorkerInventory[];
 }
 
 function testIdentity(value: unknown): [string, string, string] {
@@ -203,7 +221,60 @@ export function validateWindowsRustManifest(value: unknown, identity: ArchiveIde
   return value as unknown as WindowsRustManifest;
 }
 
-export function windowsPartitionConfig(config: string, tests: string[]) {
+export function validateWindowsQualificationCoreManifest(
+  value: unknown,
+  identity: ArchiveIdentity,
+) {
+  const observedIdentity: Record<string, unknown> =
+    isRecord(value) && isRecord(value.identity) ? value.identity : {};
+  if (
+    !isRecord(value) ||
+    value.format_version !== 2 ||
+    !isRecord(value.identity) ||
+    Object.keys(value.identity).length !== Object.keys(identity).length ||
+    Object.entries(identity).some(([key, expected]) => observedIdentity[key] !== expected) ||
+    value.profile !== qualificationCoreProfile ||
+    JSON.stringify(value.scope) !== JSON.stringify(qualificationCoreScope) ||
+    typeof value.archive_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(value.archive_sha256) ||
+    !Array.isArray(value.workers)
+  )
+    throw new Error("Qualification Core archive identity, profile or scope mismatch");
+  const complete = identities(value.complete);
+  if (complete.some((test) => testIdentity(test)[0] !== "portcove-core"))
+    throw new Error("Qualification Core archive contains another package");
+  const policy = qualificationCoreWorkers();
+  if (value.workers.length !== policy.length) throw new Error("Qualification Core workers missing");
+  const union = new Set<string>();
+  for (const [index, worker] of value.workers.entries()) {
+    const expected = policy[index]!;
+    if (
+      !isRecord(worker) ||
+      worker.name !== expected.name ||
+      !Array.isArray(worker.phases) ||
+      worker.phases.length !== expected.phases.length
+    )
+      throw new Error("Qualification Core worker phases differ");
+    for (const [phaseIndex, phase] of worker.phases.entries()) {
+      const expectedPhase = expected.phases[phaseIndex]!;
+      if (
+        !isRecord(phase) ||
+        phase.name !== expectedPhase.name ||
+        JSON.stringify(phase.arguments) !== JSON.stringify(expectedPhase.arguments)
+      )
+        throw new Error("Qualification Core phase arguments or order differ");
+      for (const test of identities(phase.tests)) {
+        if (!complete.includes(test))
+          throw new Error("Qualification Core phase escaped its inventory");
+        union.add(test);
+      }
+    }
+  }
+  assertSameIdentities(union, complete, "Qualification Core phase union");
+  return value as unknown as WindowsQualificationCoreManifest;
+}
+
+export function windowsPartitionConfig(config: string, tests: string[], profile = nextestProfile) {
   const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&");
   const binaries = new Map<string, string[]>();
   for (const identity of identities(tests)) {
@@ -219,9 +290,11 @@ export function windowsPartitionConfig(config: string, tests: string[]) {
         `(binary_id(/^${escape(binary)}$/) & test(/^(?:${names.sort(ordered).join("|")})$/))`,
     )
     .join(" | ");
-  const header = `[profile.${nextestProfile}]`;
+  if (![nextestProfile, qualificationCoreProfile].includes(profile))
+    throw new Error("Unsupported Windows Rust execution profile");
+  const header = `[profile.${profile}]`;
   if (config.split(header).length !== 2 || /default-filter\s*=/u.test(config))
-    throw new Error("Expected one hosted Windows profile and no existing default filter");
+    throw new Error("Expected one Windows execution profile and no existing default filter");
   // A config file avoids Windows' command-line length limit. All original overrides survive.
   return config.replace(header, `${header}\ndefault-filter = ${JSON.stringify(filter)}`);
 }
@@ -271,7 +344,11 @@ function currentContext() {
     throw new Error("Windows test transfer is a hosted Windows entrypoint");
   const plan = validateValidationPlan(readValidationPlanInput());
   const source = execute("git", ["rev-parse", "HEAD"]).trim();
-  if (source !== plan.identities.checkout || plan.mode !== "fast" || !plan.groups.includes("rust"))
+  if (
+    source !== plan.identities.checkout ||
+    !["fast", "qualification"].includes(plan.mode) ||
+    !plan.groups.includes("rust")
+  )
     throw new Error("Windows Rust transfer plan/source mismatch");
   const run = process.env.GITHUB_RUN_ID ?? "";
   const attempt = process.env.GITHUB_RUN_ATTEMPT ?? "";
@@ -293,6 +370,13 @@ function currentContext() {
         ".config/nextest.toml",
         ".config/rust-test-impact.json",
         ".github/quality-tools.json",
+        ...(plan.mode === "qualification"
+          ? [
+              "scripts/windows-rust-tests.mts",
+              "scripts/windows-qualification-rust.mts",
+              "scripts/fixtures/windows-qualification-selection.json",
+            ]
+          : []),
       ]
         .sort(ordered)
         .map((file) => [file, digest(readFileSync(path.join(root, file)))]),
@@ -336,7 +420,7 @@ export function runnableWindowsRustTests(inventory: unknown, { allowSkipped = fa
 
 function listTests(args: string[], allowSkipped = true) {
   return runnableWindowsRustTests(
-    JSON.parse(execute("cargo-nextest", ["nextest", "list", ...args, "--message-format", "json"])),
+    JSON.parse(execute("cargo-nextest", ["nextest", "list", ...nextestListArguments(args)])),
     { allowSkipped },
   );
 }
@@ -352,6 +436,7 @@ export function windowsPartitionOutcomeSelection(inventory: unknown, tests: read
 
 export function buildWindowsRustArchive() {
   const { plan, identity } = currentContext();
+  if (plan.mode === "qualification") return buildQualificationCoreArchive(identity);
   const metrics = createCiMetrics();
   mkdirSync(packetDirectory, { recursive: true });
   const binaries = path.join(packetDirectory, "binaries.json");
@@ -477,7 +562,8 @@ export function buildWindowsRustArchive() {
 }
 
 export function runWindowsRustPartition(partitionId: number) {
-  const { identity } = currentContext();
+  const { plan, identity } = currentContext();
+  if (plan.mode !== "fast") throw new Error("Ordinary Windows partitions require a fast plan");
   const metrics = createCiMetrics();
   const manifestFile = path.join(packetDirectory, "manifest.json");
   if (fileDigest(manifestFile) !== process.env.PORTCOVE_WINDOWS_MANIFEST_SHA256)
@@ -539,6 +625,173 @@ export function runWindowsRustPartition(partitionId: number) {
   if (result.status !== 0) throw new Error(`Nextest partition failed with status ${result.status}`);
 }
 
+const qualificationDirectory = path.join(root, "work", "windows-rust-qualification");
+
+function buildQualificationCoreArchive(identity: ArchiveIdentity) {
+  const metrics = createCiMetrics();
+  mkdirSync(qualificationDirectory, { recursive: true });
+  const binaries = path.join(qualificationDirectory, "binaries.json");
+  const cargo = path.join(qualificationDirectory, "cargo.json");
+  metrics.measure("qualification-core-build", () => {
+    writeFileSync(
+      binaries,
+      execute("cargo-nextest", [
+        "nextest",
+        "list",
+        ...qualificationCoreScope,
+        "--list-type",
+        "binaries-only",
+        "--message-format",
+        "json",
+      ]),
+      { flag: "wx" },
+    );
+    writeFileSync(cargo, execute("cargo", ["metadata", "--locked", "--format-version", "1"]), {
+      flag: "wx",
+    });
+  });
+  const metadata = [
+    "--binaries-metadata",
+    binaries,
+    "--cargo-metadata",
+    cargo,
+    "--profile",
+    qualificationCoreProfile,
+  ];
+  const snapshots = [binaries, cargo].map((file) => ({ file, sha256: fileDigest(file) }));
+  const verify = () => {
+    for (const { file, sha256 } of snapshots)
+      if (fileDigest(file) !== sha256) throw new Error("Qualification Core metadata changed");
+  };
+  const complete = listTests([...metadata, "-E", "all()"], false);
+  const workers: QualificationCoreWorkerInventory[] = [];
+  for (const worker of qualificationCoreWorkers()) {
+    const phases = [];
+    for (const phase of worker.phases) {
+      verify();
+      // The old executable argv is the independent selection oracle. These are
+      // warm Cargo freshness checks, with exactly the same Core build scope.
+      const original = metrics.measure(`qualification-original-${worker.name}-${phase.name}`, () =>
+        listTests([
+          ...phase.arguments.slice(0, qualificationCoreScope.length),
+          "--profile",
+          qualificationCoreProfile,
+          ...phase.arguments.slice(qualificationCoreScope.length),
+        ]),
+      );
+      const transferred = listTests([...metadata, ...reusedQualificationArguments(phase)]);
+      assertSameIdentities(transferred, [...original], `Original ${worker.name}/${phase.name}`);
+      if (!original.size) throw new Error(`Empty qualification phase ${worker.name}/${phase.name}`);
+      phases.push({ ...phase, tests: [...original].sort(ordered) });
+      verify();
+    }
+    workers.push({ name: worker.name, phases });
+  }
+  const archive = path.join(qualificationDirectory, "tests.tar.zst");
+  metrics.measure("qualification-core-archive", () =>
+    execute(
+      "cargo-nextest",
+      ["nextest", "archive", ...qualificationCoreScope, "--archive-file", archive],
+      false,
+    ),
+  );
+  verify();
+  const manifest: WindowsQualificationCoreManifest = {
+    format_version: 2,
+    identity,
+    profile: qualificationCoreProfile,
+    scope: [...qualificationCoreScope],
+    archive_sha256: fileDigest(archive),
+    complete: [...complete].sort(ordered),
+    workers,
+  };
+  validateWindowsQualificationCoreManifest(manifest, identity);
+  const bytes = `${JSON.stringify(manifest)}\n`;
+  writeFileSync(path.join(qualificationDirectory, "manifest.json"), bytes, { flag: "wx" });
+  if (!process.env.GITHUB_OUTPUT) throw new Error("Missing qualification producer output channel");
+  appendFileSync(process.env.GITHUB_OUTPUT, `manifest_sha256=${digest(bytes)}\n`);
+  metrics.record("qualification-core-selection", {
+    complete_tests: complete.size,
+    selected_tests: complete.size,
+  });
+  for (const worker of workers)
+    for (const phase of worker.phases)
+      console.log(
+        `[qualification-core] ${worker.name}/${phase.name}: ${phase.tests.length} selected tests`,
+      );
+}
+
+export function runWindowsQualificationCoreWorker(workerName: string) {
+  const { plan, identity } = currentContext();
+  if (plan.mode !== "qualification")
+    throw new Error("Qualification Core workers require a qualification plan");
+  const manifestFile = path.join(qualificationDirectory, "manifest.json");
+  if (fileDigest(manifestFile) !== process.env.PORTCOVE_WINDOWS_MANIFEST_SHA256)
+    throw new Error("Qualification Core manifest differs from this producer's output");
+  const manifest = validateWindowsQualificationCoreManifest(readJson(manifestFile), identity);
+  const worker = manifest.workers.find(({ name }) => name === workerName);
+  if (!worker) throw new Error("Unknown qualification Core worker");
+  const archive = path.join(qualificationDirectory, "tests.tar.zst");
+  if (fileDigest(archive) !== manifest.archive_sha256)
+    throw new Error("Qualification Core archive digest mismatch");
+  const metrics = createCiMetrics();
+  const extracted = path.join(root, "work", "windows-qualification-extracted");
+  mkdirSync(extracted, { recursive: true });
+  const complete = metrics.measure("qualification-core-extract-and-inventory", () =>
+    listTests(
+      [
+        "--archive-file",
+        archive,
+        "--extract-to",
+        extracted,
+        "--workspace-remap",
+        root,
+        "--profile",
+        qualificationCoreProfile,
+        "-E",
+        "all()",
+      ],
+      false,
+    ),
+  );
+  assertSameIdentities(complete, manifest.complete, "Transferred qualification Core");
+  const target = path.join(extracted, "target");
+  const metadata = [
+    "--binaries-metadata",
+    path.join(target, "nextest", "binaries-metadata.json"),
+    "--cargo-metadata",
+    path.join(target, "nextest", "cargo-metadata.json"),
+    "--target-dir-remap",
+    target,
+    "--workspace-remap",
+    root,
+    "--profile",
+    qualificationCoreProfile,
+  ];
+  for (const phase of worker.phases) {
+    const config = path.join(qualificationDirectory, `execute-${worker.name}-${phase.name}.toml`);
+    writeFileSync(
+      config,
+      windowsPartitionConfig(
+        readFileSync(path.join(root, ".config/nextest.toml"), "utf8"),
+        phase.tests,
+        qualificationCoreProfile,
+      ),
+      { flag: "wx" },
+    );
+    const args = [...metadata, "--config-file", config];
+    const inventory: unknown = JSON.parse(
+      execute("cargo-nextest", ["nextest", "list", ...nextestListArguments(args)]),
+    );
+    const selection = windowsPartitionOutcomeSelection(inventory, phase.tests);
+    const result = metrics.measure(`qualification-core-${worker.name}-${phase.name}`, () => ({
+      status: runNextestWithOutcomes(args, selection),
+    }));
+    if (result.status !== 0)
+      throw new Error(`Qualification Core phase failed with status ${result.status}`);
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const { resourceEntrypoint } = await import("./resource-command.mts");
@@ -550,7 +803,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         process.argv.length === 4
       )
         runWindowsRustPartition(Number(process.argv[3]));
-      else throw new Error("Use windows-rust-tests.mts build or run <partition>");
+      else if (process.argv[2] === "run-qualification" && process.argv.length === 4)
+        runWindowsQualificationCoreWorker(process.argv[3]!);
+      else
+        throw new Error(
+          "Use windows-rust-tests.mts build, run <partition> or run-qualification <worker>",
+        );
       return 0;
     });
   } catch (error) {

@@ -46,6 +46,7 @@ void test("beta Rust qualification skips only the inapplicable Intel jobs and re
     releaseProfile: "initial-beta-win-linux",
   });
   const results = {
+    qualification_core_archive: "success",
     rust_tests: "success",
     rust_workspace_tests: "success",
     rust_clippy: "success",
