@@ -1095,6 +1095,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   const observedCoreFilter = `package(portcove-core) & (${observedImportCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
   const observedCliFilter = `package(portcove-cli) & (${observedCapabilityCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
+  const linuxLifecycleFilter =
+    "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
@@ -1135,6 +1137,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
+      { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
@@ -1144,6 +1147,15 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       .map(outputIdentity)
       .sort(),
   );
+  const linuxLifecycle = overrideFor(linuxLifecycleFilter, "x86_64-unknown-linux-gnu");
+  assert.deepEqual(linuxLifecycle["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 18,
+    "grace-period": "0s",
+  });
+  assert.equal(linuxLifecycle["success-output"], "immediate");
+  for (const field of ["retries", "threads-required", "priority", "default-filter"])
+    assert.equal(linuxLifecycle[field], undefined);
   for (const [filter, periods] of [
     [observedCoreFilter, 18],
     [observedCliFilter, 12],
