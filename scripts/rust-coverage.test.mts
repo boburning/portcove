@@ -51,7 +51,8 @@ void test("Rust coverage refuses widened boundaries and mutable compiler channel
   assert.ok(commands[0]!.args.includes("--branch"));
   assert.ok(commands[1]!.args.includes("--test-threads=2"));
   assert.ok(!commands[0]!.args.includes("--no-clean"));
-  assert.ok(commands[1]!.args.includes("--no-clean"));
+  // Pinned cargo-llvm-cov makes --no-report imply no-clean and refuses both flags.
+  assert.ok(!commands[1]!.args.includes("--no-clean"));
   assert.deepEqual(
     commands.map(({ timeout_ms }) => timeout_ms),
     [1800000, 300000, 300000],

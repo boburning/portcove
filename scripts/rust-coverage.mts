@@ -97,7 +97,6 @@ export function rustCoverageCommands(pins: RustCoveragePins, directory: string) 
       args: [
         ...prefix,
         ...tests,
-        "--no-clean",
         pins.test_filter,
         "--",
         "--test-threads=2",
