@@ -430,6 +430,9 @@ public static class InertProbeWindow {
  public static int Calls;
  public static bool ShowWindow(IntPtr window,int command){if(window.ToInt64()!=42 || command!=(Calls++%2==0 ? 0 : 5))throw new Exception("Wrong own-window hide/show order");return false;}
  public static bool IsWindowVisible(IntPtr window){if(window.ToInt64()!=42)throw new Exception("Wrong visibility target");return Visible;}
+ public static int GetWindowLongW(IntPtr window,int index){if(index!=-16 || (window.ToInt64()!=42 && window.ToInt64()!=99))throw new Exception("Wrong own-window style target");return 0;}
+ public static IntPtr GetAncestor(IntPtr window,uint flags){if(window.ToInt64()!=42 || flags!=1)throw new Exception("Wrong ancestor target");return new IntPtr(99);}
+ public static IntPtr GetDesktopWindow(){return new IntPtr(99);}
 }
 '@
 $form=[pscustomobject]@{Handle=[IntPtr]42}

@@ -25,6 +25,9 @@ using System.Runtime.InteropServices;
 public static class InertProbeWindow {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] public static extern int GetWindowLongW(IntPtr window, int index);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr window, uint flags);
+    [DllImport("user32.dll")] public static extern IntPtr GetDesktopWindow();
 }
 '@
 $child = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') `
@@ -57,6 +60,12 @@ try {
     $form.Show()
     [void][InertProbeWindow]::ShowWindow($form.Handle, 0)
     [void][InertProbeWindow]::ShowWindow($form.Handle, 5)
+    $parent = [InertProbeWindow]::GetAncestor($form.Handle, 1)
+    $desktop = [InertProbeWindow]::GetDesktopWindow()
+    [Console]::Error.WriteLine(('inert-probe:window-state own={0}:{1:X8};parent={2}:{3:X8};desktop={4}:{5:X8}' -f
+        $form.Handle.ToInt64(), [InertProbeWindow]::GetWindowLongW($form.Handle, -16),
+        $parent.ToInt64(), [InertProbeWindow]::GetWindowLongW($parent, -16),
+        $desktop.ToInt64(), [InertProbeWindow]::GetWindowLongW($desktop, -16)))
     if (-not [InertProbeWindow]::IsWindowVisible($form.Handle)) { throw 'Inert own form remains hidden' }
     [Console]::Error.WriteLine('inert-probe:own-window-visible')
     [Windows.Forms.Application]::Run($form)
