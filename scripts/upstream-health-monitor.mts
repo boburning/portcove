@@ -576,7 +576,7 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
   if (incidents.length)
     lines.push(
       "",
-      `Exception visibility: ${triage.stale} stale, ${triage.partial} with partial collection, and ${triage.retained} not observed in this run among ${incidents.length} displayed conditions (categories overlap).`,
+      `Exception visibility: ${triage.stale} stale, ${triage.partial} with partial collection, and ${triage.retained} not observed in this run among ${incidents.length} non-routine conditions (categories overlap).`,
       "First/last clocks and occurrence counts reflect separate observations, not continuous downtime, trusted bytes, or an authorization to change an installation hold.",
     );
 

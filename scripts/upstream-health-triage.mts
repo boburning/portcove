@@ -87,13 +87,30 @@ export function observedSpan(
 }
 
 export function conditionEvidence(incident: HealthTriageCondition): string {
-  if (incident.freshness === "stale") return "Stale history; reobserve before deciding";
-  if (incident.latest_collection_status === "partial")
-    return "Partial collection; outcome not established";
-  if (!incident.observed_this_run) return "Retained fresh history; not checked in this run";
-  if (incident.accounted_for)
-    return (incident.classification ?? "").startsWith("provider-reported-")
-      ? "Provider metadata accounted for; destination and bytes unverified"
-      : "Reviewed exception scope; operation safety unassessed";
-  return "Unaccounted observation; investigate exact scope";
+  const coverage = incident.observed_this_run
+    ? "Observed this run"
+    : "Retained history; not checked in this run";
+  const freshness =
+    incident.freshness === "stale"
+      ? "Stale history; reobserve before deciding"
+      : "Fresh observation";
+  const collection =
+    incident.latest_collection_status === "partial"
+      ? "Partial collection; outcome not established"
+      : "Complete collection";
+  const evidence = [coverage, freshness, collection];
+  if (
+    incident.freshness === "stale" ||
+    incident.latest_collection_status === "partial" ||
+    !incident.observed_this_run
+  )
+    return evidence.join("; ");
+  evidence.push(
+    incident.accounted_for
+      ? (incident.classification ?? "").startsWith("provider-reported-")
+        ? "Provider metadata accounted for; destination and bytes unverified"
+        : "Reviewed exception scope; operation safety unassessed"
+      : "Unaccounted observation; investigate exact scope",
+  );
+  return evidence.join("; ");
 }

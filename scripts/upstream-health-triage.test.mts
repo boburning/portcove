@@ -91,3 +91,26 @@ void test("unrelated conditions are not mutated, deduplicated, or treated as pro
   assert.equal(grouped.ordered[1]?.occurrences, 8);
   assert.equal(grouped.retained, 1);
 });
+
+void test("each evidence row preserves coverage, freshness, and collection independently", () => {
+  for (const observed_this_run of [false, true]) {
+    for (const freshness of ["fresh", "stale"] as const) {
+      for (const latest_collection_status of ["complete", "partial"] as const) {
+        const evidence = conditionEvidence(
+          incident({ observed_this_run, freshness, latest_collection_status }),
+        );
+        assert.match(
+          evidence,
+          observed_this_run ? /Observed this run/u : /Retained history; not checked in this run/u,
+        );
+        assert.match(evidence, freshness === "stale" ? /Stale history/u : /Fresh observation/u);
+        assert.match(
+          evidence,
+          latest_collection_status === "partial"
+            ? /Partial collection; outcome not established/u
+            : /Complete collection/u,
+        );
+      }
+    }
+  }
+});
