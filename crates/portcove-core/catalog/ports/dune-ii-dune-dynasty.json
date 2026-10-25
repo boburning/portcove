@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dune-ii-dune-dynasty",
+    "name": "Dune II (Dune Dynasty)",
+    "summary": "Upstream route: Enhanced OpenDUNE-derived native engine with current Win/Linux/macOS releases. Limits: Enhanced OpenDUNE-derived engine with current desktop releases; EUv1.07 game data required. Upstream platforms: Windows/Linux/macOS release packages. README build jobs distinguish Windows x86/x86-64/ARM64 and macOS x86-64/ARM64; artifact CPU must follow selected release rather than CI badges. Original data: Requires EU v1.07 Dune II PAK files; separate project identity from OpenDUNE. Portcove setup/gameplay not verified.",
+    "original_game_title": "Dune II",
+    "project_url": "https://github.com/gameflorist/dunedynasty",
+    "issue_number": 2569,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gameflorist/dunedynasty",
+    "artwork": {
+      "game_id": 86,
+      "cover_id": 227952,
+      "image_id": "co4vw0",
+      "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
+      "game_slug": "dune-ii-the-building-of-a-dynasty",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dune-ii-dune-dynasty",
+    "origin": {
+      "project_url": "https://github.com/gameflorist/dunedynasty",
+      "repository": {
+        "host": "github.com",
+        "id": "627121863"
+      }
+    },
+    "decisions": []
+  }
+}

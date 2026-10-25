@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mother-3-mother-3-recomp",
+    "name": "MOTHER 3 (MOTHER 3 Recomp)",
+    "summary": "Upstream route: Separate BIOS/ROM/patch contracts; follows familiar GBA family. Limits: Released1.0.7 GBA route; BIOS/ROM and optional Japanese-ROM translation patch are separate inputs. Upstream platforms: Windows x86-64 ZIP, Linux x86-64/SteamDeck archive and Android APK; Android ABI unknown in frozen evidence. Original data: Own GBA BIOS and ROM; initial setup accepts translation patch for Japanese ROM. Portcove setup/gameplay not verified.",
+    "original_game_title": "MOTHER 3",
+    "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
+    "issue_number": 2596
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mother-3-mother-3-recomp",
+    "origin": {
+      "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1414469189"
+      }
+    },
+    "decisions": []
+  }
+}

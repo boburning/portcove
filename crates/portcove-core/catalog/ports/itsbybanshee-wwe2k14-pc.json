@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "itsbybanshee-wwe2k14-pc",
+    "name": "WWE 2K14 (WWE2K14-PC)",
+    "summary": "Upstream route: Upstream runtime package for WWE2K14-PC; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream advertises mods, graphics, logos, music and localization. Complete campaign and hardware coverage remain Unknown here. Windows launcher runtime with mods; upstream localization/features claims do not prove full campaign. Keep optional original music/logos/DLC data separate. Upstream platforms: Windows player package/launcher documented. Other OS/CPU routes Unknown beyond selected upstream documentation. Original data: Xbox 360 WWE 2K14 own ISO/extracted folder. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "WWE 2K14",
+    "project_url": "https://github.com/itsbybanshee/wwe2k14-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/itsbybanshee/wwe2k14-pc",
+    "artwork": {
+      "game_id": 5297,
+      "cover_id": 129483,
+      "image_id": "co2rwr",
+      "image_sha256": "3b0748c7ef37ddf198ce6a7d5e8c7319870568e66b88a1db5320be70193e7877",
+      "game_slug": "wwe-2k14",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2750
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "itsbybanshee-wwe2k14-pc",
+    "origin": {
+      "project_url": "https://github.com/itsbybanshee/wwe2k14-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1422315468"
+      }
+    },
+    "decisions": []
+  }
+}

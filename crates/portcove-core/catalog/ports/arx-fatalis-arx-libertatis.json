@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "arx-fatalis-arx-libertatis",
+    "name": "Arx Fatalis (Arx Libertatis)",
+    "summary": "Upstream route: Cross-platform source port with Windows/Linux release packages and documented data paths. Limits: Established Arx Fatalis source-port route; exact data case/config/save behavior remains integration work. Upstream platforms: Windows/Linux official release packages and macOS source route; exact selected package architectures are unknown in frozen research. Original data: Original Arx Fatalis data; assess case normalization and config/save paths. Portcove setup/gameplay not verified.",
+    "original_game_title": "Arx Fatalis",
+    "project_url": "https://github.com/arx/ArxLibertatis",
+    "issue_number": 2554,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/arx/ArxLibertatis",
+    "artwork": {
+      "game_id": 602,
+      "cover_id": 139597,
+      "image_id": "co2zpp",
+      "image_sha256": "cfaa293da985e2010ca7a1b8c62eb0a6647a6af9b83379396f6b21d5f412b33b",
+      "game_slug": "arx-fatalis",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "arx-fatalis-arx-libertatis",
+    "origin": {
+      "project_url": "https://github.com/arx/ArxLibertatis",
+      "repository": {
+        "host": "github.com",
+        "id": "1261922"
+      }
+    },
+    "decisions": []
+  }
+}

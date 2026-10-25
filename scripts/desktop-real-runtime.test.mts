@@ -7,6 +7,7 @@ import { writeFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { parseRealRuntimeInput, runtimeMutable } from "./desktop-real-runtime-inputs.mts";
+import { isRecord } from "./runtime-values.mts";
 
 void test("real runtime restarts retain distinct exclusive driver launch receipts", async (t) => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-runtime-launch-"));
@@ -30,6 +31,7 @@ void test("real runtime restarts retain distinct exclusive driver launch receipt
       return value;
     },
     driver: { pid: 101 },
+    driverStartupSequence: 0,
     driverPath,
     output,
     artifacts,
@@ -57,16 +59,45 @@ void test("real runtime restarts retain distinct exclusive driver launch receipt
     `${stripTypeScriptTypes(source.slice(start, end))}; captureBackupFocusDriverLaunch`,
     context,
   ) as (started: number) => void;
-  for (const pid of [101, 202, 303]) {
+  const launchedPids = [101, 202, 303, 101];
+  for (const pid of launchedPids) {
     context.driver = { pid };
     capture(now);
   }
-  assert.equal(new Set(artifacts).size, 3);
+  assert.equal(new Set(artifacts).size, 4);
   assert.deepEqual(
     artifacts.map((file) => path.basename(file)),
-    [101, 202, 303].map((pid) => `real-prepared-runtime-driver-startup-${pid}.json`),
+    launchedPids.map(
+      (pid, index) => `real-prepared-runtime-driver-startup-${index + 1}-${pid}.json`,
+    ),
   );
+  const originalBytes = await Promise.all(artifacts.map((file) => readFile(file, "utf8")));
+  assert.deepEqual(
+    originalBytes.map((bytes) => {
+      const value: unknown = JSON.parse(bytes);
+      assert.ok(isRecord(value) && isRecord(value.driver));
+      return value.driver.pid;
+    }),
+    launchedPids,
+  );
+  const originalArtifacts = [...artifacts],
+    originalDriver = ownedSession.driver;
+  assert.deepEqual(originalDriver, {
+    pid: 101,
+    path: driverPath,
+    started_filetime: String((BigInt(now) + 11_644_473_600_000n) * 10_000n),
+  });
+  // Deliberately replay a previously used sequence/PID to retain the exclusive
+  // write refusal, independently of a legitimate later launch reusing a PID.
+  context.driverStartupSequence = 2;
+  context.driver = { pid: 303 };
   assert.throws(() => capture(now), { code: "EEXIST" });
+  assert.deepEqual(artifacts, originalArtifacts);
+  assert.equal(ownedSession.driver, originalDriver);
+  assert.deepEqual(
+    await Promise.all(artifacts.map((file) => readFile(file, "utf8"))),
+    originalBytes,
+  );
 });
 
 void test("real runtime review waits for the actual visible enabled action after preview", async () => {

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pokemon-blue-gen1recomp",
+    "name": "Pokémon Blue (Gen1Recomp / G1R Deluxe)",
+    "summary": "Research listing. Upstream route: Use upstream ROM import and player-prepared native runtime; game-specific integration remains research. Red #98 scope is separate. Limits: current upstream target; no inherited Red qualification or managed update/save ownership. Upstream platforms: The shared engine documents Windows x64, Linux x64, and macOS Intel/Apple Silicon host routes. Compatibility of current packages with this additional game remains research and is not inherited from the Red #98 qualification. Original data: Own canonical US English Blue ROM; exact accepted revisions and SHA-1 are listed in current upstream README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Pokémon Blue",
+    "project_url": "https://github.com/bryanthaboi/gen1recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+    "issue_number": 2866
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-blue-gen1recomp",
+    "origin": {
+      "project_url": "https://github.com/bryanthaboi/gen1recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1304486109"
+      }
+    },
+    "decisions": []
+  }
+}

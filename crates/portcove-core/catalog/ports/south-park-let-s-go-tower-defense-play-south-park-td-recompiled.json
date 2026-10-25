@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "south-park-let-s-go-tower-defense-play-south-park-td-recompiled",
+    "name": "South Park: Let's Go Tower Defense Play! (South Park TD Recompiled)",
+    "summary": "Upstream route: Windows ZIP and Linux AppImage Limits: Independent game/identity from Tenorman's Revenge even though same author/runtime. Upstream platforms: Windows x86-64 ZIP and native Linux x86-64 AppImage, Vulkan on Linux. Upstream updater owns runtime replacement. Original data: Own South Park: Let's Go Tower Defense Play! XBLA package, title 58410931. Its default.xex must be version 0.0.1.2 (2009-09-09), 8,499,200 bytes, SHA-1 6847374F5B8D1C1374AB08D08C81665168060E22. Upstream checks title and executable; owner-specific STFS package hashes differ. Portcove setup/gameplay not verified.",
+    "original_game_title": "South Park: Let's Go Tower Defense Play!",
+    "project_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
+    "issue_number": 2709
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "south-park-let-s-go-tower-defense-play-south-park-td-recompiled",
+    "origin": {
+      "project_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1422926710"
+      }
+    },
+    "decisions": []
+  }
+}

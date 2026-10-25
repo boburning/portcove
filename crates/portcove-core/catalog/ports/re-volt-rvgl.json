@@ -1,0 +1,22 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "re-volt-rvgl",
+    "name": "Re-Volt (RVGL)",
+    "summary": "Upstream route: Official project describes native cross-platform rewrite; patch-only desktop downloads available, version 23.1030a1. Windows/macOS setup, Windows/Linux portable, Android packages. Limits: Use original Re-Volt data with patch-only package; separately review any bundled full-game assets. Launcher is not the port identity. Website version is observed, not a claim of recent updates.  separately review any... Upstream platforms: Official patch-only Windows x86/32-bit and x86-64 installers/portable packages, macOS setup and Linux portable. Mac/Linux package CPU variants unknown in frozen page; Android is separate. Original data: Use original Re-Volt data with patch-only package; separately review any bundled full-game assets. Launcher is not the port identity. Website version is observed, not a claim of recent updates. Portcove setup/gameplay not verified.",
+    "original_game_title": "Re-Volt",
+    "project_url": "https://rvgl.org/",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://rvgl.org/",
+    "artwork": {
+      "game_id": 3585,
+      "cover_id": 76545,
+      "image_id": "co1n29",
+      "image_sha256": "ca944fd77d7105f4d3703ac719814dfaa93ac05ff2577aca4e21500400198fb1",
+      "game_slug": "re-volt",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2705
+  }
+}

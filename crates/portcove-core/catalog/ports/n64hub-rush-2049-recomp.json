@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-rush-2049-recomp",
+    "name": "San Francisco Rush 2049 (San Francisco Rush 2049: Recompiled)",
+    "summary": "Upstream route: Upstream runtime package for San Francisco Rush 2049: Recompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports Windows race/ghost/stunt/battle modes. Full hardware/game coverage unverified; N64 edition differs from ProjectR arcade. Upstream playableWindows multiple race modes; Windows/Linuxx64 packages and web route. Avoid arcade/Dreamcast edition conflation; preserve Linux-specific test limits. Upstream platforms: Windows/Linux x86-64 and WebGPU browser. Desktop RT64 route; Linux-specific limits retained. Original data: N64 SanFranciscoRush2049 own supported ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "San Francisco Rush 2049",
+    "project_url": "https://github.com/n64hub/rush-2049-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/n64hub/rush-2049-recomp",
+    "issue_number": 2838
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "n64hub-rush-2049-recomp",
+    "origin": {
+      "project_url": "https://github.com/n64hub/rush-2049-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1412821778"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "abilliontokens-sims2-recomp",
+    "name": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
+    "summary": "Upstream route: Upstream runtime package for The Sims 2 - Static Recompilation; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports live gameplay on Windows/Linux. Frame-rate/resolution measurements unpublished; full-game completion not established here. Upstream boots to live gameplay Windows/Linux; frame-rate/resolution measurements not published and full game not qualified. Distinct from desktop Sims 2. Upstream platforms: Windows D3D12 and Linux Vulkan native routes. Exact release architecture should follow selected package documentation. Original data: Original Xbox The Sims 2 USA own exact disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Sims 2",
+    "project_url": "https://github.com/abilliontokens/sims2-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/abilliontokens/sims2-recomp",
+    "issue_number": 2752
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "abilliontokens-sims2-recomp",
+    "origin": {
+      "project_url": "https://github.com/abilliontokens/sims2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425022829"
+      }
+    },
+    "decisions": []
+  }
+}

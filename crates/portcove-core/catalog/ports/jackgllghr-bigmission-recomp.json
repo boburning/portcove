@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jackgllghr-bigmission-recomp",
+    "name": "Saru Get You: Saru Saru Daisakusen (Ape Escape Mind Over Monkey)",
+    "summary": "Upstream route: Upstream SaruSaru launcher/profile builds game locally from compatibleUCJS10060ISO; source profile needsCMake/Ninja/Python/compiler. RootREADME/release later claim more working platforms than profile; preserve mismatch and do not infer Androidinstallation from APKexistence. Limits: Upstream only: Profile reports early macOS boot/audio and Linux ARM64 start, Windows cross-build. Later README/releases claim wider function; mismatch is not coverage proof. Windows/macOSARM64/LinuxARM64+x64/Android assets; PSPRecomp provides no decryption. Optional interpreter outside translated coverage; inspect game-specific profile, not framework claims alone. Upstream platforms: macOS ARM64, Linux x86-64/ARM64, Windows x86-64 and Android ARM64 launcher/build docs; Android install status conflicts across docs. Original data: Own PSP SaruGetYouSaruSaruDaisakusen Japan UCJS10060v1.00 compatible ISO. Profile documents local launcher compilation and does not supply decryption. Exact ISO hash Unknown here. Profile says no published release/Android install unavailable, contradicting observed releases/rootREADME: treat those maturity/platform lines as stale, not Android readiness proof. Portcove setup/gameplay not verified.",
+    "original_game_title": "Saru Get You: Saru Saru Daisakusen",
+    "project_url": "https://github.com/jackgllghr/bigmission-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jackgllghr/bigmission-recomp",
+    "issue_number": 2805
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jackgllghr-bigmission-recomp",
+    "origin": {
+      "project_url": "https://github.com/jackgllghr/bigmission-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421083635"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "final-fantasy-tactics-advance-fftarecomp",
+    "name": "Final Fantasy Tactics Advance (FFTARecomp)",
+    "summary": "Upstream route: Windows/Linux/Steam Deck installer packages plus Android APK; owned-ROM compilation Limits: Work in progress with useful native player route; ROM-region documentation is inconsistent between installation and release notes. Upstream platforms: Windows x86-64 and Linux x86-64/SteamDeck setup archives; Android APK also observed, APK ABI unknown in frozen research. Original data: Own GBA ROM; v3 notes add Europe although installation section still says USA Portcove setup/gameplay not verified.",
+    "original_game_title": "Final Fantasy Tactics Advance",
+    "project_url": "https://github.com/Jorge262007/FFTARecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Jorge262007/FFTARecomp",
+    "artwork": {
+      "game_id": 414,
+      "cover_id": 524147,
+      "image_id": "cob8fn",
+      "image_sha256": "0f5ee5a926888d3a7adce4e37f40a14c8123e354844dbf0e3832e0aa048e1f00",
+      "game_slug": "final-fantasy-tactics-advance",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2575
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "final-fantasy-tactics-advance-fftarecomp",
+    "origin": {
+      "project_url": "https://github.com/Jorge262007/FFTARecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1412590842"
+      }
+    },
+    "decisions": []
+  }
+}

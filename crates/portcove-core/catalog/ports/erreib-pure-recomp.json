@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "erreib-pure-recomp",
+    "name": "Wipeout Pure (pure-recomp)",
+    "summary": "Upstream route: Upstream local setup/runtime package for pure-recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes the PSP static port and graphics enhancements. Exact US Greatest Hits v2.00 gate remains mandatory; full playthrough unverified here. Rejects other editions. macOS ARM64/Windows x64 packages; preserve version gate and Metal/Vulkan requirements, not generic Wipeout Pure ROM support. Upstream platforms: macOS Apple Silicon/Metal and Windows x64/Vulkan. Native Linux and Intel Mac routes not established. Original data: Own WipeoutPure PSP US GreatestHits UCUS98612v2.00 disc image. Setup refuses other editions. Original US DLC packs are optional player files. Exact executable hashes and any firmware requirements beyond these remain Unknown here. Portcove setup/gameplay not verified.",
+    "original_game_title": "Wipeout Pure",
+    "project_url": "https://github.com/erreib/pure-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/erreib/pure-recomp",
+    "artwork": {
+      "game_id": 1542,
+      "cover_id": 200876,
+      "image_id": "co4azw",
+      "image_sha256": "5668b07cf7f839b7a228b638e0166568228183387bddc656676b4ba8bb3ba308",
+      "game_slug": "wipeout-pure",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2749
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "erreib-pure-recomp",
+    "origin": {
+      "project_url": "https://github.com/erreib/pure-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417745344"
+      }
+    },
+    "decisions": []
+  }
+}

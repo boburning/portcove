@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crackdown-crackdown-recompiled",
+    "name": "Crackdown (Crackdown Recompiled)",
+    "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Official launcher/setup expects own Xbox 360 files. Decide one update owner if launcher continues updating. Upstream platforms: Windows x86-64 ZIP; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+, Vulkan. Linux has no broad real-hardware validation claim. Original data: Own original, unupdated Crackdown Xbox 360 retail disc, title 4D5307DC, as ISO or extracted folder. Default.xex must be 14,270,464 bytes with SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Upstream launcher verifies executable and required files; $SystemUpdate is unnecessary. Portcove setup/gameplay not verified.",
+    "original_game_title": "Crackdown",
+    "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
+    "issue_number": 2559,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crackdown-crackdown-recompiled",
+    "origin": {
+      "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1414943107"
+      }
+    },
+    "decisions": []
+  }
+}

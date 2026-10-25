@@ -313,6 +313,26 @@ whole-port health hash controls freshness and scheduling; per-location contracts
 control incident continuity, so a platform change can trigger a new probe without
 resetting an unchanged endpoint incident.
 
+The workflow summary separates fresh, complete routine provider-metadata
+conditions (quiet but retained in JSON) from stale and partial conditions that
+still need evidence. It prioritizes changed conditions and unaccounted failures
+before stale and partial acknowledged history, and includes each visible port/provider/location, applicable release
+reference, failed rule and HTTP status, metadata assessment, first and last
+observation clocks, occurrence count, observed time span, collection freshness,
+retry clock and existing resume condition. Occurrences count distinct matching
+observations; their time span is **not** uninterrupted outage time. A condition
+not selected in the current batch remains explicitly retained rather than
+freshly verified. The human summary is capped at 20 rows; the complete bounded
+JSON report remains the diagnostic record. Stale accepted-provider conditions
+cannot be silently hidden by a prior metadata-accounting result.
+
+This is presentation-only triage of location observations. It does not infer
+an affected platform/variant when none was measured, available fallback,
+expected-version-vs-same-identity byte replacement, installation safety or an
+authorized hold/recovery decision. Those require their existing exact artifact,
+Core operation, acceptance and protected policy authorities. Metadata-only
+success or recovery is not verified client download or gameplay qualification.
+
 Per-observation hashes allow unrelated catalog edits to retain comparison history.
 Prior numeric repository identity remains a comparison baseline, including after
 its freshness window; it never authenticates ownership or continuity. The

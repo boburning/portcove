@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
+    "name": "Daytona USA (Sega Model 2 arcade) (Daytona USA static recompilation)",
+    "summary": "Upstream route: Source setup builds locally from own ROM set on Windows/macOS/Linux; no GitHub releases. Limits: Playable desktop routes; experimental hardware renderer/link play/wheels. Android/iOS/Vita documented, Dreamcast only tested in Flycast. Setup installs toolchains/dependencies (Windows VS C++/Clang, mac Homebrew, Linux packages); updates require pulling and rerunning generation. Main builds have CI compile coverage, not a proof of runtime playthrough. Distinguish original arcade title from Daytona Championship USA or other console ports.... Upstream platforms: Documented local source-build route for Windows/macOS/Linux; no GitHub release package. Windows compiler/Clang and macOS/Linux toolchain setup required; selected host CPU coverage not mapped in frozen evidence. Original data: User-owned daytona93 (Deluxe93) or daytona (Revision A1994) MAME-format zip/7z; other sets rejected. Both generated privately. Portcove setup/gameplay not verified.",
+    "original_game_title": "Daytona USA (Sega Model 2 arcade)",
+    "project_url": "https://github.com/alphanu1/daytona-arcade-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alphanu1/daytona-arcade-recomp",
+    "issue_number": 2651
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
+    "origin": {
+      "project_url": "https://github.com/alphanu1/daytona-arcade-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1386131103"
+      }
+    },
+    "decisions": []
+  }
+}

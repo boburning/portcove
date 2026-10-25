@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "clergyman0013-arizona-vamp-recomp",
+    "name": "Darkwatch (Arizona Vamp Recomp)",
+    "summary": "Upstream route: Upstream ZIP includes Darkwatch.exe setup/runtime. First start builds game code locally from own Xbox copy with progress; source build documented separately and maytake30-90minutes. Upstream owns generated runtime/preparation. Limits: Upstream only: Beta with upstream co-op and modern-settings claims. Initial local compilation may take 30-90 minutes; complete-game and multiplayer behavior unverified here. Distinct Arizona Vamp implementation from Darker Edition; first start builds native code locally; beta and online/co-op claims need independent scope checks. Upstream platforms: Windows x86-64 D3D12/XAudio2; Visual Studio/Git source-build route. Other hosts not established. Original data: Original Xbox Darkwatch own supported disc/extracted data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Darkwatch",
+    "project_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
+    "issue_number": 2740
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "clergyman0013-arizona-vamp-recomp",
+    "origin": {
+      "project_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427146148"
+      }
+    },
+    "decisions": []
+  }
+}

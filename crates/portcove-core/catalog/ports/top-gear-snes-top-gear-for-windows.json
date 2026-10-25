@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "top-gear-snes-top-gear-for-windows",
+    "name": "Top Gear (SNES) (Top Gear for Windows)",
+    "summary": "Research listing. Upstream route: Windows/Linux package; partial native conversion Limits: Partial native conversion: translated races, emulated menus/routines. Linux experimentally untested on real machines. Upstream platforms: Windows x86-64 ZIP and experimental Linux x86-64 tar.gz. Linux build untested on real machines upstream; native races retain emulated menus/routines. Original data: Own unmodified Top Gear USA SNES ROM, 524,288 bytes after optional 512-byte copier-header removal, SHA-256 ca9889f17f184b3d99a2eaaa82af73e366f03ed00313fdd369e5e023b208e788. Select it in topgear-launcher or supply it beside/topgear executable; original graphics/audio remain read from that ROM. Portcove setup/gameplay not verified.",
+    "original_game_title": "Top Gear (SNES)",
+    "project_url": "https://github.com/thebradshaw/topgear-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/thebradshaw/topgear-pc",
+    "artwork": {
+      "game_id": 27461,
+      "cover_id": 284685,
+      "image_id": "co63nx",
+      "image_sha256": "7a542aadf6995275f19a6eeaa0b887b27618e1d374cdfc1518e690817afdc8bb",
+      "game_slug": "top-gear",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2905
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "top-gear-snes-top-gear-for-windows",
+    "origin": {
+      "project_url": "https://github.com/thebradshaw/topgear-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1421354556"
+      }
+    },
+    "decisions": []
+  }
+}

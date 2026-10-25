@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tgp482-scda-xberecomp",
+    "name": "Tom Clancy's Splinter Cell: Double Agent (SCDA-XBERecomp)",
+    "summary": "Upstream route: Upstream Windows ZIP+SCDA.exe first start compiles game code locally fromownoriginalXboxfiles. Subsequentlaunches reuse build; source build.bat withVisualStudio is separate development path. Upstream owns runtime and network setup. Limits: Upstream only: Original Xbox DoubleAgent gameplay/network claims upstream. Multiplayer hosting needs port forwarding; PC/Xbox360 editions are not interchangeable. Distinct from PC/Xbox360 version; native64bitWindowsD3D12 package. Multiplayer host port forwarding and controller/save requirements retained; no qualification inferred. Upstream platforms: 64-bit Windows D3D12/XAudio2; first-start compiler and VisualStudio source route. Native Linux/macOS not established. Original data: OriginalXbox SplinterCellDoubleAgent own game files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Tom Clancy's Splinter Cell: Double Agent",
+    "project_url": "https://github.com/TGP482/SCDA-XBERecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TGP482/SCDA-XBERecomp",
+    "issue_number": 2832
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tgp482-scda-xberecomp",
+    "origin": {
+      "project_url": "https://github.com/TGP482/SCDA-XBERecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1390360206"
+      }
+    },
+    "decisions": []
+  }
+}

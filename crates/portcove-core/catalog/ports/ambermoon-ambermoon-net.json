@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ambermoon-ambermoon-net",
+    "name": "Ambermoon (Ambermoon.net)",
+    "summary": "Upstream route: C# native rewrite with current Win/Linux/macOS packages. Limits: Review exact supported data and any bundled-asset rights separately from engine license. Upstream platforms: Windows/Linux packages (CPU unknown in frozen evidence); separate macOS64-bit Intel x86-64 and Apple-Silicon ARM64 downloads. Original data: Review exact supported data and any bundled-asset rights separately from engine license. Portcove setup/gameplay not verified.",
+    "original_game_title": "Ambermoon",
+    "project_url": "https://github.com/Pyrdacor/Ambermoon.net",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Pyrdacor/Ambermoon.net",
+    "artwork": {
+      "game_id": 11897,
+      "cover_id": 492928,
+      "image_id": "coakcg",
+      "image_sha256": "5c813a9917212ac96d63668955ee9ac402c1f2bfba98aa6398b6be73c20341c5",
+      "game_slug": "ambermoon",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2625
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ambermoon-ambermoon-net",
+    "origin": {
+      "project_url": "https://github.com/Pyrdacor/Ambermoon.net",
+      "repository": {
+        "host": "github.com",
+        "id": "273563386"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fallout-fallout-community-edition",
+    "name": "Fallout (Fallout Community Edition)",
+    "summary": "Upstream route: Upstream calls it fully working; downloadable Windows/Linux/macOS builds. Limits: Upstream calls Fallout Community Edition fully working; original game data required and general mod compatibility not implied. Upstream platforms: Windows/Linux/macOS runtime packages; native Intel and Apple-Silicon macOS documented. Windows/Linux selected package CPU architectures unknown in frozen research. Original data: Owned original Fallout installation; do not imply base-game mods all work. Portcove setup/gameplay not verified.",
+    "original_game_title": "Fallout",
+    "project_url": "https://github.com/alexbatalov/fallout1-ce",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexbatalov/fallout1-ce",
+    "artwork": {
+      "game_id": 13,
+      "cover_id": 91139,
+      "image_id": "co1ybn",
+      "image_sha256": "b16ff3e6dafa9c626cc48e73a88fe7d3d9d6e1500eb1991960b61f309637208f",
+      "game_slug": "fallout-a-post-nuclear-role-playing-game",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2573
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fallout-fallout-community-edition",
+    "origin": {
+      "project_url": "https://github.com/alexbatalov/fallout1-ce",
+      "repository": {
+        "host": "github.com",
+        "id": "599573253"
+      }
+    },
+    "decisions": []
+  }
+}

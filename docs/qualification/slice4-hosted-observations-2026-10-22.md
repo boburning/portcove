@@ -859,3 +859,25 @@ bundle exports and still rejects every nonbuiltin chunk import. The synthetic
 fixture includes separate acyclic and cyclic dynamic imports plus exported entry
 bindings. The actual worker build remains the decisive verification; these edits
 alone do not establish a passing build.
+
+Source `72ad4b428c7803c8560e253a24b2f6cec0ca8915` still failed actual packaging
+in tool fixture `40147102815/a1`; its observed combined checkout was
+`980c8f811cf424db3161f16a57bea9aab95db901`, tree
+`f54390dfa3698c28483c1a0bc36474425b243c3b`, with exact parents
+`20fe75c10a8ecc478bee21c144ed6f0801e8dd73` and that candidate. Ordinary CI
+`40147102798/a1` retained the worker facade refusal and a separate main-branch
+omission: the new upstream-health triage test lacked required suite membership.
+The real file/PID handoff passed again (10.73 seconds). Neither option experiment
+is credited as successful packaging.
+
+The graph repair makes recovery's four coordinator-state imports static. State
+initialization is inert and these exports are function declarations; existing
+operation deadline checks stay unchanged. Read-only tracing of the maintained
+bare launchers (tool launch, job bootstrap/output and diagnostics), admission CLI
+and native bootstrap found no recovery edge or external package dependency, so
+that source-only boundary remains intact. Actual isolated source-launcher and
+worker packaging verification is still required. The reviewed main changes are
+composed with both independent ordinary-validation mappings preserved; the
+missing health-triage test is registered in both required catalog and local
+repository-tool suites. No admission, spending, credential or execution authority
+changes with these repairs.

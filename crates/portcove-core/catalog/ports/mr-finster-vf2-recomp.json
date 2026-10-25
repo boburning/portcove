@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mr-finster-vf2-recomp",
+    "name": "Virtua Fighter 2 (Virtua Fighter 2 Recomp)",
+    "summary": "Upstream route: Upstream runtime package for Virtua Fighter 2 Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Bounded lockstep/frame/picture checks upstream. Online not yet; these checks do not establish full hardware/gameplay qualification. Only i960 CPU recompiled; Model2A board/TGP hardware still emulated. Windows/macOS/Deck packages; online not yet, independent from VF1/VF3. Upstream platforms: Windows/macOS/Steam Deck package family. i960 native compilation plus Model2A/TGP hardware model; exact Mac CPU follows docs. Original data: ArcadeModel2 VirtuaFighter2 MAME vf2.zip v2.1 own set. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Virtua Fighter 2",
+    "project_url": "https://github.com/mr-finster/vf2-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mr-finster/vf2-recomp",
+    "issue_number": 2834
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mr-finster-vf2-recomp",
+    "origin": {
+      "project_url": "https://github.com/mr-finster/vf2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1413086989"
+      }
+    },
+    "decisions": []
+  }
+}

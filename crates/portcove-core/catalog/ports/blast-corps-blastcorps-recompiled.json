@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blast-corps-blastcorps-recompiled",
+    "name": "Blast Corps (BlastCorps: Recompiled)",
+    "summary": "Upstream route: Official 1.0.0 packages: Windows ZIP, Linux Flatpak ZIP, macOS ZIP; ROM selection at launch. Limits: Packaged1.0.0 release; upstream native route established, gameplay untested by Portcove. Upstream platforms: Windows ZIP, Linux binary/Flatpak ZIP and macOS ZIP. macOS supports Apple Silicon and Intel requirements; selected Windows/Linux archive architectures unknown in frozen release research. Original data: Owned North American revision 1.1 ROM. Game assets are not bundled. Portcove setup/gameplay not verified.",
+    "original_game_title": "Blast Corps",
+    "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
+    "issue_number": 2558,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
+    "artwork": {
+      "game_id": 3424,
+      "cover_id": 104010,
+      "image_id": "co2896",
+      "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
+      "game_slug": "blast-corps",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blast-corps-blastcorps-recompiled",
+    "origin": {
+      "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1364126685"
+      }
+    },
+    "decisions": []
+  }
+}

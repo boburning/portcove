@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "serious-sam-the-first-encounter-serioussamclassic",
+    "name": "Serious Sam: The First Encounter (SeriousSamClassic)",
+    "summary": "Upstream route: Desktop source port with many Windows/Linux/macOS packages and original-data setup. Limits: Established native First/Second Encounter source-port route; two game identities share engine. Upstream platforms: Windows/Linux/macOS packages/builds. README CI lists x86/x86-64/ARMv7/AArch64 and other targets across OSs; no per-package CPU mapping established in frozen audit. Original data: Separate First and Second Encounter games; all original content directories needed. Portcove setup/gameplay not verified.",
+    "original_game_title": "Serious Sam: The First Encounter",
+    "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tx00100xt/SeriousSamClassic",
+    "artwork": {
+      "game_id": 857,
+      "cover_id": 357176,
+      "image_id": "co7nlk",
+      "image_sha256": "05f1023e2025fadb5dd10531a82868a279b23b5ef254d54c1ffd32badf61af61",
+      "game_slug": "serious-sam-the-first-encounter",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2605
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "serious-sam-the-first-encounter-serioussamclassic",
+    "origin": {
+      "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
+      "repository": {
+        "host": "github.com",
+        "id": "490742641"
+      }
+    },
+    "decisions": []
+  }
+}

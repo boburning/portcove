@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "iron-jay-banjo-tooie-xbla-recomp",
+    "name": "Banjo-Tooie — XBLA (Banjo Tooie XBLA Recomp)",
+    "summary": "Upstream route: Upstream publishes Windows/Linuxbaregameexecutables, not archive-only bundles; follow documented adjacentruntime/data layout using ownXBLAfiles. SourceClang/CMake/Ninjabuild separate. Upstream owns runtime updates; noN64ROMroute. Limits: Upstream only: Upstream end-to-end XBLA playability claim. No N64 ROM; no Portcove campaign/platform test. Package/dependency layout must follow upstream guide. Windows/Linux executable assets without archive, preserve required adjacent runtime libraries/data and source Clang20 build. Upstream end-to-end claim separate from Portcove. Upstream platforms: Native Windows/Linux/Steam Deck x86-64; CMake3.25/Clang20 source route. Bare executables need documented adjacent files. Original data: Xbox360 XBLA BanjoTooie own package/data; no N64 ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Banjo-Tooie",
+    "project_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
+    "issue_number": 2860
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "iron-jay-banjo-tooie-xbla-recomp",
+    "origin": {
+      "project_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1316626847"
+      }
+    },
+    "decisions": []
+  }
+}

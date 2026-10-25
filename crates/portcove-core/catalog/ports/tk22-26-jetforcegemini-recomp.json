@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tk22-26-jetforcegemini-recomp",
+    "name": "Jet Force Gemini (Jet Force Gemini Recomp)",
+    "summary": "Upstream route: Upstream runtime package for Jet Force Gemini Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims complete fully playable campaign. No Portcove playthrough, physical controls/audio or original-multiplayer qualification here. Upstream claims full campaign v1.4, prebuilt runtime needs no developer compilation. Original multiplayer scope and this claim remain upstream evidence, not tested here. Upstream platforms: Windows x64 prebuilt runtime. ROM import requires no developer tools or player compilation. Original data: N64 JetForceGemini supported USA big-endian z64 own ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Jet Force Gemini",
+    "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
+    "issue_number": 2835
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tk22-26-jetforcegemini-recomp",
+    "origin": {
+      "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1400546281"
+      }
+    },
+    "decisions": []
+  }
+}

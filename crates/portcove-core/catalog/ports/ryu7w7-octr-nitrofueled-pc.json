@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ryu7w7-octr-nitrofueled-pc",
+    "name": "Crash Team Racing Nitro-Fueled (OCTR: Online CTR Nitro-Fueled PC)",
+    "summary": "Upstream route: Upstream runtime package for OCTR: Online CTR Nitro-Fueled PC; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream playable menus/races/audio/controllers/saves and community online. Full campaign/online/GPU qualification unverified here. Online fork of GetLostIn Windows fork of SacredFire; resolve existing parent canonical implementation plus meaningful maintained online branch before creating identity. Windows/Linux package, same source requirements. Upstream platforms: Windows 10/11 and Linux PS4 layer; portable ZIP/AppImage. Direct x86-64 execution explicitly documented. Original data: PS4 CTRNitroFueled CUSA13795 v1.21 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Crash Team Racing Nitro-Fueled",
+    "project_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
+    "artwork": {
+      "game_id": 113113,
+      "cover_id": 135934,
+      "image_id": "co2wvy",
+      "image_sha256": "dc3e0199d93b20f39ad8e6f7656f1efb7d0ebbb94fab91832b3ff5a3a70ce631",
+      "game_slug": "crash-team-racing-nitro-fueled",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2819
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ryu7w7-octr-nitrofueled-pc",
+    "origin": {
+      "project_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1417755669"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "potiondweller-azure-dreams-hd-recompilation",
+    "name": "Azure Dreams (Azure Dreams HD Recompilation)",
+    "summary": "Research listing. Upstream route: Documented player/source route downloads framework toolchain, generates base C from own USA disc and rebuilds Windowsruntime. Overlays run interpreted unless separately compiled withcompile_overlays.py--static; preserve hybrid route. ZIP does not prove fully static coverage. Limits: Upstream only: Native base with interpreted overlays unless separately compiled. Full-game and native overlay coverage remain incomplete/Unknown. Base game recompiled; overlays interpreted unless separately compiled via compile_overlays.py --static. Windows route; retain hybrid scope and unqualified full-game state. Upstream platforms: Windows 10 source/toolchain preparation and release ZIP. Other player platforms not established. Original data: PS1 Azure Dreams USA SLUS-00614 own disc, OpenBIOS bundled. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Azure Dreams",
+    "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
+    "issue_number": 2753
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "potiondweller-azure-dreams-hd-recompilation",
+    "origin": {
+      "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
+      "repository": {
+        "host": "github.com",
+        "id": "1416784957"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-super-mario-64-recomp",
+    "name": "Super Mario 64 (Super Mario 64: Recompiled)",
+    "summary": "Upstream route: Upstream runtime package for Super Mario 64: Recompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports Bob-omb Battlefield through its first boss star and return to castle. This is bounded progress, not full campaign proof. Upstream only describes Bob-omb Battlefield through King Bob-omb star, not a full campaign. Separate from existing sm64 decompilation ports; Windows/Linux x64 release plus browser route. Upstream platforms: Windows/Linux x86-64 packages and WebGPU browser. Linux needs glibc 2.35+, Vulkan, GTK 3 and FreeType. Original data: N64 Super Mario 64 USA ROM, SHA1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Super Mario 64",
+    "project_url": "https://github.com/n64hub/super-mario-64-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/n64hub/super-mario-64-recomp",
+    "issue_number": 2725
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "n64hub-super-mario-64-recomp",
+    "origin": {
+      "project_url": "https://github.com/n64hub/super-mario-64-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428795918"
+      }
+    },
+    "decisions": []
+  }
+}
