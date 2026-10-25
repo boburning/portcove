@@ -1083,6 +1083,11 @@ the observed entry, skips only that missing live leaf without following another
 path, and preserves byte/count/deadline limits and strict settled graph readback.
 The inert regression removes a real staging entry between enumeration and stat;
 it does not substitute for a successful hosted tool build.
+At source2bee931f, controller-tool fixture40186191846/a1 passes with the live
+scan repair. Required CI40186191925/a1 separately retains a Python regression
+callback loop-binding lint failure; its catalog and Windows helper jobs pass.
+Binding the callback's fixture values explicitly repairs the lint error without
+changing the production reader, limits or the regression assertions.
 Final exact-source test/review/CI identities belong to the owning delivery receipt.
 The new test is registered in ordinary Windows helper, full catalog and release
 checks, and selected by the existing release-security ownership rule.

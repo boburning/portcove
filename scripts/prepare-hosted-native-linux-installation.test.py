@@ -320,7 +320,7 @@ class DependencyGraph(unittest.TestCase):
                 scan = os.scandir
                 vanished = []
                 @contextmanager
-                def changing_scan(directory):
+                def changing_scan(directory, outcome=outcome, scan=scan, vanished=vanished):
                     directory = Path(directory)
                     if outcome == "vanished-leaf" and directory.name == "native-dependency-home" and not vanished:
                         filename = directory / "package.json_pacquet-stage_inert"
