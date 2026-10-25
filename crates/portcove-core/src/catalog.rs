@@ -2680,6 +2680,25 @@ mod tests {
         // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        let battleship = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "battleship")
+            .unwrap();
+        // The frozen reader still accepts the old DMG claim; fresh creation
+        // now uses the upstream macOS handoff instead of managed extraction.
+        assert!(battleship.platforms.contains(&Platform::MacosAarch64));
+        battleship.platforms = vec![Platform::WindowsX86_64, Platform::LinuxX86_64];
+        assert_eq!(
+            battleship
+                .release
+                .asset_hints
+                .remove(&Platform::MacosAarch64),
+            Some(vec!["BattleShip.dmg".into()])
+        );
+        assert_eq!(
+            battleship.executable_hints.remove(&Platform::MacosAarch64),
+            Some(vec!["BattleShip".into()])
+        );
         let ghostship = expected_ports
             .iter_mut()
             .find(|port| port.id == "ghostship")
