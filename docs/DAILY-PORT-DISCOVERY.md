@@ -104,6 +104,12 @@ The fixed source scope is:
 | PCGamingWiki            | Normally accessible `List_of_unofficial_ports`, revision and relevant changed rows. A denied request is inaccessible, never an empty table.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Primary/community leads | At most six bounded searches across upstream announcements/docs, native-port/decomp/recomp and relevant game communities, including attributable developer posts. Verify worthwhile leads against primary upstreams; no expansion to whole new registries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
+The additional recomp.board source reads the published
+`https://recomp.fyi/feed.xml` Atom feed, not the restricted bulk table. It validates
+the full currently published feed and retains exact upstream links, event clocks
+and provenance. A feed gap retains positive leads without advancing its
+successful clock; an expired entry is not evidence of project deletion.
+
 Collect registry entry fingerprints and exact evidence URLs/clocks cheaply
 before deep investigation. Process offered-integration safety/availability
 changes first, concrete retained blockers second, credible new usable
@@ -118,8 +124,13 @@ New-lead coverage is separate from canonical rotation. `collect` first runs
 repositories and recently pushed recompilation/native-port projects. Each page
 contains at most fifty results using GitHub's documented default best-match
 ordering within the fixed time window, rather than newest-activity ordering.
-Match repository names/descriptions rather than arbitrary README prose: a
-recompilation mention in compiler/cache/SDK documentation is a poor game lead.
+The four broad families match names/descriptions. Appended ecosystem families
+also inspect framework references in README files: PS2Recomp, XboxRecomp,
+ReXGlue/XenonRecomp, PS3Recomp, bbport, PSPRecomp/PSP-Web-Recomp,
+gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp and XboxXBERecomp,
+plus the static-recompilation topic, rexglue organization and sp00nznet owner.
+Ecosystem searches include forks for lineage review. A framework reference in
+compiler/cache/SDK documentation remains only a lead, not a native port.
 Rank explicit game/recomp/decomp metadata ahead of generic packaged software.
 Game names in repository names and console/game metadata are stronger signals
 than a generic description mentioning recompilation, a curated list or shared
@@ -144,7 +155,7 @@ independent families within the same six-request allowance. Keep validated
 positive lead identities from the refused page, but never count it as validated
 pagination or advance its successful clock. The receipt lists observed and
 deferred families separately from successful pages. Quiet rotation may proceed
-after four successful pages, or after all four families have a valid page,
+after four successful pages, or after at least four families have a valid page,
 current completion, retained cap or typed drift deferral in this session, and
 the required upstream investigations are complete. Budget refusal, failed HTTP
 and malformed/identity failures cannot manufacture that coverage. A session
@@ -162,6 +173,56 @@ review even without a source push, because release-only changes can satisfy a
 reconsideration trigger. Retain reasons and exact continuation; none of this
 creates planning or support authority. Partial collection and unfinished research
 remain visible even when the foreground process finishes normally.
+
+### Ecosystem continuity and burst signals
+
+Every appended search family uses the existing persisted fixed-window/page
+continuation, 48-hour overlap, search ceiling splits and unchanged six-page
+allowance. Rotation resumes across runs; a completed page is not an ecosystem
+completeness claim. Weekly canonical rechecks and manual focused sweeps remain
+necessary for old, unindexed, deleted or inaccessible upstreams. A renamed or
+transferred repository keeps one immutable GitHub ID, retains its old locations,
+and returns to primary review. A reused path with a different ID refuses an
+identity join.
+
+Intake additionally compares the researched immutable repository ID with fresh
+open/closed owners, retained repository aliases and reviewed catalog lineage.
+Renaming the project title or port key cannot bypass this guard. The catalog
+lineage is an extra positive duplicate guard from the run's source snapshot;
+fresh complete issue coverage still owns every negative check. Proposals may
+include `game` (the independently catalogable title/edition) to distinguish a new
+game within a shared implementation. An unknown shared-game scope stays held.
+`identity_kind` can explicitly mark an `implementation`, `helper` or `framework`;
+helpers and frameworks do not create independent port issues. These reviewed
+identity fields participate in the candidate fingerprint and are checked again
+after the fresh pre-mutation inventory.
+
+Primary investigation optionally reads the project-authored `.recomp.json` at
+the pinned source revision. This implements [recomp.board's draft v1 format](https://recomp.fyi/spec)
+(CC BY 4.0 attribution); it does not copy the board's table. Absent fields stay
+Unknown, and `.recomp-2.json` through `.recomp-9.json` require separate primary
+reads for additional games. Project statuses are upstream claims, not Portcove
+qualification. The maintained investigation still owns complete release/asset
+pagination and exact source evidence.
+
+The summary flags three distinct repository IDs created within fourteen days
+in the same ecosystem search family. These are explicitly **unverified leads**.
+Primary manifests declaring a recomp or native port additionally group by source
+console and toolchain. Both ask for focused reconciliation and primary identity/
+architecture review; neither schedules another automation nor writes canonical
+records. Repeated sources, multiple games in one repository and repository
+renames do not inflate the repository count. Missing creation clocks and future
+dates do not count.
+
+The Atom source checkpoints the current published stream only, not the entire
+historical table. It retains known fingerprints when entries age out. If its
+oldest entry no longer overlaps the last complete scan, preserve the old clock
+and the new positive leads, then reconcile the missing interval through primary
+sources before an explicit checkpoint reset. PlayPorted exposes an RSS URL but
+normal requests currently receive an access challenge; its `/api/` path is
+disallowed by robots.txt. Keep this source gap and use accessible console pages
+for attributable manual leads rather than reverse-engineering a private API or
+claiming complete automated PlayPorted coverage.
 
 `scripts/discovery-checkpoint.mts` supplies pure incremental state functions,
 release fingerprints, oldest-first rotation and a local collection-state CLI:

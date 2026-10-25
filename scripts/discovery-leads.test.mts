@@ -7,6 +7,7 @@ import {
   pendingLeads,
   restartLeadSlice,
   LeadSearchChanged,
+  leadSearchFamilyCount,
 } from "./discovery-leads.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
@@ -79,13 +80,13 @@ for (const driftingFamilies of [1, 2, 4])
       },
     });
     session.discover();
-    assert.equal(requests.length, 4, "attempt all four independent families once");
+    assert.equal(requests.length, 6, "spend the six-page bound across independent families");
     assert.equal(
       requests.filter((r) => decodeURIComponent(r).includes("recompiled in:")).length,
       1,
       "never retry the drifting family in this session",
     );
-    assert.equal(session.leadPages, 4 - driftingFamilies, "refused page is not validated coverage");
+    assert.equal(session.leadPages, 6 - driftingFamilies, "refused page is not validated coverage");
     assert.equal(session.leads.slices["new-recompiled"]?.page, 1);
     assert.equal(session.leads.slices["new-recompiled"]?.completed_at, undefined);
     assert.equal(session.leads.records["1"]?.id, 1, "prior lead survives discarded pagination");
@@ -120,7 +121,7 @@ void test("Brawl missed by newest-ten remains discoverable and queued across pag
     now,
     "page1.json",
   );
-  for (let n = 0; n < 3; n++)
+  for (let n = 0; n < leadSearchFamilyCount - 1; n++)
     state = acceptLeadPage(state, nextLeadPage(state, now), page([]), now, "other.json");
   state = parseLeadState(JSON.parse(JSON.stringify(state)));
   const second = nextLeadPage(state, "2026-10-24T13:00:00Z");
@@ -189,11 +190,11 @@ void test("failed, truncated, drifting and duplicate search pages preserve the l
         now,
         "bad",
       ),
-    /relocation needs continuity/,
-    "count drift must not mask a provider identity relocation",
+    /count changed/,
+    "a same-ID rename does not excuse incomplete pagination",
   );
 });
-void test("query overlap deduplicates provider identities, preserves disposition and refuses relocation", () => {
+void test("query overlap deduplicates IDs, preserves disposition and requeues same-ID relocation", () => {
   let state = parseLeadState(undefined);
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "first");
   state.records["1"]!.status = "held";
@@ -201,17 +202,18 @@ void test("query overlap deduplicates provider identities, preserves disposition
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "second");
   assert.equal(Object.keys(state.records).length, 1);
   assert.equal(state.records["1"]!.status, "held");
-  assert.throws(
-    () =>
-      acceptLeadPage(
-        state,
-        nextLeadPage(state, now),
-        page([item(1, "other/game")]),
-        now,
-        "renamed",
-      ),
-    /relocation/,
+  const renamed = acceptLeadPage(
+    state,
+    nextLeadPage(state, now),
+    page([item(1, "other/game")]),
+    now,
+    "renamed",
   );
+  assert.equal(Object.keys(renamed.records).length, 1);
+  assert.equal(renamed.records["1"]?.repository, "other/game");
+  assert.deepEqual(renamed.records["1"]?.aliases, ["ports/game-1"]);
+  assert.equal(renamed.records["1"]?.status, "pending", "renew primary evidence after transfer");
+  assert.equal(state.records["1"]?.status, "held", "previous state is immutable");
   assert.throws(
     () =>
       acceptLeadPage(
@@ -381,8 +383,8 @@ void test("runner charges complementary pages, guards rotation and retains queue
   assert.equal("status" in session.recheck() ? "deferred" : "unexpected", "deferred");
   assert.equal(calls, 0);
   session.discover();
-  assert.equal(calls, 4);
-  assert.equal(budget.usage.requests, 8);
+  assert.equal(calls, 6);
+  assert.equal(budget.usage.requests, 10);
   assert.equal(
     session.leadWorkComplete(),
     false,
@@ -449,7 +451,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
   assert.equal(recovered.leads.records["2"]?.status, "held");
   assert.equal(recovered.leads.records["2"]?.research?.evidence_id, "retained-2");
   const restored = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
-  assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, 1);
+  assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, 3);
   const constrained = new DiscoveryBudget("ordinary");
   constrained.reserveDelivery(190, 1024);
   Object.assign(session, {
@@ -462,7 +464,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
     leads: parseLeadState(undefined),
   });
   session.discover();
-  assert.equal(calls, 4, "reserve refusal must happen before HTTP");
+  assert.equal(calls, 6, "reserve refusal must happen before HTTP");
   assert.equal(session.leadWorkComplete(), false);
 });
 void test("new window overlaps the completed interval and hints do not claim package usability", () => {
