@@ -471,7 +471,7 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
     let current = release("v1.0.0", vec![asset("Game-linux-x64.AppImage", Some('a'))]);
     let (api_root, requests, server) = serve_http(vec![
         metadata(),
-        releases(&[current.clone()]),
+        releases(std::slice::from_ref(&current)),
         metadata(),
         releases(&[current]),
     ]);
