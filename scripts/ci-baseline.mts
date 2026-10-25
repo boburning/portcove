@@ -142,6 +142,9 @@ export function baselineRequiresDesktopDependencies(plan: ValidationPlan) {
     // This consumer imports Desktop's semver-backed release-version policy.
     selected.includes("scripts/release-control-inputs.test.mts") ||
     selected.includes("scripts/release-native-source-contract.test.mts") ||
+    // Shared Python reporting selects these version-policy consumers too.
+    selected.includes("scripts/release-semantic-source.test.mts") ||
+    selected.includes("scripts/semantic-review-linux-supervisor.test.mts") ||
     selected.some((file) => coordinatorStateContractTests.includes(file))
   );
 }
