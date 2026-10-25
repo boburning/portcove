@@ -5,13 +5,77 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
+import { observeDesktopHarnessInputs } from "./native-helper-dependencies.mts";
+import baseline from "./fixtures/desktop-input-observation-baseline.json" with { type: "json" };
 import { fileIdentity } from "./development-evidence.mts";
 import {
   retainEvidenceInput,
   verifyConsumedInputs,
   readPrelaunchCustody,
 } from "./retained-evidence.mts";
+
+for (const control of baseline.cases)
+  void test(`input observation preserves pre-change oracle: ${control.id}`, async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-input-oracle-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    for (const [name, bytes] of Object.entries(baseline.files)) {
+      const file = path.join(root, name);
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, bytes);
+    }
+    const output = path.join(root, "output");
+    await mkdir(output);
+    const captured = await fileIdentity(path.join(root, "bound-input.json"));
+    const custody = control.custody ? { inputs: [captured] } : null;
+    const before = structuredClone(custody?.inputs ?? null);
+    let runMetadata: string | undefined;
+    if (control.metadata !== undefined) {
+      runMetadata = path.join(root, `${control.id}.json`);
+      await writeFile(runMetadata, control.metadata);
+    }
+    if (control.relative) runMetadata = "relative.json";
+    if (control.missing) runMetadata = path.join(root, "missing.json");
+    let actual: Record<string, unknown>;
+    try {
+      const observed = await observeDesktopHarnessInputs({
+        custody,
+        capture: {
+          root,
+          values: { app: process.execPath },
+          plan: {
+            receiptInputs: [{ kind: "file", path: "bound-input.json" }],
+            selection: { selected_scenarios: [] },
+          },
+          output,
+          revision: "a".repeat(40),
+          // Match the original oracle's isolated file-capture boundary. Separate
+          // helper tests execute the default production dependency validator.
+          validate: async () => [],
+        },
+        runMetadata,
+      });
+      actual = {
+        outcome: "success",
+        inputs: observed.inputs.map((input) => ({
+          ...input,
+          path: path.relative(root, input.path).replaceAll("\\", "/"),
+        })),
+        runnerMetadata: observed.runnerMetadata,
+        custody_first_input_reused: custody ? observed.inputs[0] === captured : null,
+      };
+    } catch (error) {
+      assert.ok(error instanceof Error);
+      const code = Reflect.get(error, "code") ?? null;
+      actual = {
+        outcome: "failure",
+        name: error.name,
+        code,
+        message: code === "ENOENT" ? "missing metadata file" : error.message,
+      };
+    }
+    assert.deepEqual(custody?.inputs ?? null, before);
+    assert.deepEqual({ ...actual, custody_unchanged: true }, control.expected);
+  });
 
 void test("runner metadata stays an observation without contaminating prelaunch custody", async (t) => {
   // Retained custody deliberately refuses the disposable TMP/TEMP roots supplied
@@ -27,30 +91,18 @@ void test("runner metadata stays an observation without contaminating prelaunch 
   const captured = await retainEvidenceInput({ root: path.join(directory, "retained"), file });
   const custody = { inputs: [captured] };
   const declared = [...custody.inputs];
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("const inputs:");
-  const end = source.indexOf("const phases =", start);
-  const objectStart = source.indexOf("function object(");
-  const objectEnd = source.indexOf("function text(", objectStart);
-  assert.ok(objectStart >= 0 && objectEnd > objectStart, "Read the production object guard");
-  assert.ok(start >= 0 && end > start, "Read the actual production input/metadata block");
-  const result = await runInNewContext(
-    `(async()=>{${source.slice(objectStart, objectEnd)}${source.slice(start, end)}return { inputs, runnerMetadata };})()`,
-    {
-      custody,
-      assert,
-      isRecord,
-      values: { "run-metadata": metadata },
+  const result = await observeDesktopHarnessInputs({
+    custody,
+    capture: {
       root: fileURLToPath(new URL("../", import.meta.url)),
-      path,
-      fileIdentity,
-      readFile,
-      captureDesktopReceiptInputs: () => assert.fail("Existing custody must be reused"),
+      values: { app: process.execPath },
+      plan: { receiptInputs: [], selection: { selected_scenarios: [] } },
+      output: directory,
+      revision: "a".repeat(40),
+      validate: async () => assert.fail("Existing custody must be reused"),
     },
-  );
+    runMetadata: metadata,
+  });
   assert.deepEqual(
     custody.inputs,
     declared,
