@@ -49,6 +49,52 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("native input observation and its fixed oracle retain direct consumers across lifecycle edits", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumer = "scripts/desktop-input-observation.test.mts";
+  const sibling = "scripts/fixtures/desktop-input-observation-baseline-sibling.json";
+  for (const file of [
+    "scripts/native-helper-dependencies.mts",
+    "apps/desktop/scripts/desktop-test.mts",
+    "scripts/fixtures/desktop-input-observation-baseline.json",
+    sibling,
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      assert.equal(local.nodeTests.has(consumer), file !== sibling, JSON.stringify(change));
+      assert.equal(hosted.includes(consumer), file !== sibling, JSON.stringify(change));
+      if (file === "scripts/native-helper-dependencies.mts")
+        for (const retained of [
+          "native-helper-dependencies",
+          "native-confirmation",
+          "desktop-execution-plan",
+          "windows-helper-checks",
+        ]) {
+          assert.ok(local.nodeTests.has(`scripts/${retained}.test.mts`));
+          assert.ok(hosted.includes(`scripts/${retained}.test.mts`));
+        }
+    }
+});
+
 void test("opt-in Rust coverage inputs retain contracts across lifecycle and rename edits", () => {
   for (const input of [
     "scripts/rust-coverage.mts",

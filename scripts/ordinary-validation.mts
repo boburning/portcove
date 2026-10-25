@@ -1132,6 +1132,9 @@ const explicitNodeTests = new Map<string, readonly string[]>([
         "scripts/native-confirmation.test.mts",
         "scripts/desktop-execution-plan.test.mts",
         "scripts/windows-helper-checks.test.mts",
+        ...(file === nativeHelperRegistryPath
+          ? ["scripts/desktop-input-observation.test.mts"]
+          : []),
       ],
     ],
   ),
@@ -1443,9 +1446,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mts"]],
   [
+    "scripts/fixtures/desktop-input-observation-baseline.json",
+    ["scripts/desktop-input-observation.test.mts"],
+  ],
+  [
     "apps/desktop/scripts/desktop-test.mts",
     [
       "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-input-observation.test.mts",
       "scripts/desktop-scenarios.test.mts",
       "scripts/desktop-verify.test.mts",
       "scripts/frontend-command-preflight.test.mts",

@@ -1,11 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
+import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripTypeScriptTypes } from "node:module";
 import { fileIdentity, writeEvidence } from "./development-evidence.mts";
-import { retainEvidenceInput } from "./retained-evidence.mts";
-import { errorCode, errorMessage } from "./runtime-values.mts";
+import { retainEvidenceInput, type ConsumedInput } from "./retained-evidence.mts";
+import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
 
 const desktop = "apps/desktop/scripts/";
 const helper = (name: string) => `${desktop}${name}`;
@@ -442,6 +443,39 @@ export async function captureDesktopReceiptInputs({
       });
     throw error;
   }
+}
+
+type HarnessInput = Awaited<ReturnType<typeof fileIdentity>> &
+  Partial<Pick<ConsumedInput, "binding" | "retained">> & { role?: string; kind?: string };
+
+/** Observe runner inputs without enlarging the verified prelaunch custody list. */
+export async function observeDesktopHarnessInputs({
+  custody,
+  capture,
+  runMetadata,
+}: {
+  custody: { inputs: readonly HarnessInput[] } | null;
+  capture: Parameters<typeof captureDesktopReceiptInputs>[0];
+  runMetadata?: string | undefined;
+}) {
+  const inputs: HarnessInput[] = [
+    ...(custody?.inputs ?? (await captureDesktopReceiptInputs(capture))),
+  ];
+  for (const name of [
+    "scripts/desktop-execution-plan.mts",
+    "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
+    "apps/desktop/scripts/desktop-owned-ipc-probe.mts",
+  ])
+    if (!custody) inputs.push(await fileIdentity(path.join(capture.root, name)));
+  let runnerMetadata: Record<string, unknown> = {};
+  if (runMetadata) {
+    if (!path.isAbsolute(runMetadata)) throw new Error("--run-metadata requires an absolute path");
+    inputs.push(await fileIdentity(runMetadata));
+    const parsed: unknown = JSON.parse(await readFile(runMetadata, "utf8"));
+    assert.ok(isRecord(parsed), "Harness observation must be an object");
+    runnerMetadata = parsed;
+  }
+  return { inputs, runnerMetadata };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
