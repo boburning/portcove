@@ -881,3 +881,17 @@ composed with both independent ordinary-validation mappings preserved; the
 missing health-triage test is registered in both required catalog and local
 repository-tool suites. No admission, spending, credential or execution authority
 changes with these repairs.
+
+The repaired actual tool build passed at component source `a134876c` in
+fixture `40147693369/a1`: 137944ms cold build, 249800661 expanded bytes,
+50 Node passes/one skip and three Python passes. After generated commands were
+updated, source `6eef4e9d` built successfully again in `40148125644/a1`
+(78563ms, 249817045 expanded bytes). That latter workflow still failed its
+subsequent controlled supervisor fixture: simulated owner loss was injected
+only after a visible post-start write, while the mock original claim continued
+to accept that owner until the caller observed refusal. The mock worker could
+therefore finish before the intended invalidation. The fixture now invalidates
+its owner before publishing that signal and requires the same identity in its
+original claim. The adversarial 25ms yield, failure/partial-marker assertions and
+all production deadlines remain. The failed workflow stays failed; successful
+build and fixture results retain their separate scopes.
