@@ -21,6 +21,8 @@ import {
   requirePreparedHostedNativeCustody,
   collectHistoricalHostedNativeQualification,
   verifiedHistoricalHostedNativeQualification,
+  collectHostedWindowsContinuity,
+  verifiedHostedWindowsContinuity,
 } from "./release-hosted-native-acceptance.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -35,8 +37,11 @@ async function root(t: test.TestContext) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   return directory;
 }
-function fixture(platform: "windows-x86_64" | "linux-x86_64" = "windows-x86_64") {
-  const f = hostedNativeProofFixture(platform);
+function fixture(
+  platform: "windows-x86_64" | "linux-x86_64" = "windows-x86_64",
+  profile: "client-minimum" | "server-continuity" = "client-minimum",
+) {
+  const f = hostedNativeProofFixture(platform, "payload-signing", profile);
   const { grant_sha256: _grant, ...checkpointProducer } = f.producer;
   const provider = checkpointProofFixture(undefined, undefined, {
     ...checkpointProducer,
@@ -118,6 +123,137 @@ function fixture(platform: "windows-x86_64" | "linux-x86_64" = "windows-x86_64")
     },
   };
   return { ...f, provider, verification, expected, faults, options, reads: () => reads };
+}
+
+for (const fault of ["provider", "concurrent-file", "microtask-expiry"] as const) {
+  void test(`default Server receiver authenticates continuity but refuses minimum/native/custody interchange: ${fault}`, async (t) => {
+    const directory = await root(t),
+      f = fixture("windows-x86_64", "server-continuity");
+    for (const collect of [
+      collectHostedNativeReleaseQualification,
+      collectHistoricalHostedNativeQualification,
+    ])
+      await assert.rejects(
+        collect(directory, f.authorities, f.expected, f.files, performance.now() + 60000),
+        /separate Windows client/,
+      );
+    assert.equal(f.reads(), 0);
+    const previous = process.env.GH_TOKEN;
+    const actualNow = performance.now.bind(performance);
+    let clockShift = 0;
+    t.mock.method(performance, "now", () => actualNow() + clockShift);
+    process.env.GH_TOKEN = "inert-continuity-reader";
+    t.after(() => {
+      if (previous === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previous;
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    // Synthetic provider through the actual default builtin seam, not real GitHub.
+    t.mock.method(
+      childProcess,
+      "spawnSync",
+      (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
+        assert.equal(settings.env?.GH_TOKEN, "inert-continuity-reader");
+        if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
+        const response = f.options.api.request("GET", args[2]!);
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
+          stderr: "",
+        };
+      },
+    );
+    syncBuiltinESMExports();
+    await withReadOnlyReleaseChildren(directory, async () => {
+      const receipt = await collectHostedWindowsContinuity(
+        directory,
+        f.authorities,
+        f.expected,
+        f.files,
+        performance.now() + 60000,
+      );
+      assert.equal(receipt.kind, "verified-hosted-windows-continuity");
+      const checked = await verifiedHostedWindowsContinuity(receipt);
+      assert.deepEqual(checked?.observation.candidate, f.report.candidate);
+      assert.equal(checked?.minimum_client_acceptance, "not-established");
+      assert.equal(checked?.journey_completion, "not-established");
+      assert.equal(await verifiedHostedWindowsContinuity(structuredClone(receipt)), undefined);
+      assert.equal(await verifiedHostedWindowsContinuity({ os: f.hostObservation.os }), undefined);
+      assert.equal(await verifiedHostedNativeReleaseQualification(receipt), undefined);
+      assert.equal(await verifiedHistoricalHostedNativeQualification(receipt), undefined);
+      await assert.rejects(verifiedNativeReleaseQualification(receipt));
+      await assert.rejects(prepareHostedNativeCustody([receipt, {}]), /actual private/);
+      const injected = await collectHostedWindowsContinuity(
+        directory,
+        f.authorities,
+        f.expected,
+        f.files,
+        performance.now() + 60000,
+        f.options,
+      );
+      assert.equal(await verifiedHostedWindowsContinuity(injected), undefined);
+      const client = fixture();
+      await assert.rejects(
+        collectHostedWindowsContinuity(
+          directory,
+          client.authorities,
+          client.expected,
+          client.files,
+          performance.now() + 60000,
+        ),
+        /separate Windows client/,
+      );
+      if (fault === "provider") {
+        f.provider.job.conclusion = "failure";
+        await assert.rejects(verifiedHostedWindowsContinuity(receipt));
+        f.provider.job.conclusion = "success";
+      } else if (fault === "microtask-expiry") {
+        const request = f.options.api.request.bind(f.options.api);
+        t.mock.method(f.options.api, "request", (method: string, route: string) => {
+          const response = request(method, route);
+          if (route.includes("/actions/jobs/"))
+            queueMicrotask(() => {
+              clockShift = 60001;
+            });
+          return response;
+        });
+        await assert.rejects(verifiedHostedWindowsContinuity(receipt), /deadline/);
+        clockShift = 0;
+      } else {
+        const entered = Promise.withResolvers<void>(),
+          release = Promise.withResolvers<void>();
+        const originalOpen = filesystem.open.bind(filesystem);
+        const filename = path.join(receipt.capture_directory, "report.json");
+        let gated = false;
+        t.mock.method(filesystem, "open", async (...args: Parameters<typeof filesystem.open>) => {
+          const file = await originalOpen(...args);
+          if (args[0] === filename && !gated) {
+            gated = true;
+            const close = file.close.bind(file);
+            t.mock.method(file, "close", async () => {
+              entered.resolve();
+              await release.promise;
+              await close();
+            });
+          }
+          return file;
+        });
+        syncBuiltinESMExports();
+        const first = assert.rejects(verifiedHostedWindowsContinuity(receipt), /stopped/);
+        try {
+          await entered.promise;
+          await appendFile(filename, "\n");
+          await assert.rejects(verifiedHostedWindowsContinuity(receipt), /retained proof changed/);
+          await filesystem.writeFile(filename, f.files.report);
+        } finally {
+          release.resolve();
+          await first;
+        }
+      }
+      await assert.rejects(verifiedHostedWindowsContinuity(receipt), /permanently stopped/);
+    });
+  });
 }
 
 void test("default historical receiver verifies original bytes but cannot mint current native admission or archival custody", async (t) => {

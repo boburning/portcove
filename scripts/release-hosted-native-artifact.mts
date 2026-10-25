@@ -147,7 +147,8 @@ export function readHostedNativeProofArtifact(
   if (
     !isRecord(subject) ||
     subject.schema_version !== 1 ||
-    subject.purpose !== "hosted-native-qualification" ||
+    (subject.purpose !== "hosted-native-qualification" &&
+      subject.purpose !== "hosted-native-continuity") ||
     subject.platform_label !== expected.platform_label ||
     subject.stage !== expected.stage ||
     !isRecord(subject.producer) ||
