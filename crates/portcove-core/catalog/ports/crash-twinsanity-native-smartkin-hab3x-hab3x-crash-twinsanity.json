@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "crash-twinsanity-native-smartkin-hab3x-hab3x-crash-twinsanity",
+    "target_key": "crash-twinsanity-ps2",
     "origin": {
       "project_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/mlgprorektm8/RyGT"
     },
+    "issue_number": 3334,
     "artwork": {
       "game_id": 14363,
       "cover_id": 182162,
@@ -34,5 +35,17 @@
       "game_slug": "gran-turismo-sport",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gran-turismo-sport-ps4",
+    "origin": {
+      "project_url": "https://github.com/mlgprorektm8/RyGT",
+      "repository": {
+        "host": "github.com",
+        "id": "1413598637"
+      }
+    },
+    "decisions": []
   }
 }

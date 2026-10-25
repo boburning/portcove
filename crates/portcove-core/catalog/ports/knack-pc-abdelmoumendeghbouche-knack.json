@@ -4,9 +4,9 @@
     "id": "knack-pc-abdelmoumendeghbouche-knack",
     "name": "Knack — knack_pc (AbdelmoumenDeghbouche)",
     "original_game_title": "Knack",
-    "summary": "Upstream reports first chapters playable through fights, story videos, music and saves at up to 120 FPS on Windows; later chapters and Linux gameplay untested. Dust edges, startup text glitches and possible longer-run memory growth remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports first chapters playable through fights, story videos, music and saves at up to 120 FPS on Windows; later chapters and Linux gameplay untested. Dust edges, startup text glitches and possible longer-run memory growth remain. New README reports local trophy records in user/trophies.txt and numeric on-screen notifications; trophy names and platinum are not implemented. This is an upstream feature claim, not PSN integration or Portcove verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc",
     "manual_setup": {
@@ -21,11 +21,12 @@
         }
       ],
       "warnings": [
-        "Upstream reports first chapters playable through fights, story videos, music and saves at up to 120 FPS on Windows; later chapters and Linux gameplay untested. Dust edges, startup text glitches and possible longer-run memory growth remain.",
+        "Upstream reports first chapters playable through fights, story videos, music and saves at up to 120 FPS on Windows; later chapters and Linux gameplay untested. Dust edges, startup text glitches and possible longer-run memory growth remain. New README reports local trophy records in user/trophies.txt and numeric on-screen notifications; trophy names and platinum are not implemented. This is an upstream feature claim, not PSN integration or Portcove verification.",
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc"
     },
+    "issue_number": 3622,
     "artwork": {
       "game_id": 2957,
       "cover_id": 214354,
@@ -34,5 +35,17 @@
       "game_slug": "knack",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "knack-ps4",
+    "origin": {
+      "project_url": "https://github.com/AbdelmoumenDeghbouche/knack_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1430070872"
+      }
+    },
+    "decisions": []
   }
 }

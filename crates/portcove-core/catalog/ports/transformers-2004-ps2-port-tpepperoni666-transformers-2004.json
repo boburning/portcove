@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "transformers-2004-ps2-port-tpepperoni666-transformers-2004",
+    "target_key": "transformers-2004-ps2",
     "origin": {
       "project_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port",
       "repository": {

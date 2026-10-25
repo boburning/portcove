@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/krisztsa/OceanTriRecomp"
     },
+    "issue_number": 3419,
     "artwork": {
       "game_id": 2268,
       "cover_id": 130623,
@@ -34,5 +35,17 @@
       "game_slug": "monster-hunter-tri",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "monster-hunter-tri-wii",
+    "origin": {
+      "project_url": "https://github.com/krisztsa/OceanTriRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427593979"
+      }
+    },
+    "decisions": []
   }
 }

@@ -6,7 +6,7 @@
     "original_game_title": "The Legend of Zelda: Breath of the Wild (Wii U)",
     "summary": "Native Apple game progression described; iPhone controllers not tried; no Portcove native validation Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/IshaanKalra2103/BotWRecomp",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/IshaanKalra2103/BotWRecomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/IshaanKalra2103/BotWRecomp"
     },
+    "issue_number": 3356,
     "artwork": {
       "game_id": 7346,
       "cover_id": 172453,
@@ -34,5 +35,17 @@
       "game_slug": "the-legend-of-zelda-breath-of-the-wild",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-legend-of-zelda-breath-of-the-wild-wii-u-wii-u",
+    "origin": {
+      "project_url": "https://github.com/IshaanKalra2103/BotWRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423433976"
+      }
+    },
+    "decisions": []
   }
 }

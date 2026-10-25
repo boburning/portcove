@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Phroster/DisruptorRecomp"
     },
+    "issue_number": 3347,
     "artwork": {
       "game_id": 20654,
       "cover_id": 116369,
@@ -34,5 +35,17 @@
       "game_slug": "disruptor",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "disruptor-ps1",
+    "origin": {
+      "project_url": "https://github.com/Phroster/DisruptorRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1373710367"
+      }
+    },
+    "decisions": []
   }
 }

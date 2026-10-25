@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "carspsprecomp-danielperezl-disney-pixar-cars-psp",
+    "target_key": "disney-pixar-cars-psp",
     "origin": {
       "project_url": "https://github.com/DanielPerezL/CarsPSPRecomp",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/TheWishin/T5DROnline"
     },
+    "issue_number": 3309,
     "artwork": {
       "game_id": 1234,
       "cover_id": 195392,
@@ -34,5 +35,17 @@
       "game_slug": "tekken-5-dark-resurrection-online",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tekken-5-dark-resurrection-online-ps3",
+    "origin": {
+      "project_url": "https://github.com/TheWishin/T5DROnline",
+      "repository": {
+        "host": "github.com",
+        "id": "1423117739"
+      }
+    },
+    "decisions": []
   }
 }

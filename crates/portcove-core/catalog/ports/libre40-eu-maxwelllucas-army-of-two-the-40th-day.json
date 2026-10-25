@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/eu-maxwelllucas/Libre40"
     },
+    "issue_number": 3266,
     "artwork": {
       "game_id": 997,
       "cover_id": 123421,
@@ -34,5 +35,17 @@
       "game_slug": "army-of-two-the-40th-day",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "army-of-two-the-40th-day-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/eu-maxwelllucas/Libre40",
+      "repository": {
+        "host": "github.com",
+        "id": "1423298804"
+      }
+    },
+    "decisions": []
   }
 }

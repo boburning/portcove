@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "smt-nine-recomp-gymzatan-shin-megami-tensei-nine",
+    "target_key": "shin-megami-tensei-nine-original-xbox",
     "origin": {
       "project_url": "https://github.com/gymzatan/smt-nine-recomp",
       "repository": {

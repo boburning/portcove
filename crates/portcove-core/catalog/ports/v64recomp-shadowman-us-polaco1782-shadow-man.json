@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "v64recomp-shadowman-us-polaco1782-shadow-man",
+    "name": "Shadow Man — v64recomp / shadowman-us (polaco1782)",
+    "original_game_title": "Shadow Man",
+    "summary": "Research project. Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/polaco1782/v64recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/polaco1782/v64recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Shadow Man N64 own USA ROM; shadowman-us exactsize/SHA1 inprofile. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "tools/import_rom.py --profile games/shadowman-us/profile.toml normalizes ownz64/n64/v64, CMake shadowman-us-release builds native shadowman-us; externalROMdefault, optionalembeddedbuildprivate. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/polaco1782/v64recomp"
+    },
+    "issue_number": 3602,
+    "artwork": {
+      "game_id": 3598,
+      "cover_id": 100973,
+      "image_id": "co25wt",
+      "image_sha256": "2c5afd7f5e12334727d08e2199881cb9ef98cd1c0ea10b6a5863ad76b8b2bd9e",
+      "game_slug": "shadow-man",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "shadow-man-n64",
+    "origin": {
+      "project_url": "https://github.com/polaco1782/v64recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420121199"
+      }
+    },
+    "decisions": []
+  }
+}

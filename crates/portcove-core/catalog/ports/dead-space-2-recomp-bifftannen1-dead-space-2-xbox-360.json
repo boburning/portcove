@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/bifftannen1/Dead-Space-2-Recomp"
     },
+    "issue_number": 3275,
     "artwork": {
       "game_id": 38,
       "cover_id": 94526,
@@ -34,5 +35,17 @@
       "game_slug": "dead-space-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dead-space-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/bifftannen1/Dead-Space-2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1411130410"
+      }
+    },
+    "decisions": []
   }
 }

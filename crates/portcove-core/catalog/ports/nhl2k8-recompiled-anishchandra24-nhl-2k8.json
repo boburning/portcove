@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "nhl2k8-recompiled-anishchandra24-nhl-2k8",
+    "target_key": "nhl-2k8-xbox-360",
     "origin": {
       "project_url": "https://github.com/anishchandra24/NHL2K8-Recompiled",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/canersaka/Yakuza-Dead-Souls-Recompiled"
     },
+    "issue_number": 3382,
     "artwork": {
       "game_id": 7489,
       "cover_id": 277003,
@@ -34,5 +35,17 @@
       "game_slug": "yakuza-dead-souls",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "yakuza-dead-souls-ps3",
+    "origin": {
+      "project_url": "https://github.com/canersaka/Yakuza-Dead-Souls-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1264195116"
+      }
+    },
+    "decisions": []
   }
 }

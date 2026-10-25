@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ror-port-raikodenpa-rule-of-rose",
+    "target_key": "rule-of-rose-ps2",
     "origin": {
       "project_url": "https://github.com/RaikoDenpa/RoR-Port",
       "repository": {

@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "drakengard-recomp-boubou666-drakengard",
+    "target_key": "drakengard-ps2",
     "origin": {
       "project_url": "https://github.com/boubou666/Drakengard_Recomp",
       "repository": {

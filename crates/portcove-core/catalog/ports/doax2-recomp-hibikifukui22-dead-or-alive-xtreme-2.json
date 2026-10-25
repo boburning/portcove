@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation"
     },
+    "issue_number": 3201,
     "artwork": {
       "game_id": 1393,
       "cover_id": 547559,
@@ -34,5 +35,17 @@
       "game_slug": "dead-or-alive-xtreme-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dead-or-alive-xtreme-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation",
+      "repository": {
+        "host": "github.com",
+        "id": "1429181196"
+      }
+    },
+    "decisions": []
   }
 }

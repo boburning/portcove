@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/mstan/JerseyDevilRecomp"
     },
+    "issue_number": 3389,
     "artwork": {
       "game_id": 45077,
       "cover_id": 227123,
@@ -34,5 +35,17 @@
       "game_slug": "jersey-devil",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jersey-devil-ps1",
+    "origin": {
+      "project_url": "https://github.com/mstan/JerseyDevilRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1360740067"
+      }
+    },
+    "decisions": []
   }
 }

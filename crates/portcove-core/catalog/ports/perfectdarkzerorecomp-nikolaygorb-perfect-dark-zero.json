@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "perfectdarkzerorecomp-nikolaygorb-perfect-dark-zero",
+    "target_key": "perfect-dark-zero-xbox-360",
     "origin": {
       "project_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp",
       "repository": {

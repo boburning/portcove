@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "p3p3ds-endercodezz-persona-3-portable",
+    "target_key": "persona-3-portable-psp",
     "origin": {
       "project_url": "https://github.com/endercodezz/P3P3DS",
       "repository": {

@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/kenny08gt/rotk-native"
-    }
+    },
+    "issue_number": 3411
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-lord-of-the-rings-the-return-of-the-king-gamecube",
+    "origin": {
+      "project_url": "https://github.com/kenny08gt/rotk-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1421033024"
+      }
+    },
+    "decisions": []
   }
 }

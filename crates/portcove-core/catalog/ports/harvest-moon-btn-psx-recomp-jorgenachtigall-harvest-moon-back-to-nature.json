@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "harvest-moon-btn-psx-recomp-jorgenachtigall-harvest-moon-back-to-nature",
+    "name": "Harvest Moon: Back to Nature — harvest-moon-btn-psx-recomp (JorgeNachtigall)",
+    "original_game_title": "Harvest Moon: Back to Nature",
+    "summary": "Research project. Town/farm/cutscene/audio reported; FMV unexercised; full calendar/save progression unqualified; private app embeds own disc. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-01115 HarvestMoonBTN own CUE/BIN; OpenBIOS generated. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "tools/regen.sh extracts/generates own game/BIOS, build.sh and optional baked overlays/private app. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Town/farm/cutscene/audio reported; FMV unexercised; full calendar/save progression unqualified; private app embeds own disc. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp"
+    },
+    "issue_number": 3544,
+    "artwork": {
+      "game_id": 3380,
+      "cover_id": 85967,
+      "image_id": "co1ubz",
+      "image_sha256": "a4b4c19ed6e5f6f73922a160c0e2faadaafd66cb0e099d2d9c0d924252003e2f",
+      "game_slug": "harvest-moon-back-to-nature",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "harvest-moon-back-to-nature-ps1",
+    "origin": {
+      "project_url": "https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1336350545"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "meta-k-bannedpenta01-super-smash-bros-brawl",
+    "name": "Super Smash Bros. Brawl — META-K (BannedPenta01)",
+    "original_game_title": "Super Smash Bros. Brawl",
+    "summary": "Research project. Upstream menus/character-select about25FPS; native fat-module matches wedge/crash, slim hybrid matches reported stable. README explicitly calls it a research artifact, not a playable Brawl port. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/BannedPenta01/META-K",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/BannedPenta01/META-K",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Wii Brawl ISO/RVZ; exact revision unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream documents Windows source setup with VS2022 Build Tools,CMake,Ninja,Python3.8+ and recursive DolRecomp/ModernGekko submodules. Use run_gui.bat with an owned SSBB ISO/RVZ for local extraction, static recompilation and runtime launch. The README clone example uses a placeholder owner; use this exact upstream repository identity. The fat-module/nativeREL research route can crash; the alternate stable slim-module route uses JIT and is not all-static native. No package or runtime was obtained or executed here."
+        }
+      ],
+      "warnings": [
+        "Upstream menus/character-select about25FPS; native fat-module matches wedge/crash, slim hybrid matches reported stable. README explicitly calls it a research artifact, not a playable Brawl port.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/BannedPenta01/META-K"
+    },
+    "issue_number": 3432,
+    "artwork": {
+      "game_id": 1628,
+      "cover_id": 95972,
+      "image_id": "co221w",
+      "image_sha256": "8d4568cea0ba75745c55ed26b6dd99dd3d1fd60e5213c6b39cad02e55a7241a6",
+      "game_slug": "super-smash-bros-brawl",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-smash-bros-brawl-wii",
+    "origin": {
+      "project_url": "https://github.com/BannedPenta01/META-K",
+      "repository": {
+        "host": "github.com",
+        "id": "1378902952"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "way-of-the-samurai-decomp-dnb4ever-way-of-the-samurai",
+    "target_key": "way-of-the-samurai-ps2",
     "origin": {
       "project_url": "https://github.com/dnb4ever/way-of-the-samurai-decomp",
       "repository": {

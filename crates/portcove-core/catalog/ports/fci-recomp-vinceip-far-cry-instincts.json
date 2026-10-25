@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "fci-recomp-vinceip-far-cry-instincts",
+    "target_key": "far-cry-instincts-original-xbox",
     "origin": {
       "project_url": "https://github.com/VinceIP/fci-recomp",
       "repository": {

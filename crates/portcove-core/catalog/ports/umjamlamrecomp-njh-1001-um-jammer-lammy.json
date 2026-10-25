@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/NJH-1001/UmJamLamRecomp"
     },
+    "issue_number": 3397,
     "artwork": {
       "game_id": 6081,
       "cover_id": 472516,
@@ -34,5 +35,17 @@
       "game_slug": "um-jammer-lammy",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "um-jammer-lammy-ps1",
+    "origin": {
+      "project_url": "https://github.com/NJH-1001/UmJamLamRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1371285115"
+      }
+    },
+    "decisions": []
   }
 }

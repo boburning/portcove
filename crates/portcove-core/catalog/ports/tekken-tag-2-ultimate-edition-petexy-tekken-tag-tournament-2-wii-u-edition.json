@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition",
+    "name": "Tekken Tag Tournament 2 Wii U Edition — Tekken Tag 2 Ultimate Edition (Petexy)",
+    "original_game_title": "Tekken Tag Tournament 2 Wii U Edition",
+    "summary": "Research project. Boot through arcade mode claimed; GamePad screen/speaker, online, softwarekeyboard/errors and unused audio effects missing. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "WiiU Europe TekkenTag2 edition update16 own RPX/data. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own extracted WiiU data or archive plus pinned setup_deps, cafe-recomp C++ generation and local CMake native ttt2. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Boot through arcade mode claimed; GamePad screen/speaker, online, softwarekeyboard/errors and unused audio effects missing. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition"
+    },
+    "issue_number": 3553
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tekken-tag-tournament-2-wii-u-edition-wii-u",
+    "origin": {
+      "project_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition",
+      "repository": {
+        "host": "github.com",
+        "id": "1405390299"
+      }
+    },
+    "decisions": []
+  }
+}

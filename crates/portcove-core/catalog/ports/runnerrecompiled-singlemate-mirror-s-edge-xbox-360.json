@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/singlemate/RunnerRecompiled"
     },
+    "issue_number": 3238,
     "artwork": {
       "game_id": 1051,
       "cover_id": 254444,
@@ -34,5 +35,17 @@
       "game_slug": "mirror-s-edge",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mirror-s-edge-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/singlemate/RunnerRecompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1429987193"
+      }
+    },
+    "decisions": []
   }
 }

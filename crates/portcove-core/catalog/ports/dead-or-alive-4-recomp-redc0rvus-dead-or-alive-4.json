@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/redC0rvus/doa4-recomp-suite"
     },
+    "issue_number": 3232,
     "artwork": {
       "game_id": 1392,
       "cover_id": 130884,
@@ -34,5 +35,17 @@
       "game_slug": "dead-or-alive-4",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dead-or-alive-4-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/redC0rvus/doa4-recomp-suite",
+      "repository": {
+        "host": "github.com",
+        "id": "1429100551"
+      }
+    },
+    "decisions": []
   }
 }

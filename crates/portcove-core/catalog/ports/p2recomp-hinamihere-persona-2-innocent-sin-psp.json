@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "p2recomp-hinamihere-persona-2-innocent-sin-psp",
+    "target_key": "persona-2-innocent-sin-psp",
     "origin": {
       "project_url": "https://github.com/hinamihere/p2recomp",
       "repository": {

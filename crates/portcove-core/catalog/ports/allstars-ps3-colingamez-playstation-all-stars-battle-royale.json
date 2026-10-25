@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "allstars-ps3-colingamez-playstation-all-stars-battle-royale",
+    "name": "PlayStation All-Stars Battle Royale — allstars-ps3 (ColinGamez)",
+    "original_game_title": "PlayStation All-Stars Battle Royale",
+    "summary": "Research project. BootthroughFIOS/D3D12; stalls invalidworkercondition Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ColinGamez/allstars-ps3",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ColinGamez/allstars-ps3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA BCUS98472 owneddisc+own.dkey; decryptedEBOOT/PS3_GAMEVFS"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source PPUSPUlift + CMake/Ninja/VS/LLVM"
+        }
+      ],
+      "warnings": [
+        "BootthroughFIOS/D3D12; stalls invalidworkercondition",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ColinGamez/allstars-ps3"
+    },
+    "issue_number": 3366,
+    "artwork": {
+      "game_id": 7390,
+      "cover_id": 130639,
+      "image_id": "co2ssv",
+      "image_sha256": "3b7bcfd6060f32dde0dc68cd462d682a87c0dc0fdbbf91176ca34c56541ef35d",
+      "game_slug": "playstation-all-stars-battle-royale",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "playstation-all-stars-battle-royale-ps3",
+    "origin": {
+      "project_url": "https://github.com/ColinGamez/allstars-ps3",
+      "repository": {
+        "host": "github.com",
+        "id": "1385782942"
+      }
+    },
+    "decisions": []
+  }
+}

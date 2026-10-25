@@ -2,29 +2,50 @@
   "format_version": 1,
   "listing": {
     "id": "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-f-e-a-r-files-xbox-360",
-    "name": "F.E.A.R. / F.E.A.R. Files (Xbox 360) — F.E.A.R. 360 Recompiled (Juansolo457)",
-    "original_game_title": "F.E.A.R. / F.E.A.R. Files (Xbox 360)",
-    "summary": "Both titles reportedly boot/play; every level without a crash is the future 1.0 condition. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "name": "F.E.A.R. (Xbox 360) — F.E.A.R. 360 Recompiled (Juansolo457)",
+    "original_game_title": "F.E.A.R. (Xbox 360)",
+    "summary": "Upstream reports base-game boot, menus, intro videos, campaign and Instant Action, with display-paced high-frame-rate fixes and checkpoint/Continue behavior. Full base campaign and the 360 bonus mission have not been completely checked; Interval2 GPU spikes, soft fonts and other effects/performance work remain. Steam Deck evidence uses experimental Proton; native Linux is untested and Android ARM64 not started. No Portcove runtime or gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Juansolo457/fear360-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Juansolo457/fear360-recomp",
     "manual_setup": {
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Provide your own F.E.A.R. / F.E.A.R. Files (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+          "instruction": "Own Xbox 360 F.E.A.R. title565507D9 default.xex and Game/ under port-nx/assets/. Exact region/revision/hash is not established by this retained README; inspect docs/SETUP.md before source acceptance. F.E.A.R. Files title565507E8 belongs to its separate catalog game. Optional PC textures require the corresponding owned PC files."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source-only v0.1.0 builds from own F.E.A.R./F.E.A.R. Files discs; optional PC textures require an own PC copy."
+          "instruction": "Upstream v0.1.0 releases are source only. On Windows, prepare the patched SDK with tools/setup-sdk.ps1 and locally build the base game with tools/build-nx.ps1 from the owned disc profile. tools/launch.ps1 -Collection is an optional shared game-selection route after each title is separately prepared. No public compiled game/player archive is offered by the reviewed README; original files stay in the local assets folder."
         }
       ],
       "warnings": [
-        "Both titles reportedly boot/play; every level without a crash is the future 1.0 condition.",
+        "Upstream reports base-game boot, menus, intro videos, campaign and Instant Action, with display-paced high-frame-rate fixes and checkpoint/Continue behavior. Full base campaign and the 360 bonus mission have not been completely checked; Interval2 GPU spikes, soft fonts and other effects/performance work remain. Steam Deck evidence uses experimental Proton; native Linux is untested and Android ARM64 not started. No Portcove runtime or gameplay qualification.",
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/Juansolo457/fear360-recomp"
+    },
+    "issue_number": 3183,
+    "artwork": {
+      "game_id": 202149,
+      "cover_id": 222597,
+      "image_id": "co4rr9",
+      "image_sha256": "282a51ceec2c6a0b092f7a357e2e2af93d81d5cdcaa1782f82edead9ea85d028",
+      "game_slug": "fear--1",
+      "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "f-e-a-r-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Juansolo457/fear360-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429345187"
+      }
+    },
+    "decisions": []
   }
 }

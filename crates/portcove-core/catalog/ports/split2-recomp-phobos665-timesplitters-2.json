@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "split2-recomp-phobos665-timesplitters-2",
+    "target_key": "timesplitters-2-original-xbox",
     "origin": {
       "project_url": "https://github.com/phobos665/split2-recomp",
       "repository": {

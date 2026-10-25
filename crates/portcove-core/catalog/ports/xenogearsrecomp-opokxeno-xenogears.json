@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/OpokXeno/xenogears-recomp"
     },
+    "issue_number": 3463,
     "artwork": {
       "game_id": 1346,
       "cover_id": 556672,
@@ -34,5 +35,17 @@
       "game_slug": "xenogears",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "roman215-weltall",
+    "origin": {
+      "project_url": "https://github.com/OpokXeno/xenogears-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1309096569"
+      }
+    },
+    "decisions": []
   }
 }

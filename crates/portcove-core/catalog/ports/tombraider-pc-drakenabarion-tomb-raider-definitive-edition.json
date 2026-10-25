@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tombraider-pc-drakenabarion-tomb-raider-definitive-edition",
+    "name": "Tomb Raider: Definitive Edition — tombraider_pc (drakenabarion)",
+    "original_game_title": "Tomb Raider: Definitive Edition",
+    "summary": "Research project. Upstream intro/audio and play past first base camp at60FPS; shader stutter substantial, online offline, Windows new fixes absent. No full-game Portcove qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/drakenabarion/tombraider_pc",
+    "platforms": ["linux-x86-64", "windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/drakenabarion/tombraider_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 CUSA00109 update1.01 merged; decrypted eboot.bin/sce_module."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own CUSA00109 base merged with1.01 update; upstream LinuxAppImage or build.sh then BB_GAME_DIR/BB_PIPELINE_CACHE=0 python3 run.py. run.sh is wrong-game leftover. Windows0.1.0 package is historical."
+        }
+      ],
+      "warnings": [
+        "Upstream intro/audio and play past first base camp at60FPS; shader stutter substantial, online offline, Windows new fixes absent. No full-game Portcove qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/drakenabarion/tombraider_pc"
+    },
+    "issue_number": 3447,
+    "artwork": {
+      "game_id": 19965,
+      "cover_id": 101407,
+      "image_id": "co268v",
+      "image_sha256": "cf5335f20072574e32d5854a052a63267dffdd945414bb83195becbf1b773ca9",
+      "game_slug": "tomb-raider-definitive-edition",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tomb-raider-definitive-edition-ps4",
+    "origin": {
+      "project_url": "https://github.com/drakenabarion/tombraider_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1424962625"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "god-hand-recompiled-lasvola-god-hand",
+    "target_key": "god-hand-ps2",
     "origin": {
       "project_url": "https://github.com/LasVola/godhand-recomp",
       "repository": {

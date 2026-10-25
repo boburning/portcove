@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "squarehole360-gears3-gloriouseggroll-gears-of-war-3",
+    "target_key": "gears-of-war-3-xbox-360",
     "origin": {
       "project_url": "https://github.com/GloriousEggroll/squarehole360",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/HossEz/fifa-world-cup-2014-recompiled"
     },
+    "issue_number": 3236,
     "artwork": {
       "game_id": 5471,
       "cover_id": 126167,
@@ -34,5 +35,17 @@
       "game_slug": "2014-fifa-world-cup-brazil",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "2014-fifa-world-cup-brazil-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/HossEz/fifa-world-cup-2014-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1423287153"
+      }
+    },
+    "decisions": []
   }
 }

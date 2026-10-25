@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "vp2s-recomp-boubou666-valkyrie-profile-2-silmeria",
+    "target_key": "valkyrie-profile-2-silmeria-ps2",
     "origin": {
       "project_url": "https://github.com/boubou666/VP2S_Recomp",
       "repository": {

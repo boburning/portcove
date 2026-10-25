@@ -6,7 +6,7 @@
     "original_game_title": "Yakuza",
     "summary": "Native boot probe/modules and movie-frame reconstruction; no playable game build. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/TatsunaKyo/YakuzaRecomp",
-    "platforms": ["windows-x86-64"],
+    "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/TatsunaKyo/YakuzaRecomp",
     "manual_setup": {
@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "yakuzarecomp-tatsunakyo-yakuza",
+    "target_key": "yakuza-ps2",
     "origin": {
       "project_url": "https://github.com/TatsunaKyo/YakuzaRecomp",
       "repository": {

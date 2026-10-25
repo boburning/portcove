@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/djultra64/Fight-Night-Round-3-Recomp"
     },
+    "issue_number": 3200,
     "artwork": {
       "game_id": 5836,
       "cover_id": 238288,
@@ -34,5 +35,17 @@
       "game_slug": "fight-night-round-3",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fight-night-round-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/djultra64/Fight-Night-Round-3-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427712810"
+      }
+    },
+    "decisions": []
   }
 }

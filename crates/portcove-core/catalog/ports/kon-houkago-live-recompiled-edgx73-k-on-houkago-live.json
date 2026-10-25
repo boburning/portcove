@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "kon-houkago-live-recompiled-edgx73-k-on-houkago-live",
+    "target_key": "k-on-houkago-live-psp",
     "origin": {
       "project_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled",
       "repository": {

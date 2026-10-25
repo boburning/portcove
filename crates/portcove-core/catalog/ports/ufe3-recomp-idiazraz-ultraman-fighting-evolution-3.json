@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ufe3-recomp-idiazraz-ultraman-fighting-evolution-3",
+    "target_key": "ultraman-fighting-evolution-3-ps2",
     "origin": {
       "project_url": "https://github.com/idiazraz/ufe3-recomp",
       "repository": {

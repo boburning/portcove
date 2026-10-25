@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "reo-sp00nznet-resident-evil-outbreak",
+    "target_key": "resident-evil-outbreak-ps2",
     "origin": {
       "project_url": "https://github.com/sp00nznet/reo",
       "repository": {

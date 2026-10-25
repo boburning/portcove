@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gzport-johnnygentoo-godzilla-2015",
+    "name": "GODZILLA (2015) — gzport (johnnygentoo)",
+    "original_game_title": "GODZILLA (2015)",
+    "summary": "Research project. Upstream reports full solo story/other modes and three-PC LAN onLinux,60FPS. HigherFPS patch notwritten; upscalers experimental. These remain upstream claims, not Portcove completion/network qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/johnnygentoo/gzport",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/johnnygentoo/gzport",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 NorthAmerica CUSA02046 base1.00 plus update1.01."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual own CUSA02046 base1.00/update1.01 merge or launcher PKG import, game_check.py then documented build/run GTK launcher. No external game download; no runtime package approved here."
+        }
+      ],
+      "warnings": [
+        "Upstream reports full solo story/other modes and three-PC LAN onLinux,60FPS. HigherFPS patch notwritten; upscalers experimental. These remain upstream claims, not Portcove completion/network qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/johnnygentoo/gzport"
+    },
+    "issue_number": 3450
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "godzilla-2015-ps4",
+    "origin": {
+      "project_url": "https://github.com/johnnygentoo/gzport",
+      "repository": {
+        "host": "github.com",
+        "id": "1430799583"
+      }
+    },
+    "decisions": []
+  }
+}

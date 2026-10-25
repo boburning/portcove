@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "starwars-renegadesquadron-pc-gtteancum-star-wars-battlefront-renegade-squadron",
+    "target_key": "star-wars-battlefront-renegade-squadron-psp",
     "origin": {
       "project_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC",
       "repository": {

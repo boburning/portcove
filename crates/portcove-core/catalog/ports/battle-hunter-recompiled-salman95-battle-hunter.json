@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/salman95/BattleHunterRecomp"
     },
+    "issue_number": 3391,
     "artwork": {
       "game_id": 3190,
       "cover_id": 506806,
@@ -34,5 +35,17 @@
       "game_slug": "battle-hunter",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "battle-hunter-ps1",
+    "origin": {
+      "project_url": "https://github.com/salman95/BattleHunterRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1415147471"
+      }
+    },
+    "decisions": []
   }
 }

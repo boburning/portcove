@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "halo-3-recomp-george0815-halo-3",
+    "name": "Halo 3 — halo-3-recomp (george0815)",
+    "original_game_title": "Halo 3",
+    "summary": "Research project. Mainmenu/campaign/multiplayer loading/HUD; washed-out in-game frames and debug movie shortcut remain. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/george0815/halo-3-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/george0815/halo-3-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Halo3 Xbox360 default.xex/disc; exact revision to verify. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "CMake/Ninja/Clang18 generated H3RecompLib and patched FFmpeg/XMA runtime. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Mainmenu/campaign/multiplayer loading/HUD; washed-out in-game frames and debug movie shortcut remain. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/george0815/halo-3-recomp"
+    },
+    "issue_number": 3556,
+    "artwork": {
+      "game_id": 987,
+      "cover_id": 90048,
+      "image_id": "co1xhc",
+      "image_sha256": "026e609d82d4877a549ff5c1f3de5600e77561d47de3be86e047e1fa26363cbc",
+      "game_slug": "halo-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "halo-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/george0815/halo-3-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1408755074"
+      }
+    },
+    "decisions": []
+  }
+}

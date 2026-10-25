@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "hg-kunodemetries-haunting-ground",
+    "target_key": "haunting-ground-ps2",
     "origin": {
       "project_url": "https://github.com/KunoDemetries/HG",
       "repository": {

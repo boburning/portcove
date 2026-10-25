@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "dmc-recomp-gui-tora-devil-may-cry",
+    "target_key": "devil-may-cry-ps2",
     "origin": {
       "project_url": "https://github.com/Gui-Tora/dmc-recomp",
       "repository": {

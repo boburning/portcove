@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground",
+    "target_key": "tony-hawk-s-proving-ground-xbox-360",
     "origin": {
       "project_url": "https://github.com/Newbie1337x/ProvingGroundRecomp",
       "repository": {

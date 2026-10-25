@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "table-tennis-recomp-bartando-rockstar-games-presents-table-tennis",
+    "target_key": "rockstar-games-presents-table-tennis-xbox-360",
     "origin": {
       "project_url": "https://github.com/bartando/ttrecomp",
       "repository": {

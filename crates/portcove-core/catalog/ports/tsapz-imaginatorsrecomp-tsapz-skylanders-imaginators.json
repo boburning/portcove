@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tsapz-imaginatorsrecomp-tsapz-skylanders-imaginators",
+    "target_key": "skylanders-imaginators-xbox-360",
     "origin": {
       "project_url": "https://github.com/tsapZ/ImaginatorsRecomp",
       "repository": {

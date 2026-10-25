@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "openrac-openrac-ratchet-clank",
+    "target_key": "ratchet-clank-2002-ps2-rac-rs",
     "origin": {
       "project_url": "https://github.com/OpenRAC/OpenRAC",
       "repository": {

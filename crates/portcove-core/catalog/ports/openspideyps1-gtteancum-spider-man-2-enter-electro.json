@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
     },
+    "issue_number": 3359,
     "artwork": {
       "game_id": 4118,
       "cover_id": 120899,
@@ -34,5 +35,17 @@
       "game_slug": "spider-man-2-enter-electro",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "spider-man-2-enter-electro-ps1",
+    "origin": {
+      "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1349832342"
+      }
+    },
+    "decisions": []
   }
 }

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "maxiboostport-johnnygentoo-mobile-suit-gundam-extreme-vs-maxiboost-on",
+    "name": "Mobile Suit Gundam Extreme VS. Maxiboost ON — MaxiboostPort (johnnygentoo)",
+    "original_game_title": "Mobile Suit Gundam Extreme VS. Maxiboost ON",
+    "summary": "Research project. Upstream early playable offline FreeBattle60FPS/saves/split-screen; limited online two-instance/twoPC claims and oneDLC. No allmode/fullgame or Portcove network qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/johnnygentoo/MaxiboostPort",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/johnnygentoo/MaxiboostPort",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 NorthAmerica CUSA18758 base1.00 plus update1.15."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own CUSA18758 base1.00/update1.15 files merged/hardlinked, game_check.py then README build/run launcher route; optional owned DLC remains separate."
+        }
+      ],
+      "warnings": [
+        "Upstream early playable offline FreeBattle60FPS/saves/split-screen; limited online two-instance/twoPC claims and oneDLC. No allmode/fullgame or Portcove network qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/johnnygentoo/MaxiboostPort"
+    },
+    "issue_number": 3465
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mobile-suit-gundam-extreme-vs-maxiboost-on-ps4",
+    "origin": {
+      "project_url": "https://github.com/johnnygentoo/MaxiboostPort",
+      "repository": {
+        "host": "github.com",
+        "id": "1430796103"
+      }
+    },
+    "decisions": []
+  }
+}

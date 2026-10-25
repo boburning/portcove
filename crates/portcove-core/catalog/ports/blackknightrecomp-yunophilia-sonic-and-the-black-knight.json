@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/yunophilia/BlackKnightRecomp"
     },
+    "issue_number": 3332,
     "artwork": {
       "game_id": 5166,
       "cover_id": 200629,
@@ -34,5 +35,17 @@
       "game_slug": "sonic-and-the-black-knight",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "sonic-and-the-black-knight-wii",
+    "origin": {
+      "project_url": "https://github.com/yunophilia/BlackKnightRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1414725951"
+      }
+    },
+    "decisions": []
   }
 }

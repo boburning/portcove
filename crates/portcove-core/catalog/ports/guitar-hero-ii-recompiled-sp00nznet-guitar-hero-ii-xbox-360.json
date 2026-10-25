@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/sp00nznet/gh2"
     },
+    "issue_number": 3279,
     "artwork": {
       "game_id": 2670,
       "cover_id": 430248,
@@ -34,5 +35,17 @@
       "game_slug": "guitar-hero-ii",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "guitar-hero-ii-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/gh2",
+      "repository": {
+        "host": "github.com",
+        "id": "1169363449"
+      }
+    },
+    "decisions": []
   }
 }

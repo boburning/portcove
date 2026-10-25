@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/magicseb/blinx-recomp"
     },
+    "issue_number": 3197,
     "artwork": {
       "game_id": 5751,
       "cover_id": 90378,
@@ -34,5 +35,17 @@
       "game_slug": "blinx-the-time-sweeper",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blinx-the-time-sweeper-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/magicseb/blinx-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432074620"
+      }
+    },
+    "decisions": []
   }
 }

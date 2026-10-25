@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tsapz-superchargersrecomp-tsapz-skylanders-superchargers",
+    "target_key": "skylanders-superchargers-xbox-360",
     "origin": {
       "project_url": "https://github.com/tsapZ/SuperChargersRecomp",
       "repository": {

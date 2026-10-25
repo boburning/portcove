@@ -4,28 +4,29 @@
     "id": "gravity-rush-for-windows-prathewsh-gravity-rush-2",
     "name": "Gravity Rush 2 — Gravity Rush for Windows (Prathewsh)",
     "original_game_title": "Gravity Rush 2",
-    "summary": "Experimental; precise per-title gameplay coverage needs clarification Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Research project. Experimental research project: neither title has verified Windows gameplay, and a complete native build is not verified. The recorded CMake attempt stopped for missing Vulkan headers/libraries in the macOS development environment; this does not prove every native host build fails. Utility/Python checks do not verify in-game rendering. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Prathewsh/gravityrush_pc",
-    "platforms": ["windows-x86-64"],
+    "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Prathewsh/gravityrush_pc",
     "manual_setup": {
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Remastered CUSA01113/CUSA01130; GR2 CUSA00547/CUSA03694/CUSA04934/CUSA04943 update01.11 patch target; owned decrypted dumps"
+          "instruction": "Own decrypted PS4 Gravity Rush 2 dump CUSA00547/CUSA03694/CUSA04934/CUSA04943, containing eboot.bin and sce_sys/param.sfo. Bundled executable/FPS patches target update01.11; other versions run without those patches, not with verified gameplay compatibility. Optional audio module libSceNgs2.sprx comes from the owner console. Do not accept Remastered CUSA01113/CUSA01130 as this game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source Windows packaging/runtime imports dumps; build or available fork package"
+          "instruction": "Upstream documents Windows source packaging and a launcher preparing the selected owned decrypted dump. A successful complete native build/player route is not verified by the retained primary. Its recorded Mac development configuration lacked Vulkan headers/libraries; do not generalize that environment failure to all native hosts or assert a verified release package."
         }
       ],
       "warnings": [
-        "Experimental; precise per-title gameplay coverage needs clarification",
+        "Experimental research project: neither title has verified Windows gameplay, and a complete native build is not verified. The recorded CMake attempt stopped for missing Vulkan headers/libraries in the macOS development environment; this does not prove every native host build fails. Utility/Python checks do not verify in-game rendering.",
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/Prathewsh/gravityrush_pc"
     },
+    "issue_number": 3339,
     "artwork": {
       "game_id": 12528,
       "cover_id": 510581,
@@ -34,5 +35,17 @@
       "game_slug": "gravity-rush-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gravity-rush-2-ps4",
+    "origin": {
+      "project_url": "https://github.com/Prathewsh/gravityrush_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1419807679"
+      }
+    },
+    "decisions": []
   }
 }

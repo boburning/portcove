@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "hauntingground-recomp-lasvola-haunting-ground",
+    "target_key": "haunting-ground-ps2",
     "origin": {
       "project_url": "https://github.com/LasVola/hauntingground-recomp",
       "repository": {

@@ -68,7 +68,11 @@ import { ecosystemBursts } from "./discovery-ecosystems.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { fileURLToPath } from "node:url";
-import { assertDiscoveryIntakeIdentity, discoveryGameKey } from "./discovery-intake-identity.mts";
+import {
+  assertDiscoveryIntakeIdentity,
+  discoveryGameKey,
+  reviewedDiscoveryFamilyAliases,
+} from "./discovery-intake-identity.mts";
 import type { ReviewedDiscoveryIdentity } from "./discovery-reconciliation.mts";
 
 interface Candidate {
@@ -1049,7 +1053,7 @@ export class DiscoverySession {
       ids[0] <= 0
     )
       throw new Error("Intake needs a primary-researched immutable repository identity");
-    return assertDiscoveryIntakeIdentity(
+    const result = assertDiscoveryIntakeIdentity(
       {
         repository: new URL(candidate.upstream).pathname.slice(1),
         repository_id: ids[0],
@@ -1060,6 +1064,18 @@ export class DiscoverySession {
       records,
       Object.values(this.leads.records),
     );
+    for (const alias of reviewedDiscoveryFamilyAliases(candidate.body))
+      assertDiscoveryIntakeIdentity(
+        {
+          ...alias,
+          kind: "implementation",
+          ...(candidate.game ? { game_key: discoveryGameKey(candidate.game) } : {}),
+        },
+        this.inventory.issues,
+        records,
+        Object.values(this.leads.records),
+      );
+    return result;
   }
   review(raw: unknown) {
     const v = object(raw),

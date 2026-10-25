@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "timesplitters-gtteancum-timesplitters",
+    "target_key": "timesplitters-ps2",
     "origin": {
       "project_url": "https://github.com/GTTeancum/Timesplitters",
       "repository": {

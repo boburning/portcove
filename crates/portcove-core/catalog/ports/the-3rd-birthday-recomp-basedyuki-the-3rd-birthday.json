@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "the-3rd-birthday-recomp-basedyuki-the-3rd-birthday",
+    "target_key": "the-3rd-birthday-psp",
     "origin": {
       "project_url": "https://github.com/BasedYuki/the-3rd-birthday-recomp",
       "repository": {

@@ -6,7 +6,7 @@
     "original_game_title": "Wii Party",
     "summary": "Alpha; complete BoardGameIsland/all79 FreePlay minigames claimed; other modes and real sensor bar incomplete Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/arelkair/wiiparty-recomp",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/arelkair/wiiparty-recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/arelkair/wiiparty-recomp"
     },
+    "issue_number": 3331,
     "artwork": {
       "game_id": 2189,
       "cover_id": 109711,
@@ -34,5 +35,17 @@
       "game_slug": "wii-party",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wii-party-wii",
+    "origin": {
+      "project_url": "https://github.com/arelkair/wiiparty-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1377405647"
+      }
+    },
+    "decisions": []
   }
 }

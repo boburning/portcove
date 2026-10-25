@@ -6,7 +6,7 @@
     "original_game_title": "Chili Con Carnage",
     "summary": "Native staticruntime/setup; onlyUSdisc; gameplayboundary needsprimaryknownissues. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
     "manual_setup": {
@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "chili-con-carnage-pc-mikethesavage-chili-con-carnage",
+    "target_key": "chili-con-carnage-psp",
     "origin": {
       "project_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
       "repository": {

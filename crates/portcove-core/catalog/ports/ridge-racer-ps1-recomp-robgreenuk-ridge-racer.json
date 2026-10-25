@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ridge-racer-ps1-recomp-robgreenuk-ridge-racer",
+    "name": "Ridge Racer — Ridge-Racer-PS1-Recomp (RobGreenUK)",
+    "original_game_title": "Ridge Racer",
+    "summary": "Research project. Clean Mac workflow checked; Windows cross-compiled but native workflow pending; renderer improvements not physics unlock. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SCUS-94300 own14-track CUE/BIN. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own disc plus local scripts; Play.command Mac, UCRT64 build-windows.sh then Play.cmd Windows; output private. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Clean Mac workflow checked; Windows cross-compiled but native workflow pending; renderer improvements not physics unlock. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp"
+    },
+    "issue_number": 3513,
+    "artwork": {
+      "game_id": 18696,
+      "cover_id": 93900,
+      "image_id": "co20gc",
+      "image_sha256": "4aab623f688228957109155b7daff2a6b4a402eaa06df4938133722034dc9b66",
+      "game_slug": "ridge-racer--1",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ridge-racer-ps1",
+    "origin": {
+      "project_url": "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1372593706"
+      }
+    },
+    "decisions": []
+  }
+}

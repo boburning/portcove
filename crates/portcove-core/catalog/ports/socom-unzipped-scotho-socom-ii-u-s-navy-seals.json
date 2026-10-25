@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "socom-unzipped-scotho-socom-ii-u-s-navy-seals",
+    "target_key": "socom-ii-u-s-navy-seals-ps2",
     "origin": {
       "project_url": "https://github.com/Scotho/socom-unzipped",
       "repository": {

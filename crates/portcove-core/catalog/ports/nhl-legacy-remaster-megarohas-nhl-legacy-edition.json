@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "nhl-legacy-remaster-megarohas-nhl-legacy-edition",
+    "target_key": "nhl-legacy-edition-xbox-360",
     "origin": {
       "project_url": "https://github.com/megarohas/nhl-legacy-remaster",
       "repository": {

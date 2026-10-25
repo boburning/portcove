@@ -6,7 +6,7 @@
     "original_game_title": "F-Zero GX",
     "summary": "Upstream claims complete desktop/VR, no known issues; no Portcove validation Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/ethannicholas/fzerogx-recomp",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ethannicholas/fzerogx-recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/ethannicholas/fzerogx-recomp"
     },
+    "issue_number": 3328,
     "artwork": {
       "game_id": 3492,
       "cover_id": 236085,
@@ -34,5 +35,17 @@
       "game_slug": "f-zero-gx",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "f-zero-gx-gamecube",
+    "origin": {
+      "project_url": "https://github.com/ethannicholas/fzerogx-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1415848520"
+      }
+    },
+    "decisions": []
   }
 }

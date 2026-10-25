@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/hedgey95/rock-band-blitz-recomp"
     },
+    "issue_number": 3269,
     "artwork": {
       "game_id": 2696,
       "cover_id": 89149,
@@ -34,5 +35,17 @@
       "game_slug": "rock-band-blitz",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "rock-band-blitz-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/hedgey95/rock-band-blitz-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1424514202"
+      }
+    },
+    "decisions": []
   }
 }

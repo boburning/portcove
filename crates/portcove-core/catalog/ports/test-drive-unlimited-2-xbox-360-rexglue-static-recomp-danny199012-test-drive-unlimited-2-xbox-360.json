@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp"
     },
+    "issue_number": 3182,
     "artwork": {
       "game_id": 7216,
       "cover_id": 282380,
@@ -34,5 +35,17 @@
       "game_slug": "test-drive-unlimited-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "test-drive-unlimited-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1404223218"
+      }
+    },
+    "decisions": []
   }
 }

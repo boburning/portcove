@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bustagrooverecompiled-releases-brankomatija-bust-a-groove",
+    "name": "Bust A Groove — BustAGrooveRecompiled-Releases (brankomatija)",
+    "original_game_title": "Bust A Groove",
+    "summary": "Research project. Upstream native60FPS/render/controller feature claims; full game and release payload not Portcove-qualified. Settings launcher optional, not separate implementation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/brankomatija/BustAGrooveRecompiled-Releases",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/brankomatija/BustAGrooveRecompiled-Releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA SCUS94263 CUE/BIN; SHA1 4b206a8263a3f08965885f662c03cee76e745ec1 (hash scope must be checked)."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual upstream Windowsx64 ZIP, owned SCUS94263 CUE/BIN in disc folder then BustAGroove_Recompiled.exe. Source counterpart and artifact contents/trust unverified, no automatic package approval."
+        }
+      ],
+      "warnings": [
+        "Upstream native60FPS/render/controller feature claims; full game and release payload not Portcove-qualified. Settings launcher optional, not separate implementation.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/brankomatija/BustAGrooveRecompiled-Releases"
+    },
+    "issue_number": 3497,
+    "artwork": {
+      "game_id": 4138,
+      "cover_id": 239141,
+      "image_id": "co54it",
+      "image_sha256": "1084a70eae25a4c86079dafdb1a5b6575b3ca06c0bd9edc03d9d790b169634c7",
+      "game_slug": "bust-a-groove",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bust-a-groove-ps1",
+    "origin": {
+      "project_url": "https://github.com/brankomatija/BustAGrooveRecompiled-Releases",
+      "repository": {
+        "host": "github.com",
+        "id": "1416358297"
+      }
+    },
+    "decisions": []
+  }
+}

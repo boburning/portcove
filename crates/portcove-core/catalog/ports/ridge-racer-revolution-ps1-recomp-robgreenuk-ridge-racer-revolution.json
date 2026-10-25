@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ridge-racer-revolution-ps1-recomp-robgreenuk-ridge-racer-revolution",
+    "name": "Ridge Racer Revolution — Ridge-Racer-Revolution-PS1-Recomp (RobGreenUK)",
+    "original_game_title": "Ridge Racer Revolution",
+    "summary": "Research project. Original renderer playtested; enhanced preview lighting/tunnels/mirror/HUD/transitions pending. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-00214 own20-track CUE/BIN. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own disc-images files plus scripts/build-macos.sh and scripts/run-macos.sh; no playable builds distributed. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Original renderer playtested; enhanced preview lighting/tunnels/mirror/HUD/transitions pending. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp"
+    },
+    "issue_number": 3512,
+    "artwork": {
+      "game_id": 18697,
+      "cover_id": 407679,
+      "image_id": "co8qkf",
+      "image_sha256": "2864036d2db11746ebdbd5b767f88cfccb1d6abed4a7b120f068bd43c946b2ca",
+      "game_slug": "ridge-racer-revolution",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ridge-racer-revolution-ps1",
+    "origin": {
+      "project_url": "https://github.com/RobGreenUK/Ridge-Racer-Revolution-PS1-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1373120435"
+      }
+    },
+    "decisions": []
+  }
+}

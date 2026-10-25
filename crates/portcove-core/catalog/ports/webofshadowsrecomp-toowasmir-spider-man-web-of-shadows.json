@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "webofshadowsrecomp-toowasmir-spider-man-web-of-shadows",
+    "target_key": "spider-man-web-of-shadows-xbox-360",
     "origin": {
       "project_url": "https://github.com/toowasmir/WebOfShadowsRecomp",
       "repository": {

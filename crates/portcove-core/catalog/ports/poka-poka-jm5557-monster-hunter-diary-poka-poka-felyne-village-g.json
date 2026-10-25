@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "poka-poka-jm5557-monster-hunter-diary-poka-poka-felyne-village-g",
+    "target_key": "monster-hunter-diary-poka-poka-felyne-village-g-psp",
     "origin": {
       "project_url": "https://github.com/jM5557/poka-poka",
       "repository": {

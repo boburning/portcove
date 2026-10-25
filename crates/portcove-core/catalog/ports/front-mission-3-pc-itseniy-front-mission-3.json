@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "front-mission-3-pc-itseniy-front-mission-3",
+    "name": "Front Mission 3 — Front-Mission-3-PC (ITSeniy)",
+    "original_game_title": "Front Mission 3",
+    "summary": "Research project. Title gameplay/FMVs/audio reported; formal PlaythroughA and post-training scheduler investigation ongoing. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ITSeniy/Front-Mission-3-PC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ITSeniy/Front-Mission-3-PC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-01011 own FM3 CUE/BIN plus owned SCPH1001.BIN. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own disc/BIOS generation/build against vendored framework then Front_Mission_3_Recompiled.exe; captured overlays compile locally. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Title gameplay/FMVs/audio reported; formal PlaythroughA and post-training scheduler investigation ongoing. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ITSeniy/Front-Mission-3-PC"
+    },
+    "issue_number": 3524,
+    "artwork": {
+      "game_id": 1502,
+      "cover_id": 133670,
+      "image_id": "co2v52",
+      "image_sha256": "ce7d7f691e4ab333a6525a74464c67843ec8e3f54703b8d3abf731a03dbc4506",
+      "game_slug": "front-mission-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "front-mission-3-ps1",
+    "origin": {
+      "project_url": "https://github.com/ITSeniy/Front-Mission-3-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1364274852"
+      }
+    },
+    "decisions": []
+  }
+}

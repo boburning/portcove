@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/adumah/mhnwis-nx"
     },
+    "issue_number": 3244,
     "artwork": {
       "game_id": 19318,
       "cover_id": 296169,
@@ -34,5 +35,17 @@
       "game_slug": "monster-high-new-ghoul-in-school",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "monster-high-new-ghoul-in-school-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/adumah/mhnwis-nx",
+      "repository": {
+        "host": "github.com",
+        "id": "1427628039"
+      }
+    },
+    "decisions": []
   }
 }

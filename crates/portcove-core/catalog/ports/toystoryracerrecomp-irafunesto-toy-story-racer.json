@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "toystoryracerrecomp-irafunesto-toy-story-racer",
+    "name": "Toy Story Racer — ToyStoryRacerRecomp (IraFunesto)",
+    "original_game_title": "Toy Story Racer",
+    "summary": "Research project. Upstream native racer preview with native track renderer/widescreen and title-specific scene fixes. No full playthrough or every track/render enhancement is Portcove-verified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 ToyStoryRacer PAL SLES-03398 Spanish/Italian/Dutch CUE/BIN; two known dump variants and guarded corrupt-track fixes are described upstream. First run creates local tsr_data; never redistribute it."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream describes a standalone release ZIP and owned-disc first-start extraction into tsr_data, plus PSXRecomp/launcher source route. No package integrity was checked here; game-derived/runtime distribution review remains separate."
+        }
+      ],
+      "warnings": [
+        "Upstream native racer preview with native track renderer/widescreen and title-specific scene fixes. No full playthrough or every track/render enhancement is Portcove-verified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp"
+    },
+    "issue_number": 3438,
+    "artwork": {
+      "game_id": 18944,
+      "cover_id": 422482,
+      "image_id": "co91zm",
+      "image_sha256": "12d46756ab4ea09e2438ce05b976cb6c2551dbef0b0f2c896fbeaa9d789964de",
+      "game_slug": "toy-story-racer",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "toy-story-racer-ps1",
+    "origin": {
+      "project_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1398776047"
+      }
+    },
+    "decisions": []
+  }
+}

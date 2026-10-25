@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/phobos665/Rainbow-six-three-recomp"
-    }
+    },
+    "issue_number": 3185
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tom-clancy-s-rainbow-six-3-xbox-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/phobos665/Rainbow-six-three-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1418012718"
+      }
+    },
+    "decisions": []
   }
 }

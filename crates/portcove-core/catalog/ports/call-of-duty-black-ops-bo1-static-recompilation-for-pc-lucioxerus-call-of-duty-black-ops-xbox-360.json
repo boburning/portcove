@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/LucioXerus/bo1-recomp"
     },
+    "issue_number": 3216,
     "artwork": {
       "game_id": 545,
       "cover_id": 88869,
@@ -34,5 +35,17 @@
       "game_slug": "call-of-duty-black-ops",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "call-of-duty-black-ops-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/LucioXerus/bo1-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1409101294"
+      }
+    },
+    "decisions": []
   }
 }

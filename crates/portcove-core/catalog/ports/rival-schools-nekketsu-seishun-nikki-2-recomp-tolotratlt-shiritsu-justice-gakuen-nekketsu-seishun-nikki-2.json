@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rival-schools-nekketsu-seishun-nikki-2-recomp-tolotratlt-shiritsu-justice-gakuen-nekketsu-seishun-nikki-2",
+    "name": "Shiritsu Justice Gakuen: Nekketsu Seishun Nikki 2 — rival-schools-nekketsu-seishun-nikki-2-recomp (tolotratlt)",
+    "original_game_title": "Shiritsu Justice Gakuen: Nekketsu Seishun Nikki 2",
+    "summary": "Research project. Owned-input development kit; complete campaign/gameplay is not established by the setup recipe. Japanese sequel edition remains distinct from USA Arcade/Evolution discs. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Japanese SLPS-02120 CUE/BIN and matching owned SCPH-1001 BIOS; Generate creates local native C/game. Declared dump digests not Redump cross-checked."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Upstream Windows setupZIP/Python setup wizard accepts owned SLPS02120 disc and SCPH1001, then fetches/uses toolchain and generates/compiles locally; MSYS2 source build also documented."
+        }
+      ],
+      "warnings": [
+        "Owned-input development kit; complete campaign/gameplay is not established by the setup recipe. Japanese sequel edition remains distinct from USA Arcade/Evolution discs.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp"
+    },
+    "issue_number": 3440,
+    "artwork": {
+      "game_id": 44769,
+      "cover_id": 605714,
+      "image_id": "coczde",
+      "image_sha256": "dc0c2923288879f048d2879e9db172b4d8beef118604ff24ce3984bc49e68280",
+      "game_slug": "shiritsu-justice-gakuen-nekketsu-seishun-nikki-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "shiritsu-justice-gakuen-nekketsu-seishun-nikki-2-ps1",
+    "origin": {
+      "project_url": "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431844706"
+      }
+    },
+    "decisions": []
+  }
+}

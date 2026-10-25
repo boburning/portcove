@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Provide your own Project Gotham Racing 3 Xbox 360 disc ISO or extracted full disc files. Title 4D5307D1/XEX timestamp 2005-10-30T23:26:30Z/XGD2; other regions untested and expected incompatible."
+          "instruction": "Own Project Gotham Racing 3 Xbox360 Japan/Asia release only (En,Ja,Fr,De,Es,It,Zh,Ko), title4D5307D1, default.xex built2005-10-30T23:26:30Z, as XGD2 ISO or complete extracted game files. NorthAmerican/European releases are untested and expected incompatible; bundled GeometryWars gw.xex is unsupported."
         },
         {
           "title": "Follow upstream setup",
@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/jpneagle/PGR3-recomp"
-    }
+    },
+    "issue_number": 3293
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "project-gotham-racing-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/jpneagle/PGR3-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1404247413"
+      }
+    },
+    "decisions": []
   }
 }

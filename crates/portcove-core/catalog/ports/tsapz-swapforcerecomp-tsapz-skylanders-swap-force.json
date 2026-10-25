@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tsapz-swapforcerecomp-tsapz-skylanders-swap-force",
+    "target_key": "skylanders-swap-force-xbox-360",
     "origin": {
       "project_url": "https://github.com/tsapZ/SwapForceRecomp",
       "repository": {

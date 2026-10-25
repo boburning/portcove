@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/bc160201983/medievil_2019_pc_port"
-    }
+    },
+    "issue_number": 3333
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "medievil-2019-ps4",
+    "origin": {
+      "project_url": "https://github.com/bc160201983/medievil_2019_pc_port",
+      "repository": {
+        "host": "github.com",
+        "id": "1416121528"
+      }
+    },
+    "decisions": []
   }
 }

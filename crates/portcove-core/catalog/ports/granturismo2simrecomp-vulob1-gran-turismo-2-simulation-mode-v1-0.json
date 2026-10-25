@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "granturismo2simrecomp-vulob1-gran-turismo-2-simulation-mode-v1-0",
+    "name": "Gran Turismo 2 (Simulation Mode v1.0) — GranTurismo2SimRecomp (VuloB1)",
+    "original_game_title": "Gran Turismo 2 (Simulation Mode v1.0)",
+    "summary": "Information only; source hold. Upstream Simulation builds but has not been personally tested/played through. Separate Arcade disc reaches races; that does not establish Simulation gameplay. Acquisition is blocked: Source/preparation clarification required: this title README both says generated original-game C is not committed and says generated/ IS committed and CI releases compile that tree. Resolve which exact title tree/build route is current, or document a reproducible clean owned-input route, before offering source/package download, build, registration or execution. This is a contradictory preparation contract, not a claim that a native runtime is absent or a blanket copyright ruling. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/VuloB1/GranTurismo2SimRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "download_block_reason": "Source/preparation clarification required: this title README both says generated original-game C is not committed and says generated/ IS committed and CI releases compile that tree. Resolve which exact title tree/build route is current, or document a reproducible clean owned-input route, before offering source/package download, build, registration or execution. This is a contradictory preparation contract, not a claim that a native runtime is absent or a blanket copyright ruling.",
+    "issue_number": 3479
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gran-turismo-2-simulation-mode-ps1",
+    "origin": {
+      "project_url": "https://github.com/VuloB1/GranTurismo2SimRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427812201"
+      }
+    },
+    "decisions": []
+  }
+}

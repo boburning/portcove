@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "open-halo-2-andrewnakas-halo-2",
+    "target_key": "halo-2-original-xbox",
     "origin": {
       "project_url": "https://github.com/andrewnakas/openhalo2",
       "repository": {

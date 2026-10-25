@@ -4,7 +4,7 @@
     "id": "tenchu-z-recomp-8bitninja64-tenchu-z",
     "name": "Tenchu Z — Tenchu Z Recomp (8bitninja64)",
     "original_game_title": "Tenchu Z",
-    "summary": "Upstream boots/movies/audio/menus/hideout/missions withD3D11at30FPS;60+higher options described. Widerthan16:9/achievements unfinished; no fullcampaign claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream boots/movies/audio/menus/hideout/missions with nativeD3D11 at original30FPS and60+higher options. New HDR10/AO/sharpening/MSAA8x/controller settings/cheats are feature claims; widerthan16:9 and achievements unfinished. Existing75–80FPS mission example onRTX3070laptop is upstream-only; no fullcampaign orPortcove gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/8bitninja64/TenchuZ-PC",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,15 +17,16 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Download TenchuZ-windows-x64.zip, supply own ISO/folder onfirststart; runtime kit locally generates/compiles tenchu_game.dll. Source tools/build.ps1 uses Python3.11+,VS2022Clang, pinnedXenonRecomp/FFmpeg/SDL3. Runtime executable itself contains no gamecode."
+          "instruction": "Download upstream TenchuZ-windows-x64.zip; install Python3.11+ and VS2022 BuildTools C++/Clang as documented. First start selects own supported ISO and locally generates/compiles tenchu_game.dll; original ISO stays required/read in place. Source tools/build.ps1 route remains. Upstream adds optional Esc settings > Update self-update with SHA256 checks and preserved saves/module; manual unzip-over update remains. Neither updater nor package executed byPortcove."
         }
       ],
       "warnings": [
-        "Upstream boots/movies/audio/menus/hideout/missions withD3D11at30FPS;60+higher options described. Widerthan16:9/achievements unfinished; no fullcampaign claim.",
+        "Upstream boots/movies/audio/menus/hideout/missions with nativeD3D11 at original30FPS and60+higher options. New HDR10/AO/sharpening/MSAA8x/controller settings/cheats are feature claims; widerthan16:9 and achievements unfinished. Existing75–80FPS mission example onRTX3070laptop is upstream-only; no fullcampaign orPortcove gameplay qualification.",
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/8bitninja64/TenchuZ-PC"
     },
+    "issue_number": 3453,
     "artwork": {
       "game_id": 7213,
       "cover_id": 117781,
@@ -34,5 +35,17 @@
       "game_slug": "tenchu-z",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tenchu-z-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/8bitninja64/TenchuZ-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1432567204"
+      }
+    },
+    "decisions": []
   }
 }

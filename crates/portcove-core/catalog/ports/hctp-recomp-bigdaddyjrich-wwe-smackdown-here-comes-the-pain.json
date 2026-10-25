@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "hctp-recomp-bigdaddyjrich-wwe-smackdown-here-comes-the-pain",
+    "target_key": "wwe-smackdown-here-comes-the-pain-ps2",
     "origin": {
       "project_url": "https://github.com/BigDaddyJRich/hctp-recomp",
       "repository": {

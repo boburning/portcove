@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/GTTeancum/OpenH3M"
-    }
+    },
+    "issue_number": 3265
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "halo-3-mythic-odst-multiplayer-disc-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/GTTeancum/OpenH3M",
+      "repository": {
+        "host": "github.com",
+        "id": "1335545539"
+      }
+    },
+    "decisions": []
   }
 }

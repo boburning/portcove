@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "wtf-psp-recomp-sp00nznet-wtf-work-time-fun-game-sharing-microgames",
+    "target_key": "wtf-work-time-fun-game-sharing-microgames-psp",
     "origin": {
       "project_url": "https://github.com/sp00nznet/wtf-psp-recomp",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/MissingThePixel/MTR-PGR4"
     },
+    "issue_number": 3287,
     "artwork": {
       "game_id": 2540,
       "cover_id": 86417,
@@ -34,5 +35,17 @@
       "game_slug": "project-gotham-racing-4",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "project-gotham-racing-4-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/MissingThePixel/MTR-PGR4",
+      "repository": {
+        "host": "github.com",
+        "id": "1400597934"
+      }
+    },
+    "decisions": []
   }
 }

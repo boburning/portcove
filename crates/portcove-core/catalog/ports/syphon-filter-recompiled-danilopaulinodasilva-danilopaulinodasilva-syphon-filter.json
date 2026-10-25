@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp"
-    }
+    },
+    "issue_number": 3390
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "syphon-filter-ps1",
+    "origin": {
+      "project_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1424211957"
+      }
+    },
+    "decisions": []
   }
 }

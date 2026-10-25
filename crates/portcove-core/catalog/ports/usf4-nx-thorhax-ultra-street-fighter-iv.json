@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/Thorhax/usf4-nx"
-    }
+    },
+    "issue_number": 3230
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ultra-street-fighter-iv-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Thorhax/usf4-nx",
+      "repository": {
+        "host": "github.com",
+        "id": "1418981191"
+      }
+    },
+    "decisions": []
   }
 }

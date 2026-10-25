@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "killzonerecomp-drakolordx7-killzone",
+    "target_key": "killzone-ps2",
     "origin": {
       "project_url": "https://github.com/drakolordx7/KillzoneRecomp",
       "repository": {

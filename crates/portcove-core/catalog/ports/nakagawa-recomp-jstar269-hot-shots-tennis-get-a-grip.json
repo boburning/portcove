@@ -6,7 +6,7 @@
     "original_game_title": "Hot Shots Tennis: Get a Grip",
     "summary": "Research project. Public normal ISO route is labeled Boots to a named boundary. Compatibility guide also states a public checkout with supplied decrypted inputs plus local manifest can build/play a package; private full-build developer route reaches3Dmatch gameplay with sound. Keep those routes distinct. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Jstar269/nakagawa-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Jstar269/nakagawa-recomp",
     "manual_setup": {
@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
+    "target_key": "hot-shots-tennis-get-a-grip-psp",
     "origin": {
       "project_url": "https://github.com/Jstar269/nakagawa-recomp",
       "repository": {

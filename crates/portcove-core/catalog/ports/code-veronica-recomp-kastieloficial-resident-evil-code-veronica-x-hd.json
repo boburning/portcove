@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp"
-    }
+    },
+    "issue_number": 3368
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "resident-evil-code-veronica-x-hd-ps3",
+    "origin": {
+      "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416413920"
+      }
+    },
+    "decisions": []
   }
 }

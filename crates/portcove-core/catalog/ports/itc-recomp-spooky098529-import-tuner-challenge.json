@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "itc-recomp-spooky098529-import-tuner-challenge",
+    "target_key": "import-tuner-challenge-xbox-360",
     "origin": {
       "project_url": "https://github.com/Spooky098529/ITC-Recomp",
       "repository": {

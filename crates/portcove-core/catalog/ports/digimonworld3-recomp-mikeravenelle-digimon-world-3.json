@@ -6,7 +6,7 @@
     "original_game_title": "Digimon World 3",
     "summary": "Beta bootsandplays; knownrough edges; wholecampaignnotindependentlyverified Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp"
     },
+    "issue_number": 3388,
     "artwork": {
       "game_id": 19678,
       "cover_id": 372792,
@@ -34,5 +35,17 @@
       "game_slug": "digimon-world-3",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "digimon-world-3-ps1",
+    "origin": {
+      "project_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1413654562"
+      }
+    },
+    "decisions": []
   }
 }

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/minty-hippo/amped3revamped"
     },
+    "issue_number": 3239,
     "artwork": {
       "game_id": 5483,
       "cover_id": 236587,
@@ -34,5 +35,17 @@
       "game_slug": "amped-3",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "amped-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/minty-hippo/amped3revamped",
+      "repository": {
+        "host": "github.com",
+        "id": "1416052029"
+      }
+    },
+    "decisions": []
   }
 }

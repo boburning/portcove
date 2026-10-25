@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/mateussmeneses/neverdead-port"
     },
+    "issue_number": 3219,
     "artwork": {
       "game_id": 3215,
       "cover_id": 208065,
@@ -34,5 +35,17 @@
       "game_slug": "neverdead",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "neverdead-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/mateussmeneses/neverdead-port",
+      "repository": {
+        "host": "github.com",
+        "id": "1430562723"
+      }
+    },
+    "decisions": []
   }
 }

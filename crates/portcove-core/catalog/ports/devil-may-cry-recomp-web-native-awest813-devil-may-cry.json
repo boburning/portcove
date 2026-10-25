@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "devil-may-cry-recomp-web-native-awest813-devil-may-cry",
+    "target_key": "devil-may-cry-ps2",
     "origin": {
       "project_url": "https://github.com/awest813/DMC-Recomp",
       "repository": {

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "v64recomp-duke-us-polaco1782-duke-nukem-64",
+    "name": "Duke Nukem 64 — v64recomp / duke-us (polaco1782)",
+    "original_game_title": "Duke Nukem 64",
+    "summary": "Research project. Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/polaco1782/v64recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/polaco1782/v64recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Duke Nukem 64 N64 own USA ROM; duke-us exactsize/SHA1 inprofile. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "tools/import_rom.py --profile games/duke-us/profile.toml normalizes ownz64/n64/v64, CMake duke-us-release builds native duke-us; externalROMdefault, optionalembeddedbuildprivate. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/polaco1782/v64recomp"
+    },
+    "issue_number": 3605,
+    "artwork": {
+      "game_id": 10680,
+      "cover_id": 107692,
+      "image_id": "co2b3g",
+      "image_sha256": "7de30c51f8cf056993d7e51980b03535dd99a7e1964d7d8ca3e06077121db9d0",
+      "game_slug": "duke-nukem-64",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "duke-nukem-64-n64",
+    "origin": {
+      "project_url": "https://github.com/polaco1782/v64recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420121199"
+      }
+    },
+    "decisions": []
+  }
+}

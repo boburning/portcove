@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Ray-m-w/RustMania-Racing"
     },
+    "issue_number": 3392,
     "artwork": {
       "game_id": 3259,
       "cover_id": 213837,
@@ -34,5 +35,17 @@
       "game_slug": "muppet-racemania",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "muppet-racemania-ps1",
+    "origin": {
+      "project_url": "https://github.com/Ray-m-w/RustMania-Racing",
+      "repository": {
+        "host": "github.com",
+        "id": "1424374230"
+      }
+    },
+    "decisions": []
   }
 }

@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tutikumo-aoyagi01-monster-hunter-portable-2nd-g",
+    "target_key": "monster-hunter-portable-2nd-g-psp",
     "origin": {
       "project_url": "https://github.com/Aoyagi01/Tutikumo",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/MaouAnimus/p3d-pc"
     },
+    "issue_number": 3352,
     "artwork": {
       "game_id": 54217,
       "cover_id": 78165,
@@ -34,5 +35,17 @@
       "game_slug": "persona-3-dancing-in-moonlight",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "persona-3-dancing-in-moonlight-ps4",
+    "origin": {
+      "project_url": "https://github.com/MaouAnimus/p3d-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1423957380"
+      }
+    },
+    "decisions": []
   }
 }

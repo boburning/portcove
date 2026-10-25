@@ -6,7 +6,7 @@
     "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 3",
     "summary": "Runtime release with front-end; build from owned disc locally; independent from Tenkaichi3Decomp matching-decomp identity. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/z3xox/BT3-Recomp",
-    "platforms": ["linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/z3xox/BT3-Recomp",
     "manual_setup": {
@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "bt3-recomp-z3xox-dragon-ball-z-budokai-tenkaichi-3",
+    "target_key": "dragon-ball-z-budokai-tenkaichi-3-ps2",
     "origin": {
       "project_url": "https://github.com/z3xox/BT3-Recomp",
       "repository": {

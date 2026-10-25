@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "enchantedarmspc-iandrewjj-enchanted-arms",
+    "target_key": "enchanted-arms-xbox-360",
     "origin": {
       "project_url": "https://github.com/IAndrewJJ/EnchantedArmsRecomp",
       "repository": {

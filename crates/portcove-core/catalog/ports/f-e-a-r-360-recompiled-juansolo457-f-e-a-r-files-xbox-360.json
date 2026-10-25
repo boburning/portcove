@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-files-xbox-360",
+    "name": "F.E.A.R. Files (Xbox 360) — F.E.A.R. 360 Recompiled (Juansolo457)",
+    "original_game_title": "F.E.A.R. Files (Xbox 360)",
+    "summary": "Upstream says Files boots/plays and reports 4K/80FPS with its optional own-PC texture pack and inherited right-stick fix. Files-specific smoke/effects, optimization and both expansion campaigns/full playthrough remain open. Do not inherit every base-game fix or completion claim. Native Linux build is untested; Steam Deck uses experimental Proton; Android ARM64 is scoped/not started. No Portcove runtime/gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Juansolo457/fear360-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Juansolo457/fear360-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox 360 F.E.A.R. Files title565507E8 default.xex and Game/ under port-files/assets/. Exact region/revision/hash requires docs/SETUP.md before source acceptance. Base F.E.A.R. title565507D9 is not this collection source. Optional Files PC texture pack requires corresponding owned PC files."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source-only v0.1.0 route: prepare the patched SDK with tools/setup-sdk.ps1, then locally compile this title using tools/build-nx.ps1 -Project port-files. tools/launch.ps1 -Collection can select it after independent preparation. No public compiled game/player archive is offered by the reviewed README; keep owned disc data local under port-files/assets/."
+        }
+      ],
+      "warnings": [
+        "Upstream says Files boots/plays and reports 4K/80FPS with its optional own-PC texture pack and inherited right-stick fix. Files-specific smoke/effects, optimization and both expansion campaigns/full playthrough remain open. Do not inherit every base-game fix or completion claim. Native Linux build is untested; Steam Deck uses experimental Proton; Android ARM64 is scoped/not started. No Portcove runtime/gameplay qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Juansolo457/fear360-recomp"
+    },
+    "issue_number": 3616,
+    "artwork": {
+      "game_id": 5640,
+      "cover_id": 458990,
+      "image_id": "co9u5q",
+      "image_sha256": "fa002a23f123663d907a3d67091929e1969d905b79e27d83c1c5a3616257bcaa",
+      "game_slug": "f-e-a-r-files",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "f-e-a-r-files-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Juansolo457/fear360-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429345187"
+      }
+    },
+    "decisions": []
+  }
+}

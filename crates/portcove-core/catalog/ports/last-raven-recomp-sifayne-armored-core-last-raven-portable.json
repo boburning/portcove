@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "last-raven-recomp-sifayne-armored-core-last-raven-portable",
+    "target_key": "armored-core-last-raven-portable-psp",
     "origin": {
       "project_url": "https://github.com/Sifayne/last-raven-recomp",
       "repository": {

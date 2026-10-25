@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/l0rd92/HP1Recomp"
-    }
+    },
+    "issue_number": 3395
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "harry-potter-and-the-sorcerer-s-stone-ps1",
+    "origin": {
+      "project_url": "https://github.com/l0rd92/HP1Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1414242204"
+      }
+    },
+    "decisions": []
   }
 }

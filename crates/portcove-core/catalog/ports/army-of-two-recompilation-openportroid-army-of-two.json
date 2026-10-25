@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/OpenPortroid/ArmyOfTwoRecompilation"
     },
+    "issue_number": 3190,
     "artwork": {
       "game_id": 996,
       "cover_id": 276344,
@@ -34,5 +35,17 @@
       "game_slug": "army-of-two",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "army-of-two-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/OpenPortroid/ArmyOfTwoRecompilation",
+      "repository": {
+        "host": "github.com",
+        "id": "1422507308"
+      }
+    },
+    "decisions": []
   }
 }

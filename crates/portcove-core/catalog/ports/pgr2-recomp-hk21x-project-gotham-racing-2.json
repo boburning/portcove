@@ -4,7 +4,7 @@
     "id": "pgr2-recomp-hk21x-project-gotham-racing-2",
     "name": "Project Gotham Racing 2 — pgr2-recomp (hk21x)",
     "original_game_title": "Project Gotham Racing 2",
-    "summary": "Native title runtime/graphics enhancements; precise race/career scope not established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports boot, movies, menus, races in every mode tried, saves and System Link. This is not a demonstrated complete career/campaign. Sound-effect reverb/filters remain unmodeled; experimental 60FPS races can dip in busy streets. The current README adds top-right Quit game and Alt+F4 exit controls. No Portcove setup, package, controller, networking or gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/hk21x/pgr2-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,14 +17,27 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "PGR2Launcher.exe imports own ISO/files, obtains portable tools and builds game locally. Exact current launcher archive/digest needs readback."
+          "instruction": "README advertises PGR2Launcher.exe via latest release. On Windows10/11 x86-64, select an owned supported PAL/NTSC ISO or disc folder; the launcher downloads portable Clang/CMake/Ninja/Git/Microsoft build tools plus project source and compiles the game locally (upstream estimates30–90minutes, about15GB space and1.4GB tools). It does not download original game code. Later Play/Update reuse or rebuild local output; owned game data remains required. Source route uses recursive submodules, assets/default.xbe plus disc data, VisualStudio2022 C++/Clang/CMake and build.bat. No launcher artifact was downloaded or its digest inspected."
         }
       ],
       "warnings": [
-        "Native title runtime/graphics enhancements; precise race/career scope not established here.",
+        "Upstream reports boot, movies, menus, races in every mode tried, saves and System Link. This is not a demonstrated complete career/campaign. Sound-effect reverb/filters remain unmodeled; experimental 60FPS races can dip in busy streets. The current README adds top-right Quit game and Alt+F4 exit controls. No Portcove setup, package, controller, networking or gameplay qualification.",
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/hk21x/pgr2-recomp"
-    }
+    },
+    "issue_number": 3625
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "project-gotham-racing-2-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/hk21x/pgr2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423714687"
+      }
+    },
+    "decisions": []
   }
 }

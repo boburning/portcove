@@ -6,7 +6,7 @@
     "original_game_title": "Guardian Heroes (Xbox Live Arcade)",
     "summary": "Linux gameplay/input reported; audio not checked by ear. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/rashevskyv/guardian-heroes-recomp-public",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/rashevskyv/guardian-heroes-recomp-public",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/rashevskyv/guardian-heroes-recomp-public"
     },
+    "issue_number": 3198,
     "artwork": {
       "game_id": 51635,
       "cover_id": 268723,
@@ -34,5 +35,17 @@
       "game_slug": "guardian-heroes--1",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "guardian-heroes-xbox-live-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/rashevskyv/guardian-heroes-recomp-public",
+      "repository": {
+        "host": "github.com",
+        "id": "1431549693"
+      }
+    },
+    "decisions": []
   }
 }

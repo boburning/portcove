@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tmb-recomp-boubou666-twisted-metal-black",
+    "target_key": "twisted-metal-black-ps2",
     "origin": {
       "project_url": "https://github.com/boubou666/TMB_Recomp",
       "repository": {

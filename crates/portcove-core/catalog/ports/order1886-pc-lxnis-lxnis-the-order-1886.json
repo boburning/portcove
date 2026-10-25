@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/lxnis/Order1886-PC"
     },
+    "issue_number": 3336,
     "artwork": {
       "game_id": 3048,
       "cover_id": 129138,
@@ -34,5 +35,17 @@
       "game_slug": "the-order-1886",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-order-1886-ps4",
+    "origin": {
+      "project_url": "https://github.com/lxnis/Order1886-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1423649456"
+      }
+    },
+    "decisions": []
   }
 }

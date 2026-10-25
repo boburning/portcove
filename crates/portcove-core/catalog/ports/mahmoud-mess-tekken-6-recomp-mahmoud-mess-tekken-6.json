@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "mahmoud-mess-tekken-6-recomp-mahmoud-mess-tekken-6",
+    "target_key": "tekken-6-xbox-360",
     "origin": {
       "project_url": "https://github.com/mahmoud-mess/tekken6-recomp",
       "repository": {

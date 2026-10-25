@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "vcs-recomp-theurbanninja1993-sketch-grand-theft-auto-vice-city-stories-ps2",
+    "target_key": "grand-theft-auto-vice-city-stories-ps2",
     "origin": {
       "project_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
       "repository": {

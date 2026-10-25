@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/ToShredsYouSay/RumbleRecomp"
     },
+    "issue_number": 3330,
     "artwork": {
       "game_id": 4562,
       "cover_id": 115322,
@@ -34,5 +35,17 @@
       "game_slug": "pokemon-rumble",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pokemon-rumble-wii",
+    "origin": {
+      "project_url": "https://github.com/ToShredsYouSay/RumbleRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1404198227"
+      }
+    },
+    "decisions": []
   }
 }

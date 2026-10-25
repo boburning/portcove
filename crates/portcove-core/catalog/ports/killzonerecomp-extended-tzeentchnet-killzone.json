@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "killzonerecomp-extended-tzeentchnet-killzone",
+    "target_key": "killzone-ps2",
     "origin": {
       "project_url": "https://github.com/Tzeentchnet/KillzoneRecomp-Extended",
       "repository": {

@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/sp00nznet/turok"
-    }
+    },
+    "issue_number": 3282
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "turok-2008-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/turok",
+      "repository": {
+        "host": "github.com",
+        "id": "1174009618"
+      }
+    },
+    "decisions": []
   }
 }

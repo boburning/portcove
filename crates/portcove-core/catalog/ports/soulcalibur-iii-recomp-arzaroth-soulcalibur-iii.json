@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",
+    "target_key": "soulcalibur-iii-ps2",
     "origin": {
       "project_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
       "repository": {

@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "dokodemo-native-senya01-doko-demo-issyo-portable",
+    "target_key": "doko-demo-issyo-portable-psp",
     "origin": {
       "project_url": "https://github.com/Senya01/dokodemo-native",
       "repository": {

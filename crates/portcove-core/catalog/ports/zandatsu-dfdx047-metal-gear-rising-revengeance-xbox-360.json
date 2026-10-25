@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/dfdx047/Zandatsu"
     },
+    "issue_number": 3207,
     "artwork": {
       "game_id": 378,
       "cover_id": 120593,
@@ -34,5 +35,17 @@
       "game_slug": "metal-gear-rising-revengeance",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "metal-gear-rising-revengeance-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/dfdx047/Zandatsu",
+      "repository": {
+        "host": "github.com",
+        "id": "1425226695"
+      }
+    },
+    "decisions": []
   }
 }

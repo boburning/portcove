@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Wyrelade/DW2-PC"
     },
+    "issue_number": 3350,
     "artwork": {
       "game_id": 36508,
       "cover_id": 85711,
@@ -34,5 +35,17 @@
       "game_slug": "digimon-world-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "digimon-world-2-ps1",
+    "origin": {
+      "project_url": "https://github.com/Wyrelade/DW2-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1411378799"
+      }
+    },
+    "decisions": []
   }
 }

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "project-re-visited-re3-brazilianhobbyist-resident-evil-3-nemesis",
+    "name": "Resident Evil 3: Nemesis — Project-RE-Visited-RE3 (BrazilianHobbyist)",
+    "original_game_title": "Resident Evil 3: Nemesis",
+    "summary": "Research project. Upstream experimental RE3; prior allstatic/60FPS claims corrected. Measured older cache interpretation0.03–0.15% over20min/foursessions is bounded historical evidence, not universal nofallback/fullgame proof. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own ResidentEvil3 USA SLUS00923 CUE/BIN raw2352 sectors;2048 ISO rejected because audio/video absent. Exact input fingerprints still need title profile readback."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual own-disc source build.ps1 -Regen -DiscPath then launcher build.ps1; upstream ZIP launcher also describes InstallGame/own CUE. v1.7 cache generated from disc, fallback/backgroundtoolchain scope explicit; no artifact accepted here."
+        }
+      ],
+      "warnings": [
+        "Upstream experimental RE3; prior allstatic/60FPS claims corrected. Measured older cache interpretation0.03–0.15% over20min/foursessions is bounded historical evidence, not universal nofallback/fullgame proof.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3"
+    },
+    "issue_number": 3481,
+    "artwork": {
+      "game_id": 966,
+      "cover_id": 134615,
+      "image_id": "co2vvb",
+      "image_sha256": "b31e1d21e58215c80168692466d4cdf392072546e5060e438df440ba56f5f4b3",
+      "game_slug": "resident-evil-3-nemesis",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "resident-evil-3-nemesis-ps1",
+    "origin": {
+      "project_url": "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3",
+      "repository": {
+        "host": "github.com",
+        "id": "1416148156"
+      }
+    },
+    "decisions": []
+  }
+}

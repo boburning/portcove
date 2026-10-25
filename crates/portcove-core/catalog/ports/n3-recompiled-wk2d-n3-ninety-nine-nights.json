@@ -6,7 +6,7 @@
     "original_game_title": "N3: Ninety-Nine Nights",
     "summary": "Opening mission, following cutscene and save/load reported; full-game coverage unvalidated. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp",
-    "platforms": ["windows-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp"
     },
+    "issue_number": 3243,
     "artwork": {
       "game_id": 7094,
       "cover_id": 128041,
@@ -34,5 +35,17 @@
       "game_slug": "n3-ninety-nine-nights",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "n3-ninety-nine-nights-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428577358"
+      }
+    },
+    "decisions": []
   }
 }

@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/sp00nznet/virtuacop"
-    }
+    },
+    "issue_number": 3444
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "virtua-cop-sega-model-2",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/virtuacop",
+      "repository": {
+        "host": "github.com",
+        "id": "1194891845"
+      }
+    },
+    "decisions": []
   }
 }

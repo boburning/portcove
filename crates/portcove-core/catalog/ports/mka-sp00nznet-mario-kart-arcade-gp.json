@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mka-sp00nznet-mario-kart-arcade-gp",
+    "name": "Mario Kart Arcade GP — mka (sp00nznet)",
+    "original_game_title": "Mario Kart Arcade GP",
+    "summary": "Research project. Upstream native entry/Namco/DolphinOS subsystem boot, D3D11 window and test triangle; media-board real boot sequence still missing, title screen/race/audio/input unfinished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/mka",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/mka",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Triforce USA GGPE01."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual Windows VS2022/CMake source build with owned GGPE01 arcade ISO, then mka_launcher.exe ISO. Media-board HLE replay/capture steps are developer research, not a complete player setup."
+        }
+      ],
+      "warnings": [
+        "Upstream native entry/Namco/DolphinOS subsystem boot, D3D11 window and test triangle; media-board real boot sequence still missing, title screen/race/audio/input unfinished.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/mka"
+    },
+    "issue_number": 3437,
+    "artwork": {
+      "game_id": 45160,
+      "cover_id": 95873,
+      "image_id": "co21z5",
+      "image_sha256": "3024381e8592e07d46b85973b0da246d3cded4cc442aa81a9d8c831cbb2654b4",
+      "game_slug": "mario-kart-arcade-gp",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mario-kart-arcade-gp-triforce-arcade",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/mka",
+      "repository": {
+        "host": "github.com",
+        "id": "1190338171"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
+    "target_key": "dragon-ball-z-budokai-2-ps2",
     "origin": {
       "project_url": "https://github.com/7v0biscuit/OpenKai2",
       "repository": {

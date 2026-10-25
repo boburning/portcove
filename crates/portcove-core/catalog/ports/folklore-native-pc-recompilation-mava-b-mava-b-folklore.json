@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Mava-b/folklore-decomp"
     },
+    "issue_number": 3312,
     "artwork": {
       "game_id": 7307,
       "cover_id": 525039,
@@ -34,5 +35,17 @@
       "game_slug": "folklore",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "folklore-ps3",
+    "origin": {
+      "project_url": "https://github.com/Mava-b/folklore-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428300417"
+      }
+    },
+    "decisions": []
   }
 }

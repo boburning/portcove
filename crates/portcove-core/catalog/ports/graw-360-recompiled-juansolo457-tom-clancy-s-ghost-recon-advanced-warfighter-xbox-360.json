@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "graw-360-recompiled-juansolo457-tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
+    "target_key": "tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
     "origin": {
       "project_url": "https://github.com/Juansolo457/graw360-recomp",
       "repository": {

@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ace-combat-04-static-recompilation-satyasujitpasupuleti-ace-combat-04-shattered-skies",
+    "target_key": "presidentraptor-ace-combat-04-pc-port",
     "origin": {
       "project_url": "https://github.com/SatyaSujitPasupuleti/Ace-Combat-04-Static-Recompilation",
       "repository": {

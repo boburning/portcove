@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/RetroRecompilations/MANXBurnout3"
     },
+    "issue_number": 3174,
     "artwork": {
       "game_id": 5761,
       "cover_id": 90903,
@@ -34,5 +35,17 @@
       "game_slug": "burnout-3-takedown",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "burnout-3-takedown-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/RetroRecompilations/MANXBurnout3",
+      "repository": {
+        "host": "github.com",
+        "id": "1321127015"
+      }
+    },
+    "decisions": []
   }
 }

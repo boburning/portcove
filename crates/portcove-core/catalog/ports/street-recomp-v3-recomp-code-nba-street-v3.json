@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "street-recomp-v3-recomp-code-nba-street-v3",
+    "target_key": "nba-street-v3-ps2",
     "origin": {
       "project_url": "https://github.com/recomp-code/street-recomp-v3",
       "repository": {

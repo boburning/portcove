@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/b4ttycre4se/Spider-Man-3-Recomp"
-    }
+    },
+    "issue_number": 3233
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "spider-man-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/b4ttycre4se/Spider-Man-3-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422127285"
+      }
+    },
+    "decisions": []
   }
 }

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled"
     },
+    "issue_number": 3308,
     "artwork": {
       "game_id": 6200,
       "cover_id": 129136,
@@ -34,5 +35,17 @@
       "game_slug": "the-nightmare-before-christmas-oogie-s-revenge",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tim-burton-s-the-nightmare-before-christmas-oogie-s-revenge-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1430485563"
+      }
+    },
+    "decisions": []
   }
 }

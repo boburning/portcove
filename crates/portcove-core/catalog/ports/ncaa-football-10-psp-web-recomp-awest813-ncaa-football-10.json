@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ncaa-football-10-psp-web-recomp-awest813-ncaa-football-10",
+    "target_key": "ncaa-football-10-psp",
     "origin": {
       "project_url": "https://github.com/awest813/NCAA-10-PSP-Recomp",
       "repository": {

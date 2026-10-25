@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ratchet-and-clank-3-ratchet-clank-up-your-arsenal-recopile-maselko-95-ratchet-clank-up-your-arsenal",
+    "target_key": "ratchet-clank-up-your-arsenal-ps2",
     "origin": {
       "project_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile",
       "repository": {

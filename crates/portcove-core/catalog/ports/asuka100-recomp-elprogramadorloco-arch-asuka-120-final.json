@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "asuka100-recomp-elprogramadorloco-arch-asuka-120-final",
+    "name": "Asuka 120% Final — asuka100-recomp (elprogramadorloco-arch)",
+    "original_game_title": "Asuka 120% Final",
+    "summary": "Research project. Local native run described; no full-game qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/elprogramadorloco-arch/asuka100-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/elprogramadorloco-arch/asuka100-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan SLPS-02074 own CUE/BIN291095280bytes SHA1 d33f5e7f73a5a4d0c92f157c2106fe53c789358c. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "run.bat imports own data, downloads pinned tools, translates/builds out/Asuka120_Recompiled.exe; OpenBIOS supplied. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Local native run described; no full-game qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/elprogramadorloco-arch/asuka100-recomp"
+    },
+    "issue_number": 3509
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "asuka-120-final-ps1",
+    "origin": {
+      "project_url": "https://github.com/elprogramadorloco-arch/asuka100-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1400824391"
+      }
+    },
+    "decisions": []
+  }
+}

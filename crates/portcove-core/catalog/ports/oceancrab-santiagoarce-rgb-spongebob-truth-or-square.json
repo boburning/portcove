@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "oceancrab-santiagoarce-rgb-spongebob-truth-or-square",
+    "target_key": "spongebob-truth-or-square-psp",
     "origin": {
       "project_url": "https://github.com/santiagoarce-rgb/OceanCrab",
       "repository": {

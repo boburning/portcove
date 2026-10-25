@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Player124413/Sonic-Generations-Recomp"
     },
+    "issue_number": 3268,
     "artwork": {
       "game_id": 506,
       "cover_id": 93163,
@@ -34,5 +35,17 @@
       "game_slug": "sonic-generations",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "sonic-generations-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Player124413/Sonic-Generations-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1380374904"
+      }
+    },
+    "decisions": []
   }
 }

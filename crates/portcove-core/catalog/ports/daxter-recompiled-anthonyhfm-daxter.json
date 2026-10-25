@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "daxter-recompiled-anthonyhfm-daxter",
+    "target_key": "daxter-psp",
     "origin": {
       "project_url": "https://github.com/anthonyhfm/daxter-recompiled",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp"
     },
+    "issue_number": 3301,
     "artwork": {
       "game_id": 19673,
       "cover_id": 100179,
@@ -34,5 +35,17 @@
       "game_slug": "ncaa-football-14",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ncaa-football-14-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1366785037"
+      }
+    },
+    "decisions": []
   }
 }

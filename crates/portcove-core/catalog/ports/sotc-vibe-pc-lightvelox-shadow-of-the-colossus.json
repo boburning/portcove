@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "sotc-vibe-pc-lightvelox-shadow-of-the-colossus",
+    "target_key": "shadow-of-the-colossus-ps2",
     "origin": {
       "project_url": "https://github.com/LightVelox/sotc-vibe-pc",
       "repository": {

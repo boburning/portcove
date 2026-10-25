@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "r4-douglasjv-r4-ridge-racer-type-4",
+    "name": "R4: Ridge Racer Type 4 — r4 (douglasjv)",
+    "original_game_title": "R4: Ridge Racer Type 4",
+    "summary": "Research project. Title frame-split addresses/timing;60FPS/WS/analog targets, broader replay/audio/FMVs unverified. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/douglasjv/r4",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/douglasjv/r4",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-00797 R4 own CHD and own SCPH1001. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "extract_chd/build-macos then R4_Recompiled; race capture then compile-race-overlay-macos.sh for native cache. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Title frame-split addresses/timing;60FPS/WS/analog targets, broader replay/audio/FMVs unverified. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/douglasjv/r4"
+    },
+    "issue_number": 3550,
+    "artwork": {
+      "game_id": 18699,
+      "cover_id": 382078,
+      "image_id": "co86ta",
+      "image_sha256": "f910bb7fab7ac1e9c56480d7376bcf3e18613d98736808ffedff72d9bf52aac1",
+      "game_slug": "r4-ridge-racer-type-4--1",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "r4-ridge-racer-type-4-ps1",
+    "origin": {
+      "project_url": "https://github.com/douglasjv/r4",
+      "repository": {
+        "host": "github.com",
+        "id": "1297661835"
+      }
+    },
+    "decisions": []
+  }
+}

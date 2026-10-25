@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "noble-archimedes-sergiomanzur-castlevania-curse-of-darkness",
+    "target_key": "castlevania-curse-of-darkness-ps2",
     "origin": {
       "project_url": "https://github.com/sergiomanzur/noble-archimedes",
       "repository": {

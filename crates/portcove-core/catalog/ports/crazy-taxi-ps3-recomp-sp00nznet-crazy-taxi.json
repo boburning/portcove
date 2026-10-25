@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crazy-taxi-ps3-recomp-sp00nznet-crazy-taxi",
+    "name": "Crazy Taxi — Crazy Taxi PS3 recomp (sp00nznet)",
+    "original_game_title": "Crazy Taxi",
+    "summary": "Research project. Title/attract demo renders city; menus/gameplay not reached Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/crazytaxi-ps3",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/crazytaxi-ps3",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA PSN NPUB30242 owned PKG and decrypted EBOOT/assets"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source local relift/build against required runtime branches"
+        }
+      ],
+      "warnings": [
+        "Title/attract demo renders city; menus/gameplay not reached",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/crazytaxi-ps3"
+    },
+    "issue_number": 3325,
+    "artwork": {
+      "game_id": 1805,
+      "cover_id": 352266,
+      "image_id": "co7jt6",
+      "image_sha256": "bf764a88226000563188ac2c645c6a9933d99956cbd325644a7f49d6e8e43034",
+      "game_slug": "crazy-taxi",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crazy-taxi-ps3",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/crazytaxi-ps3",
+      "repository": {
+        "host": "github.com",
+        "id": "1390324399"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "persona2recomp-jermspeaks-persona-2-innocent-sin",
+    "name": "Persona 2: Innocent Sin — Persona2Recomp (jermspeaks)",
+    "original_game_title": "Persona 2: Innocent Sin",
+    "summary": "Research project. Upstream in-progress sourceversion0.1.0 static recompilation with title-owned changes; fullplaythrough/platform acceptance not recorded. Generatedcode and framework licenses remain separate. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jermspeaks/Persona2Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jermspeaks/Persona2Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Persona2InnocentSin Japan SLPS02100 v1.0 reference image; recorded CUE identifies GeminiEnglishtranslationv1.0a. game.toml hashes define acceptance; base Japanese identity alone not proof every translation works."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local owned-input source route: use the documented starting-without-generated-output recipe, build the emitters and regenerate C from the exact owned Japanese SLPS02100v1.0 image with the referenced GeminiEnglish v1.0a translation, then CMake/Ninja psx-runtime. The first-run wizard still requires the compatible disc. Upstream explicitly separates generated/third-party terms from its rootGPL; no publishing, redistribution or managed package offer is made here."
+        }
+      ],
+      "warnings": [
+        "Upstream in-progress sourceversion0.1.0 static recompilation with title-owned changes; fullplaythrough/platform acceptance not recorded. Generatedcode and framework licenses remain separate.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jermspeaks/Persona2Recomp"
+    },
+    "issue_number": 3496,
+    "artwork": {
+      "game_id": 11453,
+      "cover_id": 385219,
+      "image_id": "co898j",
+      "image_sha256": "14d34a2a9b2a17e1b6d31c0e83043479f3a189103c45f97bba9cb68c1cc50e90",
+      "game_slug": "persona-2-innocent-sin",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "persona-2-innocent-sin-ps1",
+    "origin": {
+      "project_url": "https://github.com/jermspeaks/Persona2Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416455037"
+      }
+    },
+    "decisions": []
+  }
+}

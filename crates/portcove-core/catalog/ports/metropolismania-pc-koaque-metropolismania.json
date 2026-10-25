@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "metropolismania-pc-koaque-metropolismania",
+    "target_key": "metropolismania-ps2",
     "origin": {
       "project_url": "https://github.com/koaque/Metropolismania-PC",
       "repository": {

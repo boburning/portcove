@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/xXJSONDeruloXx/chibi-recompo"
     },
+    "issue_number": 3414,
     "artwork": {
       "game_id": 3856,
       "cover_id": 556264,
@@ -34,5 +35,17 @@
       "game_slug": "chibi-robo",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "chibi-robo-plug-into-adventure-gamecube",
+    "origin": {
+      "project_url": "https://github.com/xXJSONDeruloXx/chibi-recompo",
+      "repository": {
+        "host": "github.com",
+        "id": "1300820075"
+      }
+    },
+    "decisions": []
   }
 }

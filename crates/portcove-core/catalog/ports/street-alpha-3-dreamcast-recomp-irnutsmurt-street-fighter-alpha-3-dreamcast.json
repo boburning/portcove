@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp"
-    }
+    },
+    "issue_number": 3560
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "street-fighter-alpha-3-dreamcast",
+    "origin": {
+      "project_url": "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431642060"
+      }
+    },
+    "decisions": []
   }
 }

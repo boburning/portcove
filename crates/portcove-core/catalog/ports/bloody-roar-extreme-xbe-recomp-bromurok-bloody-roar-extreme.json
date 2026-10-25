@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "bloody-roar-extreme-xbe-recomp-bromurok-bloody-roar-extreme",
+    "target_key": "bloody-roar-extreme-original-xbox",
     "origin": {
       "project_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp",
       "repository": {

@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "bt2-recomp-oric212-dragon-ball-z-budokai-tenkaichi-2",
+    "target_key": "dragon-ball-z-budokai-tenkaichi-2-ps2",
     "origin": {
       "project_url": "https://github.com/oric212/BT2-Recomp",
       "repository": {

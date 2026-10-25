@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/joojofc13-wq/HappyWarsRecompiled"
     },
+    "issue_number": 3255,
     "artwork": {
       "game_id": 8410,
       "cover_id": 130417,
@@ -34,5 +35,17 @@
       "game_slug": "happy-wars",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "happy-wars-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/joojofc13-wq/HappyWarsRecompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1423994950"
+      }
+    },
+    "decisions": []
   }
 }

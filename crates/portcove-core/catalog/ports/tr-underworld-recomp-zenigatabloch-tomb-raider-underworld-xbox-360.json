@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/ZenigataBloch/tr-underworld-recomp"
     },
+    "issue_number": 3260,
     "artwork": {
       "game_id": 1163,
       "cover_id": 87708,
@@ -34,5 +35,17 @@
       "game_slug": "tomb-raider-underworld",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tomb-raider-underworld-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/ZenigataBloch/tr-underworld-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425496577"
+      }
+    },
+    "decisions": []
   }
 }

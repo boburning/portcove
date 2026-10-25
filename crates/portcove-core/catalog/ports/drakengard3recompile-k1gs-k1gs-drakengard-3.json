@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "drakengard3recompile-k1gs-k1gs-drakengard-3",
+    "name": "Drakengard 3 — Drakengard3Recompile (k1gs) (k1gs)",
+    "original_game_title": "Drakengard 3",
+    "summary": "Research project. Intro/audio/title/mainmenu; gameplaywithworkingcontrols unconfirmed Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/k1gs/Drakengard3Recompile",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/k1gs/Drakengard3Recompile",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PSNNPUB31251 version1.01 owneddecryptedgamefiles"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcegeneration/build"
+        }
+      ],
+      "warnings": [
+        "Intro/audio/title/mainmenu; gameplaywithworkingcontrols unconfirmed",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/k1gs/Drakengard3Recompile"
+    },
+    "issue_number": 3373,
+    "artwork": {
+      "game_id": 8576,
+      "cover_id": 576595,
+      "image_id": "coccwj",
+      "image_sha256": "643e910a8a02433964237fe92fa48ad2fc34272f1dd6ba1601eaa0026c51c571",
+      "game_slug": "drakengard-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "soyjxck-dod3-recomp",
+    "origin": {
+      "project_url": "https://github.com/k1gs/Drakengard3Recompile",
+      "repository": {
+        "host": "github.com",
+        "id": "1422375026"
+      }
+    },
+    "decisions": []
+  }
+}

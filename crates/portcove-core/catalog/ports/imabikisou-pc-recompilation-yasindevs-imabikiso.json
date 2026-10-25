@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/yasindevs/imabikisou-pc"
     },
+    "issue_number": 3383,
     "artwork": {
       "game_id": 4924,
       "cover_id": 138256,
@@ -34,5 +35,17 @@
       "game_slug": "imabikisou",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "imabikiso-ps3",
+    "origin": {
+      "project_url": "https://github.com/yasindevs/imabikisou-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1419783937"
+      }
+    },
+    "decisions": []
   }
 }

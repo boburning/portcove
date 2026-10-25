@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/SulphurS16/ACFA-Port"
     },
+    "issue_number": 3311,
     "artwork": {
       "game_id": 5493,
       "cover_id": 300659,
@@ -34,5 +35,17 @@
       "game_slug": "armored-core-for-answer",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "armored-core-for-answer-ps3",
+    "origin": {
+      "project_url": "https://github.com/SulphurS16/ACFA-Port",
+      "repository": {
+        "host": "github.com",
+        "id": "1422297273"
+      }
+    },
+    "decisions": []
   }
 }

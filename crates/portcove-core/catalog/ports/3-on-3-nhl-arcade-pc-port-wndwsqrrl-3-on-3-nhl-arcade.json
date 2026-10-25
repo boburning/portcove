@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp"
     },
+    "issue_number": 3285,
     "artwork": {
       "game_id": 21258,
       "cover_id": 585871,
@@ -34,5 +35,17 @@
       "game_slug": "3-on-3-nhl-arcade",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "startupandhold-3on3arcaderecomp",
+    "origin": {
+      "project_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1394649082"
+      }
+    },
+    "decisions": []
   }
 }

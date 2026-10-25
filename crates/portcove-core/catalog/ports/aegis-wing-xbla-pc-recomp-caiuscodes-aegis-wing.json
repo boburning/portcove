@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp"
     },
+    "issue_number": 3284,
     "artwork": {
       "game_id": 2601,
       "cover_id": 310190,
@@ -34,5 +35,17 @@
       "game_slug": "aegis-wing",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "aegis-wing-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1408438887"
+      }
+    },
+    "decisions": []
   }
 }

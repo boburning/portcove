@@ -6,7 +6,7 @@
     "original_game_title": "Kula World",
     "summary": "All10worldsviaLevelSelect andendingFMV; not equivalent to fullplaythrough Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
-    "platforms": ["linux-x86-64"],
+    "platforms": ["linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
     "manual_setup": {
@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/zap0xfce2/Kula-World-Recompiled"
-    }
+    },
+    "issue_number": 3387
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kula-world-ps1",
+    "origin": {
+      "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1420571843"
+      }
+    },
+    "decisions": []
   }
 }

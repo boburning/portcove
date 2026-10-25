@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tsapz-ssarecomp-tsapz-skylanders-spyro-s-adventure",
+    "target_key": "skylanders-spyro-s-adventure-xbox-360",
     "origin": {
       "project_url": "https://github.com/tsapZ/SSARecomp",
       "repository": {

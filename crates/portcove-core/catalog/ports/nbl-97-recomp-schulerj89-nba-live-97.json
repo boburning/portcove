@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nbl-97-recomp-schulerj89-nba-live-97",
+    "name": "NBA Live 97 — nbl-97-recomp (schulerj89)",
+    "original_game_title": "NBA Live 97",
+    "summary": "Research project. Hybrid boot translation plus loaded-code interpreter; exhibition/tipoff/shooting/audio, other modes/hardware untested; launcher/netplay disabled. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/schulerj89/nbl-97-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/schulerj89/nbl-97-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-00267 own NBA97 CUE/tracks; initial single-track CloneCD layout, others not assumed. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Probe own disc into local game.toml, build.ps1 generates boot/OpenBIOS C, run.ps1 launches native output. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Hybrid boot translation plus loaded-code interpreter; exhibition/tipoff/shooting/audio, other modes/hardware untested; launcher/netplay disabled. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/schulerj89/nbl-97-recomp"
+    },
+    "issue_number": 3527,
+    "artwork": {
+      "game_id": 20134,
+      "cover_id": 187074,
+      "image_id": "co40ci",
+      "image_sha256": "7094fd87a407c422dd0c5efcb85bf633a82b4d879c26a2f6991916f5f29eedac",
+      "game_slug": "nba-live-97",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nba-live-97-ps1",
+    "origin": {
+      "project_url": "https://github.com/schulerj89/nbl-97-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1360766090"
+      }
+    },
+    "decisions": []
+  }
+}

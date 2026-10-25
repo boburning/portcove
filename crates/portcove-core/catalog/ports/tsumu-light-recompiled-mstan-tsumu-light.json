@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/mstan/TsumuLightRecomp"
     },
+    "issue_number": 3396,
     "artwork": {
       "game_id": 122545,
       "cover_id": 516325,
@@ -34,5 +35,17 @@
       "game_slug": "tsumu-light",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tsumu-light-ps1",
+    "origin": {
+      "project_url": "https://github.com/mstan/TsumuLightRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1291627253"
+      }
+    },
+    "decisions": []
   }
 }

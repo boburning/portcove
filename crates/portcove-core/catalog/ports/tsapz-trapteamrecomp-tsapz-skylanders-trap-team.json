@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tsapz-trapteamrecomp-tsapz-skylanders-trap-team",
+    "target_key": "skylanders-trap-team-xbox-360",
     "origin": {
       "project_url": "https://github.com/tsapZ/TrapTeamRecomp",
       "repository": {

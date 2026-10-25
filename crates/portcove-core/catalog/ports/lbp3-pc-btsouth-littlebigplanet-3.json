@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/btsouth/lbp3-pc"
     },
+    "issue_number": 3469,
     "artwork": {
       "game_id": 7330,
       "cover_id": 177600,
@@ -34,5 +35,17 @@
       "game_slug": "littlebigplanet-3",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "littlebigplanet-3-ps4",
+    "origin": {
+      "project_url": "https://github.com/btsouth/lbp3-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1424711733"
+      }
+    },
+    "decisions": []
   }
 }

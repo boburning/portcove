@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp"
     },
+    "issue_number": 3568,
     "artwork": {
       "game_id": 6715,
       "cover_id": 506643,
@@ -34,5 +35,17 @@
       "game_slug": "blue-stinger",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blue-stinger-dreamcast",
+    "origin": {
+      "project_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429030695"
+      }
+    },
+    "decisions": []
   }
 }

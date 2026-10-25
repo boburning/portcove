@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS"
     },
+    "issue_number": 3342,
     "artwork": {
       "game_id": 136560,
       "cover_id": 112465,
@@ -34,5 +35,17 @@
       "game_slug": "ea-sports-ufc-4",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ea-sports-ufc-4-ps4",
+    "origin": {
+      "project_url": "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS",
+      "repository": {
+        "host": "github.com",
+        "id": "1429339017"
+      }
+    },
+    "decisions": []
   }
 }

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "umjammerlammyrecomp-mstan-um-jammer-lammy",
+    "name": "Um Jammer Lammy — UmJammerLammyRecomp (mstan)",
+    "original_game_title": "Um Jammer Lammy",
+    "summary": "Research project. Initial Windows controller gameplay; Linux build/launch checks only; full stages, duets, PaRappa and wide scenes unverified. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mstan/UmJammerLammyRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/UmJammerLammyRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SCUS-94448 own CUE/BIN. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised v0.1.0 ZIP, select own CUE; private resource cache generated first launch, OpenBIOS from framework. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Initial Windows controller gameplay; Linux build/launch checks only; full stages, duets, PaRappa and wide scenes unverified. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mstan/UmJammerLammyRecomp"
+    },
+    "issue_number": 3502,
+    "artwork": {
+      "game_id": 6081,
+      "cover_id": 472516,
+      "image_id": "coa4lg",
+      "image_sha256": "0f3c205d12c5d24eddc87090cc2d654358ed38a30ad2dda61968c7269b803213",
+      "game_slug": "um-jammer-lammy",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "um-jammer-lammy-ps1",
+    "origin": {
+      "project_url": "https://github.com/mstan/UmJammerLammyRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1409751259"
+      }
+    },
+    "decisions": []
+  }
+}

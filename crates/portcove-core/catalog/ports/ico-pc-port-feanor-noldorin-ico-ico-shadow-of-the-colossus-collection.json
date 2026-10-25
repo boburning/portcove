@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/feanor-noldorin/ico-recomp"
-    }
+    },
+    "issue_number": 3378
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ico-ico-shadow-of-the-colossus-collection-ps3",
+    "origin": {
+      "project_url": "https://github.com/feanor-noldorin/ico-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1424992822"
+      }
+    },
+    "decisions": []
   }
 }

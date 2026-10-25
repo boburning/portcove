@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "dc2-ps2recomp-red-tv141-dark-cloud-2",
+    "target_key": "dark-cloud-2-ps2",
     "origin": {
       "project_url": "https://github.com/Red-tv141/DC2-PS2RECOMP",
       "repository": {

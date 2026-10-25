@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/DonSlopenberg/VF2reKOmped"
     },
+    "issue_number": 3264,
     "artwork": {
       "game_id": 1547,
       "cover_id": 507960,
@@ -34,5 +35,17 @@
       "game_slug": "virtua-fighter-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "virtua-fighter-2-xbox-live-arcade-2012-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/DonSlopenberg/VF2reKOmped",
+      "repository": {
+        "host": "github.com",
+        "id": "1423865477"
+      }
+    },
+    "decisions": []
   }
 }

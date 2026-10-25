@@ -6,7 +6,7 @@
     "original_game_title": "Mario Kart: Double Dash!!",
     "summary": "Boot/menu/GrandPrixracewithsound; exactfullcampaignunknown Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/ethannicholas/mariokartdd-recomp",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ethannicholas/mariokartdd-recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/ethannicholas/mariokartdd-recomp"
     },
+    "issue_number": 3416,
     "artwork": {
       "game_id": 2344,
       "cover_id": 356898,
@@ -34,5 +35,17 @@
       "game_slug": "mario-kart-double-dash",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mario-kart-double-dash-gamecube",
+    "origin": {
+      "project_url": "https://github.com/ethannicholas/mariokartdd-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1415852614"
+      }
+    },
+    "decisions": []
   }
 }

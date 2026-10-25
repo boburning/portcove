@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "v64recomp-1080-us-polaco1782-1080-snowboarding",
+    "name": "1080° Snowboarding — v64recomp / 1080-us (polaco1782)",
+    "original_game_title": "1080° Snowboarding",
+    "summary": "Research project. Explicit partial Nintendo64logo boundedDebug/Release only; menus/riding unvalidated; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/polaco1782/v64recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/polaco1782/v64recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "1080° Snowboarding N64 own JU revision0 ROM; 1080-us exactsize/SHA1 inprofile. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "tools/import_rom.py --profile games/1080-us/profile.toml normalizes ownz64/n64/v64, CMake 1080-us-release builds native 1080-us; externalROMdefault, optionalembeddedbuildprivate. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Explicit partial Nintendo64logo boundedDebug/Release only; menus/riding unvalidated; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/polaco1782/v64recomp"
+    },
+    "issue_number": 3613,
+    "artwork": {
+      "game_id": 3328,
+      "cover_id": 605286,
+      "image_id": "cocz1i",
+      "image_sha256": "ae2c75fb8a633f8b3d84e5db80db39307da3768cccbcedf73485bee7b3df70db",
+      "game_slug": "1080-snowboarding",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "1080-snowboarding-n64",
+    "origin": {
+      "project_url": "https://github.com/polaco1782/v64recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420121199"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -6,7 +6,7 @@
     "original_game_title": "Dragon Quest VIII: Journey of the Cursed King",
     "summary": "Released launcher builds locally from owned ISO; boots, saves and field gameplay claimed; sustained playability/full-game coverage unestablished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
-    "platforms": ["linux-x86-64", "macos-aarch64"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
     "manual_setup": {
@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "dq8recomp-sinan-karakaya-dragon-quest-viii-journey-of-the-cursed-king",
+    "target_key": "dragon-quest-viii-journey-of-the-cursed-king-ps2",
     "origin": {
       "project_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
       "repository": {

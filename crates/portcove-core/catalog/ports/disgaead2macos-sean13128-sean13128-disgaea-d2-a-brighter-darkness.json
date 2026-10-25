@@ -6,7 +6,7 @@
     "original_game_title": "Disgaea D2: A Brighter Darkness",
     "summary": "Author installednativecopy; unmaintainedOctober2026; WindowscontinuationLUUKASR1separateplatformlineage Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Sean13128/disgaea-d2-recomp",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Sean13128/disgaea-d2-recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Sean13128/disgaea-d2-recomp"
     },
+    "issue_number": 3384,
     "artwork": {
       "game_id": 7299,
       "cover_id": 100653,
@@ -34,5 +35,17 @@
       "game_slug": "disgaea-d2-a-brighter-darkness",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "disgaea-d2-a-brighter-darkness-ps3",
+    "origin": {
+      "project_url": "https://github.com/Sean13128/disgaea-d2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1405044296"
+      }
+    },
+    "decisions": []
   }
 }

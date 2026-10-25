@@ -4,7 +4,7 @@
     "id": "jsrf-pal-recomp-yacineolivier-maker-jet-set-radio-future-pal",
     "name": "Jet Set Radio Future (PAL) — JSRF-PAL-Recomp (yacineolivier-maker)",
     "original_game_title": "Jet Set Radio Future (PAL)",
-    "summary": "Native PAL runtime and enhancements described; exact playable campaign scope needs status; do not inherit USA-port tests. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream PAL-specific work-in-progress claims logos, graffiti warning, title/attract demo, new-game scenes/dialogue and first steps in-game at60FPS1080p with music, voices and sound effects. Saves and every stage remain untested upstream; no full campaign/completion claim. Current graphics text adds175% default supersampling/box filtering, lens ghosts/halo, light shafts and brighter additive particles. Do not inherit USA-port tests; Portcove has not verified any runtime/gameplay claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,15 +17,16 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README JSRF.zip includes launcher/tool route; supply PAL ISO or extracted XBE/Media, first start locally translates/compiles."
+          "instruction": "README advertises JSRF.zip on Releases. Extract, put the owned Europe PAL ISO in assets (or its default.xbe plus Media folder), then run JSRF.exe. First start locally translates/compiles the game code from that copy; later starts reuse it and original game files remain necessary. Source build uses VisualStudio2022 C++/Clang/CMake and build.bat; release.bat produces a zip without original game code according to upstream. No release ZIP was downloaded/inspected."
         }
       ],
       "warnings": [
-        "Native PAL runtime and enhancements described; exact playable campaign scope needs status; do not inherit USA-port tests.",
+        "Upstream PAL-specific work-in-progress claims logos, graffiti warning, title/attract demo, new-game scenes/dialogue and first steps in-game at60FPS1080p with music, voices and sound effects. Saves and every stage remain untested upstream; no full campaign/completion claim. Current graphics text adds175% default supersampling/box filtering, lens ghosts/halo, light shafts and brighter additive particles. Do not inherit USA-port tests; Portcove has not verified any runtime/gameplay claim.",
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp"
     },
+    "issue_number": 3627,
     "artwork": {
       "game_id": 1570,
       "cover_id": 382964,
@@ -34,5 +35,17 @@
       "game_slug": "jet-set-radio-future",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jet-set-radio-future-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432113146"
+      }
+    },
+    "decisions": []
   }
 }

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP"
     },
+    "issue_number": 3240,
     "artwork": {
       "game_id": 99,
       "cover_id": 93656,
@@ -34,5 +35,17 @@
       "game_slug": "need-for-speed-carbon",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "need-for-speed-carbon-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP",
+      "repository": {
+        "host": "github.com",
+        "id": "1400733556"
+      }
+    },
+    "decisions": []
   }
 }

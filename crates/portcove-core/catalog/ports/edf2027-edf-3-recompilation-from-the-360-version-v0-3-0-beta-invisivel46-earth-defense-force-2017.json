@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/invisivel46/edf2027"
     },
+    "issue_number": 3296,
     "artwork": {
       "game_id": 5583,
       "cover_id": 115434,
@@ -34,5 +35,17 @@
       "game_slug": "earth-defense-force-2017",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "earth-defense-force-2017-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/invisivel46/edf2027",
+      "repository": {
+        "host": "github.com",
+        "id": "1350184249"
+      }
+    },
+    "decisions": []
   }
 }

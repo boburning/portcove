@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/erikomis/infamous2-recomp"
     },
+    "issue_number": 3315,
     "artwork": {
       "game_id": 515,
       "cover_id": 236082,
@@ -34,5 +35,17 @@
       "game_slug": "infamous-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "infamous-2-ps3",
+    "origin": {
+      "project_url": "https://github.com/erikomis/infamous2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1418784471"
+      }
+    },
+    "decisions": []
   }
 }

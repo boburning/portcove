@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp"
     },
+    "issue_number": 3407,
     "artwork": {
       "game_id": 3875,
       "cover_id": 463478,
@@ -34,5 +35,17 @@
       "game_slug": "def-jam-fight-for-ny",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "def-jam-fight-for-ny-gamecube",
+    "origin": {
+      "project_url": "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428395994"
+      }
+    },
+    "decisions": []
   }
 }

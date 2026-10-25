@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "pc-dynastywarriors2-vs-sr-dev-dynasty-warriors-2",
+    "target_key": "dynasty-warriors-2-ps2",
     "origin": {
       "project_url": "https://github.com/vs-sr-dev/pc-dynastywarriors2",
       "repository": {

@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "srwz-native-sloppywyn-super-robot-taisen-z",
+    "target_key": "super-robot-taisen-z-ps2",
     "origin": {
       "project_url": "https://github.com/SloppyWyn/SRWZ-native",
       "repository": {

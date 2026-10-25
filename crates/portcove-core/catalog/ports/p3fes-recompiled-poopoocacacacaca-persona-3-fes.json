@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "p3fes-recompiled-poopoocacacacaca-persona-3-fes",
+    "target_key": "persona-3-fes-ps2",
     "origin": {
       "project_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
       "repository": {

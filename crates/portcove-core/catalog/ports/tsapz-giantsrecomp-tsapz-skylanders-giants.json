@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tsapz-giantsrecomp-tsapz-skylanders-giants",
+    "target_key": "skylanders-giants-xbox-360",
     "origin": {
       "project_url": "https://github.com/tsapZ/GiantsRecomp",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/sp00nznet/comixzone"
     },
+    "issue_number": 3278,
     "artwork": {
       "game_id": 3071,
       "cover_id": 95649,
@@ -34,5 +35,17 @@
       "game_slug": "comix-zone",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "comix-zone-xbox-live-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/comixzone",
+      "repository": {
+        "host": "github.com",
+        "id": "1169778103"
+      }
+    },
+    "decisions": []
   }
 }

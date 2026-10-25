@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tomjerryrecomp-irafunesto-tom-and-jerry-in-house-trap",
+    "name": "Tom and Jerry in House Trap — TomJerryRecomp (IraFunesto)",
+    "original_game_title": "Tom and Jerry in House Trap",
+    "summary": "Research project. Title widescreen/split-screen/HUD/timing/loading fixes; no full completion proof. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/IraFunesto/TomJerryRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/IraFunesto/TomJerryRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL Europe SLES-03181 own CUE/BIN. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised ZIP, Python3 and TomJerry_Recompiled.exe Generate & rebuild wizard compiles owned disc locally. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Title widescreen/split-screen/HUD/timing/loading fixes; no full completion proof. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/IraFunesto/TomJerryRecomp"
+    },
+    "issue_number": 3505,
+    "artwork": {
+      "game_id": 8032,
+      "cover_id": 85918,
+      "image_id": "co1uam",
+      "image_sha256": "4a88feddca16eb24e174eb5963551e6f859c5ade13adbc691ccbfb0ebcb4577d",
+      "game_slug": "tom-and-jerry-in-house-trap",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tom-and-jerry-in-house-trap-ps1",
+    "origin": {
+      "project_url": "https://github.com/IraFunesto/TomJerryRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1404555410"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/snufflyyy/trials-hd-recompiled"
-    }
+    },
+    "issue_number": 3218
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "trials-hd-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/snufflyyy/trials-hd-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1417834003"
+      }
+    },
+    "decisions": []
   }
 }

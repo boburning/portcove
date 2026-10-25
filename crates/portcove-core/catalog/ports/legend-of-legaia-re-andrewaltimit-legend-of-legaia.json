@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/AndrewAltimit/legend-of-legaia-re"
     },
+    "issue_number": 3473,
     "artwork": {
       "game_id": 13676,
       "cover_id": 120917,
@@ -34,5 +35,17 @@
       "game_slug": "legend-of-legaia",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "legend-of-legaia-ps1",
+    "origin": {
+      "project_url": "https://github.com/AndrewAltimit/legend-of-legaia-re",
+      "repository": {
+        "host": "github.com",
+        "id": "1229734860"
+      }
+    },
+    "decisions": []
   }
 }

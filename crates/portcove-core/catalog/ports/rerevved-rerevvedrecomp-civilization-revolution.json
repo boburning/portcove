@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "rerevved-rerevvedrecomp-civilization-revolution",
+    "target_key": "civilization-revolution-xbox-360",
     "origin": {
       "project_url": "https://github.com/ReRevvedRecomp/rerevved",
       "repository": {

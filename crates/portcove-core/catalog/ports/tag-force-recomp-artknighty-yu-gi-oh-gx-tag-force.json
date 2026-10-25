@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tag-force-recomp-artknighty-yu-gi-oh-gx-tag-force",
+    "target_key": "yu-gi-oh-gx-tag-force-psp",
     "origin": {
       "project_url": "https://github.com/Artknighty/tagforcerecomp-preview",
       "repository": {

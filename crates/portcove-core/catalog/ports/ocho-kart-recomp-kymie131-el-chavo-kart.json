@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Kymie131/ocho-kart-recomp"
     },
+    "issue_number": 3290,
     "artwork": {
       "game_id": 62461,
       "cover_id": 210320,
@@ -34,5 +35,17 @@
       "game_slug": "el-chavo-kart",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "el-chavo-kart-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Kymie131/ocho-kart-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1375412770"
+      }
+    },
+    "decisions": []
   }
 }

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tox2-recomp-yuias-tales-of-xillia-2",
+    "name": "Tales of Xillia 2 — TOX2-recomp (yuias)",
+    "original_game_title": "Tales of Xillia 2",
+    "summary": "Research project. Title/opening scenes picture/sound on Mac; attractmovieplaceholder, Macgamepadphysicaltest and fullplaythrough absent. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/yuias/TOX2-recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/yuias/TOX2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PS3 Japan BLJS10188 own EBOOT and ownPUP4.93; pinned executable/libsre hashes. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own EBOOT/PUP decryption and PPU/SPU staticemit then build tox2_game; first config fetches key-bearing RPCS3source, offline alternative. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Title/opening scenes picture/sound on Mac; attractmovieplaceholder, Macgamepadphysicaltest and fullplaythrough absent. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/yuias/TOX2-recomp"
+    },
+    "issue_number": 3578,
+    "artwork": {
+      "game_id": 1213,
+      "cover_id": 101040,
+      "image_id": "co25yo",
+      "image_sha256": "d0dc11dbbdc14a07ac599ef3b0372ab039f3401dc6e7b41045bb933d82652eaf",
+      "game_slug": "tales-of-xillia-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tales-of-xillia-2-ps3",
+    "origin": {
+      "project_url": "https://github.com/yuias/TOX2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1412629136"
+      }
+    },
+    "decisions": []
+  }
+}

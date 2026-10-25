@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/sp00nznet/gh3"
     },
+    "issue_number": 3323,
     "artwork": {
       "game_id": 2671,
       "cover_id": 89086,
@@ -34,5 +35,17 @@
       "game_slug": "guitar-hero-iii-legends-of-rock",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "guitar-hero-iii-legends-of-rock-ps3",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/gh3",
+      "repository": {
+        "host": "github.com",
+        "id": "1389212048"
+      }
+    },
+    "decisions": []
   }
 }

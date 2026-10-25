@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "god-hand-rearmed-kris-c-anderson-god-hand",
+    "target_key": "god-hand-ps2",
     "origin": {
       "project_url": "https://github.com/kris-c-anderson/godhand-rearmed",
       "repository": {

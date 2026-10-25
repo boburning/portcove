@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tekken-6-native-online-ekspym-tekken-6",
+    "target_key": "tekken-6-xbox-360",
     "origin": {
       "project_url": "https://github.com/Ekspym/Tekken6-native-online",
       "repository": {

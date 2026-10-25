@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP"
     },
+    "issue_number": 3410,
     "artwork": {
       "game_id": 3786,
       "cover_id": 78794,
@@ -34,5 +35,17 @@
       "game_slug": "animaniacs-the-great-edgar-hunt",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "animaniacs-the-great-edgar-hunt-gamecube",
+    "origin": {
+      "project_url": "https://github.com/ant0-blase/ANIMANIACS-GC-RECOMP",
+      "repository": {
+        "host": "github.com",
+        "id": "1337180307"
+      }
+    },
+    "decisions": []
   }
 }

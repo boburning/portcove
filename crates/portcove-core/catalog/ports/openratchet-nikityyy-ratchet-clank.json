@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "openratchet-nikityyy-ratchet-clank",
+    "target_key": "ratchet-clank-2002-ps2-rac-rs",
     "origin": {
       "project_url": "https://github.com/Nikityyy/OpenRatchet",
       "repository": {

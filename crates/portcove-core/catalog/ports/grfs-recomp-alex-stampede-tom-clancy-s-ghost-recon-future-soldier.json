@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/alex-stampede/GRFS-Recomp"
     },
+    "issue_number": 3227,
     "artwork": {
       "game_id": 1293,
       "cover_id": 91645,
@@ -34,5 +35,17 @@
       "game_slug": "tom-clancy-s-ghost-recon-future-soldier",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tom-clancy-s-ghost-recon-future-soldier-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/alex-stampede/GRFS-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425915760"
+      }
+    },
+    "decisions": []
   }
 }

@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "psp-web-recomp-snuri00-god-of-war-chains-of-olympus",
+    "target_key": "god-of-war-chains-of-olympus-psp",
     "origin": {
       "project_url": "https://github.com/snuri00/psp-web-recomp",
       "repository": {

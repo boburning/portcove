@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "rumbleracingpc-ehren1337-rumble-racing",
+    "target_key": "rumble-racing-ps2",
     "origin": {
       "project_url": "https://github.com/Ehren1337/RumbleRacingPC",
       "repository": {

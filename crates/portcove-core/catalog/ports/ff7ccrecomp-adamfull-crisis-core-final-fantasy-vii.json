@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ff7ccrecomp-adamfull-crisis-core-final-fantasy-vii",
+    "target_key": "crisis-core-final-fantasy-vii-psp",
     "origin": {
       "project_url": "https://github.com/AdamFull/ff7ccrecomp",
       "repository": {

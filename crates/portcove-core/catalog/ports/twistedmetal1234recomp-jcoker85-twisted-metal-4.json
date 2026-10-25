@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "twistedmetal1234recomp-jcoker85-twisted-metal-4",
+    "name": "Twisted Metal 4 — TwistedMetal1234Recomp (jcoker85)",
+    "original_game_title": "Twisted Metal 4",
+    "summary": "Research project. Upstream native TM4 program in shared kit; no Portcove fullgame or alternate-revision validation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA TwistedMetal4 SCUS94560 Rev1 CHD or CUE/BIN; do not reuse TMIII/TM2 source."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual shared Windows launcher/tools/generate.sh route, select tm4 and owned Rev1 disc, retaining runtime/disc at play."
+        }
+      ],
+      "warnings": [
+        "Upstream native TM4 program in shared kit; no Portcove fullgame or alternate-revision validation.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jcoker85/TwistedMetal1234Recomp"
+    },
+    "issue_number": 3489,
+    "artwork": {
+      "game_id": 4698,
+      "cover_id": 85914,
+      "image_id": "co1uai",
+      "image_sha256": "5d38ad17f5b66a33334c5a828f83fa5c45597f0a2a8384bbc6e86cac89302786",
+      "game_slug": "twisted-metal-4",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "twisted-metal-4-ps1",
+    "origin": {
+      "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416517346"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "god-of-war-psp-native-ports-drummingbird1-god-of-war-chains-of-olympus",
+    "target_key": "god-of-war-chains-of-olympus-psp",
     "origin": {
       "project_url": "https://github.com/DrummingBird1/gow-psp-recomp",
       "repository": {

@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/JosueMora918/peggle360-decomp"
     },
+    "issue_number": 3292,
     "artwork": {
       "game_id": 3751,
       "cover_id": 492232,
@@ -34,5 +35,17 @@
       "game_slug": "peggle",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "peggle-xbox-live-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/JosueMora918/peggle360-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1403764267"
+      }
+    },
+    "decisions": []
   }
 }

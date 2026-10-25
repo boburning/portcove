@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "dotr-recomp-glasena-yu-gi-oh-the-duelists-of-the-roses",
+    "target_key": "yu-gi-oh-the-duelists-of-the-roses-ps2",
     "origin": {
       "project_url": "https://github.com/Glasena/dotr-recomp",
       "repository": {

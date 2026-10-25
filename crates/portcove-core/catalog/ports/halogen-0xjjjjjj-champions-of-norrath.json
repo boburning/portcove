@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "halogen-0xjjjjjj-champions-of-norrath",
+    "target_key": "champions-of-norrath-realms-of-everquest-ps2",
     "origin": {
       "project_url": "https://github.com/0xjjjjjj/halogen",
       "repository": {

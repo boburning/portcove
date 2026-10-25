@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "fnc-reborn-whompay-fight-night-champion",
+    "target_key": "fight-night-champion-xbox-360",
     "origin": {
       "project_url": "https://github.com/whompay/FNCReborn",
       "repository": {

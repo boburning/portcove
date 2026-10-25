@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "tkdr-recomp-gasparegas-tekken-dark-resurrection-psp",
+    "target_key": "tekken-dark-resurrection-psp",
     "origin": {
       "project_url": "https://github.com/gasparegas/tkdr-recomp",
       "repository": {

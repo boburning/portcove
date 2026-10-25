@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "gitaroo-man-native-erinxocon-gitaroo-man",
+    "target_key": "gitaroo-man-ps2",
     "origin": {
       "project_url": "https://github.com/erinxocon/gitaroo-man-native",
       "repository": {

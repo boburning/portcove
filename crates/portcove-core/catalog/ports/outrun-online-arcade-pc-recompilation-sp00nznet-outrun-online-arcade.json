@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/sp00nznet/outrun"
-    }
+    },
+    "issue_number": 3299
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "outrun-online-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/outrun",
+      "repository": {
+        "host": "github.com",
+        "id": "1273568307"
+      }
+    },
+    "decisions": []
   }
 }

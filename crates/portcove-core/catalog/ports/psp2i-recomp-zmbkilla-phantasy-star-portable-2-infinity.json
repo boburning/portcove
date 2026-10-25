@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "psp2i-recomp-zmbkilla-phantasy-star-portable-2-infinity",
+    "target_key": "phantasy-star-portable-2-infinity-psp",
     "origin": {
       "project_url": "https://github.com/zmbkilla/PSP2I_Recomp",
       "repository": {

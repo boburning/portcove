@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "rampagere-jjmhalew-rampage-total-destruction",
+    "target_key": "rampage-total-destruction-ps2",
     "origin": {
       "project_url": "https://github.com/jjmhalew/RampageRE",
       "repository": {

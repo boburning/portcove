@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp"
     },
+    "issue_number": 3576,
     "artwork": {
       "game_id": 9678,
       "cover_id": 264068,
@@ -34,5 +35,17 @@
       "game_slug": "roll-away",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kula-world-ps1",
+    "origin": {
+      "project_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427445649"
+      }
+    },
+    "decisions": []
   }
 }

@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "elgus-kameorecomp-elguslml-kameo-elements-of-power",
+    "target_key": "kameo-elements-of-power-xbox-360",
     "origin": {
       "project_url": "https://github.com/ElGuslml/KameoRecomp",
       "repository": {

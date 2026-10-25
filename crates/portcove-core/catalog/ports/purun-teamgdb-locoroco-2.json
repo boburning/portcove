@@ -6,7 +6,7 @@
     "original_game_title": "LocoRoco 2",
     "summary": "Firstlevelplays/saves/continues, laterlevelsuntested; soundeffectsgaps/crashrisk. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/TeamGDB/Purun",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TeamGDB/Purun",
     "manual_setup": {
@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "purun-teamgdb-locoroco-2",
+    "target_key": "locoroco-2-psp",
     "origin": {
       "project_url": "https://github.com/TeamGDB/Purun",
       "repository": {

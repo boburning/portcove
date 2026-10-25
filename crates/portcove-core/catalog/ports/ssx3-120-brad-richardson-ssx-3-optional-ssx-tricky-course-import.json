@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ssx3-120-brad-richardson-ssx-3-optional-ssx-tricky-course-import",
+    "target_key": "ssx-3-ps2",
     "origin": {
       "project_url": "https://github.com/brad-richardson/ssx3-120",
       "repository": {

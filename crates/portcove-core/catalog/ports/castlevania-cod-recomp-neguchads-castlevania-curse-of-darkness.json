@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "castlevania-cod-recomp-neguchads-castlevania-curse-of-darkness",
+    "name": "Castlevania: Curse of Darkness — Castlevania-COD-Recomp (Neguchads)",
+    "original_game_title": "Castlevania: Curse of Darkness",
+    "summary": "Research project. Experimental title menus/hooks; full campaign, texture bands, translation and save-room arrow work pending. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Neguchads/Castlevania-COD-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Neguchads/Castlevania-COD-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "OriginalXbox USA CastlevaniaCoD own default.xbe plus extracted assets. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "build.bat locally generates config/C++ using sibling XboxXBERecomp or pinned SDK fallback. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Experimental title menus/hooks; full campaign, texture bands, translation and save-room arrow work pending. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Neguchads/Castlevania-COD-Recomp"
+    },
+    "issue_number": 3569,
+    "artwork": {
+      "game_id": 1137,
+      "cover_id": 78820,
+      "image_id": "co1otg",
+      "image_sha256": "04f23e02ba2a436b358660cd8af60e8c4cb5a4fcb2a272425e90f8764e71ad26",
+      "game_slug": "castlevania-curse-of-darkness",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "castlevania-curse-of-darkness-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/Neguchads/Castlevania-COD-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432582951"
+      }
+    },
+    "decisions": []
+  }
+}

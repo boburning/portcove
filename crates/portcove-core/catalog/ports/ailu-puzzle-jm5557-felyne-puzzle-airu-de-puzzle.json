@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "ailu-puzzle-jm5557-felyne-puzzle-airu-de-puzzle",
+    "target_key": "felyne-puzzle-airu-de-puzzle-psp",
     "origin": {
       "project_url": "https://github.com/jM5557/ailu-puzzle",
       "repository": {

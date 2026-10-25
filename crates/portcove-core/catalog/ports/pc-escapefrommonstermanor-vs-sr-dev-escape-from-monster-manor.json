@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor",
+    "name": "Escape from Monster Manor — pc-escapefrommonstermanor (vs-sr-dev)",
+    "original_game_title": "Escape from Monster Manor",
+    "summary": "Research project. AtticSimplefirstlevel/referenceframes; monsters twiceFZ10pace untilcelcostmodeled;12levelcompletionunverified. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-escapefrommonstermanor",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-escapefrommonstermanor",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "3DO Europe EscapeFromMonsterManor ownMODE1/2352 disc230700sectors/Portfolio21.10 files. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own-disc extraction/ARMstaticgeneration/CMake pfboot --boot --window. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "AtticSimplefirstlevel/referenceframes; monsters twiceFZ10pace untilcelcostmodeled;12levelcompletionunverified. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-escapefrommonstermanor"
+    },
+    "issue_number": 3596,
+    "artwork": {
+      "game_id": 4337,
+      "cover_id": 79240,
+      "image_id": "co1p54",
+      "image_sha256": "a271b55d20f4147ac353ad3aacd92bfa60c0db3b54da3c4fcd52d3e23dba5f3a",
+      "game_slug": "escape-from-monster-manor",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "escape-from-monster-manor-3do",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-escapefrommonstermanor",
+      "repository": {
+        "host": "github.com",
+        "id": "1412198019"
+      }
+    },
+    "decisions": []
+  }
+}

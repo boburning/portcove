@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/macprotips/peggle2-mac"
     },
+    "issue_number": 3168,
     "artwork": {
       "game_id": 3752,
       "cover_id": 76901,
@@ -34,5 +35,17 @@
       "game_slug": "peggle-2",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "peggle-2-xbox-live-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/macprotips/peggle2-mac",
+      "repository": {
+        "host": "github.com",
+        "id": "1427770622"
+      }
+    },
+    "decisions": []
   }
 }

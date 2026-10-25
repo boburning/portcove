@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
+    "target_key": "war-of-the-monsters-ps2",
     "origin": {
       "project_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
       "repository": {

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dino-crisis-modern-edition-rotmill-dino-crisis",
+    "name": "Dino Crisis — Dino-Crisis-Modern-Edition (Rotmill)",
+    "original_game_title": "Dino Crisis",
+    "summary": "Research project. Upstream native DinoCrisis mod/development feature claims, not Portcove completion. Supported-disc installer route is distinct from proving every enhancement/gameplay path. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Rotmill/Dino-Crisis-Modern-Edition",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Rotmill/Dino-Crisis-Modern-Edition",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own DinoCrisis PS1 Track1 BIN/CUE: USA SLUS00922v1.0/v1.1; supported PAL SLES02207–02211 require corresponding SBI; Japanese SLPS02180 and named RussianUSA translation also listed. No sibling RE source inherited."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual DinoCrisisME_Setup.exe or unpacked setup tools select owned supported disc and locally generate C/compile native game+mod with bundled compiler/Python/PSXRecomp; no precompiled game download asserted."
+        }
+      ],
+      "warnings": [
+        "Upstream native DinoCrisis mod/development feature claims, not Portcove completion. Supported-disc installer route is distinct from proving every enhancement/gameplay path.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Rotmill/Dino-Crisis-Modern-Edition"
+    },
+    "issue_number": 3474,
+    "artwork": {
+      "game_id": 3027,
+      "cover_id": 237188,
+      "image_id": "co530k",
+      "image_sha256": "6d28f411058c9f890839bb7d62319b9c1ccd8223cc2bea2fe012cfdac46a01c6",
+      "game_slug": "dino-crisis",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dino-crisis-ps1",
+    "origin": {
+      "project_url": "https://github.com/Rotmill/Dino-Crisis-Modern-Edition",
+      "repository": {
+        "host": "github.com",
+        "id": "1428544015"
+      }
+    },
+    "decisions": []
+  }
+}

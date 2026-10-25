@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "opentennis-fizl0-hot-shots-tennis",
+    "target_key": "hot-shots-tennis-ps2",
     "origin": {
       "project_url": "https://github.com/FIZL0/opentennis",
       "repository": {

@@ -6,7 +6,7 @@
     "original_game_title": "Soulcalibur II HD Online",
     "summary": "Upstream fights work on Mac and Windows; Linux window only tested under WSL/software Vulkan; frame flash and input testing gaps Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/n0madic/Soulcalibur2HD-recomp",
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/n0madic/Soulcalibur2HD-recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/n0madic/Soulcalibur2HD-recomp"
     },
+    "issue_number": 3314,
     "artwork": {
       "game_id": 20970,
       "cover_id": 89661,
@@ -34,5 +35,17 @@
       "game_slug": "soulcalibur-ii-hd-online",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "soulcalibur-ii-hd-online-ps3",
+    "origin": {
+      "project_url": "https://github.com/n0madic/Soulcalibur2HD-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421261662"
+      }
+    },
+    "decisions": []
   }
 }

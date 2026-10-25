@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/waifoof/MagiciansQuest-Recomp"
     },
+    "issue_number": 3557,
     "artwork": {
       "game_id": 21183,
       "cover_id": 214462,
@@ -34,5 +35,17 @@
       "game_slug": "magicians-quest-mysterious-times",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "magician-s-quest-mysterious-times-nds",
+    "origin": {
+      "project_url": "https://github.com/waifoof/MagiciansQuest-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422852361"
+      }
+    },
+    "decisions": []
   }
 }

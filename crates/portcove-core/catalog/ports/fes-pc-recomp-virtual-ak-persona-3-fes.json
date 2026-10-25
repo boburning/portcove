@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "fes-pc-recomp-virtual-ak-persona-3-fes",
+    "target_key": "persona-3-fes-ps2",
     "origin": {
       "project_url": "https://github.com/Virtual-AK/fes-pc-recomp",
       "repository": {

@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "sword-of-etheria-pc-recomp-ancletoceo-the-sword-of-etheria",
+    "target_key": "the-sword-of-etheria-ps2",
     "origin": {
       "project_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp",
       "repository": {

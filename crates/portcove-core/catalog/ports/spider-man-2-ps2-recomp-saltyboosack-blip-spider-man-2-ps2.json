@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "spider-man-2-ps2-recomp-saltyboosack-blip-spider-man-2-ps2",
+    "target_key": "spider-man-2-ps2",
     "origin": {
       "project_url": "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp",
       "repository": {

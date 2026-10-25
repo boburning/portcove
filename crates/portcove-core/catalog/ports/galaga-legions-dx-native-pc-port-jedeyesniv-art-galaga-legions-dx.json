@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/jedeyesniv-art/Galaga-Legions-DX-PC-Recomp"
     },
+    "issue_number": 3242,
     "artwork": {
       "game_id": 10762,
       "cover_id": 157059,
@@ -34,5 +35,17 @@
       "game_slug": "galaga-legions-dx",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "galaga-legions-dx-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/jedeyesniv-art/Galaga-Legions-DX-PC-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429725838"
+      }
+    },
+    "decisions": []
   }
 }

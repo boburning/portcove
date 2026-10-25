@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "gow2-nativo-ps2-cxldsakeb-god-of-war-ii",
+    "target_key": "god-of-war-ii-ps2",
     "origin": {
       "project_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2",
       "repository": {

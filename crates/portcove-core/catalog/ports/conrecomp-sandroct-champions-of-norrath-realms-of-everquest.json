@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "conrecomp-sandroct-champions-of-norrath-realms-of-everquest",
+    "target_key": "champions-of-norrath-realms-of-everquest-ps2",
     "origin": {
       "project_url": "https://github.com/sandroct/CoNRecomp",
       "repository": {

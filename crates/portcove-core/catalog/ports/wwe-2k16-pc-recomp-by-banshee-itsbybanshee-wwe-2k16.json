@@ -25,6 +25,19 @@
         "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
       ],
       "help_url": "https://github.com/itsbybanshee/wwe2k16-pc"
-    }
+    },
+    "issue_number": 3225
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wwe-2k16-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/itsbybanshee/wwe2k16-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1427160573"
+      }
+    },
+    "decisions": []
   }
 }

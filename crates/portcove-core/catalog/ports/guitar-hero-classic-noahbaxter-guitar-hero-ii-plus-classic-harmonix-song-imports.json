@@ -38,7 +38,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "guitar-hero-classic-noahbaxter-guitar-hero-ii-plus-classic-harmonix-song-imports",
+    "target_key": "guitar-hero-ii-ps2",
     "origin": {
       "project_url": "https://github.com/noahbaxter/GHClassic",
       "repository": {

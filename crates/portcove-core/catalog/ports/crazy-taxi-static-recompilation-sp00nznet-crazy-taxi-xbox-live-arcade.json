@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/sp00nznet/ctxbla"
     },
+    "issue_number": 3283,
     "artwork": {
       "game_id": 1805,
       "cover_id": 352266,
@@ -34,5 +35,17 @@
       "game_slug": "crazy-taxi",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crazy-taxi-xbox-live-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/ctxbla",
+      "repository": {
+        "host": "github.com",
+        "id": "1168455497"
+      }
+    },
+    "decisions": []
   }
 }

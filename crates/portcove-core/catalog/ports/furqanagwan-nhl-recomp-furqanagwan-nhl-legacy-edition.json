@@ -30,7 +30,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "furqanagwan-nhl-recomp-furqanagwan-nhl-legacy-edition",
+    "target_key": "nhl-legacy-edition-xbox-360",
     "origin": {
       "project_url": "https://github.com/furqanagwan/nhl",
       "repository": {

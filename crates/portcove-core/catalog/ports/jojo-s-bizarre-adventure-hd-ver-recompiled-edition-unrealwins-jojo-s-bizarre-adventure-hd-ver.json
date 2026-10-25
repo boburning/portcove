@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/UNREALWINS/jojo-hd-recompiled"
     },
+    "issue_number": 3177,
     "artwork": {
       "game_id": 47433,
       "cover_id": 240913,
@@ -34,5 +35,17 @@
       "game_slug": "jojos-bizarre-adventure-hd--1",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jojo-s-bizarre-adventure-hd-ver-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/UNREALWINS/jojo-hd-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1429175912"
+      }
+    },
+    "decisions": []
   }
 }

@@ -6,7 +6,7 @@
     "original_game_title": "Breath of Fire IV",
     "summary": "Native title runtime described; exact campaign/scene completion and package route not established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/plaught-armor/bof4-recomp",
-    "platforms": ["linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/plaught-armor/bof4-recomp",
     "manual_setup": {
@@ -26,6 +26,7 @@
       ],
       "help_url": "https://github.com/plaught-armor/bof4-recomp"
     },
+    "issue_number": 3563,
     "artwork": {
       "game_id": 1280,
       "cover_id": 311972,
@@ -34,5 +35,17 @@
       "game_slug": "breath-of-fire-iv",
       "match_kind": "underlying-game"
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "breath-of-fire-iv-ps1",
+    "origin": {
+      "project_url": "https://github.com/plaught-armor/bof4-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432167597"
+      }
+    },
+    "decisions": []
   }
 }
