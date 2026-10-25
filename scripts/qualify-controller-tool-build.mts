@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { lstat, mkdir, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
@@ -430,7 +431,11 @@ async function main() {
       {
         cwd: source,
         environment: {
-          PATH: "/usr/bin:/bin",
+          // The existing supervisor must resolve the same installed compiler
+          // used by the tool build. The Python install creates its own clean env.
+          PATH: process.env.PATH,
+          RUSTUP_HOME: process.env.RUSTUP_HOME ?? path.join(homedir(), ".rustup"),
+          CARGO_HOME: process.env.CARGO_HOME ?? path.join(homedir(), ".cargo"),
           HOME: directory,
           LANG: "C.UTF-8",
           // Retain only the observed public-runner routing signal. Otherwise
