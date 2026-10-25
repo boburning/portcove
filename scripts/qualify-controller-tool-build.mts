@@ -408,8 +408,9 @@ async function main() {
       patches: workspace.patches,
     };
     const dependencyStarted = performance.now();
-    const dependencyRemaining =
-      Number(BigInt(dependencyPlan.deadline_ns) - process.hrtime.bigint()) / 1e6;
+    const dependencyRemaining = Math.floor(
+      Number(BigInt(dependencyPlan.deadline_ns) - process.hrtime.bigint()) / 1e6,
+    );
     assert.ok(dependencyRemaining > 0);
     const dependencyStatus = await runResourceCommand(
       "analysis",
@@ -681,11 +682,14 @@ async function main() {
       production_tool_acceptance: "not-established",
       authority: "none",
     });
-  } catch {
+  } catch (error: unknown) {
     await record("result.json", {
       schema_version: 1,
       status: "fail",
       phase,
+      failure: boundedFixtureOutput(
+        error instanceof Error ? error.message : "unknown fixture failure",
+      ),
       build_milliseconds: buildMilliseconds,
       build_allowance_milliseconds: 210000,
       build_profile: "controller-tools",
