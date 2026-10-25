@@ -1,0 +1,214 @@
+{
+  "format_version": 1,
+  "purpose": "Dated partial #2510/#2926 evidence; not a live registry or full beta acceptance",
+  "initial_source": "d4d93d6ef5011319f9e4cc5d0f4b5e452e47bd15",
+  "reconciled_source": "8dc2753e2383cdaf4c4b8dbbdc12a0ef8f468541",
+  "observed_at": "2026-10-25T08:17:58.332999+00:00",
+  "preserved_rollout_source": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "coverage": {
+    "existing_identities_preserved": 878,
+    "new_operational_routes": 2,
+    "existing_operational_routes_unchanged": 156,
+    "frozen_original_identities": 524,
+    "original_affected_authored_additions": 312,
+    "original_roadmap_only_joins": 22,
+    "scope": "Two fitting Windows managed routes and one precise GoldenEye acquisition condition; no new platform qualification or Project promotion",
+    "reviewed_route_assessments": 3
+  },
+  "entries": [
+    {
+      "id": "mstan-supermarioadvance4recomp",
+      "canonical_issue": 1892,
+      "authored_path": "crates/portcove-core/catalog/ports/mstan-supermarioadvance4recomp.json",
+      "before_sha256": "4cbf3df0f80a096954295a98f17a77b69069d973d8c00fbffcaf95a15d226aa2",
+      "authored_sha256": "b4eb4043221b0676ae05e3f8b06f185f96d8b241bae597c2961cd023882814ea",
+      "platforms": ["windows-x86-64"],
+      "previous_route": "Listing-only; external setup/registration remains available",
+      "selected_route": "Existing ready staged-source-portable capability 23; managed compatible Windows runtime replacement",
+      "provider": {
+        "provider": "github",
+        "repository": "mstan/SuperMarioAdvance4Recomp",
+        "asset_hints": {
+          "windows-x86-64": ["SuperMarioAdvance4Recomp-windows-x64-", ".zip"]
+        }
+      },
+      "observed_release": "v0.0.3",
+      "selected_asset": {
+        "id": 654413224,
+        "name": "SuperMarioAdvance4Recomp-windows-x64-v0.0.3.zip",
+        "browser_download_url": "https://github.com/mstan/SuperMarioAdvance4Recomp/releases/download/v0.0.3/SuperMarioAdvance4Recomp-windows-x64-v0.0.3.zip",
+        "size": 37105553,
+        "digest": "sha256:4cd3929c95027cfbd6804fe98040d9560b78cd6a7e3f260cb108f86c05d1056e"
+      },
+      "actual_archive_sha256": "4cd3929c95027cfbd6804fe98040d9560b78cd6a7e3f260cb108f86c05d1056e",
+      "complete_release_asset_count": 2,
+      "source_commit": "21ec4931da1f7395063ec30ab0e5a339cbc78d87",
+      "primary_source": "https://github.com/mstan/SuperMarioAdvance4Recomp/blob/21ec4931da1f7395063ec30ab0e5a339cbc78d87/README.md",
+      "update_owner": "Portcove for new managed copies; external copies remain user/upstream owned",
+      "setup_provider": "Explicit Play invokes upstream first-launch setup; Core never executes a discovered helper",
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves"
+      ],
+      "version_local_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_AX4E.toml.frag",
+        "recomp_coverage_AX4E.json",
+        "replay-divergence.state"
+      ],
+      "source_profile": null,
+      "runtime_source_filename": null,
+      "data_boundary": "Choose Play to open the upstream launcher and supply your own matching original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacements and preserves local settings, input pointers, user game.toml and local saves/ when that save mode is selected. Normal cartridge saves and optional state slots follow your selected original game file, usually outside the installation: back up that actual folder separately, including recovery siblings. Portcove backups do not include external originals, BIOS or saves. Generated executable caches and diagnostics stay with the runtime that produced them and are not carried into a replacement. Runtime rollback carries current declared data; it does not rewind saves or guarantee older readers can use newer data. Keep the packaged variants and compiler companions with their runtime; customized external data paths need separate preservation.",
+      "artwork_reason": "generated-fallback",
+      "delivery_status": "Source candidate; final independent review, exact-head hosted checks and guarded merge pending",
+      "framework_commits": {
+        "gbarecomp": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "recomp-ui": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3"
+      },
+      "limits": "External originals/BIOS and default original-adjacent saves are outside backup. No managed mod package claim. States retain upstream reader limits; updates do not auto-load them. Other GBA candidates require separately reviewed mod-coexistence and, for Mario Kart, same-host credential preservation."
+    },
+    {
+      "id": "mstan-wariowaretwistedrecomp",
+      "canonical_issue": 1906,
+      "authored_path": "crates/portcove-core/catalog/ports/mstan-wariowaretwistedrecomp.json",
+      "before_sha256": "08e3bc95cf0ade0692cc2f79d369ffd9f49895e32ff5d9460f32c478884031db",
+      "authored_sha256": "13433df59f5ccb361d0193f1bc95e0a3483e400b40b34a745b2cd18db275a4dc",
+      "platforms": ["windows-x86-64"],
+      "previous_route": "Listing-only; external setup/registration remains available",
+      "selected_route": "Existing ready staged-source-portable capability 23; managed compatible Windows runtime replacement",
+      "provider": {
+        "provider": "github",
+        "repository": "mstan/WarioWareTwistedRecomp",
+        "asset_hints": {
+          "windows-x86-64": ["WarioWareTwistedRecomp-windows-x64-", ".zip"]
+        }
+      },
+      "observed_release": "v0.0.2",
+      "selected_asset": {
+        "id": 654414171,
+        "name": "WarioWareTwistedRecomp-windows-x64-v0.0.2.zip",
+        "browser_download_url": "https://github.com/mstan/WarioWareTwistedRecomp/releases/download/v0.0.2/WarioWareTwistedRecomp-windows-x64-v0.0.2.zip",
+        "size": 36188251,
+        "digest": "sha256:a48da73783b0992daa639eb6195a8f4e9e2be790fa7c8fa4bbe25ac7e2345ff1"
+      },
+      "actual_archive_sha256": "a48da73783b0992daa639eb6195a8f4e9e2be790fa7c8fa4bbe25ac7e2345ff1",
+      "complete_release_asset_count": 2,
+      "source_commit": "8e7a6e2e911a69ca1090f57bae2ab5d7bc7034b2",
+      "primary_source": "https://github.com/mstan/WarioWareTwistedRecomp/blob/8e7a6e2e911a69ca1090f57bae2ab5d7bc7034b2/README.md",
+      "update_owner": "Portcove for new managed copies; external copies remain user/upstream owned",
+      "setup_provider": "Explicit Play invokes upstream first-launch setup; Core never executes a discovered helper",
+      "persistent_paths": [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves"
+      ],
+      "version_local_mutable_paths": [
+        "recomp_cache",
+        "diagnostics",
+        "recomp_master_misses_RZWE.toml.frag",
+        "recomp_coverage_RZWE.json",
+        "replay-divergence.state"
+      ],
+      "source_profile": null,
+      "runtime_source_filename": null,
+      "data_boundary": "Choose Play to open the upstream launcher and supply your own matching original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacements and preserves local settings, input pointers, user game.toml and local saves/ when that save mode is selected. Normal cartridge saves and optional state slots follow your selected original game file, usually outside the installation: back up that actual folder separately, including recovery siblings. Portcove backups do not include external originals, BIOS or saves. Generated executable caches and diagnostics stay with the runtime that produced them and are not carried into a replacement. Runtime rollback carries current declared data; it does not rewind saves or guarantee older readers can use newer data. Keep the packaged variants and compiler companions with their runtime; customized external data paths need separate preservation.",
+      "artwork_reason": "accepted-mapping-reused",
+      "delivery_status": "Source candidate; final independent review, exact-head hosted checks and guarded merge pending",
+      "framework_commits": {
+        "gbarecomp": "215da7406f7a6d40c6d820be2d2ee778858aa598",
+        "recomp-ui": "0546fbcb0126bb14bf88d2128b4fe8a4229570a3"
+      },
+      "limits": "External originals/BIOS and default original-adjacent saves are outside backup. No managed mod package claim. States retain upstream reader limits; updates do not auto-load them. Other GBA candidates require separately reviewed mod-coexistence and, for Mario Kart, same-host credential preservation."
+    },
+    {
+      "id": "goldeneye-007-n64-pc-port",
+      "canonical_issue": 1129,
+      "authored_path": "crates/portcove-core/catalog/ports/goldeneye-007-n64-pc-port.json",
+      "before_sha256": "b8131909dc40f61a2be36062318c40648c9f1e0958decef18127a3acfae6fd22",
+      "authored_sha256": "4eac6005f7cf620198cc91ebf03284587d8661bbbca3f29ae3852452e0466fe2",
+      "platforms": ["windows-x86-64"],
+      "previous_route": "Listing-only; external setup/registration remains available",
+      "selected_route": "Fresh-acquisition hold for exact linked inherited code; conditional permitted existing-copy guidance. Technical managed proposal preserved, not delivered",
+      "provider": {
+        "provider": "github",
+        "repository": "jkdansereau/goldeneye-pc-port",
+        "asset_hints": {
+          "windows-x86-64": ["goldeneye-pc-port-", "-win64.zip"]
+        }
+      },
+      "observed_release": "v0.5.0",
+      "selected_asset": {
+        "id": 619005503,
+        "name": "goldeneye-pc-port-0.5.0-win64.zip",
+        "browser_download_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/download/v0.5.0/goldeneye-pc-port-0.5.0-win64.zip",
+        "size": 17178242,
+        "digest": "sha256:b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef"
+      },
+      "actual_archive_sha256": "b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef",
+      "complete_release_asset_count": 4,
+      "source_commit": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+      "primary_source": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/README.md",
+      "update_owner": "External copies: user/upstream. No new managed installation offered",
+      "setup_provider": "Upstream game on explicit Play only for a permitted existing copy",
+      "source_profile": null,
+      "runtime_source_filename": null,
+      "data_boundary": "External files remain outside managed replacement/backup/rollback/removal. Technical proposal preserves exact original/settings/EEPROM/99 import backups and keeps generation version-local, but those managed declarations are not admitted while acquisition condition remains unresolved.",
+      "delivery_status": "Selected listing condition/guidance; managed adoption remains blocked pending exact permission fact",
+      "limits": "No actual original or game execution. Upstream converter failure handling is imperfect; no Core certification of generated outputs. EEPROM importer has99backup names and can overwrite its last slot when full. The preserved, unadmitted technical proposal would preserve all99 during compatible managed replacement; the selected listing offers no such managed operation. Optional Python bytecode remains an undeclared-addition preservation hold in that proposal.",
+      "permission_condition": {
+        "id": "goldeneye-007-n64-pc-port",
+        "canonical_issue": 1129,
+        "source": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "notice_sha256": "b0c2ded42ec306e26f5a55c6cd69ba4daf31a35e6ad01068c4f38e3681f93ed4",
+        "notice_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/NOTICE#L35-L45",
+        "linked_build_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/CMakeLists.txt#L554-L599",
+        "technical_proposal_preserved_commit": "fc4a1f98f7914aafc8111774d361f544dd3ceb20",
+        "disposition": "Technical ready-archive fit retained; exact fresh-acquisition condition unresolved; no new managed creation offered",
+        "resume": "Attributable grant or explicitly reviewed operation basis for linked inherited n64decomp/007 code; recheck exact package/source/data/provider facts before adoption"
+      }
+    }
+  ],
+  "preparation": {
+    "directory": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\ready-rollout-batch6\\full-preparation-4",
+    "accepted_input_output_checks": "Full three-route technical proposal Core inspection passed before review found GoldenEye acquisition blocker. Final two-route/guidance candidate requires separate exact-head hosted catalog/Rust checks, pending at this source checkpoint. Earlier passing technical preparation is not GoldenEye permission or acceptance.",
+    "artwork_context_sha256": "81cdedad6580b82a9bd84184bb97657fcffa7af42a048696c15d87118893c629",
+    "accepted_operational_sha256": "209621c61861f7b4374f12e6572126ed9e17b94a09a3ecb08a67ca9f00c10ae9",
+    "output_sha256": "1fc13af4331ece14a4e3b4381e36d6a4b5eda1c4311a75dc33a46464414d0e54",
+    "artwork_guards": "Accepted authored listing context only; Core baseline unchanged. GoldenEye changed-source-profile cover uses explicit exact original identity. Existing identity/refresh/Gone guards retained.",
+    "selected_technical_proposal_preserved_commit": "fc4a1f98f7914aafc8111774d361f544dd3ceb20"
+  },
+  "evidence_scope": "Official release metadata and retained digest-matched archive/package/source inspection; first-party automated contracts. No helper/compiler/game/original executed, no native or packaged Desktop or real-save acceptance.",
+  "remaining": "#2510/#2926 remain open. GoldenEye technical fit is established but managed acquisition remains blocked by the precise permission condition. Other GBA mod/credential adoption, six original Direct decisions and inventory/maintenance/joins remain. Historical232-path extraction bookkeeping is separate from current per-port capability completion.",
+  "validation_failures": [
+    {
+      "run": 40176682084,
+      "attempt": 1,
+      "source": "e097215744911053defd74c066b119df51b763f2",
+      "failed_cases": [
+        "catalog::tests::game_titles_describe_ports_without_combining_their_identities",
+        "release::tests::unchanged_definition::unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives"
+      ],
+      "causes": "Missing original-game titles in new integrations; fixture appended ARM64 to already x64 filename, describing an equally plausible universal package which Core correctly refused.",
+      "repair": "Add exact original-game titles; replace x64 token for foreign-processor fixture, retaining ambiguity refusal and all assertions. No production selection rule or timeout changed.",
+      "status": "Failed original run retained; repaired final candidate requires new exact-head hosted checks"
+    }
+  ],
+  "local_repaired_composition": {
+    "status": "passed",
+    "scope": "Working candidate with both exact CI assertion repairs plus merged8dc TLS dependency lock",
+    "tests_run": 15,
+    "tests_passed": 15,
+    "tests_outside_selection": 2043,
+    "filter": "test(unchanged_definition) | test(game_titles_describe) | test(ready_staged)",
+    "log": "E:/Codex-Evidence/simpler-installation-rollout-20261023/ready-rollout-batch6/focused-repair-composition-1.log",
+    "limits": "Focused feedback, not full green suite or final source hosted qualification; no timeout/assertion/production chooser change"
+  }
+}

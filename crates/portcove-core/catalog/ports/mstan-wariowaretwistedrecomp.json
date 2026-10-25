@@ -3,12 +3,11 @@
   "listing": {
     "id": "mstan-wariowaretwistedrecomp",
     "name": "WarioWare: Twisted! / WarioWare: Twisted! Recomp (mstan)",
-    "summary": "Explore WarioWare: Twisted! / WarioWare: Twisted! Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Native Windows player using your own matching original GBA game and retail GBA BIOS.",
     "project_url": "https://github.com/mstan/WarioWareTwistedRecomp",
     "issue_number": 1906,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp",
+    "availability": "packages",
+    "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme",
     "artwork": {
       "game_id": 1704,
       "cover_id": 89078,
@@ -16,6 +15,64 @@
       "image_sha256": "e9c8ce1e7dfaf5c3cc581dc38280bc00565b4c0e9152a2f0e26c968862ea4c34",
       "game_slug": "warioware-twisted",
       "match_kind": "underlying-game"
+    },
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["WarioWareTwistedRecomp-windows-x64-", ".zip"]
+    },
+    "release_url": "https://github.com/mstan/WarioWareTwistedRecomp/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your original game and BIOS in the player",
+          "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. After installation, choose Play to open the upstream launcher, then supply your own matching original GBA game and retail GBA BIOS as it requests. The launcher checks those inputs and remembers valid choices. Core does not run the compiler or discover and execute helpers during setup. This is first-Play setup; no separate installer is required."
+        },
+        {
+          "title": "Keep the saves you actually use",
+          "instruction": "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files. This package also includes variants/warioware_twisted/game.toml. Only when the runtime is actually launched with that configuration does its cartridge save use installation-local saves/warioware_twisted_usa.sav; state files still follow the original game unless you override their directory. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations. If Library identifies this copy as Portcove-managed, Portcove preserves declared installation-local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml and saves/ during compatible managed replacement and backup. External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves."
+        },
+        {
+          "title": "Keep current data when updating",
+          "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
+        },
+        {
+          "title": "Android uses its own app and storage",
+          "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
+    },
+    "original_game_title": "WarioWare: Twisted!"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "release": {
+      "provider": "github",
+      "repository": "mstan/WarioWareTwistedRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["WarioWareTwistedRecomp-windows-x64-", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["WarioWareTwistedRecomp.exe"]
+    },
+    "persistent_paths": ["config.ini", "keybinds.ini", "rom.cfg", "bios.cfg", "game.toml", "saves"],
+    "runtime_mutable_paths": [
+      "recomp_cache",
+      "diagnostics",
+      "recomp_master_misses_RZWE.toml.frag",
+      "recomp_coverage_RZWE.json",
+      "replay-divergence.state"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Choose Play to open the upstream launcher and supply your own matching original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacements and preserves local settings, input pointers, user game.toml and local saves/ when that save mode is selected. Normal cartridge saves and optional state slots follow your selected original game file, usually outside the installation: back up that actual folder separately, including recovery siblings. Portcove backups do not include external originals, BIOS or saves. Generated executable caches and diagnostics stay with the runtime that produced them and are not carried into a replacement. Runtime rollback carries current declared data; it does not rewind saves or guarantee older readers can use newer data. Keep the packaged variants and compiler companions with their runtime; customized external data paths need separate preservation."
     }
   }
 }

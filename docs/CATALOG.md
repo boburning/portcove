@@ -518,7 +518,12 @@ Missing, ambiguous, mismatched or
 unusable assets produce specific nonblocking cover exceptions and generated
 fallback; a decoded image cannot establish semantic identity.
 
-The assembled accepted records are the baseline. Unchanged port/source
+The assembled accepted records are the baseline. Artwork preparation also reads
+accepted listing-only covers, so adding a managed integration can retain its
+reviewed artwork. This artwork context has a separate evidence digest and does
+not expand the accepted Core operational baseline. A changed source profile still
+requires a matching explicit original-game identity to reuse that game's cover.
+Unchanged port/source
 identities reuse accepted mappings without provider requests; distinct ports may
 reuse a uniquely accepted original-game mapping without merging their identities.
 An ordinary executable release does not trigger artwork searches. For an assessed
