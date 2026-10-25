@@ -1173,10 +1173,10 @@
       "path": "crates/portcove-core/catalog/ports/wave-race-blue-storm-recompiled.json",
       "before_sha256": "a0041e560daf3cc11db2268ee1676111eea3bf5592009b60a5da7ee388f280ee",
       "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/wave-race-blue-storm-recompiled.json",
-      "proposal_input_sha256": "f893bbfd8d14e6fd74879f9df93a5c06809e013ce31a55234ebaadff1984e9d9",
-      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-wave-race-blue-storm-recompiled\\wave-race-blue-storm-recompiled-f893bbfd8d14e6fd74879f9df93a5c06809e013ce31a55234ebaadff1984e9d9.json",
-      "prepared_record_sha256": "f893bbfd8d14e6fd74879f9df93a5c06809e013ce31a55234ebaadff1984e9d9",
-      "authored_sha256": "f893bbfd8d14e6fd74879f9df93a5c06809e013ce31a55234ebaadff1984e9d9",
+      "proposal_input_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-wave-launch-repair\\wave-race-blue-storm-recompiled-3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9.json",
+      "prepared_record_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
+      "authored_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
       "source": {
         "source_commit": "dc9a34b6a05618bc359da8ca54ba40d457d39a16",
         "readme_blob": "655f5d89d3612f914348827921b55c444c77983e",
@@ -1214,23 +1214,23 @@
       "setup_data_boundary": [
         {
           "title": "Prepare upstream or keep an existing game build",
-          "instruction": "Follow upstream's recursive gcnrecomp/build guide with your own GWRE01 USA Wave Race: Blue Storm disc. The Windows player is waverace.exe; use the repository root as working directory and deliberately select the correct ISO on first Play. Use the ordinary invocation unless you deliberately prepare optional VR. Preserve saves/memcard_a.raw as actual player data outside Portcove backup; shader cache is separate. Upstream prohibits redistribution of the game-derived output. Keep the prepared source/data/runtime together; this project offers no complete game package for Portcove to replace."
+          "instruction": "Follow upstream's recursive gcnrecomp/build guide with your own GWRE01 USA Wave Race: Blue Storm disc. The Windows player is build/waverace.exe; use the repository root as working directory. Before Play, use the configured original image or keep only the intended .iso in rom/; alternatively set the image-path argument in Change launch details. Use the ordinary invocation unless you deliberately prepare optional VR. Preserve saves/memcard_a.raw as actual player data outside Portcove backup; shader cache is separate. Upstream prohibits redistribution of the game-derived output. Keep the prepared source/data/runtime together; this project offers no complete game package for Portcove to replace."
         },
         {
           "title": "Keep your files and update through upstream",
           "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
         }
       ],
-      "guidance_change": "Follow upstream's recursive gcnrecomp/build guide with your own GWRE01 USA Wave Race: Blue Storm disc. The Windows player is waverace.exe; use the repository root as working directory and deliberately select the correct ISO on first Play. Use the ordinary invocation unless you deliberately prepare optional VR. Preserve saves/memcard_a.raw as actual player data outside Portcove backup; shader cache is separate. Upstream prohibits redistribution of the game-derived output. Keep the prepared source/data/runtime together; this project offers no complete game package for Portcove to replace.",
+      "guidance_change": "Follow upstream's recursive gcnrecomp/build guide with your own GWRE01 USA Wave Race: Blue Storm disc. The Windows player is build/waverace.exe; use the repository root as working directory. Before Play, use the configured original image or keep only the intended .iso in rom/; alternatively set the image-path argument in Change launch details. Use the ordinary invocation unless you deliberately prepare optional VR. Preserve saves/memcard_a.raw as actual player data outside Portcove backup; shader cache is separate. Upstream prohibits redistribution of the game-derived output. Keep the prepared source/data/runtime together; this project offers no complete game package for Portcove to replace.",
       "validation": {
         "operational": {
           "status": "unchanged-operational-projection",
           "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
         },
-        "listing_input_sha256": "252bca1b60d7c377b7a1e3563356dda211e606692ffd94e363adb26b68a4b201",
+        "listing_input_sha256": "36c498985b4f2edb5db6b9f05dfd76f25dab127b92310f064241b15c5ff2a656",
         "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
-        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-wave-race-blue-storm-recompiled\\completion-17ae3c3c1db88163ba07a10b18bc87055ac4218766a9c5b6909a176dfd4dbb25.json",
-        "receipt_sha256": "17ae3c3c1db88163ba07a10b18bc87055ac4218766a9c5b6909a176dfd4dbb25"
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-wave-launch-repair\\completion-3f6a707fcbd014454fdd6d30b68e7fa6de32271eb578fd1bf5a54e2ff3875e1c.json",
+        "receipt_sha256": "3f6a707fcbd014454fdd6d30b68e7fa6de32271eb578fd1bf5a54e2ff3875e1c"
       },
       "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
       "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
@@ -1240,5 +1240,17 @@
   "remaining": "#2510/#2926 full commitment remains open. Catalog presence does not establish Reviewed/Supported. Original524identities/312affectedadditions/22roadmapjoins and existing deferrals/ownership remain preserved; broader fit/maintenance/joins and six originalDirectdecisions remain separately owned.",
   "delivery_base": "432643a9f682c11de8fd398f1c69e56003fc0d91",
   "observed_at_primary_cutoff": "2026-10-25T08:57:45.448Z",
-  "reconciled_at": "2026-10-25T09:24:16.471Z"
+  "reconciled_at": "2026-10-25T09:24:16.471Z",
+  "review_repairs": [
+    {
+      "source": "4559e2efb890c6063b783ca1773a8299338117ef",
+      "finding": "Report incorrectly called SA2 SDL nonfunctional; corrected to documented SDL targets versus nonfunctional separate OpenGL target.",
+      "scope": "Dated report only; authored guide already correct."
+    },
+    {
+      "source": "4559e2efb890c6063b783ca1773a8299338117ef",
+      "finding": "Wave Race invented first-Play image picker; replaced with configured image/rom-folder/positional image-path argument before explicit Play.",
+      "scope": "Actual guide, regenerated listing, report and exact repaired Core listing preparation."
+    }
+  ]
 }
