@@ -75,6 +75,7 @@ export interface WindowsQualificationCoreManifest {
   archive_sha256: string;
   complete: string[];
   workers: QualificationCoreWorkerInventory[];
+  binaries_sha256: string;
 }
 
 function testIdentity(value: unknown): [string, string, string] {
@@ -234,6 +235,8 @@ export function validateWindowsQualificationCoreManifest(
     Object.keys(value.identity).length !== Object.keys(identity).length ||
     Object.entries(identity).some(([key, expected]) => observedIdentity[key] !== expected) ||
     value.profile !== qualificationCoreProfile ||
+    typeof value.binaries_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(value.binaries_sha256) ||
     JSON.stringify(value.scope) !== JSON.stringify(qualificationCoreScope) ||
     typeof value.archive_sha256 !== "string" ||
     !/^[a-f0-9]{64}$/u.test(value.archive_sha256) ||
@@ -418,10 +421,34 @@ export function runnableWindowsRustTests(inventory: unknown, { allowSkipped = fa
   return runnableWorkspaceImpactTests(inventory, { allowSkipped });
 }
 
+function listInventory(args: string[]): unknown {
+  return JSON.parse(execute("cargo-nextest", ["nextest", "list", ...nextestListArguments(args)]));
+}
+
 function listTests(args: string[], allowSkipped = true) {
-  return runnableWindowsRustTests(
-    JSON.parse(execute("cargo-nextest", ["nextest", "list", ...nextestListArguments(args)])),
-    { allowSkipped },
+  return runnableWindowsRustTests(listInventory(args), { allowSkipped });
+}
+
+/** Bind every discovered binary, including binaries with only ignored cases. */
+export function qualificationBinaryListDigest(inventory: unknown) {
+  runnableWindowsRustTests(inventory);
+  if (!isRecord(inventory) || !isRecord(inventory["rust-suites"]))
+    throw new Error("Missing qualification binary inventory");
+  return digest(
+    JSON.stringify(
+      Object.entries(inventory["rust-suites"])
+        .sort(([left], [right]) => ordered(left, right))
+        .map(([id, suite]) => {
+          if (
+            !isRecord(suite) ||
+            suite["package-name"] !== "portcove-core" ||
+            !id ||
+            id.length >= 4096
+          )
+            throw new Error("Invalid qualification Core binary inventory");
+          return [id, suite["package-name"], suite["binary-id"]];
+        }),
+    ),
   );
 }
 
@@ -663,7 +690,8 @@ function buildQualificationCoreArchive(identity: ArchiveIdentity) {
     for (const { file, sha256 } of snapshots)
       if (fileDigest(file) !== sha256) throw new Error("Qualification Core metadata changed");
   };
-  const complete = listTests([...metadata, "-E", "all()"], false);
+  const completeInventory = listInventory([...metadata, "-E", "all()"]);
+  const complete = runnableWindowsRustTests(completeInventory);
   const workers: QualificationCoreWorkerInventory[] = [];
   for (const worker of qualificationCoreWorkers()) {
     const phases = [];
@@ -702,6 +730,7 @@ function buildQualificationCoreArchive(identity: ArchiveIdentity) {
     profile: qualificationCoreProfile,
     scope: [...qualificationCoreScope],
     archive_sha256: fileDigest(archive),
+    binaries_sha256: qualificationBinaryListDigest(completeInventory),
     complete: [...complete].sort(ordered),
     workers,
   };
@@ -725,35 +754,33 @@ export function runWindowsQualificationCoreWorker(workerName: string) {
   const { plan, identity } = currentContext();
   if (plan.mode !== "qualification")
     throw new Error("Qualification Core workers require a qualification plan");
-  const manifestFile = path.join(qualificationDirectory, "manifest.json");
-  if (fileDigest(manifestFile) !== process.env.PORTCOVE_WINDOWS_MANIFEST_SHA256)
-    throw new Error("Qualification Core manifest differs from this producer's output");
-  const manifest = validateWindowsQualificationCoreManifest(readJson(manifestFile), identity);
+  const { manifest, archive } = readWindowsQualificationCorePacket(
+    qualificationDirectory,
+    identity,
+    process.env.PORTCOVE_WINDOWS_MANIFEST_SHA256,
+  );
   const worker = manifest.workers.find(({ name }) => name === workerName);
   if (!worker) throw new Error("Unknown qualification Core worker");
-  const archive = path.join(qualificationDirectory, "tests.tar.zst");
-  if (fileDigest(archive) !== manifest.archive_sha256)
-    throw new Error("Qualification Core archive digest mismatch");
   const metrics = createCiMetrics();
   const extracted = path.join(root, "work", "windows-qualification-extracted");
   mkdirSync(extracted, { recursive: true });
-  const complete = metrics.measure("qualification-core-extract-and-inventory", () =>
-    listTests(
-      [
-        "--archive-file",
-        archive,
-        "--extract-to",
-        extracted,
-        "--workspace-remap",
-        root,
-        "--profile",
-        qualificationCoreProfile,
-        "-E",
-        "all()",
-      ],
-      false,
-    ),
+  const completeInventory = metrics.measure("qualification-core-extract-and-inventory", () =>
+    listInventory([
+      "--archive-file",
+      archive,
+      "--extract-to",
+      extracted,
+      "--workspace-remap",
+      root,
+      "--profile",
+      qualificationCoreProfile,
+      "-E",
+      "all()",
+    ]),
   );
+  if (qualificationBinaryListDigest(completeInventory) !== manifest.binaries_sha256)
+    throw new Error("Transferred qualification Core binary inventory differs");
+  const complete = runnableWindowsRustTests(completeInventory);
   assertSameIdentities(complete, manifest.complete, "Transferred qualification Core");
   const target = path.join(extracted, "target");
   const metadata = [
@@ -790,6 +817,22 @@ export function runWindowsQualificationCoreWorker(workerName: string) {
     if (result.status !== 0)
       throw new Error(`Qualification Core phase failed with status ${result.status}`);
   }
+}
+
+/** Refuse unbound, truncated or substituted packets before invoking nextest. */
+export function readWindowsQualificationCorePacket(
+  directory: string,
+  identity: ArchiveIdentity,
+  expectedManifestSha256: string | undefined,
+) {
+  const manifestFile = path.join(directory, "manifest.json");
+  if (fileDigest(manifestFile) !== expectedManifestSha256)
+    throw new Error("Qualification Core manifest differs from this producer's output");
+  const manifest = validateWindowsQualificationCoreManifest(readJson(manifestFile), identity);
+  const archive = path.join(directory, "tests.tar.zst");
+  if (fileDigest(archive) !== manifest.archive_sha256)
+    throw new Error("Qualification Core archive digest mismatch");
+  return { manifest, archive };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

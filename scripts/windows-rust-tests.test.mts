@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
@@ -10,6 +13,8 @@ import {
   validateWindowsRustManifest,
   validateWindowsQualificationCoreManifest,
   windowsPartitionConfig,
+  readWindowsQualificationCorePacket,
+  qualificationBinaryListDigest,
 } from "./windows-rust-tests.mts";
 import oracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
 import {
@@ -65,7 +70,7 @@ void test("qualification Core retains the frozen pre-change executable argv for 
   );
 });
 
-void test("qualification Core manifests retain ordered phases and refuse wrong scope, provenance and missing coverage", () => {
+function qualificationPacketFixture() {
   const identity = {
     source: "a".repeat(40),
     run: "123",
@@ -89,9 +94,16 @@ void test("qualification Core manifests retain ordered phases and refuse wrong s
     profile: "default",
     scope: [...qualificationCoreScope],
     archive_sha256: "d".repeat(64),
+    binaries_sha256: "e".repeat(64),
     complete: workers.flatMap(({ phases }) => phases.flatMap(({ tests }) => tests)),
     workers,
   };
+  return packet;
+}
+
+void test("qualification Core manifests retain ordered phases and refuse wrong scope, provenance and missing coverage", () => {
+  const packet = qualificationPacketFixture();
+  const { identity, workers } = packet;
   assert.equal(validateWindowsQualificationCoreManifest(packet, identity), packet);
   for (const key of Object.keys(identity))
     assert.throws(
@@ -106,6 +118,7 @@ void test("qualification Core manifests retain ordered phases and refuse wrong s
     { profile: "hosted-windows" },
     { scope: ["--locked", "--workspace"] },
     { archive_sha256: "" },
+    { binaries_sha256: "" },
     { workers: workers.slice(1) },
     { workers: [...workers].reverse() },
     { complete: [] },
@@ -136,6 +149,123 @@ void test("qualification Core manifests retain ordered phases and refuse wrong s
     const copy = structuredClone(packet);
     mutate(copy);
     assert.throws(() => validateWindowsQualificationCoreManifest(copy, identity));
+  }
+});
+
+void test("qualification binary identity includes binaries without runnable cases and ignores machine paths", () => {
+  const suite = (id: string, testcases: Record<string, unknown>) => ({
+    "package-name": "portcove-core",
+    "binary-id": id,
+    status: "listed",
+    testcases,
+  });
+  const inventory = {
+    "test-count": 1,
+    "rust-suites": {
+      "portcove-core": suite("portcove-core", {
+        one: { ignored: false, "filter-match": { status: "matches" } },
+      }),
+    },
+  };
+  const original = qualificationBinaryListDigest(inventory);
+  const complete = {
+    ...inventory,
+    "rust-suites": {
+      ...inventory["rust-suites"],
+      "portcove-core::ignored-only": suite("portcove-core::ignored-only", {}),
+    },
+  };
+  assert.deepEqual(
+    [...runnableWindowsRustTests(inventory)],
+    [...runnableWindowsRustTests(complete)],
+  );
+  assert.notEqual(original, qualificationBinaryListDigest(complete));
+  const remapped = structuredClone(complete);
+  Object.assign(remapped["rust-suites"]["portcove-core"], {
+    "binary-path": "another-machine/target/core.exe",
+  });
+  assert.equal(qualificationBinaryListDigest(remapped), qualificationBinaryListDigest(complete));
+  assert.throws(
+    () => qualificationBinaryListDigest({ ...complete, "test-count": 2 }),
+    /Truncated/u,
+  );
+  const foreign = structuredClone(complete);
+  foreign["rust-suites"]["portcove-core::ignored-only"]["package-name"] = "foreign";
+  assert.throws(() => qualificationBinaryListDigest(foreign), /Core binary/u);
+});
+
+void test("qualification packet custody refuses real-file substitution, truncation and stale attempts before extraction", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "portcove-qualification-packet-"));
+  const hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const archive = Buffer.from(
+    "inert archive custody control; native archive execution is separate",
+  );
+  const packet = { ...qualificationPacketFixture(), archive_sha256: hash(archive) };
+  const manifest = JSON.stringify(packet);
+  const manifestFile = path.join(directory, "manifest.json");
+  const archiveFile = path.join(directory, "tests.tar.zst");
+  try {
+    await writeFile(manifestFile, manifest);
+    await writeFile(archiveFile, archive);
+    assert.deepEqual(
+      readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest)),
+      {
+        manifest: packet,
+        archive: archiveFile,
+      },
+    );
+    assert.throws(
+      () => readWindowsQualificationCorePacket(directory, packet.identity, undefined),
+      /producer's output/u,
+    );
+    assert.throws(
+      () =>
+        readWindowsQualificationCorePacket(
+          directory,
+          { ...packet.identity, attempt: "2" },
+          hash(manifest),
+        ),
+      /identity/u,
+    );
+    await writeFile(manifestFile, manifest + " ");
+    assert.throws(
+      () => readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest)),
+      /producer's output/u,
+    );
+    await writeFile(manifestFile, manifest.slice(0, -2));
+    assert.throws(
+      () =>
+        readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest.slice(0, -2))),
+      SyntaxError,
+    );
+    await writeFile(manifestFile, manifest);
+    await writeFile(archiveFile, archive.subarray(0, archive.length - 1));
+    assert.throws(
+      () => readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest)),
+      /archive digest/u,
+    );
+    await writeFile(archiveFile, Buffer.alloc(archive.length, 120));
+    assert.throws(
+      () => readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest)),
+      /archive digest/u,
+    );
+    await writeFile(archiveFile, "");
+    assert.throws(
+      () => readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest)),
+      /nonempty regular/u,
+    );
+    await rm(archiveFile);
+    assert.throws(
+      () => readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest)),
+      { code: "ENOENT" },
+    );
+    await mkdir(archiveFile);
+    assert.throws(
+      () => readWindowsQualificationCorePacket(directory, packet.identity, hash(manifest)),
+      /nonempty regular/u,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
   }
 });
 
