@@ -6,9 +6,8 @@
     "summary": "Explore X-COM: Apocalypse / OpenApoc (OpenApoc) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/OpenApoc/OpenApoc",
     "issue_number": 1851,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenApoc/OpenApoc",
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md",
     "artwork": {
       "game_id": 26,
       "cover_id": 114318,
@@ -16,6 +15,54 @@
       "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
       "game_slug": "x-com-apocalypse",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/OpenApoc/OpenApoc/releases/tag/20260408",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original game",
+          "instruction": "Before first Play, copy your own complete X-COM: Apocalypse disc image into the package’s data folder as cd.iso. Upstream also supports an extracted disc folder named cd.iso. For the GOG CUE/BIN pair, rename a copy of XCOM.cue to cd.iso and keep the referenced XCOM.BIN alongside it. Retain your originals. This package is the portable engine; no installer or local game build is needed. Upstream requires OpenGL 2.0 and the Visual C++ runtime."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
+    },
+    "original_game_title": "X-COM: Apocalypse"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "OpenApoc/OpenApoc",
+      "asset_hints": {
+        "windows-x86-64": ["openapoc-x64-", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["OpenApoc.exe"]
+    },
+    "persistent_paths": [
+      "data/cd.iso",
+      "data/XCOM.BIN",
+      "OpenApoc_settings.conf",
+      "OpenApoc_Launcher_settings.conf",
+      "saves",
+      "log.txt",
+      "openapoc.trace"
+    ],
+    "persistent_file_patterns": [
+      {
+        "prefix": "screenshot",
+        "suffix": ".png"
+      }
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own complete X-COM: Apocalypse disc image into the package’s data folder as cd.iso. Upstream also supports an extracted disc folder named cd.iso. For the GOG CUE/BIN pair, rename a copy of XCOM.cue to cd.iso and keep the referenced XCOM.BIN alongside it. Retain your originals. This package is the portable engine; no installer or local game build is needed. Upstream requires OpenGL 2.0 and the Visual C++ runtime. The shipped portable.txt selects executable-folder OpenApoc_settings.conf and log.txt; default saves are in saves. Those settings, saves, named original disc inputs, screenshots and optional trace are declared for compatible replacement and backup. Packaged data other than the named original inputs stays version-owned. Custom config/save paths, mixed data mods or other CUE member names can use external registration. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
     }
   }
 }
