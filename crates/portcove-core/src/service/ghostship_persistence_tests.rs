@@ -411,3 +411,51 @@ fn ghostship_staged_preparation_requires_exact_ownership_before_absent_archive_s
         before
     );
 }
+
+#[test]
+fn ghostship_status_observes_original_metadata_but_operation_verifies_bytes() {
+    let (temporary, service, _original, prepared) = fixture();
+    let path = temporary.path().join("original.z64");
+    fs::write(&path, b"original bytes").unwrap();
+    let (sha256, size) = crate::adapter::hash_file(&path).unwrap();
+    service
+        .library
+        .register_source(&SourceRecord {
+            profile_id: "ghostship-source".into(),
+            path: path.clone(),
+            sha256: sha256.clone(),
+            size,
+            storage_sha256: sha256,
+            storage_size: size,
+            updated_at: 0,
+            observed_identity: None,
+        })
+        .unwrap();
+    fs::write(&path, b"tampered bytes").unwrap();
+    let user = service.library.user_dir("ghostship");
+    fs::create_dir_all(&user).unwrap();
+    fs::write(user.join("sm64.o2r"), b"inert generated archive").unwrap();
+
+    // This inert fixture's receipt is deliberately invalid; observation reaches
+    // that boundary, while an operation must refuse the changed original first.
+    let observed = service
+        .inspect_ghostship_install_data_compatibility(&prepared, None)
+        .unwrap_err();
+    let verified = service
+        .require_ghostship_install_data_compatibility(&prepared, None)
+        .unwrap_err();
+    let source = service.library.source("ghostship-source").unwrap().unwrap();
+    let expected =
+        crate::source_inspection::verify_registered(&service.catalog, &source).unwrap_err();
+    assert_eq!(verified.message, expected.message);
+    assert_ne!(observed.message, expected.message);
+    assert_eq!(
+        service
+            .status("ghostship")
+            .unwrap()
+            .readiness
+            .unwrap()
+            .source,
+        Some(SourceHealth::NotChecked)
+    );
+}

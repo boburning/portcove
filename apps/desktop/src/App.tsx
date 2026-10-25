@@ -475,7 +475,7 @@ function Workspace({
     operations.perform,
     data.sources,
     inspectionProfiles,
-    JSON.stringify(data.catalog?.source_catalog ?? null),
+    `${bootstrap.generation}|${JSON.stringify(data.catalog?.source_catalog ?? null)}`,
   );
   const appearance = useThemePreference();
   const gameFileQuery = useGameFileFilterContext({

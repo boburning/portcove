@@ -3177,12 +3177,17 @@ without a re-export. None of this shell state is persisted or authoritative for
 domain behavior.
 
 The `features/source-health` read owner records each requested saved-file
-inspection as pending, current, failed or cancelled. Settings presents a settled
+inspection as idle, pending, current, failed or cancelled. Mounting, selection
+and automatic workspace refresh leave content inspection idle; the user starts a
+file check explicitly. Core status observes source metadata and reports
+`NotChecked` for an existing original of the recorded size, rather than hashing
+its contents. Missing, unreadable and size-changed originals remain visible.
+Explicit inspection, verification and launch still verify original bytes. Settings presents a settled
 inspection failure separately from verified file identity and offers an explicit
 read-only retry for that profile. Healthy sibling inspections and existing source
 verification outcomes retain their own meaning. Concurrent reads for one current
-profile share the pending request; registration/catalog/selection changes and
-disposal invalidate older responses. Failed inspections provide no current report
+profile share the pending request; registration/catalog/selection/library changes
+and disposal invalidate older responses and prior reports. Failed inspections provide no current report
 and cannot grant registration, setup or mutation authority. Core remains the
 owner of source matching, verification and typed diagnostic/recovery facts.
 
