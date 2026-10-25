@@ -11,6 +11,7 @@ import {
   controllerToolEntries,
   controllerToolChildren,
   controllerCompilerSourceAsset,
+  controllerNativeDriverVersion,
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
@@ -303,6 +304,16 @@ async function main() {
     assert.equal(nodeResult.error, undefined);
     assert.equal(nodeResult.status, 0);
     assert.equal(nodeResult.stdout.trim(), `v${controllerNodeVersion}`);
+    phase = "actual-native-webdriver";
+    const nativeDriver = path.join(built.tools, "bin/tauri-driver");
+    const driverVersion = invoke(nativeDriver, ["--version"]);
+    assert.equal(driverVersion.error, undefined);
+    assert.equal(driverVersion.status, 0);
+    assert.equal(driverVersion.stdout.trim(), `tauri-driver ${controllerNativeDriverVersion}`);
+    const driverHelp = invoke(nativeDriver, ["--help"]);
+    assert.equal(driverHelp.error, undefined);
+    assert.equal(driverHelp.status, 0);
+    assert.match(driverHelp.stdout, /--native-driver/u);
     phase = "actual-tauri-addon-help";
     const addon = path.join(built.tools, "bin/tauri-addon.node");
     const tauri = (args: string[]) =>
@@ -498,6 +509,7 @@ async function main() {
       evidence_scope: "ordinary-hosted-fixture",
       rust_smoke: "usage-refusal-only",
       tauri_smoke: "version-and-supported-sign-build-flags-only",
+      native_driver_smoke: "pinned-version-and-help-only; no WebDriver server or candidate",
       connected_release:
         "actual-disposable-payload-and-five-role-Tough; controlled-provider-site-renewal-journal-recovery; no hosted authorization or native execution",
       node_bundles: controllerToolEntries,
