@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bakugan-ps3-recomp-mauryln-mauryln-bakugan-battle-brawlers",
+    "name": "Bakugan: Battle Brawlers — Bakugan PS3 recomp (Mauryln) (Mauryln)",
+    "original_game_title": "Bakugan: Battle Brawlers",
+    "summary": "Research project. Boot/videos/allmenus and startsduel; deformed3D; tutorial/storygameplay andSFX fail Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "EuropeBLES00758 ownedEBOOT+assets; exact revision unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source clang-cl/Ninja local lift/build"
+        }
+      ],
+      "warnings": [
+        "Boot/videos/allmenus and startsduel; deformed3D; tutorial/storygameplay andSFX fail",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp"
+    },
+    "issue_number": 3365
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bakugan-battle-brawlers-ps3",
+    "origin": {
+      "project_url": "https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432169333"
+      }
+    },
+    "decisions": []
+  }
+}

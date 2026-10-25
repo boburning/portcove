@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chibi-recomp-xxjsonderuloxx-xxjsonderuloxx-chibi-robo-plug-into-adventure",
+    "name": "Chibi-Robo! Plug Into Adventure! — Chibi Recomp (xXJSONDeruloXx) (xXJSONDeruloXx)",
+    "original_game_title": "Chibi-Robo! Plug Into Adventure!",
+    "summary": "Health/logos/intogameplay59.94VPS; recurring3Ddefect Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/xXJSONDeruloXx/chibi-recompo",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/xXJSONDeruloXx/chibi-recompo",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GGTE01 ownISOorextractedGAME directory"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Makefile localextract/lift/modulecompile; existingcapabilities"
+        }
+      ],
+      "warnings": [
+        "Health/logos/intogameplay59.94VPS; recurring3Ddefect",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/xXJSONDeruloXx/chibi-recompo"
+    },
+    "issue_number": 3414,
+    "artwork": {
+      "game_id": 3856,
+      "cover_id": 556264,
+      "image_id": "cobx7s",
+      "image_sha256": "efd3aca5b2f4a79f3e06cdb702b969a4032c4b27478a1fbd48854c17061014dc",
+      "game_slug": "chibi-robo",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "chibi-robo-plug-into-adventure-gamecube",
+    "origin": {
+      "project_url": "https://github.com/xXJSONDeruloXx/chibi-recompo",
+      "repository": {
+        "host": "github.com",
+        "id": "1300820075"
+      }
+    },
+    "decisions": []
+  }
+}

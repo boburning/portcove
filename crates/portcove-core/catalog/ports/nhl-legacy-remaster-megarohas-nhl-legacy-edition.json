@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nhl-legacy-remaster-megarohas-nhl-legacy-edition",
+    "name": "NHL Legacy Edition — NHL Legacy Remaster (megarohas)",
+    "original_game_title": "NHL Legacy Edition",
+    "summary": "Port +2026/27 mod suite; README does not establish complete gameplay scope. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/megarohas/nhl-legacy-remaster",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/megarohas/nhl-legacy-remaster",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "title454109EC vanilla disc/GOD, no title updates; default.xex + BIG~6GB; SHA256 prefix d818eb15...c55624, full digest in upstream docs."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source ReXGlue0.10.0.24/custom SDK + VS2022Clang/CMake/Ninja/VulkanSDK; separate roster/asset mod pipeline; no public release observed."
+        }
+      ],
+      "warnings": [
+        "Port +2026/27 mod suite; README does not establish complete gameplay scope.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/megarohas/nhl-legacy-remaster"
+    },
+    "issue_number": 3132
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nhl-legacy-edition-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/megarohas/nhl-legacy-remaster",
+      "repository": {
+        "host": "github.com",
+        "id": "1414408220"
+      }
+    },
+    "decisions": []
+  }
+}

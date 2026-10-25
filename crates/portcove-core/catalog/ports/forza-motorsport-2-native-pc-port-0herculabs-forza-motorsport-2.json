@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "forza-motorsport-2-native-pc-port-0herculabs-forza-motorsport-2",
+    "name": "Forza Motorsport 2 — Forza Motorsport 2 — Native PC Port (0herculabs)",
+    "original_game_title": "Forza Motorsport 2",
+    "summary": "0.3.1 playable/WIP; race-loading fixes/crash diagnostics documented. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/0herculabs/hl360-Forza2",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/0herculabs/hl360-Forza2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Forza Motorsport 2 Xbox 360 disc ISO or extracted full disc files. USA/Europe title 4D5307EA; bonus-disc DLC optional."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows release installer extracts/verifies own Europe/USA Forza2 ISO; game-code generation behavior needs confirmation."
+        }
+      ],
+      "warnings": [
+        "0.3.1 playable/WIP; race-loading fixes/crash diagnostics documented.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/0herculabs/hl360-Forza2"
+    },
+    "issue_number": 3259,
+    "artwork": {
+      "game_id": 3072,
+      "cover_id": 152873,
+      "image_id": "co39yh",
+      "image_sha256": "6a8e9e1f3c208b7761b6a4580059030d35975e41c7c22c1e172aeb3d68d21930",
+      "game_slug": "forza-motorsport-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "forza-motorsport-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/0herculabs/hl360-Forza2",
+      "repository": {
+        "host": "github.com",
+        "id": "1416994511"
+      }
+    },
+    "decisions": []
+  }
+}

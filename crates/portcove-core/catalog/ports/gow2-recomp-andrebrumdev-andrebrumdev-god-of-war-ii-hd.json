@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gow2-recomp-andrebrumdev-andrebrumdev-god-of-war-ii-hd",
+    "name": "God of War II HD — GoW2 Recomp (andrebrumdev) (andrebrumdev)",
+    "original_game_title": "God of War II HD",
+    "summary": "Rhodes45-60fps andColossusfight; shoulderbone bug; later progression not fullyqualified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/andrebrumdev/gow2-recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/andrebrumdev/gow2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PSN NPUA80491 ownedPKG+RAP/decryptedEBOOT/USRDIR; exact revision unspecified"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source/setupkit local decrypt/lift/build; SwiftUIlauncher"
+        }
+      ],
+      "warnings": [
+        "Rhodes45-60fps andColossusfight; shoulderbone bug; later progression not fullyqualified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/andrebrumdev/gow2-recomp"
+    },
+    "issue_number": 3367
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "god-of-war-ii-hd-ps3",
+    "origin": {
+      "project_url": "https://github.com/andrebrumdev/gow2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1293777899"
+      }
+    },
+    "decisions": []
+  }
+}

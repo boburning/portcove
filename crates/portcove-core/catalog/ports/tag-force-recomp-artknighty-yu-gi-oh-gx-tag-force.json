@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tag-force-recomp-artknighty-yu-gi-oh-gx-tag-force",
+    "name": "Yu-Gi-Oh! GX Tag Force — Tag Force Recomp (Artknighty)",
+    "original_game_title": "Yu-Gi-Oh! GX Tag Force",
+    "summary": "Early publicpreview. Upstream claims end-to-end play on mainly one machine/version/save, Story/field/dialogue/duels/DeckEdit/shop/saves/audio/video. No network/ad-hoc; logic30FPS, presentation60/120interpolationexperimental; APIs/formats/settings/folders maychange. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Artknighty/tagforcerecomp-preview",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Artknighty/tagforcerecomp-preview",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own European ULES00600 v1.01 ISO; installed assets and generated C/jitcache kept locally. ISO is needed at installation, not after import."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Select plain TagForceRecomp-<version>-win64.zip, which README identifies as runtime/translator/TinyCC/FFmpeg without mods or textures. InstallandPlay imports own EUISO and locally translates/compiles into gen/jitcache; later Play noISOneeded. Mods/EnhancedTextures/Fullsplitpacks are separate optional downloads, not default selected payload."
+        }
+      ],
+      "warnings": [
+        "Early publicpreview. Upstream claims end-to-end play on mainly one machine/version/save, Story/field/dialogue/duels/DeckEdit/shop/saves/audio/video. No network/ad-hoc; logic30FPS, presentation60/120interpolationexperimental; APIs/formats/settings/folders maychange.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Artknighty/tagforcerecomp-preview"
+    },
+    "issue_number": 3066,
+    "artwork": {
+      "game_id": 78167,
+      "cover_id": 471087,
+      "image_id": "coa3hr",
+      "image_sha256": "c8955e9c4efa5b718ce2028f4dd05adf5620ff04f5b5ea6e4f169e7275f0864a",
+      "game_slug": "yu-gi-oh-gx-tag-force",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "yu-gi-oh-gx-tag-force-psp",
+    "origin": {
+      "project_url": "https://github.com/Artknighty/tagforcerecomp-preview",
+      "repository": {
+        "host": "github.com",
+        "id": "1413686376"
+      }
+    },
+    "decisions": []
+  }
+}

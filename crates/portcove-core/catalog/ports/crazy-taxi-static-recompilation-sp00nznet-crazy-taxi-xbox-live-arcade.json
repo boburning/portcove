@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crazy-taxi-static-recompilation-sp00nznet-crazy-taxi-xbox-live-arcade",
+    "name": "Crazy Taxi (Xbox Live Arcade) — Crazy Taxi -- Static Recompilation (sp00nznet)",
+    "original_game_title": "Crazy Taxi (Xbox Live Arcade)",
+    "summary": "Driving runs; fare/high-speed crashes and alt-tab Arcade hang remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/ctxbla",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/ctxbla",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Crazy Taxi (Xbox Live Arcade) Xbox 360 XBLA package or its complete extracted files. XBLA title 58410A34."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Generate code from own CrazyTaxi XBLA XEX and build Windows ReXGlue project."
+        }
+      ],
+      "warnings": [
+        "Driving runs; fare/high-speed crashes and alt-tab Arcade hang remain.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/ctxbla"
+    },
+    "issue_number": 3283,
+    "artwork": {
+      "game_id": 1805,
+      "cover_id": 352266,
+      "image_id": "co7jt6",
+      "image_sha256": "bf764a88226000563188ac2c645c6a9933d99956cbd325644a7f49d6e8e43034",
+      "game_slug": "crazy-taxi",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crazy-taxi-xbox-live-arcade-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/ctxbla",
+      "repository": {
+        "host": "github.com",
+        "id": "1168455497"
+      }
+    },
+    "decisions": []
+  }
+}

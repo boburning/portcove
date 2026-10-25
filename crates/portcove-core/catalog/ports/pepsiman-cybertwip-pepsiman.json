@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pepsiman-cybertwip-pepsiman",
+    "name": "Pepsiman — PepsiMan (Cybertwip)",
+    "original_game_title": "Pepsiman",
+    "summary": "Research project. LLE BIOS/CD validation/main handoff only; overlays/progression pending; early native runtime not playable claim. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Cybertwip/PepsiMan",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Cybertwip/PepsiMan",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan SLPS-01762 Pepsiman own disc plus SCPH1000 BIOS. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build bios/game tools, regenerate own BIOS/game, CMake PepsiManRecomp. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "LLE BIOS/CD validation/main handoff only; overlays/progression pending; early native runtime not playable claim. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Cybertwip/PepsiMan"
+    },
+    "issue_number": 3551,
+    "artwork": {
+      "game_id": 79500,
+      "cover_id": 141651,
+      "image_id": "co31ar",
+      "image_sha256": "41267d417cd5715d277ac3fdd305f61268972727edb1d403b0a72e8f1258d75f",
+      "game_slug": "pepsiman--1",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pepsiman-ps1",
+    "origin": {
+      "project_url": "https://github.com/Cybertwip/PepsiMan",
+      "repository": {
+        "host": "github.com",
+        "id": "1298844627"
+      }
+    },
+    "decisions": []
+  }
+}

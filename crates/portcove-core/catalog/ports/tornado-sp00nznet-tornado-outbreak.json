@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tornado-sp00nznet-tornado-outbreak",
+    "name": "Tornado Outbreak — tornado (sp00nznet)",
+    "original_game_title": "Tornado Outbreak",
+    "summary": "Research project. Upstream in-game NewGame/save/story/dialogue and controlled tornado first level at10–16FPS, followed by a white transition that never clears. Not campaign-playable/qualified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/tornado",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/tornado",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS3 USA BLUS30371 disc; update/digest unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual Windows source route: own BLUS30371 disc/decrypted EBOOT.elf, tools/relift.sh then Python build.py and native build/tornado with PS3_VFS_ROOT/RSX_LIVE_DRAW/PS3_MAIN_STACK_LV2. Required keys/decrypt inputs stay local."
+        }
+      ],
+      "warnings": [
+        "Upstream in-game NewGame/save/story/dialogue and controlled tornado first level at10–16FPS, followed by a white transition that never clears. Not campaign-playable/qualified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/tornado"
+    },
+    "issue_number": 3442,
+    "artwork": {
+      "game_id": 5237,
+      "cover_id": 253497,
+      "image_id": "co5fll",
+      "image_sha256": "62a4db6c7f54878ed79284b983c37e2d66d0ca8ce2749045cbaa55bf09073b8f",
+      "game_slug": "tornado-outbreak",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tornado-outbreak-ps3",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/tornado",
+      "repository": {
+        "host": "github.com",
+        "id": "1390522941"
+      }
+    },
+    "decisions": []
+  }
+}

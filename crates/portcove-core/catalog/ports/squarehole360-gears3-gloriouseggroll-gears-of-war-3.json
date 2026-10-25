@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "squarehole360-gears3-gloriouseggroll-gears-of-war-3",
+    "name": "Gears of War 3 — squarehole360 Gears3 (GloriousEggroll)",
+    "original_game_title": "Gears of War 3",
+    "summary": "Upstream Linuxplayable/benchmarksspecificscenes; Windowsbinary route documented but not Portcovetested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/GloriousEggroll/squarehole360",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GloriousEggroll/squarehole360",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own GearsOfWar3disc; game-specific XEX profiles/importer verify data. Native renderer copies XDKfunctions from users assets, not redistributed."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source Linuxcodegen+build; Windowscrosscompiled usingxwin; Vulkan1.3nativeWaylandHDR/VRR with X11fallback. No releasesobserved."
+        }
+      ],
+      "warnings": [
+        "Upstream Linuxplayable/benchmarksspecificscenes; Windowsbinary route documented but not Portcovetested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/GloriousEggroll/squarehole360"
+    },
+    "issue_number": 3149,
+    "artwork": {
+      "game_id": 492,
+      "cover_id": 106345,
+      "image_id": "co2a21",
+      "image_sha256": "9d52d23bb2122aa4484bf3d971ecffea246fcced40234bae059106a95f950f40",
+      "game_slug": "gears-of-war-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gears-of-war-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/GloriousEggroll/squarehole360",
+      "repository": {
+        "host": "github.com",
+        "id": "1430665125"
+      }
+    },
+    "decisions": []
+  }
+}

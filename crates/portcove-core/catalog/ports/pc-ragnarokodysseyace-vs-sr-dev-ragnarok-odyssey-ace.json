@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace",
+    "name": "Ragnarok Odyssey ACE — pc-ragnarokodysseyace (vs-sr-dev)",
+    "original_game_title": "Ragnarok Odyssey ACE",
+    "summary": "Research project. Native firstquests/monsterfights30FPS and savedcharacter; script-only historical431quest sweeps not nativegameplay evidence. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-ragnarokodysseyace",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-ragnarokodysseyace",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PS3 RagnarokOdysseyACEUSA reference disc; primary calls titleNPWR04119_00, verify productidentity via manifest. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own-disc extract/decrypt with ownkeys then PPU/SPU C++generation/CMake localruntime. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Native firstquests/monsterfights30FPS and savedcharacter; script-only historical431quest sweeps not nativegameplay evidence. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-ragnarokodysseyace"
+    },
+    "issue_number": 3590,
+    "artwork": {
+      "game_id": 20067,
+      "cover_id": 449014,
+      "image_id": "co9mgm",
+      "image_sha256": "b1c36f1301ff556599efaf347bc41b9e8d2647c9c59b270d8b6effd50b39f4ea",
+      "game_slug": "ragnarok-odyssey-ace",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ragnarok-odyssey-ace-ps3",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-ragnarokodysseyace",
+      "repository": {
+        "host": "github.com",
+        "id": "1342795726"
+      }
+    },
+    "decisions": []
+  }
+}

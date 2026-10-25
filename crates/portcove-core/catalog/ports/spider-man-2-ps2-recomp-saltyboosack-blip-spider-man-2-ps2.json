@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "spider-man-2-ps2-recomp-saltyboosack-blip-spider-man-2-ps2",
+    "name": "Spider-Man 2 (PS2) — Spider-Man-2-PS2-Recomp (saltyboosack-blip)",
+    "original_game_title": "Spider-Man 2 (PS2)",
+    "summary": "Experimental source-only native progress, explicitly not playable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS20776 + AMALGA.PAK MOVIES.PAK SOUNDS.PAK IOPRP300.IMG IRX fromown extraction"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local private source generation/build; do not merge with originalXbox implementation."
+        }
+      ],
+      "warnings": [
+        "Experimental source-only native progress, explicitly not playable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp"
+    },
+    "issue_number": 3089,
+    "artwork": {
+      "game_id": 6285,
+      "cover_id": 123558,
+      "image_id": "co2nc6",
+      "image_sha256": "79bb5f4a0a215785c5eac32ac3ad242b63439940fde7e58e3956527e793fb3a8",
+      "game_slug": "spider-man-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "spider-man-2-ps2",
+    "origin": {
+      "project_url": "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1331577387"
+      }
+    },
+    "decisions": []
+  }
+}

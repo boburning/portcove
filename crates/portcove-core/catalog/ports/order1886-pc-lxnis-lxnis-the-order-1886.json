@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "order1886-pc-lxnis-lxnis-the-order-1886",
+    "name": "The Order: 1886 — Order1886-PC (lxnis) (lxnis)",
+    "original_game_title": "The Order: 1886",
+    "summary": "Boot/menu/gameplay/cutscenes claimed i3-12100FRTX3080Ti; WindowsDLSS absent Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/lxnis/Order1886-PC",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/lxnis/Order1886-PC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "CUSA00035 update01.02 owned decrypted dump"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Portable release launcher; native original CPU code"
+        }
+      ],
+      "warnings": [
+        "Boot/menu/gameplay/cutscenes claimed i3-12100FRTX3080Ti; WindowsDLSS absent",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/lxnis/Order1886-PC"
+    },
+    "issue_number": 3336,
+    "artwork": {
+      "game_id": 3048,
+      "cover_id": 129138,
+      "image_id": "co2rn6",
+      "image_sha256": "544d18f4edcca4f00fbbf5accc8484fbce5d20ef517b824cd156248c06b25830",
+      "game_slug": "the-order-1886",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-order-1886-ps4",
+    "origin": {
+      "project_url": "https://github.com/lxnis/Order1886-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1423649456"
+      }
+    },
+    "decisions": []
+  }
+}

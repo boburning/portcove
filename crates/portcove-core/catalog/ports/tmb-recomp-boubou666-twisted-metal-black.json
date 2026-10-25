@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tmb-recomp-boubou666-twisted-metal-black",
+    "name": "Twisted Metal: Black — TMB_Recomp (boubou666)",
+    "original_game_title": "Twisted Metal: Black",
+    "summary": "Native boot/language-selection; explicitly not playable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/boubou666/TMB_Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/boubou666/TMB_Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SCES50360 original ELF/IRX/disc files"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local source/build route; resume playable qualification after first complete encounter."
+        }
+      ],
+      "warnings": [
+        "Native boot/language-selection; explicitly not playable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/boubou666/TMB_Recomp"
+    },
+    "issue_number": 3038,
+    "artwork": {
+      "game_id": 5413,
+      "cover_id": 79190,
+      "image_id": "co1p3q",
+      "image_sha256": "080a8a106660f80fbde11b1baefbf76059eb168adb26668086f149d4d3ef81af",
+      "game_slug": "twisted-metal-black",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "twisted-metal-black-ps2",
+    "origin": {
+      "project_url": "https://github.com/boubou666/TMB_Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1430294447"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mariokartdd-recomp-ethannicholas-ethannicholas-mario-kart-double-dash",
+    "name": "Mario Kart: Double Dash!! — MarioKartDD Recomp (ethannicholas) (ethannicholas)",
+    "original_game_title": "Mario Kart: Double Dash!!",
+    "summary": "Boot/menu/GrandPrixracewithsound; exactfullcampaignunknown Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ethannicholas/mariokartdd-recomp",
+    "platforms": ["windows-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ethannicholas/mariokartdd-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GM4E01 main.dolSHA1e389e50357d4a5076ab3d38672204658f411123d; ownISO/CISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source localcodegen/build; imageat runtime"
+        }
+      ],
+      "warnings": [
+        "Boot/menu/GrandPrixracewithsound; exactfullcampaignunknown",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ethannicholas/mariokartdd-recomp"
+    },
+    "issue_number": 3416,
+    "artwork": {
+      "game_id": 2344,
+      "cover_id": 356898,
+      "image_id": "co7ndu",
+      "image_sha256": "5fd4283973677bbd9f95a76b63dd21418cbf292a48b490a93206a6ffacbaf7d8",
+      "game_slug": "mario-kart-double-dash",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mario-kart-double-dash-gamecube",
+    "origin": {
+      "project_url": "https://github.com/ethannicholas/mariokartdd-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1415852614"
+      }
+    },
+    "decisions": []
+  }
+}

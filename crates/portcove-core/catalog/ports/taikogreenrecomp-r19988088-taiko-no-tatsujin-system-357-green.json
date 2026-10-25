@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "taikogreenrecomp-r19988088-taiko-no-tatsujin-system-357-green",
+    "name": "Taiko no Tatsujin (System 357 Green) — TaikoGreenRecomp (R19988088)",
+    "original_game_title": "Taiko no Tatsujin (System 357 Green)",
+    "summary": "Research project. Upstream native initialization/real data/gameplay and cabinet security/I/O claims; USB camera NG/card unimplemented. Native Windows/Linux source targets described, not a Portcove cabinet or physical controller test. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/R19988088/TaikoGreenRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/R19988088/TaikoGreenRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own System357 SCEEXE001/S111 Green; exact dump/security version unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual developer build from own SCEEXE001/S111Green dump: pinned ps3recomp/SDL_GPU tools generate local ELF native runtime. Development Windows invocation through Wine is distinct from a native Linux build; standalone taiko_release embeds own process image and must remain local pending distribution review."
+        }
+      ],
+      "warnings": [
+        "Upstream native initialization/real data/gameplay and cabinet security/I/O claims; USB camera NG/card unimplemented. Native Windows/Linux source targets described, not a Portcove cabinet or physical controller test.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/R19988088/TaikoGreenRecomp"
+    },
+    "issue_number": 3445
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "taiko-no-tatsujin-system-357-green-ps3-derived-system357-arcade",
+    "origin": {
+      "project_url": "https://github.com/R19988088/TaikoGreenRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1340788258"
+      }
+    },
+    "decisions": []
+  }
+}

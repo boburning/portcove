@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragoon-lunchbox-recomp-kirby-air-ride",
+    "name": "Kirby Air Ride — Dragoon (lunchbox-recomp)",
+    "original_game_title": "Kirby Air Ride",
+    "summary": "EightblankcardAirRidecoursespastcountdown; NebulaBeltlocked; broadmodesnotqualified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/lunchbox-recomp/dragoon",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/lunchbox-recomp/dragoon",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GKYE01 ownISO/CISO/GCM; RVZ/GCZconvertfirst"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "SourceCMake localbuild withowneddisc; SDL3pinnedfetch"
+        }
+      ],
+      "warnings": [
+        "EightblankcardAirRidecoursespastcountdown; NebulaBeltlocked; broadmodesnotqualified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/lunchbox-recomp/dragoon"
+    },
+    "issue_number": 3415,
+    "artwork": {
+      "game_id": 2777,
+      "cover_id": 310913,
+      "image_id": "co6nwh",
+      "image_sha256": "fccbb3ccfb6c3f3a4bd9b5c1d6d8bc40a8f5c0725f661748937c93781a72fd7d",
+      "game_slug": "kirby-air-ride",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kirby-air-ride-gamecube",
+    "origin": {
+      "project_url": "https://github.com/lunchbox-recomp/dragoon",
+      "repository": {
+        "host": "github.com",
+        "id": "1427205852"
+      }
+    },
+    "decisions": []
+  }
+}

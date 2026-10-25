@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mspacmanmazemadnessrecomp-adumah-ms-pac-man-maze-madness",
+    "name": "Ms. Pac-Man Maze Madness — MsPacManMazeMadnessRecomp (adumah)",
+    "original_game_title": "Ms. Pac-Man Maze Madness",
+    "summary": "Research project. Upstream native boot/main3D and secondary2D programs translated ahead oftime; steady60FPS Linux busymazes claimed. No Portcove playthrough or Deck qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/adumah/MsPacManMazeMadnessRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/adumah/MsPacManMazeMadnessRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA SLUS01018 own disc."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual own CUE+sevenBINs to disc/: build_emitters.sh, psxrecomp_cli generate, CMake psx-runtime then launch-mspacman.sh. Switch build is same implementation and outside this followup."
+        }
+      ],
+      "warnings": [
+        "Upstream native boot/main3D and secondary2D programs translated ahead oftime; steady60FPS Linux busymazes claimed. No Portcove playthrough or Deck qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/adumah/MsPacManMazeMadnessRecomp"
+    },
+    "issue_number": 3482,
+    "artwork": {
+      "game_id": 3338,
+      "cover_id": 117789,
+      "image_id": "co2ivx",
+      "image_sha256": "ad6d813832f5c734885e572091bfd44e67df8edc1a89ef7e795cc800a88b298d",
+      "game_slug": "ms-pac-man-maze-madness",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ms-pac-man-maze-madness-ps1",
+    "origin": {
+      "project_url": "https://github.com/adumah/MsPacManMazeMadnessRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422831259"
+      }
+    },
+    "decisions": []
+  }
+}

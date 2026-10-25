@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "luigismansion-sp00nznet-luigi-s-mansion",
+    "name": "Luigi's Mansion — luigismansion (sp00nznet)",
+    "original_game_title": "Luigi's Mansion",
+    "summary": "Research project. Native constructors/entry/audio/OS init and VI interrupts run, then scheduler polls RunQueueBits with uninitialized interrupt-handler table. No title screen or gameplay; Yasiki100% decomp is symbol input, not this port completion. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/luigismansion",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/luigismansion",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own GameCube USA GLME01."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual Windows x64 source route: own GLME01 ISO/main.dol plus Yasiki symbols.csv, gcrecomp recompiler generation then CMake/MSVC lm_launcher.exe. Symlinked gcrecomp is required; no prebuilt game promised."
+        }
+      ],
+      "warnings": [
+        "Native constructors/entry/audio/OS init and VI interrupts run, then scheduler polls RunQueueBits with uninitialized interrupt-handler table. No title screen or gameplay; Yasiki100% decomp is symbol input, not this port completion.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/luigismansion"
+    },
+    "issue_number": 3436
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "luigi-s-mansion-luigi-s-mansion-recompiled",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/luigismansion",
+      "repository": {
+        "host": "github.com",
+        "id": "1187020540"
+      }
+    },
+    "decisions": []
+  }
+}

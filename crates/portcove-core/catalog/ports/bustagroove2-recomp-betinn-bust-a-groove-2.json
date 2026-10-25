@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bustagroove2-recomp-betinn-bust-a-groove-2",
+    "name": "Bust A Groove 2 — BustAGroove2-Recomp (betinn)",
+    "original_game_title": "Bust A Groove 2",
+    "summary": "Research project. Upstream describes current desktop native v1.3 HD-texture build; no Portcove complete-track/audio qualification. Android Polygonia is a separate emulator-backed presentation, not this native route. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/betinn/BustAGroove2-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/betinn/BustAGroove2-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA SLUS01159 CUE/BIN."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual desktop own-CUE/BIN route: local release/Jogar.bat or tools/recomp/build.ps1 -Step all generates C and56AOT overlays, then native exe --disc. No public ready archive was independently verified."
+        }
+      ],
+      "warnings": [
+        "Upstream describes current desktop native v1.3 HD-texture build; no Portcove complete-track/audio qualification. Android Polygonia is a separate emulator-backed presentation, not this native route.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/betinn/BustAGroove2-Recomp"
+    },
+    "issue_number": 3441,
+    "artwork": {
+      "game_id": 4139,
+      "cover_id": 117289,
+      "image_id": "co2ii1",
+      "image_sha256": "b0a71b0ee7339829c1f6bbc7c64b5ec9a1728a0b6d832f4b2af3a1b33cfe58cd",
+      "game_slug": "bust-a-groove-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bust-a-groove-2-ps1",
+    "origin": {
+      "project_url": "https://github.com/betinn/BustAGroove2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431806958"
+      }
+    },
+    "decisions": []
+  }
+}

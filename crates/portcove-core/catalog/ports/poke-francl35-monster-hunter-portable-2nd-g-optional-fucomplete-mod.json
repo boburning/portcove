@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "poke-francl35-monster-hunter-portable-2nd-g-optional-fucomplete-mod",
+    "name": "Monster Hunter Portable 2nd G (optional FUComplete mod) — Poke (francl35)",
+    "original_game_title": "Monster Hunter Portable 2nd G (optional FUComplete mod)",
+    "summary": "WIP, not general release; village/gameplay/quest/combat/zone testing claimed but edge cases. Some code falls back to interpreter. Overlay generation not yet a verified standalone documented workflow; macOS hydration incomplete. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/francl35/Poke",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/francl35/Poke",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Owned Japanese Monster Hunter Portable2ndG disc plus decrypted EBOOT.ELF; EU/US FreedomUnite unsupported. Exact Japanese serial/revision/hash and FUComplete mod version need profile verification."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local CMake/SDL3/Vulkan build, generate main C++ from own decrypted EBOOT.ELF, build game; overlay libraries separate. No precompiled-player release inferred."
+        }
+      ],
+      "warnings": [
+        "WIP, not general release; village/gameplay/quest/combat/zone testing claimed but edge cases. Some code falls back to interpreter. Overlay generation not yet a verified standalone documented workflow; macOS hydration incomplete.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/francl35/Poke"
+    },
+    "issue_number": 3113
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "monster-hunter-portable-2nd-g-psp",
+    "origin": {
+      "project_url": "https://github.com/francl35/Poke",
+      "repository": {
+        "host": "github.com",
+        "id": "1407908421"
+      }
+    },
+    "decisions": []
+  }
+}

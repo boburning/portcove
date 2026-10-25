@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tna-impact-recompiled-dotgrx-tna-impact",
+    "name": "TNA iMPACT! — TNA iMPACT! Recompiled (dotGrx)",
+    "original_game_title": "TNA iMPACT!",
+    "summary": "Player runtime/controls documented; campaign/match completion unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own TNA iMPACT! Xbox 360 complete extracted game files, including the original executable. USA/Europe; exact XEX MD5 from source_identity_facts if present."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Download Windows TNA release and select own USA/Europe ISO/folder; ISO read in place."
+        }
+      ],
+      "warnings": [
+        "Player runtime/controls documented; campaign/match completion unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp"
+    },
+    "issue_number": 3267
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tna-impact-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1424569191"
+      }
+    },
+    "decisions": []
+  }
+}

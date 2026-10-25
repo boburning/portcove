@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pangya-recomp-kromossomom-debug-pangya-fantasy-golf",
+    "name": "Pangya: Fantasy Golf — pangya-recomp (kromossomom-debug)",
+    "original_game_title": "Pangya: Fantasy Golf",
+    "summary": "Research project. Static native title code with HLE/fallback; no broad gameplay or full completion established. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/kromossomom-debug/pangya-recomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kromossomom-debug/pangya-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA ULUS10438 PangyaFantasyGolf own UMD ISO. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "build.sh ownISO patches PPSSPP HLE runtime and generates game C++; dist/pangya uses originalISO. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Static native title code with HLE/fallback; no broad gameplay or full completion established. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/kromossomom-debug/pangya-recomp"
+    },
+    "issue_number": 3566,
+    "artwork": {
+      "game_id": 42809,
+      "cover_id": 115987,
+      "image_id": "co2hhv",
+      "image_sha256": "15dfae51362adcb9bd02da3a121a05e1d9ff7ac00cfb3f95c96dd92a08fdc69b",
+      "game_slug": "pangya-fantasy-golf",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "pangya-fantasy-golf-psp",
+    "origin": {
+      "project_url": "https://github.com/kromossomom-debug/pangya-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1430425061"
+      }
+    },
+    "decisions": []
+  }
+}

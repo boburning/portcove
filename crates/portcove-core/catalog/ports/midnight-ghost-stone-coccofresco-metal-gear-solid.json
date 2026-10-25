@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "midnight-ghost-stone-coccofresco-metal-gear-solid",
+    "name": "Metal Gear Solid — Midnight Ghost Stone (coccofresco)",
+    "original_game_title": "Metal Gear Solid",
+    "summary": "Research project. Upstream alpha.1 is UNTESTED for gameplay/platform; most logic is static MIPS-to-native with selected adapted decompiled routines. No continuous playthrough certified; preserve Codec saves/backups. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/coccofresco/mgsone-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/coccofresco/mgsone-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own MetalGearSolid USA SLUS-00594 and SLUS-00776 BIN/CUE discs; retain original data at runtime. Optional own retail BIOS versus bundled OpenBIOS follows primary setup."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual experimental alpha.1 Linux/Windows archives or documented source build from own USA discs; releases expressly unqualified. Do not treat alpha downloads as campaign/platform acceptance."
+        }
+      ],
+      "warnings": [
+        "Upstream alpha.1 is UNTESTED for gameplay/platform; most logic is static MIPS-to-native with selected adapted decompiled routines. No continuous playthrough certified; preserve Codec saves/backups.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/coccofresco/mgsone-recomp"
+    },
+    "issue_number": 3349,
+    "artwork": {
+      "game_id": 375,
+      "cover_id": 545996,
+      "image_id": "cobpak",
+      "image_sha256": "2acd6f7ec640cb08c1c6bd7b52aec1d69133d371905f8c0a89d09bb68dd58863",
+      "game_slug": "metal-gear-solid",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "metal-gear-solid-ps1",
+    "origin": {
+      "project_url": "https://github.com/coccofresco/mgsone-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1413100631"
+      }
+    },
+    "decisions": []
+  }
+}

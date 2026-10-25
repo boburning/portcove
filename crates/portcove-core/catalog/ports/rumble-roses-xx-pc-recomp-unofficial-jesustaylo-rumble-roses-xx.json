@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rumble-roses-xx-pc-recomp-unofficial-jesustaylo-rumble-roses-xx",
+    "name": "Rumble Roses XX — Rumble Roses XX — PC recomp (unofficial) (JesusTaylo)",
+    "original_game_title": "Rumble Roses XX",
+    "summary": "Alpha: full matches on one IntelUHD PC; GPU-TDR/crash concerns remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Rumble Roses XX Xbox 360 disc ISO or extracted full disc files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use setup.bat/manual Windows build from own RumbleRosesXX disc."
+        }
+      ],
+      "warnings": [
+        "Alpha: full matches on one IntelUHD PC; GPU-TDR/crash concerns remain.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp"
+    },
+    "issue_number": 3234
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "rumble-roses-xx-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1430184925"
+      }
+    },
+    "decisions": []
+  }
+}

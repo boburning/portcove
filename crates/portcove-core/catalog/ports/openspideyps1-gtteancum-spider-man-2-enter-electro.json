@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "openspideyps1-gtteancum-spider-man-2-enter-electro",
+    "name": "Spider-Man 2: Enter Electro — OpenSpideyPS1 (GTTeancum)",
+    "original_game_title": "Spider-Man 2: Enter Electro",
+    "summary": "Both games reach gameplay; fullplaythrough/longsessions explicitly not done Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA owned BIN/CUE/ISO for each game; exact serial/revision guard needs clarification"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Game-specific v1.0 runtimeZIPs; own-disc extraction at setup; shared C# runtime"
+        }
+      ],
+      "warnings": [
+        "Both games reach gameplay; fullplaythrough/longsessions explicitly not done",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
+    },
+    "issue_number": 3359,
+    "artwork": {
+      "game_id": 4118,
+      "cover_id": 120899,
+      "image_id": "co2lab",
+      "image_sha256": "9208130624a36235f99803a0ca5d871821e1b5622e9abbf8793a402469375382",
+      "game_slug": "spider-man-2-enter-electro",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "spider-man-2-enter-electro-ps1",
+    "origin": {
+      "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1349832342"
+      }
+    },
+    "decisions": []
+  }
+}

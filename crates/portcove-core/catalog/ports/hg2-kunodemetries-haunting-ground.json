@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hg2-kunodemetries-haunting-ground",
+    "name": "Haunting Ground — hg2 (KunoDemetries)",
+    "original_game_title": "Haunting Ground",
+    "summary": "IndependentAOTtools/runtime explicitly noPS2Recomp; menu/6300frame diagnostic not playable. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/KunoDemetries/hg2",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/KunoDemetries/hg2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21075 own executable/disc; exact revision needs config"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local source/tool generation; preserve separate from same-author HG PS2Recomp implementation."
+        }
+      ],
+      "warnings": [
+        "IndependentAOTtools/runtime explicitly noPS2Recomp; menu/6300frame diagnostic not playable.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/KunoDemetries/hg2"
+    },
+    "issue_number": 3082,
+    "artwork": {
+      "game_id": 14605,
+      "cover_id": 78904,
+      "image_id": "co1ovs",
+      "image_sha256": "7d1ae0106d7528f69ea8ab510e9a1b35d5b2ed6501d10adc4a43b084883865ff",
+      "game_slug": "haunting-ground",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "haunting-ground-ps2",
+    "origin": {
+      "project_url": "https://github.com/KunoDemetries/hg2",
+      "repository": {
+        "host": "github.com",
+        "id": "1369048893"
+      }
+    },
+    "decisions": []
+  }
+}

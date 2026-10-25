@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "twistedmetal1234recomp-jcoker85-twisted-metal-2",
+    "name": "Twisted Metal 2 — TwistedMetal1234Recomp (jcoker85)",
+    "original_game_title": "Twisted Metal 2",
+    "summary": "Research project. Upstream native Windows TM2 profile within four-title kit; full TM2 playthrough not independently established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA TwistedMetal2 retail SCUS94306 CHD or CUE/BIN; do not inherit TM1/3/4 source revisions."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual shared Windows launcher/tools/generate.sh route, select tm2 and own SCUS94306. Shared launcher/runtime does not create another implementation."
+        }
+      ],
+      "warnings": [
+        "Upstream native Windows TM2 profile within four-title kit; full TM2 playthrough not independently established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jcoker85/TwistedMetal1234Recomp"
+    },
+    "issue_number": 3487,
+    "artwork": {
+      "game_id": 4696,
+      "cover_id": 425126,
+      "image_id": "co9412",
+      "image_sha256": "6312e7a79df0feee32a73dbde3de34c662962c2fb9116f4cac0be7a909c0ffb3",
+      "game_slug": "twisted-metal-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "twisted-metal-2-ps1",
+    "origin": {
+      "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416517346"
+      }
+    },
+    "decisions": []
+  }
+}

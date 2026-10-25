@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "after-burner-climax-pc-recompilation-sp00nznet-after-burner-climax",
+    "name": "After Burner Climax — After Burner Climax — PC Recompilation (sp00nznet)",
+    "original_game_title": "After Burner Climax",
+    "summary": "Codegen only; link/boot still future work. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/afterburner",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/afterburner",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own After Burner Climax Xbox 360 XBLA package or its complete extracted files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Run ReXGlue codegen and pending Windows build against own AfterBurnerClimax files."
+        }
+      ],
+      "warnings": [
+        "Codegen only; link/boot still future work.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/afterburner"
+    },
+    "issue_number": 3300,
+    "artwork": {
+      "game_id": 20085,
+      "cover_id": 117692,
+      "image_id": "co2it8",
+      "image_sha256": "ad86e1041f7cb8e7fd7965a2b8d38b6eb88420c72c7306079cb83a9107227104",
+      "game_slug": "after-burner-climax",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "after-burner-climax-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/afterburner",
+      "repository": {
+        "host": "github.com",
+        "id": "1273568145"
+      }
+    },
+    "decisions": []
+  }
+}

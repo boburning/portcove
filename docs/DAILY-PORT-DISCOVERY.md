@@ -465,6 +465,35 @@ Native engine reimplementations are eligible leads. Ambiguous identity stays
 Unknown; a rename cannot transfer qualification to an unverified successor.
 Explicitly protect retired duplicates such as #1786 -> #322.
 
+Follow same-game parent credits before admitting a descendant. A Linux, macOS,
+Android or other host adaptation stays with its implementation family unless
+primary evidence establishes an independently maintained game runtime beyond
+host integration. Record the parent repository/provider ID and the relationship;
+use the reviewed `helper_for` identity for a proven family variant. Unresolved
+same-game ancestry stays held. A framework fork adapted to a different game is
+not a same-game alias, and a shared SDK alone cannot merge independent runtimes.
+
+Scope source serials, regions, revisions, build routes and gameplay claims to the
+specific game/edition and host. Shared repository tables can mix several games,
+different regional profiles and future destinations; do not join those claims
+into one accepted source or host profile. A planned or unbuilt host, framework
+example or another destination's playthrough is not current desktop support.
+Retain unknown executable revisions and CPU architectures explicitly.
+
+A reviewed canonical issue can retain up to sixteen explicit same-family identities
+as ordinary lines in the form `Reviewed source-family alias: https://github.com/owner/repo (GitHub repository ID: 123)`.
+Keep the attributed relationship evidence alongside them and one primary upstream
+marker. The intake guard checks these aliases, including closed owners and
+repository transfers, as duplicate ownership evidence; they do not grant runtime
+trust or alter accepted upstream lineage. Check every proposed alias against the
+same fresh complete issue inventory before creating the family owner.
+
+For authored lineage, use the shared underlying game/edition `target_key` required
+by [Catalog](CATALOG.md#one-authoring-representation-and-decision-boundary).
+Implementation IDs and canonical issues remain separate. Reuse established
+target identifiers without rewriting accepted histories or transferring runtime
+qualification between implementations.
+
 Inspect all relevant release channels under the reviewed upstream policy,
 including previews and rolling tags; never substitute `/latest` for complete
 release/asset pagination. Resolve tag commits (including annotated tags),

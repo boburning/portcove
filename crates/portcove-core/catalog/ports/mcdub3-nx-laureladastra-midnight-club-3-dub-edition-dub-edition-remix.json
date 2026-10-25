@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mcdub3-nx-laureladastra-midnight-club-3-dub-edition-dub-edition-remix",
+    "name": "Midnight Club 3: DUB Edition — mcdub3-nx (laureladastra)",
+    "original_game_title": "Midnight Club 3: DUB Edition",
+    "summary": "Version0.3.0 is experimental: crashes, latency and occasional race hangs remain. Upstream claims Mac/Linux30FPS with5x upscale; M1/macOS15.6 and Ubuntu22.04.5 VM are the named tests. Windows11 VM/Intel i7 support is still experimental. Switch100% career progress is a separate destination observation and is not desktop completion evidence. No Portcove runtime/gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/laureladastra/mcdub3-nx",
+    "platforms": ["windows-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/laureladastra/mcdub3-nx",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own original Xbox Midnight Club 3: DUB Edition NTSC-U or PAL Europe disc. Supply extracted default.xbe plus all disc files; make extract ISO=<own.iso> prepares Unix routes and the Windows installer can extract the owned ISO. Regional discs use separate game/ and game-eur/ folders. Exact XBE revision/hash is Unknown. Do not treat the separate Remix PAL development/NRO claim as an accepted desktop source profile."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source preparation owned by upstream/player. macOS: install Xcode command-line tools/Homebrew, make setup, extract own DUB Edition disc, make lift, then make mac-app DISC=<disc-folder> or make build run. Linux: make setup, own-disc extraction, make lift and make build run; CPU matrix remains Unknown. Windows: install_windows.bat installs MSYS2 in C:\\msys64 if absent, obtains dependencies, lifts code and builds the personal runtime; this is local compilation, not a precompiled player download. No commands were executed by Portcove. Desktop Remix preparation is not established."
+        }
+      ],
+      "warnings": [
+        "Version0.3.0 is experimental: crashes, latency and occasional race hangs remain. Upstream claims Mac/Linux30FPS with5x upscale; M1/macOS15.6 and Ubuntu22.04.5 VM are the named tests. Windows11 VM/Intel i7 support is still experimental. Switch100% career progress is a separate destination observation and is not desktop completion evidence. No Portcove runtime/gameplay qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/laureladastra/mcdub3-nx"
+    },
+    "issue_number": 3459,
+    "artwork": {
+      "game_id": 5928,
+      "cover_id": 120984,
+      "image_id": "co2lco",
+      "image_sha256": "7423dfe09c380bd3dc83f8bb1e0997ad4e7b617b112584e0673b0a7056df77c8",
+      "game_slug": "midnight-club-3-dub-edition",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "midnight-club-3-dub-edition-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/laureladastra/mcdub3-nx",
+      "repository": {
+        "host": "github.com",
+        "id": "1428661056"
+      }
+    },
+    "decisions": []
+  }
+}

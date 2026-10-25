@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "port-ga-gotoku-italiankuze-fist-of-the-north-star-lost-paradise",
+    "name": "Fist of the North Star: Lost Paradise — port-ga-gotoku (ItalianKuze)",
+    "original_game_title": "Fist of the North Star: Lost Paradise",
+    "summary": "Research project. Upstream early alpha playable exploration/combat/save/load around60FPS on oneWin11/RTX5070 machine; drops/issues remain. No full campaign or alternate-source qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ItalianKuze/port-ga-gotoku",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ItalianKuze/port-ga-gotoku",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own FistOfTheNorthStar LostParadise PS4 CUSA12781v01.00 dump with eboot.bin/sce_sys. CUSA10053 Asian edition is only an experimental prologue→firstsave report, not equivalent source qualification."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual releaseZIP writable folder or MSYS2UCRT64 build-win.sh; launcher selects owned CUSA12781 folder and prepares boot image read-only. Alternate Asian edition requires confirmation. No archive inspected."
+        }
+      ],
+      "warnings": [
+        "Upstream early alpha playable exploration/combat/save/load around60FPS on oneWin11/RTX5070 machine; drops/issues remain. No full campaign or alternate-source qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ItalianKuze/port-ga-gotoku"
+    },
+    "issue_number": 3449,
+    "artwork": {
+      "game_id": 55112,
+      "cover_id": 246681,
+      "image_id": "co5ac9",
+      "image_sha256": "f9baa102bfbc51b00d071b3876e22767e3ee581e77e5844a781d6de689d59200",
+      "game_slug": "fist-of-the-north-star-lost-paradise",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fist-of-the-north-star-lost-paradise-ps4",
+    "origin": {
+      "project_url": "https://github.com/ItalianKuze/port-ga-gotoku",
+      "repository": {
+        "host": "github.com",
+        "id": "1414537250"
+      }
+    },
+    "decisions": []
+  }
+}

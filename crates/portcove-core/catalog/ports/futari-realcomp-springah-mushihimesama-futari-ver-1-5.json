@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "futari-realcomp-springah-mushihimesama-futari-ver-1-5",
+    "name": "Mushihimesama Futari Ver 1.5 — futari_realcomp (springah)",
+    "original_game_title": "Mushihimesama Futari Ver 1.5",
+    "summary": "Research project. Upstream explicitly in development, not shippable; beta reportedly ran attract, menus, NormalPlay, Training, saves and native audio, with known defects. macOS M3Max shell/title boot is a separate bounded milestone, not campaign completion. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/springah/futari_realcomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/springah/futari_realcomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360 MushihimesamaFutari Ver1.5 dump with title/shell/two game modules. Exact accepted region/revision and executable/module digests require upstream configs/status inspection."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source build_win.sh or build_win_dll.sh with GitBash clang/lld; matching workbench additionally needs XDK9328. Linux build_linux.sh and macOS build_mac.sh are development routes with external dependencies/decomp tree; no shipping runtime package established."
+        }
+      ],
+      "warnings": [
+        "Upstream explicitly in development, not shippable; beta reportedly ran attract, menus, NormalPlay, Training, saves and native audio, with known defects. macOS M3Max shell/title boot is a separate bounded milestone, not campaign completion.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/springah/futari_realcomp"
+    },
+    "issue_number": 3163
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mushihimesama-futari-ver-1-5-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/springah/futari_realcomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1338066675"
+      }
+    },
+    "decisions": []
+  }
+}

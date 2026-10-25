@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "metropolismania-pc-koaque-metropolismania",
+    "name": "Metropolismania — Metropolismania PC (koaque)",
+    "original_game_title": "Metropolismania",
+    "summary": "Boots and reaches city, not ready for playthrough; local Ghidra/build pipeline, 71% function rewrite claim is not gameplay coverage. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/koaque/Metropolismania-PC",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/koaque/Metropolismania-PC",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-20377 disc VER1.02 BIN/CUE or ISO."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Documented Windows local Ghidra/JDK/toolchain/extraction/static-recompile route; no released runtime inferred."
+        }
+      ],
+      "warnings": [
+        "Boots and reaches city, not ready for playthrough; local Ghidra/build pipeline, 71% function rewrite claim is not gameplay coverage.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/koaque/Metropolismania-PC"
+    },
+    "issue_number": 2997,
+    "artwork": {
+      "game_id": 26661,
+      "cover_id": 127900,
+      "image_id": "co2qos",
+      "image_sha256": "68e429d2f0f88aab3ea86ba65fb289808955b841ca0a4cce3c2c7b9b37267a4e",
+      "game_slug": "metropolismania",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "metropolismania-ps2",
+    "origin": {
+      "project_url": "https://github.com/koaque/Metropolismania-PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1421388779"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "crashrecomp-definitive-edition-vitomiguelf-crash-of-the-titans-xbox-360",
+    "name": "Crash of the Titans (Xbox 360) — CrashRecomp: Definitive Edition (VitoMiguelF)",
+    "original_game_title": "Crash of the Titans (Xbox 360)",
+    "summary": "Upstream native story/menus/saves and v1.04specific-scene performance claims remain; no verified fullcampaign. Latest source README adds ultrawide21:9/32:9/16:10, GPU-conditional DLSS/FSR and reports IntelUHD blackflicker with gpu_safe_mode/diagnostics workaround. Windows10/11x64 Vulkan1.3 remains; ProtonLinux is unverified goal. Newv1.05 installer/layout claims precede an observable public tag; not runtime/package tested byPortcove. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/VitoMiguelF/crashott-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/VitoMiguelF/crashott-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own retailXbox360 CrashOfTheTitans extracted folder default.xex/default.rcf/english.rcf/sound1.rcf/sound2.rcf/shaders. Installer SHA256checks one known XEX; full digest not in reviewedREADME."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Public release metadata still observes CrashRecomp-v1.04.zip (155742930bytes); use its version-matched ZIP/CrashSetup.exe instructions and own supported game folder, with bundled local recompile/build tools. The latest README now describes CrashSetup-v1.05.exe single-file offline installer, copied game data, CrashLauncher.exe/CrashOTTDE.exe anduserdata layout, but exact public v1.05 tag returned404 at2026-10-25T07:06:52.013Z; do not present that installer as available until released/read back. Source-clone dist/CrashRecomp.exe and oldZIP route remain version-specific; optional HD/subtitle/derived assets separate."
+        }
+      ],
+      "warnings": [
+        "Upstream native story/menus/saves and v1.04specific-scene performance claims remain; no verified fullcampaign. Latest source README adds ultrawide21:9/32:9/16:10, GPU-conditional DLSS/FSR and reports IntelUHD blackflicker with gpu_safe_mode/diagnostics workaround. Windows10/11x64 Vulkan1.3 remains; ProtonLinux is unverified goal. Newv1.05 installer/layout claims precede an observable public tag; not runtime/package tested byPortcove.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/VitoMiguelF/crashott-pc"
+    },
+    "issue_number": 3196
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "crash-of-the-titans-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/VitoMiguelF/crashott-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1430004473"
+      }
+    },
+    "decisions": []
+  }
+}

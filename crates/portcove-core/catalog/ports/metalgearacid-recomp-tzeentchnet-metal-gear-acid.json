@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "metalgearacid-recomp-tzeentchnet-metal-gear-acid",
+    "name": "Metal Gear Acid — MetalGearAcid-Recomp (Tzeentchnet)",
+    "original_game_title": "Metal Gear Acid",
+    "summary": "Research project. Experimental source-only runtime with conservative fallback cap; no ready game package/completion. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Tzeentchnet/MetalGearAcid-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Tzeentchnet/MetalGearAcid-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA ULUS10006 v1.00 MGA own ISO/plaintextPRX. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own-ISO guided installer retrieves pinned toolkit, extracts/generates/builds; Launch Metal Gear Acid.bat hardware/GDI options. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Experimental source-only runtime with conservative fallback cap; no ready game package/completion. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Tzeentchnet/MetalGearAcid-Recomp"
+    },
+    "issue_number": 3565,
+    "artwork": {
+      "game_id": 12211,
+      "cover_id": 79914,
+      "image_id": "co1pnu",
+      "image_sha256": "b00309c8e2516b2eea310ab294af8c4ba87efb50d6caf1c4548a504991bb4c0b",
+      "game_slug": "metal-gear-acid",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "metal-gear-acid-psp",
+    "origin": {
+      "project_url": "https://github.com/Tzeentchnet/MetalGearAcid-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429043280"
+      }
+    },
+    "decisions": []
+  }
+}

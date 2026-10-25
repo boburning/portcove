@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "billy-and-mandy-decomp-jasonadamhd-the-grim-adventures-of-billy-mandy",
+    "name": "The Grim Adventures of Billy & Mandy — billy-and-mandy-decomp (JasonAdamHD)",
+    "original_game_title": "The Grim Adventures of Billy & Mandy",
+    "summary": "Boot/title/menu/input boundary; CPU-renderer workaround; not full playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/JasonAdamHD/billy-and-mandy-decomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JasonAdamHD/billy-and-mandy-decomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS21451 ELF SHA2560b7542e52b4bb017109f569d3a6369945a95f71a4f21d58f9d27ccc278962ce7 + extracted disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local GitBash/Ghidra/recompile/VisualStudio route from owned disc."
+        }
+      ],
+      "warnings": [
+        "Boot/title/menu/input boundary; CPU-renderer workaround; not full playthrough.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/JasonAdamHD/billy-and-mandy-decomp"
+    },
+    "issue_number": 3077
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-grim-adventures-of-billy-mandy-ps2",
+    "origin": {
+      "project_url": "https://github.com/JasonAdamHD/billy-and-mandy-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417622752"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bomberman-generation-moderngekko-nikeymikey-bomberman-generation",
+    "name": "Bomberman Generation — bomberman-generation-moderngekko (nikeymikey)",
+    "original_game_title": "Bomberman Generation",
+    "summary": "Upstream calls it playable with controller support, widescreen, save states, netplay and a Battle bomb-count mod. No full-story completion result is established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/nikeymikey/bomberman-generation-moderngekko",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nikeymikey/bomberman-generation-moderngekko",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own USA GBGE5G disc dump. Original assets and local generated game module are required; upstream explicitly does not distribute that module."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source only by upstream policy: build with CMake, Ninja and MinGW-w64 GCC following docs/building.md; launcher compiles the game module locally on first run. Upstream deliberately publishes no downloadable binaries. Build-Release.ps1 assembles a personal build, not a public release."
+        }
+      ],
+      "warnings": [
+        "Upstream calls it playable with controller support, widescreen, save states, netplay and a Battle bomb-count mod. No full-story completion result is established here.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/nikeymikey/bomberman-generation-moderngekko"
+    },
+    "issue_number": 3433,
+    "artwork": {
+      "game_id": 3832,
+      "cover_id": 135114,
+      "image_id": "co2w96",
+      "image_sha256": "f3898c5c301933c9b5872ec1b18ebec22fb1538cd85c8c5dd30a226a5df71206",
+      "game_slug": "bomberman-generation",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bomberman-generation-gamecube",
+    "origin": {
+      "project_url": "https://github.com/nikeymikey/bomberman-generation-moderngekko",
+      "repository": {
+        "host": "github.com",
+        "id": "1347793596"
+      }
+    },
+    "decisions": []
+  }
+}

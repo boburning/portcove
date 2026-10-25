@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hotel-mario-static-recomp-tools81-hotel-mario",
+    "name": "Hotel Mario — hotel-mario-static-recomp (tools81)",
+    "original_game_title": "Hotel Mario",
+    "summary": "Native runtime, enhancement and player route exist; exact stage/campaign/full-completion scope not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tools81/hotel-mario-static-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tools81/hotel-mario-static-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA raw BIN/CUE disc; exact executable/module fingerprints must be read from source profile"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README portable win64 ZIP/installer asks for own disc, no compiler for player package. Source build.bat extracts/translates modules and builds standard/HD executables."
+        }
+      ],
+      "warnings": [
+        "Native runtime, enhancement and player route exist; exact stage/campaign/full-completion scope not established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tools81/hotel-mario-static-recomp"
+    },
+    "issue_number": 3582,
+    "artwork": {
+      "game_id": 8535,
+      "cover_id": 84745,
+      "image_id": "co1te1",
+      "image_sha256": "ad51cb009f668f663e1718221d6a1555b7bc2ae5eecd36238820a43f39c6397f",
+      "game_slug": "hotel-mario",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hotel-mario-cdi",
+    "origin": {
+      "project_url": "https://github.com/tools81/hotel-mario-static-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1431622185"
+      }
+    },
+    "decisions": []
+  }
+}

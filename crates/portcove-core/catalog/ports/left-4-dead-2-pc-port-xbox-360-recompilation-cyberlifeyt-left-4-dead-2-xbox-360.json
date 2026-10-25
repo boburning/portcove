@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "left-4-dead-2-pc-port-xbox-360-recompilation-cyberlifeyt-left-4-dead-2-xbox-360",
+    "name": "Left 4 Dead 2 (Xbox 360) — Left 4 Dead 2 — PC Port (Xbox 360 recompilation) (CyberLifeYT)",
+    "original_game_title": "Left 4 Dead 2 (Xbox 360)",
+    "summary": "Accurate ROV needed for correct lighting/video; full campaign not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/CyberLifeYT/L4D2-PC-Port",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/CyberLifeYT/L4D2-PC-Port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Left 4 Dead 2 (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Title 454108D4; 1:1 Xbox 360 disc."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows launcher imports own L4D2 disc and downloads selected port patch; shipped versus locally built game code unclear."
+        }
+      ],
+      "warnings": [
+        "Accurate ROV needed for correct lighting/video; full campaign not established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/CyberLifeYT/L4D2-PC-Port"
+    },
+    "issue_number": 3274,
+    "artwork": {
+      "game_id": 124,
+      "cover_id": 90807,
+      "image_id": "co1y2f",
+      "image_sha256": "3f81478ce85a6029f58b38af382f32307c53df66da17d2eba77b261e0d37756b",
+      "game_slug": "left-4-dead-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "left-4-dead-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/CyberLifeYT/L4D2-PC-Port",
+      "repository": {
+        "host": "github.com",
+        "id": "1421630879"
+      }
+    },
+    "decisions": []
+  }
+}

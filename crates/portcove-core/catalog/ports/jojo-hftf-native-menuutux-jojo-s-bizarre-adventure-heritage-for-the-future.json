@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jojo-hftf-native-menuutux-jojo-s-bizarre-adventure-heritage-for-the-future",
+    "name": "JoJo's Bizarre Adventure: Heritage for the Future — jojo-hftf-native (MenuuTUX)",
+    "original_game_title": "JoJo's Bizarre Adventure: Heritage for the Future",
+    "summary": "Research project. Upstream native fight engine918functions, tested character/stage VS/training replacements; remainder uses recompiled MIPS. Story/Arcade still recomp paths; all verification is upstream, not Portcove. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/MenuuTUX/jojo-hftf-native",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MenuuTUX/jojo-hftf-native",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA SLUS01060."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual own SLUS01060 disc/source build via INSTALL.md and native macOS shell. Full generation/capture tools are in separate development repo; do not claim self-contained clean bootstrap or approve committed extracted assets."
+        }
+      ],
+      "warnings": [
+        "Upstream native fight engine918functions, tested character/stage VS/training replacements; remainder uses recompiled MIPS. Story/Arcade still recomp paths; all verification is upstream, not Portcove.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/MenuuTUX/jojo-hftf-native"
+    },
+    "issue_number": 3490,
+    "artwork": {
+      "game_id": 75963,
+      "cover_id": 277237,
+      "image_id": "co5xx1",
+      "image_sha256": "e1ed879b55387c798aa1b87c867d465dddbfba83bad4712b2836d92752815385",
+      "game_slug": "jojos-bizarre-adventure--2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jojo-s-bizarre-adventure-heritage-for-the-future-ps1",
+    "origin": {
+      "project_url": "https://github.com/MenuuTUX/jojo-hftf-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1422475544"
+      }
+    },
+    "decisions": []
+  }
+}

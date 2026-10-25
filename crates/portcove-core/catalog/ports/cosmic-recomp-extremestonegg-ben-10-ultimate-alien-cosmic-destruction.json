@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "cosmic-recomp-extremestonegg-ben-10-ultimate-alien-cosmic-destruction",
+    "name": "Ben 10 Ultimate Alien: Cosmic Destruction — Cosmic Recomp (ExtremestoneGG)",
+    "original_game_title": "Ben 10 Ultimate Alien: Cosmic Destruction",
+    "summary": "Experimental: lever/animation fixes reported; Rath upgrades with All Aliens disabled remain under investigation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ExtremestoneGG/Cosmic-Recompi",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ExtremestoneGG/Cosmic-Recompi",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Ben 10 Ultimate Alien: Cosmic Destruction Xbox 360 disc ISO. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Use the portable Windows runtime/installer and import the ISO; setup explicitly does not compile C++ on the player's PC."
+        }
+      ],
+      "warnings": [
+        "Experimental: lever/animation fixes reported; Rath upgrades with All Aliens disabled remain under investigation.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ExtremestoneGG/Cosmic-Recompi"
+    },
+    "issue_number": 3181
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ben-10-ultimate-alien-cosmic-destruction-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/ExtremestoneGG/Cosmic-Recompi",
+      "repository": {
+        "host": "github.com",
+        "id": "1428126633"
+      }
+    },
+    "decisions": []
+  }
+}

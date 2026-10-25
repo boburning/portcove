@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist",
+    "name": "The Queen of Duellist — pc-thequeenofduellist (vs-sr-dev)",
+    "original_game_title": "The Queen of Duellist",
+    "summary": "Research project. Onefightfromtitle plus boundedimage/audio comparisons; restgamepending; MAMEisoracle not deliveryruntime. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-thequeenofduellist",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-thequeenofduellist",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "FM Towns Japan QueenOfDuellistRevA HME166A own10-trackdisc plus ownfontROM. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "fmtownskit own-disc EXP/TBIOS recompile, CMake build/rt/tqod. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Onefightfromtitle plus boundedimage/audio comparisons; restgamepending; MAMEisoracle not deliveryruntime. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-thequeenofduellist"
+    },
+    "issue_number": 3593,
+    "artwork": {
+      "game_id": 63913,
+      "cover_id": 283520,
+      "image_id": "co62rk",
+      "image_sha256": "9eea0d93c89ab8ad84d3ee7d0587e3771569d8b61da4650b1a8324b7b1877bdd",
+      "game_slug": "the-queen-of-duellist",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-queen-of-duellist-fm-towns-marty-compatible",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-thequeenofduellist",
+      "repository": {
+        "host": "github.com",
+        "id": "1428721765"
+      }
+    },
+    "decisions": []
+  }
+}

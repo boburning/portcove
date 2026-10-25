@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragon-valor-recomp-victor-takai-dragon-valor",
+    "name": "Dragon Valor — dragon-valor-recomp (victor-takai)",
+    "original_game_title": "Dragon Valor",
+    "summary": "Research project. Upstream native DragonValor with disc choice/settings and experimental widescreen. No complete two-disc playthrough established in this review. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/victor-takai/dragon-valor-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/victor-takai/dragon-valor-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA SLUS01092 disc1, SLUS01164 disc2."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local owned-input source route: follow the upstream full toolchain/generate/rebuild recipe and DISC.md with the owned USA DragonValor discs, regenerating the translated game code locally before CMake builds. The repository also documents checked-in generatedC/prebuilt releases; those are not approved managed packages. No source build/package/gameplay was qualified by Portcove."
+        }
+      ],
+      "warnings": [
+        "Upstream native DragonValor with disc choice/settings and experimental widescreen. No complete two-disc playthrough established in this review.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/victor-takai/dragon-valor-recomp"
+    },
+    "issue_number": 3477,
+    "artwork": {
+      "game_id": 27351,
+      "cover_id": 220130,
+      "image_id": "co4puq",
+      "image_sha256": "33baf828680c04b7bde6afb9d3c6b95dc8cc60afdd99d80f8cc0584f793d67b9",
+      "game_slug": "dragon-valor",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-valor-ps1",
+    "origin": {
+      "project_url": "https://github.com/victor-takai/dragon-valor-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428359041"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -23,6 +23,21 @@ const githubKey = (url: string) =>
     .replace(/\/$/u, "")
     .replace(/\.git$/iu, "")
     .toLowerCase();
+export function reviewedDiscoveryFamilyAliases(body: string) {
+  const lines = body
+    .split(/\r?\n/u)
+    .filter((line) => line.startsWith("Reviewed source-family alias: "));
+  if (lines.length > 16) throw new Error("Reviewed family alias capacity exceeded");
+  return lines.map((line) => {
+    const match = line.match(
+      /^Reviewed source-family alias: (https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+) \(GitHub repository ID: ([1-9]\d*)\)$/u,
+    );
+    const id = Number(match?.[2]);
+    if (!match || !Number.isSafeInteger(id))
+      throw new Error("Invalid reviewed source-family alias");
+    return { repository: match[1]!, repository_id: id };
+  });
+}
 /** Additional duplicate protection only. Fresh complete issue coverage remains
  * mandatory at the caller; local lineage/cache observations cannot prove absence.
  */
@@ -55,14 +70,30 @@ export function assertDiscoveryIntakeIdentity(
         ...history.map((row) => row.project_url),
       ]),
     ].filter(github);
+    // Explicit reviewed family aliases are ownership evidence only. They do not
+    // replace the primary upstream or admit executable trust/relocation history.
+    const aliases = reviewedDiscoveryFamilyAliases(body);
+    const primaryBody = body
+      .split(/\r?\n/u)
+      .filter((line) => !line.startsWith("Reviewed source-family alias: "))
+      .join("\n");
     const bodyIds = [
       ...new Set(
-        [...body.matchAll(/GitHub repository ID:\s*(\d+)/giu)].map((match) => Number(match[1])),
+        [...primaryBody.matchAll(/GitHub repository ID:\s*(\d+)/giu)].map((match) =>
+          Number(match[1]),
+        ),
       ),
     ];
     const game =
       authored?.listing.original_game_title ??
       body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
+    for (const alias of aliases)
+      canonical.push({
+        ...alias,
+        issue: number,
+        state,
+        ...(game ? { game_key: discoveryGameKey(game) } : {}),
+      });
     for (const url of urls) {
       const key = githubKey(url);
       const lineage = history.find(

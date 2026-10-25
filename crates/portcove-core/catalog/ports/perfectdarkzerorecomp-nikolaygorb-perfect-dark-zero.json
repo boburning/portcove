@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "perfectdarkzerorecomp-nikolaygorb-perfect-dark-zero",
+    "name": "Perfect Dark Zero — PerfectDarkZeroRecomp (nikolaygorb)",
+    "original_game_title": "Perfect Dark Zero",
+    "summary": "Upstream says fully playable incl audio/gameplay/achievements/saves. Contradictory Linux test claims retained, no Portcove confirmation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL title4D5307D3 media750FF1D9; own extracted game files incl default.xex. Revision/checksum not captured here."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release1.8 packages observed; source CMake/Clang/Ninja build generates C++ automatically. Windows tested; README claims Linux playable but later says only Windows tested; Mac presets are not platform qualification."
+        }
+      ],
+      "warnings": [
+        "Upstream says fully playable incl audio/gameplay/achievements/saves. Contradictory Linux test claims retained, no Portcove confirmation.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp"
+    },
+    "issue_number": 3120
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "perfect-dark-zero-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1355044086"
+      }
+    },
+    "decisions": []
+  }
+}

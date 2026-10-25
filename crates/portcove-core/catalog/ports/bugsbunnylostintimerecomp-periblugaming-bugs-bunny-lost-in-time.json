@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bugsbunnylostintimerecomp-periblugaming-bugs-bunny-lost-in-time",
+    "name": "Bugs Bunny: Lost in Time — BugsBunnyLostinTimeRecomp (PeriBluGaming)",
+    "original_game_title": "Bugs Bunny: Lost in Time",
+    "summary": "Research project. Upstream native PSXRecomp title project; full gameplay extent is not established by release boilerplate. No Portcove runtime qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA BugsBunnyLostinTime SLUS00838 disc, retained at runtime; retailBIOS not redistributed, bundled OpenBIOS default."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local owned-input source route: initialize pinned submodules, use the documented psxrecomp_cli.py generate command on the owned BugsBunny LostinTime USA disc, then CMake/Ninja psx-runtime. Keep locally generated original-game code private; publishing is not part of setup. The separate upstream precompiled ZIP/RetroLauncher route is not managed or inspected by Portcove."
+        }
+      ],
+      "warnings": [
+        "Upstream native PSXRecomp title project; full gameplay extent is not established by release boilerplate. No Portcove runtime qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp"
+    },
+    "issue_number": 3484,
+    "artwork": {
+      "game_id": 3053,
+      "cover_id": 352705,
+      "image_id": "co7k5d",
+      "image_sha256": "869334deced87a6694a7c185dc3c4b87985b57798f9104f9b2d867348ad34d48",
+      "game_slug": "bugs-bunny-lost-in-time",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bugs-bunny-lost-in-time-ps1",
+    "origin": {
+      "project_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423528914"
+      }
+    },
+    "decisions": []
+  }
+}

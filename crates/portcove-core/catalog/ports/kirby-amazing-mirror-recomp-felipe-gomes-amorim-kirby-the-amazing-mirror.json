@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kirby-amazing-mirror-recomp-felipe-gomes-amorim-kirby-the-amazing-mirror",
+    "name": "Kirby & The Amazing Mirror — kirby-amazing-mirror-recomp (Felipe-Gomes-Amorim)",
+    "original_game_title": "Kirby & The Amazing Mirror",
+    "summary": "Research project. Firstarea/8000frames only; deeperlevels/bosses/abilities untested, timingapproximate. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA B8KE KirbyAmazingMirror own ROM. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised compiler/runtimeZIP import ownROM; first play interpreter while backgroundAOT, nextlaunch compiled; onlinealwaysinterpreter. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Firstarea/8000frames only; deeperlevels/bosses/abilities untested, timingapproximate. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp"
+    },
+    "issue_number": 3583,
+    "artwork": {
+      "game_id": 3721,
+      "cover_id": 88482,
+      "image_id": "co1w9u",
+      "image_sha256": "16aa7ad6eb9ef201aa1afe61572186965ec8e5a4a9097e84d07afcbfa652e321",
+      "game_slug": "kirby-and-the-amazing-mirror",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kirby-the-amazing-mirror-gba",
+    "origin": {
+      "project_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420686691"
+      }
+    },
+    "decisions": []
+  }
+}

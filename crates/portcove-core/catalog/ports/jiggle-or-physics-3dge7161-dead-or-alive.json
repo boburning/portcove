@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jiggle-or-physics-3dge7161-dead-or-alive",
+    "name": "Dead or Alive — Jiggle-or-Physics (3dge7161)",
+    "original_game_title": "Dead or Alive",
+    "summary": "Information only; source hold. Experimental v0.1.0 native title player with rendering/input/memory-card and presentation options; no full completion or Portcove validation. Public build includes game-derived C and separately owned clip/icon requiring rights review. Acquisition is blocked: Public acquisition held: upstream explicitly identifies checked-in translated Dead or Alive game code, the startup movie and cover-art icon whose redistribution rights are not established. Resume only after attributable permission for those components or a reviewed clean own-disc generation route omitting unlicensed components; the PSXRecomp license alone does not grant those rights. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/3dge7161/Jiggle-or-Physics",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "download_block_reason": "Public acquisition held: upstream explicitly identifies checked-in translated Dead or Alive game code, the startup movie and cover-art icon whose redistribution rights are not established. Resume only after attributable permission for those components or a reviewed clean own-disc generation route omitting unlicensed components; the PSXRecomp license alone does not grant those rights.",
+    "issue_number": 3507,
+    "artwork": {
+      "game_id": 317067,
+      "cover_id": 412012,
+      "image_id": "co8tws",
+      "image_sha256": "258e0674396f7625568bac13c39fd2496618320dcd93e2d6c89cab4766827b92",
+      "game_slug": "dead-or-alive--2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dead-or-alive-ps1",
+    "origin": {
+      "project_url": "https://github.com/3dge7161/Jiggle-or-Physics",
+      "repository": {
+        "host": "github.com",
+        "id": "1402185389"
+      }
+    },
+    "decisions": []
+  }
+}

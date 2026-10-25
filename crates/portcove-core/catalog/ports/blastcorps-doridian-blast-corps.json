@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blastcorps-doridian-blast-corps",
+    "name": "Blast Corps — blastcorps (Doridian)",
+    "original_game_title": "Blast Corps",
+    "summary": "Native port replays all-platinum TAS upstream; exact full human-play/hardware coverage unverified. Matching decomp alone is not this native evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Doridian/BlastCorps",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Doridian/BlastCorps",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA v1.0 SHA1 185a6ef7ba1adb243278062c81a7d4e119bda58c, USrev1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c, Japan b147fdbeb661c89107c440b00dc4810508f58636, Europe460212600f8b9f0da95219c4c7330f2e626d9a7e"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source port/build.py ownROM builds decomp then native/browser port. Public browser page can build without ROM but asks own ROM to play."
+        }
+      ],
+      "warnings": [
+        "Native port replays all-platinum TAS upstream; exact full human-play/hardware coverage unverified. Matching decomp alone is not this native evidence.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Doridian/BlastCorps"
+    },
+    "issue_number": 3587,
+    "artwork": {
+      "game_id": 3424,
+      "cover_id": 104010,
+      "image_id": "co2896",
+      "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
+      "game_slug": "blast-corps",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blast-corps-power-dozer",
+    "origin": {
+      "project_url": "https://github.com/Doridian/BlastCorps",
+      "repository": {
+        "host": "github.com",
+        "id": "1363091017"
+      }
+    },
+    "decisions": []
+  }
+}

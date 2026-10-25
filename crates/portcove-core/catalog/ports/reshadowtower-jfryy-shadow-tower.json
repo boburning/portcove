@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "reshadowtower-jfryy-shadow-tower",
+    "name": "Shadow Tower — reshadowtower (JFryy)",
+    "original_game_title": "Shadow Tower",
+    "summary": "Research project. Experimental mouse/WASD/rendering title work; interpreter fallback remains, not every path native. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/JFryy/reshadowtower",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JFryy/reshadowtower",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-00863 own BIN/CUE; OpenBIOS supplied. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised AppImage/installer locally generates/compiles own disc with bundled tools; scripts/build.sh/run.sh source alternative. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Experimental mouse/WASD/rendering title work; interpreter fallback remains, not every path native. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/JFryy/reshadowtower"
+    },
+    "issue_number": 3504,
+    "artwork": {
+      "game_id": 9502,
+      "cover_id": 235933,
+      "image_id": "co521p",
+      "image_sha256": "f1a0f5acf5bddc43711fba35b38b7ca932379a1d2a8d4e24d733d52851da2b51",
+      "game_slug": "shadow-tower",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "shadow-tower-ps1",
+    "origin": {
+      "project_url": "https://github.com/JFryy/reshadowtower",
+      "repository": {
+        "host": "github.com",
+        "id": "1373858078"
+      }
+    },
+    "decisions": []
+  }
+}

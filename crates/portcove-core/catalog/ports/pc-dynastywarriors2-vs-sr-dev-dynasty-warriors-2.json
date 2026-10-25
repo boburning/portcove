@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-dynastywarriors2-vs-sr-dev-dynasty-warriors-2",
+    "name": "Dynasty Warriors 2 — pc-dynastywarriors2 (vs-sr-dev)",
+    "original_game_title": "Dynasty Warriors 2",
+    "summary": "Firstgameofps2kitownrecompiler/runtime; actualgameplayboundaryunestablished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-dynastywarriors2",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-dynastywarriors2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SLES50057 owndisc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Localanalysis/recompile/build; originalIOPsoundmodulesstillinterpreted."
+        }
+      ],
+      "warnings": [
+        "Firstgameofps2kitownrecompiler/runtime; actualgameplayboundaryunestablished.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-dynastywarriors2"
+    },
+    "issue_number": 3112,
+    "artwork": {
+      "game_id": 2983,
+      "cover_id": 78858,
+      "image_id": "co1oui",
+      "image_sha256": "69bf084487980117c548e2806cfbedbf6e2097527d26e9424a7c134269e457b0",
+      "game_slug": "dynasty-warriors-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dynasty-warriors-2-ps2",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-dynastywarriors2",
+      "repository": {
+        "host": "github.com",
+        "id": "1425720091"
+      }
+    },
+    "decisions": []
+  }
+}

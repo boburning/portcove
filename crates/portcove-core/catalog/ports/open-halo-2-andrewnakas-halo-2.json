@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "open-halo-2-andrewnakas-halo-2",
+    "name": "Halo 2 — Open Halo 2 (andrewnakas)",
+    "original_game_title": "Halo 2",
+    "summary": "README describes launch and online room/OpenLive routes; console640x480 and DSP reverb absent. No complete campaign claim. Mac/Linux/browser planned only. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/andrewnakas/openhalo2",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/andrewnakas/openhalo2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Original retail Xbox disc only; Redump ISO/XISO or extracted default.xbe. Launcher verifies one retail revision; exact accepted fingerprint still needs release manifest read."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release OpenHalo2.exe imports disc and locally lifts/compiles halo2_recomp.exe. Bundled LLVM/lifter; Microsoft CRT/SDK libraries from existing VS or licensed xwin download. OpenGL3.3."
+        }
+      ],
+      "warnings": [
+        "README describes launch and online room/OpenLive routes; console640x480 and DSP reverb absent. No complete campaign claim. Mac/Linux/browser planned only.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/andrewnakas/openhalo2"
+    },
+    "issue_number": 3118,
+    "artwork": {
+      "game_id": 986,
+      "cover_id": 89683,
+      "image_id": "co1x77",
+      "image_sha256": "0f8dc17248ec17180cfd4e8b3274456e671bd9a235012759c8d6070a78a2ae2d",
+      "game_slug": "halo-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "halo-2-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/andrewnakas/openhalo2",
+      "repository": {
+        "host": "github.com",
+        "id": "1415825997"
+      }
+    },
+    "decisions": []
+  }
+}

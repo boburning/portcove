@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "folklore-native-pc-recompilation-mava-b-mava-b-folklore",
+    "name": "Folklore — Folklore native PC recompilation (Mava-b) (Mava-b)",
+    "original_game_title": "Folklore",
+    "summary": "Author claims playable on one Windows11 Ryzen7800X3D PC with motion captures; high-fps experimental Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Mava-b/folklore-decomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Mava-b/folklore-decomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "North America BCUS98147 disc1.00 only; JB folder plus decrypted EBOOT.elf6518936bytes; EU/JP/update1.10 rejected"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "setup.ps1/build.ps1/run.ps1; downloads tools and possibly machine-wide VS Build Tools; local generated C++; original disc folder stays required"
+        }
+      ],
+      "warnings": [
+        "Author claims playable on one Windows11 Ryzen7800X3D PC with motion captures; high-fps experimental",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Mava-b/folklore-decomp"
+    },
+    "issue_number": 3312,
+    "artwork": {
+      "game_id": 7307,
+      "cover_id": 525039,
+      "image_id": "cob94f",
+      "image_sha256": "d1ffd856cea68a9685dd75760cfd6aa02ba1119539511efa1d713558b809c956",
+      "game_slug": "folklore",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "folklore-ps3",
+    "origin": {
+      "project_url": "https://github.com/Mava-b/folklore-decomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428300417"
+      }
+    },
+    "decisions": []
+  }
+}

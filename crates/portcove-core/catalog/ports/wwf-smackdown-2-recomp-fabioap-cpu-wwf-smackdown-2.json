@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wwf-smackdown-2-recomp-fabioap-cpu-wwf-smackdown-2",
+    "name": "WWF SmackDown! 2 — WWF-SmackDown-2-Recomp (fabioap-cpu)",
+    "original_game_title": "WWF SmackDown! 2",
+    "summary": "Research project. Upstream rendering/input/memory-card playable; USAonly, other regions untested; performance slogan unqualified. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA WWFSmackDown2 own CUE/BIN; exact revision not stated. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised release, own disc in extracted folder, game.toml CUE path, WWF-SmackDown-2-Recomp.exe. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Upstream rendering/input/memory-card playable; USAonly, other regions untested; performance slogan unqualified. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp"
+    },
+    "issue_number": 3541
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wwf-smackdown-2-ps1",
+    "origin": {
+      "project_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1346752922"
+      }
+    },
+    "decisions": []
+  }
+}

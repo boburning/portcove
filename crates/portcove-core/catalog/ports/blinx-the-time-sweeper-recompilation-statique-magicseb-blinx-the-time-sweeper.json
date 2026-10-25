@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blinx-the-time-sweeper-recompilation-statique-magicseb-blinx-the-time-sweeper",
+    "name": "Blinx: The Time Sweeper — Blinx: The Time Sweeper — recompilation statique (magicseb)",
+    "original_game_title": "Blinx: The Time Sweeper",
+    "summary": "Title-specific native build exists; completion scope is unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/magicseb/blinx-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/magicseb/blinx-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Blinx: The Time Sweeper Original Xbox disc ISO or extracted full disc files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "BlinxSetup.exe obtains tools and compiles locally from own disc ISO; a manual Windows build also exists."
+        }
+      ],
+      "warnings": [
+        "Title-specific native build exists; completion scope is unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/magicseb/blinx-recomp"
+    },
+    "issue_number": 3197,
+    "artwork": {
+      "game_id": 5751,
+      "cover_id": 90378,
+      "image_id": "co1xqi",
+      "image_sha256": "6b255d9d97e014d4c8ace3c76c659d5cc22bdbcbca6167ed893806bdb15e2521",
+      "game_slug": "blinx-the-time-sweeper",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blinx-the-time-sweeper-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/magicseb/blinx-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432074620"
+      }
+    },
+    "decisions": []
+  }
+}

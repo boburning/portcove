@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tkdr-recomp-gasparegas-tekken-dark-resurrection-psp",
+    "name": "Tekken: Dark Resurrection (PSP) — tkdr-recomp (gasparegas)",
+    "original_game_title": "Tekken: Dark Resurrection (PSP)",
+    "summary": "Fights60FPS/up-to4xclaimed; originalPSP title distinct from PS3DarkResurrectionOnline. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/gasparegas/tkdr-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gasparegas/tkdr-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA ULUS10139 v1.00 ISO/CSO plusowndecryptedEBOOT"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "LocalCMake/Ninja/SDL2nativebuild; browsercantranslateondevice; sourceISOanddecryptedEBOOTremainrequired."
+        }
+      ],
+      "warnings": [
+        "Fights60FPS/up-to4xclaimed; originalPSP title distinct from PS3DarkResurrectionOnline.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/gasparegas/tkdr-recomp"
+    },
+    "issue_number": 3110,
+    "artwork": {
+      "game_id": 24181,
+      "cover_id": 195371,
+      "image_id": "co46qz",
+      "image_sha256": "14e89635e2d23baa6321a5fde962cacf177150f1e17a2b7eac5f341fa9c09cf4",
+      "game_slug": "tekken-dark-resurrection",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tekken-dark-resurrection-psp",
+    "origin": {
+      "project_url": "https://github.com/gasparegas/tkdr-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1414723828"
+      }
+    },
+    "decisions": []
+  }
+}

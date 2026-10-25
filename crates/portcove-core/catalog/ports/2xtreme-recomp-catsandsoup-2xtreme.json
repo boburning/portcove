@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "2xtreme-recomp-catsandsoup-2xtreme",
+    "name": "2Xtreme — 2Xtreme-recomp (catsandsoup)",
+    "original_game_title": "2Xtreme",
+    "summary": "Research project. Early preview. First disc check/preparation/intro and keyboard pause-menu work; controller verification, fullspeed/settings/widescreen, original Options binding, rumble/player2/savestates and notarization remain future work. No full playthrough or Portcove runtime qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/catsandsoup/2Xtreme-recomp",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/catsandsoup/2Xtreme-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own USA SCUS-94508 disc image. App copies disc into private ApplicationSupport/2Xtreme/disc and generates local native game code on first launch; bundled MIT OpenBIOS, no retailBIOS required."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Advertised early-preview2Xtreme.zip ->2Xtreme.app. User imports own USA CUE/BIN, first launch builds locally in about15seconds according to upstream. App not notarized; no Xcode/Homebrew/Python required for player kit. Source make_app.sh additionally needs Apple tools/Homebrew/pinned Zig. No package downloaded or verified."
+        }
+      ],
+      "warnings": [
+        "Early preview. First disc check/preparation/intro and keyboard pause-menu work; controller verification, fullspeed/settings/widescreen, original Options binding, rumble/player2/savestates and notarization remain future work. No full playthrough or Portcove runtime qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/catsandsoup/2Xtreme-recomp"
+    },
+    "issue_number": 3500,
+    "artwork": {
+      "game_id": 45105,
+      "cover_id": 480452,
+      "image_id": "coaapw",
+      "image_sha256": "d29de48d7dae223ef1c6798d3c0ab5dec5cfc3285f3aa5c95438231ae7fd6ebb",
+      "game_slug": "2xtreme",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "2xtreme-ps1",
+    "origin": {
+      "project_url": "https://github.com/catsandsoup/2Xtreme-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1411313273"
+      }
+    },
+    "decisions": []
+  }
+}

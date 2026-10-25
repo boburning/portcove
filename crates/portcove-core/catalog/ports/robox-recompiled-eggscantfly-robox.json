@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "robox-recompiled-eggscantfly-robox",
+    "name": "Robox — robox-recompiled (Eggscantfly)",
+    "original_game_title": "Robox",
+    "summary": "Research project. Upstream native runtime/game features and local title setup/mod/save behavior described. Release build required for audio pacing; Debug too slow. Clean source build needs original font assets up front; broad gameplay/completion and package integrity not Portcove-qualified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Eggscantfly/robox-recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Eggscantfly/robox-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Before configuring source build, supply own unpacked Robox USA.dol plus Assets/fonts/title.brfna and other original Assets. Original data stays user-owned. Runtime importer can accept owned WAD plus Wii common key or manually selected DOL+Assets, but that importer cannot bootstrap its own clean source build without pre-unpacked font assets."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Documented manual source route: obtain WiiRecomp source, supply own unpacked DOL and original Assets before CMake configure, then Windows/MSYS2 mingw64 CMake/Ninja Release build or build.bat. ROBOX_DOL/ROBOX_RECOMPILER may locate owned input/compiler. Do not claim WAD-only clean checkout build or offer an unverified precompiled game package. No upstream code or assets executed here."
+        }
+      ],
+      "warnings": [
+        "Upstream native runtime/game features and local title setup/mod/save behavior described. Release build required for audio pacing; Debug too slow. Clean source build needs original font assets up front; broad gameplay/completion and package integrity not Portcove-qualified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Eggscantfly/robox-recompiled"
+    },
+    "issue_number": 3545,
+    "artwork": {
+      "game_id": 66748,
+      "cover_id": 432061,
+      "image_id": "co99dp",
+      "image_sha256": "6ae8ebbfad2ea7b17a41adf0d96795772550755ff59e99b6d4d84a04019605b4",
+      "game_slug": "robox",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "robox-wii",
+    "origin": {
+      "project_url": "https://github.com/Eggscantfly/robox-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1312293908"
+      }
+    },
+    "decisions": []
+  }
+}

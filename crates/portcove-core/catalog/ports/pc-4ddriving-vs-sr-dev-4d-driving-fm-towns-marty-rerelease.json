@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-4ddriving-vs-sr-dev-4d-driving-fm-towns-marty-rerelease",
+    "name": "4D Driving (FM Towns Marty rerelease) — pc-4ddriving (vs-sr-dev)",
+    "original_game_title": "4D Driving (FM Towns Marty rerelease)",
+    "summary": "Research project. Races/replay/editor/music/audio comparisons; no completegamequalification; materialMartyedition preserved. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-4ddriving",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-4ddriving",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "FM Towns Marty Japan4DDriving rereleaseHMD222A own12-trackdisc plus ownfontROM. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "fmtownskit own-disc extraction/staticgeneration then build/rt/4ddriving, localuserdisksave/a. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Races/replay/editor/music/audio comparisons; no completegamequalification; materialMartyedition preserved. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-4ddriving"
+    },
+    "issue_number": 3592
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "4d-driving-fm-towns-marty-rerelease-fm-towns-marty",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-4ddriving",
+      "repository": {
+        "host": "github.com",
+        "id": "1428721853"
+      }
+    },
+    "decisions": []
+  }
+}

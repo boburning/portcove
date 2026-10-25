@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ufe3-recomp-idiazraz-ultraman-fighting-evolution-3",
+    "name": "Ultraman Fighting Evolution 3 — ufe3-recomp (idiazraz)",
+    "original_game_title": "Ultraman Fighting Evolution 3",
+    "summary": "Research project. Not playable; boot reaches memory-card service boundary; setup and recompile scripts require local source. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/idiazraz/ufe3-recomp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/idiazraz/ufe3-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan SLPS-25441 own disc/ELF; exact revision/hash to capture."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "setup.sh pins/clones/builds PS2Recomp; rebuild.sh regenerates game ELF and builds native Linux runner from own Japanese disc."
+        }
+      ],
+      "warnings": [
+        "Not playable; boot reaches memory-card service boundary; setup and recompile scripts require local source.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/idiazraz/ufe3-recomp"
+    },
+    "issue_number": 2998,
+    "artwork": {
+      "game_id": 72605,
+      "cover_id": 418272,
+      "image_id": "co8yqo",
+      "image_sha256": "d88747f33cec4674b9737f929cd8f8c827e74de83dd6c4777f75aeae2df80cb2",
+      "game_slug": "ultraman-fighting-evolution-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ultraman-fighting-evolution-3-ps2",
+    "origin": {
+      "project_url": "https://github.com/idiazraz/ufe3-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1404140973"
+      }
+    },
+    "decisions": []
+  }
+}

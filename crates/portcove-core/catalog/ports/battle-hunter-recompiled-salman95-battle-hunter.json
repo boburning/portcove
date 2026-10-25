@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "battle-hunter-recompiled-salman95-battle-hunter",
+    "name": "Battle Hunter — Battle Hunter Recompiled (salman95)",
+    "original_game_title": "Battle Hunter",
+    "summary": "Playable launcher/music/gamepad/upscale claims; fullgamecoverageunknown Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/salman95/BattleHunterRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/salman95/BattleHunterRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS01335 ownCUE/BIN"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "ReleaseportableZIP/AppImage compiledruntime; owneddisc at launch"
+        }
+      ],
+      "warnings": [
+        "Playable launcher/music/gamepad/upscale claims; fullgamecoverageunknown",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/salman95/BattleHunterRecomp"
+    },
+    "issue_number": 3391,
+    "artwork": {
+      "game_id": 3190,
+      "cover_id": 506806,
+      "image_id": "coav1y",
+      "image_sha256": "9b33c4dc9209885f2e437bd55d79be54e4b154114b68b466ac74cb945186a7bb",
+      "game_slug": "battle-hunter",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "battle-hunter-ps1",
+    "origin": {
+      "project_url": "https://github.com/salman95/BattleHunterRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1415147471"
+      }
+    },
+    "decisions": []
+  }
+}

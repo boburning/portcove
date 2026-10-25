@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "agvg2-recomp-elprogramadorloco-arch-advanced-v-g-2",
+    "name": "Advanced V.G. 2 — agvg2-recomp (elprogramadorloco-arch)",
+    "original_game_title": "Advanced V.G. 2",
+    "summary": "Research project. Native controls/runtime described; full campaign not established. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/elprogramadorloco-arch/agvg2-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/elprogramadorloco-arch/agvg2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Japan SLPM-87226 own CUE/tracks; data573819792bytes MD5 ce5f264deab37af49ff07ecf562a67ab. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "run.bat validates own data, downloads pinned portable tools, translates boot/main/overlays and compiles private out executable. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Native controls/runtime described; full campaign not established. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/elprogramadorloco-arch/agvg2-recomp"
+    },
+    "issue_number": 3508,
+    "artwork": {
+      "game_id": 44799,
+      "cover_id": 207607,
+      "image_id": "co4g6v",
+      "image_sha256": "69b686463e2c3154293d8aa69c20fef5ebb483da4d191ddd9fa9ef9753187eb6",
+      "game_slug": "advanced-vg-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "advanced-v-g-2-ps1",
+    "origin": {
+      "project_url": "https://github.com/elprogramadorloco-arch/agvg2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1400820409"
+      }
+    },
+    "decisions": []
+  }
+}

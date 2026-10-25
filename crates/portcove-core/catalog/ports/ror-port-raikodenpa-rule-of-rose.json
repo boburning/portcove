@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ror-port-raikodenpa-rule-of-rose",
+    "name": "Rule of Rose — RoR-Port (RaikoDenpa)",
+    "original_game_title": "Rule of Rose",
+    "summary": "Native reverse-engineered/static-recomp game boots to main and draws first frames; personal WIP. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/RaikoDenpa/RoR-Port",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RaikoDenpa/RoR-Port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "PAL SLES54218 owned disc"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local generation/build via Ghidra and own disc; no ordinary player package claimed."
+        }
+      ],
+      "warnings": [
+        "Native reverse-engineered/static-recomp game boots to main and draws first frames; personal WIP.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/RaikoDenpa/RoR-Port"
+    },
+    "issue_number": 3043,
+    "artwork": {
+      "game_id": 7415,
+      "cover_id": 205875,
+      "image_id": "co4eur",
+      "image_sha256": "90a277447c769d7321fc7f1d7ee5ef1ab36ffe3fe3e708be9b3197d367e629d0",
+      "game_slug": "rule-of-rose",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "rule-of-rose-ps2",
+    "origin": {
+      "project_url": "https://github.com/RaikoDenpa/RoR-Port",
+      "repository": {
+        "host": "github.com",
+        "id": "1431906336"
+      }
+    },
+    "decisions": []
+  }
+}

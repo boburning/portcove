@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "untildawn-pc-supercatelvis-supercatelvis-until-dawn-2015-ps4-original",
+    "name": "Until Dawn (2015 PS4 original) — UntilDawn_PC (SuperCatElvis) (SuperCatElvis)",
+    "original_game_title": "Until Dawn (2015 PS4 original)",
+    "summary": "Information only; source hold. Upstream retains the complete-playthrough claim on its i9-12900KF/RTX3090Ti development PC. WIP0.1.4 adds a separate renderer thread, faster rendering, hair fix and more movie skipping, with missing Skip text still noted. Its new renderer has only been played on NVIDIA; AMD RX9070XT evidence is explicitly WIP0.1.3, not0.1.4. Reported development-PC scenes vary about60FPS light/35–45FPS busy/21–25FPS heaviest; shader pauses, crashes, transient deformation, motion drift and graphics defects remain. Renderer_thread=0 is the upstream fallback if new threading regresses. Intel graphics remain untested, native4K/stable60FPS are future goals, and no Portcove gameplay qualification is established. Acquisition is blocked: Preserve Source hold: review closed-source runtime distribution/provenance, including declared game-derived shader programs/icon. README native identity or own disc requirement does not approve that payload. Resume: Expose an information-only same-ID Source hold listing with original CUSA02636/update01.03 and upstream-only maturity; resolve concrete payload/source provenance before any acquisition offer. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SuperCatElvis/UntilDawn_PC",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "download_block_reason": "Preserve Source hold: review closed-source runtime distribution/provenance, including declared game-derived shader programs/icon. README native identity or own disc requirement does not approve that payload. Resume: Expose an information-only same-ID Source hold listing with original CUSA02636/update01.03 and upstream-only maturity; resolve concrete payload/source provenance before any acquisition offer.",
+    "issue_number": 3461
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "until-dawn-2015-ps4",
+    "origin": {
+      "project_url": "https://github.com/SuperCatElvis/UntilDawn_PC",
+      "repository": {
+        "host": "github.com",
+        "id": "1431517435"
+      }
+    },
+    "decisions": []
+  }
+}

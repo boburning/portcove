@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "imabikisou-pc-recompilation-yasindevs-imabikiso",
+    "name": "Imabikisō — Imabikisou PC Recompilation (yasindevs)",
+    "original_game_title": "Imabikisō",
+    "summary": "Opening/firstclassroomnarration/earlysaveinput; remainderlargelyuntested Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/yasindevs/imabikisou-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/yasindevs/imabikisou-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "JapanBLJM60042/01.00 owneddisc/locallygeneratedfiles"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Developer source/build plusownerdiscsetup launcher; optionalmachineEnglishpreview"
+        }
+      ],
+      "warnings": [
+        "Opening/firstclassroomnarration/earlysaveinput; remainderlargelyuntested",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/yasindevs/imabikisou-pc"
+    },
+    "issue_number": 3383,
+    "artwork": {
+      "game_id": 4924,
+      "cover_id": 138256,
+      "image_id": "co2yog",
+      "image_sha256": "faa9e616726e198393649ff41f5f03420d78722b63168e1c33eefb42d0ba4c6d",
+      "game_slug": "imabikisou",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "imabikiso-ps3",
+    "origin": {
+      "project_url": "https://github.com/yasindevs/imabikisou-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1419783937"
+      }
+    },
+    "decisions": []
+  }
+}

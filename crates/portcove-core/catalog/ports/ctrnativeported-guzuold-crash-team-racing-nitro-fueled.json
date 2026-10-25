@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ctrnativeported-guzuold-crash-team-racing-nitro-fueled",
+    "name": "Crash Team Racing: Nitro-Fueled — CTRNativePorted (guzuold)",
+    "original_game_title": "Crash Team Racing: Nitro-Fueled",
+    "summary": "Research project. Upstream experimental0.5.9 claims game completable and twoPC races complete; networkR8 not complete for>two players and remaining cases. No Portcove campaign or online qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/guzuold/CTRNativePorted",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/guzuold/CTRNativePorted",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 CUSA14876v01.00, optionalv01.21 required for60FPS/PitStop. README gives abbreviated eboot SHA256 prefixes; full accepted profile still requires readback."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual upstream CTRNativePorted-version-win64ZIP launcher/runtime/HLEDLLs or bootstrap.ps1/sourcebuild. Choose owned base/update directories; no other game assets supplied. No release asset was inspected."
+        }
+      ],
+      "warnings": [
+        "Upstream experimental0.5.9 claims game completable and twoPC races complete; networkR8 not complete for>two players and remaining cases. No Portcove campaign or online qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/guzuold/CTRNativePorted"
+    },
+    "issue_number": 3468
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ryu7w7-octr-nitrofueled-pc",
+    "origin": {
+      "project_url": "https://github.com/guzuold/CTRNativePorted",
+      "repository": {
+        "host": "github.com",
+        "id": "1416276320"
+      }
+    },
+    "decisions": []
+  }
+}

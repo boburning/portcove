@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "defjam-gamecube-recomp-nakamizake-nakamizake-def-jam-fight-for-ny",
+    "name": "Def Jam: Fight for NY — DefJam GameCube recomp (Nakamizake) (Nakamizake)",
+    "original_game_title": "Def Jam: Fight for NY",
+    "summary": "Nativeplayerroute; exactcampaign/onlineclaimsneedbounding Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GNWE69 plainISOonly; RVZ/GCZ/WIA/CISOnotaccepted"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Installersuppliesruntime/compiler/recompiler; locallybuildsfromdisc; optionalprofileguidedsession"
+        }
+      ],
+      "warnings": [
+        "Nativeplayerroute; exactcampaign/onlineclaimsneedbounding",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp"
+    },
+    "issue_number": 3407,
+    "artwork": {
+      "game_id": 3875,
+      "cover_id": 463478,
+      "image_id": "co9xme",
+      "image_sha256": "d1a6333b311d1daa7f81254e2b25ccba66b992825bca75b9438b2cd7f87e9508",
+      "game_slug": "def-jam-fight-for-ny",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "def-jam-fight-for-ny-gamecube",
+    "origin": {
+      "project_url": "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428395994"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hctp-recomp-bigdaddyjrich-wwe-smackdown-here-comes-the-pain",
+    "name": "WWE SmackDown! Here Comes the Pain — hctp-recomp (BigDaddyJRich)",
+    "original_game_title": "WWE SmackDown! Here Comes the Pain",
+    "summary": "Static EE recompilation + emulated original IOP IRX; separate Windows test package mentioned, public stability/audio/commentary remain work. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/BigDaddyJRich/hctp-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/BigDaddyJRich/hctp-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS-20787; original ELF and disc files retained locally."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README says separate Windows test package exists; its public availability is unresolved. Public documented local recompile/VU generation/build route exists from owned ELF/disc."
+        }
+      ],
+      "warnings": [
+        "Static EE recompilation + emulated original IOP IRX; separate Windows test package mentioned, public stability/audio/commentary remain work.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/BigDaddyJRich/hctp-recomp"
+    },
+    "issue_number": 2993,
+    "artwork": {
+      "game_id": 6442,
+      "cover_id": 210408,
+      "image_id": "co4ico",
+      "image_sha256": "de65215aad138480bd60338894b0dc02dfc15d0c032ebff4dae1ee50c47b3603",
+      "game_slug": "wwe-smackdown-here-comes-the-pain",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wwe-smackdown-here-comes-the-pain-ps2",
+    "origin": {
+      "project_url": "https://github.com/BigDaddyJRich/hctp-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416805844"
+      }
+    },
+    "decisions": []
+  }
+}

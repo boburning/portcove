@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "whiteknightchronicles2recomp-wk2d-white-knight-chronicles-i-included-in-ii-edition",
+    "name": "White Knight Chronicles I (included in II edition) — WhiteKnightChronicles2Recomp (WK2D)",
+    "original_game_title": "White Knight Chronicles I (included in II edition)",
+    "summary": "WKC1startingtown30fps/shortmovement/pause/save/Continue/shortBalastorPlaintransition; sustainedcombatunverified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "OwnedWKCIIeditiondisc; exactserial/update needsclarification"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Sourcelocalbuild and nativeplay route"
+        }
+      ],
+      "warnings": [
+        "WKC1startingtown30fps/shortmovement/pause/save/Continue/shortBalastorPlaintransition; sustainedcombatunverified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp"
+    },
+    "issue_number": 3376
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "white-knight-chronicles-i-included-in-ii-edition-ps3",
+    "origin": {
+      "project_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421399192"
+      }
+    },
+    "decisions": []
+  }
+}

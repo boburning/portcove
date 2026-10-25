@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
+    "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
+    "original_game_title": "Hot Shots Tennis: Get a Grip",
+    "summary": "Research project. Public normal ISO route is labeled Boots to a named boundary. Compatibility guide also states a public checkout with supplied decrypted inputs plus local manifest can build/play a package; private full-build developer route reaches3Dmatch gameplay with sound. Keep those routes distinct. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Jstar269/nakagawa-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Jstar269/nakagawa-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA UCUS98701 owned ISO plus locally supplied decrypted EBOOT.elf and required decrypted modules; local title manifest. Optional own PSPPGF fonts for authentic typography; no bundled decryption. PGD/amctrl-protected data fails closed."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "No release; source-built Windows11x64 player and local package build using user inputs/manifest. RawISO-toPlay without manifest/developer toolchain still in progress."
+        }
+      ],
+      "warnings": [
+        "Public normal ISO route is labeled Boots to a named boundary. Compatibility guide also states a public checkout with supplied decrypted inputs plus local manifest can build/play a package; private full-build developer route reaches3Dmatch gameplay with sound. Keep those routes distinct.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Jstar269/nakagawa-recomp"
+    },
+    "issue_number": 3010,
+    "artwork": {
+      "game_id": 21754,
+      "cover_id": 218452,
+      "image_id": "co4ok4",
+      "image_sha256": "e36b1e01506e009f5a1b47909ae1a5eb338545209a0af0bec9e9b78d89b62fb0",
+      "game_slug": "hot-shots-tennis-get-a-grip",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hot-shots-tennis-get-a-grip-psp",
+    "origin": {
+      "project_url": "https://github.com/Jstar269/nakagawa-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1330183186"
+      }
+    },
+    "decisions": []
+  }
+}

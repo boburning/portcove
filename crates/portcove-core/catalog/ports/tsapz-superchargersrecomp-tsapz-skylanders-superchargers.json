@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tsapz-superchargersrecomp-tsapz-skylanders-superchargers",
+    "name": "Skylanders: SuperChargers — tsapZ SuperChargersRecomp (tsapZ)",
+    "original_game_title": "Skylanders: SuperChargers",
+    "summary": "Firstlevelplays; latergameunplayed;clean-machineinstalleruntested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tsapZ/SuperChargersRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/tsapZ/SuperChargersRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Xbox360TwoPAL discsEn/De andEs/ItISO/extractedfolder; titlenotcaptured; accepted executablefingerprints: 02ff6672d460c9aaa54e69d584af67a7138c6c93cde5e04b0da4284207be7c61 default.xex 02846647633e93c627e74b92d3ad63a90e1504546958fc8d81e28ac65de1f9bc default.xex"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "InnoSetupreleaseinstaller/importownISO; gamesrunnativelystandalone; CoreOfLighthuboptional; realUSBportaloptional, virtualportal supported; Windowsx64D3D12. Source VS2022Clang,CMake,Ninja,just,Python."
+        }
+      ],
+      "warnings": [
+        "Firstlevelplays; latergameunplayed;clean-machineinstalleruntested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/tsapZ/SuperChargersRecomp"
+    },
+    "issue_number": 3151
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "skylanders-superchargers-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/tsapZ/SuperChargersRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427712191"
+      }
+    },
+    "decisions": []
+  }
+}

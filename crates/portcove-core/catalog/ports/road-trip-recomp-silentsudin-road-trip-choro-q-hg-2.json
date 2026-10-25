@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "road-trip-recomp-silentsudin-road-trip-choro-q-hg-2",
+    "name": "Road Trip / Choro Q HG 2 — Road Trip Recomp (silentsudin)",
+    "original_game_title": "Road Trip / Choro Q HG 2",
+    "summary": "Native setup generates on device; renderer/input/save-state/widescreen features upstream claims. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/silentsudin/RoadTripAdventure-recomp",
+    "platforms": ["windows-x86-64", "macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/silentsudin/RoadTripAdventure-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS20398 ISO/BIN+CUE/CHD"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release zip/DMG/APK front-end builds from own disc on device; keep PAL paused research separate."
+        }
+      ],
+      "warnings": [
+        "Native setup generates on device; renderer/input/save-state/widescreen features upstream claims.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/silentsudin/RoadTripAdventure-recomp"
+    },
+    "issue_number": 3062
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "road-trip-choro-q-hg-2-ps2",
+    "origin": {
+      "project_url": "https://github.com/silentsudin/RoadTripAdventure-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1400669400"
+      }
+    },
+    "decisions": []
+  }
+}

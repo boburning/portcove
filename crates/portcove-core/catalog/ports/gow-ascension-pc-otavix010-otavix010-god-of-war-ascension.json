@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gow-ascension-pc-otavix010-otavix010-god-of-war-ascension",
+    "name": "God of War: Ascension — gow-ascension-pc (otavix010) (otavix010)",
+    "original_game_title": "God of War: Ascension",
+    "summary": "Upstream first-level/chapter16 measurements ~6-7fps low-end example; complete playthrough unverified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/otavix010/gow-ascension-pc",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/otavix010/gow-ascension-pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA BCUS98232 with update1.04; owned PS3_GAME folder + firmware/RPCS3 decrypted inputs"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "gerar.cmd/gerar.ps1 local codegen/build; downloads compiler/dependencies and RPCS3 public key tables"
+        }
+      ],
+      "warnings": [
+        "Upstream first-level/chapter16 measurements ~6-7fps low-end example; complete playthrough unverified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/otavix010/gow-ascension-pc"
+    },
+    "issue_number": 3319,
+    "artwork": {
+      "game_id": 1291,
+      "cover_id": 157478,
+      "image_id": "co3die",
+      "image_sha256": "34f5ea12174c809172ade265bf4ad1181002180eea97e8067604207be04e6548",
+      "game_slug": "god-of-war-ascension",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "god-of-war-ascension-ps3",
+    "origin": {
+      "project_url": "https://github.com/otavix010/gow-ascension-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1432699558"
+      }
+    },
+    "decisions": []
+  }
+}

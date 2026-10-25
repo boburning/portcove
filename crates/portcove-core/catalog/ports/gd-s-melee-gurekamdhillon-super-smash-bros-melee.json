@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gd-s-melee-gurekamdhillon-super-smash-bros-melee",
+    "name": "Super Smash Bros. Melee — GD's Melee (GurekamDhillon)",
+    "original_game_title": "Super Smash Bros. Melee",
+    "summary": "Publicbeta; rollback/modding/Lua; fullcompatibility unverified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/GurekamDhillon/gd-melee-workspace",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/GurekamDhillon/gd-melee-workspace",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSCUSA GALE01 revision1.02 own disc; permitted mod discs depend exact baseline"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v0.3.0 launcher/releases builds/imports own data; source/dependencies inspected separately"
+        }
+      ],
+      "warnings": [
+        "Publicbeta; rollback/modding/Lua; fullcompatibility unverified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/GurekamDhillon/gd-melee-workspace"
+    },
+    "issue_number": 3354,
+    "artwork": {
+      "game_id": 1627,
+      "cover_id": 95863,
+      "image_id": "co21yv",
+      "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
+      "game_slug": "super-smash-bros-melee",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "super-smash-bros-melee-gamecube",
+    "origin": {
+      "project_url": "https://github.com/GurekamDhillon/gd-melee-workspace",
+      "repository": {
+        "host": "github.com",
+        "id": "1378765000"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ssx3-120-brad-richardson-ssx-3-optional-ssx-tricky-course-import",
+    "name": "SSX 3 (optional SSX Tricky course import) — ssx3-120 (brad-richardson)",
+    "original_game_title": "SSX 3 (optional SSX Tricky course import)",
+    "summary": "Native recompiled120update/s SSX3 and modded courses claimed; independent runtime work from browser-recovered ssx-web. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/brad-richardson/ssx3-120",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/brad-richardson/ssx3-120",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS20772 ISO; own USA SSX Tricky disc optional"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local build wrapper creates app from owned discs; no distributed derived-game binaries inferred."
+        }
+      ],
+      "warnings": [
+        "Native recompiled120update/s SSX3 and modded courses claimed; independent runtime work from browser-recovered ssx-web.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/brad-richardson/ssx3-120"
+    },
+    "issue_number": 3053
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ssx-3-ps2",
+    "origin": {
+      "project_url": "https://github.com/brad-richardson/ssx3-120",
+      "repository": {
+        "host": "github.com",
+        "id": "1421465212"
+      }
+    },
+    "decisions": []
+  }
+}

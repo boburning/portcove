@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "worlddriverchampionship-recomp-alondero-world-driver-championship",
+    "name": "World Driver Championship — worlddriverchampionship-recomp (alondero)",
+    "original_game_title": "World Driver Championship",
+    "summary": "Upstream Windows x64/Direct3D12 tests cover intro, menus and Hawaii practice driving: acceleration, steering, automatic gears and pause/resume. This remains an early development build with rendering glitches and experimental SDL audio. The frontend-enabled player now advertises rumble alongside persistent Controller Pak saves on port1, with strength in General settings; physical controller compatibility and feel remain unverified. Linux/Android are unvalidated. No Portcove build, save, controller, audio or gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/alondero/worlddriverchampionship-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alondero/worlddriverchampionship-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own USA ROM; exact revision/hash must be resolved from title profile"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source build.ps1 with the player own USA ROM, then play.ps1. No published player package is established by this README."
+        }
+      ],
+      "warnings": [
+        "Upstream Windows x64/Direct3D12 tests cover intro, menus and Hawaii practice driving: acceleration, steering, automatic gears and pause/resume. This remains an early development build with rendering glitches and experimental SDL audio. The frontend-enabled player now advertises rumble alongside persistent Controller Pak saves on port1, with strength in General settings; physical controller compatibility and feel remain unverified. Linux/Android are unvalidated. No Portcove build, save, controller, audio or gameplay qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/alondero/worlddriverchampionship-recomp"
+    },
+    "issue_number": 3626
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "world-driver-championship-n64",
+    "origin": {
+      "project_url": "https://github.com/alondero/worlddriverchampionship-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1380558566"
+      }
+    },
+    "decisions": []
+  }
+}

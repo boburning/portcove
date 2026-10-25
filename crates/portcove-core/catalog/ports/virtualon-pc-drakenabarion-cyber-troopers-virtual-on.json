@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on",
+    "name": "Cyber Troopers Virtual-On — virtualon_pc (drakenabarion)",
+    "original_game_title": "Cyber Troopers Virtual-On",
+    "summary": "Research project. Upstream explicitly says original VirtualOn omg boots/menus/matches and audio; online unavailable. No complete-game or Portcove component qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/drakenabarion/virtualon_pc",
+    "platforms": ["linux-x86-64", "windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/drakenabarion/virtualon_pc",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 VirtualOnMasterpiece CUSA16156 decrypted collection folder with eboot.bin,pjv3.elf,sce_module,sce_sys and assets. Select original VirtualOn component omg, not ot/force. Exact update/digests unbound."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual collection Virtual-On-x86_64.AppImage/WindowsZIP or build.sh; select own folder and omg component in launcher (or BB_EXE=omg). Shared native collection runtime, no new perhost/launcher identity."
+        }
+      ],
+      "warnings": [
+        "Upstream explicitly says original VirtualOn omg boots/menus/matches and audio; online unavailable. No complete-game or Portcove component qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/drakenabarion/virtualon_pc"
+    },
+    "issue_number": 3470,
+    "artwork": {
+      "game_id": 46775,
+      "cover_id": 235964,
+      "image_id": "co522k",
+      "image_sha256": "f474d6e3334d216175111ae7af62b9e81a039f716f6641c1b2d5bba48f613c8b",
+      "game_slug": "cyber-troopers-virtual-on",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "cyber-troopers-virtual-on-ps4",
+    "origin": {
+      "project_url": "https://github.com/drakenabarion/virtualon_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1422731311"
+      }
+    },
+    "decisions": []
+  }
+}

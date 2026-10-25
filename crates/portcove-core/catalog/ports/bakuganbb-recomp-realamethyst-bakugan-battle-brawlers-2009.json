@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bakuganbb-recomp-realamethyst-bakugan-battle-brawlers-2009",
+    "name": "Bakugan Battle Brawlers (2009) — BakuganBB-recomp (RealAmethyst)",
+    "original_game_title": "Bakugan Battle Brawlers (2009)",
+    "summary": "Research project. Upstream early work: input and audio working, crashes and unfinished features remain, not tested far into game. Maintainer cannot visually check graphics; no complete playthrough claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/RealAmethyst/BakuganBB-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/RealAmethyst/BakuganBB-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Bakugan Battle Brawlers (2009) Xbox360 game files. Exact accepted disc region/revision/executable digest not established by retained README."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "No prebuilt release. Local Linux source build using own game files and docs/building.md; Windows support only in pending PR40 branch, not a supported main-branch player route."
+        }
+      ],
+      "warnings": [
+        "Upstream early work: input and audio working, crashes and unfinished features remain, not tested far into game. Maintainer cannot visually check graphics; no complete playthrough claim.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/RealAmethyst/BakuganBB-recomp"
+    },
+    "issue_number": 3157
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bakugan-battle-brawlers-2009-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/RealAmethyst/BakuganBB-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1418146893"
+      }
+    },
+    "decisions": []
+  }
+}

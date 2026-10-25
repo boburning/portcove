@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "v64recomp-oot-us-v12-polaco1782-the-legend-of-zelda-ocarina-of-time",
+    "name": "The Legend of Zelda: Ocarina of Time — v64recomp / oot-us-v12 (polaco1782)",
+    "original_game_title": "The Legend of Zelda: Ocarina of Time",
+    "summary": "Research project. Title-screen and optionalwidescreen screenshot; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/polaco1782/v64recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/polaco1782/v64recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "The Legend of Zelda: Ocarina of Time N64 own USA v1.2 ROM; oot-us-v12 exactsize/SHA1 inprofile. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "tools/import_rom.py --profile games/oot-us-v12/profile.toml normalizes ownz64/n64/v64, CMake oot-us-v12-release builds native oot-us-v12; externalROMdefault, optionalembeddedbuildprivate. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Title-screen and optionalwidescreen screenshot; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/polaco1782/v64recomp"
+    },
+    "issue_number": 3599,
+    "artwork": {
+      "game_id": 1029,
+      "cover_id": 170637,
+      "image_id": "co3nnx",
+      "image_sha256": "1af50c5c3feeb1edba00661abafbd61d0f4f67d259e43729ec5e9f09c197afa3",
+      "game_slug": "the-legend-of-zelda-ocarina-of-time",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-legend-of-zelda-ocarina-of-time-n64",
+    "origin": {
+      "project_url": "https://github.com/polaco1782/v64recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420121199"
+      }
+    },
+    "decisions": []
+  }
+}

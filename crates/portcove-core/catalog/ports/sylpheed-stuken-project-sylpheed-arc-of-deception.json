@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sylpheed-stuken-project-sylpheed-arc-of-deception",
+    "name": "Project Sylpheed: Arc of Deception — sylpheed (stuken)",
+    "original_game_title": "Project Sylpheed: Arc of Deception",
+    "summary": "Title-specific native project exists; full-game coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/stuken/sylpheed",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/stuken/sylpheed",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Project Sylpheed: Arc of Deception Xbox 360 complete extracted game files, including the original executable. Title 535107D4 plus TU0.0.1.2 default.xexp; both MD5s in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build SDK, dump own TU-patched Sylpheed XEX, generate code/shaders and compile Windows runtime."
+        }
+      ],
+      "warnings": [
+        "Title-specific native project exists; full-game coverage unknown.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/stuken/sylpheed"
+    },
+    "issue_number": 3258
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "project-sylpheed-arc-of-deception-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/stuken/sylpheed",
+      "repository": {
+        "host": "github.com",
+        "id": "1426779927"
+      }
+    },
+    "decisions": []
+  }
+}

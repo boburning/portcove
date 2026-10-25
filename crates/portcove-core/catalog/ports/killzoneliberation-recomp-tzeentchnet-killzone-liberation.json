@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "killzoneliberation-recomp-tzeentchnet-killzone-liberation",
+    "name": "Killzone: Liberation — KillzoneLiberation-Recomp (Tzeentchnet)",
+    "original_game_title": "Killzone: Liberation",
+    "summary": "Research project. Chapter1/tutorial/Mission1 completed upstream; save/fullgame validation ongoing, ad-hoc absent. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA UCUS98646 KillzoneLiberationv1.20 own exact supportedISO. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source-only extract/translate ownISO, VSclang-cl/SDK/CMake build kzl.exe and reuse sameISO. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Chapter1/tutorial/Mission1 completed upstream; save/fullgame validation ongoing, ad-hoc absent. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp"
+    },
+    "issue_number": 3571,
+    "artwork": {
+      "game_id": 1868,
+      "cover_id": 165279,
+      "image_id": "co3jj3",
+      "image_sha256": "195b5b23821523ff6569d4e5e6d6276ba1c2017ca325406316607d6ff1bd3909",
+      "game_slug": "killzone-liberation",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "killzone-liberation-psp",
+    "origin": {
+      "project_url": "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425278724"
+      }
+    },
+    "decisions": []
+  }
+}

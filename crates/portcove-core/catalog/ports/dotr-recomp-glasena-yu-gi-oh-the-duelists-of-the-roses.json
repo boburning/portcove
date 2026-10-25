@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dotr-recomp-glasena-yu-gi-oh-the-duelists-of-the-roses",
+    "name": "Yu-Gi-Oh! The Duelists of the Roses — dotr-recomp (Glasena)",
+    "original_game_title": "Yu-Gi-Oh! The Duelists of the Roses",
+    "summary": "Early playable upstream claim includes movie/story/duels/map; only USA disc/Linux built and tested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Glasena/dotr-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Glasena/dotr-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA NTSC-U SLUS20515 ISO; extract SLUS_205.15/SYSTEM.CNF and recompile overlays DATA/*MODULE.MRG locally."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Explicitly no release build; local Linux CMake/Ghidra/extraction/recompile route from owned disc."
+        }
+      ],
+      "warnings": [
+        "Early playable upstream claim includes movie/story/duels/map; only USA disc/Linux built and tested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Glasena/dotr-recomp"
+    },
+    "issue_number": 3034,
+    "artwork": {
+      "game_id": 4630,
+      "cover_id": 86247,
+      "image_id": "co1ujr",
+      "image_sha256": "e060e5826ad40db68845675a222afc1954fd1897be87871a1377f68157acfa98",
+      "game_slug": "yu-gi-oh-the-duelists-of-the-roses-fa82a70b-8784-4e43-babc-9ba06b3ba75d",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "yu-gi-oh-the-duelists-of-the-roses-ps2",
+    "origin": {
+      "project_url": "https://github.com/Glasena/dotr-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1427693157"
+      }
+    },
+    "decisions": []
+  }
+}

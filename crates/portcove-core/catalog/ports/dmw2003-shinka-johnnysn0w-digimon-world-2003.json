@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dmw2003-shinka-johnnysn0w-digimon-world-2003",
+    "name": "Digimon World 2003 — dmw2003-shinka (JohnnySn0w)",
+    "original_game_title": "Digimon World 2003",
+    "summary": "Research project. Upstream experimental progression/menu/battle modifications and bounded local checks; full campaign and installer not qualified. Art/model prototype is offline, not in-game replacement. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/JohnnySn0w/dmw2003-shinka",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JohnnySn0w/dmw2003-shinka",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 Europe SLES03936."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual own SLES03936 supported data and C++tools via docs/windows-baseline build/launch script, producing build-windows/Release/dmw2003-shinka.exe. Guided installer is localtesting only, no public installer offered."
+        }
+      ],
+      "warnings": [
+        "Upstream experimental progression/menu/battle modifications and bounded local checks; full campaign and installer not qualified. Art/model prototype is offline, not in-game replacement.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/JohnnySn0w/dmw2003-shinka"
+    },
+    "issue_number": 3485,
+    "artwork": {
+      "game_id": 19678,
+      "cover_id": 372792,
+      "image_id": "co7znc",
+      "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
+      "game_slug": "digimon-world-3",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "digimon-world-2003-ps1",
+    "origin": {
+      "project_url": "https://github.com/JohnnySn0w/dmw2003-shinka",
+      "repository": {
+        "host": "github.com",
+        "id": "1362112838"
+      }
+    },
+    "decisions": []
+  }
+}

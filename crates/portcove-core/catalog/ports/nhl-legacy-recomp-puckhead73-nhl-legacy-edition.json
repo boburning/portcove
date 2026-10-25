@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nhl-legacy-recomp-puckhead73-nhl-legacy-edition",
+    "name": "NHL Legacy Edition — NHL Legacy Recomp (puckhead73)",
+    "original_game_title": "NHL Legacy Edition",
+    "summary": "Upstream playable feature claims; no Portcove test; keep Proton distinct from nativeLinux. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/puckhead73/nhl-legacy-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/puckhead73/nhl-legacy-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Specific vanilla Xbox360 image; builder hashes default.xex, other regions/modified/TU rejected. Own ISO/folder. Exact expected hash/region needs upstream builder source."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v0.6.0 release builder --iso/--from local creation; native Windows Vulkan; Linux/SteamDeck runs via Proton11 only."
+        }
+      ],
+      "warnings": [
+        "Upstream playable feature claims; no Portcove test; keep Proton distinct from nativeLinux.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/puckhead73/nhl-legacy-recomp"
+    },
+    "issue_number": 3133
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nhl-legacy-edition-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/puckhead73/nhl-legacy-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1272826327"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",
+    "name": "Soulcalibur III — Soulcalibur III Recomp (Arzaroth)",
+    "original_game_title": "Soulcalibur III",
+    "summary": "Menus/character select/fights with voices/music claimed at one-third speed; WIP. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS21216 disc."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local static-recompile/build from own USA disc using sc3.toml/function maps; no player package availability inferred."
+        }
+      ],
+      "warnings": [
+        "Menus/character select/fights with voices/music claimed at one-third speed; WIP.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp"
+    },
+    "issue_number": 3033
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "soulcalibur-iii-ps2",
+    "origin": {
+      "project_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429680367"
+      }
+    },
+    "decisions": []
+  }
+}

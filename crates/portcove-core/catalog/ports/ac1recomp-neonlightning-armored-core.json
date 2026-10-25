@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ac1recomp-neonlightning-armored-core",
+    "name": "Armored Core — AC1Recomp (NeonLightning)",
+    "original_game_title": "Armored Core",
+    "summary": "Research project. Upstream native ArmoredCore settings/controller/mod enhancements; README does not establish full campaign completion or Portcove runtime qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/NeonLightning/AC1Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/NeonLightning/AC1Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 ArmoredCore USA SCUS94182 disc for runtime/source profile; accepted exact dump checksums need game.toml readback."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual native CMake/Ninja build of vendored runtime/launcher, psx-runtime target, choose own disc in launcher; scripts/build_release.sh packages Linuxx64. No prebuilt archive verified."
+        }
+      ],
+      "warnings": [
+        "Upstream native ArmoredCore settings/controller/mod enhancements; README does not establish full campaign completion or Portcove runtime qualification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/NeonLightning/AC1Recomp"
+    },
+    "issue_number": 3493,
+    "artwork": {
+      "game_id": 4144,
+      "cover_id": 454572,
+      "image_id": "co9qr0",
+      "image_sha256": "d1ddebb5cd67d94c11bf471b292c2b54484b95e8c1446d5d20313dc51441631a",
+      "game_slug": "armored-core",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "armored-core-ps1",
+    "origin": {
+      "project_url": "https://github.com/NeonLightning/AC1Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416034158"
+      }
+    },
+    "decisions": []
+  }
+}

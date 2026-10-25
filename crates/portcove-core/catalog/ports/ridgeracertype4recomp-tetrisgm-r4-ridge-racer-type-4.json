@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ridgeracertype4recomp-tetrisgm-r4-ridge-racer-type-4",
+    "name": "R4: Ridge Racer Type 4 — RidgeRacerType4Recomp (tetrisgm)",
+    "original_game_title": "R4: Ridge Racer Type 4",
+    "summary": "Information only; source hold. Bringuppreview boots/races/VSLink2-4player claims Acquisition is blocked: Generated game-derived C is committed; keep executable/package redistribution and trust review separate. Full playthrough and VSLink claims are not Portcove-qualified. Resume: List information/manual own-disc R4 preview under existing owner; assess generated-code/package rights before automated distribution. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/tetrisgm/RidgeRacerType4Recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
+    "availability": "unknown",
+    "download_block_reason": "Generated game-derived C is committed; keep executable/package redistribution and trust review separate. Full playthrough and VSLink claims are not Portcove-qualified. Resume: List information/manual own-disc R4 preview under existing owner; assess generated-code/package rights before automated distribution.",
+    "issue_number": 3400,
+    "artwork": {
+      "game_id": 18699,
+      "cover_id": 382078,
+      "image_id": "co86ta",
+      "image_sha256": "f910bb7fab7ac1e9c56480d7376bcf3e18613d98736808ffedff72d9bf52aac1",
+      "game_slug": "r4-ridge-racer-type-4--1",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "r4-ridge-racer-type-4-ps1",
+    "origin": {
+      "project_url": "https://github.com/tetrisgm/RidgeRacerType4Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1388401672"
+      }
+    },
+    "decisions": []
+  }
+}

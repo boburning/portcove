@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "devil-may-cry-recomp-web-native-awest813-devil-may-cry",
+    "name": "Devil May Cry — Devil May Cry Recomp (web/native) (awest813)",
+    "original_game_title": "Devil May Cry",
+    "summary": "Upstream says the dmc-port branch plays boot through Mission1 natively and in browser at60FPS. This is upstream bounded evidence only; inherited GT4/GoWII claims are not DevilMayCry coverage. Full-game playthrough/stability unestablished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/awest813/DMC-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/awest813/DMC-Recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS-20216 ISO; exact revision/hash must be checked in HANDOFF."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Browser: the official GitHub Pages ISO picker supplies the player; select owned NTSC-U SLUS20216 ISO and play without local build/server. Native Windows: local source/code generation via documented launcher/build route; no native precompiled-player asset inferred. Keep route-specific original-data requirements."
+        }
+      ],
+      "warnings": [
+        "Upstream says the dmc-port branch plays boot through Mission1 natively and in browser at60FPS. This is upstream bounded evidence only; inherited GT4/GoWII claims are not DevilMayCry coverage. Full-game playthrough/stability unestablished.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/awest813/DMC-Recomp"
+    },
+    "issue_number": 2996
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "devil-may-cry-ps2",
+    "origin": {
+      "project_url": "https://github.com/awest813/DMC-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429790191"
+      }
+    },
+    "decisions": []
+  }
+}

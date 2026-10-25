@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fh2-recompiled-gabrick75-forza-horizon-2-xbox-360",
+    "name": "Forza Horizon 2 (Xbox 360) — FH2 Recompiled (Gabrick75)",
+    "original_game_title": "Forza Horizon 2 (Xbox 360)",
+    "summary": "Menus/races run below console performance; native renderer has image defects. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/Gabrick75/fh2-recompiled",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Gabrick75/fh2-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Forza Horizon 2 (Xbox 360) Xbox 360 disc ISO or extracted full disc files. USA; title 4D530AA4; own shader library where selected renderer needs it."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Android APK is offered in Releases; native-renderer shaders and source builds may require local generation from own USA game files."
+        }
+      ],
+      "warnings": [
+        "Menus/races run below console performance; native renderer has image defects.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/Gabrick75/fh2-recompiled"
+    },
+    "issue_number": 3199,
+    "artwork": {
+      "game_id": 7326,
+      "cover_id": 112960,
+      "image_id": "co2f5s",
+      "image_sha256": "ccab5a78be9b205775ef3c759a418752d21042c86d4f3e782dc8ecb96399d2c4",
+      "game_slug": "forza-horizon-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "forza-horizon-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/Gabrick75/fh2-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1410771903"
+      }
+    },
+    "decisions": []
+  }
+}

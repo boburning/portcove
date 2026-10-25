@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "celosia-henrykun55-shadow-of-the-colossus",
+    "name": "Shadow of the Colossus — Celosia (HenryKun55)",
+    "original_game_title": "Shadow of the Colossus",
+    "summary": "Independent USA port differs from LightVelox PAL runtime/source edition; exact gameplay boundary needs status guide. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/HenryKun55/celosia",
+    "platforms": ["macos-aarch64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/HenryKun55/celosia",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SCUS97472 ISO and own XFF modules"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local celosia extract/recompile/build scripts; no working Vita promise from a target alone."
+        }
+      ],
+      "warnings": [
+        "Independent USA port differs from LightVelox PAL runtime/source edition; exact gameplay boundary needs status guide.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/HenryKun55/celosia"
+    },
+    "issue_number": 3045
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "shadow-of-the-colossus-ps2",
+    "origin": {
+      "project_url": "https://github.com/HenryKun55/celosia",
+      "repository": {
+        "host": "github.com",
+        "id": "1402120014"
+      }
+    },
+    "decisions": []
+  }
+}

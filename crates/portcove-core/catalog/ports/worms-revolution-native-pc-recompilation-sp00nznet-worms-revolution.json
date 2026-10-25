@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "worms-revolution-native-pc-recompilation-sp00nznet-worms-revolution",
+    "name": "Worms Revolution — Worms Revolution — native PC recompilation (sp00nznet)",
+    "original_game_title": "Worms Revolution",
+    "summary": "Tutorial plays end to end, but text/UI missing. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/sp00nznet/wormsrevolution",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sp00nznet/wormsrevolution",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Worms Revolution Xbox 360 XBLA package or its complete extracted files. Title 58411290."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Generate/build Windows runtime from own WormsRevolution XEX/assets."
+        }
+      ],
+      "warnings": [
+        "Tutorial plays end to end, but text/UI missing.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/sp00nznet/wormsrevolution"
+    },
+    "issue_number": 3298
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "worms-revolution-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/sp00nznet/wormsrevolution",
+      "repository": {
+        "host": "github.com",
+        "id": "1291601052"
+      }
+    },
+    "decisions": []
+  }
+}

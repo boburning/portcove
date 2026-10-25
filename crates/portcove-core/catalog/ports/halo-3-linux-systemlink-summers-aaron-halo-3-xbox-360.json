@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "halo-3-linux-systemlink-summers-aaron-halo-3-xbox-360",
+    "name": "Halo 3 — summers-aaron Halo3 Linux/SystemLink runtime family (summers-aaron)",
+    "original_game_title": "Halo 3",
+    "summary": "Upstream says bootsmenus, campaignArrival→Sierra117andbeyond, systemlink acrossinstances/machines. Fullcampaign unverified; experimentalnativegraphics path distinct from default Xenosgraphics. NotPortcove tested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/summers-aaron/xenon-pc-comp",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/summers-aaron/xenon-pc-comp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own Halo3 Xbox360 disc ISO; exact region/revision/titleupdate/executablehash not established in README. Generated game binary remains personal/local."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local setup-halo3.sh ownISO builds patchedReXGlueSDK and game. play-halo3.sh launches; --zt optional systemlinkoverZeroTier. No public playerbinary/releaseasset asserted."
+        }
+      ],
+      "warnings": [
+        "Upstream says bootsmenus, campaignArrival→Sierra117andbeyond, systemlink acrossinstances/machines. Fullcampaign unverified; experimentalnativegraphics path distinct from default Xenosgraphics. NotPortcove tested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/summers-aaron/xenon-pc-comp"
+    },
+    "issue_number": 3615
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "halo-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/summers-aaron/xenon-pc-comp",
+      "repository": {
+        "host": "github.com",
+        "id": "1391221510"
+      }
+    },
+    "decisions": []
+  }
+}

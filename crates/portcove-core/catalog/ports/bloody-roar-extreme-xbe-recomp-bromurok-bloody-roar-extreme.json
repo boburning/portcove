@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bloody-roar-extreme-xbe-recomp-bromurok-bloody-roar-extreme",
+    "name": "Bloody Roar Extreme — Bloody Roar Extreme - XBE Recomp (bromurok)",
+    "original_game_title": "Bloody Roar Extreme",
+    "summary": "Upstream claims stable60 gameplay and 2-player local versus; no Portcove runtime evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Xbox USA/PAL/Japan. default.xbe SHA1 USA e58541178170e32ba71babce2c9ccf905bdb4db4, PAL 60380ebc7bc976aefd7e75d72609a02fae74a507, Japan 85d897dc5ae88f8914eda42d31be81b6386045fa. ISO/XISO or extracted game under assets. GameCube Primal Fury is an alias association, not the supported source edition."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Release archive + user game files; optional build.bat VS2022 Clang/CMake source build. Vulkan1.2, x64 SSE4.2/POPCNT."
+        }
+      ],
+      "warnings": [
+        "Upstream claims stable60 gameplay and 2-player local versus; no Portcove runtime evidence.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp"
+    },
+    "issue_number": 3115
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bloody-roar-extreme-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1425254723"
+      }
+    },
+    "decisions": []
+  }
+}

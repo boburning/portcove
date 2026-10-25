@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-doctorhauzer-vs-sr-dev-doctor-hauzer",
+    "name": "Doctor Hauzer — pc-doctorhauzer (vs-sr-dev)",
+    "original_game_title": "Doctor Hauzer",
+    "summary": "Research project. Opening/menu/attract/firstroom/camera/save/music claimed; no wholecampaign, hardwarewaittiming differs. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-doctorhauzer",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-doctorhauzer",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "3DO Japan DoctorHauzer pressed1994-04-15 own disc/Portfolio20.21 files. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "3dokit own-disc extraction and launchme/sramtools/LMADM/FORMAT staticgeneration, CMake pfboot. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Opening/menu/attract/firstroom/camera/save/music claimed; no wholecampaign, hardwarewaittiming differs. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-doctorhauzer"
+    },
+    "issue_number": 3588,
+    "artwork": {
+      "game_id": 4278,
+      "cover_id": 282048,
+      "image_id": "co61mo",
+      "image_sha256": "6dd026e6f2e46a1916098850454b34b0f01b0b13b64129cdf07ebce57840ce28",
+      "game_slug": "doctor-hauzer",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doctor-hauzer-3do",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-doctorhauzer",
+      "repository": {
+        "host": "github.com",
+        "id": "1411025641"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gvport-johnnygentoo-gundam-versus",
+    "name": "Gundam Versus — gvport (johnnygentoo)",
+    "original_game_title": "Gundam Versus",
+    "summary": "Research project. Upstream FreeBattle60FPS/audio/CPUopponents for tenminutes on oneLinuxPC; otheroffline modes/longsaving/fullgame unverified.4K around55FPS busy, upscaler needed for steady60 claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/johnnygentoo/gvport",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/johnnygentoo/gvport",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS4 NorthAmerica CUSA08790 base1.00 plus update1.13."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own CUSA08790base1.00/update1.13 merge, game_check.py and title build/run/GTK launcher. Optional two-player mode runs two game instances, not original native local multiplayer."
+        }
+      ],
+      "warnings": [
+        "Upstream FreeBattle60FPS/audio/CPUopponents for tenminutes on oneLinuxPC; otheroffline modes/longsaving/fullgame unverified.4K around55FPS busy, upscaler needed for steady60 claim.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/johnnygentoo/gvport"
+    },
+    "issue_number": 3466,
+    "artwork": {
+      "game_id": 28287,
+      "cover_id": 130036,
+      "image_id": "co2sc4",
+      "image_sha256": "2a9844627c22ab14fdb4524f8d3ac108ef0c1f4453acfa6edcc37840f4d7a0be",
+      "game_slug": "gundam-versus",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gundam-versus-ps4",
+    "origin": {
+      "project_url": "https://github.com/johnnygentoo/gvport",
+      "repository": {
+        "host": "github.com",
+        "id": "1430798265"
+      }
+    },
+    "decisions": []
+  }
+}

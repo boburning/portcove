@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
+    "name": "Um Jammer Lammy — UmJamLamRecomp (NJH-1001)",
+    "original_game_title": "Um Jammer Lammy",
+    "summary": "Stage1keyboard/PowerAcontrol/16:9/CRT verifiedupstream; laterstagesunqualified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/NJH-1001/UmJamLamRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/NJH-1001/UmJamLamRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe SCES01753 own disc; setupOpenBIOS"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "v0.1.1-playtest setupkit downloadsportableCMakeNinjaClang andlocalcompile"
+        }
+      ],
+      "warnings": [
+        "Stage1keyboard/PowerAcontrol/16:9/CRT verifiedupstream; laterstagesunqualified",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/NJH-1001/UmJamLamRecomp"
+    },
+    "issue_number": 3397,
+    "artwork": {
+      "game_id": 6081,
+      "cover_id": 472516,
+      "image_id": "coa4lg",
+      "image_sha256": "0f3c205d12c5d24eddc87090cc2d654358ed38a30ad2dda61968c7269b803213",
+      "game_slug": "um-jammer-lammy",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "um-jammer-lammy-ps1",
+    "origin": {
+      "project_url": "https://github.com/NJH-1001/UmJamLamRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1371285115"
+      }
+    },
+    "decisions": []
+  }
+}

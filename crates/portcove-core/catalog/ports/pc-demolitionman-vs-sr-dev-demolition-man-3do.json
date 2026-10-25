@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "pc-demolitionman-vs-sr-dev-demolition-man-3do",
+    "name": "Demolition Man (3DO) — pc-demolitionman (vs-sr-dev)",
+    "original_game_title": "Demolition Man (3DO)",
+    "summary": "Research project. 28minuteall-level-typeattract and firstlightgunlevel/HUD; actualfullcampaignnotproved. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/vs-sr-dev/pc-demolitionman",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/vs-sr-dev/pc-demolitionman",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "3DO DemolitionMan own originaldisc/Portfolio21.10 files. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Own-disc extraction/ARMstaticgeneration then CMake pfboot --window, declaredmouseGameguntiming. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "28minuteall-level-typeattract and firstlightgunlevel/HUD; actualfullcampaignnotproved. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/vs-sr-dev/pc-demolitionman"
+    },
+    "issue_number": 3594
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "demolition-man-3do-3do",
+    "origin": {
+      "project_url": "https://github.com/vs-sr-dev/pc-demolitionman",
+      "repository": {
+        "host": "github.com",
+        "id": "1427654443"
+      }
+    },
+    "decisions": []
+  }
+}

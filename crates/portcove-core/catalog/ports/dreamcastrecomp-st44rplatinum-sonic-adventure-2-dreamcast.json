@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dreamcastrecomp-st44rplatinum-sonic-adventure-2-dreamcast",
+    "name": "Sonic Adventure 2 (Dreamcast) — dreamcastRecomp (st44rplatinum)",
+    "original_game_title": "Sonic Adventure 2 (Dreamcast)",
+    "summary": "Research project. Memorycardwarning/title/fileselect and sound, firststage/GPUrendererfuture; frameworkandgameonefamily. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/st44rplatinum/dreamcastRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/st44rplatinum/dreamcastRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Dreamcast SA2USA own CUE/GDI,IP.BIN/1ST_READ.BIN and PRScodemodules. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "gdrom_extract/prs_modules own-disc then dcrecompemit/CMake native sa2 with originaldisc. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Memorycardwarning/title/fileselect and sound, firststage/GPUrendererfuture; frameworkandgameonefamily. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/st44rplatinum/dreamcastRecomp"
+    },
+    "issue_number": 3597
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "sonic-adventure-2-dreamcast-dreamcast",
+    "origin": {
+      "project_url": "https://github.com/st44rplatinum/dreamcastRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1429911007"
+      }
+    },
+    "decisions": []
+  }
+}

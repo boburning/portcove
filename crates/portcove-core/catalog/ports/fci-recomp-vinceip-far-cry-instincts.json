@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fci-recomp-vinceip-far-cry-instincts",
+    "name": "Far Cry Instincts — fci-recomp (VinceIP)",
+    "original_game_title": "Far Cry Instincts",
+    "summary": "v0.2.1 upstream describes story/map editors but not end-to-end tested; rare single-player crashes; XboxLive/SystemLink unavailable; Windows DPI blur. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/VinceIP/fci-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/VinceIP/fci-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Original Xbox Far Cry Instincts title55530008 version1; own ISO or extracted disc files."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source package release then drag own disc onto BuildGame.cmd; local C build, not downloaded full game. Windows x64 D3D12."
+        }
+      ],
+      "warnings": [
+        "v0.2.1 upstream describes story/map editors but not end-to-end tested; rare single-player crashes; XboxLive/SystemLink unavailable; Windows DPI blur.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/VinceIP/fci-recomp"
+    },
+    "issue_number": 3116,
+    "artwork": {
+      "game_id": 5831,
+      "cover_id": 89944,
+      "image_id": "co1xeg",
+      "image_sha256": "f6880b2db98bcf982cbd62de46713920e782a1e15e3cde8d0791f797d73effa4",
+      "game_slug": "far-cry-instincts",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "far-cry-instincts-original-xbox",
+    "origin": {
+      "project_url": "https://github.com/VinceIP/fci-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423641542"
+      }
+    },
+    "decisions": []
+  }
+}

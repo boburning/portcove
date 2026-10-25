@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "regh2-jillsandwich1998-guitar-hero-ii-xbox-360",
+    "name": "Guitar Hero II (Xbox 360) — reGH2 (jillsandwich1998)",
+    "original_game_title": "Guitar Hero II (Xbox 360)",
+    "summary": "Early prerelease tested on one computer. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jillsandwich1998/reGH2",
+    "platforms": ["linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jillsandwich1998/reGH2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Guitar Hero II (Xbox 360) Xbox 360 disc ISO or extracted full disc files. USA title 415607E7; XEX SHA1 b90b864487e6291761b207c8d0064e9a0779bdee."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Linux reGH2 AppImage finds own USA ISO/folder and recompiles locally; no generated game code shipped."
+        }
+      ],
+      "warnings": [
+        "Early prerelease tested on one computer.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jillsandwich1998/reGH2"
+    },
+    "issue_number": 3245,
+    "artwork": {
+      "game_id": 2670,
+      "cover_id": 430248,
+      "image_id": "co97zc",
+      "image_sha256": "31cff9ee4bf15d460535fb3da9d11cbd7b15f9bdd104235b6150695003c1fa3c",
+      "game_slug": "guitar-hero-ii",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "guitar-hero-ii-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/jillsandwich1998/reGH2",
+      "repository": {
+        "host": "github.com",
+        "id": "1427692384"
+      }
+    },
+    "decisions": []
+  }
+}

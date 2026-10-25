@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fuserecomp-nikolaygorb-fuse",
+    "name": "Fuse — FuseRecomp (nikolaygorb)",
+    "original_game_title": "Fuse",
+    "summary": "Offline gameplay/audio/video/achievements/saves claimed; online unsupported. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/nikolaygorb/FuseRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nikolaygorb/FuseRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Fuse Xbox 360 complete extracted game files, including the original executable. Title 4541096E/media 566B2842/module hash34AD8CB8A7A6A172; algorithm unspecified."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Extract own FUSE disc into assets and build with CMake/ReXGlue."
+        }
+      ],
+      "warnings": [
+        "Offline gameplay/audio/video/achievements/saves claimed; online unsupported.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/nikolaygorb/FuseRecomp"
+    },
+    "issue_number": 3221
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fuse-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/nikolaygorb/FuseRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1424114181"
+      }
+    },
+    "decisions": []
+  }
+}

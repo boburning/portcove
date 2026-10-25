@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "transformers-2004-ps2-port-tpepperoni666-transformers-2004",
+    "name": "Transformers (2004) — Transformers-2004-PS2-Port (TPepperoni666)",
+    "original_game_title": "Transformers (2004)",
+    "summary": "Native static game in experimental state; exact gameplay completion not asserted here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "NTSC-U SLUS20668 own ISO"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Setup extracts/generates in private folder; source/runtime package distinctions require release guide."
+        }
+      ],
+      "warnings": [
+        "Native static game in experimental state; exact gameplay completion not asserted here.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port"
+    },
+    "issue_number": 3071
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "transformers-2004-ps2",
+    "origin": {
+      "project_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port",
+      "repository": {
+        "host": "github.com",
+        "id": "1425361392"
+      }
+    },
+    "decisions": []
+  }
+}

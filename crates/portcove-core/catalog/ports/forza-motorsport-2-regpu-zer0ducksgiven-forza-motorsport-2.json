@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "forza-motorsport-2-regpu-zer0ducksgiven-forza-motorsport-2",
+    "name": "Forza Motorsport 2 — Forza Motorsport 2 ReGPU (zer0ducksgiven)",
+    "original_game_title": "Forza Motorsport 2",
+    "summary": "Upstream nativeboot/intro/menus/races/saveprofile and hardware-specificperformance; highFPS/4K/ultrawideclaimsnotPortcovequalification. Racingwheelsbeta. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own EuropeanXbox360 ForzaMotorsport2 ISO plus matching mandatory TU_16L61VA_...; optionalownDLC. Accepted default.xex SHA256abbreviated9726066f...9b120a; obtainfullXEX/TUhashfromimporter."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "FM2-Setup-0.3.0.exe imports ownISO/TU/DLC, builds localgamefiles, installs portablePython. Launcher requires .NET10DesktopRuntime (Microsoftinstaller ifmissing) andWebView2; Windows10/11x64D3D12FL12_0. Nativekernel/XAM+ReGPU, not genericReXGlueForza2."
+        }
+      ],
+      "warnings": [
+        "Upstream nativeboot/intro/menus/races/saveprofile and hardware-specificperformance; highFPS/4K/ultrawideclaimsnotPortcovequalification. Racingwheelsbeta.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU"
+    },
+    "issue_number": 3159,
+    "artwork": {
+      "game_id": 3072,
+      "cover_id": 152873,
+      "image_id": "co39yh",
+      "image_sha256": "6a8e9e1f3c208b7761b6a4580059030d35975e41c7c22c1e172aeb3d68d21930",
+      "game_slug": "forza-motorsport-2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "forza-motorsport-2-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU",
+      "repository": {
+        "host": "github.com",
+        "id": "1424644340"
+      }
+    },
+    "decisions": []
+  }
+}

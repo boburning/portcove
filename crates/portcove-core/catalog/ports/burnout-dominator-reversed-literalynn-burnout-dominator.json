@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "burnout-dominator-reversed-literalynn-burnout-dominator",
+    "name": "Burnout Dominator — Burnout Dominator Reversed (literalynn)",
+    "original_game_title": "Burnout Dominator",
+    "summary": "Upstream claims start-to-finish playability; Windows setup requires local C++ compilation/Visual Studio, 20 GB and Vulkan. IOP emulation remains. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/literalynn/BurnoutDominatorReversed",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/literalynn/BurnoutDominatorReversed",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe SLES-54627 ISO kept at runtime."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Windows installer builds locally from owned Europe ISO using installed Visual Studio; Linux local source-build instructions. Original ISO read every launch."
+        }
+      ],
+      "warnings": [
+        "Upstream claims start-to-finish playability; Windows setup requires local C++ compilation/Visual Studio, 20 GB and Vulkan. IOP emulation remains.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/literalynn/BurnoutDominatorReversed"
+    },
+    "issue_number": 2994,
+    "artwork": {
+      "game_id": 6203,
+      "cover_id": 126528,
+      "image_id": "co2pmo",
+      "image_sha256": "4be2987549e59e48789e53f36769dd032d3fae3c213d25e1d8c3f0278f2848c0",
+      "game_slug": "burnout-dominator",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "burnout-dominator-ps2",
+    "origin": {
+      "project_url": "https://github.com/literalynn/BurnoutDominatorReversed",
+      "repository": {
+        "host": "github.com",
+        "id": "1407973400"
+      }
+    },
+    "decisions": []
+  }
+}

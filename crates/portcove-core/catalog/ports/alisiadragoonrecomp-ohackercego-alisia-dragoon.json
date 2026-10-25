@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "alisiadragoonrecomp-ohackercego-alisia-dragoon",
+    "name": "Alisia Dragoon — AlisiaDragoonRecomp (ohackercego)",
+    "original_game_title": "Alisia Dragoon",
+    "summary": "Zero68000 ROM fallback observed and eight Z80 reset-window fallbacks; exact full-game progression not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/ohackercego/AlisiaDragoonRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ohackercego/AlisiaDragoonRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA1048576byte ROM SHA256 cb4e9c98de5a048ccdddf03bcfa5d8aad678c2399f4c5651075009c59836ffd2"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "README release runtime chooses own ROM; source regenerates68000 and Z80 C locally then VS2022/CMake builds. No Linux/macOS packages."
+        }
+      ],
+      "warnings": [
+        "Zero68000 ROM fallback observed and eight Z80 reset-window fallbacks; exact full-game progression not established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/ohackercego/AlisiaDragoonRecomp"
+    },
+    "issue_number": 3575,
+    "artwork": {
+      "game_id": 19508,
+      "cover_id": 429521,
+      "image_id": "co97f5",
+      "image_sha256": "9789b970a541250eaf8b0c38edc9f2ae540bfa2e3d0e00924674165b1374156b",
+      "game_slug": "alisia-dragoon",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "alisia-dragoon-genesis",
+    "origin": {
+      "project_url": "https://github.com/ohackercego/AlisiaDragoonRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1432385287"
+      }
+    },
+    "decisions": []
+  }
+}

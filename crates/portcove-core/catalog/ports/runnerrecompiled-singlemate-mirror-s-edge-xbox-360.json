@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "runnerrecompiled-singlemate-mirror-s-edge-xbox-360",
+    "name": "Mirror's Edge (Xbox 360) — RunnerRecompiled (singlemate)",
+    "original_game_title": "Mirror's Edge (Xbox 360)",
+    "summary": "Not playable: title screen/input/offline sign-in on one Lenovo tablet. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/singlemate/RunnerRecompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/singlemate/RunnerRecompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own Mirror's Edge (Xbox 360) Xbox 360 complete extracted game files, including the original executable. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Build Android research app/generated modules from own Mirror'sEdge XEX/data."
+        }
+      ],
+      "warnings": [
+        "Not playable: title screen/input/offline sign-in on one Lenovo tablet.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/singlemate/RunnerRecompiled"
+    },
+    "issue_number": 3238,
+    "artwork": {
+      "game_id": 1051,
+      "cover_id": 254444,
+      "image_id": "co5gbw",
+      "image_sha256": "395ec67ddfa8865add714babc05e7f400176918480431acde75a672e259195d4",
+      "game_slug": "mirror-s-edge",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mirror-s-edge-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/singlemate/RunnerRecompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1429987193"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "u4-sms-recompiled-alexdia25-ultima-iv-quest-of-the-avatar-master-system",
+    "name": "Ultima IV: Quest of the Avatar (Master System) — u4-sms-recompiled (alexdia25)",
+    "original_game_title": "Ultima IV: Quest of the Avatar (Master System)",
+    "summary": "Native map/combat/shop/dungeon/audio/save systems and shadow comparisons described; full-game completion not independently verified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/alexdia25/u4-sms-recompiled",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/alexdia25/u4-sms-recompiled",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Europe/USA512KiB ROM SHA1 a90e21e5961bcf2e10b715a009c04e7c2017a3b1"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source: setup.py ROM --pc builds asset pack, translated C and native u4.exe using Zig/SDL2. Player packaging can import own ROM once, then run from u4.pak without original ROM. No published asset bytes inspected."
+        }
+      ],
+      "warnings": [
+        "Native map/combat/shop/dungeon/audio/save systems and shadow comparisons described; full-game completion not independently verified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/alexdia25/u4-sms-recompiled"
+    },
+    "issue_number": 3554
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ultima-iv-quest-of-the-avatar-master-system",
+    "origin": {
+      "project_url": "https://github.com/alexdia25/u4-sms-recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1421646363"
+      }
+    },
+    "decisions": []
+  }
+}

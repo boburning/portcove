@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "time-to-kill-native-recomp-musicmonstermod-duke-nukem-time-to-kill",
+    "name": "Duke Nukem: Time to Kill — Time to Kill native recomp (MusicMonsterMod)",
+    "original_game_title": "Duke Nukem: Time to Kill",
+    "summary": "Native playable route; fulllevelcampaign coverage unresolved Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS00583 own CUE/BIN/CloneCD; EuropeSLES01515 refused"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Source localbuild with owneddisc; Modernizeddefault/Vanillaflag"
+        }
+      ],
+      "warnings": [
+        "Native playable route; fulllevelcampaign coverage unresolved",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp"
+    },
+    "issue_number": 3386,
+    "artwork": {
+      "game_id": 4130,
+      "cover_id": 153570,
+      "image_id": "co3ahu",
+      "image_sha256": "e72b4c28ca465819d972c6de8ae919cba2721ae99c503cedaa5cfc8a5fe5fe01",
+      "game_slug": "duke-nukem-time-to-kill--1",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "duke-nukem-time-to-kill-ps1",
+    "origin": {
+      "project_url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1391213071"
+      }
+    },
+    "decisions": []
+  }
+}

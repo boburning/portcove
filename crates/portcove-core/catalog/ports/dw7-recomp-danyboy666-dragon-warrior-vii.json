@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dw7-recomp-danyboy666-dragon-warrior-vii",
+    "name": "Dragon Warrior VII — DW7-recomp (danyboy666)",
+    "original_game_title": "Dragon Warrior VII",
+    "summary": "Research project. Upstream intro/title/mainmenu/name-entry; opening field/story, battles and remaining overlays active bringup. Disc2/fullgame not qualified by Disc1 menu. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/danyboy666/DW7-recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/danyboy666/DW7-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA SLUS01206 disc1 of2; second-disc ID unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local owned-input source route: recursively initialize the pinned PSXRecomp, generate gameC from the owned USA DragonWarriorVII Disc1 CUE, then build psx-runtime with CMake/Ninja. Upstream warns regeneration drops a required emitter correction: apply the documented three generated-code edits or the stated emitter fix before rebuilding. This is an unfinished research route, not a verified player package."
+        }
+      ],
+      "warnings": [
+        "Upstream intro/title/mainmenu/name-entry; opening field/story, battles and remaining overlays active bringup. Disc2/fullgame not qualified by Disc1 menu.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/danyboy666/DW7-recomp"
+    },
+    "issue_number": 3483,
+    "artwork": {
+      "game_id": 1818,
+      "cover_id": 369009,
+      "image_id": "co7wq9",
+      "image_sha256": "b1bd8472e154b0a9b852e4369edd7addb548b82571f0240115ed3086f0ec248c",
+      "game_slug": "dragon-warrior-vii",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-warrior-vii-ps1",
+    "origin": {
+      "project_url": "https://github.com/danyboy666/DW7-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1423617298"
+      }
+    },
+    "decisions": []
+  }
+}

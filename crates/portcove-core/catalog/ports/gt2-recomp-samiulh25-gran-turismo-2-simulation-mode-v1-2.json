@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gt2-recomp-samiulh25-gran-turismo-2-simulation-mode-v1-2",
+    "name": "Gran Turismo 2 (Simulation Mode v1.2) — gt2-recomp (SamiulH25)",
+    "original_game_title": "Gran Turismo 2 (Simulation Mode v1.2)",
+    "summary": "Research project. Hybrid static/incremental decomp; stable menu/garage and race rendering; end-to-end saves unproved. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/SamiulH25/gt2-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/SamiulH25/gt2-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA GT2 SimulationMode v1.2 own CUE/BIN MD5 e697a485b661a12fa6c327186c336a31 and SCUS_944.88. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local PSXRecomp generation/CMake with own data/OpenBIOS; overlays interpreter plus GTFS. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Hybrid static/incremental decomp; stable menu/garage and race rendering; end-to-end saves unproved. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/SamiulH25/gt2-recomp"
+    },
+    "issue_number": 3522
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gran-turismo-2-simulation-mode-ps1",
+    "origin": {
+      "project_url": "https://github.com/SamiulH25/gt2-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1354256730"
+      }
+    },
+    "decisions": []
+  }
+}

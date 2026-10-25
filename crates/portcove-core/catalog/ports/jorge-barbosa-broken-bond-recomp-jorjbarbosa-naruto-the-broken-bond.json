@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jorge-barbosa-broken-bond-recomp-jorjbarbosa-naruto-the-broken-bond",
+    "name": "Naruto: The Broken Bond — Jorge Barbosa Broken Bond Recomp (jorjbarbosa)",
+    "original_game_title": "Naruto: The Broken Bond",
+    "summary": "Upstream tested menus/firstStory fights/cutscenes/FightMode/openWorld for~30min on one Windows11 RX9070XT. Most story/XboxLive/other GPUs/revisions untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/jorjbarbosa/broken-bond-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jorjbarbosa/broken-bond-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "title55530825 media09FFE047 executable0.0.0.3 default.xex SHA256 8f70e79443e36b38e44b6a105dad51fb8909fb615d982753cabaac9b15f0d576. Own extracted disc assets."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local SDK/codegen/native D3D12 build via scripts. README says no prebuilt releases; API observes v0.1.0-beta with3 assets on2026-10-20. Asset meaning requires validation."
+        }
+      ],
+      "warnings": [
+        "Upstream tested menus/firstStory fights/cutscenes/FightMode/openWorld for~30min on one Windows11 RX9070XT. Most story/XboxLive/other GPUs/revisions untested.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/jorjbarbosa/broken-bond-recomp"
+    },
+    "issue_number": 3121,
+    "artwork": {
+      "game_id": 7102,
+      "cover_id": 85892,
+      "image_id": "co1u9w",
+      "image_sha256": "6972453fdae5d42a13eb5888f31c4c666f580eb958e65f59a150584ef5f402f5",
+      "game_slug": "naruto-the-broken-bond",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "naruto-the-broken-bond-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/jorjbarbosa/broken-bond-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1421641247"
+      }
+    },
+    "decisions": []
+  }
+}

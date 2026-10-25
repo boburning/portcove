@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ufc-undisputed-3-ufc3mons-recomp-monscriser-ufc-undisputed-3",
+    "name": "UFC Undisputed 3 — UFC UNDISPUTED 3 - UFC3MONS RECOMP (monscriser)",
+    "original_game_title": "UFC Undisputed 3",
+    "summary": "R9 Reborn Career sessions reportedly run at 60 FPS on ROG Ally Windows/Linux. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/monscriser/UFC3MONS",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/monscriser/UFC3MONS",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Provide your own UFC Undisputed 3 Xbox 360 complete extracted game files, including the original executable. Public sources omit generated code and local offline patch payload; exact source revision unknown."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "No complete public installation route; development ZIP/AppImage references are local artifacts, not public downloads."
+        }
+      ],
+      "warnings": [
+        "R9 Reborn Career sessions reportedly run at 60 FPS on ROG Ally Windows/Linux.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/monscriser/UFC3MONS"
+    },
+    "issue_number": 3203
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ufc-undisputed-3-xbox-360",
+    "origin": {
+      "project_url": "https://github.com/monscriser/UFC3MONS",
+      "repository": {
+        "host": "github.com",
+        "id": "1426402826"
+      }
+    },
+    "decisions": []
+  }
+}

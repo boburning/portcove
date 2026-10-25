@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "psx-vagrantstory-recomp-mobius-vagrant-story",
+    "name": "Vagrant Story — psx-vagrantstory-recomp (mobius)",
+    "original_game_title": "Vagrant Story",
+    "summary": "Research project. Experimental hybrid; movement/jump/camera/menu/map/WorkersBreakroom, combat/save-reload/audio/full flow unaccepted. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/mobius/psx-vagrantstory-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mobius/psx-vagrantstory-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA SLUS-01040 own BIN750643152bytes SHA1 38c63db6c49a06b91d87cd5a4e31b1ec68fe212c plus owned SCPH1001. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "bootstrap.ps1, prepare-inputs.ps1, build.ps1/build-aot.ps1 and run.ps1; own game/BIOS code/cache private. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+        }
+      ],
+      "warnings": [
+        "Experimental hybrid; movement/jump/camera/menu/map/WorkersBreakroom, combat/save-reload/audio/full flow unaccepted. Upstream statements only; not Portcove runtime/gameplay verification.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/mobius/psx-vagrantstory-recomp"
+    },
+    "issue_number": 3525,
+    "artwork": {
+      "game_id": 2216,
+      "cover_id": 129336,
+      "image_id": "co2rso",
+      "image_sha256": "0e3051c1509f1afe97c30193d3643d4b09b73c3720ee25babf3a7ebd28911abf",
+      "game_slug": "vagrant-story",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "riotashley81-jpg-vagrantstory-recomp",
+    "origin": {
+      "project_url": "https://github.com/mobius/psx-vagrantstory-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1363529173"
+      }
+    },
+    "decisions": []
+  }
+}

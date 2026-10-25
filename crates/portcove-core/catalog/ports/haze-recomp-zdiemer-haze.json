@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "haze-recomp-zdiemer-haze",
+    "name": "Haze — Haze Recomp (zdiemer)",
+    "original_game_title": "Haze",
+    "summary": "Menus/opening gameplay/audio/checkpoints demonstrated upstream; full campaign unverified; local two-instance coop only Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/zdiemer/haze-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/zdiemer/haze-recomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "USA BLUS30094 disc01.02 app01.00 ISO; installer downloads RPCS3 helper and Sony firmware"
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "HazeRecomp Setup.exe installer; per-user MSI and launcher prepares own ISO"
+        }
+      ],
+      "warnings": [
+        "Menus/opening gameplay/audio/checkpoints demonstrated upstream; full campaign unverified; local two-instance coop only",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/zdiemer/haze-recomp"
+    },
+    "issue_number": 3317
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "haze-ps3",
+    "origin": {
+      "project_url": "https://github.com/zdiemer/haze-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1413705555"
+      }
+    },
+    "decisions": []
+  }
+}

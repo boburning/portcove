@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "megamanlegendsrecomp-vulob1-mega-man-legends",
+    "name": "Mega Man Legends — MegaManLegendsRecomp (VuloB1)",
+    "original_game_title": "Mega Man Legends",
+    "summary": "Research project. Upstream native title enhancements, terrain-edge white-line defect and no shipped HDpack; no complete campaign claim established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/VuloB1/MegaManLegendsRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/VuloB1/MegaManLegendsRecomp",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PS1 USA MegaManLegends disc; exact serial/revision requires game.toml/DISC readback rather than inherited framework profile."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Local owned-input source route: initialize pinned submodules, regenerate gameC with the documented psxrecomp_cli.py generate command from the owned MegaManLegends disc, then CMake/Ninja psx-runtime. Keep local generation private; publishing is not part of setup. Upstream release/launcher packages remain uninspected and unqualified."
+        }
+      ],
+      "warnings": [
+        "Upstream native title enhancements, terrain-edge white-line defect and no shipped HDpack; no complete campaign claim established.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/VuloB1/MegaManLegendsRecomp"
+    },
+    "issue_number": 3494,
+    "artwork": {
+      "game_id": 1752,
+      "cover_id": 515296,
+      "image_id": "cob1ls",
+      "image_sha256": "97e5c9d299d1547a95db9079571c26e2655b4695985fdca68631b411c9b17d47",
+      "game_slug": "mega-man-legends",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mega-man-legends-ps1",
+    "origin": {
+      "project_url": "https://github.com/VuloB1/MegaManLegendsRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1420302293"
+      }
+    },
+    "decisions": []
+  }
+}

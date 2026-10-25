@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wcw-mayhem-recomp-dotgrx-wcw-mayhem",
+    "name": "WCW Mayhem — WCW-Mayhem-RECOMP (dotGrx)",
+    "original_game_title": "WCW Mayhem",
+    "summary": "Research project. Upstream native x64 wrestling project with widescreen/controller/mod features;21:9/fit-to-window untested. Full roster/matches/completion not Portcove-verified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "project_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP",
+    "platforms": ["windows-x86-64"],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the required game files",
+          "instruction": "Own PAL Europe WCWMayhem SLES02193 CUE/BIN, track1 MD5 f05d7e5edad41f89e3c679dad83ea5f2. Keep file/hash scope as declared track1; no other disc revisions inferred."
+        },
+        {
+          "title": "Follow upstream setup",
+          "instruction": "Manual upstream ZIP/WCWMayhemLauncher.exe, GAMEFILES select own PAL CUE/BIN; source build uses pinned portable PSX toolchain and.NET10 launcher. Actual archive not inspected."
+        }
+      ],
+      "warnings": [
+        "Upstream native x64 wrestling project with widescreen/controller/mod features;21:9/fit-to-window untested. Full roster/matches/completion not Portcove-verified.",
+        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+      ],
+      "help_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP"
+    },
+    "issue_number": 3476,
+    "artwork": {
+      "game_id": 3633,
+      "cover_id": 152869,
+      "image_id": "co39yd",
+      "image_sha256": "e9e94310c520c9467599ac0e3d80b4de7735aa1491513614403d77bc2e28c4cb",
+      "game_slug": "wcw-mayhem",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wcw-mayhem-ps1",
+    "origin": {
+      "project_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP",
+      "repository": {
+        "host": "github.com",
+        "id": "1425505034"
+      }
+    },
+    "decisions": []
+  }
+}
