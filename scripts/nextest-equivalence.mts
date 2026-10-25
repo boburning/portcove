@@ -37,7 +37,7 @@ export function compareNextest(
   )
     return null;
   const result = spawn(
-    "python",
+    process.platform === "win32" ? "python" : "python3",
     [
       "-c",
       [
