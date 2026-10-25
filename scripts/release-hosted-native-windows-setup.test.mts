@@ -408,3 +408,38 @@ if(-not $lookup.Responding -or $lookup.LastResponseInspection -notmatch '^42:1:'
 `);
   assert.match(result, /actual lookup error, empty and found-callback semantics passed/u);
 });
+
+void test(
+  "inert own-window show refuses hidden state and leaves acceptance to the broker",
+  { skip: process.platform !== "win32" },
+  () => {
+    const fixture = fileURLToPath(
+      new URL("./fixtures/native-account-gui-probe.ps1", import.meta.url),
+    );
+    const result = powershell(`
+$ErrorActionPreference='Stop'
+$text=[IO.File]::ReadAllText('${fixture.replaceAll("'", "''")}')
+$start=$text.IndexOf('    $form.Show()')
+$end=$text.IndexOf('    [Windows.Forms.Application]::Run($form)', $start)
+if($start -lt 0 -or $end -lt $start){throw 'Own-window show boundary missing'}
+$show=[scriptblock]::Create($text.Substring($start,$end-$start))
+Add-Type -TypeDefinition @'
+using System;
+public static class InertProbeWindow {
+ public static bool Visible;
+ public static bool ShowWindow(IntPtr window,int command){if(window.ToInt64()!=42 || command!=5)throw new Exception("Wrong window or show command");return false;}
+ public static bool IsWindowVisible(IntPtr window){if(window.ToInt64()!=42)throw new Exception("Wrong visibility target");return Visible;}
+}
+'@
+$form=[pscustomobject]@{Handle=[IntPtr]42}
+$form|Add-Member ScriptMethod Show {}
+$refused=$false
+try{& $show}catch{if($_.Exception.Message -cne 'Inert own form remains hidden'){throw};$refused=$true}
+if(-not $refused){throw 'Hidden window accepted'}
+[InertProbeWindow]::Visible=$true
+& $show
+'own-window show and refusal passed'
+`);
+    assert.match(result, /own-window show and refusal passed/u);
+  },
+);

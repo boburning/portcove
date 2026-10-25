@@ -19,6 +19,14 @@ if ($registry.pid -ne $PID -or
 [Console]::Error.WriteLine('inert-probe:registry-read')
 Add-Type -AssemblyName System.Windows.Forms
 [Console]::Error.WriteLine('inert-probe:forms-loaded')
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class InertProbeWindow {
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
+}
+'@
 $child = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') `
     -ArgumentList @('-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 60') `
     -PassThru -WindowStyle Hidden
@@ -45,9 +53,11 @@ try {
     [Console]::Out.WriteLine(($observation | ConvertTo-Json -Depth 8 -Compress))
     [Console]::Error.WriteLine('inert-probe:message-loop')
     # The isolated window station is non-interactive; a modal dialog refuses it.
-    # Consume inherited SW_HIDE before the loop shows this same private form.
+    # WinForms can retain startup SW_HIDE; explicitly show only this own private form.
     $form.Show()
-    $form.Hide()
+    [void][InertProbeWindow]::ShowWindow($form.Handle, 5)
+    if (-not [InertProbeWindow]::IsWindowVisible($form.Handle)) { throw 'Inert own form remains hidden' }
+    [Console]::Error.WriteLine('inert-probe:own-window-visible')
     [Windows.Forms.Application]::Run($form)
 } finally {
     $timer.Stop()
