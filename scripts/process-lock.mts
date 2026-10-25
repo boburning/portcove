@@ -34,6 +34,7 @@ export interface ProcessLockOptions {
   verifyIdentity?: boolean;
   ownerToken?: string | undefined;
   canReclaim?: boolean;
+  expectedStaleOwner?: Pick<ProcessLockOwner, "token" | "pid" | "created_at" | "process_identity">;
 }
 function diagnosticText(value: unknown): string {
   return String(value);
@@ -192,6 +193,17 @@ export async function acquireOwnedProcessLock(
     } catch (error) {
       if (errorCode(error) !== "EEXIST") throw error;
       const active = await readOwner(resolved, label);
+      const expected = options.expectedStaleOwner;
+      if (
+        expected &&
+        (active.token !== expected.token ||
+          active.pid !== expected.pid ||
+          active.created_at !== expected.created_at ||
+          active.process_identity !== expected.process_identity)
+      )
+        throw Object.assign(new Error(`${label} recovery owner changed; retaining ${resolved}`), {
+          code: "PORTCOVE_RESOURCE_RECOVERY_REQUIRED",
+        });
       if (verifiedActive(active)) {
         throw Object.assign(
           new Error(
