@@ -185,6 +185,18 @@ transferred repository keeps one immutable GitHub ID, retains its old locations,
 and returns to primary review. A reused path with a different ID refuses an
 identity join.
 
+Intake additionally compares the researched immutable repository ID with fresh
+open/closed owners, retained repository aliases and reviewed catalog lineage.
+Renaming the project title or port key cannot bypass this guard. The catalog
+lineage is an extra positive duplicate guard from the run's source snapshot;
+fresh complete issue coverage still owns every negative check. Proposals may
+include `game` (the independently catalogable title/edition) to distinguish a new
+game within a shared implementation. An unknown shared-game scope stays held.
+`identity_kind` can explicitly mark an `implementation`, `helper` or `framework`;
+helpers and frameworks do not create independent port issues. These reviewed
+identity fields participate in the candidate fingerprint and are checked again
+after the fresh pre-mutation inventory.
+
 Primary investigation optionally reads the project-authored `.recomp.json` at
 the pinned source revision. This implements [recomp.board's draft v1 format](https://recomp.fyi/spec)
 (CC BY 4.0 attribution); it does not copy the board's table. Absent fields stay

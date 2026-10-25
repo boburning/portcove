@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DiscoverySession } from "./daily-discovery-session.mts";
+import { observationHash } from "./upstream-observer.mts";
 import {
   reconcileDiscoveryIdentity,
   reconcileDiscoverySnapshot,
@@ -22,6 +27,88 @@ const candidate: ReviewedDiscoveryIdentity = {
   game_key: "game-a",
   kind: "implementation",
 };
+void test("maintained session guard blocks a relocated closed owner and helpers before posting, but preserves separate games and implementations", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "discovery-identity-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = join(directory, "primary.json");
+  const writePrimary = (id: number) =>
+    writeFileSync(file, JSON.stringify({ metadata: { id, full_name: "new-owner/new-name" } }));
+  writePrimary(42);
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  Object.assign(session, {
+    inventory: {
+      issues: [
+        {
+          id: "I_42",
+          number: 900001,
+          type: "Issue",
+          title: "[Port] Old name",
+          state: "CLOSED",
+          body: "Underlying game: **Game A**.\nGitHub repository ID: 42.\n<!-- portcove-port -->\n<!-- portcove-upstream: https://github.com/old-owner/old-name -->",
+        },
+      ],
+    },
+    leads: { records: {} },
+    journal: {
+      evidence: {
+        primary: {
+          repository: "new-owner/new-name",
+          file,
+          material: "pinned",
+          requests: 1,
+          bytes: 100,
+        },
+      },
+    },
+  });
+  const input = {
+    id: "reviewed",
+    kind: "intake" as const,
+    title: "Renamed implementation",
+    upstream: "https://github.com/new-owner/new-name",
+    portKey: "renamed-key",
+    body: "reviewed body",
+    body_sha256: "a".repeat(64),
+    evidence_ids: ["primary"],
+    evidence_sha256: "b".repeat(64),
+    status: "reviewed",
+  };
+  const scoped = (game: string) => ({
+    ...input,
+    game,
+    body: `<!-- portcove-discovery-identity:${observationHash({ game, kind: "implementation" })} -->\nreviewed body`,
+  });
+  assert.throws(() => session.assertIntakeIdentity(input, []), /Existing canonical owner/u);
+  assert.throws(
+    () => session.assertIntakeIdentity(scoped("Game A"), []),
+    /Existing canonical owner/u,
+  );
+  assert.equal(
+    session.assertIntakeIdentity(scoped("Game B"), []).disposition,
+    "New canonical intake",
+  );
+  writePrimary(99);
+  assert.equal(
+    session.assertIntakeIdentity(scoped("Game A"), []).disposition,
+    "New canonical intake",
+  );
+  assert.throws(
+    () =>
+      session.assertIntakeIdentity(
+        {
+          ...input,
+          identity_kind: "helper",
+          body: `<!-- portcove-discovery-identity:${observationHash({ game: null, kind: "helper" })} -->`,
+        },
+        [],
+      ),
+    /Alias\/helper/u,
+  );
+  assert.throws(
+    () => session.assertIntakeIdentity({ ...scoped("Game A"), game: "Game B" }, []),
+    /Reviewed body/u,
+  );
+});
 void test("frozen replay merges source observations, preserves separate games and refuses key conflicts", () => {
   const rows = [
     { ...candidate, key: "game-a-port", evidence: "framework-page" },

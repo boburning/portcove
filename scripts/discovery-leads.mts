@@ -138,6 +138,13 @@ export function parseLeadState(value: unknown): LeadState {
       throw new Error("Invalid retained repository aliases");
     if (raw.manifest !== undefined) {
       if (!isRecord(raw.manifest)) throw new Error("Invalid retained primary manifest");
+      const manifest = raw.manifest;
+      if (
+        !["systems", "types", "toolchains", "targets"].every((key) => Array.isArray(manifest[key]))
+      )
+        throw new Error("Retained primary manifest requires normalized lists");
+      if (raw.manifest.original !== undefined && !Array.isArray(raw.manifest.original))
+        throw new Error("Retained primary manifest requires normalized source releases");
       parseRecompManifest({
         ...raw.manifest,
         system: raw.manifest.systems,

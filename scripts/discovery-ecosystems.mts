@@ -118,6 +118,13 @@ export interface RecompFeedLead {
   updated: string;
   categories: string[];
   provenance: string;
+  events: {
+    id: string;
+    title: string;
+    updated: string;
+    categories: string[];
+    provenance: string;
+  }[];
 }
 /** A bounded reader for the publisher's current Atom shape, never a table scraper.
  * Feed entries are leads. Missing entries never establish upstream deletion.
@@ -160,19 +167,41 @@ export function parseRecompFeed(input: string): RecompFeedLead[] {
     )
       throw new Error("Atom lead needs an exact upstream repository");
     const key = url.toLowerCase();
-    const categories = [...text.matchAll(/<category\s+term="([^"]+)"\s*\/>/gu)].map((m) =>
-      xmlText(m[1]!),
-    );
+    const categories = [
+      ...new Set(
+        [...text.matchAll(/<category\s+term="([^"]+)"\s*\/>/gu)].map((m) => xmlText(m[1]!)),
+      ),
+    ].sort();
+    const provenance = `https://recomp.fyi/#${id.replace(/^tag:recomp\.fyi,\d{4}:/u, "").replace(/:\d{4}-\d{2}-\d{2}$/u, "")}`;
     const record = {
       key,
-      repository: url.slice(19),
+      repository: key.slice(19),
       title,
       updated,
       categories,
-      provenance: `https://recomp.fyi/#${id.replace(/^tag:recomp\.fyi,\d{4}:/u, "").replace(/:\d{4}-\d{2}-\d{2}$/u, "")}`,
+      provenance,
+      events: [{ id, title, updated, categories, provenance }],
     };
     const previous = records.get(key);
-    if (!previous || Date.parse(previous.updated) < Date.parse(updated)) records.set(key, record);
+    if (!previous) records.set(key, record);
+    else {
+      const events = [...previous.events, ...record.events].sort((a, b) =>
+        a.id.localeCompare(b.id),
+      );
+      // A shared repository can have several games/events on the same date.
+      // Preserve all attribution and choose the displayed latest event stably.
+      const latest = [...events].sort(
+        (a, b) => Date.parse(b.updated) - Date.parse(a.updated) || a.id.localeCompare(b.id),
+      )[0]!;
+      records.set(key, {
+        ...record,
+        title: latest.title,
+        updated: latest.updated,
+        categories: latest.categories,
+        provenance: latest.provenance,
+        events,
+      });
+    }
   }
   return [...records.values()].sort((a, b) => a.key.localeCompare(b.key));
 }

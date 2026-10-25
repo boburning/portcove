@@ -47,6 +47,35 @@ void test("published Atom scope is deterministic, attributed, bounded and never 
   );
   assert.equal(updated.length, 1, "events on the same repository remain one research lead");
   assert.equal(updated[0]?.updated, now);
+  const first = entry("first").replace("Game &amp; Port", "Game One");
+  const second = entry("second").replace("Game &amp; Port", "Game Two");
+  const tied = parseRecompFeed(feed(first, second));
+  assert.deepEqual(tied, parseRecompFeed(feed(second, first)));
+  assert.equal(
+    tied[0]?.events.length,
+    2,
+    "multi-game source attribution survives repository deduplication",
+  );
+});
+void test("retained primary manifests reject non-normalized lists before summary consumption", () => {
+  const state = parseLeadState(undefined);
+  state.records["1"] = {
+    id: 1,
+    repository: "ports/game",
+    url: "https://github.com/ports/game",
+    description: "",
+    revision: "a",
+    observed_at: now,
+    evidence: "snapshot",
+    status: "pending",
+    manifest: parseRecompManifest({ game: "Game", system: "PS3", type: "recomp" }),
+  };
+  const raw = JSON.parse(JSON.stringify(state)) as {
+    records: Record<string, { manifest: Record<string, unknown> }>;
+  };
+  raw.records["1"]!.manifest.types = "recomp";
+  assert.throws(() => parseLeadState(raw), /normalized lists/u);
+  assert.deepEqual(parseLeadState(state), state);
 });
 void test("the actual feed collector flags a lost overlap and preserves inaccessible source evidence", () => {
   const saved: Record<string, unknown> = {};

@@ -65,6 +65,11 @@ import {
 } from "./discovery-leads.mts";
 import type { LeadState } from "./discovery-leads.mts";
 import { ecosystemBursts } from "./discovery-ecosystems.mts";
+import { readCatalogSource } from "./catalog-authoring.mts";
+import type { AuthoredPort } from "./catalog-authoring.mts";
+import { fileURLToPath } from "node:url";
+import { assertDiscoveryIntakeIdentity, discoveryGameKey } from "./discovery-intake-identity.mts";
+import type { ReviewedDiscoveryIdentity } from "./discovery-reconciliation.mts";
 
 interface Candidate {
   id: string;
@@ -72,6 +77,8 @@ interface Candidate {
   title: string;
   upstream: string;
   portKey: string;
+  game?: string;
+  identity_kind?: ReviewedDiscoveryIdentity["kind"];
   issue?: number;
   body: string;
   body_sha256: string;
@@ -241,6 +248,7 @@ export function validateDiscoveryIntakeBody(body: string, upstream: string, port
     );
 }
 export class DiscoverySession {
+  private intakeRecords?: AuthoredPort[];
   inventory!: RoadmapInventory;
   checkpoint: DiscoveryCheckpoint;
   readonly journal: Journal;
@@ -889,15 +897,32 @@ export class DiscoverySession {
     const key = text(v.portKey);
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(key) || key.length > 100)
       throw new Error("Invalid durable target key");
+    if (
+      v.game !== undefined &&
+      (typeof v.game !== "string" || !v.game.trim() || v.game.length > 256)
+    )
+      throw new Error("Invalid reviewed game identity");
+    if (
+      v.identity_kind !== undefined &&
+      (typeof v.identity_kind !== "string" ||
+        !["implementation", "helper", "framework"].includes(v.identity_kind))
+    )
+      throw new Error("Invalid reviewed architecture disposition");
     const id = observationHash({
       kind: v.kind,
       upstream: upstream.href,
       key,
       evidence: evidenceHash,
       issue: v.issue,
+      game: v.game,
+      identity_kind: v.identity_kind,
     });
     if (this.journal.candidates[id]) return this.journal.candidates[id];
-    const marked = `<!-- portcove-discovery-${v.kind}:${id} -->\n\n${body}`;
+    const identityMarker =
+      v.kind === "intake"
+        ? `\n<!-- portcove-discovery-identity:${observationHash({ game: v.game ?? null, kind: v.identity_kind ?? "implementation" })} -->`
+        : "";
+    const marked = `<!-- portcove-discovery-${v.kind}:${id} -->${identityMarker}\n\n${body}`;
     if (v.kind === "intake") {
       validateDiscoveryIntakeBody(marked, upstream.href, key);
     }
@@ -912,6 +937,10 @@ export class DiscoverySession {
       evidence_ids: evidenceIds,
       evidence_sha256: evidenceHash,
       status: "needs-review",
+      ...(typeof v.game === "string" ? { game: v.game } : {}),
+      ...(v.identity_kind !== undefined
+        ? { identity_kind: v.identity_kind as ReviewedDiscoveryIdentity["kind"] }
+        : {}),
     };
     if (v.pending_ids !== undefined) {
       if (
@@ -934,6 +963,7 @@ export class DiscoverySession {
       )
     )
       throw new Error("Candidate upstream is not bound to investigated identity");
+    if (candidate.kind === "intake") this.assertIntakeIdentity(candidate);
     const reserve = discoveryDeliveryCost(
       this.inventory,
       [
@@ -976,6 +1006,60 @@ export class DiscoverySession {
     this.save(`candidate-${id}`, candidate);
     this.persist();
     return candidate;
+  }
+  assertIntakeIdentity(
+    candidate: Candidate,
+    records = (this.intakeRecords ??= readCatalogSource(
+      fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+    ).records),
+  ) {
+    const markers = candidate.body.match(/<!-- portcove-discovery-identity:[^>]*-->/gu) ?? [];
+    const expected = `<!-- portcove-discovery-identity:${observationHash({ game: candidate.game ?? null, kind: candidate.identity_kind ?? "implementation" })} -->`;
+    if (
+      markers.length > 1 ||
+      (markers.length === 1 && markers[0] !== expected) ||
+      (!markers.length && (candidate.game !== undefined || candidate.identity_kind !== undefined))
+    )
+      throw new Error(
+        "Reviewed body does not bind the game/architecture identity; propose and review again",
+      );
+    const primary = candidate.evidence_ids
+      .map((id) => this.journal.evidence[id])
+      .filter(
+        (value) =>
+          value &&
+          !value.url &&
+          value.repository.toLowerCase() ===
+            new URL(candidate.upstream).pathname.slice(1).toLowerCase(),
+      )
+      .map((value) => object(JSON.parse(readFileSync(value!.file, "utf8"))));
+    if (
+      primary.some(
+        (value) =>
+          repoName(object(value.metadata).full_name).toLowerCase() !==
+          new URL(candidate.upstream).pathname.slice(1).toLowerCase(),
+      )
+    )
+      throw new Error("Primary repository identity no longer matches reviewed upstream");
+    const ids = [...new Set(primary.map((value) => object(value.metadata).id))];
+    if (
+      ids.length !== 1 ||
+      typeof ids[0] !== "number" ||
+      !Number.isSafeInteger(ids[0]) ||
+      ids[0] <= 0
+    )
+      throw new Error("Intake needs a primary-researched immutable repository identity");
+    return assertDiscoveryIntakeIdentity(
+      {
+        repository: new URL(candidate.upstream).pathname.slice(1),
+        repository_id: ids[0],
+        kind: candidate.identity_kind ?? "implementation",
+        ...(candidate.game ? { game_key: discoveryGameKey(candidate.game) } : {}),
+      },
+      this.inventory.issues,
+      records,
+      Object.values(this.leads.records),
+    );
   }
   review(raw: unknown) {
     const v = object(raw),
@@ -1438,6 +1522,7 @@ export class DiscoverySession {
               this.persist();
             }
           } else {
+            this.assertIntakeIdentity(c);
             if (matches.length)
               throw new Error(
                 "Canonical duplicate or independent-implementation conflict; capture held",
