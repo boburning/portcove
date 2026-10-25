@@ -283,6 +283,7 @@ fn traversal_bounds_and_discovery_hash_budget_are_enforced() {
     let root = tempfile::tempdir().unwrap();
     original(root.path());
     let mut budget = crate::source_file::HashBudget {
+        checkpoint: None,
         operation: None,
         limit: 1,
         hashed: 0,
@@ -347,6 +348,7 @@ fn caller_limits_bound_directory_and_zip_before_member_reads() {
         (&archive, 4096, 64, 1, "file_size"),
     ] {
         let mut budget = crate::source_file::HashBudget {
+            checkpoint: None,
             operation: None,
             limit: u64::MAX,
             hashed: 0,

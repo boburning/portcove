@@ -109,6 +109,7 @@ mod tool_process;
 mod transfer_copy;
 mod transfer_journal;
 mod types;
+mod zip_read;
 
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};

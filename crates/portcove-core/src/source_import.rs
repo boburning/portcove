@@ -247,6 +247,17 @@ impl PortcoveService {
         path: &Path,
         mode: SourceImportMode,
     ) -> Result<SourceImportPlan> {
+        self.plan_source_import_with_checkpoint(profile_id, path, mode, &|| Ok(()))
+    }
+
+    fn plan_source_import_with_checkpoint(
+        &self,
+        profile_id: &str,
+        path: &Path,
+        mode: SourceImportMode,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<SourceImportPlan> {
+        checkpoint()?;
         self.catalog().source_profile(profile_id)?;
         let source_path = canonical_source(path)?;
         if mode != SourceImportMode::UseCurrentLocation {
@@ -265,7 +276,12 @@ impl PortcoveService {
             }
         }
         let guard = source_guard(&source_path)?;
-        let inspection = self.inspect_source(profile_id, &source_path)?;
+        let inspection = crate::source_inspection::inspect_with_checkpoint(
+            self.catalog(),
+            profile_id,
+            &source_path,
+            checkpoint,
+        )?;
         let admission_mode = match inspection.assessment.admission {
             SourceAdmission::Admitted { mode } => mode,
             _ => return Err(inspection.require_admitted_record().unwrap_err()),
@@ -291,6 +307,7 @@ impl PortcoveService {
                     &guard,
                     &profile_dir,
                     copy_bytes,
+                    checkpoint,
                 )?
             }
         };
@@ -368,7 +385,9 @@ impl PortcoveService {
         let result = (|| {
             let _guards = self.lock_source_dependents(profile_id, None)?;
             coordinator.checkpoint()?;
-            let plan = self.plan_source_import(profile_id, path, mode)?;
+            let plan = self.plan_source_import_with_checkpoint(profile_id, path, mode, &|| {
+                coordinator.checkpoint()
+            })?;
             require_expected_plan(&plan, expected_plan_sha256)?;
             if mode == SourceImportMode::Move {
                 let token = move_authorization.ok_or_else(|| {
@@ -389,7 +408,10 @@ impl PortcoveService {
             }
 
             if mode == SourceImportMode::UseCurrentLocation {
-                let registered = revalidate_source(self, &plan, &plan.source.path)?;
+                let registered =
+                    revalidate_source_with_checkpoint(self, &plan, &plan.source.path, &|| {
+                        coordinator.checkpoint()
+                    })?;
                 coordinator.begin_publication()?;
                 self.library().register_source(&registered)?;
                 return Ok(SourceImportResult {
@@ -538,11 +560,13 @@ where
 
     if import.phase == ImportPhase::Copying {
         coordinator.checkpoint()?;
-        revalidate_source(service, &plan, &plan.source.path)?;
+        revalidate_source_with_checkpoint(service, &plan, &plan.source.path, &|| {
+            coordinator.checkpoint()
+        })?;
         ensure_profile_directory(service, &plan.profile_id)?;
         require_capacity(&plan.destination, plan.required_bytes)?;
         if plan.reuse_existing {
-            revalidate_destination(service, &plan)?;
+            revalidate_destination_with_checkpoint(service, &plan, &|| coordinator.checkpoint())?;
         } else {
             let staging = operation.paths.staging.as_ref().ok_or_else(|| {
                 PortcoveError::state("source import lifecycle record has no staging path")
@@ -576,8 +600,12 @@ where
             }
             service
                 .check_lifecycle_fault(crate::operation::LifecycleFaultPoint::SourceImportCopied)?;
-            revalidate_source(service, &plan, &plan.source.path)?;
-            let staged = revalidate_source(service, &plan, staging)?;
+            revalidate_source_with_checkpoint(service, &plan, &plan.source.path, &|| {
+                coordinator.checkpoint()
+            })?;
+            let staged = revalidate_source_with_checkpoint(service, &plan, staging, &|| {
+                coordinator.checkpoint()
+            })?;
             require_equivalent(&plan.source, &staged, "staged source")?;
         }
         coordinator.begin_publication()?;
@@ -686,6 +714,7 @@ fn choose_destination(
     guard: &SourceGuard,
     profile_dir: &Path,
     required_bytes: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<(PathBuf, bool, bool, u64)> {
     let name = safe_import_name(source_path, &source.storage_sha256)?;
     let base = profile_dir.join(&name);
@@ -698,7 +727,7 @@ fn choose_destination(
             "source and Source Inbox destination identify the same filesystem object",
         ));
     }
-    if destination_matches(service, profile_id, source, &base)? {
+    if destination_matches(service, profile_id, source, &base, checkpoint)? {
         return Ok((base, true, true, 0));
     }
     let suffixed = profile_dir.join(digest_name(&name, &source.storage_sha256));
@@ -711,7 +740,7 @@ fn choose_destination(
             "source and Source Inbox collision target identify the same filesystem object",
         ));
     }
-    if destination_matches(service, profile_id, source, &suffixed)? {
+    if destination_matches(service, profile_id, source, &suffixed, checkpoint)? {
         Ok((suffixed, true, true, 0))
     } else {
         Err(PortcoveError::conflict(
@@ -727,8 +756,14 @@ fn destination_matches(
     profile_id: &str,
     source: &SourceRecord,
     destination: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<bool> {
-    match service.inspect_source(profile_id, destination) {
+    match crate::source_inspection::inspect_with_checkpoint(
+        service.catalog(),
+        profile_id,
+        destination,
+        checkpoint,
+    ) {
         Ok(inspection) => match inspection.require_admitted_record() {
             Ok(record) => Ok(equivalent(source, &record)),
             Err(_) => Ok(false),
@@ -743,13 +778,23 @@ fn revalidate_source(
     plan: &SourceImportPlan,
     path: &Path,
 ) -> Result<SourceRecord> {
+    revalidate_source_with_checkpoint(service, plan, path, &|| Ok(()))
+}
+
+fn revalidate_source_with_checkpoint(
+    service: &PortcoveService,
+    plan: &SourceImportPlan,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceRecord> {
+    checkpoint()?;
     if path == plan.source.path && source_guard(path)?.sha256 != plan.source_guard_sha256 {
         return Err(PortcoveError::conflict(
             "source filesystem identity changed after import review",
         )
         .detail("profile_id", &plan.profile_id));
     }
-    let record = inspect_admitted_source(service, plan, path)?;
+    let record = inspect_admitted_source_with_checkpoint(service, plan, path, checkpoint)?;
     require_equivalent(&plan.source, &record, "source")?;
     Ok(record)
 }
@@ -759,7 +804,21 @@ fn inspect_admitted_source(
     plan: &SourceImportPlan,
     path: &Path,
 ) -> Result<SourceRecord> {
-    let inspection = service.inspect_source(&plan.profile_id, path)?;
+    inspect_admitted_source_with_checkpoint(service, plan, path, &|| Ok(()))
+}
+
+fn inspect_admitted_source_with_checkpoint(
+    service: &PortcoveService,
+    plan: &SourceImportPlan,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceRecord> {
+    let inspection = crate::source_inspection::inspect_with_checkpoint(
+        service.catalog(),
+        &plan.profile_id,
+        path,
+        checkpoint,
+    )?;
     let admission = match inspection.assessment.admission {
         SourceAdmission::Admitted { mode } => mode,
         _ => return Err(inspection.require_admitted_record().unwrap_err()),
@@ -776,7 +835,20 @@ fn revalidate_destination(
     service: &PortcoveService,
     plan: &SourceImportPlan,
 ) -> Result<SourceRecord> {
-    let inspection = service.inspect_source(&plan.profile_id, &plan.destination)?;
+    revalidate_destination_with_checkpoint(service, plan, &|| Ok(()))
+}
+
+fn revalidate_destination_with_checkpoint(
+    service: &PortcoveService,
+    plan: &SourceImportPlan,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceRecord> {
+    let inspection = crate::source_inspection::inspect_with_checkpoint(
+        service.catalog(),
+        &plan.profile_id,
+        &plan.destination,
+        checkpoint,
+    )?;
     let record = inspection.require_admitted_record()?;
     require_equivalent(&plan.source, &record, "published Source Inbox source")?;
     Ok(record)

@@ -5183,8 +5183,13 @@ impl PortcoveService {
         let mut source_directory = None;
         if let Some(profile_id) = retained_port.source_profile.as_deref() {
             let source = if let Some(path) = source_override {
-                crate::source_inspection::inspect(retained_catalog, profile_id, path)?
-                    .require_admitted_record()?
+                crate::source_inspection::inspect_with_checkpoint(
+                    retained_catalog,
+                    profile_id,
+                    path,
+                    &|| operation.checkpoint(),
+                )?
+                .require_admitted_record()?
             } else {
                 self.verified_source_record_with_checkpoint(retained_catalog, profile_id, &|| {
                     operation.checkpoint()

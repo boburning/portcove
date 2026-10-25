@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
-    io::{Read, Seek, Write},
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -276,15 +276,11 @@ fn validate_component(component: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn open_zip<R: Read + Seek>(reader: R) -> zip::result::ZipResult<zip::ZipArchive<R>> {
-    let archive = zip::ZipArchive::new(reader)?;
-    // Index iteration hides raw duplicate names after the parser collapses them.
-    if archive.has_duplicate_names() {
-        return Err(zip::result::ZipError::InvalidArchive(
-            "duplicate ZIP entry name".into(),
-        ));
-    }
-    Ok(archive)
+#[cfg(test)]
+pub(crate) fn open_zip<R: Read + std::io::Seek>(
+    reader: R,
+) -> Result<zip::ZipArchive<crate::zip_read::CheckedReader<R>>> {
+    crate::zip_read::open(reader, crate::zip_read::ARTIFACT, &mut |_| Ok(()))
 }
 
 fn extract_zip(
@@ -293,8 +289,17 @@ fn extract_zip(
     compressed_size: u64,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    let mut archive = open_zip(File::open(source)?)
-        .map_err(|error| PortcoveError::verification(format!("invalid ZIP: {error}")))?;
+    let mut archive =
+        crate::zip_read::open(File::open(source)?, crate::zip_read::ARTIFACT, &mut |_| {
+            checkpoint()
+        })
+        .map_err(|error| {
+            if error.code == crate::ErrorCode::SourceInvalid {
+                PortcoveError::verification(error.message)
+            } else {
+                error
+            }
+        })?;
     if archive.len() > MAX_ENTRIES {
         return Err(PortcoveError::verification(
             "archive contains too many entries",
@@ -339,10 +344,6 @@ fn extract_zip(
         });
     }
     validate_plan(destination, &plans, compressed_size)?;
-    drop(archive);
-
-    let mut archive = open_zip(File::open(source)?)
-        .map_err(|error| PortcoveError::verification(format!("invalid ZIP: {error}")))?;
     for (index, plan) in plans.iter().enumerate() {
         checkpoint()?;
         let mut entry = archive

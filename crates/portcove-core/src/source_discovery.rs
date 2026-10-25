@@ -886,7 +886,7 @@ struct Discovery<'a> {
     hashed_paths: BTreeSet<PathBuf>,
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
-    budget: HashBudget,
+    budget: HashBudget<'a>,
     exclusions: Vec<DiscoveryExclusion>,
     output_library: Option<&'a crate::Library>,
     emit: &'a mut dyn FnMut(crate::OperationEvent),
@@ -1125,6 +1125,7 @@ fn scan_with_continuation<'a>(
         limits: &request.limits,
         reached,
         budget: HashBudget {
+            checkpoint: None,
             operation: Some(operation.clone()),
             limit: request.limits.max_hash_bytes,
             hashed: 0,
@@ -2191,6 +2192,7 @@ impl Discovery<'_> {
         members: &[(String, PathBuf)],
         observations: &mut DirectoryObservations,
         names: &[String],
+        maximum: u64,
     ) -> Result<Option<crate::source_inspection::HashedNamedSource>> {
         let selected = members
             .iter()
@@ -2214,7 +2216,7 @@ impl Discovery<'_> {
                 "source member moved outside its scanned directory",
             ));
         }
-        if metadata.len() > self.limits.max_file_bytes {
+        if metadata.len() > self.limits.max_file_bytes.min(maximum) {
             return Err(
                 PortcoveError::unsupported("source member exceeds discovery size limit")
                     .detail("scan_limit", "file_size"),
@@ -2239,7 +2241,7 @@ impl Discovery<'_> {
             let result = crate::source_file::read_raw_identity(
                 member_path,
                 metadata.len(),
-                self.limits.max_file_bytes,
+                self.limits.max_file_bytes.min(maximum),
                 &mut self.budget,
             );
             if (result.is_ok() || self.budget.hashed > before)
@@ -2294,7 +2296,9 @@ impl Discovery<'_> {
                 &profile.id,
                 path,
                 &names,
-                &mut |names| self.directory_member(path, members, observations, names),
+                &mut |names, maximum| {
+                    self.directory_member(path, members, observations, names, maximum)
+                },
             );
             match inspection {
                 Ok(inspection) => {
