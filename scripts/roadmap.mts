@@ -37,7 +37,7 @@ import {
   sanitizeOperationError,
 } from "./github-api.mts";
 import { acquireOwnedProcessLock } from "./process-lock.mts";
-import { validateGitHubBody } from "./github-body.mts";
+import { validateGitHubBody } from "./github-body-text.mts";
 import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mts";
 import { summarizeReport, retainReportSummary } from "./report-summary.mts";
 import { decide706, decisionInputs706, validateApproval706 } from "./linux-beta-risk-706.mts";
@@ -749,6 +749,14 @@ export function validateDurableIssueBody(body: unknown) {
   });
   if (missing.length)
     throw new Error(`durable issue specification is incomplete: ${missing.join(", ")}`);
+  if (
+    body.includes(portMarker) &&
+    portCatalogMarkers(body).length === 0 &&
+    !isNonCatalogResearchBody(body)
+  )
+    throw new Error(
+      "Non-catalog port issue must identify research/watchlist status and disclaim support",
+    );
   return body;
 }
 
@@ -948,10 +956,11 @@ export function reconcilePortIssueMarkers(
     .replace(/^\s*<!--\s*portcove-upstream:\s*[^>]*-->\s*$/gim, "")
     .replace(/^\s*<!--\s*portcove-catalog-id:\s*[^>]*-->\s*$/gim, "")
     .replace(/^\s*<!--\s*portcove-port-key:\s*[^>]*-->\s*$/gim, "")
+    .replace(/^\s*<!--\s*portcove-research:\s*[^>]*-->\s*$/gim, "")
     .trimEnd();
   const identityMarker = catalogId
     ? `<!-- portcove-catalog-id: ${catalogId} -->`
-    : `<!-- portcove-port-key: ${portKey} -->`;
+    : `<!-- portcove-port-key: ${portKey} -->\n${renderPortResearchDeclaration()}`;
   return `${retained}\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->\n${identityMarker}`;
 }
 
@@ -1046,9 +1055,14 @@ export function validatePlanOriginCoverage(items: readonly RoadmapIssueItem[] | 
 
 export function isNonCatalogResearchBody(body: string) {
   return (
-    /Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body) &&
-    /(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body)
+    body.includes(renderPortResearchDeclaration()) ||
+    (/Catalog ID:\s*Not assigned \(researched candidate\)/i.test(body) &&
+      /(?:does not grant support|not supported merely|does not change catalog\.json)/i.test(body))
   );
+}
+
+export function renderPortResearchDeclaration() {
+  return "<!-- portcove-research: catalog=unassigned; support=not-granted -->";
 }
 
 export function renderPortIssueBody({
@@ -1079,7 +1093,7 @@ export function renderPortIssueBody({
   const portKeyMarker = normalizedPortKey
     ? `\n<!-- portcove-port-key: ${normalizedPortKey} -->`
     : "";
-  return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Initial Port stage: Watchlist. The live Port stage is maintained in the Portcove Roadmap.\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}`;
+  return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Initial Port stage: Watchlist. The live Port stage is maintained in the Portcove Roadmap.\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}${catalogId ? "" : `\n${renderPortResearchDeclaration()}`}`;
 }
 
 function qualificationScopeDetails(
@@ -1219,7 +1233,43 @@ function hasBlockedEvidence(body: unknown) {
     /no current blocker (?:has been )?established/i.test(section)
   )
     return false;
-  return /\b(?:resume|until|when|needs?|required missing|after)\b/i.test(section);
+  const fields = [
+    ...section.matchAll(
+      /^(?:[-*]\s*)?(?:\*\*)?(Blocker|Resume condition|Reconsideration condition)(?:\*\*)?:\s*(.*?)(?=\r?$)/gimu,
+    ),
+  ];
+  const usable = (value: string) => {
+    const text = value.replace(/[*_`]/gu, "").trim();
+    return (
+      text.length >= 12 &&
+      !/^(?:pending|tbd|todo|none|unknown|n\/?a|not (?:yet )?(?:known|specified|established))(?:\b|[.!])/iu.test(
+        text,
+      ) &&
+      !/^(?:\.{3}|…|<[^>]+>)$/u.test(text)
+    );
+  };
+  if (fields.length) {
+    const blocker = fields.filter((match) => match[1]?.toLowerCase() === "blocker");
+    const resume = fields.filter((match) => match[1]?.toLowerCase() !== "blocker");
+    // The migration spelling is a field, not evidence of a particular verb.
+    const remainder = section
+      .replace(
+        /^(?:[-*]\s*)?(?:\*\*)?(?:Resume condition|Reconsideration condition)(?:\*\*)?:[^\n]*$/gimu,
+        "",
+      )
+      .trim();
+    return (
+      blocker.length <= 1 &&
+      resume.length === 1 &&
+      usable(resume[0]?.[2] ?? "") &&
+      (blocker.length === 1 ? usable(blocker[0]?.[2] ?? "") : usable(remainder))
+    );
+  }
+  // Existing prose remains readable during migration; new explicit fields never
+  // fall back to incidental words when a required value is absent/placeholder.
+  return (
+    /\b(?:resume|until|when|needs?|required missing|after)\b/i.test(section) && usable(section)
+  );
 }
 
 export function validatePortStageSemantics(

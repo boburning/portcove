@@ -12,6 +12,10 @@ on:
       - scripts/roadmap.mts
       - scripts/roadmap-scoped.mts
       - scripts/roadmap-health.mts
+      - scripts/roadmap-authoring.mts
+      - scripts/roadmap-edit.mts
+      - scripts/roadmap-report.mts
+      - scripts/roadmap-publish.mts
       - scripts/repository-issue-inventory.mts
       - .github/workflows/roadmap-health.yml
   workflow_dispatch:
@@ -27,7 +31,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   configuration:
@@ -49,9 +52,6 @@ jobs:
           fi
   check:
     needs: configuration
-    concurrency:
-      group: roadmap-health-${{ needs.configuration.outputs.available == 'true' && (inputs.inventory_items && 'inventory-readback' || github.event.issue.number || inputs.issue || 'global') || 'configuration' }}
-      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -64,11 +64,9 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Verify the affected scope and retain failure diagnostics
-        if: github.event_name != 'workflow_dispatch' || inputs.inventory_items == ''
         run: node scripts/roadmap-health.mts
         env:
           GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
-          GITHUB_TOKEN: ${{ github.token }}
       - name: Compare independent Project membership inventories
         if: github.event_name == 'workflow_dispatch' && inputs.inventory_items != ''
         run: node scripts/roadmap-membership-readback.mts

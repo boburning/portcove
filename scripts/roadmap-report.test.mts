@@ -1,0 +1,215 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import {
+  mergeRoadmapObservations,
+  observationFromReceipt,
+  renderRoadmapReport,
+  reportDigest,
+  replayRoadmapRuns,
+  legacyRoadmapObservations,
+  collectReplayWindows,
+  ReplayWindowFull,
+} from "./roadmap-report.mts";
+import type { RoadmapReportState } from "./roadmap-report.mts";
+const repository = "boburning/portcove";
+const blank = (): RoadmapReportState => ({
+  format_version: 1,
+  cursor: "2026-10-24T00:00:00Z",
+  observations: {},
+  publication_gaps: [],
+});
+
+void test("legacy failures migrate without losing unrelated scopes or reviving recovered setup history", () => {
+  const comment = (id: number, issue: number, status: string) => ({ id, user: { type: "Bot", login: "github-actions[bot]" }, body: `<!-- portcove-roadmap-health:${JSON.stringify({ scope: JSON.stringify({kind: "issues", issues: [issue]}), status })} -->\nObserved: 2026-10-24T01:00:00.000Z.\nClassification: \`planning_findings\`.`, updated_at: "2026-10-24T01:00:00Z" });
+  const state = mergeRoadmapObservations(blank(), legacyRoadmapObservations([comment(1, 1, "failed"), comment(2, 2, "failed"), comment(3, 1, "passed"), { ...comment(4, 3, "failed"), user: { type: "User", login: "github-actions[bot]" } }], repository));
+  assert.equal(state.observations["issue:1"]?.status, "passed");
+  assert.equal(state.observations["issue:2"]?.status, "needs_attention");
+  assert.equal(state.observations["issue:3"], undefined);
+});
+
+void test("replay partitions the provider ceiling and deduplicates inclusive boundaries", () => {
+  const start = "2026-10-24T00:00:00.000Z", end = "2026-10-24T02:00:00.000Z";
+  const values = collectReplayWindows(start, end, (since, until) => {
+    if (since === start && until === end) throw new ReplayWindowFull();
+    return since === start ? [{ id: 1 }, { id: 2 }] : [{ id: 2 }, { id: 3 }];
+  });
+  assert.deepEqual(values.map((value) => value.id), [1, 2, 3]);
+  assert.throws(() => collectReplayWindows(start, "2026-10-24T00:00:00.001Z", () => { throw new ReplayWindowFull(); }), /one second/u);
+});
+const receipt = (
+  issue: number,
+  status = "failed",
+  time = "2026-10-24T01:00:00Z",
+  kind = "planning_findings",
+) => ({
+  status,
+  coverage: kind === "planning_findings" ? "complete" : "inconclusive",
+  scope: { kind: "issues", issues: [issue], checked_issues: status === "passed" ? [issue] : [] },
+  observation: { started_at: time },
+  errors: ["Required declaration missing"],
+  diagnosis: {
+    kind,
+    recovery_condition: "Correct the named description",
+    provider: { status: 403, rate: { resetAt: "2026-10-24T02:00:00Z", remaining: 0 } },
+  },
+});
+function render(state: RoadmapReportState) {
+  return renderRoadmapReport(state, {
+    repository,
+    run: 99,
+    attempt: 1,
+    sha256: reportDigest(JSON.stringify(state)),
+  });
+}
+void test("eight related failures retain eight scope results in one maintained report", () => {
+  let state = blank();
+  for (let issue = 1; issue <= 8; issue++)
+    state = mergeRoadmapObservations(
+      state,
+      observationFromReceipt(receipt(issue), issue, 1, repository),
+    );
+  assert.equal(Object.keys(state.observations).length, 8);
+  const body = render(state);
+  assert.match(body, /8 affected issues/u);
+  for (let issue = 1; issue <= 8; issue++) assert(body.includes(`[#${issue}]`));
+  assert.match(body, /not established by these scoped checks/u);
+  const repeat = mergeRoadmapObservations(
+    state,
+    observationFromReceipt(receipt(3), 3, 1, repository),
+  );
+  assert.deepEqual(repeat, state);
+});
+void test("out-of-order publishers commute and one recovery cannot clear another issue or global gap", () => {
+  const failure1 = observationFromReceipt(receipt(1), 1, 1, repository);
+  const failure2 = observationFromReceipt(receipt(2), 2, 1, repository);
+  const recovery = observationFromReceipt(
+    receipt(1, "passed", "2026-10-24T03:00:00Z"),
+    3,
+    1,
+    repository,
+  );
+  const global = observationFromReceipt(
+    {
+      ...receipt(3, "failed", "2026-10-24T02:00:00Z", "inventory_changed"),
+      scope: { kind: "global" },
+    },
+    4,
+    1,
+    repository,
+  );
+  const fold = (batches: (typeof failure1)[]) => batches.reduce(mergeRoadmapObservations, blank());
+  const a = fold([failure1, failure2, recovery, global]);
+  const b = fold([global, recovery, failure2, failure1]);
+  assert.deepEqual(a.observations, b.observations);
+  assert.equal(a.observations["issue:1"]?.status, "passed");
+  assert.equal(a.observations["issue:2"]?.status, "needs_attention");
+  assert.equal(a.observations.global?.status, "unable_to_verify");
+  assert.match(render(a), /\*\*Unable to verify\*\*/u);
+});
+void test("eight shared quota failures form one incident with reset information and all scopes", () => {
+  let state = blank();
+  for (let issue = 1; issue <= 8; issue++)
+    state = mergeRoadmapObservations(
+      state,
+      observationFromReceipt(
+        receipt(issue, "failed", "2026-10-24T01:00:00Z", "rate_limit"),
+        issue,
+        1,
+        repository,
+      ),
+    );
+  const body = render(state);
+  assert.equal(body.split("| Unable to verify: rate\\_limit |").length - 1, 1);
+  assert.match(body, /Reset: 2026-10-24T02:00:00Z/u);
+  assert.equal(Object.keys(state.observations).length, 8);
+});
+void test("incomplete success, unchecked issues, and publication gaps cannot establish health", () => {
+  assert.equal(
+    observationFromReceipt(
+      { ...receipt(1, "passed"), coverage: "inconclusive" },
+      1,
+      1,
+      repository,
+    )[0]?.status,
+    "unable_to_verify",
+  );
+  assert.throws(
+    () =>
+      observationFromReceipt(
+        { ...receipt(1, "passed"), scope: { kind: "issues", issues: [1], checked_issues: [] } },
+        1,
+        1,
+        repository,
+      ),
+    /checked records/u,
+  );
+  assert.throws(
+    () =>
+      observationFromReceipt(
+        { ...receipt(1, "passed"), scope: { kind: "global" } },
+        1,
+        1,
+        repository,
+      ),
+    /global health/u,
+  );
+  const state = blank();
+  state.publication_gaps.push("Collector artifact missing; replay required");
+  assert.match(render(state), /\*\*Unable to verify\*\*/u);
+});
+void test("only the publisher writes comments, uses trusted main, queues and retains recovery state", () => {
+  const collector = readFileSync(
+    new URL("../.github/workflows/roadmap-health.yml", import.meta.url),
+    "utf8",
+  );
+  const publisher = readFileSync(
+    new URL("../.github/workflows/roadmap-report.yml", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(collector, /issues: write|concurrency:/u);
+  assert.match(publisher, /workflow_run:[\s\S]*types: \[completed\]/u);
+  assert.match(publisher, /group: roadmap-maintained-report[\s\S]*queue: max/u);
+  assert.match(publisher, /ref: \$\{\{ github.event.repository.default_branch \}\}/u);
+  assert.doesNotMatch(publisher, /schedule:|pull_request_target|issue_comment/u);
+  assert(
+    publisher.indexOf("roadmap-publish.mts prepare") <
+      publisher.indexOf("path: work/roadmap-publisher/state.json"),
+  );
+  assert(
+    publisher.indexOf("path: work/roadmap-publisher/state.json") <
+      publisher.indexOf("roadmap-publish.mts publish"),
+  );
+});
+
+void test("interrupted/overflowed publication replays retained results and preserves missing coverage", () => {
+  const runs = Array.from({ length: 8 }, (_, index) => ({
+    run: index + 1,
+    attempt: 1,
+    created_at: `2026-10-24T01:00:0${index}Z`,
+    completed: true,
+  }));
+  const reads: number[] = [];
+  const read = ({ run }: { run: number }) => {
+    reads.push(run);
+    if (run === 3) throw new Error("Missing retained artifact");
+    return observationFromReceipt(receipt(run), run, 1, repository);
+  };
+  const first = replayRoadmapRuns(blank(), runs, "2026-10-24T05:00:00Z", read, 4);
+  assert.match(render(first), /\*\*Unable to verify\*\*/u);
+  assert.equal(first.cursor, runs[2]?.created_at);
+  assert.equal(Object.keys(first.observations).length, 3);
+  const second = replayRoadmapRuns(first, runs, "2026-10-24T05:00:00Z", ({ run }) =>
+    observationFromReceipt(receipt(run), run, 1, repository),
+  );
+  assert.equal(Object.keys(second.observations).length, 8);
+  assert.deepEqual(second.publication_gaps, []);
+  assert.equal(second.cursor, "2026-10-24T05:00:00Z");
+  assert.deepEqual(second.processed, {});
+  // A publisher killed before updating the comment starts from the old snapshot;
+  // replay is idempotent even when those artifact reads happened previously.
+  const recovered = replayRoadmapRuns(blank(), runs, "2026-10-24T05:00:00Z", ({ run }) =>
+    observationFromReceipt(receipt(run), run, 1, repository),
+  );
+  assert.deepEqual(recovered.observations, second.observations);
+});

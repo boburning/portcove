@@ -922,6 +922,27 @@ remain under `work/github-body`. A changed preimage stops the edit; ambiguous
 writes require remote reconciliation before any retry. Specification rewrites
 still preserve dated linked history through the owning Roadmap workflow.
 
+Durable Roadmap specifications also pass the doctor's selected-record planning
+rules against the affected issue's live Project fields before `issue-edit`
+publishes them. Canonical port and origin markers must survive a rewrite;
+identity changes use the explicit Roadmap normalization route. Project fields
+remain the planning authority and the merged catalog remains the support
+authority. The port renderer preserves a research declaration independently of
+ordinary prose. A proposed removal of the required declaration fails before
+publication.
+
+Use `node scripts/roadmap-edit.mts --spec-file work/rewrites.json` for a batch.
+The JSON array contains `{ "target": 168, "body_file": "work/candidate.md",
+"previous_body_file": "work/original.md" }` entries. All candidates and live
+Project observations pass preflight before the first write. Each write still
+refreshes its exact preimage; concurrent changes can stop a partially applied
+batch, whose candidate, preimage, mutation and readback evidence stays under
+`work/roadmap-edit`. A batch of more than ten issues ends with one full doctor;
+smaller batches check the affected issues. A failed or inconclusive final receipt
+does not undo verified writes or authorize blind retries. Finish related Project
+field writes before claiming the final substantial-batch audit; `set-many`
+retains its own final scoped/full selection.
+
 For generated JavaScript, save an owned `.mjs` file or pass source through stdin.
 PowerShell's literal here-string preserves backticks and dollar signs:
 
