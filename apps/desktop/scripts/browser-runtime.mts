@@ -45,8 +45,28 @@ if (
   throw new Error(`Chromium executable is outside the browser cache: ${executable}`);
 }
 
-async function bootstrapChromium() {
-  const metrics = createCiMetrics();
+function headlessShellExecutable() {
+  // Pinned Playwright exposes the same registry used by --only-shell and
+  // headless launch. BrowserType.executablePath() instead names full Chromium.
+  // Registry shape changes produce unknown diagnostics, never a guessed path.
+  const bundle: unknown = createRequire(import.meta.resolve("playwright"))(
+    "playwright-core/lib/coreBundle",
+  );
+  const registryModule = isRecord(bundle) ? bundle.registry : null;
+  const registry = isRecord(registryModule) ? registryModule.registry : null;
+  if (!isRecord(registry) || typeof registry.findExecutable !== "function")
+    throw new Error("Unknown pinned browser registry");
+  const shell: unknown = Reflect.apply(registry.findExecutable, registry, [
+    "chromium-headless-shell",
+  ]);
+  if (!isRecord(shell) || typeof shell.executablePath !== "function")
+    throw new Error("Missing pinned headless shell");
+  const shellExecutable: unknown = Reflect.apply(shell.executablePath, shell, []);
+  if (typeof shellExecutable !== "string") throw new Error("Missing pinned headless executable");
+  return shellExecutable;
+}
+
+function recordBrowserCache(metrics: ReturnType<typeof createCiMetrics>) {
   // Presence is an observation before installation, not proof of a usable cache.
   // Diagnostic metadata must never replace the actual installer/readiness result.
   try {
@@ -55,23 +75,7 @@ async function bootstrapChromium() {
     );
     const metadata: unknown = JSON.parse(manifest.toString("utf8"));
     const version = isRecord(metadata) ? metadata.version : null;
-    // Pinned Playwright exposes the same registry used by --only-shell and
-    // headless launch. BrowserType.executablePath() instead names full Chromium.
-    // Registry shape changes produce unknown diagnostics, never a guessed path.
-    const bundle: unknown = createRequire(import.meta.resolve("playwright"))(
-      "playwright-core/lib/coreBundle",
-    );
-    const registryModule = isRecord(bundle) ? bundle.registry : null;
-    const registry = isRecord(registryModule) ? registryModule.registry : null;
-    if (!isRecord(registry) || typeof registry.findExecutable !== "function")
-      throw new Error("Unknown pinned browser registry");
-    const shell: unknown = Reflect.apply(registry.findExecutable, registry, [
-      "chromium-headless-shell",
-    ]);
-    if (!isRecord(shell) || typeof shell.executablePath !== "function")
-      throw new Error("Missing pinned headless shell");
-    const shellExecutable: unknown = Reflect.apply(shell.executablePath, shell, []);
-    if (typeof shellExecutable !== "string") throw new Error("Missing pinned headless executable");
+    const shellExecutable = headlessShellExecutable();
     const shellPresent = existsSync(shellExecutable);
     const physicalShell = shellPresent
       ? realpathSync(shellExecutable)
@@ -97,6 +101,11 @@ async function bootstrapChromium() {
   } catch {
     metrics.record("browser-bootstrap:cache", { cache_outcome: "unknown" });
   }
+}
+
+async function bootstrapChromium() {
+  const metrics = createCiMetrics();
+  recordBrowserCache(metrics);
   const result = metrics.measure("browser-bootstrap:install", () =>
     spawnCommand(
       process.execPath,
@@ -122,27 +131,7 @@ async function bootstrapChromium() {
   }
 }
 
-async function probeBrowserTrace() {
-  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
-  let browser;
-  try {
-    browser = await chromium.launch({ headless: true });
-  } catch (error) {
-    throw new Error("Chromium is unavailable; run pnpm --dir apps/desktop browser:bootstrap", {
-      cause: error,
-    });
-  } finally {
-    await browser?.close();
-  }
-  const traceRoot = path.join(root, "work", "bt");
-  mkdirSync(traceRoot, { recursive: true });
-  const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
-  if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
-    throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
-  }
-  process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
-  const artifacts = createProbeArtifactReader(traceRun);
-  const reportFile = path.join(traceRun, "result.json");
+async function runFailureProbe(reportFile: string) {
   const { createVitest } = await import("vite-plus/test/node");
   const runner = await createVitest({
     root,
@@ -165,6 +154,13 @@ async function probeBrowserTrace() {
     // of rejecting close(). Keep that result distinct from the expected failure.
     await closeProbeRunner(runner);
   }
+}
+
+function inspectTraceArtifacts(
+  artifacts: ReturnType<typeof createProbeArtifactReader>,
+  traceRun: string,
+  reportFile: string,
+) {
   const files = artifacts.list();
   const read = artifacts.read;
   const outcomes = files.filter((file) => file.isFile() && file.name === "run-outcome.json");
@@ -192,6 +188,32 @@ async function probeBrowserTrace() {
   const png = read(path.join(screenshot.parentPath, screenshot.name), 16 * 1024 * 1024);
   if (!png.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex")))
     throw new Error("Browser probe screenshot is not PNG");
+  return { inspection, png };
+}
+
+async function probeBrowserTrace() {
+  process.env.VITE_PORTCOVE_BROWSER_TRACE_PROBE = "1";
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (error) {
+    throw new Error("Chromium is unavailable; run pnpm --dir apps/desktop browser:bootstrap", {
+      cause: error,
+    });
+  } finally {
+    await browser?.close();
+  }
+  const traceRoot = path.join(root, "work", "bt");
+  mkdirSync(traceRoot, { recursive: true });
+  const traceRun = mkdtempSync(path.join(traceRoot, "run-"));
+  if (path.dirname(resolvePhysicalPath(traceRun)) !== resolvePhysicalPath(traceRoot)) {
+    throw new Error(`Browser trace run resolves outside the trace root: ${traceRun}`);
+  }
+  process.env.PORTCOVE_BROWSER_TRACE_DIR = traceRun;
+  const artifacts = createProbeArtifactReader(traceRun);
+  const reportFile = path.join(traceRun, "result.json");
+  await runFailureProbe(reportFile);
+  const { inspection, png } = inspectTraceArtifacts(artifacts, traceRun, reportFile);
   browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
@@ -215,23 +237,27 @@ async function probeBrowserTrace() {
   process.exitCode = 0;
 }
 
+function verifyScreenshotArtifacts() {
+  const context = screenshotContext(process.env);
+  const directory = path.resolve(process.argv[3] ?? "");
+  const jobs: unknown = JSON.parse(readFileSync(process.argv[4] ?? "", "utf8"));
+  verifyScreenshotJobs(jobs, context);
+  for (const route of screenshotRoutes) {
+    const packet = path.join(
+      directory,
+      `browser-traces-${route}-${context.run}-${context.attempt}`,
+    );
+    console.log(JSON.stringify(verifyScreenshotPacket(packet, route, context)));
+  }
+}
+
 async function runBrowserRuntime() {
   if (process.argv[2] === "bootstrap") await bootstrapChromium();
   else if (process.argv[2] === "probe") await probeBrowserTrace();
   else if (process.argv[2] === "screenshot-only")
     await runScreenshotOnlyProbe(chromium, root, process.argv[3] ?? "", process.env);
   else if (process.argv[2] === "verify-screenshot-only") {
-    const context = screenshotContext(process.env);
-    const directory = path.resolve(process.argv[3] ?? "");
-    const jobs: unknown = JSON.parse(readFileSync(process.argv[4] ?? "", "utf8"));
-    verifyScreenshotJobs(jobs, context);
-    for (const route of screenshotRoutes) {
-      const packet = path.join(
-        directory,
-        `browser-traces-${route}-${context.run}-${context.attempt}`,
-      );
-      console.log(JSON.stringify(verifyScreenshotPacket(packet, route, context)));
-    }
+    verifyScreenshotArtifacts();
   } else
     throw new Error(
       "Usage: browser-runtime.mts bootstrap|probe|screenshot-only ROUTE|verify-screenshot-only DIRECTORY JOBS",

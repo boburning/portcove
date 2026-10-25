@@ -1,3 +1,4 @@
+import type { BigIntStats } from "node:fs";
 import { crc32, inflateRawSync } from "node:zlib";
 import {
   closeSync,
@@ -15,6 +16,59 @@ import { isRecord } from "../../../scripts/runtime-values.mts";
 
 export const probeName = "retains an intentional browser UI failure trace";
 export const probeFailure = "PORTCOVE_EXPECTED_BROWSER_TRACE_FAILURE";
+
+function probeArtifactMetadata(file: string, physical: string, limit: number) {
+  const expected = lstatSync(file, { bigint: true });
+  const relative = path.relative(physical, realpathSync(file));
+  if (
+    !expected.isFile() ||
+    expected.size < 1n ||
+    expected.size > BigInt(limit) ||
+    path.isAbsolute(relative) ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`)
+  )
+    throw new Error("Browser probe artifact is empty, oversized or outside its run");
+  return expected;
+}
+
+function readProbeBytes(handle: number, limit: number) {
+  const bytes = Buffer.allocUnsafe(limit + 1);
+  let length = 0;
+  while (length < bytes.length) {
+    const count = readSync(handle, bytes, length, bytes.length - length, null);
+    if (!count) break;
+    length += count;
+  }
+  return { bytes, length };
+}
+
+function readProbeDescriptor(
+  handle: number,
+  expected: BigIntStats,
+  limit: number,
+  verify: () => void,
+) {
+  const opened = fstatSync(handle, { bigint: true });
+  if (
+    !opened.isFile() ||
+    opened.dev !== expected.dev ||
+    opened.ino !== expected.ino ||
+    opened.size !== expected.size
+  )
+    throw new Error("Browser probe artifact changed before read");
+  const { bytes, length } = readProbeBytes(handle, limit);
+  const after = fstatSync(handle, { bigint: true });
+  verify();
+  if (
+    length !== Number(opened.size) ||
+    length > limit ||
+    after.size !== opened.size ||
+    after.mtimeNs !== opened.mtimeNs
+  )
+    throw new Error("Browser probe artifact changed during bounded read");
+  return bytes.subarray(0, length);
+}
 
 /** Bind fresh output custody before launch; a redirected or replaced run cannot
  * supply artifacts. Reads keep their byte bound even if a file changes. */
@@ -43,44 +97,10 @@ export function createProbeArtifactReader(directory: string) {
       verify();
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 16 * 1024 * 1024)
         throw new Error("Invalid browser probe read limit");
-      const expected = lstatSync(file, { bigint: true });
-      const relative = path.relative(physical, realpathSync(file));
-      if (
-        !expected.isFile() ||
-        expected.size < 1n ||
-        expected.size > BigInt(limit) ||
-        path.isAbsolute(relative) ||
-        relative === ".." ||
-        relative.startsWith(`..${path.sep}`)
-      )
-        throw new Error("Browser probe artifact is empty, oversized or outside its run");
+      const expected = probeArtifactMetadata(file, physical, limit);
       const handle = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
       try {
-        const opened = fstatSync(handle, { bigint: true });
-        if (
-          !opened.isFile() ||
-          opened.dev !== expected.dev ||
-          opened.ino !== expected.ino ||
-          opened.size !== expected.size
-        )
-          throw new Error("Browser probe artifact changed before read");
-        const bytes = Buffer.allocUnsafe(limit + 1);
-        let length = 0;
-        while (length < bytes.length) {
-          const count = readSync(handle, bytes, length, bytes.length - length, null);
-          if (!count) break;
-          length += count;
-        }
-        const after = fstatSync(handle, { bigint: true });
-        verify();
-        if (
-          length !== Number(opened.size) ||
-          length > limit ||
-          after.size !== opened.size ||
-          after.mtimeNs !== opened.mtimeNs
-        )
-          throw new Error("Browser probe artifact changed during bounded read");
-        return bytes.subarray(0, length);
+        return readProbeDescriptor(handle, expected, limit, verify);
       } finally {
         closeSync(handle);
       }
