@@ -50,6 +50,8 @@ permissions:
 
 # Keep line-number backtraces without generating full variable debug data in CI.
 env:
+  PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  PORTCOVE_CHECKOUT_SHA: ${{ github.sha }}
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
   VP_GIT_HOOKS: "0"

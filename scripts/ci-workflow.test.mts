@@ -46,6 +46,16 @@ import {
   dependencyReviewGate,
 } from "./ci-workflow-fixture.mts";
 
+void test("test reports inherit the candidate source separately from the executed checkout", () => {
+  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+  assert.ok(isRecord(settings) && isRecord(settings.env));
+  assert.equal(
+    settings.env.PORTCOVE_HEAD_SHA,
+    "${{ github.event.pull_request.head.sha || github.sha }}",
+  );
+  assert.equal(settings.env.PORTCOVE_CHECKOUT_SHA, "${{ github.sha }}");
+});
+
 void test("every CI job has a finite envelope above its declared step limits", () => {
   const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.jobs));
