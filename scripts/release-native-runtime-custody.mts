@@ -12,10 +12,13 @@ export type NativeRuntimeCustody = ReadonlyMap<string, string>;
 // input is inert UTF-8 JSON on stdin. This command never changes an ACL or owner.
 const windowsCustodyReader = String.raw`
 $ErrorActionPreference='Stop'
+[Console]::Error.WriteLine('portcove-native-custody: started')
+if($PSVersionTable.PSVersion.Major -ne 7){throw 'Fixed native PowerShell7 runtime required'}
 [Console]::InputEncoding=[Text.UTF8Encoding]::new($false,$true)
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false,$true)
 $inputPaths=ConvertFrom-Json -InputObject ([Console]::In.ReadToEnd())
 if($inputPaths -isnot [Array] -or $inputPaths.Count -lt 1 -or $inputPaths.Count -gt 4096){throw 'Windows custody path inventory exceeds bound'}
+[Console]::Error.WriteLine('portcove-native-custody: input-read')
 $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $trusted=@($broker,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
 $rows=@(foreach($entry in $inputPaths){
@@ -35,6 +38,7 @@ $rows=@(foreach($entry in $inputPaths){
  }
  [ordered]@{path=$entry.path;owner=$owner;sddl=$acl.Sddl}
 })
+[Console]::Error.WriteLine('portcove-native-custody: custody-read')
 ConvertTo-Json -InputObject ([ordered]@{schema_version=1;broker_sid=$broker;rows=$rows}) -Depth 4 -Compress
 `;
 
@@ -81,35 +85,48 @@ function inspectWindowsCustody(files: readonly string[]): NativeRuntimeCustody {
     systemRoot && systemRoot.toLowerCase() === "c:\\windows",
     "fixed Windows system root required",
   );
-  const reader = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+  const reader = "C:\\Program Files\\PowerShell\\7\\pwsh.exe";
   assert.equal(realpathSync(reader), reader, "fixed Windows OS reader is linked");
   const input = JSON.stringify(
     [...inventory].map(([filename, item]) => ({ path: filename, file: item.file })),
   );
   assert.ok(Buffer.byteLength(input) <= 256 * 1024, "Windows custody request exceeds bound");
-  const bytes = execFileSync(
-    reader,
-    [
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-InputFormat",
-      "Text",
-      "-OutputFormat",
-      "Text",
-      "-EncodedCommand",
-      Buffer.from(windowsCustodyReader, "utf16le").toString("base64"),
-    ],
-    {
-      input,
-      encoding: "utf8",
-      timeout: 15000,
-      maxBuffer: 1024 * 1024,
-      windowsHide: true,
-      env: { SystemRoot: systemRoot, WINDIR: systemRoot, PATH: path.join(systemRoot, "System32") },
-      stdio: ["pipe", "pipe", "pipe"],
-    },
-  );
+  let bytes: string;
+  try {
+    bytes = execFileSync(
+      reader,
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-InputFormat",
+        "Text",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(windowsCustodyReader, "utf16le").toString("base64"),
+      ],
+      {
+        input,
+        encoding: "utf8",
+        timeout: 15000,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+        env: {
+          SystemRoot: systemRoot,
+          WINDIR: systemRoot,
+          PATH: path.join(systemRoot, "System32"),
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+  } catch (error) {
+    const stderr = isRecord(error) && typeof error.stderr === "string" ? error.stderr : "";
+    const code = isRecord(error) && typeof error.code === "string" ? error.code : "child-refusal";
+    throw new Error(`Windows custody OS read refused (${code}): ${stderr.slice(0, 4096)}`, {
+      cause: error,
+    });
+  }
   const result: unknown = JSON.parse(bytes.replace(/^\uFEFF/u, ""));
   assert.ok(
     isRecord(result) &&

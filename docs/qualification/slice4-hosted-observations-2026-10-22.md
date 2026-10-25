@@ -1036,7 +1036,9 @@ The shared executable-custody reader now supports the selected Windows host path
 with actual OS owner/ACL observations. Linux ownership/mode behavior is preserved.
 The fixed Windows OS reader receives only inert UTF-8 JSON paths through stdin,
 with a cleared child environment, no profiles, no caller script and no ACL/owner
-mutation. It requires the fixed `C:\Windows` system root and canonical OS reader.
+mutation. It requires the fixed `C:\Windows` system root and canonical installed
+PowerShell7 path already required by the Windows native driver. Missing or other
+runtime paths refuse; no installation or search-path fallback occurs.
 It allows only the broker, SYSTEM, Administrators and the existing OS
 TrustedInstaller identity as owners/writers. Applicable explicit and inherited
 foreign file-write or ancestor-replacement permissions refuse; inherited-only
@@ -1058,6 +1060,14 @@ and foreign file-write/ancestor-replacement ACL refusal. Only owned inert fixtur
 ACLs were changed and restored by the tests; the production reader is read-only.
 The initial Windows PowerShell5 JSON-array decoding failure remains retained;
 explicit array assignment and text/UTF-8 transport repaired that reader boundary.
+Original CI40184775750/a1 at85743ae2 then timed out in both first PowerShell5 OS
+reads at the unchanged15-second operation bound; that Windows step's other36 cases passed.
+That failure and original job log remain retained. The reader now uses the
+existing PowerShell7 path and retains three bounded stage markers plus a bounded
+primary child error for diagnosis. Its timeout/output/request limits are unchanged.
+Any later pass establishes only that subsequent path, not a cause for the prior
+timeouts. The existing Linux controller-tool fixture40184775760/a1 passed at the
+original source and retains that scope.
 Final exact-source test/review/CI identities belong to the owning delivery receipt.
 The new test is registered in ordinary Windows helper, full catalog and release
 checks, and selected by the existing release-security ownership rule.

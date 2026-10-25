@@ -89,7 +89,7 @@ Set-Acl -LiteralPath $value.filename -AclObject $acl
 ConvertTo-Json -InputObject $original -Compress
 `;
   const result = spawnSync(
-    "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
     [
       "-NoLogo",
       "-NoProfile",
