@@ -1,4 +1,4 @@
-import { isRecord } from "./runtime-values.mts";
+import { isRecord, errorCode } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -65,7 +65,7 @@ for (const control of baseline.cases)
       };
     } catch (error) {
       assert.ok(error instanceof Error);
-      const code = Reflect.get(error, "code") ?? null;
+      const code = errorCode(error) ?? null;
       actual = {
         outcome: "failure",
         name: error.name,
