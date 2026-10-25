@@ -69,6 +69,9 @@ function nativeControl(
     discoveryStatus?: number;
     stdout?: string;
     report?: (text: string) => void;
+    head?: string;
+    diagnostic?: (text: string) => void;
+    receiptFailure?: boolean;
   } = {},
 ) {
   const calls: string[][] = [];
@@ -77,13 +80,21 @@ function nativeControl(
     runQualificationNextest("workspace-other", undefined, {
       cwd,
       environment: {
-        PORTCOVE_HEAD_SHA: "b".repeat(40),
+        PORTCOVE_HEAD_SHA: options.head ?? "b".repeat(40),
         GITHUB_SHA: "a".repeat(40),
         GITHUB_RUN_ID: "12",
         GITHUB_RUN_ATTEMPT: "1",
         GITHUB_JOB: "fixture",
       },
       report: options.report ?? ((text) => records.push(text)),
+      ...(options.diagnostic ? { diagnostic: options.diagnostic } : {}),
+      ...(options.receiptFailure
+        ? {
+            publishReceipt() {
+              throw new Error("fixture receipt unavailable");
+            },
+          }
+        : {}),
       spawnSync(command, args) {
         calls.push([command, ...args]);
         if (command === "git") return { status: 0, stdout: "a".repeat(40) + "\n" };
@@ -238,20 +249,64 @@ void test("failed discovery, empty selection and wrong tool/runtime pins never s
   assert.equal(control.calls.length, 0);
 });
 
-void test("qualification reporting failure retains native failure and refuses native success", (t) => {
-  for (const status of [0, 100]) {
-    const cwd = directory(t);
-    const control = nativeControl(cwd, {
-      status,
-      report(text) {
-        if (!text.startsWith("Rust qualification selection observation: "))
-          throw new Error("fixture report unavailable");
-      },
-    });
-    assert.equal(control.invoke(), status || 1);
-    assert.equal(packet(cwd).receipt.native_status, status);
-    assert.equal(packet(cwd).receipt.complete, false);
+void test("manual qualification binds an empty classifier head to actual checkout and rejects malformed labels", (t) => {
+  const cwd = directory(t),
+    control = nativeControl(cwd, { head: "" });
+  assert.equal(control.invoke(), 0);
+  const line = control.records.find((text) => text.startsWith("Rust test case observation: "));
+  assert.ok(line);
+  assert.equal(
+    record(JSON.parse(line.slice("Rust test case observation: ".length))).source,
+    "a".repeat(40),
+  );
+  for (const head of [" ", "malformed", "g".repeat(40)]) {
+    const bad = nativeControl(directory(t), { head });
+    assert.equal(bad.invoke(), 1);
+    assert.ok(!bad.calls.some((args) => args[2] === "run"));
   }
+});
+
+void test("qualification reporting failure retains native failure through receipt and diagnostic failures", (t) => {
+  for (const status of [0, 100]) {
+    for (const receiptFailure of [false, true]) {
+      const cwd = directory(t);
+      let diagnosticCalls = 0;
+      const control = nativeControl(cwd, {
+        status,
+        receiptFailure,
+        diagnostic() {
+          diagnosticCalls++;
+          throw new Error("fixture stderr unavailable");
+        },
+        report(text) {
+          if (!text.startsWith("Rust qualification selection observation: "))
+            throw new Error("fixture report unavailable");
+        },
+      });
+      assert.equal(control.invoke(), status || 1);
+      assert.ok(diagnosticCalls > 0);
+      if (!receiptFailure) {
+        assert.equal(packet(cwd).receipt.native_status, status);
+        assert.equal(packet(cwd).receipt.complete, false);
+      }
+    }
+  }
+});
+
+void test("successful native execution cannot pass when its receipt and diagnostic publication fail", (t) => {
+  const cwd = directory(t);
+  let diagnostics = 0;
+  const control = nativeControl(cwd, {
+    receiptFailure: true,
+    diagnostic() {
+      diagnostics++;
+      throw new Error("fixture stderr unavailable");
+    },
+  });
+  assert.equal(control.invoke(), 1);
+  assert.ok(diagnostics > 0);
+  assert.ok(control.calls.some((args) => args[2] === "run"));
+  assert.ok(control.records.some((text) => text.startsWith("Rust test execution inventory: ")));
 });
 
 void test("qualification CLI runtime closure loads without repository packages or package installation", (t) => {

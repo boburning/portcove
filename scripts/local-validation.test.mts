@@ -53,6 +53,7 @@ void test("qualification outcome helpers retain all direct consumers across life
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const paths = [
     "scripts/qualification-nextest.mts",
+    "scripts/runtime-values.mts",
     "scripts/fixtures/nextest-inventory-baseline.json",
     "scripts/nextest-outcomes.mts",
     ".node-version",

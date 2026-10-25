@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 import { qualificationMatrices } from "./validation-platforms.mts";
 import { isDeepStrictEqual } from "node:util";
+import { qualificationNextestRecipe } from "./qualification-nextest.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const expectedPlatforms = [
@@ -190,8 +191,39 @@ function validateMatrices(
   }
   requireConsumer(
     jobs.native_rust ?? {},
-    'cargo nextest run --locked --workspace --partition "${{ matrix.partition }}"',
+    'node scripts/qualification-nextest.mts native "${{ matrix.partition }}"',
   );
+  qualificationAssert(
+    isDeepStrictEqual(qualificationNextestRecipe("native", "hash:1/1", "/qualification-root"), {
+      scope: ["--locked", "--workspace"],
+      selected: ["--locked", "--workspace", "--partition", "hash:1/1"],
+    }),
+    "native reporter changed package scope or partition",
+  );
+  requireConsumer(
+    jobs.rust_workspace_tests ?? {},
+    "node scripts/qualification-nextest.mts workspace-other",
+  );
+  qualificationAssert(
+    isDeepStrictEqual(
+      qualificationNextestRecipe("workspace-other", undefined, "/qualification-root"),
+      {
+        scope: ["--locked", "--workspace", "--exclude", "portcove-core"],
+        selected: ["--locked", "--workspace", "--exclude", "portcove-core"],
+      },
+    ),
+    "workspace-other reporter changed package scope",
+  );
+  for (const name of ["native_rust", "intel_tests", "rust_workspace_tests"])
+    qualificationAssert(
+      activeSteps(jobs[name] ?? {}).some(
+        (step) =>
+          step.uses === "./.github/actions/setup-rust" &&
+          isRecord(step.with) &&
+          step.with["test-fixtures"] === true,
+      ),
+      `reporter runtime and fixtures missing: ${name}`,
+    );
   requireConsumer(
     jobs.rust_docs ?? {},
     "cargo test --locked --workspace --exclude portcove-desktop --doc",
@@ -208,8 +240,28 @@ function validateMatrices(
   );
   requireConsumer(
     jobs.intel_tests ?? {},
-    'cargo nextest run --archive-file work/intel-tests/intel-tests.tar.zst --workspace-remap "$PWD" --partition "${{ matrix.partition }}"',
+    'node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"',
   );
+  for (const partition of ["hash:1/2", "hash:2/2"])
+    qualificationAssert(
+      isDeepStrictEqual(qualificationNextestRecipe("intel", partition, "/qualification-root"), {
+        scope: [
+          "--archive-file",
+          "work/intel-tests/intel-tests.tar.zst",
+          "--workspace-remap",
+          "/qualification-root",
+        ],
+        selected: [
+          "--archive-file",
+          "work/intel-tests/intel-tests.tar.zst",
+          "--workspace-remap",
+          "/qualification-root",
+          "--partition",
+          partition,
+        ],
+      }),
+      "Intel reporter changed archive, remap or partition",
+    );
   requireConsumer(
     jobs.intel_build ?? {},
     "cargo nextest archive --locked --workspace --target x86_64-apple-darwin --archive-file intel-tests.tar.zst",

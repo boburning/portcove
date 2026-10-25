@@ -1297,6 +1297,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/qualification-nextest.test.mts",
       "scripts/nextest-outcomes.test.mts",
       "scripts/ci-rust-workflow.test.mts",
+      "scripts/qualification-coverage.test.mts",
     ],
   ],
   [
@@ -1735,6 +1736,12 @@ for (const file of [
     "scripts/rust-coverage.test.mts",
   ]);
 }
+explicitNodeTests.set("scripts/runtime-values.mts", [
+  ...(explicitNodeTests.get("scripts/runtime-values.mts") ?? []),
+  "scripts/qualification-nextest.test.mts",
+  "scripts/nextest-outcomes.test.mts",
+  "scripts/qualification-coverage.test.mts",
+]);
 
 const releaseContractTests = Object.freeze([
   "scripts/hosted-native-continuity.test.mts",

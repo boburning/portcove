@@ -12,6 +12,16 @@ import {
 } from "./nextest-outcomes.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+function diagnosticMessage(
+  text: string,
+  write: (value: string) => unknown = (value) => process.stderr.write(value),
+) {
+  try {
+    write(text);
+  } catch {
+    /* An unavailable diagnostic sink cannot replace an original native failure. */
+  }
+}
 type Runner = (
   command: string,
   args: string[],
@@ -84,12 +94,18 @@ export function runQualificationNextest(
     cwd?: string;
     environment?: NodeJS.ProcessEnv;
     report?: (text: string) => void;
+    diagnostic?: (text: string) => void;
+    publishReceipt?: (file: string, text: string) => void;
   } = {},
 ) {
   const cwd = dependencies.cwd ?? root;
   const recipe = qualificationNextestRecipe(mode, partition, cwd);
   const run = dependencies.spawnSync ?? spawnSync;
   const report = dependencies.report ?? ((text: string) => process.stdout.write(text + "\n"));
+  const diagnostic = (text: string) => diagnosticMessage(text, dependencies.diagnostic);
+  const publishReceipt =
+    dependencies.publishReceipt ??
+    ((file: string, text: string) => writeFileSync(file, text, { flag: "wx" }));
   const environment = { ...(dependencies.environment ?? process.env) };
   const directory = path.join(cwd, "work", "test-results");
   mkdirSync(directory, { recursive: true });
@@ -121,7 +137,7 @@ export function runQualificationNextest(
     });
     writeFileSync(path.join(packet, name + ".stdout"), result.stdout ?? "", { flag: "wx" });
     writeFileSync(path.join(packet, name + ".stderr"), result.stderr ?? "", { flag: "wx" });
-    if (result.stderr) process.stderr.write(result.stderr);
+    if (result.stderr) diagnostic(String(result.stderr));
     if (result.error) throw result.error;
     if (result.status !== 0)
       throw new Error(`${name} failed with original status ${result.status}`);
@@ -134,7 +150,8 @@ export function runQualificationNextest(
     const checkout = execute("checkout", "git", ["rev-parse", "HEAD"]).trim();
     if (!/^[0-9a-f]{40}$/u.test(checkout))
       throw new Error("Qualification checkout identity is unavailable");
-    environment.PORTCOVE_HEAD_SHA ??= checkout;
+    if (environment.PORTCOVE_HEAD_SHA === undefined || environment.PORTCOVE_HEAD_SHA === "")
+      environment.PORTCOVE_HEAD_SHA = checkout;
     if (!/^[0-9a-f]{40}$/u.test(environment.PORTCOVE_HEAD_SHA))
       throw new Error("Qualification source identity is unavailable");
     environment.PORTCOVE_CHECKOUT_SHA = checkout;
@@ -157,7 +174,7 @@ export function runQualificationNextest(
       mode,
       partition: partition ?? null,
       recipe,
-      profile: "default",
+      profile: environment.NEXTEST_PROFILE ?? "default",
       node: process.version,
       runner: version,
       source: environment.PORTCOVE_HEAD_SHA,
@@ -245,7 +262,7 @@ export function runQualificationNextest(
         return [];
       }
     });
-    writeFileSync(
+    publishReceipt(
       path.join(packet, "receipt.json"),
       JSON.stringify(
         {
@@ -264,13 +281,12 @@ export function runQualificationNextest(
         null,
         2,
       ) + "\n",
-      { flag: "wx" },
     );
   } catch (error) {
     if (status === 0) status = 1;
-    process.stderr.write(`Qualification receipt incomplete: ${errorMessage(error)}\n`);
+    diagnostic(`Qualification receipt incomplete: ${errorMessage(error)}\n`);
   }
-  if (failure) process.stderr.write(failure + "\n");
+  if (failure) diagnostic(failure + "\n");
   return status;
 }
 
@@ -281,7 +297,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       throw new Error("usage: qualification-nextest.mts workspace-other|native|intel [partition]");
     process.exitCode = runQualificationNextest(mode, partition);
   } catch (error) {
-    process.stderr.write(errorMessage(error) + "\n");
+    diagnosticMessage(errorMessage(error) + "\n");
     process.exitCode = 1;
   }
 }
