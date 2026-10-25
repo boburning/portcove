@@ -149,7 +149,8 @@ fn failed_location_falls_back_but_a_selected_root_never_changes_on_capacity_fail
 #[test]
 fn simultaneous_desktop_and_cli_sessions_have_distinct_leases_envelopes_and_files() {
     let temp = tempfile::tempdir().unwrap();
-    let directory = temp.path().join("diagnostics");
+    let directory =
+        portcove_core::prepare_support_log_directory(&temp.path().join("diagnostics")).unwrap();
     let barrier = Arc::new(Barrier::new(SESSION_LIMIT));
     let threads: Vec<_> = (0..SESSION_LIMIT).map(|index| {
         let barrier = barrier.clone();
@@ -157,7 +158,12 @@ fn simultaneous_desktop_and_cli_sessions_have_distinct_leases_envelopes_and_file
         std::thread::spawn(move || {
             barrier.wait();
             let surface = if index % 2 == 0 { Surface::Desktop } else { Surface::Cli };
-            let (host, guard) = HostDiagnostics::start_in(&directory, surface, false);
+            // Exercise simultaneous real allocation/writers independently of
+            // the public 250ms startup deadline. The blocked-bootstrap test
+            // separately retains that deadline and late-worker lease cleanup.
+            let host = HostDiagnostics::disabled(surface, false);
+            let prepared = HostDiagnostics::prepare_session(directory, host.session_id, surface);
+            let (host, guard) = host.start_prepared(prepared);
             assert!(guard.is_some());
             tracing::subscriber::with_default(tracing_subscriber::registry().with(host.layer()), || {
                 tracing::info!(target: "portcove_diagnostics", sequence = index as u64, message = "isolated session fixture");
