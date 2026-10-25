@@ -53,8 +53,9 @@ try {
     [Console]::Out.WriteLine(($observation | ConvertTo-Json -Depth 8 -Compress))
     [Console]::Error.WriteLine('inert-probe:message-loop')
     # The isolated window station is non-interactive; a modal dialog refuses it.
-    # WinForms can retain startup SW_HIDE; explicitly show only this own private form.
+    # Consume native startup show state explicitly before showing this own private form.
     $form.Show()
+    [void][InertProbeWindow]::ShowWindow($form.Handle, 0)
     [void][InertProbeWindow]::ShowWindow($form.Handle, 5)
     if (-not [InertProbeWindow]::IsWindowVisible($form.Handle)) { throw 'Inert own form remains hidden' }
     [Console]::Error.WriteLine('inert-probe:own-window-visible')

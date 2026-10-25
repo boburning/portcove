@@ -427,7 +427,8 @@ Add-Type -TypeDefinition @'
 using System;
 public static class InertProbeWindow {
  public static bool Visible;
- public static bool ShowWindow(IntPtr window,int command){if(window.ToInt64()!=42 || command!=5)throw new Exception("Wrong window or show command");return false;}
+ public static int Calls;
+ public static bool ShowWindow(IntPtr window,int command){if(window.ToInt64()!=42 || command!=(Calls++%2==0 ? 0 : 5))throw new Exception("Wrong own-window hide/show order");return false;}
  public static bool IsWindowVisible(IntPtr window){if(window.ToInt64()!=42)throw new Exception("Wrong visibility target");return Visible;}
 }
 '@
@@ -435,9 +436,10 @@ $form=[pscustomobject]@{Handle=[IntPtr]42}
 $form|Add-Member ScriptMethod Show {}
 $refused=$false
 try{& $show}catch{if($_.Exception.Message -cne 'Inert own form remains hidden'){throw};$refused=$true}
-if(-not $refused){throw 'Hidden window accepted'}
+if(-not $refused -or [InertProbeWindow]::Calls -ne 2){throw 'Hidden window accepted or startup show state not consumed'}
 [InertProbeWindow]::Visible=$true
 & $show
+if([InertProbeWindow]::Calls -ne 4){throw 'Native hide/show sequence incomplete'}
 'own-window show and refusal passed'
 `);
     assert.match(result, /own-window show and refusal passed/u);
