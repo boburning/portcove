@@ -834,14 +834,16 @@ mod tests {
         assert!(
             hash_stable_regular(&file, 7, &|| {
                 if !changed.replace(true) {
-                    fs::write(&file, b"changed")?;
+                    fs::write(&file, b"changed").expect("same-size fixture mutation must succeed");
                     // A same-tick write can retain identical observable metadata
                     // on Linux. Exercise a definite same-size metadata change,
                     // without sleeping or changing the production inspection.
                     fs::OpenOptions::new()
                         .write(true)
-                        .open(&file)?
-                        .set_modified(original_modified + std::time::Duration::from_secs(2))?;
+                        .open(&file)
+                        .expect("modified fixture must open for timestamp setup")
+                        .set_modified(original_modified + std::time::Duration::from_secs(2))
+                        .expect("fixture timestamp must visibly change");
                 }
                 Ok(())
             })
