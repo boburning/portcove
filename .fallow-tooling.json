@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
   "entry": [
+    "scripts/ci-job-timeout-probe.mts",
     "scripts/*.test.{js,mjs,ts,mts}",
     "integrations/playnite/*.test.{mjs,mts}",
     "scripts/container-entry.{mjs,mts}",
