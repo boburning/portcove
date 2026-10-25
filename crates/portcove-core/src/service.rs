@@ -1697,8 +1697,10 @@ impl PortcoveService {
                     .get(&platform)
                     .is_some_and(|runtime| runtime.source_directory_environment)
             });
-        if source == Some(SourceHealth::Current)
-            && requires_source_directory
+        if matches!(
+            source,
+            Some(SourceHealth::Current | SourceHealth::NotChecked)
+        ) && requires_source_directory
             && port
                 .source_profile
                 .as_ref()
@@ -1707,15 +1709,17 @@ impl PortcoveService {
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
-        if source == Some(SourceHealth::Current)
-            && required_source_extension
-                .as_deref()
-                .is_some_and(|extension| {
-                    port.source_profile
-                        .as_ref()
-                        .and_then(|profile| registered_sources.get(profile))
-                        .is_some_and(|record| !source_path_has_extension(&record.path, extension))
-                })
+        if matches!(
+            source,
+            Some(SourceHealth::Current | SourceHealth::NotChecked)
+        ) && required_source_extension
+            .as_deref()
+            .is_some_and(|extension| {
+                port.source_profile
+                    .as_ref()
+                    .and_then(|profile| registered_sources.get(profile))
+                    .is_some_and(|record| !source_path_has_extension(&record.path, extension))
+            })
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
@@ -1788,7 +1792,7 @@ impl PortcoveService {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
         if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_install_data_compatibility(active, None)
+            self.inspect_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             blockers.push(LaunchBlocker::InvalidInstallation);
@@ -2208,7 +2212,7 @@ impl PortcoveService {
                 Some(ineligible),
             )
         } else if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_install_data_compatibility(active, None)
+            self.inspect_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             assessed(Action::Launch, Availability::Held, Reason::UnsafeData, None)
@@ -2343,7 +2347,8 @@ impl PortcoveService {
                 None,
             ),
             Some(previous) => {
-                match self.rollback_target(&status.port_id, previous, status.active.as_ref()) {
+                match self.rollback_target(&status.port_id, previous, status.active.as_ref(), false)
+                {
                     Ok(_) => (
                         PortActionAvailability::Allowed,
                         PortActionReason::Available,
@@ -2473,7 +2478,20 @@ impl PortcoveService {
         if let Some(health) = checked_sources.get(&contract) {
             return Ok(*health);
         }
-        let health = crate::adapter::inspect_source_health(profile, source);
+        let health = match std::fs::metadata(&source.path) {
+            Ok(metadata) if metadata.is_file() && std::fs::File::open(&source.path).is_err() => {
+                SourceHealth::Unreadable
+            }
+            Ok(metadata) if metadata.is_file() && metadata.len() != source.storage_size => {
+                SourceHealth::Changed
+            }
+            Ok(metadata) if metadata.is_dir() && std::fs::read_dir(&source.path).is_err() => {
+                SourceHealth::Unreadable
+            }
+            Ok(_) => SourceHealth::NotChecked,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => SourceHealth::Missing,
+            Err(_) => SourceHealth::Unreadable,
+        };
         checked_sources.insert(contract, health);
         Ok(health)
     }
@@ -3396,7 +3414,7 @@ impl PortcoveService {
                 PortcoveError::not_found(format!("{port_id} has no rollback version"))
             })?;
             let (port, qualification) = self
-                .rollback_target(port_id, &previous, status.active.as_ref())
+                .rollback_target(port_id, &previous, status.active.as_ref(), true)
                 .map_err(|failure| failure.error)?;
             if let Some(active) = &status.active {
                 self.require_portable_rollback_transition(active, &previous)?;
@@ -3417,6 +3435,7 @@ impl PortcoveService {
         port_id: &str,
         previous: &InstallRecord,
         active: Option<&InstallRecord>,
+        verify_original: bool,
     ) -> std::result::Result<(PortDefinition, InstallQualification), RollbackTargetFailure> {
         // Preview must preserve execution's current-catalog route gate. A
         // retained contract proves the target's identity, not a newly offered
@@ -3428,11 +3447,13 @@ impl PortcoveService {
                 error,
                 definition: None,
             })?;
-        self.require_ghostship_install_data_compatibility(
-            previous,
-            active.map(|install| install.version.as_str()),
-        )
-        .map_err(|error| RollbackTargetFailure {
+        let active_version = active.map(|install| install.version.as_str());
+        let compatibility = if verify_original {
+            self.require_ghostship_install_data_compatibility(previous, active_version)
+        } else {
+            self.inspect_ghostship_install_data_compatibility(previous, active_version)
+        };
+        compatibility.map_err(|error| RollbackTargetFailure {
             reason: PortActionReason::UnsafeData,
             error,
             definition: None,
@@ -12676,7 +12697,7 @@ fn main() {
                 .unwrap(),
         ] {
             let readiness = status.readiness.unwrap();
-            assert_eq!(readiness.source, Some(SourceHealth::Current));
+            assert_eq!(readiness.source, Some(SourceHealth::NotChecked));
             assert_eq!(readiness.required_source_extension.as_deref(), Some("z64"));
             assert_eq!(readiness.blockers, [LaunchBlocker::IncompatibleSource]);
             assert!(!readiness.launchable);
@@ -12698,7 +12719,7 @@ fn main() {
             .readiness
             .unwrap();
         assert!(sibling_readiness.launchable);
-        assert_eq!(sibling_readiness.source, Some(SourceHealth::Current));
+        assert_eq!(sibling_readiness.source, Some(SourceHealth::NotChecked));
         assert!(sibling_readiness.required_source_extension.is_none());
         assert_eq!(
             service
@@ -14399,10 +14420,10 @@ fn main() {
         let pending = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!pending.launchable);
         assert_eq!(pending.blockers, [LaunchBlocker::PreparationRequired]);
-        assert_eq!(pending.source, Some(SourceHealth::Current));
+        assert_eq!(pending.source, Some(SourceHealth::NotChecked));
         assert!(pending.pending_setup);
 
-        fs::write(&source_path, b"registered sourcf").unwrap();
+        fs::write(&source_path, b"registered sourcf longer").unwrap();
         let changed = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!changed.launchable);
         assert_eq!(
@@ -14595,7 +14616,58 @@ fn main() {
     }
 
     #[test]
-    fn status_keeps_shared_source_health_bound_to_each_installed_contract() {
+    fn status_source_metadata_never_hashes_same_size_originals() {
+        let temporary = tempfile::tempdir().unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let profile_id = catalog
+            .port("zelda64-recomp")
+            .unwrap()
+            .source_profile
+            .as_ref()
+            .unwrap();
+        let path = temporary.path().join("game.z64");
+        fs::write(&path, b"original bytes").unwrap();
+        let (sha256, size) = crate::adapter::hash_file(&path).unwrap();
+        let source = SourceRecord {
+            profile_id: profile_id.clone(),
+            path: path.clone(),
+            sha256: sha256.clone(),
+            size,
+            storage_sha256: sha256,
+            storage_size: size,
+            updated_at: Library::now(),
+            observed_identity: None,
+        };
+        let sources = HashMap::from([(profile_id.clone(), source.clone())]);
+        fs::write(&path, b"tampered bytes").unwrap();
+        let reads = std::rc::Rc::new(std::cell::Cell::new(0));
+        let observed = reads.clone();
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| {
+            *observer.borrow_mut() = Some(Box::new(move |_| observed.set(observed.get() + 1)));
+        });
+        let health = PortcoveService::source_health(
+            &catalog,
+            profile_id,
+            true,
+            &sources,
+            &mut HashMap::new(),
+        )
+        .unwrap();
+        let automatic_reads = reads.get();
+        let explicit = crate::adapter::inspect_source_health(
+            catalog.source_profile(profile_id).unwrap(),
+            &source,
+        );
+        let verified = crate::source_inspection::verify_registered(&catalog, &source);
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| observer.borrow_mut().take());
+        assert_eq!(health, SourceHealth::NotChecked);
+        assert_eq!(automatic_reads, 0);
+        assert_eq!(explicit, SourceHealth::Changed);
+        assert!(verified.is_err());
+    }
+
+    #[test]
+    fn status_observes_shared_source_metadata_without_rechecking_installed_contracts() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source_root = temporary.path().join("owned-source-set");
@@ -14717,6 +14789,11 @@ fn main() {
                 .unwrap();
         }
         service.catalog = changed;
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| {
+            *observer.borrow_mut() = Some(Box::new(|_| {
+                panic!("automatic status hashed source content")
+            }));
+        });
         for reverse in [false, true] {
             if reverse {
                 document.ports.reverse();
@@ -14725,8 +14802,8 @@ fn main() {
             }
             let statuses = service.statuses().unwrap();
             for (id, expected) in [
-                ("g-diffuser", SourceHealth::Current),
-                ("g-diffuser-fixture", SourceHealth::Changed),
+                ("g-diffuser", SourceHealth::NotChecked),
+                ("g-diffuser-fixture", SourceHealth::NotChecked),
             ] {
                 let single = service.status(id).unwrap().readiness.unwrap();
                 let batched = statuses
@@ -14743,13 +14820,14 @@ fn main() {
                     "batch {id}; reversed={reverse}"
                 );
                 assert_eq!(single.blockers, batched.blockers);
-                assert_eq!(single.launchable, expected == SourceHealth::Current);
+                assert!(single.launchable);
             }
         }
         assert_eq!(
             serde_json::to_value(library.source(&registered.profile_id).unwrap()).unwrap(),
             serde_json::to_value(&registered).unwrap()
         );
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| observer.borrow_mut().take());
         fs::remove_dir_all(&source_root).unwrap();
         for id in ["g-diffuser", "g-diffuser-fixture"] {
             assert_eq!(

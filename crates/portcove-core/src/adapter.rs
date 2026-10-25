@@ -2801,6 +2801,7 @@ pub(crate) fn verify_source_storage_identity(source: &SourceRecord, role: &str) 
     Ok(())
 }
 
+#[cfg(test)]
 pub(crate) fn inspect_source_health(
     profile: &SourceProfile,
     source: &SourceRecord,

@@ -1201,11 +1201,13 @@ function SourceInspectionState({
   if (!props.profileAvailable || !read || read.status === "current")
     return <SourceState {...props} />;
   const label =
-    read.status === "pending"
-      ? "Checking"
-      : read.status === "cancelled"
-        ? "Check cancelled"
-        : "Check unavailable";
+    read.status === "idle"
+      ? "Not checked"
+      : read.status === "pending"
+        ? "Checking"
+        : read.status === "cancelled"
+          ? "Check cancelled"
+          : "Check unavailable";
   return (
     <span className="source-state inline-flex items-center gap-1 text-xs text-pc-muted-foreground">
       {label}
@@ -1230,11 +1232,13 @@ function SourceInspectionPresentation({
 }) {
   const currentReport = !read || read.status === "current" ? report : undefined;
   const message =
-    read?.status === "pending"
-      ? "Checking file…"
-      : read?.status === "cancelled"
-        ? "File check cancelled."
-        : (read?.failure?.summary ?? "File check is unavailable. Try checking it again.");
+    read?.status === "idle"
+      ? "Check this file to see its current identity and compatibility."
+      : read?.status === "pending"
+        ? "Checking file…"
+        : read?.status === "cancelled"
+          ? "File check cancelled."
+          : (read?.failure?.summary ?? "File check is unavailable. Try checking it again.");
   return (
     <div className="col-span-full min-w-0">
       <div>
@@ -1268,9 +1272,11 @@ function SourceInspectionPresentation({
           disabled={disabled || read.status === "pending"}
           onClick={() => void retry(profileId)}
         >
-          {read.status === "failed" || read.status === "cancelled"
-            ? "Retry file check"
-            : "Check file again"}
+          {read.status === "idle"
+            ? "Check file"
+            : read.status === "failed" || read.status === "cancelled"
+              ? "Retry file check"
+              : "Check file again"}
         </Button>
       )}
     </div>
