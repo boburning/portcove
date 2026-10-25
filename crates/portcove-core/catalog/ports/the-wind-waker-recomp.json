@@ -7,8 +7,8 @@
     "project_url": "https://github.com/sp00nznet/ww",
     "issue_number": 170,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/sp00nznet/ww",
+    "availability": "source-only",
+    "setup_url": "https://github.com/sp00nznet/ww#readme",
     "artwork": {
       "game_id": 1033,
       "cover_id": 171719,
@@ -16,6 +16,20 @@
       "image_sha256": "3cddca6230a670b7b1eb79f84ea5b57202b9341ed4e0b47067a3e1a0e0cba1a9",
       "game_slug": "the-legend-of-zelda-the-wind-waker",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Understand the current development limit",
+          "instruction": "This project currently demonstrates the Wind Waker renderer and framework, with the frame loop driven manually; it is not yet the game. Its Windows ww_launcher.exe is that development renderer. Follow upstream’s developer instructions with your own disc/main.dol only if you are preparing or retaining this experimental renderer; preserve its working directory and documented --iso arguments. Do not select gcrecomp_recompiler.exe as the runtime. A playable game route still requires upstream runtime completion."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/sp00nznet/ww#readme"
     }
   }
 }

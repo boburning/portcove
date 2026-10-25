@@ -7,8 +7,8 @@
     "project_url": "https://github.com/ethannicholas/bluestorm-recomp",
     "issue_number": 1572,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ethannicholas/bluestorm-recomp",
+    "availability": "source-only",
+    "setup_url": "https://github.com/ethannicholas/bluestorm-recomp#readme",
     "artwork": {
       "game_id": 4232,
       "cover_id": 79589,
@@ -16,6 +16,20 @@
       "image_sha256": "35a43121de0752a802b7a511a21e0e83dda1025a1e6da8fc1d9409098bf75695",
       "game_slug": "wave-race-blue-storm",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow upstream's recursive gcnrecomp/build guide with your own GWRE01 USA Wave Race: Blue Storm disc. The Windows player is waverace.exe; use the repository root as working directory and deliberately select the correct ISO on first Play. Use the ordinary invocation unless you deliberately prepare optional VR. Preserve saves/memcard_a.raw as actual player data outside Portcove backup; shader cache is separate. Upstream prohibits redistribution of the game-derived output. Keep the prepared source/data/runtime together; this project offers no complete game package for Portcove to replace."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/ethannicholas/bluestorm-recomp#readme"
     }
   }
 }
