@@ -3,11 +3,34 @@
   "listing": {
     "id": "wipeout-3-special-edition-recomp",
     "name": "Wipeout 3 Special Edition Recomp",
-    "summary": "Explore Wipeout 3 Special Edition Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Build the European WipEout 3 Special Edition through its upstream source workflow using your own complete disc.",
     "project_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp",
     "issue_number": 172,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp"
+    "availability": "source-only",
+    "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the European Special Edition through upstream",
+          "instruction": "Follow the pinned upstream source guide: initialize its recursive submodules, build its emitters, generate from your own complete European WipEout 3 Special Edition SCES-02845 14-track CUE/BIN set, then build the psx-runtime target. game.toml identifies that edition; the README’s USA table is inconsistent. Register the resulting native runtime with the prepared project folder as its working directory; the code generator is not the player. Both this repository and its separate release-badge destination have complete empty release histories at review, so no downloadable player or automatic repository substitution is established."
+        },
+        {
+          "title": "Keep updates and data with your working copy",
+          "instruction": "Save the completed runtime’s launch details, then choose Play separately. Keep your original disc, generated output, game.toml/game_options.toml, configured saves memory-card folder, mods and any custom data paths backed up with your working copy. You or upstream own replacement and preparation. Prepare updates separately and retain the current copy until ready. Portcove leaves external files untouched and supplies no managed Update, Backup or Rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+    },
+    "original_game_title": "WipEout 3 Special Edition",
+    "artwork": {
+      "game_id": 44855,
+      "cover_id": 115128,
+      "image_id": "co2gu0",
+      "image_sha256": "5deb79fb098b28d69a1cb67a0bd21aa5d26597d735a2006d7b824aa609fd820e",
+      "game_slug": "wipeout-3-special-edition",
+      "match_kind": "underlying-game"
+    }
   }
 }

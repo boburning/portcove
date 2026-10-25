@@ -8061,14 +8061,51 @@
     {
       "id": "burnout-2-timftw21",
       "name": "Burnout 2: Point of Impact / timftw21 recompilation",
-      "summary": "Explore the timftw21 Burnout 2 project and follow upstream for original-game requirements, downloads and setup.",
+      "summary": "Build Burnout 2 from your own US Xbox disc through upstream setup, keeping its saves and imported music.",
       "project_url": "https://github.com/timftw21/burnout2-recompilation",
       "original_game_title": "Burnout 2: Point of Impact",
       "issue_number": 2447,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
       "release_url": "https://github.com/timftw21/burnout2-recompilation/releases",
-      "setup_url": "https://github.com/timftw21/burnout2-recompilation"
+      "setup_url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a player with upstream setup",
+            "instruction": "The official Installation.zip is a source and setup kit, not a ready-made player. On Windows, install the upstream LLVM 22.1-or-newer, Visual Studio 2026 C++/Windows SDK, CMake 4.2-or-newer, Git and Ninja prerequisites, extract the kit into a separate retained source folder, then deliberately run Build.cmd and select your own US Xbox XISO (.iso or .xiso). A full-disc dump needs upstream conversion first. The builder acquires dependencies and builds the player. Portcove does not run it during discovery."
+          },
+          {
+            "title": "Register the completed player",
+            "instruction": "When the upstream build succeeds, use Open game folder and choose b2.exe with that folder as its working directory in Portcove. Save the launch details, then choose Play separately. For Linux use upstream Install.desktop; macOS uses Install.command and its Xcode/macOS prerequisites. These experimental native platforms have separate dependency/build instructions; Windows package inspection does not qualify them. Keep source, build and data folders together, and rerun upstream setup after moving them."
+          },
+          {
+            "title": "Back up and rebuild when updating",
+            "instruction": "You or upstream own the runtime, generated game files and updates. Before updating, close the game and builder and back up data/user, data/local/settings.cfg and any data/local/custom-music beside the player. Extract updated source over the retained source folder while keeping build and data, then deliberately rerun the platform setup with your own XISO. Keep the old working copy and originals recoverable. Portcove external registration leaves files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/README.md"
+      },
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Installation.zip"
+        ]
+      },
+      "artwork": {
+        "game_id": 3840,
+        "cover_id": 126527,
+        "image_id": "co2pmn",
+        "image_sha256": "74976a1b89848f15359717c555c095d5a35564b92636404faf8cb1c1cf4475b1",
+        "game_slug": "burnout-2-point-of-impact",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "burnout-3-takedawn-xbox",
@@ -9308,12 +9345,17 @@
     {
       "id": "derrickgold-ar-recomp",
       "name": "ActRaiser / ActRaiser Recompiled (DerrickGold)",
-      "summary": "Explore ActRaiser / ActRaiser Recompiled (DerrickGold) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use the upstream Builder to turn your own USA ActRaiser ROM into a player, then keep updates and saves with that workflow.",
       "project_url": "https://github.com/DerrickGold/ar-recomp",
       "issue_number": 1791,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/DerrickGold/ar-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
       "artwork": {
         "game_id": 6468,
         "cover_id": 292420,
@@ -9321,7 +9363,45 @@
         "image_sha256": "aedb4a72a76144aa114d97520dbff8883f8e5e874dec8a3439577b51aa29e401",
         "game_slug": "actraiser",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Prepare the game with the upstream Builder",
+            "instruction": "The portable download is ActRaiser Recomp Builder, not a prepared player. For a Windows or macOS portable desktop bundle, extract it into a writable folder, keep its .portable marker and BuilderData together, then deliberately open ActRaiserRecompBuilder.exe on Windows or the matching Builder app’s Workshop. The generic Linux x64 tar.xz uses ./run-build.sh to open the Workshop in your browser; follow its upstream prerequisites. Choose your own supported USA ActRaiser ROM and Build game. The bundle supplies its compiler; Portcove does not run it during discovery. Use the matching package and instructions for your platform."
+          },
+          {
+            "title": "Add the completed game",
+            "instruction": "The default output is ActRaiserRecomp beside the Builder. Choose the completed game executable in that output folder in Portcove, with its folder as the working directory. Keep its DLLs, user-rom.sfc, tools, assets, settings and saves together. Save launch details, then choose Play separately. If application control blocks a builder tool, retain its error and use upstream/administrator guidance."
+          },
+          {
+            "title": "Back up and rebuild to update",
+            "instruction": "You or upstream own the generated player and updates. Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder. Upstream migrates older save.srm/save.ini or actraiser.srm to Slot 1 and keeps originals under saves/legacy-layout. Use Import previous installation for older utils layouts. Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
+          }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ActRaiserRecompBuilder-",
+          "windows-x86_64-portable.zip"
+        ],
+        "macos-x86-64": [
+          "ActRaiserRecompBuilder-",
+          "macos-x86_64-portable.zip"
+        ],
+        "macos-aarch64": [
+          "ActRaiserRecompBuilder-",
+          "macos-arm64-portable.zip"
+        ],
+        "linux-x86-64": [
+          "actraiser-recomp-linux-x86_64.tar.xz"
+        ]
+      },
+      "original_game_title": "ActRaiser",
+      "release_url": "https://github.com/DerrickGold/ar-recomp/releases",
+      "recommended_download_channel": "beta"
     },
     {
       "id": "descent-dxx-rebirth",
@@ -10950,12 +11030,15 @@
     {
       "id": "gsrecomp",
       "name": "Golden Sun Recompiled (GSRecomp)",
-      "summary": "Explore Golden Sun Recompiled (GSRecomp) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare either Golden Sun game from your own matching ROM through the shared upstream launcher.",
       "project_url": "https://github.com/Shmargus/GSRecomp",
       "issue_number": 1619,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Shmargus/GSRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
       "artwork": {
         "game_id": 1172,
         "cover_id": 85978,
@@ -10963,7 +11046,38 @@
         "image_sha256": "dff4cc742ba8d38f9e5ebe17b900ea1f1dfa453be1bff6ffedfa321e339aba0c",
         "game_slug": "golden-sun",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Prepare either game with the shared launcher",
+            "instruction": "Extract the whole official package. Choose GoldenSunLauncher.exe on Windows, or GoldenSunLauncher on Linux, then choose The Broken Seal or The Lost Age and your own matching USA/Europe GBA ROM. Keep the normal SHA-1 ROM check enabled. No GBA BIOS is required. The bundled compiler prepares game code on first launch and after updates; Linux also needs system SDL2 and OpenGL. Portcove does not run this builder during discovery."
+          },
+          {
+            "title": "Register the collection launcher",
+            "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; successful preparation is not completed gameplay qualification."
+          },
+          {
+            "title": "Keep current data and rebuild after updates",
+            "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. The launcher keeps original imported saves and puts conflicts under Saves/Imported. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+          }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "GoldenSunRecompiled-",
+          "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "GoldenSunRecompiled-",
+          "-linux.zip"
+        ]
+      },
+      "original_game_title": "Golden Sun",
+      "release_url": "https://github.com/Shmargus/GSRecomp/releases",
+      "recommended_download_channel": "beta"
     },
     {
       "id": "gtteancum-openjam",
@@ -16529,12 +16643,14 @@
     {
       "id": "sonic-mania-sonic-mania-decompilation-rsdkv5",
       "name": "Sonic Mania / Sonic Mania decompilation + RSDKv5",
-      "summary": "Explore Sonic Mania / Sonic Mania decompilation + RSDKv5 and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Pair the matching Sonic Mania module and RSDK engine with your own game assets before adding the player.",
       "project_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
       "issue_number": 384,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/README.md",
       "artwork": {
         "game_id": 21062,
         "cover_id": 515556,
@@ -16542,6 +16658,32 @@
         "image_sha256": "5d2b03cbd07290402537b9d9eadefb95b5a1012b31d0d6f4d71e595ef4354e9e",
         "game_slug": "sonic-mania",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Pair the game module with its matching engine",
+            "instruction": "The reviewed mania-windows-x64.zip contains v5/Game.dll and v5U/Game.dll, not a player executable. Follow upstream’s guide to obtain the matching RSDKv5 or RSDKv5U engine, use only the matching Game.dll variant beside that engine, and supply assets from your own supported Sonic Mania (Plus) release. The Netflix Games version is not supported. Keep this prepared folder separate from your only working copy."
+          },
+          {
+            "title": "Register the prepared player",
+            "instruction": "Choose the actual matching engine executable after upstream setup, with its prepared game folder as the working directory. Game.dll is a module, not a launch target. Read-only discovery and downloading do not run or combine modules/helpers. Upstream’s save-transfer guidance can bring over your own original PC save data; keep a separate original copy. Keep your actual save data, settings and mods with that prepared folder. Save launch details first, then choose Play separately."
+          },
+          {
+            "title": "Keep runtime replacement with upstream",
+            "instruction": "Use upstream’s compatible engine/Game.dll pair and a separately prepared replacement folder when updating; keep the current folder and its saves recoverable until the replacement works. You or upstream provide runtime updates; Portcove does not back up or roll back this external copy. This download is a game module rather than a complete player, so finish pairing it through upstream before registering."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/README.md"
+      },
+      "original_game_title": "Sonic Mania",
+      "release_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "mania-windows-x64.zip"
+        ]
       }
     },
     {
@@ -19282,12 +19424,35 @@
     {
       "id": "wipeout-3-special-edition-recomp",
       "name": "Wipeout 3 Special Edition Recomp",
-      "summary": "Explore Wipeout 3 Special Edition Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Build the European WipEout 3 Special Edition through its upstream source workflow using your own complete disc.",
       "project_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp",
       "issue_number": 172,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp"
+      "availability": "source-only",
+      "setup_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the European Special Edition through upstream",
+            "instruction": "Follow the pinned upstream source guide: initialize its recursive submodules, build its emitters, generate from your own complete European WipEout 3 Special Edition SCES-02845 14-track CUE/BIN set, then build the psx-runtime target. game.toml identifies that edition; the README’s USA table is inconsistent. Register the resulting native runtime with the prepared project folder as its working directory; the code generator is not the player. Both this repository and its separate release-badge destination have complete empty release histories at review, so no downloadable player or automatic repository substitution is established."
+          },
+          {
+            "title": "Keep updates and data with your working copy",
+            "instruction": "Save the completed runtime’s launch details, then choose Play separately. Keep your original disc, generated output, game.toml/game_options.toml, configured saves memory-card folder, mods and any custom data paths backed up with your working copy. You or upstream own replacement and preparation. Prepare updates separately and retain the current copy until ready. Portcove leaves external files untouched and supplies no managed Update, Backup or Rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+      },
+      "original_game_title": "WipEout 3 Special Edition",
+      "artwork": {
+        "game_id": 44855,
+        "cover_id": 115128,
+        "image_id": "co2gu0",
+        "image_sha256": "5deb79fb098b28d69a1cb67a0bd21aa5d26597d735a2006d7b824aa609fd820e",
+        "game_slug": "wipeout-3-special-edition",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "wipeout-phantom-edition",
@@ -19598,12 +19763,17 @@
     {
       "id": "xander-haj-z3r",
       "name": "The Legend of Zelda: A Link to the Past / Zelda 3 Reborn / Z3R (xander-haj)",
-      "summary": "Explore The Legend of Zelda: A Link to the Past / Zelda 3 Reborn / Z3R (xander-haj) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare Zelda 3 Reborn with your own USA A Link to the Past ROM and the upstream launcher.",
       "project_url": "https://github.com/xander-haj/Z3R",
       "issue_number": 1912,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/xander-haj/Z3R",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md",
       "artwork": {
         "game_id": 1026,
         "cover_id": 181427,
@@ -19611,7 +19781,34 @@
         "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
         "game_slug": "the-legend-of-zelda-a-link-to-the-past",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Let the upstream launcher prepare your own game",
+            "instruction": "The recommended Windows download is the upstream lawn/Z3R Launcher setup package. Open that installer deliberately after downloading, then use its guided preparation. Install its published package for your platform, choose your own clean USA A Link to the Past .sfc, and follow its setup/extract/build steps. The Windows setup package includes the lightweight Git/Python/TCC/SDL2 toolkit; choosing a separate MSBuild route needs its own build tools. Linux and macOS use their matching upstream dependency guide. Portcove does not install these tools or run the launcher during discovery. When setup finishes, register the prepared zelda3.exe on Windows or native zelda3 player on Linux/macOS with its project folder as the working directory, then choose Play explicitly."
+          },
+          {
+            "title": "Keep the generated assets and player data together",
+            "instruction": "Keep the complete prepared project, your original ROM, zelda3_assets.dat, zelda3.user.ini overrides, saves, custom sprites/shaders/MSU packs, and any randomizer YAML, seed/spoiler files or selected feature-asset folders separately backed up. The game tries zelda3.user.ini before zelda3.ini. Keep packaged defaults with their own release and use user overrides for personal settings. The native release ZIP supplies a player and SDL but no generated zelda3_assets.dat; copying that executable alone is not finished setup."
+          },
+          {
+            "title": "Regenerate matching assets when updating",
+            "instruction": "Let the selected upstream launcher manage its own project setup and updates. The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games. The launcher’s Updates action uses its matching platform installer or self-replacement route; keep that owner. Its download feed follows releases without a fixed tag in this listing."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Z3R-Launcher-",
+          "windows-x64-setup.exe"
+        ]
+      },
+      "original_game_title": "The Legend of Zelda: A Link to the Past",
+      "release_url": "https://github.com/xander-haj/lawn/releases",
+      "recommended_download_channel": "stable"
     },
     {
       "id": "xena-warrior-princess-xena-recomp",
