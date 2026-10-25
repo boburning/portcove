@@ -25,7 +25,6 @@ import {
   qualificationWorkflow,
   qualityGuide,
   windowsQualificationRunner,
-  fastRust,
   fastRustTests,
   fastRustQuality,
   rustTests,
