@@ -81,8 +81,7 @@ void test("qualification reporter callers cannot change mode, partition, runtime
         if (mutation === "ignored-failure") caller["continue-on-error"] = true;
         if (mutation === "wrong-mode")
           caller.run = "node scripts/qualification-nextest.mts foreign";
-        if (mutation === "extra-selector")
-          caller.run = originalCommand + " --profile hidden";
+        if (mutation === "extra-selector") caller.run = originalCommand + " --profile hidden";
         if (mutation === "missing-runtime") {
           const setup = requiredFixture(
             steps(job).find((step) => step.uses === "./.github/actions/setup-rust"),
