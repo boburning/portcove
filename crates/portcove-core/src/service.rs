@@ -5045,12 +5045,6 @@ impl PortcoveService {
             .detail("launch_session_id", session_id)
             .detail("recovery_action", "manual_review"));
         }
-        self.library.update_launch_session(
-            session_id,
-            None,
-            None,
-            LaunchSessionPhase::Recovering,
-        )?;
         if matches!(
             session.phase,
             LaunchSessionPhase::Running | LaunchSessionPhase::Recovering
@@ -5069,6 +5063,12 @@ impl PortcoveService {
                 .detail("recovery_action", "manual_review")
             })?;
             crate::launch::wait_for_process_exit(child_pid, child_identity)?;
+            self.library.update_launch_session(
+                session_id,
+                None,
+                None,
+                LaunchSessionPhase::Collecting,
+            )?;
         }
         if session.owner_kind == crate::LaunchOwnerKind::Managed {
             self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
@@ -16772,6 +16772,81 @@ fn main() {
     fn recovers_launch_collecting() {
         assert_supervisor_crashes_after_spawn_or_during_collection_never_become_success(
             LifecycleFaultPoint::LaunchCollecting,
+        );
+    }
+
+    #[test]
+    fn recovery_collection_failure_preserves_retry_without_child_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_launch_probe(&library, "v1", true);
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: install.id,
+                install_root: install.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: LaunchSessionPhase::Collecting,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        fs::write(install.path.join("general.json"), b"recovered save").unwrap();
+        let user = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user).unwrap();
+        fs::create_dir(user.join("general.json")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        assert!(service.recover_launch_session(&activity.id).is_err());
+        let retained = library
+            .active_launch_session(&activity.id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.phase, LaunchSessionPhase::Collecting);
+        assert!(retained.child_identity.is_none());
+        assert!(library.try_lock_port("zelda64-recomp", "update").is_err());
+        fs::remove_dir(user.join("general.json")).unwrap();
+        drop(service);
+
+        PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&activity.id)
+            .unwrap();
+
+        assert!(
+            library
+                .active_launch_session(&activity.id)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            fs::read(user.join("general.json")).unwrap(),
+            b"recovered save"
+        );
+        assert_eq!(
+            library
+                .launch_request(&activity.id)
+                .unwrap()
+                .unwrap()
+                .outcome,
+            Some(LaunchSessionOutcome::Failed)
         );
     }
 
