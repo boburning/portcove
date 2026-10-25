@@ -282,3 +282,29 @@ if(-not $refused -or (Test-Path -LiteralPath $root)){throw 'Stale parent permitt
     assert.match(result, /without directory creation/u);
   },
 );
+
+void test(
+  "hosted membership call binds the created LocalUser as a LocalPrincipal without group mutation",
+  { skip: process.platform !== "win32" },
+  () => {
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Import-Module Microsoft.PowerShell.LocalAccounts
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$call=$ast.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -ceq 'Add-LocalGroupMember'},$true)
+if($call.Count -ne 1){throw 'Fixed membership call differs'}
+$account=Get-LocalUser -SID ([Security.Principal.WindowsIdentity]::GetCurrent().User)
+$script:observed=$false
+function Add-LocalGroupMember {
+param([Security.Principal.SecurityIdentifier]$SID,[Microsoft.PowerShell.Commands.LocalPrincipal[]]$Member)
+if($SID.Value -cne 'S-1-5-32-545' -or $Member.Count -ne 1 -or $Member[0].SID.Value -cne $account.SID.Value){throw 'Membership identity differs'}
+$script:observed=$true
+}
+. ([scriptblock]::Create($call[0].Extent.Text))
+if(-not $observed){throw 'Actual membership call was not bound'}
+'actual LocalPrincipal parameter binding passed; no group mutation'
+`);
+    assert.match(result, /actual LocalPrincipal parameter binding passed/u);
+  },
+);

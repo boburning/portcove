@@ -88,7 +88,7 @@ try {
     $description='PC534-hosted:'+$context.binding.Substring(0,32)
     $account=New-LocalUser -Name 'PortcoveNativeQual' -Password $password -Description $description -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword -Disabled
     Write-HostedNativeSetupRecord (Join-Path $root 'account-created.json') ([ordered]@{context=$context;sid=$account.SID.Value;name=$account.Name;description=$description;enabled=$false;credential='memory-only SecureString; never persisted';authority='none'})
-    Add-LocalGroupMember -SID ([Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')) -Member $account.SID
+    Add-LocalGroupMember -SID ([Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')) -Member $account
     Assert-HostedNativeAccount $account $false
     Assert-OriginalHostedSetup
     $actualProfile=[Portcove.HostedNative.Setup]::Profile($account.SID.Value)
