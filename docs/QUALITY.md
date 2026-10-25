@@ -207,6 +207,9 @@ outer limit and the maintained process supervisor. Its producer deliberately
 times out; a separate always-run verifier checks the original timeout, retained
 partial output and exact owned-process exit observations. Acceptance of that
 control remains distinct from a passing workflow, full suite or product run.
+The payload replaces its shell with `exec` so runner cancellation reaches the
+supervised controller. GitHub may report the deadline as `cancelled`; the verifier
+requires its exact timeout annotation as well as the owned-process drain receipt.
 Main CI bounds metadata/aggregate jobs at 15 minutes, ordinary producers at
 45 minutes, and exhaustive producers at 120 minutes; the existing 10-minute
 Windows helpers and 15-minute portability limits remain. These generous outer
