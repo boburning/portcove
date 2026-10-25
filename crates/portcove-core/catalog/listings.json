@@ -1782,6 +1782,26 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 1113,
+      "setup_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+      "release_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases",
+      "manual_setup": {
+        "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Use the complete Windows package",
+            "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core. Linux experimental AppImage packages have different storage and upstream installation instructions; the Windows contract does not establish their managed support or native qualification."
+          },
+          {
+            "title": "Keep optional setup with the game",
+            "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically. Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+          },
+          {
+            "title": "Keep your current copy while changing routes",
+            "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable. For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately. Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],

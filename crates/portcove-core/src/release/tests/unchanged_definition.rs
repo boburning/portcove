@@ -132,6 +132,14 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "v0.0.17",
             "DKC1Recomp-v0.0.17-Windows-x64.zip",
         ),
+        // v1.4.9 is controlled; the current v1.4.8 Windows package is observed.
+        (
+            "road-rash-64-recompiled",
+            "v1.4.8",
+            "RoadRash64Recompiled-v1.4.8-Win64.zip",
+            "v1.4.9",
+            "RoadRash64Recompiled-v1.4.9-Win64.zip",
+        ),
         // Controlled successors exercise stable rules; they do not assert that
         // F-Zero1.8.4, DKC3.0.0.7 or Bomberman.0.1.2 have been published.
         (
@@ -194,6 +202,7 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                 | "battletanx-global-assault-pc-port"
                 | "brawmario-infinite-mario-64-ever"
                 | "dkc1-recomp"
+                | "road-rash-64-recompiled"
                 | "f-zero-snes-recomp"
                 | "dkc3-recomp"
                 | "super-mario-world-recomp"
@@ -215,6 +224,7 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                     &new_name
                         .replace("windows", "linux")
                         .replace("Windows", "Linux")
+                        .replace("Win64", "Linux64")
                         .replace("win64", "linux64"),
                     Some('c'),
                 ),
@@ -222,6 +232,7 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                     &new_name
                         .replace("x64", "arm64")
                         .replace("win64", "win-arm64")
+                        .replace("Win64", "Win-arm64")
                         .replace(".windows.zip", ".windows-arm64.zip"),
                     Some('d'),
                 ),
