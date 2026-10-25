@@ -3,12 +3,12 @@
   "listing": {
     "id": "doukutsu-rs-doukutsu-rs",
     "name": "Cave Story / doukutsu-rs (doukutsu-rs)",
-    "summary": "Explore Cave Story / doukutsu-rs (doukutsu-rs) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Prepare a separate Cave Story player with your own supported data and preserve the chosen edition’s saves.",
     "project_url": "https://github.com/doukutsu-rs/doukutsu-rs",
     "issue_number": 1813,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/doukutsu-rs/doukutsu-rs",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
     "artwork": {
       "game_id": 6189,
       "cover_id": 343222,
@@ -16,6 +16,33 @@
       "image_sha256": "e4a8f52012ea95be32f9007525d6360312e5312450ed9eaeb7d0b3da51cc5d49",
       "game_slug": "cave-story",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a separate Cave Story folder",
+          "instruction": "Keep your current game and store installation. For the original freeware edition, put the downloaded doukutsu-rs Windows executable beside a copy of your Doukutsu.exe and data folder; first launch extracts the additional original resources. For supported Cave Story+ editions, use your own data folder as described by upstream. The 2026 Steam remaster is not established by this guide, and remastered saves are incompatible with original-version saves. If an Epic copy contains the stray opengl32.dll described upstream, apply its fix only to your separate prepared copy."
+        },
+        {
+          "title": "Add the prepared player",
+          "instruction": "On Windows, select the downloaded x86_64 doukutsu-rs executable and its containing game folder as the working directory. Save launch details, then choose Play separately. Keep its matching data folder in place. Linux publishes a standalone x86_64 ELF, and the Mac downloads contain separate Intel or Apple Silicon app bundles; follow the linked platform instructions for those instead of treating the Windows download as an installer."
+        },
+        {
+          "title": "Keep the chosen edition and user data",
+          "instruction": "You own updates to this external copy. Prepare another version separately and keep your current player, original data and saves until it works. The engine normally uses the operating system’s doukutsu-rs user-data folder, or a sibling user folder in portable mode. Its Advanced menu can open the user-data folder; keep a separate backup of it, including settings.json and saves, before changing versions or editions. Portcove does not back up, roll back or delete this external game/data tree."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["doukutsu-rs_windows_", ".x86_64.exe"],
+      "macos-x86-64": ["doukutsu-rs_macos_", ".x86_64.zip"],
+      "macos-aarch64": ["doukutsu-rs_macos_", ".arm64.zip"],
+      "linux-x86-64": ["doukutsu-rs_linux_", ".x86_64.elf"]
+    },
+    "original_game_title": "Cave Story",
+    "release_url": "https://github.com/doukutsu-rs/doukutsu-rs/releases",
+    "recommended_download_channel": "stable"
   }
 }
