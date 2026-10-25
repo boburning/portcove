@@ -7,19 +7,19 @@ from `d4d93d6ef5011319f9e4cc5d0f4b5e452e47bd15`, reconciles current main
 `9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1`. It does not close either owner or
 promote a port's Project status merely because a route is cataloged.
 
-## Three fitting Windows routes
+## Two managed Windows routes and one acquisition condition
 
-| Identity / canonical owner               | Observed release | Setup and player-data boundary                                                                                                                                              |
-| ---------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mstan-supermarioadvance4recomp` / #1892 | beta v0.0.3      | Explicit Play opens the upstream original-game/retail-BIOS chooser. Default saves and states follow the selected external original.                                         |
-| `mstan-wariowaretwistedrecomp` / #1906   | beta v0.0.2      | Same first-Play chooser; an explicitly selected packaged variant can instead use installation-local cartridge saves. Android remains a separate upstream app/storage route. |
-| `goldeneye-007-n64-pc-port` / #1129      | stable v0.5.0    | Core verifies and copies the exact NTSC-U USA big-endian original. Explicit Play lets the game generate its version-specific assets.                                        |
+| Identity / canonical owner               | Observed release        | Setup and player-data boundary                                                                                                                                              |
+| ---------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mstan-supermarioadvance4recomp` / #1892 | beta v0.0.3             | Explicit Play opens the upstream original-game/retail-BIOS chooser. Default saves and states follow the selected external original.                                         |
+| `mstan-wariowaretwistedrecomp` / #1906   | beta v0.0.2             | Same first-Play chooser; an explicitly selected packaged variant can instead use installation-local cartridge saves. Android remains a separate upstream app/storage route. |
+| `goldeneye-007-n64-pc-port` / #1129      | stable v0.5.0 inspected | Technical ready-archive fit retained privately; fresh acquisition held for the exact inherited-code permission condition. Permitted existing-copy guidance remains.         |
 
-All three use the existing ready `staged-source-portable` contract and official
+The two GBA routes use the existing ready `staged-source-portable` contract and official
 GitHub release providers with version-independent discriminating package rules.
 No new adapter, engine, setup marker, helper invocation or lifecycle authority is
 introduced. The 156 existing integrations remain semantically unchanged; these
-three existing identities gain operational routes. Concurrent Switch intake is
+two existing identities gain operational routes. All 878 listing identities remain. Concurrent Switch intake is
 preserved rather than overwritten with an older listing aggregate.
 
 The GBA routes preserve local settings, input pointers, user `game.toml` and
@@ -30,15 +30,21 @@ runtime. Packaged variants, DLLs and compiler companions remain immutable. These
 two titles do not acquire a managed mod-package promise. Other GBA candidates
 still need their own mod-coexistence or credential-preservation work.
 
-GoldenEye's source identity comes from the pinned upstream README, checksum file
-and converter. No alternate byte order, region, source size, BIOS requirement or
-normalization is invented. The managed data declaration preserves the original,
-EEPROM, settings, screenshots and all 99 upstream EEPROM-import backup names,
-including data created before first Play. Generated sidecars, shader lists and
-conversion staging remain version-local. The upstream importer can overwrite its
-last backup slot when full, and converter failure handling is imperfect; neither
-becomes a Core guarantee. Optional source/Python-tool bytecode remains an unknown
-addition requiring preservation rather than an exemption for a whole tools tree.
+GoldenEye's technical proposal, source identity, data declaration, actual archive
+and passing Core preparation remain preserved at
+`fc4a1f98f7914aafc8111774d361f544dd3ceb20`. Independent review found that its
+[pinned NOTICE](https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/NOTICE#L35-L45)
+explicitly excludes inherited `src/`, `include/` and `assets/` from the port-layer
+MIT license, identifies no explicit upstream license, and its
+[build links those sources](https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/CMakeLists.txt#L514-L599).
+No additional attributable grant was established. The selected catalog therefore
+adds an exact fresh-acquisition hold and conditional permitted-copy instructions,
+without offering its proposed managed installation. Resume when an attributable
+grant or explicitly reviewed operation basis covers that exact linked code, then
+recheck package/source/data facts. This is separate from technical fit or gameplay
+qualification and does not declare every operation unsupported. External guidance
+preserves the original, EEPROM, settings, screenshots and importer backup limits;
+it grants no ownership or permission to acquire, register or execute a copy.
 
 Portcove stages compatible runtime replacements before activation and carries
 current declared data. Runtime rollback does not rewind saves or promise older
@@ -51,10 +57,11 @@ state, including for historical self-service downloads.
 Proposal preparation now includes accepted listing-only artwork in its artwork
 context. This fixes approved covers disappearing during managed adoption without
 changing Core's accepted operational baseline. Separate hashes bind both contexts.
-Identity, explicit refresh and observed-Gone guards remain intact. GoldenEye's new
-source profile uses an explicit original-game identity to reuse its accepted
-cover; Wario retains its accepted unchanged mapping. No provider image download
-was needed.
+Identity, explicit refresh and observed-Gone guards remain intact. Wario retains
+its accepted unchanged mapping. The preserved GoldenEye technical proposal also
+proved explicit original-identity reuse after a source-profile change; that
+source profile is not admitted in this repaired candidate. No provider image
+download was needed.
 
 Fresh complete release metadata selects exactly one Windows archive for each
 route. All three independently expected publisher SHA-256 identities reconcile
@@ -62,11 +69,12 @@ with retained actual archives and source/package inventories. Three coherent
 Core accepted/input/output proposal inspections passed. The accompanying JSON
 binds per-ID source, artifact, data and preparation facts. Two initial proposal
 refusals (invalid presentation enum and missing source presentation requirement)
-and the earlier artwork-dropping output are retained; only the repaired proposal
-is selected. Review caught and repaired unrelated escaped-text changes in private
-shared input before applying source.
+and the earlier artwork-dropping output are retained. Those technical checks did
+not establish GoldenEye permission: its acquisition finding remains blocking for
+managed adoption. Review also caught and repaired unrelated escaped-text changes
+in private shared input. The selected candidate has no shared source-table change.
 
-The unchanged-definition production-provider fixtures exercise all three selected
+The unchanged-definition production-provider fixtures exercise both selected GBA
 rules across controlled N→N+1 responses, cache expiry, fresh resolution and wrong
 package rejection. Those successors are synthetic, not published-release claims.
 Fifty local artwork/generation tests passed, including accepted-listing promotion,
@@ -87,8 +95,8 @@ acceptance and #534/#246 keep publication authority.
 The 524 frozen identities, 312 original affected authored additions and 22
 original roadmap-only joins remain preserved. The six original Direct-route
 decisions and unresolved individual fit, maintenance and joins remain open.
-After this batch is actually merged, historical extraction bookkeeping would be
-149 delivered / 83 remaining of 232 moved paths, plus the separate RoadRash
-proposal. Those are proposal-delivery counts, not current global port coverage or
-Public beta completion. #2510 and #2926 remain open until their full substantive
-acceptance is satisfied.
+GoldenEye managed adoption remains blocked by the named permission condition;
+its technical work is preserved rather than discarded or called complete.
+Historical extraction-path bookkeeping remains separate from per-port capability
+completion and current global coverage. #2510 and #2926 remain open until their
+full substantive acceptance is satisfied.

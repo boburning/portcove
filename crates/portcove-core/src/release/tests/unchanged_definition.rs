@@ -184,14 +184,6 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "v0.1.2",
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
-        // v0.5.1 is a controlled successor, not a published-release claim.
-        (
-            "goldeneye-007-n64-pc-port",
-            "v0.5.0",
-            "goldeneye-pc-port-0.5.0-win64.zip",
-            "v0.5.1",
-            "goldeneye-pc-port-0.5.1-win64.zip",
-        ),
     ] {
         // Adopted portable and original-driven routes use their shipped rules.
         // Sonic3K stays a frozen proposal pending its separate data transition.
@@ -208,7 +200,6 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                 | "the-legend-of-zelda-a-link-to-the-past-snes-recomp"
                 | "sonic-the-hedgehog-2-recomp"
                 | "super-bomberman-recomp"
-                | "goldeneye-007-n64-pc-port"
         ) {
             catalog.port(id).unwrap()
         } else {

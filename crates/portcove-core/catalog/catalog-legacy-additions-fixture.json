@@ -45,8 +45,7 @@
     "super-bomberman-snes-usa",
     "gundam-wing-endless-duel-snes-japan",
     "donkey-kong-country-2-snes-usa",
-    "ctr-native-ntsc-u-raw-bin",
-    "goldeneye-007-ntsc-u-big-endian"
+    "ctr-native-ntsc-u-raw-bin"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -139,7 +138,6 @@
     "starlancer-openreliant",
     "thatguymcd-glover-r",
     "mstan-supermarioadvance4recomp",
-    "mstan-wariowaretwistedrecomp",
-    "goldeneye-007-n64-pc-port"
+    "mstan-wariowaretwistedrecomp"
   ]
 }
