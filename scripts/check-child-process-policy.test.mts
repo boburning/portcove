@@ -95,6 +95,12 @@ void test("exact Clap parser constructors do not exempt bare, process or other n
     ]),
     [{ path: file, line: 2 }],
   );
+  for (const [source, line] of [
+    ["other:: clap::Command::new(program)", 1],
+    ["other ::\n clap :: Command::new(program)", 2],
+    ["other::<T>:: clap::Command::new(program)", 1],
+  ] as const)
+    assert.deepEqual(findDirectChildProcessCalls([[file, source]]), [{ path: file, line }]);
 });
 
 void test("reviewed extracted subprocess fixtures retain exact paths and denied siblings", () => {

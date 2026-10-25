@@ -46,7 +46,8 @@ export function findDirectChildProcessCalls(
     for (const match of source.matchAll(/\bCommand\s*::\s*new\s*\(/gu)) {
       // This exact namespace constructs a CLI parser, not a child process.
       // Other namespaces (including other::clap) remain conservatively checked.
-      if (/(?:^|[^A-Za-z0-9_:])clap\s*::\s*$/u.test(source.slice(0, match.index))) continue;
+      const prefix = source.slice(0, match.index).replace(/\s*::\s*/gu, "::");
+      if (/(?:^|[^A-Za-z0-9_:])clap::$/u.test(prefix)) continue;
       violations.push({ path, line: source.slice(0, match.index).split(/\r?\n/u).length });
     }
   }
