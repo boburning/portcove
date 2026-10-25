@@ -362,7 +362,9 @@ void test("reader direct handoffs require the exact observer layout in admitted 
   for (const phase of ["payload", "tuf-timestamp", "release-publication"] as const) {
     for (const shared of [false, true]) {
       const runtime = liveControlRuntimeFixture(
-        protectionFixture("a".repeat(40)),
+        phase === "release-publication"
+          ? publicationProtection("a".repeat(40), true)
+          : protectionFixture("a".repeat(40)),
         undefined,
         phase,
         true,
@@ -1058,9 +1060,6 @@ void test("held controller uses a parallel tiny-artifact handshake and isolates 
       "classification_protection_observation",
       "coordinator_protection_observation",
       "protection_observation",
-      "payload_protection_observation",
-      "metadata_protection_observation",
-      "release_protection_observation",
       "site_protection_observation",
       "catalog_metadata_protection_observation",
     ].sort(),
