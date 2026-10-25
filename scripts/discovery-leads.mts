@@ -11,7 +11,34 @@ const families = [
     clock: "pushed",
   },
   { id: "changed-native-port", terms: '"native port" in:name,description', clock: "pushed" },
+  {
+    id: "changed-switch-recomp",
+    terms: "switch recomp in:name,description",
+    clock: "pushed",
+    sort: "updated",
+  },
+  {
+    id: "changed-switch-native",
+    terms: '"Nintendo Switch" native in:name,description',
+    clock: "pushed",
+    sort: "updated",
+  },
+  {
+    id: "changed-switch-framework",
+    terms: "SwitchRecomp in:name,description",
+    clock: "pushed",
+    sort: "updated",
+  },
+  {
+    id: "changed-switch-topics",
+    terms: "topic:nintendo-switch topic:static-recompilation",
+    clock: "pushed",
+    sort: "updated",
+  },
 ] as const;
+export const leadFamilyIds: readonly string[] = families.map((family) => family.id);
+export const leadFamilyCount = families.length;
+export const advanceLeadFamily = (index: number) => (index + 1) % leadFamilyCount;
 export const leadPageSize = 50;
 export interface LeadSlice {
   since: string;
@@ -208,7 +235,8 @@ export function retainLeadResults(
 export function nextLeadPage(state: LeadState, now: string) {
   if (!clock(now)) throw new Error("Invalid lead search clock");
   const family = families[state.next_family]!;
-  const contract = `${family.terms} [best-match]`;
+  const sort = "sort" in family ? family.sort : undefined;
+  const contract = `${family.terms} [${sort ? `${sort} desc` : "best-match"}]`;
   const saved = state.slices[family.id];
   const retired = saved !== undefined && saved.terms !== contract;
   const previous = retired ? undefined : saved;
@@ -225,6 +253,7 @@ export function nextLeadPage(state: LeadState, now: string) {
     family: family.id,
     slice,
     query: `${family.terms} ${family.clock}:${slice.since}..${slice.until} fork:false`,
+    sort,
     page: slice.page,
     capped: slice.capped === true,
     current: previous?.completed_at === now,
@@ -310,7 +339,7 @@ export function acceptLeadPage(
     } else slice.completed_at = slice.window_until ?? slice.until;
   }
   next.slices[plan.family] = slice;
-  next.next_family = (state.next_family + 1) % families.length;
+  next.next_family = advanceLeadFamily(state.next_family);
   return next;
 }
 export function pendingLeads(

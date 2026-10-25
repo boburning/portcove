@@ -58,6 +58,9 @@ import {
   parseLeadState,
   pendingLeads,
   leadPageSize,
+  leadFamilyIds,
+  leadFamilyCount,
+  advanceLeadFamily,
   retainLeadResults,
   LeadSearchChanged,
   restartLeadSlice,
@@ -667,6 +670,7 @@ export class DiscoverySession {
     const pending = this.inventory ? pendingLeads(this.leads, this.knownLeadUrls()) : undefined;
     return {
       searched_pages: this.leadPages,
+      pending_families: leadFamilyIds.filter((id) => !this.leadFamilies?.has(id)),
       observed_families: [...(this.leadFamilies ?? [])],
       deferred_families: [...(this.deferredLeadFamilies ?? [])],
       investigated: [...this.researchedLeads],
@@ -682,15 +686,15 @@ export class DiscoverySession {
     this.leadCollectionAttempted = true;
     this.leadFamilies ??= new Set();
     this.deferredLeadFamilies ??= new Set();
-    for (let turn = 0; turn < 6 && this.searches < 6; turn++) {
+    for (let turn = 0; turn < leadFamilyCount * 6 && this.searches < 6; turn++) {
       const plan = nextLeadPage(this.leads, this.journal.started_at);
       if (this.deferredLeadFamilies.has(plan.family)) {
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         continue;
       }
       if (plan.current) {
         this.leadFamilies.add(plan.family);
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         continue;
       }
       if (plan.capped) {
@@ -702,7 +706,7 @@ export class DiscoverySession {
           resume:
             "Narrow this capped time slice before a fresh bounded search; no complete coverage claim",
         });
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         this.persist();
         continue;
       }
@@ -719,10 +723,16 @@ export class DiscoverySession {
       this.budget.admit(1, 1);
       const response = this.source.api.request(
         "GET",
-        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}`,
+        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}${plan.sort ? `&sort=${plan.sort}&order=desc` : ""}`,
       );
       const name = `lead-search-${++this.searches}`;
-      this.save(name, { ...object(response.body), query: plan.query, page: plan.page });
+      this.save(name, {
+        ...object(response.body),
+        query: plan.query,
+        sort: plan.sort ?? "best-match",
+        order: plan.sort ? "desc" : undefined,
+        page: plan.page,
+      });
       try {
         this.leads = acceptLeadPage(
           this.leads,
@@ -743,7 +753,7 @@ export class DiscoverySession {
         this.leads = restartLeadSlice(this.leads, plan, errorMessage(error));
         this.leadFamilies.add(plan.family);
         this.deferredLeadFamilies.add(plan.family);
-        this.leads.next_family = (this.leads.next_family + 1) % 4;
+        this.leads.next_family = advanceLeadFamily(this.leads.next_family);
         this.journal.notes.push({
           phase: "lead-search",
           status: "partial",
@@ -1318,7 +1328,7 @@ export class DiscoverySession {
       new Set([...pending.map((r) => r.id), ...this.researchedLeads]).size,
     );
     return (
-      (this.leadPages >= 4 || this.leadFamilies?.size === 4) &&
+      (this.leadPages >= 4 || (this.leadFamilies?.size ?? 0) >= Math.min(6, leadFamilyCount)) &&
       this.researchedLeads.size >= required
     );
   }
