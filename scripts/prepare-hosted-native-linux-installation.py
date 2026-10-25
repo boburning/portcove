@@ -217,7 +217,7 @@ def command(arguments, check, maximum_file_bytes=None, maximum_output_bytes=6553
                     need(len(output[event.data]) <= maximum_output_bytes, "installation command output exceeds bound")
         code = child.wait(timeout=1)
         settled = True
-        need(code == 0, "fixed installation command refused")
+        need(code == 0, f"fixed installation command refused: exit={code}")
         check()
         data = bytes(output["out"])
         return data if as_bytes else data.decode("utf-8").strip()
@@ -551,6 +551,7 @@ def prepare_runtime_packages(plan):
         (directory / name / "partial").mkdir(mode=0o700)
     options = ["-o", f"Dir::Etc::sourcelist={sources}", "-o", "Dir::Etc::sourceparts=-",
                "-o", f"Dir::State::lists={directory}/lists/", "-o", f"Dir::Cache::archives={directory}/archives/",
+               "-o", "Dir::Cache::pkgcache=", "-o", "Dir::Cache::srcpkgcache=",
                "-o", "Acquire::Retries=0", "-o", "Acquire::http::Timeout=15",
                "-o", "Acquire::https::Timeout=15", "-o", "DPkg::Lock::Timeout=5",
                "-o", "Acquire::AllowInsecureRepositories=false",

@@ -165,6 +165,8 @@ class RuntimePackages(unittest.TestCase):
                 self.assertIn("APT::Get::AllowUnauthenticated=false", args)
                 self.assertIn("Acquire::AllowInsecureRepositories=false", args)
                 self.assertIn("Dir::Etc::sourceparts=-", args)
+                self.assertIn("Dir::Cache::pkgcache=", args)
+                self.assertIn("Dir::Cache::srcpkgcache=", args)
                 self.assertNotIn("GH_TOKEN", options["environment"])
                 self.assertIn("Dir::State::lists=" + temporary + "/work/hosted-linux-package-evidence/lists/", args)
             self.assertIn("--no-remove", calls[1][0])
@@ -242,6 +244,14 @@ class RuntimePackages(unittest.TestCase):
         data = installation.command([sys.executable, "-I", "-S", "-c", "import sys;sys.stdout.buffer.write(b'\\x00profile\\n')"],
                                     lambda: None, maximum_output_bytes=9, as_bytes=True)
         self.assertEqual(data, b"\x00profile\n")
+
+    def test_command_refusal_retains_exit_and_actual_bounded_output(self):
+        with self.assertRaisesRegex(RuntimeError, "fixed installation command refused: exit=7") as captured:
+            installation.command([sys.executable, "-I", "-S", "-c",
+                                  "import sys;sys.stdout.write('partial');sys.stderr.write('reason');sys.exit(7)"],
+                                 lambda: None)
+        self.assertEqual(captured.exception.installation_stdout, b"partial")
+        self.assertEqual(captured.exception.installation_stderr, b"reason")
 
 
 @unittest.skipUnless(sys.platform == "linux", "actual Linux file/link custody contracts")
