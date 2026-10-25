@@ -39,7 +39,7 @@ import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { Builder, By, Key, until, WebDriver } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mts";
-import { captureDesktopReceiptInputs } from "../../../scripts/native-helper-dependencies.mts";
+import { observeDesktopHarnessInputs } from "../../../scripts/native-helper-dependencies.mts";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mts";
 import {
@@ -133,7 +133,6 @@ import { observeStartup } from "./desktop-startup-observation.mts";
 import type { ChildProcessByStdio } from "node:child_process";
 import type { Readable } from "node:stream";
 import type { FileIdentity, EvidenceCheck } from "../../../scripts/development-evidence.mts";
-import type { ConsumedInput } from "../../../scripts/retained-evidence.mts";
 import type {
   NativeCloseObservation,
   NativeCurrentObservation,
@@ -148,8 +147,6 @@ type LinuxLaunch =
   | Awaited<ReturnType<typeof launchLinuxNativeSession>>
   | Awaited<ReturnType<typeof launchIsolatedLinuxNativeSession>>;
 type LinuxCleanup = Awaited<ReturnType<LinuxLaunch["stop"]>>;
-type HarnessInput = FileIdentity &
-  Partial<Pick<ConsumedInput, "binding" | "retained">> & { role?: string; kind?: string };
 type ScenarioTarget = { records: EvidenceCheck[]; setup: boolean };
 function required<Value>(value: Value | null | undefined): Value {
   assert.ok(value !== null && value !== undefined, "Required harness observation missing");
@@ -315,29 +312,17 @@ const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
       selectedScenarios: selection.selected_scenarios,
     })
   : null;
-const inputs: HarnessInput[] = [
-  ...(custody?.inputs ??
-    (await captureDesktopReceiptInputs({
-      root,
-      values: { ...values, app: application },
-      plan: executionPlan,
-      output,
-      revision,
-    }))),
-];
-for (const name of [
-  "scripts/desktop-execution-plan.mts",
-  "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
-  "apps/desktop/scripts/desktop-owned-ipc-probe.mts",
-])
-  if (!custody) inputs.push(await fileIdentity(path.join(root, name)));
-let runnerMetadata: Record<string, unknown> = {};
-if (values["run-metadata"]) {
-  if (!path.isAbsolute(values["run-metadata"]))
-    throw new Error("--run-metadata requires an absolute path");
-  inputs.push(await fileIdentity(values["run-metadata"]));
-  runnerMetadata = object(JSON.parse(await readFile(values["run-metadata"], "utf8")));
-}
+const { inputs, runnerMetadata } = await observeDesktopHarnessInputs({
+  custody,
+  capture: {
+    root,
+    values: { ...values, app: application },
+    plan: executionPlan,
+    output,
+    revision,
+  },
+  runMetadata: values["run-metadata"],
+});
 const phases = runnerMetadata.phases;
 assert.ok(phases === undefined || Array.isArray(phases));
 const metadataPhases: object[] =

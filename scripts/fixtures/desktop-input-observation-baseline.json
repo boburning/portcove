@@ -1,0 +1,213 @@
+{
+  "format_version": 1,
+  "source": {
+    "commit": "9b6535803ca10164af1bbe95fc3ed88ff6331672",
+    "file": "apps/desktop/scripts/desktop-test.mts",
+    "sha256": "85a242bce631bf3443832b3dcf7de8cbced80a7fe3c24be28fe4fa2c4bd98308",
+    "block_sha256": "db4361c08a93273ab9cb8a967b7882924837badb80eec98f4d7d04811468e1c3"
+  },
+  "scope": "Pre-change source-block execution with real file hashing; helper graph validation isolated to an empty validator. No native launch or installed-product evidence.",
+  "files": {
+    "bound-input.json": "{\"bound\":true}\n",
+    "scripts/desktop-execution-plan.mts": "// static planner oracle\n",
+    "apps/desktop/scripts/desktop-owned-fixture-journeys.mts": "// static coordinator oracle\n",
+    "apps/desktop/scripts/desktop-owned-ipc-probe.mts": "// static probe oracle\n"
+  },
+  "cases": [
+    {
+      "id": "live-no-metadata",
+      "custody": false,
+      "expected": {
+        "outcome": "success",
+        "inputs": [
+          {
+            "path": "bound-input.json",
+            "bytes": 15,
+            "sha256": "1bb5477de5be85939188641c8f8f071d880c74ba682026880eeda9c5bfc061cd"
+          },
+          {
+            "path": "scripts/desktop-execution-plan.mts",
+            "bytes": 25,
+            "sha256": "b4787b3d55496787e9d8f6b94908601f48417f6de20a6a0f85e91c2adbacda93"
+          },
+          {
+            "path": "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
+            "bytes": 29,
+            "sha256": "b9399abbb181c9e22265b422fa53683dd9ca6641da7c8704aaed10a5df1bb666"
+          },
+          {
+            "path": "apps/desktop/scripts/desktop-owned-ipc-probe.mts",
+            "bytes": 23,
+            "sha256": "4a9914ed1ea3ef20fdd00b7f39d7ce54e971b2e7cb794d73520b2a6317c55e5b"
+          }
+        ],
+        "runnerMetadata": {},
+        "custody_first_input_reused": null,
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "custody-no-metadata",
+      "custody": true,
+      "expected": {
+        "outcome": "success",
+        "inputs": [
+          {
+            "path": "bound-input.json",
+            "bytes": 15,
+            "sha256": "1bb5477de5be85939188641c8f8f071d880c74ba682026880eeda9c5bfc061cd"
+          }
+        ],
+        "runnerMetadata": {},
+        "custody_first_input_reused": true,
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "live-record-metadata",
+      "custody": false,
+      "metadata": "{\"source_state\":{\"clean\":true},\"phases\":[{\"name\":\"observed\"}]}\n",
+      "expected": {
+        "outcome": "success",
+        "inputs": [
+          {
+            "path": "bound-input.json",
+            "bytes": 15,
+            "sha256": "1bb5477de5be85939188641c8f8f071d880c74ba682026880eeda9c5bfc061cd"
+          },
+          {
+            "path": "scripts/desktop-execution-plan.mts",
+            "bytes": 25,
+            "sha256": "b4787b3d55496787e9d8f6b94908601f48417f6de20a6a0f85e91c2adbacda93"
+          },
+          {
+            "path": "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
+            "bytes": 29,
+            "sha256": "b9399abbb181c9e22265b422fa53683dd9ca6641da7c8704aaed10a5df1bb666"
+          },
+          {
+            "path": "apps/desktop/scripts/desktop-owned-ipc-probe.mts",
+            "bytes": 23,
+            "sha256": "4a9914ed1ea3ef20fdd00b7f39d7ce54e971b2e7cb794d73520b2a6317c55e5b"
+          },
+          {
+            "path": "live-record-metadata.json",
+            "bytes": 63,
+            "sha256": "2909d80a8e8efb9cb92ccf487851f37eacaffc470890be73aeff02dec3507a2b"
+          }
+        ],
+        "runnerMetadata": {
+          "source_state": {
+            "clean": true
+          },
+          "phases": [
+            {
+              "name": "observed"
+            }
+          ]
+        },
+        "custody_first_input_reused": null,
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "custody-record-metadata",
+      "custody": true,
+      "metadata": "{\"source_state\":{\"clean\":true}}\n",
+      "expected": {
+        "outcome": "success",
+        "inputs": [
+          {
+            "path": "bound-input.json",
+            "bytes": 15,
+            "sha256": "1bb5477de5be85939188641c8f8f071d880c74ba682026880eeda9c5bfc061cd"
+          },
+          {
+            "path": "custody-record-metadata.json",
+            "bytes": 32,
+            "sha256": "e9130d9f17ba05fb361c3a60cc9dee9486dbc4e8bf4986d32e0863623daeda7f"
+          }
+        ],
+        "runnerMetadata": {
+          "source_state": {
+            "clean": true
+          }
+        },
+        "custody_first_input_reused": true,
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "metadata-null",
+      "custody": true,
+      "metadata": "null",
+      "expected": {
+        "outcome": "failure",
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "message": "Harness observation must be an object",
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "metadata-array",
+      "custody": true,
+      "metadata": "[]",
+      "expected": {
+        "outcome": "failure",
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "message": "Harness observation must be an object",
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "metadata-string",
+      "custody": true,
+      "metadata": "\"observation\"",
+      "expected": {
+        "outcome": "failure",
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "message": "Harness observation must be an object",
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "metadata-invalid-json",
+      "custody": true,
+      "metadata": "{",
+      "expected": {
+        "outcome": "failure",
+        "name": "SyntaxError",
+        "code": null,
+        "message": "Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "metadata-relative-path",
+      "custody": true,
+      "relative": true,
+      "expected": {
+        "outcome": "failure",
+        "name": "Error",
+        "code": null,
+        "message": "--run-metadata requires an absolute path",
+        "custody_unchanged": true
+      }
+    },
+    {
+      "id": "metadata-missing-file",
+      "custody": true,
+      "missing": true,
+      "expected": {
+        "outcome": "failure",
+        "name": "Error",
+        "code": "ENOENT",
+        "message": "missing metadata file",
+        "custody_unchanged": true
+      }
+    }
+  ]
+}
