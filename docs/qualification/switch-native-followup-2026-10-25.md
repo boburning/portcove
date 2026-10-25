@@ -294,3 +294,14 @@ The previous pass relied on generic/ranked sources and bounded pages that did no
 The existing collector now adds four Switch pushed/updated query families, preserving the old four contracts/order and six-request run budget. Eight families rotate through persisted continuations; bounded zero-request skips allow the actual HTTP budget to be used. Receipts state deferred families and partial effort. Social evidence remains manual lead discovery followed by primary qualification, never automatic intake. The explicit newest/console/framework sweep is documented in DAILY-PORT-DISCOVERY. No parallel scheduler/feed or automatic growth-trigger system was added.
 
 Validation evidence is recorded in the owning issue/PR when executed:15focused collector tests,60selected discovery/Quiver/intake/checkpoint tests,17real-provider-shape reconciliation tests, final independent discovery/identity/art review, schema/catalog/artwork and batch Roadmap checks, exact-head hosted contexts and guarded merge/readback. Local source review is not scheduled acceptance. The same frozen plans are rechecked against complete fresh inventories; verified issue receipts and comment markers prevent duplicate/no-op writes. Failed/drift/incomplete observations are retained and never reused as successful proof.
+
+## Frozen repeat reconciliation
+
+Both fresh complete readbacks matched all69 canonical game owners and framework#2936, with zero proposed new issues or updates. The same reviewed73-row plans, exact issue/body/opaque-ID/Project-field expectations and catalog record contents were frozen before collection. Open/closed issues and archive-inclusive Project membership were enumerated; excluded records remained absent. Full-artwork or retained-baseline receipts are bound in JSON.
+
+| Pass | UTC                      | Game owners | Framework owner | New issues / updates | Proof SHA-256                                                      |
+| ---- | ------------------------ | ----------: | --------------- | -------------------- | ------------------------------------------------------------------ |
+| 1    | 2026-10-25T05:14:05.310Z |          69 | #2936           | 0 / 0                | `e6bd28e1d271933538d7e6e0487c5090286a23861277f549cfd0ee6632d54b7c` |
+| 2    | 2026-10-25T05:14:59.214Z |          69 | #2936           | 0 / 0                | `ef29eaf904da5f3ad551b1a82758a35ea59bf700266c296ca6defb7eb81f8e1a` |
+
+The full batch Roadmap doctor passed with complete coverage (1352 issues, 1351 Project items), no warnings, before current-main integration. Its exact scope/input hashes are retained in JSON. Target integration preserves the45 selected authored listing records; current-source schema/catalog and hosted merge gates remain separate.

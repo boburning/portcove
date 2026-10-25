@@ -7185,5 +7185,53 @@
     "PlayPorted console catalog accessed through rendered search backend after direct403.19ports/16games includes non-desktop entries, resolved by primary sources.",
     "Private/deleted repositories, unknown lineage, undocumented versions and missing input contracts remain Unknown. Framework support is not per-title desktop validation."
   ],
-  "manual_receipts": "External frozen evidence: E:/Codex-Evidence/switch-followup-audit-20261024. GitHub-visible canonical issues and pinned primary links preserve the reviewable factual record; local raw API/README captures are not published."
+  "manual_receipts": "External frozen evidence: E:/Codex-Evidence/switch-followup-audit-20261024. GitHub-visible canonical issues and pinned primary links preserve the reviewable factual record; local raw API/README captures are not published.",
+  "validation": {
+    "repeat_reconciliation": {
+      "status": "matched-both-runs",
+      "tests": 17,
+      "proof": [
+        {
+          "pass": 1,
+          "sha256": "e6bd28e1d271933538d7e6e0487c5090286a23861277f549cfd0ee6632d54b7c",
+          "observed_at": "2026-10-25T05:14:05.310Z",
+          "canonical_rows": 69,
+          "feature": 2936,
+          "new_issues": 0,
+          "updates": 0,
+          "issues_sha256": "510ab2b76cdd188d15bf6a2bfcae9f4296ba6890fa18b6c4c66dee0e3c2e963b",
+          "projects_sha256": "e5686ef95637b7162ff1ea85b78956879c2a08e955c72697c3ba7f902619b246"
+        },
+        {
+          "pass": 2,
+          "sha256": "ef29eaf904da5f3ad551b1a82758a35ea59bf700266c296ca6defb7eb81f8e1a",
+          "observed_at": "2026-10-25T05:14:59.214Z",
+          "canonical_rows": 69,
+          "feature": 2936,
+          "new_issues": 0,
+          "updates": 0,
+          "issues_sha256": "2805df8ffa7d5b9e9334324a1adb09ae41cc438656d050db84ec0cd730ada8aa",
+          "projects_sha256": "b8a7366e1ea9c7519d366eae308678a39777f6882e2ffb43dbd2bc2cbc33698f"
+        }
+      ]
+    },
+    "batch_roadmap_doctor": {
+      "status": "passed",
+      "coverage": "complete",
+      "scope": {
+        "kind": "global"
+      },
+      "counts": {
+        "fields": 22,
+        "views": 10,
+        "issues": 1352,
+        "items": 1351
+      },
+      "warnings": [],
+      "evidence_sha256": "71da0121546b8cfdf1c5e3689e4ee02a9b347f71aa4a57324ddd929aa9ea2660",
+      "catalog_sha256": "2aab79bc8be9d698461c3a4e9d55effa52366dc28d41b32942508df944a5b3e0",
+      "source_head": "b5efaf0c908569453c0b76a2fced653ec1fc7547"
+    },
+    "delivery": "Independent final metadata/discovery review CLEAR. Applicable exact-head hosted CI and merge/readback are recorded on the linked delivery PR/owning issue; this dated audit does not claim runtime/scheduled acceptance."
+  }
 }
