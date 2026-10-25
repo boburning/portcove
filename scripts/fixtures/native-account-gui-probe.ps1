@@ -39,7 +39,8 @@ try {
         registry = $registry
         authority = 'none'
     } | ConvertTo-Json -Depth 8 -Compress | Write-Output
-    $form.ShowDialog() | Out-Null
+    # The isolated window station is non-interactive; a modal dialog refuses it.
+    [Windows.Forms.Application]::Run($form)
 } finally {
     $timer.Stop()
     $timer.Dispose()
