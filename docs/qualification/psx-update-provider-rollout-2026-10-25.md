@@ -17,8 +17,8 @@ profiles, disc/edition identity, preparation/build coordinates, executable roots
 arguments, persistence, artwork and historical qualification are unchanged.
 
 An ordinary compatible N+1 is selected by the same application and unchanged
-definition. Explicit player version pins and stage/apply policy remain deliberate
-choices. New incompatibility or changed upstream assumptions can still require
+definition. Saved channels and notify/stage/automatic update policies remain
+deliberate choices. New incompatibility or changed upstream assumptions can still require
 maintenance. Historical release-specific source evidence remains exact and does
 not become successful qualification of a different artifact. Missing optional
 observations do not become a mandatory-failure classification.
