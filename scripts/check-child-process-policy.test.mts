@@ -99,6 +99,10 @@ void test("exact Clap parser constructors do not exempt bare, process or other n
     ["other:: clap::Command::new(program)", 1],
     ["other ::\n clap :: Command::new(program)", 2],
     ["other::<T>:: clap::Command::new(program)", 1],
+    ["other:: /* comment */ clap::Command::new(program)", 1],
+    ["other:: /* comment ( */ clap::Command::new(program)", 1],
+    ["other:: // comment\n clap::Command::new(program)", 2],
+    ["/* ambiguous preceding comment */ clap::Command::new(program)", 1],
   ] as const)
     assert.deepEqual(findDirectChildProcessCalls([[file, source]]), [{ path: file, line }]);
 });
