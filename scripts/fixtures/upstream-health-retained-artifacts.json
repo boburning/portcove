@@ -1,0 +1,366 @@
+{
+  "format_version": 1,
+  "source_commit": "3305a4707d5b902fe5565608c3330cecc8b701da",
+  "catalog_sha256": "759b5c420152d13ed6df06d1301c292803659a4b271810d4d597aa85897bf388",
+  "policy_sha256": "fe336f446d6136e3e6c898b398733890819c53f11d6e156e32e9a12d5fa932d4",
+  "scope": "Frozen historical monitoring inputs for retained direct-artifact bindings. No live catalog, source, artifact, acquisition, identity or publication authority.",
+  "artifacts": [
+    {
+      "port_id": "alexbeav-ape-escape-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+        "size": 30155637,
+        "sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+        "published_at": "2026-09-04T14:48:29Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-alundra-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
+        "size": 30152761,
+        "sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+        "published_at": "2026-09-04T14:48:29Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-armored-core-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+        "size": 30152526,
+        "sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+        "published_at": "2026-09-04T14:48:29Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+        "size": 30156064,
+        "sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+        "published_at": "2026-09-04T14:48:30Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-digimon-world-2003-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+        "size": 30152631,
+        "sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
+        "published_at": "2026-09-04T14:48:39Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+        "size": 30154371,
+        "sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+        "published_at": "2026-09-04T14:48:44Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-driver-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
+        "size": 30154093,
+        "sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+        "published_at": "2026-09-04T14:48:39Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+        "size": 30158026,
+        "sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+        "published_at": "2026-09-04T14:48:44Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-fade-to-black-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+        "size": 30151839,
+        "sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+        "published_at": "2026-09-04T14:48:44Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-diablo-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.4",
+        "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
+        "size": 29909581,
+        "sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
+        "published_at": "2026-10-02T15:44:22Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-diablo-recomp",
+      "platform": "linux-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.4",
+        "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip",
+        "size": 27803391,
+        "sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
+        "published_at": "2026-10-02T15:44:22Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+        "size": 30152495,
+        "sha256": "602843385f5d1e74560e39f7f4741ab8bcd1380711316e1cac80cf69f6a127d9",
+        "published_at": "2026-09-04T14:48:24Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+      "platform": "linux-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.6",
+        "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+        "size": 28046377,
+        "sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009",
+        "published_at": "2026-09-04T14:48:24Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-dino-crisis-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.1",
+        "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-windows-x64.zip",
+        "size": 26206145,
+        "sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
+        "published_at": "2026-09-30T11:25:42Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-dino-crisis-recomp",
+      "platform": "linux-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.1",
+        "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-linux-x64.zip",
+        "size": 24179470,
+        "sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
+        "published_at": "2026-09-30T11:25:42Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-dino-crisis-2-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.1",
+        "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-windows-x64.zip",
+        "size": 26205977,
+        "sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
+        "published_at": "2026-09-30T11:26:25Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-dino-crisis-2-recomp",
+      "platform": "linux-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.1",
+        "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-linux-x64.zip",
+        "size": 24179506,
+        "sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+        "published_at": "2026-09-30T11:26:25Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-alien-resurrection-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.4",
+        "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip",
+        "size": 29907400,
+        "sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+        "published_at": "2026-10-02T15:45:25Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-alien-resurrection-recomp",
+      "platform": "linux-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.4",
+        "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
+        "size": 27800828,
+        "sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+        "published_at": "2026-10-02T15:45:25Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-brave-fencer-musashi-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.3",
+        "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-windows-x64.zip",
+        "size": 29900215,
+        "sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
+        "published_at": "2026-09-30T11:40:52Z"
+      }
+    },
+    {
+      "port_id": "alexbeav-brave-fencer-musashi-recomp",
+      "platform": "linux-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.3",
+        "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+        "size": 27794465,
+        "sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
+        "published_at": "2026-09-30T11:40:52Z"
+      }
+    },
+    {
+      "port_id": "wave-race-64-racewave46",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v1.0.0",
+        "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
+        "size": 35768574,
+        "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+      }
+    },
+    {
+      "port_id": "f-zero-snes-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v1.8.3",
+        "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
+        "size": 8247843,
+        "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+        "published_at": "2026-09-22T03:42:21Z"
+      }
+    },
+    {
+      "port_id": "dkc3-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.0.6",
+        "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
+        "size": 6009000,
+        "sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+        "published_at": "2026-09-13T04:22:33Z"
+      }
+    },
+    {
+      "port_id": "super-mario-world-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.12.0",
+        "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.12.0/SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
+        "size": 9490376,
+        "sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+        "published_at": "2026-09-11T08:01:27Z"
+      }
+    },
+    {
+      "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.6.1",
+        "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.1/ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
+        "size": 11388312,
+        "sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+        "published_at": "2026-08-06T01:58:24Z"
+      }
+    },
+    {
+      "port_id": "the-force-engine-dark-forces",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "1.22.420",
+        "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
+        "size": 10561878,
+        "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
+      }
+    },
+    {
+      "port_id": "sonic-the-hedgehog-2-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.8.3",
+        "url": "https://github.com/mstan/SonicTheHedgehog2Recomp/releases/download/v0.8.3/SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
+        "size": 7204657,
+        "sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+        "published_at": "2026-10-18T14:31:39Z"
+      }
+    },
+    {
+      "port_id": "resident-evil-gaiden-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.4.1",
+        "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
+        "size": 33085815,
+        "sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
+      }
+    },
+    {
+      "port_id": "super-bomberman-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.1",
+        "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
+        "size": 1245795,
+        "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+        "published_at": "2026-08-26T16:01:04Z"
+      }
+    }
+  ]
+}

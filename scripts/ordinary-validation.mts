@@ -1361,6 +1361,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "release/upstream-observer.json",
   ].map((file): [string, string[]] => [file, upstreamHealthContractTests]),
   [
+    "scripts/fixtures/upstream-health-retained-artifacts.json",
+    ["scripts/upstream-observer.test.mts"],
+  ],
+  [
     "scripts/test-windows-installer.ps1",
     [
       "scripts/repository-skills.test.mts",
