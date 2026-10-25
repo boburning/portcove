@@ -6,6 +6,7 @@ import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { windowsNativeRuntimeSupport } from "./release-native-runtime-support.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
@@ -73,6 +74,7 @@ const windowsAssets = Object.freeze([
   ".github/qualification-coverage.json",
   "release/package-policy.json",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
+  windowsNativeRuntimeSupport.source,
 ] as const);
 const windowsPaths = Object.freeze(
   [
@@ -84,6 +86,8 @@ const windowsPaths = Object.freeze(
     "bin/pnpm.exe",
     "pnpm-license.txt",
     "pnpm-notices.txt",
+    windowsNativeRuntimeSupport.binary,
+    windowsNativeRuntimeSupport.metadata,
     controllerCompilerSourceAsset,
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
     ...windowsAssets,
@@ -135,6 +139,8 @@ export async function readControllerToolFile(filename: string, maximum = 128 * 1
 }
 
 export const controllerToolPredicateType = "https://portcove.dev/attestations/controller-tools/v1";
+export const windowsControllerToolPredicateType =
+  "https://portcove.dev/attestations/controller-tools/windows-v1";
 export function inspectControllerToolManifest(
   raw: unknown,
   platform: ControllerToolPlatform = "linux-x86_64",

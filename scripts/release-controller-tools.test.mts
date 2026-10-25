@@ -20,6 +20,7 @@ import {
   controllerToolChildren,
   controllerToolPaths,
   controllerToolPredicateType,
+  windowsControllerToolPredicateType,
   inspectControllerToolArchive,
   controllerCompilerSourceAsset,
   controllerToolPlatformProfile,
@@ -35,13 +36,17 @@ import {
 import {
   receiveControllerTools,
   verifiedControllerToolPaths,
+  type ControllerToolArtifactExpected,
 } from "./release-controller-tool-admission.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   assemblerIdentityFixture,
   expected as identityExpected,
 } from "./fixtures/assembler-identity-fixture.mts";
-import { verifyControllerToolBootstrapJobIdentity } from "./assembler-job-identity.mts";
+import {
+  verifyControllerToolBootstrapJobIdentity,
+  controllerToolBootstrapProfile,
+} from "./assembler-job-identity.mts";
 import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
@@ -683,9 +688,10 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   assert.equal(controllerToolPlatformProfile("windows-x86_64").suffix, ".exe");
 });
 void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wrong job, source, attempt and expiry", async () => {
+  const expected = { ...identityExpected, audience: "portcove-controller-tool-bootstrap" };
   const make = (patch: Record<string, unknown> = {}) =>
     assemblerIdentityFixture(
-      patch,
+      { aud: expected.audience, ...patch },
       {},
       {
         workflow: ".github/workflows/application-update-production.yml",
@@ -693,20 +699,59 @@ void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wr
       },
     );
   const f = make();
-  assert.equal(
-    (await verifyControllerToolBootstrapJobIdentity(f.token, identityExpected, f)).job_id,
-    501,
-  );
+  assert.equal((await verifyControllerToolBootstrapJobIdentity(f.token, expected, f)).job_id, 501);
   for (const patch of [{ exp: 1 }, { run_attempt: "9" }, { workflow_sha: "b".repeat(40) }]) {
     const bad = make(patch);
-    await assert.rejects(
-      verifyControllerToolBootstrapJobIdentity(bad.token, identityExpected, bad),
-    );
+    await assert.rejects(verifyControllerToolBootstrapJobIdentity(bad.token, expected, bad));
   }
-  const other = assemblerIdentityFixture();
-  await assert.rejects(
-    verifyControllerToolBootstrapJobIdentity(other.token, identityExpected, other),
+  const other = assemblerIdentityFixture({ aud: expected.audience });
+  await assert.rejects(verifyControllerToolBootstrapJobIdentity(other.token, expected, other));
+});
+
+void test("Windows bootstrap binds distinct audience, issuer, current numeric job and observed runner label", async () => {
+  const selected = controllerToolBootstrapProfile("windows-x86_64");
+  const expected = { ...identityExpected, audience: selected.audience };
+  const make = (
+    patch: Record<string, unknown> = {},
+    labels: readonly string[] = ["windows-2022"],
+  ) =>
+    assemblerIdentityFixture(
+      { aud: expected.audience, ...patch },
+      {},
+      {
+        workflow: ".github/workflows/application-update-production.yml",
+        job: selected.job,
+        labels,
+      },
+    );
+  const good = make();
+  assert.equal(
+    (await verifyControllerToolBootstrapJobIdentity(good.token, expected, good, "windows-x86_64"))
+      .job_id,
+    501,
   );
+  for (const bad of [
+    make({ iss: "https://other.invalid" }),
+    make({ aud: "portcove-controller-tool-bootstrap" }),
+    make({ sha: "b".repeat(40) }),
+    make({}, ["ubuntu-22.04"]),
+  ])
+    await assert.rejects(
+      verifyControllerToolBootstrapJobIdentity(bad.token, expected, bad, "windows-x86_64"),
+    );
+  const wrongJob = assemblerIdentityFixture(
+    { aud: expected.audience },
+    {},
+    {
+      workflow: ".github/workflows/application-update-production.yml",
+      job: controllerToolBootstrapProfile().job,
+      labels: ["windows-2022"],
+    },
+  );
+  await assert.rejects(
+    verifyControllerToolBootstrapJobIdentity(wrongJob.token, expected, wrongJob, "windows-x86_64"),
+  );
+  await assert.rejects(verifyControllerToolBootstrapJobIdentity(good.token, expected, good));
 });
 
 void test("bootstrap generates complete compiler source bytes from the exact clean Git source and never overwrites", async (t) => {
@@ -768,6 +813,8 @@ function fixture(
   platform: ControllerToolPlatform = "linux-x86_64",
 ) {
   const profile = controllerToolPlatformProfile(platform);
+  const windows = platform === "windows-x86_64";
+  const producerProfile = controllerToolBootstrapProfile(platform);
   const bytes = new Map(
     profile.paths.map((name) => [name, Buffer.from(`inert tool fixture ${name}`)]),
   );
@@ -800,9 +847,13 @@ function fixture(
   const manifestBytes = Buffer.from(JSON.stringify(manifest));
   const archive = createAuditZip([["manifest.json", manifestBytes], ...bytes]);
   const bundleArchive = createAuditZip([
-    ["controller-tools-attestation.json", "synthetic fixture; not a protected attestation"],
+    [
+      windows ? "controller-tools-windows-attestation.json" : "controller-tools-attestation.json",
+      "synthetic fixture; not a protected attestation",
+    ],
   ]);
-  const expected = {
+  const expected: ControllerToolArtifactExpected = {
+    ...(windows ? { platform: "windows-x86_64" as const } : {}),
     controller_revision: manifest.source_commit,
     source_tree: manifest.source_tree,
     controller_ref: "refs/tags/portcove-production-controller-fixture",
@@ -837,21 +888,24 @@ function fixture(
       head_repository_id: 1354613114,
     },
   });
-  const toolArtifact = artifact(99, archive, "trusted-controller-tools"),
-    bundleArtifact = artifact(100, bundleArchive, "trusted-controller-tools-attestation");
+  const artifactName = windows ? "trusted-controller-tools-windows" : "trusted-controller-tools";
+  const toolArtifact = artifact(99, archive, artifactName),
+    bundleArtifact = artifact(100, bundleArchive, `${artifactName}-attestation`);
   const producer = { run_id: "9988", run_attempt: 1, job_id: 501, check_run_id: "777" };
   const job = {
     id: 501,
     run_id: 9988,
     run_attempt: 1,
     head_sha: expected.controller_revision,
-    name: "Prepare trusted application controller tools",
+    name: producerProfile.job,
+    labels: [...(producerProfile.labels ?? [])],
     status: "completed",
     conclusion: "success",
     check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
   };
   const predicate = {
-    schema_version: 1,
+    schema_version: windows ? 2 : 1,
+    ...(windows ? { platform: "windows-x86_64" } : {}),
     role: "fixed-controller-tools",
     repository: "boburning/portcove",
     repository_id: 1354613114,
@@ -886,8 +940,13 @@ function fixture(
         verifiedTimestamps: [{ timestamp: "injected-boundary-only" }],
         statement: {
           _type: "https://in-toto.io/Statement/v1",
-          predicateType: controllerToolPredicateType,
-          subject: [{ name: "controller-tools-manifest", digest: { sha256: hash(manifestBytes) } }],
+          predicateType: windows ? windowsControllerToolPredicateType : controllerToolPredicateType,
+          subject: [
+            {
+              name: windows ? "controller-tools-windows-manifest" : "controller-tools-manifest",
+              digest: { sha256: hash(manifestBytes) },
+            },
+          ],
           predicate,
         },
       },
@@ -918,6 +977,9 @@ function fixture(
     spawn: ((_command, args) => {
       assert.equal(args[0], "attestation");
       assert.ok(args.includes("--deny-self-hosted-runners"));
+      assert.ok(
+        args.includes(windows ? windowsControllerToolPredicateType : controllerToolPredicateType),
+      );
       return { status: 0, stdout: JSON.stringify(verified), stderr: "" };
     }) satisfies NonNullable<NonNullable<Parameters<typeof receiveControllerTools>[3]>["spawn"]>,
   };
@@ -1103,6 +1165,40 @@ void test("injected verification boundary materializes exact bytes only after si
     await assert.rejects(receiveControllerTools(root, g.expected, g.bundle, g.options));
     const [newRoot] = (await readdir(root)).filter((name) => !before.has(name));
     await assert.rejects(readdir(path.join(root, newRoot!, "tools")));
+  }
+});
+void test("Windows receiver binds its signed platform, producer, label, issuer and opaque source before materialization", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "windows-tool-receiver-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture({}, "windows-x86_64");
+  const result = await receiveControllerTools(root, f.expected, f.bundle, f.options);
+  assert.equal(result.evidence_scope, "injected-provider");
+  await assert.rejects(verifiedControllerToolPaths(result), /actual same-process/u);
+  assert.deepEqual(
+    await readFile(path.join(result.tools, "bin/node.exe")),
+    f.bytes.get("bin/node.exe"),
+  );
+  for (const fault of [
+    "platform",
+    "job",
+    "label",
+    "issuer",
+    "source",
+    "legacy-selection",
+  ] as const) {
+    const g = fixture({}, "windows-x86_64");
+    if (fault === "platform") g.predicate.platform = "linux-x86_64";
+    if (fault === "job") g.job.name = "Prepare trusted application controller tools";
+    if (fault === "label") g.job.labels = ["ubuntu-22.04"];
+    if (fault === "issuer") g.certificate.issuer = "https://other.invalid";
+    if (fault === "source") g.predicate.controller.revision = "c".repeat(40);
+    const before = new Set(await readdir(root));
+    const expected = { ...g.expected };
+    if (fault === "legacy-selection") delete expected.platform;
+    await assert.rejects(receiveControllerTools(root, expected, g.bundle, g.options));
+    const created = (await readdir(root)).filter((name) => !before.has(name));
+    assert.equal(created.length, 1);
+    await assert.rejects(readdir(path.join(root, created[0]!, "tools")));
   }
 });
 
