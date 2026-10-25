@@ -118,6 +118,29 @@ def runtime_fixture(root, refuse=False):
 
 @unittest.skipUnless(sys.platform == "linux", "actual Linux filesystem/command contracts")
 class RuntimePackages(unittest.TestCase):
+    def test_apt_leaf_links_are_counted_without_following_and_special_files_refuse(self):
+        for kind in ("link", "fifo"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (_, _, _, wanted):
+                original = installation.command
+                def invoke(arguments, check, kind=kind, original=original, **options):
+                    directory = Path(temporary) / "work/hosted-linux-package-evidence"
+                    if "update" in arguments:
+                        entry = directory / "lists/partial/provider-input"
+                        if kind == "link":
+                            entry.symlink_to("/unavailable-provider-input")
+                        else:
+                            os.mkfifo(entry)
+                        # Force this scan while the provider entry exists.
+                        time.sleep(0.26)
+                    return original(arguments, check, **options)
+                with patch.object(installation, "command", side_effect=invoke):
+                    if kind == "link":
+                        self.assertTrue(installation.prepare_runtime_packages(wanted)["prepared"])
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "runtime input kind differs: lists/partial/provider-input mode=10000"):
+                            installation.prepare_runtime_packages(wanted)
+                        self.assertFalse((Path(temporary) / "work/hosted-linux-package-evidence/runtime.json").exists())
+
     def test_parent_and_root_refusal_precede_inputs_or_effects(self):
         with patch.object(installation, "fence", side_effect=RuntimeError("expired")), \
                 patch.object(installation, "read_regular") as read:

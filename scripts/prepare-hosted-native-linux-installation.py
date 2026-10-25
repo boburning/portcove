@@ -509,7 +509,11 @@ def prepare_runtime_packages(plan):
                     info = entry.stat(follow_symlinks=False)
                     total += info.st_size
                     need(count <= 8192 and total <= 512 * 1024 ** 2, "runtime input inventory exceeds bound")
-                    need(stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode), "runtime input kind differs")
+                    # APT uses temporary leaf symlinks for mirror/index inputs.
+                    # This is a storage detector, not input admission: count the
+                    # link itself without reading or traversing its target.
+                    need(stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode),
+                         f"runtime input kind differs: {str(Path(entry.path).relative_to(directory))[:512]} mode={stat.S_IFMT(info.st_mode):o}")
                     if stat.S_ISDIR(info.st_mode):
                         pending.append(Path(entry.path))
     check()
