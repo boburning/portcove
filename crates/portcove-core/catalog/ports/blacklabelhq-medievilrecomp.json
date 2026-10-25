@@ -3,12 +3,12 @@
   "listing": {
     "id": "blacklabelhq-medievilrecomp",
     "name": "MediEvil / MediEvilRecomp (BlackLabelHQ)",
-    "summary": "Explore MediEvil / MediEvilRecomp (BlackLabelHQ) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play MediEvil with your own supported disc; its upstream player handles setup and runtime updates.",
     "project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
     "issue_number": 1844,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
     "artwork": {
       "game_id": 4000,
       "cover_id": 84944,
@@ -16,6 +16,30 @@
       "image_sha256": "a592d900ce17c971b523af9b3996c552dcee9a1b4bcf723c6bbaa71e534cebc8",
       "game_slug": "medievil",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Windows player",
+          "instruction": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game."
+        },
+        {
+          "title": "Choose your original disc in the game",
+          "instruction": "Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery."
+        },
+        {
+          "title": "Let the game provide updates",
+          "instruction": "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"]
+    },
+    "original_game_title": "MediEvil",
+    "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",
+    "recommended_download_channel": "stable"
   }
 }

@@ -3,11 +3,35 @@
   "listing": {
     "id": "uzdoom-uzdoom",
     "name": "Doom / UZDoom (UZDoom)",
-    "summary": "Explore Doom / UZDoom (UZDoom) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Choose your own Doom-family game data and mods in UZDoom; the upstream launcher provides runtime updates.",
     "project_url": "https://github.com/UZDoom/UZDoom",
     "issue_number": 1899,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/UZDoom/UZDoom"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the upstream-owned player",
+          "instruction": "Extract the complete official Windows x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register. Other upstream platforms use their own AppImage or Mac disk-image setup; this Windows package does not establish their operation."
+        },
+        {
+          "title": "Choose your game data",
+          "instruction": "Use the launcher to select your own supported IWAD or compatible free game data. Keep mods and game data under the upstream documented setup. Adding launch details does not start a game; choose Play separately."
+        },
+        {
+          "title": "Update through upstream",
+          "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md"
+    },
+    "original_game_title": "Doom",
+    "release_url": "https://github.com/UZDoom/UZDoom/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["Windows-UZDoom-Release-x86_64.zip"]
+    }
   }
 }
