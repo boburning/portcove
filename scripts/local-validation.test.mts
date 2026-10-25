@@ -49,6 +49,48 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("browser artifact custody inputs retain direct contracts across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const inputs = [
+    ".github/actions/retain-browser-diagnostics/action.yml",
+    ".github/workflows/browser-artifact-custody.yml",
+    "scripts/fixtures/browser-upload-baseline.json",
+    "apps/desktop/scripts/browser-screenshot-custody.mts",
+  ];
+  const sibling = "scripts/fixtures/browser-upload-baseline-sibling.json";
+  for (const file of [...inputs, sibling])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        assert.equal(
+          selected.has("scripts/ci-frontend-workflow.test.mts"),
+          file !== sibling,
+          JSON.stringify(change),
+        );
+    }
+});
+
 void test("qualification outcome helpers retain all direct consumers across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const paths = [

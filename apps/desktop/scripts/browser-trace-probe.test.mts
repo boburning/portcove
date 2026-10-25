@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { createHash } from "node:crypto";
 import { createBrowserTraceRun } from "../../../scripts/browser-traces.ts";
 import { createAuditZip } from "../../../scripts/fixtures/audit-zip-fixture.mts";
 import {
@@ -22,6 +23,165 @@ import {
   closeProbeRunner,
   createProbeArtifactReader,
 } from "./browser-trace-probe.mts";
+import {
+  screenshotContext,
+  screenshotFailure,
+  screenshotRoutes,
+  verifyScreenshotPacket,
+  verifyScreenshotJobs,
+} from "./browser-screenshot-custody.mts";
+
+test("screenshot-only packets require exact context, original failure, close acknowledgement and bytes", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-screenshot-packet-"));
+  const context = { source: "a".repeat(40), run: "123", attempt: "2" };
+  const screenshot = "work/bt/run-01234567/screenshots/failure.png";
+  const receipt = ".vitest/attachments/browser-artifact-custody/fast.json";
+  // Inert header fixture tests validation only; hosted acceptance requires the
+  // real Playwright producer and corresponding original failed step outcomes.
+  const png = Buffer.alloc(24);
+  Buffer.from("89504e470d0a1a0a", "hex").copy(png);
+  png.writeUInt32BE(640, 16);
+  png.writeUInt32BE(360, 20);
+  const value = {
+    format_version: 1,
+    ...context,
+    checkout: context.source,
+    route: "fast",
+    browser_closed: true,
+    trace_started: false,
+    failure: {
+      name: "AssertionError",
+      code: "ERR_ASSERTION",
+      marker: screenshotFailure,
+      actual: "Portcove screenshot custody probe",
+      expected: "Intentional different title",
+    },
+    screenshot: {
+      path: screenshot,
+      bytes: png.length,
+      sha256: createHash("sha256").update(png).digest("hex"),
+    },
+  };
+  const save = (input: unknown = value) =>
+    writeFileSync(path.join(root, receipt), JSON.stringify(input));
+  try {
+    for (const file of [receipt, screenshot])
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    writeFileSync(path.join(root, screenshot), png);
+    save();
+    assert.equal(verifyScreenshotPacket(root, "fast", context).bytes, png.length);
+    for (const patch of [
+      { source: "b".repeat(40) },
+      { checkout: "b".repeat(40) },
+      { run: "124" },
+      { attempt: "1" },
+      { route: "full" },
+      { browser_closed: false },
+      { trace_started: true },
+      { failure: { ...value.failure, marker: "unrelated launch failure" } },
+      { failure: { ...value.failure, code: "ERR_UNKNOWN" } },
+      { screenshot: { ...value.screenshot, sha256: "0".repeat(64) } },
+      { screenshot: { ...value.screenshot, bytes: 1 } },
+      { screenshot: { ...value.screenshot, path: "../../foreign.png" } },
+    ]) {
+      save({ ...value, ...patch });
+      assert.throws(() => verifyScreenshotPacket(root, "fast", context));
+    }
+    save();
+    const extra = path.join(root, "work/bt/run-01234567/failure.trace.zip");
+    writeFileSync(extra, "unexpected trace");
+    assert.throws(() => verifyScreenshotPacket(root, "fast", context));
+    rmSync(extra);
+    writeFileSync(path.join(root, screenshot), "");
+    assert.throws(() => verifyScreenshotPacket(root, "fast", context));
+    rmSync(path.join(root, screenshot));
+    assert.throws(() => verifyScreenshotPacket(root, "fast", context));
+    writeFileSync(path.join(root, screenshot), png);
+    writeFileSync(path.join(root, receipt), "{}");
+    assert.throws(() => verifyScreenshotPacket(root, "fast", context));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("screenshot custody refuses empty or malformed source/run/attempt context", () => {
+  const env = { GITHUB_SHA: "a".repeat(40), GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "2" };
+  assert.deepEqual(screenshotContext(env), { source: env.GITHUB_SHA, run: "123", attempt: "2" });
+  for (const key of Object.keys(env))
+    for (const invalid of ["", "0", "-1", "bad value"])
+      assert.throws(() => screenshotContext({ ...env, [key]: invalid }));
+});
+
+test("hosted screenshot acceptance refuses missing jobs, tolerated steps and unrelated failures", () => {
+  const context = { source: "a".repeat(40), run: "123", attempt: "2" };
+  const required = [
+    "Install pinned dependencies",
+    "Bootstrap Chromium",
+    "Intentional screenshot-only failure",
+    "Retain screenshot-only diagnostics",
+  ];
+  const jobs = screenshotRoutes.map((route, index) => ({
+    id: index + 1,
+    name: `screenshot-only (${route})`,
+    run_id: 123,
+    run_attempt: 2,
+    head_sha: context.source,
+    status: "completed",
+    conclusion: "failure",
+    steps: required.map((name, number) => ({
+      name,
+      number: number + 1,
+      status: "completed",
+      conclusion: name === "Intentional screenshot-only failure" ? "failure" : "success",
+    })),
+  }));
+  const value = {
+    total_count: 4,
+    jobs: [
+      ...jobs,
+      {
+        ...jobs[0]!,
+        id: 4,
+        name: "verify-screenshot-custody",
+        status: "in_progress",
+        conclusion: null,
+      },
+    ],
+  };
+  verifyScreenshotJobs(value, context);
+  for (const total_count of [0, 3, 5, 100, 101])
+    assert.throws(() => verifyScreenshotJobs({ ...value, total_count }, context));
+  assert.throws(() => verifyScreenshotJobs({ ...value, jobs: value.jobs.slice(1) }, context));
+  for (const patch of [
+    { id: 2 },
+    { name: "screenshot-only (full)" },
+    { run_id: 124 },
+    { run_attempt: 1 },
+    { run_attempt: undefined },
+    { head_sha: "b".repeat(40) },
+    { status: "in_progress" },
+    { conclusion: "success" },
+  ]) {
+    assert.throws(() =>
+      verifyScreenshotJobs(
+        { ...value, jobs: [{ ...jobs[0]!, ...patch }, ...value.jobs.slice(1)] },
+        context,
+      ),
+    );
+  }
+  for (const index of [0, 1, 2, 3])
+    for (const conclusion of ["skipped", "cancelled", index === 2 ? "success" : "failure"]) {
+      const changed = structuredClone(value);
+      changed.jobs[0]!.steps[index]!.conclusion = conclusion;
+      assert.throws(() => verifyScreenshotJobs(changed, context));
+    }
+  const omitted = structuredClone(value);
+  omitted.jobs[0]!.steps.pop();
+  assert.throws(() => verifyScreenshotJobs(omitted, context));
+  const duplicate = structuredClone(value);
+  duplicate.jobs[0]!.steps.push(duplicate.jobs[0]!.steps[0]!);
+  assert.throws(() => verifyScreenshotJobs(duplicate, context));
+});
 
 test("artifact reads reject missing, empty, oversized, foreign and replaced output roots", () => {
   const parent = mkdtempSync(path.join(os.tmpdir(), "portcove-probe-read-"));

@@ -1,0 +1,58 @@
+{
+  "format_version": 1,
+  "source": "7a5cf014b83316e2e0a06ad3319c5a5829b4c23a",
+  "inputs": {
+    ".github/workflows/ci.yml": "ba80f8ab454f9896ee4ebc63024c97bb266c0833f165800d84129822b1f4d08e",
+    "scripts/ci-frontend-workflow.test.mts": "6b0653f1cb70a08dfc3c4a1d8697fee3e9f29a6067d3c256ee37b4038451c517",
+    "apps/desktop/scripts/browser-runtime.mts": "9899a5afef77706a444c5136c3ffbed2f84a0e5fda99fd6da5f7f3c4fd00e689",
+    "scripts/browser-traces.ts": "0c1e12f18efd0d6d384eabd0fd77f2f63ca016c6f284b0070ab65bc11ba874c0"
+  },
+  "rows": [
+    {
+      "job": "fast_frontend",
+      "step": {
+        "name": "Retain affected browser diagnostics",
+        "if": "always()",
+        "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+        "with": {
+          "name": "browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}",
+          "path": "work/bt/**/*.trace.zip\nwork/bt/**/screenshots/**/*.png\n.vitest/attachments/failure-screenshots/**/*.png\napps/desktop/.vitest/attachments/failure-screenshots/**/*.png\n.vitest/attachments/**/*.json\napps/desktop/.vitest/attachments/**/*.json\noutputs/slice5-cards/**/*.png\noutputs/detail-composition/**/*.png\noutputs/observation-clarity/**/*.png\noutputs/uiux-game-titles/**/*.png\noutputs/detail-tabs/**/*.png\noutputs/uiux-remainder/**/*.png\noutputs/ui-refinement/**/*.png\noutputs/uiux-task-isolation/**/*.png\nwork/installation-rendered/**/*.png\n",
+          "include-hidden-files": true,
+          "retention-days": 7,
+          "if-no-files-found": "warn"
+        }
+      }
+    },
+    {
+      "job": "frontend_full",
+      "step": {
+        "name": "Retain browser diagnostics",
+        "if": "always()",
+        "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+        "with": {
+          "name": "browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}",
+          "path": "work/bt/**/*.trace.zip\nwork/bt/**/screenshots/**/*.png\n.vitest/attachments/failure-screenshots/**/*.png\napps/desktop/.vitest/attachments/failure-screenshots/**/*.png\n.vitest/attachments/**/*.json\napps/desktop/.vitest/attachments/**/*.json\noutputs/slice5-cards/**/*.png\noutputs/detail-composition/**/*.png\noutputs/observation-clarity/**/*.png\noutputs/uiux-game-titles/**/*.png\noutputs/detail-tabs/**/*.png\noutputs/uiux-remainder/**/*.png\noutputs/ui-refinement/**/*.png\noutputs/uiux-task-isolation/**/*.png\nwork/installation-rendered/**/*.png\n",
+          "include-hidden-files": true,
+          "retention-days": 7,
+          "if-no-files-found": "warn"
+        }
+      }
+    },
+    {
+      "job": "frontend_portability",
+      "step": {
+        "name": "Retain failed contributor browser diagnostics",
+        "if": "failure()",
+        "uses": "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+        "with": {
+          "name": "browser-traces-contributor-${{ github.run_id }}-${{ github.run_attempt }}",
+          "path": "work/bt/**/*.trace.zip\nwork/bt/**/screenshots/**/*.png\n.vitest/attachments/failure-screenshots/**/*.png\napps/desktop/.vitest/attachments/failure-screenshots/**/*.png\n.vitest/attachments/**/*.json\napps/desktop/.vitest/attachments/**/*.json\noutputs/slice5-cards/**/*.png\noutputs/detail-composition/**/*.png\noutputs/observation-clarity/**/*.png\noutputs/uiux-game-titles/**/*.png\noutputs/detail-tabs/**/*.png\noutputs/uiux-remainder/**/*.png\noutputs/ui-refinement/**/*.png\noutputs/uiux-task-isolation/**/*.png\nwork/installation-rendered/**/*.png\n",
+          "include-hidden-files": true,
+          "retention-days": 7,
+          "if-no-files-found": "warn"
+        }
+      }
+    }
+  ],
+  "scope": "Original producer upload steps; separate manual screenshot-only failure acceptance is not yet implemented or observed"
+}
