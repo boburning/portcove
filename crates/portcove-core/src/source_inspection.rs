@@ -1380,7 +1380,7 @@ fn inspect_file_set_representation(
     }
     let archive = if is_zip && directory_member.is_none() {
         Some(
-            zip::ZipArchive::new(File::open(path)?)
+            crate::archive::open_zip(File::open(path)?)
                 .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
         )
     } else {

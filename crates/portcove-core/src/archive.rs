@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
-    io::{Read, Write},
+    io::{Read, Seek, Write},
     path::{Path, PathBuf},
 };
 
@@ -276,13 +276,24 @@ fn validate_component(component: &str) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn open_zip<R: Read + Seek>(reader: R) -> zip::result::ZipResult<zip::ZipArchive<R>> {
+    let archive = zip::ZipArchive::new(reader)?;
+    // Index iteration hides raw duplicate names after the parser collapses them.
+    if archive.has_duplicate_names() {
+        return Err(zip::result::ZipError::InvalidArchive(
+            "duplicate ZIP entry name".into(),
+        ));
+    }
+    Ok(archive)
+}
+
 fn extract_zip(
     source: &Path,
     destination: &Path,
     compressed_size: u64,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    let mut archive = zip::ZipArchive::new(File::open(source)?)
+    let mut archive = open_zip(File::open(source)?)
         .map_err(|error| PortcoveError::verification(format!("invalid ZIP: {error}")))?;
     if archive.len() > MAX_ENTRIES {
         return Err(PortcoveError::verification(
@@ -330,7 +341,7 @@ fn extract_zip(
     validate_plan(destination, &plans, compressed_size)?;
     drop(archive);
 
-    let mut archive = zip::ZipArchive::new(File::open(source)?)
+    let mut archive = open_zip(File::open(source)?)
         .map_err(|error| PortcoveError::verification(format!("invalid ZIP: {error}")))?;
     for (index, plan) in plans.iter().enumerate() {
         checkpoint()?;
@@ -959,6 +970,56 @@ mod tests {
             .unwrap()
             .success()
         );
+    }
+
+    #[test]
+    fn zip_open_rejects_duplicate_raw_names_before_extracting() {
+        let temporary = tempdir().unwrap();
+        let source = temporary.path().join("duplicate.zip");
+        write_zip(
+            &source,
+            &[
+                ("one.bin", b"first".as_slice(), None),
+                ("two.bin", b"last".as_slice(), None),
+            ],
+        );
+        let mut bytes = fs::read(&source).unwrap();
+        let positions = bytes
+            .windows(7)
+            .enumerate()
+            .filter_map(|(index, name)| (name == b"two.bin").then_some(index))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            positions.len(),
+            2,
+            "patch the local and central names together"
+        );
+        for index in positions {
+            bytes[index..index + 7].copy_from_slice(b"one.bin");
+        }
+        let parsed = zip::ZipArchive::new(Cursor::new(&bytes)).unwrap();
+        assert_eq!(
+            parsed.len(),
+            1,
+            "ordinary index iteration has already lost one entry"
+        );
+        assert!(parsed.has_duplicate_names());
+        assert!(
+            open_zip(Cursor::new(&bytes))
+                .unwrap_err()
+                .to_string()
+                .contains("duplicate")
+        );
+        fs::write(&source, &bytes).unwrap();
+        let destination = temporary.path().join("out");
+        fs::create_dir(&destination).unwrap();
+        assert!(
+            extract_archive(&source, &destination, "duplicate.zip", bytes.len() as u64)
+                .unwrap_err()
+                .to_string()
+                .contains("duplicate")
+        );
+        assert_eq!(fs::read_dir(destination).unwrap().count(), 0);
     }
 
     #[test]

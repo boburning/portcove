@@ -996,7 +996,7 @@ fn prepare_runtime_source_set_member(
     }
 
     let file = File::open(source_root)?;
-    let mut archive = zip::ZipArchive::new(file)
+    let mut archive = crate::archive::open_zip(file)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?;
     let index =
         source_set_zip_member_index(&mut archive, source_root, accepted_filenames, checkpoint)?;
@@ -1263,7 +1263,7 @@ fn copy_runtime_source(
             .and_then(|value| value.to_str())
             .ok_or_else(|| PortcoveError::state("runtime source destination has no extension"))?;
         let file = File::open(source)?;
-        let mut archive = zip::ZipArchive::new(file)
+        let mut archive = crate::archive::open_zip(file)
             .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
         let mut matches = Vec::new();
         for index in 0..archive.len() {
@@ -2077,7 +2077,7 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
     }
     let archive = if is_zip {
         Some(
-            zip::ZipArchive::new(File::open(path)?)
+            crate::archive::open_zip(File::open(path)?)
                 .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
         )
     } else {
@@ -3207,7 +3207,7 @@ fn read_zip_source_with_checkpoint(
 ) -> Result<Vec<u8>> {
     checkpoint()?;
     let file = File::open(path)?;
-    let mut archive = zip::ZipArchive::new(file)
+    let mut archive = crate::archive::open_zip(file)
         .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
     let accepted: Vec<String> = accepted_extensions
         .iter()
