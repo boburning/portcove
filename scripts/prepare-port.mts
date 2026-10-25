@@ -89,6 +89,43 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
   };
 }
 
+/** Read-only authoring context; canonical prose never becomes operation authority. */
+export function canonicalPreparationFeedback(
+  record: AuthoredPort,
+  facts: Pick<Awaited<ReturnType<typeof collectPortFacts>>, "observations">,
+) {
+  const number = record.listing.issue_number;
+  if (number === undefined) return undefined;
+  const endpoint = `https://api.github.com/repos/boburning/portcove/issues/${number}`;
+  const observation = facts.observations.find(
+    (fact) => fact.endpoint === endpoint && fact.status !== "unavailable",
+  );
+  const issue = isRecord(observation?.body) ? observation.body : undefined;
+  const specification =
+    issue && !issue.pull_request && typeof issue.body === "string" ? issue.body : undefined;
+  return {
+    issue_number: number,
+    url: `https://github.com/boburning/portcove/issues/${number}`,
+    specification: {
+      status: specification === undefined ? "not-observed" : "observed",
+      facts_endpoint: endpoint,
+      observed_at: observation?.observed_at ?? null,
+      body_sha256:
+        specification === undefined
+          ? null
+          : createHash("sha256").update(specification, "utf8").digest("hex"),
+      location: "files.upstream -> observations[facts_endpoint].body.body",
+    },
+    authored_acquisition_condition: record.listing.download_block_reason ?? null,
+    next:
+      specification === undefined
+        ? "The canonical specification was not observed in this preparation. Read the owning Roadmap context or prepare with --issue before deciding route, lineage, acquisition conditions or deferrals."
+        : "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+    scope:
+      "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced.",
+  };
+}
+
 export function downloadPreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
   const hints = record.listing.download_asset_hints;
   if (!hints || !Object.keys(hints).length) return undefined;
@@ -536,6 +573,7 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
+      canonical_preparation: canonicalPreparationFeedback(record, facts),
       portable_preparation: portablePreparationFeedback(record, facts),
       download_preparation: downloadPreparationFeedback(record, facts),
       ...prepared,

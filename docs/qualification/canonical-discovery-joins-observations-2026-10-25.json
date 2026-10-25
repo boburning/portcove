@@ -1,0 +1,452 @@
+{
+  "format_version": 1,
+  "source_commit": "f7ef18f2cc089d975ee383f9bdb04bcb9a6cb1f7",
+  "observation_cutoff": "2026-10-25T10:55:17.696Z",
+  "scope": "Two distinct original roadmap-only joins; existing acquisition conditions retained, no managed admission or whole-inventory completion.",
+  "baseline_authored_identities": 878,
+  "resulting_authored_identities": 880,
+  "operational_definitions": 158,
+  "original_roadmap_joins": {
+    "total": 22,
+    "previously_authored": 1,
+    "authored_in_this_candidate": 2,
+    "remaining_unjoined_if_delivered": 19
+  },
+  "entries": [
+    {
+      "id": "petarov-saboteur2",
+      "canonical_issue": 2722,
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/dos-held-discovery-batch10/petarov-saboteur2-proposal-v2.json",
+      "input_sha256": "a3f69061e9564faf49c850063f8e5b2d6cc872384732c3fe3f10959cc60594fe",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\dos-held-discovery-batch10\\prepare-canonical-petarov-saboteur2\\petarov-saboteur2-a3f69061e9564faf49c850063f8e5b2d6cc872384732c3fe3f10959cc60594fe.json",
+      "prepared_sha256": "a3f69061e9564faf49c850063f8e5b2d6cc872384732c3fe3f10959cc60594fe",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\dos-held-discovery-batch10\\prepare-canonical-petarov-saboteur2\\completion-256926b2f3e2d847373aa048f23de8009f8b887fa82889f673cf8831c5d695bf.json",
+      "receipt_sha256": "256926b2f3e2d847373aa048f23de8009f8b887fa82889f673cf8831c5d695bf",
+      "route": "Listing-only with existing Core acquisition condition and conditional non-owning instructions; no managed acquisition",
+      "status": "Actual canonical-bound Core listing preparation passed; complete candidate review and delivery pending.",
+      "repair": "Remove cross-platform package-inspection jargon and cross-game browser claim from player guidance; prior immutable inputs and receipts retained.",
+      "canonical_preparation": {
+        "issue_number": 2722,
+        "url": "https://github.com/boburning/portcove/issues/2722",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/2722",
+          "observed_at": "2026-10-25T10:53:07.598Z",
+          "body_sha256": "8fdb1a11cd2c5802926ba79d55a8def97d1596806a70ad57b69d4ce247c65a8e",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": "Fresh package/build acquisition remains held under #2722: upstream embeds original SAB2.COM data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "upstream_facts_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\dos-held-discovery-batch10\\prepare-canonical-petarov-saboteur2\\upstream-15778e64b7025a5c2d6013b65c744902751cb1cb677196a9c9920c6b54cb9bc4.json",
+      "upstream_facts_sha256": "15778e64b7025a5c2d6013b65c744902751cb1cb677196a9c9920c6b54cb9bc4",
+      "path": "crates/portcove-core/catalog/ports/petarov-saboteur2.json",
+      "authored_sha256": "ae6d6fa4d79485191a817b0cffed149e3bbc751882106ee1f21c56f3a743b885",
+      "canonical_specification": {
+        "status": "observed",
+        "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/2722",
+        "observed_at": "2026-10-25T10:53:07.598Z",
+        "body_sha256": "8fdb1a11cd2c5802926ba79d55a8def97d1596806a70ad57b69d4ce247c65a8e",
+        "location": "files.upstream -> observations[facts_endpoint].body.body"
+      },
+      "source_commit": "00de5fb4001d77edbae48ec500038dd364aa8ae8",
+      "primary_sources": [
+        {
+          "path": "BUILDING.md",
+          "blob": "b8f25c41700f91cfece5f75cd9fefce05ad653c5",
+          "bytes": 8708,
+          "sha256": "a92b86d0c0d151d8fcb81defe59c7009b862982bd12d0f92a08db0a0b6afd69e",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/BUILDING.md"
+        },
+        {
+          "path": "LICENSE",
+          "blob": "3c577b03e4bdf5bb5419c424394cb9b502a8ed62",
+          "bytes": 1210,
+          "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "blob": "5340ccbbfc4042a50219585fe4ae5834c937394d",
+          "bytes": 3327,
+          "sha256": "2f274c7f73f56f2718033c02e9ee6d35fd690c149343505ca9d609b08ddf5fdf",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/README.md"
+        },
+        {
+          "path": "port/src/bios.c",
+          "blob": "dfd989f55553693f2e46fde2cf1fe22971592ce1",
+          "bytes": 18541,
+          "sha256": "cff14bde0b21435580a1b99d7124131c7513648b80a0e20dd97a66f2c7b94b25",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/bios.c"
+        },
+        {
+          "path": "port/src/bios.h",
+          "blob": "b97489c4e64abf09da46a4ea58f6df4bb995ea43",
+          "bytes": 3938,
+          "sha256": "f5096a16ce1f6dcdfdfb552e0c2db9b730bf4ef2fd8bcd8acbb11fbf3181bf65",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/bios.h"
+        },
+        {
+          "path": "port/src/font8x8.c",
+          "blob": "6dffecb4d18da9015e7bd3772e79fb53064455ee",
+          "bytes": 9560,
+          "sha256": "e95f01bb5fede2c11a4c88971c8f1f289c279f41a23fa5f8a9a686c5c4f2b9dd",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/font8x8.c"
+        },
+        {
+          "path": "port/src/font8x8.h",
+          "blob": "6c760f3ddacc28dc25777ce084a76ab5fd3e73a2",
+          "bytes": 356,
+          "sha256": "893636673e39706d4ba011df1a3910eada1c742aed4fc534b6615f314fc9465f",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/font8x8.h"
+        },
+        {
+          "path": "port/src/platform.c",
+          "blob": "d87629db574f501b7e316bf09a32bf909e42915e",
+          "bytes": 23490,
+          "sha256": "5845c16b93df5dabcfe59593bccf186cc786bb0d4d4a245881dc2be5658b289b",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/platform.c"
+        },
+        {
+          "path": "port/src/runtime.c",
+          "blob": "72df104c79223e82c17cf63ddb38e8f1bfba5bb6",
+          "bytes": 6178,
+          "sha256": "26b7a5bcca20af5a987959bd86a269c3061f0b623771fb27fd0e210e6f10e86a",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/runtime.c"
+        },
+        {
+          "path": "port/src/runtime.h",
+          "blob": "90ac2fa104a5bf7300f03f14ad0a6238023e0991",
+          "bytes": 10061,
+          "sha256": "7c0cf52b25b9b8e20b5b064b3035eeba065eb7bb59cd36cd4525269ddaf1e701",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/runtime.h"
+        },
+        {
+          "path": "port/src/speaker.c",
+          "blob": "2532037944006a972c6c14f46012c02cd07c4caf",
+          "bytes": 5465,
+          "sha256": "0b756a3897ec180a9cc9e04f5165ab9303850d7f8042686268c2502e5612a779",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/speaker.c"
+        },
+        {
+          "path": "port/src/speaker.h",
+          "blob": "b5478d28b1162dfee3a9dc55fef3446df31f142d",
+          "bytes": 803,
+          "sha256": "d2c6f5ed38eb6585b4d8df6ca1de1b79f8a2ad8ec572df532fb3b946bc500921",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/src/speaker.h"
+        },
+        {
+          "path": "port/tests/check_main.c",
+          "blob": "4f1f8738cc3b0144fb39526613b9883d74b6162c",
+          "bytes": 1862,
+          "sha256": "323a86eacefcd24dac029bc4c0fcb3b48acb6ac32aca56e639228fa9f3c2fc51",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/tests/check_main.c"
+        },
+        {
+          "path": "port/tools/render_room.c",
+          "blob": "6379a00a0abb031e3511133b614431c1156d82dc",
+          "bytes": 3021,
+          "sha256": "a98e9fc273c0883938d02787ef1d1fca6651b85c1e5fd72295afdaf6734e0b99",
+          "url": "https://github.com/petarov/saboteur2/blob/00de5fb4001d77edbae48ec500038dd364aa8ae8/port/tools/render_room.c"
+        }
+      ],
+      "platform_scope": [
+        "Windows x86-64 conditional existing-copy instructions",
+        "Linux x86-64 conditional existing-copy instructions; upstream SDL2/glibc dependencies"
+      ],
+      "previous_route": "Original roadmap-only identity; no authored listing",
+      "selected_route": "Discovery listing with Core-enforced fresh-acquisition condition and conditional non-owning setup",
+      "update_owner": "player/upstream; no external Core replacement/backup/restore/rollback ownership",
+      "setup_data_boundary": [
+        {
+          "title": "Check the existing acquisition condition",
+          "instruction": "Upstream’s published player needs no separate original-file picker because it embeds data from SAB2.COM. Fresh package/build acquisition remains held until the existing original-content distribution condition is resolved. Published checksums and technical package fit are separate facts. Keep any currently usable permitted copy and its files; no download, setup helper or game runs during discovery."
+        },
+        {
+          "title": "Keep a permitted existing player together",
+          "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose saboteur2.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses saboteur2 and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
+        },
+        {
+          "title": "Preserve actual settings and progress",
+          "instruction": "The player normally stores fullscreen settings and high scores in SDL’s per-user petarov/saboteur2 preferences folder. When that folder is unavailable, high scores can fall back to SAB_II.SCR in the working directory; preserve that file too. Forced quit keys do not save scores. Before changing versions, close the game and keep a separate copy of the working runtime and actual preferences/fallback file. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
+        }
+      ],
+      "acquisition_condition": "Fresh package/build acquisition remains held under #2722: upstream embeds original SAB2.COM data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+      "retained_package_observations": [
+        {
+          "platform": "windows",
+          "name": "saboteur2-1.1-windows-x86_64.zip",
+          "size": 814017,
+          "asset_id": 653008413,
+          "publisher_expected_sha256": "sha256:82d2315e41c4499f0c862d67fd5b74a39bbb059d40e21ba05839caae64be92cc",
+          "observed_sha256": "82d2315e41c4499f0c862d67fd5b74a39bbb059d40e21ba05839caae64be92cc",
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/dos-native-join-batch9/petarov-saboteur2/saboteur2-1.1-windows-x86_64.zip",
+          "status": "Previously acquired before full canonical-condition review; retained process-failure/research evidence, not accepted acquisition/admission. No repeat acquisition or execution."
+        },
+        {
+          "platform": "linux",
+          "name": "saboteur2-1.1-linux-x86_64.tar.gz",
+          "size": 92289,
+          "asset_id": 653008305,
+          "publisher_expected_sha256": "sha256:9c1002934fc5b89400fd550eb6b400a37a67d1feb0ea9dcebbc1b08d75fd86c6",
+          "observed_sha256": "9c1002934fc5b89400fd550eb6b400a37a67d1feb0ea9dcebbc1b08d75fd86c6",
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/dos-native-join-batch9/petarov-saboteur2/saboteur2-1.1-linux-x86_64.tar.gz",
+          "status": "Previously acquired before full canonical-condition review; retained process-failure/research evidence, not accepted acquisition/admission. No repeat acquisition or execution."
+        }
+      ],
+      "bounded_layout_observations": [
+        {
+          "platform": "windows",
+          "sha256": "82d2315e41c4499f0c862d67fd5b74a39bbb059d40e21ba05839caae64be92cc",
+          "parser_bounds": {
+            "format": "zip",
+            "central_directory_bytes": 318,
+            "entry_count": 3
+          },
+          "scope": "Read-only bounded structural metadata and native headers; no extraction or execution."
+        },
+        {
+          "platform": "linux",
+          "sha256": "9c1002934fc5b89400fd550eb6b400a37a67d1feb0ea9dcebbc1b08d75fd86c6",
+          "parser_bounds": {
+            "format": "tar.gz",
+            "decoded_bytes": 333824,
+            "raw_records": 3,
+            "extended_metadata_bytes": 198
+          },
+          "scope": "Read-only bounded structural metadata and native headers; no extraction or execution."
+        }
+      ],
+      "technical_fit": "Selected Windows ZIP/Linux tar.gz layouts fit NativePortable technically; management is not admitted because the existing acquisition prerequisite remains unresolved.",
+      "reconsideration_condition": "Attributable original-content distribution evidence or a reviewed own-input runtime-creation route resolving the exact existing canonical condition. Published bytes, checksums and port-code license alone did not resolve it.",
+      "delivery_status": "Authored conditional discovery only; separate complete-candidate review, required exact-head CI and guarded delivery pending.",
+      "preparation_tool_source_sha256": "722d714280e13d699e7abd7cfbda6170715a9ef5618e67e2145e7580c6964884"
+    },
+    {
+      "id": "petarov-alleycat-exe",
+      "canonical_issue": 2827,
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/dos-held-discovery-batch10/petarov-alleycat-exe-proposal-v2.json",
+      "input_sha256": "326a2e35b1869ca213480b3bc09dfa573b2cc8765c1624e892262ab7937aa397",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\dos-held-discovery-batch10\\prepare-canonical-petarov-alleycat-exe\\petarov-alleycat-exe-326a2e35b1869ca213480b3bc09dfa573b2cc8765c1624e892262ab7937aa397.json",
+      "prepared_sha256": "326a2e35b1869ca213480b3bc09dfa573b2cc8765c1624e892262ab7937aa397",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\dos-held-discovery-batch10\\prepare-canonical-petarov-alleycat-exe\\completion-ba7e233d9054c8d59269474b72a1fabb925ab9c3e3bd7de148174cfe31fd1d46.json",
+      "receipt_sha256": "ba7e233d9054c8d59269474b72a1fabb925ab9c3e3bd7de148174cfe31fd1d46",
+      "route": "Listing-only with existing Core acquisition condition and conditional non-owning instructions; no managed acquisition",
+      "status": "Actual canonical-bound Core listing preparation passed; complete candidate review and delivery pending.",
+      "repair": "Remove cross-platform package-inspection jargon and cross-game browser claim from player guidance; prior immutable inputs and receipts retained.",
+      "canonical_preparation": {
+        "issue_number": 2827,
+        "url": "https://github.com/boburning/portcove/issues/2827",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/2827",
+          "observed_at": "2026-10-25T10:53:15.357Z",
+          "body_sha256": "33cbc6b4a8fafe196805b4178d782f92a62bffae585444fe7815dfa22fe65468",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": "Fresh package/build acquisition remains held under #2827: upstream embeds original CAT.EXE data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "upstream_facts_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\dos-held-discovery-batch10\\prepare-canonical-petarov-alleycat-exe\\upstream-e88e2c7d7609caa2ff263b5310c0da69697c4ed1f411a9dd3e47daf401a2af57.json",
+      "upstream_facts_sha256": "e88e2c7d7609caa2ff263b5310c0da69697c4ed1f411a9dd3e47daf401a2af57",
+      "path": "crates/portcove-core/catalog/ports/petarov-alleycat-exe.json",
+      "authored_sha256": "2ac79167bb20029978e386a67b7b77a8be3203dc75cba2516b847a7d11f37c2c",
+      "canonical_specification": {
+        "status": "observed",
+        "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/2827",
+        "observed_at": "2026-10-25T10:53:15.357Z",
+        "body_sha256": "33cbc6b4a8fafe196805b4178d782f92a62bffae585444fe7815dfa22fe65468",
+        "location": "files.upstream -> observations[facts_endpoint].body.body"
+      },
+      "source_commit": "e4473790486bdbcdb9c66c6513d0e7fa292f54cf",
+      "primary_sources": [
+        {
+          "path": "BUILDING.md",
+          "blob": "5f8d5c65a39c561e6b409dc5f0cfe975cb79a8f1",
+          "bytes": 6858,
+          "sha256": "5a65051b372caaa24b3605729df7741f729ee8e197101250b6b3f02266ae3f0c",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/BUILDING.md"
+        },
+        {
+          "path": "LICENSE",
+          "blob": "3c577b03e4bdf5bb5419c424394cb9b502a8ed62",
+          "bytes": 1210,
+          "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "blob": "1d125e71db47433aba59954e2a6aaec5964b3431",
+          "bytes": 3565,
+          "sha256": "9ac076d38fce5bd5be05bafcce9b595a511b96c87ce26d9e3f937f65fc3a2c08",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/README.md"
+        },
+        {
+          "path": "port/src/bios.c",
+          "blob": "16f43d2980106dd753d9fc1afcd5e410bee00010",
+          "bytes": 14744,
+          "sha256": "cb524e70fe634580fa7e8b4e6110969f31942229e5f1b4b6f7e92db5ac7c842f",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/src/bios.c"
+        },
+        {
+          "path": "port/src/bios.h",
+          "blob": "19e4b9a44b1c38363fda0152dc437766c30a8c88",
+          "bytes": 2386,
+          "sha256": "4e9055e606bafcf32fe2465a8e23bb24b1f77ead4f217fbbeac860f5c9475cf4",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/src/bios.h"
+        },
+        {
+          "path": "port/src/font8x8.c",
+          "blob": "6dffecb4d18da9015e7bd3772e79fb53064455ee",
+          "bytes": 9560,
+          "sha256": "e95f01bb5fede2c11a4c88971c8f1f289c279f41a23fa5f8a9a686c5c4f2b9dd",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/src/font8x8.c"
+        },
+        {
+          "path": "port/src/font8x8.h",
+          "blob": "c674a7c30c912ac844d6e61fd8ff7c50703267d9",
+          "bytes": 352,
+          "sha256": "080dc00531faca775a622928da32c19bb1714cd6e619d09c1a3c7d1fa775c143",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/src/font8x8.h"
+        },
+        {
+          "path": "port/src/platform.c",
+          "blob": "c1e54918df8281c29164e1af56394d1a2bbbfe08",
+          "bytes": 15088,
+          "sha256": "9ce14bacdb56019526afa6ba27c564ed7e95b9172bd17fed777eab263fdcdc4e",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/src/platform.c"
+        },
+        {
+          "path": "port/src/speaker.c",
+          "blob": "da852d3c243af42cb08f6c569bef0bdee0f0e998",
+          "bytes": 5196,
+          "sha256": "102ee64315fca46eb2b200cc313e67fd1f84bbde8dc56dc36d025f3f6afef06b",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/src/speaker.c"
+        },
+        {
+          "path": "port/src/speaker.h",
+          "blob": "b960a9948c6c671a5702d4fc1909d9fc7ecb3e1d",
+          "bytes": 755,
+          "sha256": "22615dd6322de4d10926946f69d98faf75bf6bbefc8616563b1a3ed550db4fd3",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/src/speaker.h"
+        },
+        {
+          "path": "port/tests/check_main.c",
+          "blob": "205526a655a790545bc8db6071fc53db4e193c10",
+          "bytes": 640,
+          "sha256": "4da85407eec6394732318f125a0db910b33da3afd1d6e8c5f1a35614aa23356a",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/tests/check_main.c"
+        },
+        {
+          "path": "port/tests/smoke_main.c",
+          "blob": "dccda3cb0580d6f872f4728c56f2fd5a2c2d6449",
+          "bytes": 1404,
+          "sha256": "2e94c2138ed20dae3b7da130a93b52d0fe368df44a46fdf52984f600ae2b4000",
+          "url": "https://github.com/petarov/alleycat.exe/blob/e4473790486bdbcdb9c66c6513d0e7fa292f54cf/port/tests/smoke_main.c"
+        }
+      ],
+      "platform_scope": [
+        "Windows x86-64 conditional existing-copy instructions",
+        "Linux x86-64 conditional existing-copy instructions; upstream SDL2/glibc dependencies"
+      ],
+      "previous_route": "Original roadmap-only identity; no authored listing",
+      "selected_route": "Discovery listing with Core-enforced fresh-acquisition condition and conditional non-owning setup",
+      "update_owner": "player/upstream; no external Core replacement/backup/restore/rollback ownership",
+      "setup_data_boundary": [
+        {
+          "title": "Check the existing acquisition condition",
+          "instruction": "Upstream’s published player needs no separate original-file picker because it embeds data from CAT.EXE. Fresh package/build acquisition remains held until the existing original-content distribution condition is resolved. Published checksums and technical package fit are separate facts. Keep any currently usable permitted copy and its files; no download, setup helper or game runs during discovery."
+        },
+        {
+          "title": "Keep a permitted existing player together",
+          "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose alleycat.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses alleycat and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
+        },
+        {
+          "title": "Preserve actual settings and progress",
+          "instruction": "The player stores fullscreen and PCjr settings in SDL’s per-user petarov/alleycat preferences folder. If that preferences location is unavailable, the reviewed source does not create a local runtime fallback. Before changing versions, close the game and preserve the actual preferences folder and a separate copy of the working runtime. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
+        }
+      ],
+      "acquisition_condition": "Fresh package/build acquisition remains held under #2827: upstream embeds original CAT.EXE data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+      "retained_package_observations": [
+        {
+          "platform": "windows",
+          "name": "alleycat-1.3-windows-x86_64.zip",
+          "size": 826365,
+          "asset_id": 648453816,
+          "publisher_expected_sha256": "sha256:18a4139d918bdcc2789033381287359aa80035c5d29f394b36b3513307a148ad",
+          "observed_sha256": "18a4139d918bdcc2789033381287359aa80035c5d29f394b36b3513307a148ad",
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/dos-native-join-batch9/petarov-alleycat-exe/alleycat-1.3-windows-x86_64.zip",
+          "status": "Previously acquired before full canonical-condition review; retained process-failure/research evidence, not accepted acquisition/admission. No repeat acquisition or execution."
+        },
+        {
+          "platform": "linux",
+          "name": "alleycat-1.3-linux-x86_64.tar.gz",
+          "size": 115990,
+          "asset_id": 648453732,
+          "publisher_expected_sha256": "sha256:48d39c487a794ba12557f0b8684e136e878fa9e92dc9c4645e7d0d66c5aeacaf",
+          "observed_sha256": "48d39c487a794ba12557f0b8684e136e878fa9e92dc9c4645e7d0d66c5aeacaf",
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/dos-native-join-batch9/petarov-alleycat-exe/alleycat-1.3-linux-x86_64.tar.gz",
+          "status": "Previously acquired before full canonical-condition review; retained process-failure/research evidence, not accepted acquisition/admission. No repeat acquisition or execution."
+        }
+      ],
+      "bounded_layout_observations": [
+        {
+          "platform": "windows",
+          "sha256": "18a4139d918bdcc2789033381287359aa80035c5d29f394b36b3513307a148ad",
+          "parser_bounds": {
+            "format": "zip",
+            "central_directory_bytes": 314,
+            "entry_count": 3
+          },
+          "scope": "Read-only bounded structural metadata and native headers; no extraction or execution."
+        },
+        {
+          "platform": "linux",
+          "sha256": "48d39c487a794ba12557f0b8684e136e878fa9e92dc9c4645e7d0d66c5aeacaf",
+          "parser_bounds": {
+            "format": "tar.gz",
+            "decoded_bytes": 436736,
+            "raw_records": 3,
+            "extended_metadata_bytes": 198
+          },
+          "scope": "Read-only bounded structural metadata and native headers; no extraction or execution."
+        }
+      ],
+      "technical_fit": "Selected Windows ZIP/Linux tar.gz layouts fit NativePortable technically; management is not admitted because the existing acquisition prerequisite remains unresolved.",
+      "reconsideration_condition": "Attributable original-content distribution evidence or a reviewed own-input runtime-creation route resolving the exact existing canonical condition. Published bytes, checksums and port-code license alone did not resolve it.",
+      "delivery_status": "Authored conditional discovery only; separate complete-candidate review, required exact-head CI and guarded delivery pending.",
+      "preparation_tool_source_sha256": "722d714280e13d699e7abd7cfbda6170715a9ef5618e67e2145e7580c6964884"
+    }
+  ],
+  "validation": {
+    "actual_canonical_bound_core_listing_preparations": 2,
+    "source_blobs_verified": 26,
+    "retained_archive_observations": 4,
+    "new_archive_or_original_acquisition": false,
+    "upstream_execution": false,
+    "local_prepare_tool_tests": {
+      "requested_files": ["scripts/prepare-port.test.mts"],
+      "observed_files": ["scripts/prepare-port.test.mts"],
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Focused Node contracts including real collector-to-preparation canonical observation; pre-format tool source. Final exact-head hosted checks remain required.",
+      "tested_preformat_sources": [
+        {
+          "path": "scripts/prepare-port.mts",
+          "sha256": "722d714280e13d699e7abd7cfbda6170715a9ef5618e67e2145e7580c6964884"
+        },
+        {
+          "path": "scripts/prepare-port.test.mts",
+          "sha256": "5163811f7364bf84b7281dea7ec32c25fcbc36aa0d89a876377fdf5cb497ad1c"
+        }
+      ],
+      "stdout_sha256": "665d1d3bef9f13064bd05671c9c42ab899b0ebb5f0127a80d4cb31aa21daafde"
+    },
+    "authored_formatting": "Authored hashes bind exact normalized Git-index blobs after repository formatting. Immutable proposal, prepared-record and receipt bytes remain separately bound and semantically equal. Post-commit verification remains required.",
+    "final_authoring_tool_source_sha256": "fcb8115cdf4ca49bb5fb635a024e3c60d5b2f0d00f165739e43f734b610ce41d"
+  },
+  "remaining": "All six original Direct decisions, remaining fitting adoption/maintenance/lineage and 19 original roadmap joins stay unfinished. Full #2510/#2926 Public beta acceptance remains open; native/packaged Desktop/real-save/publication authority separate."
+}

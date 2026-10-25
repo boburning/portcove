@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "petarov-alleycat-exe",
+    "project_url": "https://github.com/petarov/alleycat.exe",
+    "name": "Alley Cat (Alley Cat x86-64 recomp)",
+    "summary": "Alley Cat native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
+    "issue_number": 2827,
+    "original_game_title": "Alley Cat",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/petarov/alleycat.exe#readme",
+    "release_url": "https://github.com/petarov/alleycat.exe/releases",
+    "download_block_reason": "Fresh package/build acquisition remains held under #2827: upstream embeds original CAT.EXE data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+    "manual_setup": {
+      "help_url": "https://github.com/petarov/alleycat.exe#readme",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Check the existing acquisition condition",
+          "instruction": "Upstream’s published player needs no separate original-file picker because it embeds data from CAT.EXE. Fresh package/build acquisition remains held until the existing original-content distribution condition is resolved. Published checksums and technical package fit are separate facts. Keep any currently usable permitted copy and its files; no download, setup helper or game runs during discovery."
+        },
+        {
+          "title": "Keep a permitted existing player together",
+          "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose alleycat.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses alleycat and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
+        },
+        {
+          "title": "Preserve actual settings and progress",
+          "instruction": "The player stores fullscreen and PCjr settings in SDL’s per-user petarov/alleycat preferences folder. If that preferences location is unavailable, the reviewed source does not create a local runtime fallback. Before changing versions, close the game and preserve the actual preferences folder and a separate copy of the working runtime. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
+        }
+      ]
+    }
+  }
+}
