@@ -6,9 +6,8 @@
     "summary": "Explore LEGO Island / isle-portable (isledecomp) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/isledecomp/isle-portable",
     "issue_number": 1831,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/isledecomp/isle-portable",
+    "availability": "packages",
+    "setup_url": "https://github.com/isledecomp/isle-portable/blob/continuous/README.md",
     "artwork": {
       "game_id": 5612,
       "cover_id": 162905,
@@ -16,6 +15,41 @@
       "image_sha256": "9f83154dea1e9290b5ee8da05570f9022bca43d6125ff19b72b485026282d190",
       "game_slug": "lego-island",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/isledecomp/isle-portable/releases/tag/continuous",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original game",
+          "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/isledecomp/isle-portable/blob/continuous/README.md"
+    },
+    "original_game_title": "LEGO Island"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["rolling"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "isledecomp/isle-portable",
+      "asset_hints": {
+        "windows-x86-64": ["isle-", "-windows-x64.zip"]
+      },
+      "rolling_tag": "continuous"
+    },
+    "executable_hints": {
+      "windows-x86-64": ["isle.exe"]
+    },
+    "persistent_paths": ["isle.ini"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress. Normal configuration and saves live in the SDL preference folder AppData/isledecomp/isle, or in the save location you choose, outside Portcove backups. The executable-folder isle.ini fallback is declared; original media and custom save folders remain external. Keep the complete bin/companions together. Custom profiles, runtime extensions and existing copies retain the non-owning route. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations."
     }
   }
 }
