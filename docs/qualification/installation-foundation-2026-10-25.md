@@ -64,7 +64,7 @@ Four new definitions remain necessary representative contracts:
 | Canonical owner            | Foundation scope                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ReRAC #1876                | Reviewed native player and manual extraction completion marker; read-only progress never executes the helper; external profile storage stays outside backup. |
-| MC2 #123                   | Ready staged archive with no Core original-source preparation; pre-Play settings and disposable package cache defaults remain distinct.                      |
+| MC2 #1843                  | Ready staged archive with no Core original-source preparation; pre-Play settings and disposable package cache defaults remain distinct.                      |
 | Infinite Undiscovery #1670 | First-Play upstream original-media setup, timestamp-sensitive declared data, current saves and runtime-local disposable caches.                              |
 | CTR Native #318            | Existing staged adapter copies the exact declared owned raw source; normal cards persist while build-local debug files hold verification.                    |
 

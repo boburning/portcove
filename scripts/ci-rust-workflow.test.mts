@@ -1058,6 +1058,34 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     overrideFor("package(portcove-core) & test(activity_diagnostics::tests::)").priority,
     -50,
   );
+  // These observed Windows-only failures retain exact case identities and
+  // finite room for complete durable fixture setup, without broader policy.
+  const observedImportCases = [
+    "import_execution::tests::admitted_post_client_definition_survives_interrupted_import_resume",
+    "import_execution::tests::admitted_post_client_definition_survives_offline_import_with_its_full_graph",
+    "import_execution::tests::changed_import_destination_is_retained_and_never_published",
+    "import_execution::tests::changed_import_input_is_retained_and_never_published",
+    "import_execution::tests::copied_successor_snapshot_without_admission_cannot_grant_unknown_port_authority",
+    "import_execution::tests::copying_import_recovers_without_replaying_old_saves",
+    "import_execution::tests::forged_but_self_consistent_successor_admission_cannot_reuse_portability_authority",
+    "import_execution::tests::import_missing_retained_reference_stops_recovery",
+    "import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library",
+    "import_execution::tests::imported_retained_arguments_cannot_grant_themselves_execution_authority",
+    "import_execution::tests::interrupted_abort_cannot_be_resumed_as_a_successful_import",
+    "import_execution::tests::journal_phase_cannot_manufacture_import_publication",
+    "import_execution::tests::late_credentials_hold_import_before_the_open_gate",
+    "import_execution::tests::published_import_recovers_without_replaying_old_saves",
+    "import_execution::tests::verified_import_recovers_without_replaying_old_saves",
+    "library_transfer::tests::move_plan_accepts_an_admitted_post_client_definition",
+  ];
+  const observedCapabilityCases = [
+    "definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas",
+    "definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_unconfigured",
+    "definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority",
+    "definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority",
+  ];
+  const observedCoreFilter = `package(portcove-core) & (${observedImportCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
+  const observedCliFilter = `package(portcove-cli) & (${observedCapabilityCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
@@ -1098,6 +1126,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
+      { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
@@ -1105,6 +1135,23 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       .map(outputIdentity)
       .sort(),
   );
+  for (const [filter, periods] of [
+    [observedCoreFilter, 18],
+    [observedCliFilter, 12],
+  ] as const) {
+    const override = overrideFor(filter, "x86_64-pc-windows-msvc");
+    assert.deepEqual(override["slow-timeout"], {
+      period: "5s",
+      "terminate-after": periods,
+      "grace-period": "0s",
+    });
+    assert.equal(override["success-output"], "immediate");
+    for (const field of ["retries", "threads-required", "priority", "default-filter"])
+      assert.equal(override[field], undefined);
+    assert.ok(
+      overrides.indexOf(override) < overrides.indexOf(overrideFor(windowsLifecycleFilters[0]!)),
+    );
+  }
   for (const filter of windowsLifecycleFilters) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override.platform, "x86_64-pc-windows-msvc");
