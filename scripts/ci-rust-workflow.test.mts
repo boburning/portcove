@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
+import { qualificationNextestRecipe } from "./qualification-nextest.mts";
 
 import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 
@@ -40,6 +41,74 @@ import {
   frontend,
   catalog,
 } from "./ci-workflow-fixture.mts";
+
+void test("qualification case reporting preserves original scopes and transitive pinned Node setup", async () => {
+  assert.deepEqual(
+    qualificationNextestRecipe("workspace-other", undefined, "/workspace").selected,
+    qualificationOracle.workspace_other.arguments,
+  );
+  assert.deepEqual(qualificationNextestRecipe("native", "hash:1/1", "/workspace").selected, [
+    "--locked",
+    "--workspace",
+    "--partition",
+    "hash:1/1",
+  ]);
+  for (const partition of ["hash:1/2", "hash:2/2"])
+    assert.deepEqual(qualificationNextestRecipe("intel", partition, "/workspace").selected, [
+      "--archive-file",
+      "work/intel-tests/intel-tests.tar.zst",
+      "--workspace-remap",
+      "/workspace",
+      "--partition",
+      partition,
+    ]);
+  const setup = await readFile(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+    "utf8",
+  );
+  const parsed: unknown = parseDocument(setup).toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.runs) && Array.isArray(parsed.runs.steps));
+  const node = parsed.runs.steps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/setup-node@"),
+  ) as unknown;
+  assert.ok(isRecord(node) && isRecord(node.with));
+  assert.equal(node.if, "inputs.test-fixtures == 'true'");
+  assert.equal(node.with["node-version-file"], ".node-version");
+  for (const name of ["rust_workspace_tests", "native_rust", "intel_tests"]) {
+    const job = workflowJob(name);
+    assert.equal(job["timeout-minutes"], 120);
+    assert.ok(isRecord(job.env));
+    assert.equal(job.env.PORTCOVE_HEAD_SHA, "${{ needs.classify.outputs.head }}");
+    const steps = job.steps;
+    assert.ok(Array.isArray(steps));
+    const setupIndex = steps.findIndex(
+      (step: unknown) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
+    );
+    const executeIndex = steps.findIndex(
+      (step: unknown) =>
+        isRecord(step) &&
+        typeof step.run === "string" &&
+        step.run.startsWith("node scripts/qualification-nextest.mts "),
+    );
+    assert.ok(setupIndex >= 0 && executeIndex > setupIndex);
+    const input = steps[setupIndex] as unknown;
+    assert.ok(isRecord(input) && isRecord(input.with));
+    assert.equal(input.with["test-fixtures"], true);
+    const retained = steps.find(
+      (step: unknown) =>
+        isRecord(step) && isRecord(step.with) && step.with.path === "work/test-results/",
+    ) as unknown;
+    assert.ok(isRecord(retained) && isRecord(retained.with));
+    assert.equal(retained.if, "always()");
+    assert.ok(
+      typeof retained.with.name === "string" &&
+        retained.with.name.includes("${{ github.run_attempt }}"),
+    );
+  }
+});
 
 void test("storage setup policy distinguishes executable setup from harmless test filenames and YAML layout", () => {
   for (const source of [
@@ -520,8 +589,7 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
   assert.ok(
     workspace.steps.some(
       (step: unknown) =>
-        isRecord(step) &&
-        step.run === `cargo nextest run ${qualificationOracle.workspace_other.arguments.join(" ")}`,
+        isRecord(step) && step.run === "node scripts/qualification-nextest.mts workspace-other",
     ),
   );
   assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
@@ -540,10 +608,7 @@ void test("Windows Rust keeps exhaustive parallel gates without duplicate setup"
 
   assert.match(rustWorkspaceTests, /^ {4}name: rust-test \(workspace-other\)$/m);
   assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
-  assert.match(
-    rustWorkspaceTests,
-    /cargo nextest run --locked --workspace --exclude portcove-core/,
-  );
+  assert.match(rustWorkspaceTests, /node scripts\/qualification-nextest\.mts workspace-other/);
   assert.doesNotMatch(rustWorkspaceTests, /matrix|cargo fmt|cargo clippy/);
 
   assert.match(rustClippy, /^ {4}name: rust-clippy$/m);
@@ -867,8 +932,10 @@ void test("native Rust runs the full workspace on every supported Unix architect
   assert.match(nativeRust, /if: runner\.os == 'Linux'/);
   assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(nativeRust, /run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/);
-  assert.match(nativeRust, /cargo nextest run --locked --workspace/);
-  assert.match(nativeRust, /--partition "\$\{\{ matrix\.partition \}\}"/);
+  assert.match(
+    nativeRust,
+    /node scripts\/qualification-nextest\.mts native "\$\{\{ matrix\.partition \}\}"/,
+  );
   assert.doesNotMatch(nativeRust, /continue-on-error/);
 });
 
@@ -943,7 +1010,7 @@ void test("Intel tests build once and retries preserve their attempt-scoped prod
   assert.match(intelTests, /partition:\s*\[\s*"hash:1\/2",\s*"hash:2\/2",?\s*\]/);
   assert.match(
     intelTests,
-    /cargo nextest run --archive-file .* --workspace-remap "\$PWD" --partition "\$\{\{ matrix\.partition \}\}"/,
+    /node scripts\/qualification-nextest\.mts intel "\$\{\{ matrix\.partition \}\}"/,
   );
   for (const section of [intelBuild, intelTests]) {
     assert.match(section, /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/);
@@ -975,7 +1042,7 @@ void test("Linux Rust quality keeps its platform-specific and policy gates witho
     rustQuality,
     /machine_contract|backup_directory_durability_support_is_explicit_for_the_host/,
   );
-  assert.match(nativeRust, /cargo nextest run --locked --workspace/);
+  assert.match(nativeRust, /node scripts\/qualification-nextest\.mts native/);
   assert.match(rustQuality, /cargo shear --deny-warnings/);
   assert.match(rustQuality, /node scripts\/dependency-security\.mts/);
   assert.doesNotMatch(rustQuality, /GH_TOKEN: \$\{\{ github.token \}\}/);

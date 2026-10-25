@@ -1,0 +1,666 @@
+{
+  "format_version": 1,
+  "source": {
+    "commit": "fc89a3d49138f8a4ccb33d8ac136619f52bfc7ac",
+    "files": [
+      {
+        "file": "scripts/rust-test-impact.mts",
+        "sha256": "91de1bf7d8dad6b25fec5b871f95df6600d3f3d1677c89051483121bada7d011"
+      },
+      {
+        "file": "scripts/windows-rust-tests.mts",
+        "sha256": "dd7c559e9dcd8b7d5d423fdbdda548209342550c892f94f63a3faa8c22caf7e2"
+      },
+      {
+        "file": ".github/workflows/ci.yml",
+        "sha256": "adcf38f2f3692764f28c4b0e597fefae2ebc97c5edaedcc166b0e3dc2da46921"
+      },
+      {
+        "file": ".github/quality-tools.json",
+        "sha256": "bbc3cdc8d1a1fd6b2c935ec8778d466f436a2eb2fb95e25f97381e25b161b2dd"
+      }
+    ]
+  },
+  "scope": "Pre-change pure inventory parser outcomes and original three qualification command templates. Captured pinned native protocol fixture is existing separate evidence; this oracle executes no Rust compilation or tests.",
+  "commands": [
+    "cargo nextest run --locked --workspace --exclude portcove-core",
+    "cargo nextest run --locked --workspace --partition \"${{ matrix.partition }}\"",
+    "cargo nextest run --archive-file work/intel-tests/intel-tests.tar.zst --workspace-remap \"$PWD\" --partition \"${{ matrix.partition }}\""
+  ],
+  "cases": [
+    {
+      "id": "complete",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "success",
+          "selected": [
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"failing\"]",
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"
+          ]
+        },
+        "workspace-true": {
+          "outcome": "success",
+          "selected": [
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"failing\"]",
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"
+          ]
+        },
+        "windows-false": {
+          "outcome": "success",
+          "selected": [
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"failing\"]",
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"
+          ]
+        },
+        "windows-true": {
+          "outcome": "success",
+          "selected": [
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"failing\"]",
+            "[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"
+          ]
+        }
+      }
+    },
+    {
+      "id": "filtered-one",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "expression"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "success",
+          "selected": ["[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"]
+        },
+        "workspace-true": {
+          "outcome": "success",
+          "selected": ["[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"]
+        },
+        "windows-false": {
+          "outcome": "success",
+          "selected": ["[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"]
+        },
+        "windows-true": {
+          "outcome": "success",
+          "selected": ["[\"portcove-nextest-protocol\",\"portcove-nextest-protocol\",\"passed\"]"]
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "input": {
+        "test-count": 0,
+        "rust-suites": {}
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "success",
+          "selected": []
+        },
+        "workspace-true": {
+          "outcome": "success",
+          "selected": []
+        },
+        "windows-false": {
+          "outcome": "success",
+          "selected": []
+        },
+        "windows-true": {
+          "outcome": "success",
+          "selected": []
+        }
+      }
+    },
+    {
+      "id": "ignored-only",
+      "input": {
+        "test-count": 1,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "success",
+          "selected": []
+        },
+        "workspace-true": {
+          "outcome": "success",
+          "selected": []
+        },
+        "windows-false": {
+          "outcome": "success",
+          "selected": []
+        },
+        "windows-true": {
+          "outcome": "success",
+          "selected": []
+        }
+      }
+    },
+    {
+      "id": "skipped-empty",
+      "input": {
+        "test-count": 0,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "skipped",
+            "testcases": {}
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "workspace-true": {
+          "outcome": "success",
+          "selected": []
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-true": {
+          "outcome": "success",
+          "selected": []
+        }
+      }
+    },
+    {
+      "id": "skipped-populated",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "skipped",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Skipped nextest suite contained test records"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-true": {
+          "outcome": "failure",
+          "message": "Skipped nextest suite contained test records"
+        }
+      }
+    },
+    {
+      "id": "skipped-default-filter-empty",
+      "input": {
+        "test-count": 0,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "skipped-default-filter",
+            "testcases": {}
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-true": {
+          "outcome": "success",
+          "selected": []
+        }
+      }
+    },
+    {
+      "id": "skipped-default-filter-populated",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "skipped-default-filter",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-true": {
+          "outcome": "failure",
+          "message": "Skipped nextest suite contained test records"
+        }
+      }
+    },
+    {
+      "id": "truncated-count",
+      "input": {
+        "test-count": 4,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Truncated nextest workspace inventory"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Truncated nextest workspace inventory"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Truncated nextest workspace inventory"
+        },
+        "windows-true": {
+          "outcome": "failure",
+          "message": "Truncated nextest workspace inventory"
+        }
+      }
+    },
+    {
+      "id": "wrong-binary-identity",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "other",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-true": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        }
+      }
+    },
+    {
+      "id": "invalid-package-name",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "bad/name",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        },
+        "windows-true": {
+          "outcome": "failure",
+          "message": "Unexpected nextest workspace suite identity or coverage"
+        }
+      }
+    },
+    {
+      "id": "invalid-filter",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "unknown"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        },
+        "windows-true": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        }
+      }
+    },
+    {
+      "id": "invalid-ignore",
+      "input": {
+        "test-count": 3,
+        "rust-suites": {
+          "portcove-nextest-protocol": {
+            "package-name": "portcove-nextest-protocol",
+            "binary-id": "portcove-nextest-protocol",
+            "binary-name": "portcove_nextest_protocol",
+            "kind": "lib",
+            "status": "listed",
+            "testcases": {
+              "failing": {
+                "ignored": false,
+                "filter-match": {
+                  "status": "matches"
+                }
+              },
+              "ignored": {
+                "ignored": true,
+                "filter-match": {
+                  "status": "mismatch",
+                  "reason": "ignored"
+                }
+              },
+              "passed": {
+                "ignored": "false",
+                "filter-match": {
+                  "status": "matches"
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "workspace-false": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        },
+        "workspace-true": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        },
+        "windows-false": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        },
+        "windows-true": {
+          "outcome": "failure",
+          "message": "Invalid nextest workspace test record"
+        }
+      }
+    }
+  ]
+}
