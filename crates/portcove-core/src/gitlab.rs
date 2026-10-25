@@ -973,6 +973,36 @@ mod tests {
     }
 
     #[test]
+    fn mario_kart_64_selects_the_official_windows_runtime_and_registry_identity() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "testdata/mariokart64recomp-v0.9.2-release-2026-10-25.json"
+        ))
+        .unwrap();
+        let release: GitlabRelease = serde_json::from_value(fixture.clone()).unwrap();
+        let files: Vec<GitlabPackageFile> =
+            serde_json::from_value(fixture["package_files"].clone()).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("mario-kart-64-mariokart64recomp").unwrap();
+        for &platform in &port.platforms {
+            let link = choose_link(port, platform, &release.assets.links).unwrap();
+            let file = files
+                .iter()
+                .find(|file| Some(file.id) == package_file_id(&link.url))
+                .expect("selected release link must join the independent registry identity");
+            assert_eq!(
+                file.file_name,
+                "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip"
+            );
+            assert_eq!(file.size, 23_847_630);
+            assert_eq!(
+                file.file_sha256,
+                "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4"
+            );
+        }
+        assert_eq!(port.platforms, vec![Platform::WindowsX86_64]);
+    }
+
+    #[test]
     fn equally_scored_gitlab_links_are_ambiguous() {
         let catalog = crate::Catalog::embedded().unwrap();
         let port = catalog.port("extreme-g-recompiled").unwrap();

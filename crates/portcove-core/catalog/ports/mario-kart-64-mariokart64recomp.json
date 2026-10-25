@@ -6,9 +6,33 @@
     "summary": "Explore Mario Kart 64 / MarioKart64Recomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
     "issue_number": 332,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+    "availability": "packages",
+    "setup_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
+    "release_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Windows: use the managed package",
+          "instruction": "Install the complete official Windows x64 runtime through Portcove. Supply your matching original North American Mario Kart 64 .z64 file when it is missing; already recognized matching game files can be reused. Portcove verifies and materializes the original with the existing N64 portable contract. Choose Play explicitly; no local compiler or separate installer is required."
+        },
+        {
+          "title": "Linux: unpack upstream before registration",
+          "instruction": "The official Linux x64 download is a ZIP containing MarioKart64Recompiled.tar.gz. Extract the ZIP and then the tar.gz into a separate folder, keeping the MarioKart64Recompiled executable, assets/ and controller database together. Portcove does not manage this nested package layout. Follow upstream Linux requirements, then use an existing-installation registration for the resulting executable and explicitly choose Play. Upstream provides runtime updates for this external copy."
+        },
+        {
+          "title": "macOS: keep the upstream application bundle",
+          "instruction": "Use upstream’s macOS release and setup instructions to obtain the complete MarioKart64Recompiled.app bundle with its resources and libraries. This bundle/archive layout is not offered as a Portcove-managed installation. Register its existing executable after following upstream setup, review the launch details and choose Play explicitly. Upstream owns replacement of this copy."
+        },
+        {
+          "title": "Keep the data for your actual route",
+          "instruction": "A Portcove-managed Windows copy uses portable data beside its runtime: mk64.us.z64, saves/, mods/, mod_config/ and the declared settings/mod-state JSON files and their recovery siblings. Portcove preserves these through compatible replacement and backup. Runtime rollback carries current data and does not rewind saves or authenticate player mods. An external Linux copy normally uses ~/.config/MarioKart64Recompiled/; upstream portable mode instead uses the working folder containing portable.txt. Preserve the actual data location and originals separately. External registration does not grant managed Update, Backup or Rollback. External macOS data normally uses ~/Library/Application Support/MarioKart64Recompiled/; upstream portable mode uses the folder alongside the application bundle containing portable.txt. Preserve the actual location separately."
+        }
+      ],
+      "warnings": [
+        "The reviewed v0.9.2 release supports single-player modes; upstream has not yet enabled multiplayer controller configuration."
+      ],
+      "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases/v0.9.2"
+    },
     "artwork": {
       "game_id": 2342,
       "cover_id": 289642,
@@ -16,6 +40,64 @@
       "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
       "game_slug": "mario-kart-64",
       "match_kind": "underlying-game"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "n64-recomp-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "gitlab",
+      "repository": "sonicdcer/MarioKart64Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["windows-relwithdebinfo"]
+      }
+    },
+    "source_profile": "mario-kart-64",
+    "executable_hints": {
+      "windows-x86-64": ["MarioKart64Recompiled.exe"]
+    },
+    "persistent_paths": [
+      "mk64.us.z64",
+      "saves",
+      "mods",
+      "mod_config",
+      "general.json",
+      "general.json.bak",
+      "general.json.temp",
+      "graphics.json",
+      "graphics.json.bak",
+      "graphics.json.temp",
+      "controls.json",
+      "controls.json.bak",
+      "controls.json.temp",
+      "sound.json",
+      "sound.json.bak",
+      "sound.json.temp",
+      "mods.json",
+      "mods.json.bak",
+      "mods.json.temp"
+    ],
+    "portable_marker": true,
+    "runtime_source_filename": "mk64.us.z64",
+    "runtime_source_materialization": "n64-big-endian",
+    "runtime_source_hashes": {
+      "mk64.us.z64": "d6b8538dd63f0132ecb2856e7d32816ed3c30e3e479aecd23cf83fb6ba17a5da"
+    },
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "mario-kart-64",
+          "label": "Mario Kart 64 source",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
     }
   }
 }

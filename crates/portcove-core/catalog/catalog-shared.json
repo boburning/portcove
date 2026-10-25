@@ -952,6 +952,16 @@
         "claim": "The pinned DAT has SCUS-94426 and SCUS-94426CE serial aliases with identical 605698800-byte raw CTR USA BIN: SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772, CRC9a742438. Byte identity is separate from native player/source applicability; no original media acquisition.",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat%2Fredump%2FSony%20-%20PlayStation.dat",
         "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
+      },
+      {
+        "id": "mariokart64recomp-v0-9-2-source-contract",
+        "role": "upstream_support",
+        "authority": "sonicdcer/MarioKart64Recomp",
+        "authority_ref": "3885e86a4b2088188ddb3914aa26ad4f147bb5df",
+        "reviewed_at": "2026-10-25",
+        "claim": "The official runtime accepts the North American retail Mario Kart 64 original as game mk64.us, validates its canonical bytes and uses the existing N64 portable settings/save/mod layout. This source observation is not gameplay or native-operation qualification.",
+        "immutable_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/src/main/main.cpp",
+        "live_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/main/src/main/main.cpp"
       }
     ],
     "identities": [
@@ -10224,6 +10234,34 @@
         "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "mario-kart-64-mariokart64recomp-game-source",
+        "port_id": "mario-kart-64-mariokart64recomp",
+        "role": "game",
+        "profile_id": "mario-kart-64",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "legacy-accepted"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alpha1-schema1-source-contracts",
+          "mariokart64recomp-v0-9-2-source-contract"
+        ],
+        "authority_ref": "3885e86a4b2088188ddb3914aa26ad4f147bb5df",
+        "reviewed_at": "2026-10-25",
+        "immutable_review_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/src/main/main.cpp",
+        "live_review_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.9.2",
+            "artifact_sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }

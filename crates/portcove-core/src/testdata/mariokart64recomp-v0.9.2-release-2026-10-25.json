@@ -1,0 +1,75 @@
+{
+  "tag_name": "v0.9.2",
+  "released_at": "2026-02-13T03:00:00.000Z",
+  "upcoming_release": false,
+  "assets": {
+    "count": 9,
+    "sources": [
+      {
+        "format": "zip",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.zip"
+      },
+      {
+        "format": "tar.gz",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar.gz"
+      },
+      {
+        "format": "tar.bz2",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar.bz2"
+      },
+      {
+        "format": "tar",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar"
+      }
+    ],
+    "links": [
+      {
+        "id": 12383432,
+        "name": "MarioKart64Recompiled-v0.9.2-Flatpak-X64-Release",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136089/download",
+        "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136089/download",
+        "link_type": "package"
+      },
+      {
+        "id": 12383431,
+        "name": "MarioKart64Recompiled-v0.9.2-Linux-X64-Release",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135845/download",
+        "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135845/download",
+        "link_type": "package"
+      },
+      {
+        "id": 12383430,
+        "name": "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333130840/download",
+        "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333130840/download",
+        "link_type": "package"
+      },
+      {
+        "id": 12383429,
+        "name": "MarioKart64Recompiled-v0.9.2-macOS-Release",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135339/download",
+        "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135339/download",
+        "link_type": "package"
+      },
+      {
+        "id": 12383428,
+        "name": "MarioKart64Recompiled-v0.9.2-Linux-ARM64-Release",
+        "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136056/download",
+        "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136056/download",
+        "link_type": "package"
+      }
+    ]
+  },
+  "package_files": [
+    {
+      "id": 333130840,
+      "package_id": 66298316,
+      "created_at": "2026-08-11T16:04:05.391Z",
+      "file_name": "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip",
+      "size": 23847630,
+      "file_md5": null,
+      "file_sha1": null,
+      "file_sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4"
+    }
+  ]
+}
