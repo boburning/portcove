@@ -22,6 +22,9 @@ import {
   controllerToolPredicateType,
   inspectControllerToolArchive,
   controllerCompilerSourceAsset,
+  controllerToolPlatformProfile,
+  inspectControllerToolManifest,
+  type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
 import { slice4CapacityResources } from "./release-capacity.mts";
@@ -630,6 +633,11 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   assert.deepEqual(parsed.permissions, { contents: "read" });
   assert.equal(document.getIn(["jobs", "fixture", "runs-on"]), "ubuntu-22.04");
   assert.equal(document.getIn(["jobs", "fixture", "timeout-minutes"]), 15);
+  assert.equal(document.getIn(["jobs", "windows-tools", "runs-on"]), "windows-2022");
+  assert.equal(document.getIn(["jobs", "windows-tools", "timeout-minutes"]), 15);
+  const windowsSteps = document.getIn(["jobs", "windows-tools", "steps"]);
+  assert.ok(windowsSteps);
+  assert.match(text, /node scripts\/qualify-controller-tools-windows\.mts/u);
   assert.match(text, /FIXTURE_SOURCE_SHA: \$\{\{ github.sha \}\}/u);
   assert.match(text, /qualify-controller-tool-build\.mts/u);
   assert.match(text, /--frozen-lockfile --ignore-scripts --ignore-pnpmfile/u);
@@ -671,10 +679,8 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
     "-p",
     "portcove-cli",
   ]);
-  assert.match(
-    buildSource,
-    /\["portcove", path\.join\(target, "controller-tools", "portcove"\)\]/u,
-  );
+  assert.equal(controllerToolPlatformProfile("linux-x86_64").suffix, "");
+  assert.equal(controllerToolPlatformProfile("windows-x86_64").suffix, ".exe");
 });
 void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wrong job, source, attempt and expiry", async () => {
   const make = (patch: Record<string, unknown> = {}) =>
@@ -757,9 +763,13 @@ void test("bootstrap generates complete compiler source bytes from the exact cle
   assert.deepEqual(await readdir(refused), []);
 });
 
-function fixture(closureChange: Record<string, unknown> = {}) {
+function fixture(
+  closureChange: Record<string, unknown> = {},
+  platform: ControllerToolPlatform = "linux-x86_64",
+) {
+  const profile = controllerToolPlatformProfile(platform);
   const bytes = new Map(
-    controllerToolPaths.map((name) => [name, Buffer.from(`inert tool fixture ${name}`)]),
+    profile.paths.map((name) => [name, Buffer.from(`inert tool fixture ${name}`)]),
   );
   bytes.set(
     controllerCompilerSourceAsset,
@@ -774,10 +784,10 @@ function fixture(closureChange: Record<string, unknown> = {}) {
     ),
   );
   const manifest = {
-    schema_version: 2,
+    schema_version: profile.schema_version,
     source_commit: "a".repeat(40),
     source_tree: "b".repeat(40),
-    platform: "linux-x86_64",
+    platform,
     node_version: controllerNodeVersion,
     bundler: "vite-plus@1.3.0",
     tauri_cli_version: "2.12.2",
@@ -966,6 +976,45 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
       /compiler source/u,
     );
   }
+});
+void test("Windows tools require explicit platform selection and exact executable inventory; legacy consumers stay closed", () => {
+  const windows = fixture({}, "windows-x86_64");
+  const linux = fixture();
+  const selected = { ...windows.manifest, platform: "windows-x86_64" as const };
+  const inspected = inspectControllerToolArchive(windows.archive, selected);
+  assert.equal(inspected.manifest.platform, "windows-x86_64");
+  for (const filename of [
+    "node.exe",
+    "portcove.exe",
+    "portcove-release-tools.exe",
+    "tauri-driver.exe",
+    "pnpm.exe",
+  ])
+    assert.ok(inspected.files.has(`bin/${filename}`));
+  assert.ok(!inspected.files.has("bin/native-linux-tree-reaper"));
+  assert.throws(() =>
+    inspectControllerToolArchive(windows.archive, {
+      source_commit: selected.source_commit,
+      source_tree: selected.source_tree,
+    }),
+  );
+  assert.throws(() => inspectControllerToolManifest(windows.manifest));
+  assert.throws(() => inspectControllerToolArchive(linux.archive, selected));
+  assert.throws(() =>
+    inspectControllerToolManifest({ ...windows.manifest, schema_version: 2 }, "windows-x86_64"),
+  );
+  for (const replacement of ["bin/node.exe", controllerCompilerSourceAsset]) {
+    const changed = [...windows.bytes].map(
+      ([name, bytes]) => [name, name === replacement ? Buffer.from("changed") : bytes] as const,
+    );
+    assert.throws(() =>
+      inspectControllerToolArchive(
+        createAuditZip([["manifest.json", JSON.stringify(windows.manifest)], ...changed]),
+        selected,
+      ),
+    );
+  }
+  assert.throws(() => controllerToolPlatformProfile("windows-arm64" as ControllerToolPlatform));
 });
 void test("Core CLI and native WebDriver are mandatory content; changed or missing bytes refuse", () => {
   const f = fixture();

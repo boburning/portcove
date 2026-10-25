@@ -19,14 +19,28 @@ function header(name: string, size: number, type = "0") {
   h.write(sum.toString(8).padStart(6, "0") + "\0 ", 148);
   return h;
 }
-function tar(extra?: Buffer) {
+function tar(extra?: Buffer, windows = false) {
+  const image = Buffer.alloc(128);
+  image.write("MZ");
+  image.writeUInt32LE(64, 60);
+  image.write("PE\0\0", 64);
+  image.writeUInt16LE(0x8664, 68);
+  image.writeUInt16LE(0x20b, 88);
   const parts: Buffer[] = [];
   for (const [name, bytes] of [
     ["package/LICENSE", Buffer.from("license")],
-    ["package/pnpm", Buffer.from([0x7f, 0x45, 0x4c, 0x46])],
+    [
+      windows ? "package/pnpm.exe" : "package/pnpm",
+      windows ? image : Buffer.from([0x7f, 0x45, 0x4c, 0x46]),
+    ],
     [
       "package/package.json",
-      Buffer.from(JSON.stringify({ name: "@pnpm/exe.linux-x64", version: nativePnpmVersion })),
+      Buffer.from(
+        JSON.stringify({
+          name: windows ? "@pnpm/exe.win32-x64" : "@pnpm/exe.linux-x64",
+          version: nativePnpmVersion,
+        }),
+      ),
     ],
     ["package/THIRD-PARTY-NOTICES.md", Buffer.from("notices")],
   ] as const)
@@ -38,6 +52,20 @@ void test("fixed raw four-file package yields only the ELF and retained notices"
   assert.equal(p.binary.toString("hex"), "7f454c46");
   assert.equal(p.license.toString(), "license");
   assert.equal(p.notices.toString(), "notices");
+});
+void test("Windows pin admits only its bounded four-file x64 PE package and refuses platform mixing", () => {
+  const raw = tar(undefined, true);
+  assert.equal(inspectNativePnpmTar(raw, "windows-x86_64").binary.readUInt16LE(68), 0x8664);
+  assert.throws(() => inspectNativePnpmTar(raw));
+  assert.throws(() => inspectNativePnpmTar(tar(), "windows-x86_64"));
+  assert.throws(
+    () => inspectNativePnpmArchive(Buffer.from("changed Windows archive"), "windows-x86_64"),
+    /pinned pnpm archive differs/u,
+  );
+  const changed = Buffer.from(raw);
+  // LICENSE occupies the first header/padded payload; pnpm's payload starts at1536.
+  changed.writeUInt32LE(0xffffffff, 1536 + 60);
+  assert.throws(() => inspectNativePnpmTar(changed, "windows-x86_64"), /PE header exceeds bound/u);
 });
 void test("raw extensions, oversized/truncated content, extras and checksum corruption refuse", () => {
   for (const raw of [

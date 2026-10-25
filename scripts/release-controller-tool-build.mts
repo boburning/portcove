@@ -19,17 +19,21 @@ import {
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 import {
   controllerToolEntries,
-  controllerToolChildren,
-  controllerToolAssets,
-  controllerToolPaths,
   readControllerToolFile,
   inspectControllerToolManifest,
   controllerCompilerSourceAsset,
   controllerNativeDriverVersion,
+  controllerToolPlatformProfile,
+  type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
  * replacement. Resolve the canonical path to avoid Windows junction long paths. */
-export async function bundleControllerEntries(sourceRoot: string, outputRoot: string) {
+export async function bundleControllerEntries(
+  sourceRoot: string,
+  outputRoot: string,
+  platform: ControllerToolPlatform = "linux-x86_64",
+) {
+  const profile = controllerToolPlatformProfile(platform);
   const installed = await realpath(fileURLToPath(import.meta.resolve("vite-plus/pack")));
   const pack = (await import(pathToFileURL(installed).href)) as typeof import("vite-plus/pack");
   const packageFile = await realpath(fileURLToPath(import.meta.resolve("vite-plus/package.json")));
@@ -49,7 +53,7 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
       source: `scripts/${name === "production-controller-admission" ? "production-controller-admission-cli" : name}.mts`,
       output: `${name}.bundle.mjs`,
     })),
-    ...controllerToolChildren.map((source) => ({ source, output: path.posix.basename(source) })),
+    ...profile.children.map((source) => ({ source, output: path.posix.basename(source) })),
   ];
   for (const definition of entries) {
     const entry = path.join(sourceRoot, definition.source);
@@ -202,16 +206,22 @@ export async function buildControllerTools(
   if (process.versions.node !== controllerNodeVersion)
     throw new Error("fixed Node runtime differs");
   if (
-    process.platform !== "linux" ||
+    (process.platform !== "linux" && process.platform !== "win32") ||
     process.arch !== "x64" ||
     !/^[a-f0-9]{40}$/.test(expected.commit) ||
     !/^[a-f0-9]{40}$/.test(expected.tree)
   )
-    throw new Error("fixed Linux controller source required");
-  const directory = await mkdtemp(path.join(outputParent, "controller-tool-build-"));
-  const home = path.join(directory, "home");
+    throw new Error("fixed Linux or Windows x64 controller source required");
+  const platform = process.platform === "linux" ? "linux-x86_64" : "windows-x86_64";
+  const profile = controllerToolPlatformProfile(platform);
+  // The Windows MSVC linker also emits the supervisor support product below
+  // this root. Keep its hash/attempt-qualified path below legacy tool limits.
+  const directory = await mkdtemp(
+    path.join(outputParent, platform === "linux-x86_64" ? "controller-tool-build-" : "ct-"),
+  );
+  const home = path.join(directory, platform === "linux-x86_64" ? "home" : "h");
   await mkdir(home, { mode: 0o700 });
-  const target = path.join(directory, "target");
+  const target = path.join(directory, platform === "linux-x86_64" ? "target" : "t");
   const env = controllerBootstrapEnvironment(home, target);
   const git = (args: string[]) => {
     const result = spawnSync("git", args, {
@@ -247,10 +257,10 @@ export async function buildControllerTools(
       packageMetadata.packageManager !== `pnpm@${nativePnpmVersion}`
     )
       throw new Error("maintained package-manager pin differs");
-    const pnpm = await acquireNativePnpm();
+    const pnpm = await acquireNativePnpm(platform);
     await mkdir(path.join(tools, "bin"), { mode: 0o700 });
     for (const [name, bytes] of [
-      ["bin/pnpm", pnpm.binary],
+      [`bin/pnpm${profile.suffix}`, pnpm.binary],
       ["pnpm-license.txt", pnpm.license],
       ["pnpm-notices.txt", pnpm.notices],
     ] as const)
@@ -259,7 +269,7 @@ export async function buildControllerTools(
         mode: name.startsWith("bin/") ? 0o700 : 0o600,
       });
     phase = "fixed-node-bundles";
-    await bundleControllerEntries(sourceRoot, tools);
+    await bundleControllerEntries(sourceRoot, tools, platform);
     phase = "fixed-rust-build";
     const status = await runResourceCommand(
       "rust",
@@ -321,7 +331,13 @@ export async function buildControllerTools(
     const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
     const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
     const cli = createRequire(cliPackage);
-    const addon = await realpath(cli.resolve("@tauri-apps/cli-linux-x64-gnu"));
+    const addon = await realpath(
+      cli.resolve(
+        platform === "linux-x86_64"
+          ? "@tauri-apps/cli-linux-x64-gnu"
+          : "@tauri-apps/cli-win32-x64-msvc",
+      ),
+    );
     for (const filename of [cliPackage, path.join(path.dirname(addon), "package.json")]) {
       const metadata: unknown = JSON.parse(
         (await readControllerToolFile(filename, 65536)).toString("utf8"),
@@ -330,17 +346,26 @@ export async function buildControllerTools(
         throw new Error("fixed maintained Tauri CLI version differs");
     }
     for (const [name, filename] of [
-      ["node", process.execPath],
-      ["portcove", path.join(target, "controller-tools", "portcove")],
-      ["portcove-release-tools", path.join(target, "controller-tools", "portcove-release-tools")],
+      [`node${profile.suffix}`, process.execPath],
+      [
+        `portcove${profile.suffix}`,
+        path.join(target, "controller-tools", `portcove${profile.suffix}`),
+      ],
+      [
+        `portcove-release-tools${profile.suffix}`,
+        path.join(target, "controller-tools", `portcove-release-tools${profile.suffix}`),
+      ],
       ["tauri-addon.node", addon],
-      ["tauri-driver", path.join(driverRoot, "bin", "tauri-driver")],
+      [
+        `tauri-driver${profile.suffix}`,
+        path.join(driverRoot, "bin", `tauri-driver${profile.suffix}`),
+      ],
     ])
       await writeFile(path.join(tools, "bin", name!), await readControllerToolFile(filename!), {
         flag: "wx",
         mode: 0o700,
       });
-    for (const name of controllerToolAssets) {
+    for (const name of profile.assets) {
       await mkdir(path.dirname(path.join(tools, name)), { recursive: true, mode: 0o700 });
       await writeFile(
         path.join(tools, name),
@@ -348,26 +373,31 @@ export async function buildControllerTools(
         { flag: "wx", mode: 0o600 },
       );
     }
-    phase = "fixed-native-support-product";
-    await materializeControllerNativeSupport(sourceRoot, tools, env);
+    if (platform === "linux-x86_64") {
+      phase = "fixed-native-support-product";
+      await materializeControllerNativeSupport(sourceRoot, tools, env);
+    }
     phase = "fixed-compiler-source-closure";
     await materializeControllerCompilerSource(sourceRoot, tools, expected);
     guard();
     const files = [];
-    for (const name of controllerToolPaths) {
+    for (const name of profile.paths) {
       const bytes = await readControllerToolFile(path.join(tools, name));
       files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
     }
-    const manifest = inspectControllerToolManifest({
-      schema_version: 2,
-      source_commit: expected.commit,
-      source_tree: expected.tree,
-      platform: "linux-x86_64",
-      node_version: controllerNodeVersion,
-      bundler: "vite-plus@1.3.0",
-      tauri_cli_version: "2.12.2",
-      files,
-    });
+    const manifest = inspectControllerToolManifest(
+      {
+        schema_version: profile.schema_version,
+        source_commit: expected.commit,
+        source_tree: expected.tree,
+        platform,
+        node_version: controllerNodeVersion,
+        bundler: "vite-plus@1.3.0",
+        tauri_cli_version: "2.12.2",
+        files,
+      },
+      platform,
+    );
     await writeFile(path.join(tools, "manifest.json"), JSON.stringify(manifest), {
       flag: "wx",
       mode: 0o600,

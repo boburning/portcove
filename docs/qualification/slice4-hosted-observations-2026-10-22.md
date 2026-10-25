@@ -1103,3 +1103,54 @@ Production stays held; final source/digest/configuration reconciliation and all
 existing admission/custody/recovery prerequisites remain mandatory. D1/D2/D3,
 Unknown availability/headroom, no capacity reservation, #254 Done,
 #315/#534/#246 pending, Chameleon acceptance hold and Slice5 exclusion remain.
+
+## Windows controller-tool bootstrap preparation (October 25)
+
+The maintained fixed-source builder now produces actual Windows x64 Node, Core
+CLI, release-tools, pinned Tauri addon and tauri-driver executables, plus the
+same fixed controller bundles and compiler-source closure. Windows has an explicit
+schema-3 inventory with `.exe` names; Linux schema2 and its support product remain
+the default. Windows omits the Linux reaper/child assets. Existing protected
+receivers do not accept this new inventory: a caller must explicitly select
+Windows for opaque archive inspection. Parsing these bytes grants no issuer,
+attestation, native capability or execution authority.
+
+The standalone package manager uses the official `@pnpm/exe.win32-x64@12.14.0`
+archive, selected from that exact version's declared platform dependency and
+pinned by SHA512 in the existing reader. The raw four-member TAR parser retains
+its compressed/expanded/header/entry bounds and extension/link refusal; Windows
+also requires an AMD64 PE32+ image. It never invokes the package's downloader.
+Actual local binary SHA256
+`62946d1c8169b8db90a73348a0b094f495eac159450f75a72a19da0321f8e6b2`
+(51222016bytes) reports12.14.0, accepts the matching offline frozen lock and
+refuses the changed lock, with lifecycle/hook outputs absent in both cases.
+
+The existing ordinary tool-build fixture adds one standard Windows2022 job,
+contents-read only,15minutes, exact PR source checkout, fresh outputs/dependencies,
+no role credentials/caches, and bounded public JSON evidence retained seven days
+without overwrite. Its real executable/Core inert-inspection/offline-package-manager
+smoke and packed-command refusals are bracketed by actual Windows filesystem
+custody. Build outputs use fresh home ancestry rather than assuming shared temp
+ancestry is protected. Cold build time, expanded size and actual hosted execution
+remain observations to obtain; Windows Server is not Windows11 client-minimum
+acceptance. The local focused suite retained20pass/1packing failure: the shared
+dependency tree cannot resolve the declared Sigstore packages. That foreign tree
+was not modified; fresh locked hosted installation supplies independent evidence.
+The first actual Windows fixture40188114615/a1, job121153125585, retained an
+MSVC LNK1104 failure while compiling the process-supervisor support helper before
+the Core build. The reported private hash/attempt-qualified output path was268
+characters. As a targeted repair, Windows-only private build directory prefixes are
+shortened; Linux paths, helper identity, cleanup and all limits remain unchanged.
+No host-wide long-path setting or administrator action is introduced. The later
+build must establish its own outcome rather than treating this diagnosis as a pass.
+
+This does not add a protected job or change its85/40/hard100 resource declaration.
+The future Windows build/runtime/attestation arrangement must fit the existing
+ceiling and be source/digest reconciled before use; the ordinary15-minute fixture
+does not establish that fit. Platform-bound producer authentication, protected
+receiver/runtime integration, separate candidate execution, direct capture/report
+and same-worker pre/post-sign joins remain. No new host setup, admin prompt,
+credential, publisher authority or protected execution is requested. D1/D2/D3,
+$0 stop-usage and all other resource/admission restrictions remain. Availability
+and headroom Unknown; no capacity reservation. #254 Done; #315/#534/#246 pending;
+Chameleon protected_acceptance unset; production held; Slice5 excluded.
