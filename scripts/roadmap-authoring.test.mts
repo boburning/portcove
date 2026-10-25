@@ -85,6 +85,9 @@ void test("explicit reconsideration fields pass without incidental resume verbs;
     "Resume condition: Upstream publishes a native player.",
     "Blocker: Upstream lacks a native player.",
     "Blocker: Unknown until further research.\nResume condition: Upstream publishes a native player.",
+    "Blocker: Upstream lacks a usable player.\nResume condition:\nReconsideration condition: TBD",
+    "Blocker:\nResume condition: Upstream publishes a usable player.",
+    "Blocker: Upstream lacks a usable player.\nResume condition:\nAnother unrelated paragraph is substantive text.",
   ]) {
     assert.equal(
       validatePortStageSemantics({ ports: [] }, [issue(1, blocker).item]).errors.length,

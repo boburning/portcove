@@ -11,6 +11,8 @@ import {
   collectReplayWindows,
   ReplayWindowFull,
   journalCollectorRun,
+  mainPublicationJournals,
+  unavailableRoadmapStateReport,
 } from "./roadmap-report.mts";
 import type { RoadmapReportState } from "./roadmap-report.mts";
 const repository = "boburning/portcove";
@@ -244,7 +246,7 @@ void test("incomplete success, unchecked issues, and publication gaps cannot est
   state.publication_gaps.push("Collector artifact missing; replay required");
   assert.match(render(state), /\*\*Unable to verify\*\*/u);
 });
-void test("only the publisher writes comments, uses trusted main, queues and retains recovery state", () => {
+void test("only the publisher writes comments, serializes on trusted main and retains recovery state", () => {
   const collector = readFileSync(
     new URL("../.github/workflows/roadmap-health.yml", import.meta.url),
     "utf8",
@@ -255,7 +257,8 @@ void test("only the publisher writes comments, uses trusted main, queues and ret
   );
   assert.doesNotMatch(collector, /issues: write|concurrency:/u);
   assert.match(publisher, /workflow_run:[\s\S]*types: \[completed\]/u);
-  assert.match(publisher, /group: roadmap-maintained-report[\s\S]*queue: max/u);
+  assert.match(publisher, /group: roadmap-maintained-report[\s\S]*cancel-in-progress: false/u);
+  assert.doesNotMatch(publisher, /queue: max/u);
   assert.match(publisher, /ref: \$\{\{ github.event.repository.default_branch \}\}/u);
   assert.doesNotMatch(publisher, /schedule:|pull_request_target|issue_comment/u);
   assert(
@@ -266,6 +269,33 @@ void test("only the publisher writes comments, uses trusted main, queues and ret
     publisher.indexOf("path: work/roadmap-publisher/state.json") <
       publisher.indexOf("roadmap-publish.mts publish"),
   );
+});
+
+void test("non-main publication dispatches cannot obstruct main journal replay", () => {
+  const entry = {
+    path: ".github/workflows/roadmap-report.yml",
+    head_branch: "main",
+    event: "workflow_run",
+    created_at: "2026-10-24T03:00:00Z",
+    display_title: "Roadmap publication 1 / 2",
+  };
+  assert.deepEqual(
+    mainPublicationJournals([
+      { ...entry, head_branch: "feature/unrelated", display_title: "foreign format" },
+      entry,
+    ]),
+    [{ run: 1, attempt: 2, created_at: entry.created_at, completed: true }],
+  );
+});
+
+void test("unavailable state changes the headline, preserves history and pointer, and is idempotent", () => {
+  const original = render(blank());
+  const body = unavailableRoadmapStateReport(original, "Artifact expired after retention");
+  assert.equal(body.split("\n")[0], original.split("\n")[0]);
+  assert.match(body, /Roadmap: \*\*Unable to verify\*\*/u);
+  assert.match(body, /Missing history cannot seed a clean state/u);
+  assert(body.endsWith(original.slice(original.indexOf("\n") + 1)));
+  assert.equal(unavailableRoadmapStateReport(body, "Artifact expired after retention"), body);
 });
 
 void test("interrupted/overflowed publication replays retained results and preserves missing coverage", () => {

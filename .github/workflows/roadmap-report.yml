@@ -20,7 +20,6 @@ jobs:
     concurrency:
       group: roadmap-maintained-report
       cancel-in-progress: false
-      queue: max
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,10 +30,12 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Replay retained collector results and prepare one maintained report
+        id: prepare
         run: node scripts/roadmap-publish.mts prepare
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.prepare.outputs.state_available == 'true'
         with:
           name: roadmap-report-state-${{ github.run_id }}-${{ github.run_attempt }}
           path: work/roadmap-publisher/state.json
@@ -52,5 +53,7 @@ jobs:
             work/roadmap-publisher/body.md
             work/roadmap-publisher/preimage.json
             work/roadmap-publisher/error.json
+            work/roadmap-publisher/state-error.json
+            work/roadmap-publisher/collection-error.json
           if-no-files-found: ignore
           retention-days: 30

@@ -6,6 +6,7 @@ import {
   observationFromReceipt,
   renderRoadmapReport,
   reportDigest,
+  unavailableRoadmapStateReport,
 } from "./roadmap-report.mts";
 import type { RoadmapReportState } from "./roadmap-report.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -93,4 +94,10 @@ void test("production publisher maintains one comment for eight results and reje
   writeMaintainedRoadmapReport(render(), preimage(), api);
   assert.equal(patches, before);
   assert.equal(posts, 1);
+  const historical = render();
+  const unavailable = unavailableRoadmapStateReport(historical, "Referenced artifact expired");
+  writeMaintainedRoadmapReport(unavailable, preimage(), api);
+  assert.equal(posts, 1, "Unavailable state updates the same maintained comment");
+  assert.equal(comment?.body.split("\n")[0], historical.split("\n")[0]);
+  assert.match(comment?.body ?? "", /\*\*Unable to verify\*\*/u);
 });

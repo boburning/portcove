@@ -22,6 +22,29 @@ export interface RoadmapReportState {
 }
 export const reportMarker = "<!-- portcove-roadmap-report:";
 
+export function unavailableRoadmapStateReport(previous: string, reason: string) {
+  if (!previous.startsWith(reportMarker) || !previous.includes("\n"))
+    throw new Error("Previous report identity is unavailable");
+  const end = previous.indexOf("\n");
+  const history = previous
+    .slice(end + 1)
+    .replace(
+      /<!-- portcove-roadmap-state-unavailable -->[\s\S]*?<!-- \/portcove-roadmap-state-unavailable -->\n?/gu,
+      "",
+    );
+  const body =
+    previous.slice(0, end + 1) +
+    "<!-- portcove-roadmap-state-unavailable -->\n" +
+    `Roadmap: **Unable to verify** — retained report state is unavailable. ${safeText(reason)}\n\n` +
+    "Restore the referenced state artifact or reconstruct its observations from retained results through reviewed recovery, then resume journal replay. New collector results remain retained. Missing history cannot seed a clean state.\n\n" +
+    "The previous summary below is historical; current coverage is unknown.\n" +
+    "<!-- /portcove-roadmap-state-unavailable -->\n" +
+    history;
+  if (Buffer.byteLength(body) > 65000)
+    throw new Error("Unavailable-state diagnostic exceeds the bounded comment size");
+  return body;
+}
+
 /** Import outstanding legacy diagnostics once; existing comments remain intact. */
 export function legacyRoadmapObservations(comments: readonly unknown[], repository: string) {
   const observations: RoadmapObservation[] = [];
@@ -215,6 +238,15 @@ export function journalCollectorRun(entry: Record<string, unknown>) {
   )
     throw new Error("Publication journal lacks an exact collector attempt");
   return { run: Number(match[1]), attempt: Number(match[2]), created_at: entry.created_at };
+}
+
+export function mainPublicationJournals(entries: readonly Record<string, unknown>[]) {
+  return entries
+    .filter((entry) => entry.head_branch === "main")
+    .flatMap((entry) => {
+      const journal = journalCollectorRun(entry);
+      return journal ? [{ ...journal, completed: true }] : [];
+    });
 }
 /** GitHub caps filtered Actions searches at 1,000 records. Split complete time
  * windows and deduplicate inclusive boundaries instead of trusting a prefix. */

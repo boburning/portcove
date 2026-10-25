@@ -415,10 +415,11 @@ or support.
 
 The issue-event workflow collects checks independently and retains every actual
 result. One separate publisher maintains a single consolidated report on #2414.
-Its repository-wide concurrency group uses `queue: max` and never cancels an
-active publisher. [GitHub limits the queue to 100 pending jobs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency),
-so each publisher replays retained collector receipts, including results whose
-original publisher was interrupted or dropped. Queue order is not observation
+Its repository-wide concurrency group never cancels an active publisher and
+uses the single pending slot supported by the pinned actionlint release. A new
+publisher request can replace a pending publisher; the next publisher replays
+all retained dispatch entries and collector receipts, including results whose
+original publisher was interrupted or replaced. Queue order is not observation
 order: per-scope observation start, run and attempt prevent an older failure
 from replacing a newer recovery. Shared provider incidents group their affected
 scopes and reset information. A scoped success clears only its own observation;
@@ -433,6 +434,11 @@ The publisher uploads and verifies its complete state artifact before publishing
 the comment pointer, then reads back the exact comment. Unchanged scopes create
 no new comment. Historical per-scope comments and failed runs remain evidence.
 Complete state is retained for 90 days; individual collector evidence for 30.
+If the referenced state artifact is unavailable, the publisher marks the same
+comment **Unable to verify**, preserves its original pointer and historical
+summary, and names the recovery condition. It cannot initialize a clean state
+from missing history. Restore the artifact or reconstruct its observations from
+retained results through reviewed recovery before resuming journal replay.
 Missing/expired receipts, an unfinished collector, incomplete inventory or a
 publication gap remain **Unable to verify** with a recovery condition. A later
 collector completion or manual dispatch of **Publish consolidated Roadmap

@@ -1235,7 +1235,7 @@ function hasBlockedEvidence(body: unknown) {
     return false;
   const fields = [
     ...section.matchAll(
-      /^(?:[-*]\s*)?(?:\*\*)?(Blocker|Resume condition|Reconsideration condition)(?:\*\*)?:\s*(.*?)(?=\r?$)/gimu,
+      /^(?:[-*][ \t]*)?(?:\*\*)?(Blocker|Resume condition|Reconsideration condition)(?:\*\*)?:[ \t]*(.*?)(?=\r?$)/gimu,
     ),
   ];
   const usable = (value: string) => {

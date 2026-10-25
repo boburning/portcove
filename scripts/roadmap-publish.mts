@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, lstatSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  mkdtempSync,
+  lstatSync,
+  appendFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
@@ -7,7 +14,8 @@ import { isRecord } from "./runtime-values.mts";
 import {
   replayRoadmapRuns,
   collectReplayWindows,
-  journalCollectorRun,
+  mainPublicationJournals,
+  unavailableRoadmapStateReport,
   ReplayWindowFull,
   legacyRoadmapObservations,
   mergeRoadmapObservations,
@@ -37,8 +45,10 @@ function command(executable: string, args: string[]) {
     maxBuffer: 8 * 1024 * 1024,
     windowsHide: true,
   });
-  if (result.status !== 0)
-    throw new Error(`Publication command failed: ${executable}; ${result.stderr}`);
+  if (result.status !== 0) {
+    const stderr = result.stderr.replace(/(https?:\/\/[^\s?]+)\?[^\s]+/gu, "$1?[REDACTED]");
+    throw new Error(`Publication command failed: ${executable}; ${stderr}`);
+  }
   return result.stdout.trim();
 }
 function numeric(value: unknown): number {
@@ -80,7 +90,7 @@ export function writeMaintainedRoadmapReport(
   previous: unknown,
   transport: PublicationApi = api,
 ) {
-  if (!body.startsWith(reportMarker) || Buffer.byteLength(body) > 60000)
+  if (!body.startsWith(reportMarker) || Buffer.byteLength(body) > 65000)
     throw new Error("Invalid maintained report candidate");
   const before = existing(transport);
   if (
@@ -179,9 +189,29 @@ async function prepare() {
   const previous = existing();
   let state: RoadmapReportState;
   if (previous) {
-    const match = String(previous.body).match(/^<!-- portcove-roadmap-report:(\{[^\n]*\}) -->/u);
-    if (!match?.[1]) throw new Error("Maintained report pointer is malformed");
-    state = readState(record(JSON.parse(match[1])));
+    try {
+      const match = String(previous.body).match(/^<!-- portcove-roadmap-report:(\{[^\n]*\}) -->/u);
+      if (!match?.[1]) throw new Error("Maintained report pointer is malformed");
+      state = readState(record(JSON.parse(match[1])));
+    } catch (error) {
+      const diagnostic = sanitizeOperationError(error);
+      writeFileSync(path.join(directory, "state-error.json"), JSON.stringify(diagnostic));
+      writeFileSync(
+        path.join(directory, "body.md"),
+        unavailableRoadmapStateReport(String(previous.body), diagnostic.message),
+      );
+      writeFileSync(
+        path.join(directory, "preimage.json"),
+        JSON.stringify({ id: previous.id, body: previous.body }),
+      );
+      writeFileSync(
+        path.join(directory, "mode.json"),
+        JSON.stringify({ mode: "state-unavailable" }),
+      );
+      if (process.env.GITHUB_OUTPUT)
+        appendFileSync(process.env.GITHUB_OUTPUT, "state_available=false\n");
+      return;
+    }
   } else {
     const since = command("git", [
       "log",
@@ -216,7 +246,7 @@ async function prepare() {
       const query = encodeURIComponent(`${since}..${end}`);
       return api
         .paginateRest(
-          `${prefix}/actions/workflows/roadmap-report.yml/runs?per_page=100&created=${query}`,
+          `${prefix}/actions/workflows/roadmap-report.yml/runs?per_page=100&branch=main&created=${query}`,
           {
             select: (value) => record(value).workflow_runs,
             totalCount: (value) => {
@@ -234,10 +264,7 @@ async function prepare() {
         .body,
     );
     if (!runs.some((run) => run.id === ownRun.id)) runs.push(ownRun);
-    const trusted = runs.flatMap((entry) => {
-      const journal = journalCollectorRun(entry);
-      return journal ? [{ ...journal, completed: true }] : [];
-    });
+    const trusted = mainPublicationJournals(runs);
     state = replayRoadmapRuns(state, trusted, until, ({ run: id, attempt }) => {
       const collector = record(
         api.request("GET", `${prefix}/actions/runs/${id}/attempts/${attempt}`).body,
@@ -287,9 +314,25 @@ async function prepare() {
     path.join(directory, "preimage.json"),
     JSON.stringify(previous ? { id: previous.id, body: previous.body } : null),
   );
+  writeFileSync(path.join(directory, "mode.json"), JSON.stringify({ mode: "snapshot" }));
+  if (process.env.GITHUB_OUTPUT)
+    appendFileSync(process.env.GITHUB_OUTPUT, "state_available=true\n");
 }
 function publish() {
   const previous: unknown = JSON.parse(readBounded(path.join(directory, "preimage.json")));
+  const mode = record(JSON.parse(readBounded(path.join(directory, "mode.json")))).mode;
+  if (mode === "state-unavailable") {
+    const body = readBounded(path.join(directory, "body.md"), 65000);
+    if (
+      !isRecord(previous) ||
+      typeof previous.body !== "string" ||
+      body.split("\n")[0] !== previous.body.split("\n")[0]
+    )
+      throw new Error("Unavailable-state publication must retain its original snapshot pointer");
+    writeMaintainedRoadmapReport(body, previous);
+    return;
+  }
+  if (mode !== "snapshot") throw new Error("Publication mode is unavailable");
   const run = numeric(Number(process.env.GITHUB_RUN_ID)),
     attempt = numeric(Number(process.env.GITHUB_RUN_ATTEMPT));
   // Upload completes before making the snapshot pointer visible. An interrupted
