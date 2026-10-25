@@ -18,6 +18,11 @@ import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-c
 import { readCatalogCoreMachineEnvelope } from "./release-catalog-inspection.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import {
+  inspectNativeDependencyWorkspace,
+  qualifyNativePnpmRuntime,
+} from "./release-pnpm-runtime.mts";
+import { runResourceCommand } from "./resource-command.mts";
+import {
   nativeRuntimeSupport,
   inspectNativeRuntimeSupport,
 } from "./release-native-runtime-support.mts";
@@ -304,6 +309,142 @@ async function main() {
     assert.equal(nodeResult.error, undefined);
     assert.equal(nodeResult.status, 0);
     assert.equal(nodeResult.stdout.trim(), `v${controllerNodeVersion}`);
+    phase = "actual-native-package-manager";
+    const pnpmRuntime = await qualifyNativePnpmRuntime(
+      path.join(built.tools, "bin/pnpm"),
+      path.join(directory, "pnpm-runtime"),
+      path.join(built.tools, "bin"),
+    );
+    await record("pnpm-runtime.json", pnpmRuntime);
+    phase = "actual-frozen-native-dependencies";
+    const dependencyRoot = path.join(directory, "frozen-native-graph");
+    await mkdir(dependencyRoot, { mode: 0o700 });
+    const nativeSource = path.join(dependencyRoot, "native-source");
+    const fixtureGit = (args: string[]) => {
+      const result = spawnSync(
+        "/usr/bin/git",
+        [
+          "-c",
+          "core.hooksPath=/dev/null",
+          "-c",
+          "core.fsmonitor=false",
+          "-c",
+          "protocol.allow=never",
+          "-c",
+          "protocol.file.allow=always",
+          ...args,
+        ],
+        {
+          env: {
+            PATH: "/usr/bin:/bin",
+            HOME: directory,
+            GIT_CONFIG_NOSYSTEM: "1",
+            GIT_CONFIG_GLOBAL: "/dev/null",
+            GIT_NO_LAZY_FETCH: "1",
+            GIT_NO_REPLACE_OBJECTS: "1",
+          },
+          encoding: "utf8",
+          timeout: 20000,
+          maxBuffer: 65536,
+        },
+      );
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0, result.stderr);
+    };
+    fixtureGit([
+      "clone",
+      "--quiet",
+      "--no-local",
+      "--no-hardlinks",
+      "--no-checkout",
+      "--template=",
+      source,
+      nativeSource,
+    ]);
+    fixtureGit(["-C", nativeSource, "checkout", "--quiet", "--detach", expected.commit]);
+    const workspace = inspectNativeDependencyWorkspace(
+      await readControllerToolFile(path.join(nativeSource, "pnpm-workspace.yaml"), 65536),
+    );
+    const toolIdentity = async (filename: string) => {
+      const bytes = await readControllerToolFile(filename);
+      return {
+        path: filename,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      };
+    };
+    const dependencyPlan = {
+      schema_version: 1,
+      binding: "f".repeat(64),
+      source_commit: expected.commit,
+      source_tree: expected.tree,
+      harness_sha256: createHash("sha256")
+        .update(
+          await readControllerToolFile(
+            path.join(nativeSource, "apps/desktop/scripts/desktop-test.mts"),
+            1024 ** 2,
+          ),
+        )
+        .digest("hex"),
+      broker_uid: process.getuid!(),
+      broker_pid: process.pid,
+      broker_identity: readProcessIdentity(process.pid, { platform: "linux" }),
+      deadline_ns: String(process.hrtime.bigint() + 90_000_000_000n),
+      tools: {
+        node: await toolIdentity(node),
+        driver: await toolIdentity(path.join(built.tools, "bin/tauri-driver")),
+      },
+      context: {
+        GITHUB_SHA: expected.commit,
+        GITHUB_RUN_ID: process.env.GITHUB_RUN_ID,
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_WORKFLOW_REF:
+          "boburning/portcove/.github/workflows/application-update-production.yml@refs/tags/portcove-production-controller-fixture",
+      },
+    };
+    const dependencySettings = {
+      pnpm: await toolIdentity(path.join(built.tools, "bin/pnpm")),
+      workspace_sha256: workspace.sha256,
+      patches: workspace.patches,
+    };
+    const dependencyStarted = performance.now();
+    const dependencyRemaining =
+      Number(BigInt(dependencyPlan.deadline_ns) - process.hrtime.bigint()) / 1e6;
+    assert.ok(dependencyRemaining > 0);
+    const dependencyStatus = await runResourceCommand(
+      "analysis",
+      "/usr/bin/python3",
+      [
+        "-I",
+        "-S",
+        "-B",
+        "-c",
+        "import importlib.util,json,sys; from pathlib import Path; spec=importlib.util.spec_from_file_location('fixture_installation',sys.argv[1]); m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m); m.WORKSPACE=Path(sys.argv[2]); result=m.prepare_source_dependencies(m.inspect_plan(json.loads(sys.argv[3])),json.loads(sys.argv[4])); Path(sys.argv[5]).write_text(json.dumps({'scope':'ordinary-hosted-frozen-graph-fixture','result':result,'authority':'none'}))",
+        path.join(built.tools, "scripts/prepare-hosted-native-linux-installation.py"),
+        dependencyRoot,
+        JSON.stringify(dependencyPlan),
+        JSON.stringify(dependencySettings),
+        path.join(directory, "pnpm-frozen-graph.json"),
+      ],
+      {
+        cwd: source,
+        environment: { PATH: "/usr/bin:/bin", HOME: directory, LANG: "C.UTF-8" },
+        executionTimeoutMilliseconds: dependencyRemaining + 5000,
+        queueDeadline: performance.now() + dependencyRemaining,
+      },
+    );
+    assert.equal(
+      dependencyStatus,
+      0,
+      "actual frozen graph preparation refused; retain partial fixture",
+    );
+    await record("pnpm-frozen-graph-timing.json", {
+      milliseconds: Math.ceil(performance.now() - dependencyStarted),
+      allocation_milliseconds: 90000,
+      cleanup_milliseconds: 5000,
+      scope: "ordinary-hosted-frozen-graph-fixture",
+      authority: "none",
+    });
     phase = "actual-native-webdriver";
     const nativeDriver = path.join(built.tools, "bin/tauri-driver");
     // The pinned upstream CLI has no version flag. Build provenance supplies
@@ -522,6 +663,7 @@ async function main() {
       build_allowance_milliseconds: 210000,
       build_profile: "controller-tools",
       tool_expanded_bytes: built.manifest.files.reduce((total, file) => total + file.bytes, 0),
+      pnpm_runtime: pnpmRuntime,
       core_cli_bytes: built.manifest.files.find((file) => file.path === "bin/portcove")!.bytes,
       core_cli_smoke:
         "version-and-inert-empty-bundle-inspection-with-extra-file-refusal; no library or admission",

@@ -1779,6 +1779,13 @@
       ]
     },
     {
+      "file": "scripts/release-pnpm-runtime.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15148],
+        ["release-check", 13448]
+      ]
+    },
+    {
       "file": "scripts/release-hosted-native-runner.test.mts",
       "memberships": [
         ["catalog-full-2", 15145],
