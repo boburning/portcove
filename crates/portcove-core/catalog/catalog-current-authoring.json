@@ -21274,6 +21274,91 @@
       }
     },
     {
+      "id": "ace-combat-6-recomp",
+      "name": "Ace Combat 6 Recomp",
+      "summary": "Explore Ace Combat 6 Recomp and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/sal063/AC6_recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "sal063/AC6_recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ac6recomp-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ac6recomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "AC6.iso",
+        "assets",
+        "dlc",
+        "ac6recomp.toml",
+        "ac6_input.toml",
+        "boot.log",
+        "ac6recomp.log",
+        "logs",
+        "cache",
+        "ac6recomp",
+        "ac6_pac_runtime_dump",
+        "out/ac6_pac_runtime_dump"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "ac6recomp.",
+          "suffix": ".log"
+        },
+        {
+          "prefix": "crash-",
+          "suffix": ".txt"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update. Portcove manages the official Windows x64 runtime and preserves the declared AC6.iso, assets, dlc, local settings, bindings, logs, shader cache and reviewed diagnostic folders, including data added before first Play. Its backup covers those declared in-folder paths, not the normal Documents/ac6recomp save/mod profile or custom locations. Keep a separate backup of external saves. Runtime rollback carries current declared data and does not rewind saves or establish older-version compatibility. Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified.",
+        "original_game_title": "Ace Combat 6: Fires of Liberation",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Add your US game data before Play",
+              "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
+            },
+            {
+              "title": "Keep your saves and settings",
+              "instruction": "Saves and the default texture-mod profile use your Windows Documents/ac6recomp folder. Keep a separate backup of that folder before changing versions. Runtime settings and keyboard bindings sit beside the player in ac6recomp.toml and ac6_input.toml; use forward slashes in TOML paths. Runtime caches and logs also appear beside the player. If Windows cannot resolve Documents, the upstream relative ac6recomp fallback stays beside the player. Custom data, disc, DLC, log, mod and diagnostic locations remain yours to preserve separately. Close the game before changing runtime files; older versions may not read newer saves."
+            },
+            {
+              "title": "Know this release’s limits",
+              "instruction": "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md"
+        },
+        "artwork": {
+          "game_id": 5476,
+          "cover_id": 129981,
+          "image_id": "co2sal",
+          "image_sha256": "4c96dc0b2df555f04889240e43fcc2a6b1d9a39efddb2c11c0900c487f04ba70",
+          "game_slug": "ace-combat-6-fires-of-liberation",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "alariq-mc2",
       "name": "MechCommander 2 / mc2 (alariq)",
       "summary": "Explore MechCommander 2 / mc2 (alariq) and follow the upstream project for requirements, downloads and setup.",
@@ -21373,6 +21458,510 @@
       }
     },
     {
+      "id": "alexbeav-medievil-ii-recomp",
+      "name": "MediEvil II / Alexbeav PSXRecomp",
+      "summary": "Explore MediEvil II / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "alexbeavs-ps1-ports/medievil-ii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "medieviliirecomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "MediEvilIIRecomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "settings.toml",
+        "disc.cfg",
+        "bios.cfg",
+        "input.ini",
+        "config.ini",
+        "keybinds.ini",
+        "saves",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "diagnostics-location.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache. Windows settings, remembered disc/BIOS paths, input bindings, saves/memory cards, diagnostics and installed mod packages are declared beside MediEvilIIRecomp.exe. Bundled mods stay version-owned; only installed/legacy user packages and their state/staging are retained. Resident decoded assets use the system user cache, outside Portcove backups. The selected external disc remains external. Use an external copy for custom BIOS preparation, cache-producing legacy mods or changed runtime files. Runtime rollback carries current declared data; it does not rewind saves or guarantee older save-state compatibility. Existing external installations keep their files and runtime owner. Gameplay, minimum environment and packaged Desktop acceptance remain separate observations.",
+        "original_game_title": "MediEvil II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your own USA disc",
+              "instruction": "On first Play, choose your own MediEvil II USA SCUS-94564 CUE with its BIN tracks, or a supported CHD, in the native launcher. The disc remains required. This precompiled player includes OpenBIOS and needs no compiler, Python, Generate step or retail BIOS. Its first run prepares a verified resident loading cache."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/medievil-ii-recomp/blob/v0.2.4-alpha/README.md"
+        },
+        "artwork": {
+          "game_id": 4002,
+          "cover_id": 84942,
+          "image_id": "co1tji",
+          "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
+          "game_slug": "medievil-ii--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alistert-openjazz",
+      "name": "Jazz Jackrabbit / OpenJazz (AlisterT)",
+      "summary": "Explore Jazz Jackrabbit / OpenJazz (AlisterT) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/AlisterT/openjazz",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "AlisterT/openjazz",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openjazz-windows-mingw-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openjazz-linux-glibc2.35-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenJazz.exe"
+        ],
+        "linux-x86-64": [
+          "OpenJazz"
+        ]
+      },
+      "persistent_paths": [
+        "game-data",
+        "openjazz.cfg",
+        "openjazz.log",
+        "openjazz.tmp",
+        "ff-output.dat",
+        "cm-output.dat"
+      ],
+      "launch_arguments": [
+        "game-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The offered Linux ZIP is the upstream glibc2.35 x86-64 build and requires system SDL2/C++ libraries. It uses the same supported game-data argument and declared in-folder fallbacks; upstream user-profile storage, when used, remains external. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Jazz Jackrabbit",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+        },
+        "artwork": {
+          "game_id": 3167,
+          "cover_id": 104089,
+          "image_id": "co28bd",
+          "image_sha256": "8f3e4f12d81b064bf80128999fd6758c8b5404dc848c58064aea0175139e5f5a",
+          "game_slug": "jazz-jackrabbit",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "banjo-tooie-recompiled-some-scurvy-dog",
+      "name": "Banjo-Tooie: Recompiled (some-scurvy-dog)",
+      "summary": "Explore Banjo-Tooie: Recompiled (some-scurvy-dog) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/some-scurvy-dog/BanjoTooieRecompiled",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "some-scurvy-dog/banjo-tooie-scurvy-dog-port",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BanjoTooieScurvyDogPort-",
+            "-Windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BanjoTooieScurvyDogPort.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically. Portcove manages only the official Windows x64 runtime. The reviewed player writes its ROM, saves, settings, log, cache and mods to the external upstream profile rather than the runtime folder, so no in-folder persistent paths are declared. Portcove runtime backup does not back up that profile. Keep a separate backup of your saves/profile before updates or runtime rollback. Runtime rollback does not rewind that profile, synchronize old copies or guarantee save compatibility. Existing registrations retain their files and update owner. This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified.",
+        "original_game_title": "Banjo-Tooie",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own Banjo-Tooie ROM on first Play",
+              "instruction": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically."
+            },
+            {
+              "title": "Keep your saves and settings",
+              "instruction": "Saves, settings, copied ROM, logs, cache and RT64 texture packs use %LOCALAPPDATA%/BanjoTooieScurvyDogPort. Keep a separate backup; do not share the whole profile because it contains your ROM. On first start only, if this destination does not exist, the game can copy selected Alpha 4/4.1 data from BanjoTooieEncore while leaving the old profile unchanged. Close the old game first; the copies do not synchronize. An existing destination, even empty, wins. A failed copy can leave an unused .migrating-… folder; preserve it and consult the upstream recovery instructions before retrying. Alpha 3 save import asks once if there is no current save; Alpha 3 settings and practice states are not carried over. Texture packs are experimental; code mods and ROM patches are unsupported."
+            },
+            {
+              "title": "Know this release’s limits",
+              "instruction": "This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt"
+        },
+        "artwork": {
+          "game_id": 3418,
+          "cover_id": 295556,
+          "image_id": "co6c1w",
+          "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
+          "game_slug": "banjo-tooie",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "battletanx-global-assault-pc-port",
+      "name": "BattleTanx: Global Assault PC Port",
+      "summary": "Explore BattleTanx: Global Assault PC Port and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BattleTanxGA-",
+            "-windows-x64-portable.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BattleTanxGA.exe"
+        ]
+      },
+      "persistent_paths": [
+        "userdata"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed. The official portable package includes portable.txt and keeps settings, Controller Pak data, logs and texture packs in userdata beside the player. That directory is declared for compatible updates and backups. Your selected original ROM stays in its own location and is outside Portcove backup. A deliberate BTGA_DATA_DIR override also remains outside that backup. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
+        "original_game_title": "BattleTanx: Global Assault",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
+        },
+        "artwork": {
+          "game_id": 47685,
+          "cover_id": 110864,
+          "image_id": "co2djk",
+          "image_sha256": "85a5c7bae259b9b6cb96c8b9e0caba168097c78c36470025995208cc1c645900",
+          "game_slug": "battletanx-global-assault",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "brawmario-infinite-mario-64-ever",
+      "name": "Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario)",
+      "summary": "Explore Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/Brawmario/infinite-mario-64-ever",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "Brawmario/infinite-mario-64-ever",
+        "asset_hints": {
+          "windows-x86-64": [
+            "infinite-mario-64-ever.",
+            ".windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Infinite Mario 64.exe"
+        ]
+      },
+      "persistent_paths": [
+        "project.godot"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
+        "original_game_title": "Super Mario 64",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
+        }
+      }
+    },
+    {
+      "id": "bvschaik-julius",
+      "name": "Caesar III / Julius (bvschaik)",
+      "summary": "Explore Caesar III / Julius (bvschaik) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/bvschaik/julius",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "bvschaik/julius",
+        "asset_hints": {
+          "windows-x86-64": [
+            "julius-",
+            "-windows.zip"
+          ],
+          "linux-x86-64": [
+            "julius-",
+            "-linux-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "julius.exe"
+        ],
+        "linux-x86-64": [
+          "julius"
+        ]
+      },
+      "persistent_paths": [
+        "julius-log.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then point Julius to your own writable Caesar III installation patched to 1.0.1.0 when asked. GOG, Steam and original CD installations are supported upstream. Keep that original game folder separate from this runtime. No compiler or installer is required for the published player. Julius saves and settings stay in the selected game folder; Augustus saves are not interchangeable with Julius saves. Portcove replaces only this separate player runtime. The selected original-game folder holds saves, c3.inf, julius.ini and julius-hotkeys.ini; its contents and the remembered SDL preference path are outside Portcove backups. Only the in-folder julius-log.txt is declared here. Keep a separate backup of the game folder. The Linux ZIP requires the SDL2/SDL2_mixer runtime libraries described by upstream; Linux package/header inspection does not establish native execution or minimum-environment qualification.",
+        "original_game_title": "Caesar III",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your Caesar III folder on first Play",
+              "instruction": "Choose Play, then point Julius to your own writable Caesar III installation patched to 1.0.1.0 when asked. GOG, Steam and original CD installations are supported upstream. Keep that original game folder separate from this runtime. No compiler or installer is required for the published player. Julius saves and settings stay in the selected game folder; Augustus saves are not interchangeable with Julius saves."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/bvschaik/julius/blob/v1.8.0/README.md"
+        },
+        "artwork": {
+          "game_id": 6332,
+          "cover_id": 561798,
+          "image_id": "coc1hi",
+          "image_sha256": "56d8d709fe76b92d75c0cd522724afcc2a9d8e9ca2ca924631fe0bd074452e5c",
+          "game_slug": "caesar-iii",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "citrongames-dora64",
+      "name": "Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames)",
+      "summary": "Explore Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/citrongames/Dora64",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "citrongames/Dora64",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dora64-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dora64-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Dora64.exe"
+        ],
+        "linux-x86-64": [
+          "Dora64"
+        ]
+      },
+      "persistent_paths": [
+        "doraemon.n64.jp.z64",
+        "saves",
+        "doraemon_pc_settings.json",
+        "doraemon_input_settings.json",
+        "doraemon_touch_settings.json",
+        "doraemon_touch_settings.json.tmp",
+        "doraemon-draw-distance.log",
+        "android-trace.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained. The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses the same fixed original ROM name and declared executable-adjacent settings/saves. The selected build needs system SDL2/GTK3 and their runtime dependencies. Keep the shipped assets beside Dora64; the package requires no setup compiler. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Doraemon: Nobita to Mittsu no Seireiseki",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside the Dora64 player and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
+        },
+        "artwork": {
+          "game_id": 70797,
+          "cover_id": 304257,
+          "image_id": "co6irl",
+          "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
+          "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "colin-mcrae-rally-2-opencmr2",
+      "name": "Colin McRae Rally 2.0 / OpenCMR2",
+      "summary": "Explore Colin McRae Rally 2.0 / OpenCMR2 and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/pablocpas/OpenCMR2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "pablocpas/OpenCMR2",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opencmr2-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "opencmr2-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "opencmr2.exe"
+        ],
+        "linux-x86-64": [
+          "opencmr2"
+        ]
+      },
+      "persistent_paths": [
+        "Data",
+        "opencmr2.ini",
+        "opencmr2.log",
+        "SaveGame"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library. Play has not been tested through Portcove on Linux.",
+        "original_game_title": "Colin McRae Rally 2.0",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply your original game files on first launch",
+              "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay in their existing folder."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md"
+        },
+        "artwork": {
+          "game_id": 642,
+          "cover_id": 351921,
+          "image_id": "co7jjl",
+          "image_sha256": "f0017034b228e12a2d22522dc6510f8e546824db874cb70a968d8e283e0e312c",
+          "game_slug": "colin-mcrae-rally-2-0",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "corsixth-corsixth",
       "name": "CorsixTH",
       "summary": "Play Theme Hospital with CorsixTH.",
@@ -21426,6 +22015,77 @@
           "image_sha256": "85d8be21323ee5747b4316fbffc8045bff5916899e2746958c8beca93f894f2e",
           "game_slug": "corsixth",
           "match_kind": "port"
+        }
+      }
+    },
+    {
+      "id": "craigshaw-fzerorecomp",
+      "name": "F-Zero / F-Zero Recomp (craigshaw)",
+      "summary": "Explore F-Zero / F-Zero Recomp (craigshaw) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/craigshaw/FZeroRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "craigshaw/FZeroRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "fzerorecomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "fzerorecomp-",
+            "-linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "fzero_recomp.exe"
+        ],
+        "linux-x86-64": [
+          "fzero_recomp"
+        ]
+      },
+      "persistent_paths": [
+        "config.ini",
+        "config.ini.tmp",
+        "config.ini.save-folder.tmp",
+        "keybinds.ini",
+        "rom.cfg",
+        "fzero_usa_reference.sfc",
+        "saves",
+        "screenshots"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path. Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux uses the same executable-adjacent declared configurations and saves as Windows. Keep lib/libSDL3.so.0 with the player; the ELF runpath resolves that packaged companion. System OpenGL and C++ runtime libraries are required. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "F-Zero",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start with your original game",
+              "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
+        },
+        "artwork": {
+          "game_id": 3490,
+          "cover_id": 319391,
+          "image_id": "co6ufz",
+          "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
+          "game_slug": "f-zero",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -21509,6 +22169,253 @@
       }
     },
     {
+      "id": "dethrace-labs-dethrace",
+      "name": "Carmageddon / Dethrace (dethrace-labs)",
+      "summary": "Explore Carmageddon / Dethrace (dethrace-labs) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/dethrace-labs/dethrace",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "dethrace-labs/dethrace",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dethrace-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dethrace-",
+            "-linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dethrace.exe"
+        ],
+        "linux-x86-64": [
+          "dethrace"
+        ]
+      },
+      "persistent_paths": [
+        "DATA",
+        "MUSIC",
+        "dethrace.log",
+        "DIAGNOST.TXT"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux player uses the same declared DATA/MUSIC and named diagnostics. Keep the originals separately and follow upstream’s native dependencies. A custom DETHRACE_ROOT_DIR or external preference-data fallback remains outside Portcove backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Carmageddon",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside the dethrace player, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/dethrace-labs/dethrace/blob/v0.10.1/README.md"
+        },
+        "artwork": {
+          "game_id": 626,
+          "cover_id": 123331,
+          "image_id": "co2n5v",
+          "image_sha256": "37c005bc0bc73af82a8b2fb6d367c1d639395f6804cb064088773581d2b9264f",
+          "game_slug": "carmageddon",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "djultra64-blocksphere",
+      "name": "Tetrisphere / Blocksphere (djultra64)",
+      "summary": "Explore Tetrisphere / Blocksphere (djultra64) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/djultra64/Blocksphere",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "djultra64/Blocksphere",
+        "asset_hints": {
+          "windows-x86-64": [
+            "blocksphere-",
+            "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "blocksphere-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "tetrisphere.exe"
+        ],
+        "linux-x86-64": [
+          "tetrisphere"
+        ]
+      },
+      "persistent_paths": [
+        "data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required. The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux uses the same adjacent data directory. Keep lib/ beside tetrisphere; the game needs those companion files. A compatible Vulkan driver and upstream system dependencies are required. Play has not been tested through Portcove on Linux.",
+        "original_game_title": "Tetrisphere",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start with the required game files",
+              "instruction": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/djultra64/Blocksphere/blob/v1.1.0/README.md"
+        },
+        "artwork": {
+          "game_id": 3612,
+          "cover_id": 154600,
+          "image_id": "co3bag",
+          "image_sha256": "1f36e0dc2de5ac31e008efd006545df8aa7c6d626f6ebf3a48b72c6b23250e6e",
+          "game_slug": "tetrisphere",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "dkc1-recomp",
+      "name": "DKC1Recomp",
+      "summary": "Explore DKC1Recomp and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/elliotttate/DKC1Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elliotttate/DKC1Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DKC1Recomp-",
+            "-Windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC1Recomp.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. The Windows player selects and remembers the original path, then switches its writable working directory to AppData/Flat2VR/DKC1Recomp. Most settings, saves and ordinary generated data stay there. The Dixie preference is stored separately in the Windows registry under HKCU/Software/DKC1Recomp/Mods. Both stores are outside Portcove backup; no in-folder persistence is declared for this default. Optional music packs and custom DKC1_USER_DIR locations are separately owned. Keep that user folder and your originals recoverable. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed. The upstream framework permits noncommercial personal use under its included PolyForm Noncommercial 1.0.0 terms; review and follow those terms. Commercial use and rights to original game or optional mod content are not granted by this route.",
+        "original_game_title": "Donkey Kong Country",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+        },
+        "artwork": {
+          "game_id": 1090,
+          "cover_id": 327551,
+          "image_id": "co70qn",
+          "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
+          "game_slug": "donkey-kong-country",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "elliotttate-dkc2recomp",
+      "name": "Donkey Kong Country 2: Diddy's Kong Quest / DKC2Recomp (elliotttate)",
+      "summary": "Explore Donkey Kong Country 2: Diddy's Kong Quest / DKC2Recomp (elliotttate) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/elliotttate/DKC2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elliotttate/DKC2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dkc2recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC2Recomp.exe"
+        ]
+      },
+      "persistent_paths": [
+        "rom.cfg",
+        "launcher.cfg",
+        "kongs.cfg",
+        "msu1.cfg",
+        "saves",
+        "diagnostics",
+        "performance.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports. The remembered ROM path, launcher/character/audio preferences, saves and save states, diagnostics and performance.log live beside the player and are declared for compatible replacement and backup. The selected external ROM, character pack and music folder remain outside backups. Pack/state compatibility follows upstream’s selected version; runtime rollback carries current saves without rewinding them. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
+        },
+        "artwork": {
+          "game_id": 1092,
+          "cover_id": 94882,
+          "image_id": "co217m",
+          "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
+          "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "fragglet-sdl-sopwith",
       "name": "SDL Sopwith",
       "summary": "Fly SDL Sopwith's biplane through classic aerial combat.",
@@ -21563,6 +22470,205 @@
           "image_id": "coc8zf",
           "image_sha256": "4308b7dc47bea686b498f8e5788fcf5e7230177e982bd6d3e2e17f4e325d7587",
           "game_slug": "sopwith",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "gearhead-garage-opengg",
+      "name": "Gearhead Garage: The Virtual Mechanic (OpenGG)",
+      "summary": "Explore Gearhead Garage: The Virtual Mechanic (OpenGG) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/tymsky/OpenGG",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "tymsky/OpenGG",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opengg-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "opengg-",
+            "-linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenGG.exe"
+        ],
+        "linux-x86-64": [
+          "OpenGG.x86_64"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta. OpenGG normally stores saves, settings, snapshots and logs in AppData/Godot/app_userdata/OpenGG, outside Portcove backups. The package content remains version-owned; no in-folder player-data paths are declared. Keep the default storage mode; register an external copy for custom --user or --data paths. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/godot/app_userdata/OpenGG. Keep the complete data and data_OpenGG_linuxbsd_x86_64 package directories beside OpenGG.x86_64. Play has not been tested through Portcove on Linux.",
+        "original_game_title": "Gearhead Garage",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start with the required game files",
+              "instruction": "On first Play, use GAME FOLDER to choose your installed Gearhead Garage folder containing Data/Cars. The original folder is read-only. NEW creates a mechanic; IMPORT MECHANICS brings over your own .mek saves. Without original files, upstream offers its limited placeholder beta."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/tymsky/OpenGG/blob/v0.2.2/README.md"
+        },
+        "artwork": {
+          "game_id": 73965,
+          "cover_id": 53177,
+          "image_id": "ozskcnrkpacgofnpqf4u",
+          "image_sha256": "3b3bcf884f0f11fd489398db4b034213700c2ee312a232732dd7293bbd480d79",
+          "game_slug": "gearhead-garage",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "gladiator-openglad",
+      "name": "Gladiator / OpenGLaD",
+      "summary": "Explore Gladiator / OpenGLaD and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/openglad/openglad",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "openglad/openglad",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openglad-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openglad-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openglad.exe"
+        ],
+        "linux-x86-64": [
+          "openglad"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux normally keeps player data in ~/.openglad, outside Portcove backups. The selected binary requires OpenSSL3 and other upstream system libraries. The packaged campaigns and engine assets remain version-owned. Use an external copy for custom OPENGLAD_CONFIG_DIR or a current-folder fallback. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Gladiator",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/openglad/openglad/blob/v2.1092/README.md"
+        },
+        "artwork": {
+          "game_id": 100047,
+          "cover_id": 563025,
+          "image_id": "coc2fl",
+          "image_sha256": "ddabf593da503a4f6f737dcb5b5698da4a061998a8a34746d0985c8384e6a5a8",
+          "game_slug": "gladiator--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "ico-pc-nathanialf",
+      "name": "ICO (ico-pc / nathanialf)",
+      "summary": "Explore ICO (ico-pc / nathanialf) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/nathanialf/ico-pc",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "nathanialf/ico-pc",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ico-pc-",
+            "-win-portable.zip"
+          ],
+          "linux-x86-64": [
+            "ico-pc-",
+            "-linux-portable.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ico_pc_x64.exe"
+        ],
+        "linux-x86-64": [
+          "ico_pc"
+        ]
+      },
+      "persistent_paths": [
+        "userdata",
+        "ico-pc.ini",
+        "ico-pc.ini.tmp",
+        "logs",
+        "textures",
+        "models"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play, then select your own ICO European SCES-50760, Japanese SCPS-11003 or Korean SCPS-56001 disc image when asked. Use ISO, CHD, or BIN with its matching CUE; the US disc is not supported. Keep the image outside the runtime folder. The game verifies and extracts its data on first launch (about 1 GB); later launches use that extracted copy. Keep your original image available if a future data-format change requires extraction again. Portcove manages the official portable runtime with portable=1. It preserves userdata (extracted game data, memory cards, settings, screenshots and achievements), ico-pc.ini and its interrupted-write temporary file, logs, textures and models beside the executable. Use userdata/memcard2 for an optional second card. Custom save locations, portable=0, and fallback user-profile storage are outside Portcove backups; keep a separate backup of those locations. Runtime rollback carries current declared data and cannot guarantee older versions can read newer saves. Optional injected graphics tools and custom output paths need separate preservation before changing runtime versions. Requires Windows 10/11 x64 or a recent Linux x64 system (Debian 13/Ubuntu 24.04 or newer), with an up-to-date Vulkan-capable graphics driver; Windows also offers Direct3D 12.",
+        "original_game_title": "ICO",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your ICO disc on first Play",
+              "instruction": "Choose Play, then select your own ICO European SCES-50760, Japanese SCPS-11003 or Korean SCPS-56001 disc image when asked. Use ISO, CHD, or BIN with its matching CUE; the US disc is not supported. Keep the image outside the runtime folder. The game verifies and extracts its data on first launch (about 1 GB); later launches use that extracted copy. Keep your original image available if a future data-format change requires extraction again."
+            },
+            {
+              "title": "Keep saves with this portable copy",
+              "instruction": "The official portable download enables portable=1 and keeps saves, settings and extracted disc data in userdata beside the player. Windows puts the player in x64; Linux puts it at the archive root. Back up userdata/memcard for saves, and use userdata/memcard2 for an optional second card. With portable=0 or an unwritable portable folder, data instead uses the upstream user-profile folder. Preserve that folder separately. Texture/model packs go in the documented textures/models folders. Close the game and preserve your current data before replacing a runtime; older versions may not read newer saves."
+            },
+            {
+              "title": "Other upstream platforms",
+              "instruction": "The upstream project also publishes Apple-silicon macOS bundles, ARM Linux and mobile packages. Follow its platform guide for those copies; their setup and data locations differ from these Windows x64 and Linux x64 portable archives."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/nathanialf/ico-pc/blob/v0.8.5/docs/PORTABLE_MODE.md"
+        },
+        "artwork": {
+          "game_id": 7170,
+          "cover_id": 175220,
+          "image_id": "co3r78",
+          "image_sha256": "6ab4d0a4eebe33c774cb97817538cd171d8489fcad57c8b0fcd8ed3378dace3d",
+          "game_slug": "ico",
           "match_kind": "underlying-game"
         }
       }
@@ -21675,6 +22781,819 @@
       }
     },
     {
+      "id": "insanitybringer-piccuengine",
+      "name": "Descent 3 / Piccu Engine (InsanityBringer)",
+      "summary": "Explore Descent 3 / Piccu Engine (InsanityBringer) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/InsanityBringer/PiccuEngine",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "InsanityBringer/PiccuEngine",
+        "asset_hints": {
+          "windows-x86-64": [
+            "PiccuEngine-",
+            "-win32.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "PiccuEngine.exe"
+        ]
+      },
+      "persistent_paths": [
+        "d3.hog",
+        "extra.hog",
+        "extra1.hog",
+        "extra13.hog",
+        "merc.hog",
+        "missions",
+        "netgames",
+        "movies"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before Play, open the new runtime folder and copy only the original data from your own patched Descent 3 1.4 installation: d3.hog, extra.hog, extra13.hog, and missions/d3.mn3, d3_2.mn3, d3voice1.hog, d3voice2.hog and training.mn3. Keep the old installation intact. Add merc.hog and missions/merc.mn3 only if you own Mercenary; the upstream also recognizes the Steam extra1.hog expansion layout. For multiplayer, follow the packaged README for your own netgames directory and missions/Fury.mn3 and bedlam.mn3; movies are optional. Do not copy old top-level executables or DLLs over this runtime. Then choose Play. This ZIP has no installer; Portcove does not verify a retail-edition checksum for this upstream setup route. Normal saves, pilots, demos, screenshots and temporary scripts use Windows Saved Games/Piccu Engine. The SDL configuration is Saved Games/Piccu Engine/PiccuEngine.registry, including when portable mode is used. Back up that external profile separately before changing runtime versions; older versions may not read newer data. Keep your original HOG files, missions, netgames and movies available separately too. Adding piccu_portable, custom -setdir/-tempdir arguments or failure to resolve Saved Games can place player data and generated DLL caches in the runtime folder. An early startup crash can also leave a dump beside the player. Close the game and preserve your actual player-data locations before changing a customized copy. Do not copy generated script caches into another engine version; follow upstream instructions when changing storage modes. Portcove manages this separate Preview runtime using the default Saved Games setup. It preserves only the declared in-folder original HOG files, missions, netgames and movies, including files added before first Play. Its backup does not cover the external Saved Games profile or custom locations. Runtime rollback carries current declared originals and does not rewind external saves. Unknown additions, including in-folder generated caches or early crash dumps, block replacement and remain untouched until you preserve and resolve the reported paths; they are not copied into a new runtime. Keep customized copies registered as existing installations when you need their separate setup. This optional Windows Preview is the upstream SDL prototype, with fixes for pilot-control loading and input issues. Some settings do not import from older Piccu versions, and switching fullscreen/windowed can show a stray cursor. The stable v1.2.2 upstream copy remains available through the release list or an existing installation; it has separate known control issues. The player is Win32 and can run on 64-bit Windows through Windows compatibility support. Other platforms, gameplay, minimum Windows versions and populated-save restoration are not qualified here.",
+        "original_game_title": "Descent 3",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Add your own Descent 3 data before Play",
+              "instruction": "Before Play, open the new runtime folder and copy only the original data from your own patched Descent 3 1.4 installation: d3.hog, extra.hog, extra13.hog, and missions/d3.mn3, d3_2.mn3, d3voice1.hog, d3voice2.hog and training.mn3. Keep the old installation intact. Add merc.hog and missions/merc.mn3 only if you own Mercenary; the upstream also recognizes the Steam extra1.hog expansion layout. For multiplayer, follow the packaged README for your own netgames directory and missions/Fury.mn3 and bedlam.mn3; movies are optional. Do not copy old top-level executables or DLLs over this runtime. Then choose Play. This ZIP has no installer; Portcove does not verify a retail-edition checksum for this upstream setup route."
+            },
+            {
+              "title": "Keep a separate backup of your Saved Games profile",
+              "instruction": "Normal saves, pilots, demos, screenshots and temporary scripts use Windows Saved Games/Piccu Engine. The SDL configuration is Saved Games/Piccu Engine/PiccuEngine.registry, including when portable mode is used. Back up that external profile separately before changing runtime versions; older versions may not read newer data. Keep your original HOG files, missions, netgames and movies available separately too."
+            },
+            {
+              "title": "Keep customized copies separate",
+              "instruction": "Adding piccu_portable, custom -setdir/-tempdir arguments or failure to resolve Saved Games can place player data and generated DLL caches in the runtime folder. An early startup crash can also leave a dump beside the player. Close the game and preserve your actual player-data locations before changing a customized copy. Do not copy generated script caches into another engine version; follow upstream instructions when changing storage modes."
+            },
+            {
+              "title": "Choose this Preview deliberately",
+              "instruction": "This optional Windows Preview is the upstream SDL prototype, with fixes for pilot-control loading and input issues. Some settings do not import from older Piccu versions, and switching fullscreen/windowed can show a stray cursor. The stable v1.2.2 upstream copy remains available through the release list or an existing installation; it has separate known control issues. The player is Win32 and can run on 64-bit Windows through Windows compatibility support. Other platforms, gameplay, minimum Windows versions and populated-save restoration are not qualified here."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/InsanityBringer/PiccuEngine/blob/v1.3.0-proto4/docs/readme.md"
+        },
+        "artwork": {
+          "game_id": 667,
+          "cover_id": 426373,
+          "image_id": "co94zp",
+          "image_sha256": "1ae44bba5a1cebee260ad49072657ac765ba4d92b5a78b63e918caf9164d1117",
+          "game_slug": "descent-3",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "interkarma-daggerfall-unity",
+      "name": "Daggerfall Unity",
+      "summary": "Daggerfall Unity offers upstream packages for The Elder Scrolls II: Daggerfall. Follow upstream setup before registering your executable.",
+      "project_url": "https://github.com/Interkarma/daggerfall-unity",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "Interkarma/daggerfall-unity",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dfu_windows_64bit-",
+            ".zip"
+          ],
+          "linux-x86-64": [
+            "dfu_linux_64bit-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DaggerfallUnity.exe"
+        ],
+        "linux-x86-64": [
+          "DaggerfallUnity.x86_64"
+        ]
+      },
+      "persistent_paths": [
+        "Portable.txt",
+        "PortableAppdata",
+        "DaggerfallUnity_Data/StreamingAssets/Mods",
+        "DaggerfallUnity_Data/StreamingAssets/GameFiles"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are. Normal saves, settings, logs, screenshots and mod data live in Unity’s Daggerfall Workshop/Daggerfall Unity user-data directory, outside Portcove backups. The reviewed Portable.txt mode uses PortableAppdata beside the player; that folder and the marker are declared. StreamingAssets/Mods and optional StreamingAssets/GameFiles are retained as supported user additions. Other replacements of version-owned assets require manual preservation or external registration. Mods and saves must remain compatible with the selected runtime. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses Unity’s external user profile by default, outside Portcove backups. The same declared Portable.txt/PortableAppdata and supported StreamingAssets Mods/GameFiles paths apply. Keep UnityPlayer.so, DaggerfallUnity_Data and their packaged companions together; a Windows package does not establish Linux execution. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "The Elder Scrolls II: Daggerfall",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, use Daggerfall Unity’s setup wizard to select your compatible original Daggerfall game folder. It validates the game data. The package is a native Unity player and needs no separate game compilation. Keep external originals where they are."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md"
+        },
+        "artwork": {
+          "game_id": 53,
+          "cover_id": 91103,
+          "image_id": "co1yan",
+          "image_sha256": "d3363948d57336edfdb56921fbc4c174aa5b6d2f653b1ccd58a4c003f574da70",
+          "game_slug": "the-elder-scrolls-ii-daggerfall",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "isledecomp-isle-portable",
+      "name": "LEGO Island / isle-portable (isledecomp)",
+      "summary": "Explore LEGO Island / isle-portable (isledecomp) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/isledecomp/isle-portable",
+      "support_tier": "beta",
+      "channels": [
+        "rolling"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "isledecomp/isle-portable",
+        "asset_hints": {
+          "windows-x86-64": [
+            "isle-",
+            "-windows-x64.zip"
+          ]
+        },
+        "rolling_tag": "continuous"
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "isle.exe"
+        ]
+      },
+      "persistent_paths": [
+        "isle.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress. Normal configuration and saves live in the SDL preference folder AppData/isledecomp/isle, or in the save location you choose, outside Portcove backups. The executable-folder isle.ini fallback is declared; original media and custom save folders remain external. Keep the complete bin/companions together. Custom profiles, runtime extensions and existing copies retain the non-owning route. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "original_game_title": "LEGO Island",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Use the linked upstream guided installer/setup instructions for your own English LEGO Island 1.1 data. For this portable archive, run the included bin/isle-config.exe yourself, choose the original data and save locations, and save the configuration. Portcove’s Play target is bin/isle.exe; read-only discovery and installation do not run the configuration helper. The continuous channel follows upstream’s ongoing builds and may regress."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/isledecomp/isle-portable/blob/continuous/README.md"
+        },
+        "artwork": {
+          "game_id": 5612,
+          "cover_id": 162905,
+          "image_id": "co3hp5",
+          "image_sha256": "9f83154dea1e9290b5ee8da05570f9022bca43d6125ff19b72b485026282d190",
+          "game_slug": "lego-island",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "jgrennison-openttd-patches",
+      "name": "OpenTTD / OpenTTD-patches (JGRennison)",
+      "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/JGRennison/OpenTTD-patches",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "JGRennison/OpenTTD-patches",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openttd-jgrpp-",
+            "-windows-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openttd.exe"
+        ]
+      },
+      "persistent_paths": [
+        "openttd.cfg",
+        "hs.dat",
+        "hotkeys.cfg",
+        "windows.cfg",
+        "private.cfg",
+        "secrets.cfg",
+        "favs.cfg",
+        "openttd.log",
+        "save",
+        "scenario",
+        "heightmap",
+        "orderlist",
+        "newgrf",
+        "screenshot",
+        "content_download"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build. The default Windows save/config/content location is Documents/OpenTTD, shared with other OpenTTD copies and outside Portcove backups. Only the named fallback configs, saves, scenarios, heightmaps, order lists, NewGRF files, screenshots and content_download folder are declared if present. Packaged baseset, ai and game resources remain immutable. Use an external registration for a mixed executable-folder custom profile or plugins; unknown additions keep their exact-path preservation guard. Portcove replaces this runtime only; it does not manage external shared saves, original game files or another OpenTTD installation. Older runtimes may not read newer saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "original_game_title": "OpenTTD",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, choose a base graphics set when requested. Upstream supports the free OpenGFX/OpenSFX/OpenMSX sets or your own compatible original Transport Tycoon Deluxe data. JGR Patch Pack is a separate game build, not a loadable mod; its saves and multiplayer peers must be compatible with that build."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp-0.73.4/README.md"
+        },
+        "artwork": {
+          "game_id": 5502,
+          "cover_id": 85659,
+          "image_id": "co1u3f",
+          "image_sha256": "3554c280028ad14f2991fc66c11dee1349690679b178a6af800b47dd160d9b0d",
+          "game_slug": "transport-tycoon-deluxe",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "knuckles-chaotix-recompiled",
+      "name": "Knuckles' Chaotix Recompiled",
+      "summary": "Explore Knuckles' Chaotix Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "YuutaTsubasa/ChaotixRecompiled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "chaotixrecompiled-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "chaotixrecompiled-",
+            "-linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ChaotixRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "ChaotixRecompiled"
+        ]
+      },
+      "persistent_paths": [
+        "Game",
+        "Config",
+        "SaveData",
+        "ControllerMappings",
+        "States",
+        "Ghosts",
+        "Splits",
+        "Netplay",
+        "Mods",
+        "Screenshots",
+        "Cache"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus. The default Windows storage is AppData/ChaotixRecompiled/ChaotixRecompiled, outside Portcove backups. Saves, settings, imported ROM, mods and recordings remain there across runtime updates. The source also has a current-folder fallback; its declared data directories are preserved if present. Save states are tied to the ROM, patches and program version. Use an external registration for custom launch flags or a custom data root. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses ~/.local/share/ChaotixRecompiled/ChaotixRecompiled. Keep the packaged SDL3 and SDL3_ttf libraries beside the executable; the game needs those companion files. Play has not been tested through Portcove on Linux.",
+        "original_game_title": "Knuckles' Chaotix",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start with the required game files",
+              "instruction": "On first Play, select your own supported Knuckles’ Chaotix ROM from the setup page. The game validates and installs its own copy. Configure controls and compatible mods through upstream menus."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/YuutaTsubasa/ChaotixRecompiled/blob/v0.14.0/README.md"
+        },
+        "artwork": {
+          "game_id": 19762,
+          "cover_id": 138048,
+          "image_id": "co2yio",
+          "image_sha256": "7ffe990e065a345245423f4f51ad461fa5e40ab644a1ef97b8537a049ec8f2af",
+          "game_slug": "knuckles-chaotix",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "mdk-sdl-nemo22",
+      "name": "MDK / SDL engine (nemo22)",
+      "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/nemo22/mdk-sdl",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "nautilusbits/mdk-sdl",
+        "asset_hints": {
+          "windows-x86-64": [
+            "mdk-win-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mdk_sdl.exe"
+        ]
+      },
+      "persistent_paths": [
+        "mdk_paths.cfg",
+        "settings.cfg",
+        "saves",
+        "mods"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "mdk-",
+          "suffix": ".bmp"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required. Default settings.cfg, saves, mods and normal mdk-*.bmp captures live beside the player and are declared for compatible replacement and backup, along with the remembered mdk_paths.cfg. The original game remains external. If that directory is not writable, upstream uses AppData/mdk-sdl; MDK_USER_DIR and that external fallback remain outside backups. Optional locally generated texture mods/upstream upscaler tools belong to the declared mods folder, not the immutable player. Custom exported assets/captures and changed runtime files can use external registration. Runtime rollback carries current declared data, without rewinding saves or guaranteeing older-runtime compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "original_game_title": "MDK",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Keep your own original MDK installed in a supported default GOG or Steam location; the player detects it. If it is elsewhere, follow upstream’s Running instructions to create mdk_paths.cfg beside mdk_sdl.exe and name the original folder in its [paths] mdk setting. The original files stay external and are read at runtime. The ZIP contains the native player and SDL3.dll; no game compilation or separate installer is required."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/nautilusbits/mdk-sdl/blob/v1.2.0/README.md"
+        },
+        "artwork": {
+          "game_id": 219,
+          "cover_id": 100005,
+          "image_id": "co255x",
+          "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
+          "game_slug": "mdk",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "noahvl-birdman64",
+      "name": "Pilotwings 64 / Birdman64 (NoahVl)",
+      "summary": "Explore Pilotwings 64 / Birdman64 (NoahVl) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/NoahVl/Birdman64",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "NoahVl/Birdman64",
+        "asset_hints": {
+          "windows-x86-64": [
+            "birdman64-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "birdman64-linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Birdman64.exe"
+        ],
+        "linux-x86-64": [
+          "birdman64"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration. Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux tar.gz contains the direct birdman64 player and its bundled toolchain/zig compiler. Default data is in $XDG_DATA_HOME/birdman64 or ~/.local/share/birdman64; the external build cache remains upstream-owned and outside Portcove backups. The separately packaged AppRun is for an AppDir layout and is not the launch target for this tar.gz. System udev, D-Bus, X11/Wayland/audio libraries are required. Use external registration for PW64_DATA_DIR or portable/legacy data modes. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Pilotwings 64",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
+        },
+        "artwork": {
+          "game_id": 3573,
+          "cover_id": 257550,
+          "image_id": "co5iq6",
+          "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
+          "game_slug": "pilotwings-64",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "omf2097-openomf",
+      "name": "One Must Fall 2097 / OpenOMF (omf2097)",
+      "summary": "Explore One Must Fall 2097 / OpenOMF (omf2097) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/omf2097/openomf",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "omf2097/openomf",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openomf_",
+            "_windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openomf.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64. OpenOMF resolves writable settings, saves, scores, screenshots, recordings and user mods through its OpenOMF user-preference directory, normally AppData/OpenOMF on Windows. That external data remains outside Portcove backups. Package resources and bundled mods remain version-owned; no in-folder player-data paths are declared. Use an external registration for custom OPENOMF_* storage overrides. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "original_game_title": "One Must Fall: 2097",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "The official archive includes the freeware One Must Fall 2097 resources and the native OpenOMF player. Choose Play after installation; no commercial source files or generation step are needed. The package also includes an ARM64 player; this route uses openomf.exe for x86-64."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/omf2097/openomf/blob/0.8.6/README.md"
+        },
+        "artwork": {
+          "game_id": 14429,
+          "cover_id": 128159,
+          "image_id": "co2qvz",
+          "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
+          "game_slug": "one-must-fall-2097",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openapoc-openapoc",
+      "name": "X-COM: Apocalypse / OpenApoc (OpenApoc)",
+      "summary": "Explore X-COM: Apocalypse / OpenApoc (OpenApoc) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/OpenApoc/OpenApoc",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenApoc/OpenApoc",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openapoc-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenApoc.exe"
+        ]
+      },
+      "persistent_paths": [
+        "data/cd.iso",
+        "data/XCOM.BIN",
+        "OpenApoc_settings.conf",
+        "OpenApoc_Launcher_settings.conf",
+        "saves",
+        "log.txt",
+        "openapoc.trace"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "screenshot",
+          "suffix": ".png"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own complete X-COM: Apocalypse disc image into the package’s data folder as cd.iso. Upstream also supports an extracted disc folder named cd.iso. For the GOG CUE/BIN pair, rename a copy of XCOM.cue to cd.iso and keep the referenced XCOM.BIN alongside it. Retain your originals. This package is the portable engine; no installer or local game build is needed. Upstream requires OpenGL 2.0 and the Visual C++ runtime. The shipped portable.txt selects executable-folder OpenApoc_settings.conf and log.txt; default saves are in saves. Those settings, saves, named original disc inputs, screenshots and optional trace are declared for compatible replacement and backup. Packaged data other than the named original inputs stays version-owned. Custom config/save paths, mixed data mods or other CUE member names can use external registration. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "original_game_title": "X-COM: Apocalypse",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Before first Play, copy your own complete X-COM: Apocalypse disc image into the package’s data folder as cd.iso. Upstream also supports an extracted disc folder named cd.iso. For the GOG CUE/BIN pair, rename a copy of XCOM.cue to cd.iso and keep the referenced XCOM.BIN alongside it. Retain your originals. This package is the portable engine; no installer or local game build is needed. Upstream requires OpenGL 2.0 and the Visual C++ runtime."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
+        },
+        "artwork": {
+          "game_id": 26,
+          "cover_id": 114318,
+          "image_id": "co2g7i",
+          "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
+          "game_slug": "x-com-apocalypse",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openloco-openloco",
+      "name": "Chris Sawyer's Locomotion / OpenLoco (OpenLoco)",
+      "summary": "Explore Chris Sawyer's Locomotion / OpenLoco (OpenLoco) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/OpenLoco/OpenLoco",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenLoco/OpenLoco",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openloco-",
+            "-windows-portable-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenLoco.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer. OpenLoco normally keeps settings, saves, autosaves, custom objects, landscapes, screenshots and crashes under AppData/OpenLoco, outside Portcove backups. Its original Locomotion folder stays external. The runtime’s data folder contains version-owned engine assets, not a generic player-data folder; no in-folder persistence is declared. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations.",
+        "original_game_title": "Chris Sawyer's Locomotion",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, OpenLoco detects your installed Chris Sawyer’s Locomotion files or asks you to select the original folder containing Data/g1.DAT. The official portable engine needs no separate build or installer."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenLoco/OpenLoco/blob/v26.09/README.md"
+        },
+        "artwork": {
+          "game_id": 10737,
+          "cover_id": 218442,
+          "image_id": "co4oju",
+          "image_sha256": "90f17237bab990be10d78aa67afb190685854311ad3f54ffe229e0eb5bc93475",
+          "game_slug": "chris-sawyers-locomotion",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openrct2-openrct2",
+      "name": "OpenRCT2",
+      "summary": "OpenRCT2 offers upstream packages for RollerCoaster Tycoon 2. Follow upstream setup before registering your executable.",
+      "project_url": "https://github.com/OpenRCT2/OpenRCT2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenRCT2/OpenRCT2",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openrct2-",
+            "-windows-portable-x64.zip"
+          ],
+          "linux-x86-64": [
+            "openrct2-",
+            "-linux-bookworm-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openrct2.exe"
+        ],
+        "linux-x86-64": [
+          "openrct2"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative. Settings, saves, custom objects, tracks, replays and downloaded content normally live in Documents/OpenRCT2, outside Portcove backups. Original installations remain external. No in-folder player data is declared for this default mode. Register an external copy for custom --user-data-path or the separate auto-updating launcher. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux recommendation is upstream’s Debian Bookworm build, not an interchangeable build for every distribution. It requires the corresponding SDL2, ICU72, OpenSSL3, curl/font libraries and other upstream runtime dependencies. Keep libopenrct2.so with the player. User configuration and saves normally remain in OpenRCT2’s external XDG user directory, outside Portcove backups. Other distribution packages remain upstream alternatives. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "RollerCoaster Tycoon 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "On first Play, select your installed RollerCoaster Tycoon 2 files if they are not detected. Optional RollerCoaster Tycoon 1 files can be configured through upstream menus. This is the standalone portable engine; the separate upstream auto-updating launcher remains an external alternative."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenRCT2/OpenRCT2/blob/v0.5.6/readme.md"
+        },
+        "artwork": {
+          "game_id": 331,
+          "cover_id": 111340,
+          "image_id": "co2dws",
+          "image_sha256": "42de270c535f8959e1275cce56d5600997bf71ebd5cb2324a545ddff12329456",
+          "game_slug": "rollercoaster-tycoon-2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "opentyrian-opentyrian",
+      "name": "Tyrian / OpenTyrian (opentyrian)",
+      "summary": "Explore Tyrian / OpenTyrian (opentyrian) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/opentyrian/opentyrian",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "opentyrian/opentyrian",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opentyrian-",
+            "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "opentyrian-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "opentyrian.exe"
+        ],
+        "linux-x86-64": [
+          "opentyrian"
+        ]
+      },
+      "persistent_paths": [
+        "opentyrian.cfg",
+        "tyrian.cfg",
+        "tyrian.sav"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "demorec.",
+          "suffix": "0"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "1"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "2"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "3"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "4"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "5"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "6"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "7"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "8"
+        },
+        {
+          "prefix": "demorec.",
+          "suffix": "9"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained. Play has not been tested through Portcove on Linux.",
+        "original_game_title": "Tyrian",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start with the required game files",
+              "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
+        },
+        "artwork": {
+          "game_id": 3804,
+          "cover_id": 226763,
+          "image_id": "co4uyz",
+          "image_sha256": "c6c4fcf0decb20033ee4cf7c945357207f806e25de616cc98eaa8c7bdc5d4888",
+          "game_slug": "tyrian",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "re-rac-rerac",
       "name": "Ratchet & Clank (2002) / ReRAC (re-rac)",
       "summary": "Explore Ratchet & Clank (2002) / ReRAC (re-rac) and follow the upstream project for requirements, downloads and setup.",
@@ -21758,6 +23677,522 @@
         }
       },
       "setup_marker": "game-data/extract-info.json"
+    },
+    {
+      "id": "rise-of-the-triad-barrett-lunarmeadow",
+      "name": "Rise of the Triad / Barrett (lunarmeadow)",
+      "summary": "Explore Rise of the Triad / Barrett (lunarmeadow) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/lunarmeadow/barrett",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "lunarmeadow/barrett",
+        "asset_hints": {
+          "windows-x86-64": [
+            "barrett-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "barrett.exe"
+        ]
+      },
+      "persistent_paths": [
+        "userdata",
+        "DEMO1_3.DMO",
+        "DEMO2_3.DMO",
+        "DEMO3_3.DMO",
+        "DEMO4_3.DMO",
+        "REMOTE1.RTS",
+        "DARKWAR.RTC",
+        "DARKWAR.RTL",
+        "DARKWAR.WAD",
+        "HUNTBGIN.RTC",
+        "HUNTBGIN.RTL",
+        "HUNTBGIN.WAD",
+        "error.txt",
+        "VENDOR.DOC",
+        "LICENSE.DOC"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview. Upstream stores settings, saves, scores, optional soundfonts and OPL preferences in userdata beside the player. That folder, the named original inputs and named error/license outputs are declared for compatible replacement and backup. Original files must match the selected edition. Custom WAD/map/launch paths or changes to the runtime can use external registration; undeclared additions remain protected. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "original_game_title": "Rise of the Triad",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged SDL2/SDL2_mixer libraries. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/lunarmeadow/barrett/blob/v1.3-beta/README.md"
+        },
+        "artwork": {
+          "game_id": 2380,
+          "cover_id": 228953,
+          "image_id": "co4wnt",
+          "image_sha256": "0f1a95130bf5610207ca50f8c614203d78e58d0d2ebb998eb068aed601f9f50a",
+          "game_slug": "rise-of-the-triad-dark-war",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "rocket-robot-on-wheels-rocket-r",
+      "name": "Rocket: Robot on Wheels (Rocket-R)",
+      "summary": "Explore Rocket: Robot on Wheels (Rocket-R) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/ThatGuyMcd/Rocket-R",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ThatGuyMcd/Rocket-R",
+        "asset_hints": {
+          "windows-x86-64": [
+            "rocket-r-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Rocket-R.exe"
+        ]
+      },
+      "persistent_paths": [
+        "rocket-r-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player. Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Portcove preserves only the declared rocket-r-data in-folder fallback for its managed Windows copy. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately. Existing external copies retain their files and runtime update owner.",
+        "original_game_title": "Rocket: Robot on Wheels",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own Rocket ROM on first Play",
+              "instruction": "On first Play, choose your own supported Rocket: Robot on Wheels US ROM in the upstream launcher. It verifies the game and remembers the chosen path. Use the upstream menus for controls and compatible mods; no game compilation or separate installer is needed for the published player."
+            },
+            {
+              "title": "Keep saves and mod profiles separately backed up",
+              "instruction": "Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Rocket-R. Keep a separate backup of the actual profile before changing versions; older versions may not read newer saves. Its external profile is outside Portcove backup and runtime rollback; rollback does not rewind saves. Keep each release’s own bundled engine/mod resources together, and keep custom --config or developer paths backed up separately."
+            },
+            {
+              "title": "Linux uses its own upstream launcher",
+              "instruction": "Choose the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Rocket-R.sh when ordinary AppImage launch is unavailable. The tar.gz contains an AppImage and wrapper, not a bare native player. Steam Deck uses the separate x86-64 SteamDeck archive and START-ROCKET-R.sh; ARM64 packages are different choices. Follow the upstream Linux profile and update instructions and preserve the current copy. Portcove’s managed Windows route does not manage this wrapper."
+            },
+            {
+              "title": "Android keeps its own private copy",
+              "instruction": "Use the separate Android ARM64 APK on the Android device, open Rocket-R and select your own matching US ROM. The app keeps a private ROM copy; preserve its actual app saves and settings before updating, clearing storage or uninstalling. Its update and data handling stay with Android/upstream. Desktop archive inspection does not qualify Android execution or every device."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ThatGuyMcd/Rocket-R/blob/d64e42a1e364c867d9ff100637d90fd8e27e5ac8/README.md"
+        },
+        "artwork": {
+          "game_id": 2644,
+          "cover_id": 473896,
+          "image_id": "coa5ns",
+          "image_sha256": "0f3878dfa9cba869d0e0f8a57358c084bab20e44b14deaa0e6865f81337e0bae",
+          "game_slug": "rocket-robot-on-wheels",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sdw-community-sheep-dog-n-wolf-rewooled",
+      "name": "Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community)",
+      "summary": "Explore Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "SDW-Community/Sheep-Dog-n-Wolf-Rewooled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "rewooled-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SheepD3D.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game-data"
+      ],
+      "launch_arguments": [
+        "--game-dir=game-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation. The original game-data folder is declared for compatible runtime replacement and backup. Default saves and launcher/game options are stored in AppData/Infogrames/Sheep, Dog'n Wolf DX7, outside Portcove backups. Only the direct SheepD3D.exe is launched by the managed route; the optional launcher checks release pages rather than replacing the runtime. Upstream disc extraction, language export and custom data paths stay manual/external. Do not put converted/custom output over the version-owned player. Use external registration for customized launch workflows or SDW_SAVE_DIR. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "original_game_title": "Sheep, Dog 'n' Wolf",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "For the managed direct-player route, copy your own original PC Sheep, Dog ’n’ Wolf game data into game-data beside SheepD3D.exe, with Levels directly inside game-data. Keep the original executable and DLLs in the source copy. The maintained --game-dir=game-data argument selects that folder; the game reads its saved rendering/input options. No engine compilation is needed. For external registration, supply your actual --game-dir=PATH in Change launch details, or use upstream’s SheepLauncher.exe workflow with its own installation."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/SDW-Community/Sheep-Dog-n-Wolf-Rewooled/blob/v1.1.3/README.md"
+        },
+        "artwork": {
+          "game_id": 44884,
+          "cover_id": 116054,
+          "image_id": "co2hjq",
+          "image_sha256": "ec3e1a158432cdef557e2121b58c6375444f8fe7056c10e096ed48ec49a91e43",
+          "game_slug": "looney-tunes-sheep-raider",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sonic-cd-2011-rsdkv3",
+      "name": "Sonic CD 2011 RSDKv3 Decompilation",
+      "summary": "Explore Sonic CD 2011 RSDKv3 Decompilation and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/RSDKModding/RSDKv3-Decompilation",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "RSDKModding/RSDKv3-Decompilation",
+        "asset_hints": {
+          "windows-x86-64": [
+            "v3-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "RSDKv3.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Data.rsdk",
+        "Data",
+        "Videos",
+        "settings.ini",
+        "SData.bin",
+        "SGame.bin",
+        "UData.bin",
+        "mods",
+        "log.txt",
+        "usage.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player. The original Data.rsdk/unpacked Data and supported Videos, settings.ini, default SData/SGame/UData saves, user mods and named logs/instructions are declared for compatible replacement and backup. If UseSteamDir is deliberately enabled, that external Steam save location remains outside Portcove backups. Custom redirected save locations and modified runtime copies retain external registration. Supported mods follow upstream compatibility; runtime rollback carries current declared data without rewinding it. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "original_game_title": "Sonic CD",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game",
+              "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic CD 2011 release beside RSDKv3.exe. Follow upstream for mobile/Origins asset preparation. Optional FMV files are supported only from the original Steam release; mobile/Origins videos do not work. Keep your original installation. No separate compiler or installer is needed for the published x64 player."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md"
+        },
+        "artwork": {
+          "game_id": 86807,
+          "cover_id": 311285,
+          "image_id": "co6o6t",
+          "image_sha256": "05b0446d1d4f24cbcbea9207a2034aead3f5feb4d51a993e88ca20004676b90d",
+          "game_slug": "sonic-cd--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+      "name": "Sonic the Hedgehog 2 — 2013 mobile edition / RSDKv4 decompilation",
+      "summary": "Explore Sonic the Hedgehog 2 — 2013 mobile edition / RSDKv4 decompilation and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "RSDKModding/RSDKv4-Decompilation",
+        "asset_hints": {
+          "windows-x86-64": [
+            "v4-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "RSDKv4.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Data.rsdk",
+        "Data",
+        "settings.ini",
+        "SData.bin",
+        "UData.bin",
+        "mods",
+        "log.txt",
+        "Bytecode",
+        "SGame.bin",
+        "usage.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog 2 (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player. Data.rsdk or unpacked Data/Bytecode, settings.ini, SData.bin/SGame.bin/UData.bin, user mods, log.txt and missing-assets usage.txt are declared for compatible runtime replacement and backup. Keep the original source files too. For an optional Android pre-forever save import, upstream says to copy your own matching SGame.bin as SData.bin; retain both originals before doing so. Custom redirected storage, modified runtime files or a combined/custom engine folder can use external registration. Runtime rollback carries current declared data; it does not rewind progress or guarantee old-runtime/mod compatibility. Existing external installations keep their files and runtime owner. No original-input, gameplay, minimum-environment or packaged Desktop acceptance is inferred from package/source inspection.",
+        "original_game_title": "Sonic the Hedgehog 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply this game’s original assets",
+              "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog 2 (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
+        },
+        "artwork": {
+          "game_id": 112897,
+          "cover_id": 93129,
+          "image_id": "co1zux",
+          "image_sha256": "240f514f78582d7b612529d4298e4cb39c4e7a542f8c99c112cd48b1a14d2e76",
+          "game_slug": "sonic-the-hedgehog-2--4",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+      "name": "Sonic the Hedgehog — 2013 mobile edition / RSDKv4 decompilation",
+      "summary": "Explore Sonic the Hedgehog — 2013 mobile edition / RSDKv4 decompilation and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/RSDKModding/RSDKv4-Decompilation",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "RSDKModding/RSDKv4-Decompilation",
+        "asset_hints": {
+          "windows-x86-64": [
+            "v4-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "RSDKv4.exe"
+        ]
+      },
+      "persistent_paths": [
+        "Data.rsdk",
+        "Data",
+        "settings.ini",
+        "SData.bin",
+        "UData.bin",
+        "mods",
+        "log.txt",
+        "Bytecode",
+        "SGame.bin",
+        "usage.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player. Data.rsdk or unpacked Data/Bytecode, settings.ini, SData.bin/SGame.bin/UData.bin, user mods, log.txt and missing-assets usage.txt are declared for compatible runtime replacement and backup. Keep the original source files too. For an optional Android pre-forever save import, upstream says to copy your own matching SGame.bin as SData.bin; retain both originals before doing so. Custom redirected storage, modified runtime files or a combined/custom engine folder can use external registration. Runtime rollback carries current declared data; it does not rewind progress or guarantee old-runtime/mod compatibility. Existing external installations keep their files and runtime owner. No original-input, gameplay, minimum-environment or packaged Desktop acceptance is inferred from package/source inspection.",
+        "original_game_title": "Sonic the Hedgehog",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply this game’s original assets",
+              "instruction": "Before first Play, copy the supported Data.rsdk assets from your own official Sonic the Hedgehog (2013) release beside RSDKv4.exe. Follow upstream’s linked mobile/Origins extraction instructions for that game. Use this game’s assets; Sonic 1 and Sonic 2 each keep their own installation and saves. No separate compiler or installer is needed for the published x64 player."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/RSDKModding/RSDKv4-Decompilation/blob/1.3.3/README.md"
+        },
+        "artwork": {
+          "game_id": 88912,
+          "cover_id": 93117,
+          "image_id": "co1zul",
+          "image_sha256": "b49adaa12478047466365aa4e5d27e2c2d262335e3f4c48fef99c6a0f540ba91",
+          "game_slug": "sonic-the-hedgehog--14",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "starlancer-openreliant",
+      "name": "StarLancer / OpenReliant",
+      "summary": "Explore StarLancer / OpenReliant and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/OpenReliant/openreliant",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenReliant/openreliant",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openreliant-",
+            "-windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openreliant-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openreliant.exe"
+        ],
+        "linux-x86-64": [
+          "openreliant"
+        ]
+      },
+      "persistent_paths": [
+        "StarLancer"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Follow the linked installation guide to run openreliant.exe install StarLancer yourself from the player folder, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration. The declared StarLancer folder contains original game assets, campaign saves, starlancer.ini and openreliant.log. It is retained during compatible runtime replacement and backup. Keep another copy of the original media. A game installed elsewhere or custom launch arguments can use external registration; such external data is outside Portcove backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. On Linux, run ./openreliant install StarLancer yourself from the player folder with your own discs/images and upstream’s --from options. Play finds the resulting declared StarLancer folder. sltool is a helper, not the player. External or custom installed data remains outside backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Starlancer",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "Follow the linked installation guide to run the player’s install command yourself from its folder: openreliant.exe install StarLancer on Windows or ./openreliant install StarLancer on Linux, supplying your own StarLancer discs, images or extracted folders. Use --from for each disc image as the guide describes. Keep the resulting StarLancer folder beside the player; Play then finds it automatically. Portcove does not run the installer command during discovery or registration."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/OpenReliant/openreliant/blob/v0.20.0/docs/guide/installation.md"
+        },
+        "artwork": {
+          "game_id": 11230,
+          "cover_id": 118864,
+          "image_id": "co2jps",
+          "image_sha256": "2a7b18ba20d6b76160e03a771f901d2c3c3d0dd095d5b01852e81f2bc9d69741",
+          "game_slug": "starlancer",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "thatguymcd-glover-r",
+      "name": "Glover / Glover-R (ThatGuyMcd)",
+      "summary": "Explore Glover / Glover-R (ThatGuyMcd) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/ThatGuyMcd/Glover-R",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ThatGuyMcd/Glover-R",
+        "asset_hints": {
+          "windows-x86-64": [
+            "glover-r-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Glover-R.exe"
+        ]
+      },
+      "persistent_paths": [
+        "glover-r-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then select your own unmodified Glover USA revision 0 ROM when the game asks. The launcher accepts .z64, .n64 and .v64 byte order for this 8 MiB NGVE cartridge (canonical SHA-1 270be17b3c8da9b88a7b99c2a545b0bce16837f4). The published Windows player needs no game build or separate installer. Configure controls in the launcher or press F1/Escape while playing; use its Mods page for compatible mods and separate mod profiles. Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Glover-R. Keep a separate backup of that profile before changing versions; an older runtime may not read newer data. Optional custom configuration and developer paths need their own backup. Keep customized existing copies registered with their own launch details. Portcove replaces the separate managed Windows runtime and preserves glover-r-data if the game uses that in-folder fallback. Its normal AppData profile stays outside Portcove backups and runtime rollback; rollback carries current declared data and does not rewind saves. Keep each release’s engine and bundled mod resources together. Existing external copies retain their files and update owner.",
+        "original_game_title": "Glover",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own Glover ROM on first Play",
+              "instruction": "Choose Play, then select your own unmodified Glover USA revision 0 ROM when the game asks. The launcher accepts .z64, .n64 and .v64 byte order for this 8 MiB NGVE cartridge (canonical SHA-1 270be17b3c8da9b88a7b99c2a545b0bce16837f4). The published Windows player needs no game build or separate installer. Configure controls in the launcher or press F1/Escape while playing; use its Mods page for compatible mods and separate mod profiles."
+            },
+            {
+              "title": "Keep your saves and mod profiles safe",
+              "instruction": "Default Windows saves, settings, mod profiles, mod-specific saves, logs and crash reports use %APPDATA%/Glover-R. Keep a separate backup of that profile before changing versions; an older runtime may not read newer data. Optional custom configuration and developer paths need their own backup. Keep customized existing copies registered with their own launch details."
+            },
+            {
+              "title": "Linux uses the upstream AppImage route",
+              "instruction": "Use the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Glover-R.sh. That archive contains an AppImage and wrapper, rather than a bare player with ordinary libraries. The wrapper uses AppImage extraction mode when a normal AppImage launch is unavailable. Steam Deck uses its separate x86-64 package and START-GLOVER-R.sh. Linux saves/settings normally use $XDG_CONFIG_HOME/glover-r or ~/.config/glover-r; preserve that actual profile separately. Follow upstream updates for this copy; the Windows managed route does not manage the Linux wrapper or infer device/gameplay support."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/ThatGuyMcd/Glover-R/blob/e4fc245900255f52305eea863de1f0e47708b6e5/docs/NATIVE-README.md"
+        },
+        "artwork": {
+          "game_id": 3348,
+          "cover_id": 182078,
+          "image_id": "co3whq",
+          "image_sha256": "a0742a26cb550661366365fee043c0b2be423de9c2e2928aa1aa63455f98da77",
+          "game_slug": "glover",
+          "match_kind": "underlying-game"
+        }
+      }
     }
   ]
 }

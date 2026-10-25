@@ -6,9 +6,8 @@
     "summary": "Explore Caesar III / Julius (bvschaik) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/bvschaik/julius",
     "issue_number": 1832,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/bvschaik/julius",
+    "availability": "packages",
+    "setup_url": "https://github.com/bvschaik/julius/blob/v1.8.0/README.md",
     "artwork": {
       "game_id": 6332,
       "cover_id": 561798,
@@ -16,6 +15,42 @@
       "image_sha256": "56d8d709fe76b92d75c0cd522724afcc2a9d8e9ca2ca924631fe0bd074452e5c",
       "game_slug": "caesar-iii",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/bvschaik/julius/releases/tag/v1.8.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your Caesar III folder on first Play",
+          "instruction": "Choose Play, then point Julius to your own writable Caesar III installation patched to 1.0.1.0 when asked. GOG, Steam and original CD installations are supported upstream. Keep that original game folder separate from this runtime. No compiler or installer is required for the published player. Julius saves and settings stay in the selected game folder; Augustus saves are not interchangeable with Julius saves."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/bvschaik/julius/blob/v1.8.0/README.md"
+    },
+    "original_game_title": "Caesar III"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "bvschaik/julius",
+      "asset_hints": {
+        "windows-x86-64": ["julius-", "-windows.zip"],
+        "linux-x86-64": ["julius-", "-linux-x86_64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["julius.exe"],
+      "linux-x86-64": ["julius"]
+    },
+    "persistent_paths": ["julius-log.txt"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Choose Play, then point Julius to your own writable Caesar III installation patched to 1.0.1.0 when asked. GOG, Steam and original CD installations are supported upstream. Keep that original game folder separate from this runtime. No compiler or installer is required for the published player. Julius saves and settings stay in the selected game folder; Augustus saves are not interchangeable with Julius saves. Portcove replaces only this separate player runtime. The selected original-game folder holds saves, c3.inf, julius.ini and julius-hotkeys.ini; its contents and the remembered SDL preference path are outside Portcove backups. Only the in-folder julius-log.txt is declared here. Keep a separate backup of the game folder. The Linux ZIP requires the SDL2/SDL2_mixer runtime libraries described by upstream; Linux package/header inspection does not establish native execution or minimum-environment qualification."
     }
   }
 }

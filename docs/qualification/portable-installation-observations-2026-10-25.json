@@ -1,0 +1,977 @@
+{
+  "format_version": 1,
+  "kind": "dated-portable-adoption-observations-not-live-backlog",
+  "owner": 2926,
+  "parent": 2510,
+  "base": "0414702d5eda67aa79322efdc54c75707f26d24d",
+  "preserved_source": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "observed_at": "2026-10-25T04:28:38.799278+00:00",
+  "counts": {
+    "ports": 37,
+    "platform_scopes": 53,
+    "incomplete_asset_inventories": 0,
+    "ambiguous_packages": 0,
+    "retained_digest_mismatches": 0
+  },
+  "ports": [
+    {
+      "id": "ace-combat-6-recomp",
+      "canonical_issue": 159,
+      "record_sha256": "de39527455eab5555028d19c99411715cc7975f505a269ff9b2a486ea27c2993",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "2d25a4416201e5988aa4633a73a43a2a14da17fdb042186e4790ff72ab30cff3",
+      "core_input_sha256": "8c90657bd697ded778abea092409bc7cb2aa70667fade6e32563d03da4784259",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.0.0-beta.2",
+          "asset_id": 518441555,
+          "name": "ac6recomp-1.0.0-beta.2.zip",
+          "bytes": 8534388,
+          "expected_sha256": "a30df48e70134c72015c07470ea35c90d702b52f879772ace347de98af1b72a5",
+          "retained_observed_sha256": "a30df48e70134c72015c07470ea35c90d702b52f879772ace347de98af1b72a5"
+        }
+      ]
+    },
+    {
+      "id": "alexbeav-medievil-ii-recomp",
+      "canonical_issue": 459,
+      "record_sha256": "b9016ccec76a03cb1834bdf0f0d0e07d5debd163a2eac021bfd2602abd45c7bb",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "a3521ce6356291876ca3dbb356aa4809dcf5e4de2e614d1532dcad012cccec41",
+      "core_input_sha256": "09257ca12182cc45ca4780cf09328a5ca85ace79f20a2b5ab14eb5ec2818a250",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.2.4-alpha",
+          "asset_id": 657804306,
+          "name": "MediEvilIIRecomp-v0.2.4-alpha-windows-x64.zip",
+          "bytes": 32927250,
+          "expected_sha256": "f583066ccb49920aaee2f4322415fe59b6a9640df2c664682dd13b3147300355",
+          "retained_observed_sha256": "f583066ccb49920aaee2f4322415fe59b6a9640df2c664682dd13b3147300355"
+        }
+      ]
+    },
+    {
+      "id": "alistert-openjazz",
+      "canonical_issue": 1853,
+      "record_sha256": "a0598a74e0308f3a5a8240b168678dd27bed189eb6b3dedd5e4411c81cf9872e",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "2f9041efd67668f7f6d6c346bbac61b6bf696c7830df4917d6dce7a37e18c184",
+      "core_input_sha256": "76d00653eca7b010211a0cb117186c59f4eb962205ababe22d6fe823d4212f87",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "20260301",
+          "asset_id": 364374423,
+          "name": "openjazz-windows-mingw-x86_64.zip",
+          "bytes": 3674608,
+          "expected_sha256": "554761696456a20c1bfc5ebe43bad8537a439d5a00150e4d0bcf9ebcba64a2f5",
+          "retained_observed_sha256": "554761696456a20c1bfc5ebe43bad8537a439d5a00150e4d0bcf9ebcba64a2f5"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "20260301",
+          "asset_id": 364374421,
+          "name": "openjazz-linux-glibc2.35-x86_64.zip",
+          "bytes": 826559,
+          "expected_sha256": "15aad6459d4b455a63b9ab9383482dc1b0055851c33588df820d63197ccbc6de",
+          "retained_observed_sha256": "15aad6459d4b455a63b9ab9383482dc1b0055851c33588df820d63197ccbc6de"
+        }
+      ]
+    },
+    {
+      "id": "banjo-tooie-recompiled-some-scurvy-dog",
+      "canonical_issue": 1395,
+      "record_sha256": "fa6416815b00f6636397476ecb46c842e153ee059ebeaa99d2325601eddcd279",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "993c0efa04fa45e5f03188d79b0ea59a2501b06ea0f98dfe51268caab1dafd9c",
+      "core_input_sha256": "fe6834a42b9510b41368bf997892ecf9e0d65476047d1cf4fdd37aff6eddd3de",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.0-alpha.4.3",
+          "asset_id": 649589759,
+          "name": "BanjoTooieScurvyDogPort-Alpha4.3-Windows-x64.zip",
+          "bytes": 17544592,
+          "expected_sha256": "a1f5b7605ec759f76be467f54ce2db40131859697992559e8b8cf1e5e51e2007",
+          "retained_observed_sha256": "a1f5b7605ec759f76be467f54ce2db40131859697992559e8b8cf1e5e51e2007"
+        }
+      ]
+    },
+    {
+      "id": "battletanx-global-assault-pc-port",
+      "canonical_issue": 2003,
+      "record_sha256": "5b7e26673c0e6f1f271ac36f72bbd0f1a95b888c28fbd32cff5a8857fcc353df",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "55041f29a046979418b2c4f916a9da9dd042ab0ccee8a00717c0e1489c6afe05",
+      "core_input_sha256": "b9bc27861a10703adce63f5483fb4f47b85eadf66cfbf4e74e14c58a71ec004b",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.2.5",
+          "asset_id": 637981853,
+          "name": "BattleTanxGA-0.2.5-windows-x64-portable.zip",
+          "bytes": 13559683,
+          "expected_sha256": "1e4cebcdf9e38e5f24917148c25a2181b4e7df3f8c236f54734d706a3a91c8fc",
+          "retained_observed_sha256": "1e4cebcdf9e38e5f24917148c25a2181b4e7df3f8c236f54734d706a3a91c8fc"
+        }
+      ]
+    },
+    {
+      "id": "brawmario-infinite-mario-64-ever",
+      "canonical_issue": 1830,
+      "record_sha256": "4ee8b13eecb45f81d622b06e2110d151d94084ee64370dd828d1756c0a6ad0da",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "b491d131b11a378f32b188869dd09c6b133aead4b1785a9b16c9044bb55c2a13",
+      "core_input_sha256": "9c9796fdce6e79e4ab7de58749e622ab686571bf1dffdce5c1b78f2a0ab99ad5",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.5",
+          "asset_id": 342387818,
+          "name": "infinite-mario-64-ever.v0.1.5.windows.zip",
+          "bytes": 47971173,
+          "expected_sha256": "5bb8e4e694a4e3bcf236371751b7a101aad3230c42b6fada9f7dfb58d75135dd",
+          "retained_observed_sha256": "5bb8e4e694a4e3bcf236371751b7a101aad3230c42b6fada9f7dfb58d75135dd"
+        }
+      ]
+    },
+    {
+      "id": "bvschaik-julius",
+      "canonical_issue": 1832,
+      "record_sha256": "20657bc960af2543404d414fc0514158b3f655f98ae95a7dc36949487846780a",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "c7344f97adad7e20e387a537e4403cc87e1dd2402d4ce12ae5a13605dd1b44fb",
+      "core_input_sha256": "b9b06e0ac93822e1fd997a610406f3cd75c4aca5e3772679f9bdec4cb675c219",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.8.0",
+          "asset_id": 278172853,
+          "name": "julius-1.8.0-windows.zip",
+          "bytes": 1738805,
+          "expected_sha256": "1ccfd0660f33e39d2ec23f192f6a9d1aff76267ba2b1ec6d31651de3bfdc12c5",
+          "retained_observed_sha256": "1ccfd0660f33e39d2ec23f192f6a9d1aff76267ba2b1ec6d31651de3bfdc12c5"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v1.8.0",
+          "asset_id": 278172836,
+          "name": "julius-1.8.0-linux-x86_64.zip",
+          "bytes": 743465,
+          "expected_sha256": "0e7fa24b52c068d906e9635ee6b9d88f18829193ac724ae704598f0433a20f53",
+          "retained_observed_sha256": "0e7fa24b52c068d906e9635ee6b9d88f18829193ac724ae704598f0433a20f53"
+        }
+      ]
+    },
+    {
+      "id": "citrongames-dora64",
+      "canonical_issue": 1814,
+      "record_sha256": "e97997ec4b668e476151270a3f1785775088c77000ce48d8be31ebf083896a58",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "22a0282b540b7a05423edbe21512e4c05ef11b8f51fae9afc62e02dde866326d",
+      "core_input_sha256": "6947182904afcb4a162dd76673e4447b01975cf1c29b0f6035cc3df338ed8256",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.0.4",
+          "asset_id": 588985429,
+          "name": "Dora64-1.0.5-Windows-x64.zip",
+          "bytes": 15225415,
+          "expected_sha256": "1602bbe7cf5a0791851880a6c360fbf068270bc84da1f5aba597fbc8c76773ae",
+          "retained_observed_sha256": "1602bbe7cf5a0791851880a6c360fbf068270bc84da1f5aba597fbc8c76773ae"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v1.0.4",
+          "asset_id": 588985427,
+          "name": "Dora64-1.0.5-Linux-x86_64.tar.gz",
+          "bytes": 5216098,
+          "expected_sha256": "e77cd0bce581a43eda077213049b1914c0250bd2503c6989d06b32948270941e",
+          "retained_observed_sha256": "e77cd0bce581a43eda077213049b1914c0250bd2503c6989d06b32948270941e"
+        }
+      ]
+    },
+    {
+      "id": "colin-mcrae-rally-2-opencmr2",
+      "canonical_issue": 1949,
+      "record_sha256": "32e8e00fd4bd30ed19d74d733d08f1ecb506341d5185f208221d0dada223ba92",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "dba30c702f27452abaf98746ee1473f5813189d699007ced90f7e8fffdd01955",
+      "core_input_sha256": "0dab47e0e8b0758b39ff7287f71327f8a81896e957dd6d665e85f637f256ed37",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.6.0",
+          "asset_id": 667145104,
+          "name": "OpenCMR2-Windows-x64.zip",
+          "bytes": 2880400,
+          "expected_sha256": "f9cd7bd01bbb554bf4768249b5377e0507724ca883eb759ee485836324c46130",
+          "retained_observed_sha256": "f9cd7bd01bbb554bf4768249b5377e0507724ca883eb759ee485836324c46130"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v1.6.0",
+          "asset_id": 667145081,
+          "name": "OpenCMR2-Linux-x86_64.tar.gz",
+          "bytes": 9285009,
+          "expected_sha256": "a96dd48151c7f03e84ec951b5f8fa0579650e862e164c769edfff146b3d20582",
+          "retained_observed_sha256": "a96dd48151c7f03e84ec951b5f8fa0579650e862e164c769edfff146b3d20582"
+        }
+      ]
+    },
+    {
+      "id": "craigshaw-fzerorecomp",
+      "canonical_issue": 1821,
+      "record_sha256": "7feba4a3660ff594bf9bb6e0db88dcc81e9a141a9fda6450a54af804aa2a73df",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "c54903525d47a01d5687474d0b9c99e412e80a09515b41d545a5512d38672cb2",
+      "core_input_sha256": "1d89c8eb41772938e9d1fd573515e164c1a53b0b5d2ed1b2102333049569cb7a",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.6.0",
+          "asset_id": 651597699,
+          "name": "FZeroRecomp-v0.6.0-Windows-x64.zip",
+          "bytes": 4441359,
+          "expected_sha256": "f3f2fd443c90c097fc281464fbfef7182eef5c557c3ef135f4689f4161c1b47a",
+          "retained_observed_sha256": "f3f2fd443c90c097fc281464fbfef7182eef5c557c3ef135f4689f4161c1b47a"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.6.0",
+          "asset_id": 651481343,
+          "name": "FZeroRecomp-v0.6.0-Linux-x64.tar.gz",
+          "bytes": 5407126,
+          "expected_sha256": "522dbff671e07b0e5fbfb16538fef2bd6993aeb2ed1dfea698bf55a460b405a5",
+          "retained_observed_sha256": "522dbff671e07b0e5fbfb16538fef2bd6993aeb2ed1dfea698bf55a460b405a5"
+        }
+      ]
+    },
+    {
+      "id": "dethrace-labs-dethrace",
+      "canonical_issue": 1810,
+      "record_sha256": "239612883f20f03f5ad59c93f19f3454b1dfac7768941a69153116150c12f0c0",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "fcb6bf983bbaf6a79fb4d6cd93f3ad5c9deff1e7f93d7f00d9ee62b6a44ee42a",
+      "core_input_sha256": "3705bcad137c5523323a63e699df03e6ea9de132d93cad1d58b18a495df075f7",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.10.1",
+          "asset_id": 360374775,
+          "name": "dethrace-v0.10.1-windows-x64.zip",
+          "bytes": 8569430,
+          "expected_sha256": "21160fae1d6484e8b4d0b7ded1e7006f90618168178de833624f13a9589c627c",
+          "retained_observed_sha256": "21160fae1d6484e8b4d0b7ded1e7006f90618168178de833624f13a9589c627c"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.10.1",
+          "asset_id": 360374771,
+          "name": "dethrace-v0.10.1-linux-x64.tar.gz",
+          "bytes": 5497771,
+          "expected_sha256": "a99081ad6f79d2e19cbe69fa4605153ce6e3f396bf01834b925d790bde4c940e",
+          "retained_observed_sha256": "a99081ad6f79d2e19cbe69fa4605153ce6e3f396bf01834b925d790bde4c940e"
+        }
+      ]
+    },
+    {
+      "id": "djultra64-blocksphere",
+      "canonical_issue": 1802,
+      "record_sha256": "d3a98ecf3175cce8702674e14c3dc913b875b9d4dc37d6ce22f3252e663229af",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "9ccd0b818d2a301ac5629ae04448fa1126a402628fe67a5dfccabc4fb0e604cc",
+      "core_input_sha256": "f28afa8f2f65932402e0d8072de78a2eb54f25408cbe8f86281df97cf3a7e4b5",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.1.0",
+          "asset_id": 633776914,
+          "name": "blocksphere-1.1.0-windows-x86_64.zip",
+          "bytes": 13208075,
+          "expected_sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50",
+          "retained_observed_sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v1.1.0",
+          "asset_id": 633656167,
+          "name": "blocksphere-1.1.0-linux-x86_64.tar.gz",
+          "bytes": 4362604,
+          "expected_sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250",
+          "retained_observed_sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250"
+        }
+      ]
+    },
+    {
+      "id": "dkc1-recomp",
+      "canonical_issue": 721,
+      "record_sha256": "9462f42d660b2db2054b5ea3b5ea5b6c8cbe760ec691bda52cb7111841cc28eb",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "ec6672a1fe6b0e8eeb7bd40581c8c106d67e93a6ed007e1f816e5298921a2b7b",
+      "core_input_sha256": "9ef52bbbf75feb2cd33eafd8c18c63cd789a10c57f0004a9792437e9b34baefd",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.0.17",
+          "asset_id": 575076119,
+          "name": "DKC1Recomp-v0.0.17-Windows-x64.zip",
+          "bytes": 12927869,
+          "expected_sha256": "adf90d506a255d6909906c512eacb7ab83a68b425a44373c289fe95cb489f5df",
+          "retained_observed_sha256": "adf90d506a255d6909906c512eacb7ab83a68b425a44373c289fe95cb489f5df"
+        }
+      ]
+    },
+    {
+      "id": "elliotttate-dkc2recomp",
+      "canonical_issue": 1811,
+      "record_sha256": "272ff0cdaa042d8f829b83c824263f3a2bbf0645ecdb9eb2a8ad0eeb152a9207",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "9db093c8a06d290644594a3c1595c7561bdc1d3906edbe8a1b511d5b3ba7912b",
+      "core_input_sha256": "757fbc2026c2c71752c412338147ec3dd19f601cfae1090c85d4d257a1f5c9f6",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.0.8",
+          "asset_id": 562020845,
+          "name": "DKC2Recomp-v0.0.8-Windows-x64.zip",
+          "bytes": 11650330,
+          "expected_sha256": "61f3b29a6624b4999dcd5ee6d439dac52528fe85352b95d62f127c9e6fd35eee",
+          "retained_observed_sha256": "61f3b29a6624b4999dcd5ee6d439dac52528fe85352b95d62f127c9e6fd35eee"
+        }
+      ]
+    },
+    {
+      "id": "gearhead-garage-opengg",
+      "canonical_issue": 1637,
+      "record_sha256": "11445464e579c8125c7df19b8118d8e629a15a147227f25e05cbe30ded3bb1d9",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "e2624f6e1462092914a8257cc6874d46d6e021a4fc23e449a678036457b3dde2",
+      "core_input_sha256": "f02c4b3d988d708f70472d4f15401aa7fc62873917d6107cfd86b09755022d76",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.2.2",
+          "asset_id": 611720689,
+          "name": "OpenGG-0.2.2-windows-x64.zip",
+          "bytes": 90667072,
+          "expected_sha256": "16141cc70279dc9cd406b8e022c84950744eb6034d9033a94776a59392fbe9bb",
+          "retained_observed_sha256": "16141cc70279dc9cd406b8e022c84950744eb6034d9033a94776a59392fbe9bb"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.2.2",
+          "asset_id": 611723900,
+          "name": "OpenGG-0.2.2-linux-x64.tar.gz",
+          "bytes": 82405580,
+          "expected_sha256": "8b5968168a780f699ca29687c80e41ee5ea6736ea04d06aa10e8c29f271ff47d",
+          "retained_observed_sha256": "8b5968168a780f699ca29687c80e41ee5ea6736ea04d06aa10e8c29f271ff47d"
+        }
+      ]
+    },
+    {
+      "id": "gladiator-openglad",
+      "canonical_issue": 1917,
+      "record_sha256": "ef1085870e64ffaf52f053a6a66de84d9857957fe7093e799ce35714213db263",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "1475356b202db4a1472cab06a0b1f70faf11284fdc3d1d2de88825401d5db004",
+      "core_input_sha256": "1abfcb67be1b8c2e42f3cc7e565c998771dc8dccdf7c48a3aa137eecce3a4f3f",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v2.1092",
+          "asset_id": 657427666,
+          "name": "openglad-windows-x86_64.zip",
+          "bytes": 97163379,
+          "expected_sha256": "987a4faf793efe243b4551aef52c39e9c72f05060946ac7d8ecc42b89fb928a5",
+          "retained_observed_sha256": "987a4faf793efe243b4551aef52c39e9c72f05060946ac7d8ecc42b89fb928a5"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v2.1092",
+          "asset_id": 657427664,
+          "name": "openglad-linux-x86_64.tar.gz",
+          "bytes": 112301364,
+          "expected_sha256": "37fed785019b076e480703a8b9eb2d5e2d7d6d78241e623dea52e5a2da0a5115",
+          "retained_observed_sha256": "37fed785019b076e480703a8b9eb2d5e2d7d6d78241e623dea52e5a2da0a5115"
+        }
+      ]
+    },
+    {
+      "id": "ico-pc-nathanialf",
+      "canonical_issue": 1622,
+      "record_sha256": "144fd68b2f7b59b2e89ab1177b8bb915f4ae4e71a70f0619853d5a7035cb298a",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "3b2bc05e2e285cb6ad48db40ae700dbc56775a4240668732d732909f2b3c6917",
+      "core_input_sha256": "60336bf9fa27ad8511854c0cec86d9c28c46c094c3ac0692488ef6ce90dfbba7",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.8.5",
+          "asset_id": 668392389,
+          "name": "ico-pc-v0.8.5-win-portable.zip",
+          "bytes": 18715873,
+          "expected_sha256": "7fce8531ee9a81bd3a1bbdc7973390c8df53153592ce6552d332a95de0591692",
+          "retained_observed_sha256": "7fce8531ee9a81bd3a1bbdc7973390c8df53153592ce6552d332a95de0591692"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.8.5",
+          "asset_id": 668392380,
+          "name": "ico-pc-v0.8.5-linux-portable.tar.gz",
+          "bytes": 15063614,
+          "expected_sha256": "138cd357923f18da4bb3d9b483a10cfc3ce45aac472bd4848fc797153bca0269",
+          "retained_observed_sha256": "138cd357923f18da4bb3d9b483a10cfc3ce45aac472bd4848fc797153bca0269"
+        }
+      ]
+    },
+    {
+      "id": "insanitybringer-piccuengine",
+      "canonical_issue": 1868,
+      "record_sha256": "f73bbb16221c7dc5a6c0d20bfe455594deee08c704db566f65539bdb8e973f9f",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "ad1c26b786d1cab619ff16add68cd8115eaa96027cee6d744bae5d57556aa7e1",
+      "core_input_sha256": "950b55b3dee597056106add4c6fa1c8c7d93c6e99e94d10506f03ca27bc5a6bd",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.3.0-proto4",
+          "asset_id": 276396185,
+          "name": "PiccuEngine-v1.3.0-proto4-25072025-win32.zip",
+          "bytes": 17002439,
+          "expected_sha256": "00288bfe4dce2ce5ec86f7e85c9373000bafafc8c3e27add6e155ae2b2fe71e1",
+          "retained_observed_sha256": "00288bfe4dce2ce5ec86f7e85c9373000bafafc8c3e27add6e155ae2b2fe71e1"
+        }
+      ]
+    },
+    {
+      "id": "interkarma-daggerfall-unity",
+      "canonical_issue": 1809,
+      "record_sha256": "7c9d1c5da9b0ed620def085174f3c46fe379f2d295b0e2a8a6a33c41cb418813",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "ae9a7c8a9d43f61ff50484f637077a96571fc400d64791bc3195ad1ce8fb3d4c",
+      "core_input_sha256": "5e7a2fcd10ba7dacf7d2a2aa9660b2ed4c601253c5c351a712783e8aecb558ca",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.1.1-cve-2025",
+          "asset_id": 300617414,
+          "name": "dfu_windows_64bit-v1.1.1.zip",
+          "bytes": 50240819,
+          "expected_sha256": "b4eb2620cdf31f973ed1105d06be8a31f21796915d65c253a93eeb02cb1d64bd",
+          "retained_observed_sha256": "b4eb2620cdf31f973ed1105d06be8a31f21796915d65c253a93eeb02cb1d64bd"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v1.1.1-cve-2025",
+          "asset_id": 300617683,
+          "name": "dfu_linux_64bit-v1.1.1.zip",
+          "bytes": 58809717,
+          "expected_sha256": "be3c476ae92972f42448757719266ad82c04868eb7b6f3a3c90fcfcf1490849a",
+          "retained_observed_sha256": "be3c476ae92972f42448757719266ad82c04868eb7b6f3a3c90fcfcf1490849a"
+        }
+      ]
+    },
+    {
+      "id": "isledecomp-isle-portable",
+      "canonical_issue": 1831,
+      "record_sha256": "b04afd1331bda9921990c0e9979df25fc1f2d2ed6dfa97432e200e2080e98832",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "821741636832302a9e1dcf9a0d71f78ca35cc2a7d67a6e564963d0872cc9ccbe",
+      "core_input_sha256": "2cd0025fda6247b647debd55d2c933ef5a28a28341316562690572e3a8d04a5b",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "continuous",
+          "asset_id": 652629735,
+          "name": "isle-0.1-Windows-x64.zip",
+          "bytes": 21422111,
+          "expected_sha256": "4c12fef0fede2c2410302ca508bb5a544cbf960073ce1802743ddfd4f7fe814e",
+          "retained_observed_sha256": "4c12fef0fede2c2410302ca508bb5a544cbf960073ce1802743ddfd4f7fe814e"
+        }
+      ]
+    },
+    {
+      "id": "jgrennison-openttd-patches",
+      "canonical_issue": 1859,
+      "record_sha256": "77dc73e252637c606ea686400f4d55a2b796a3c1399d825351d3b54b2d7fbb2d",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "039a122b16db2856611e72e12b328b2dde00c094c9e5e6792b28c7a97bc85a83",
+      "core_input_sha256": "6f4c566aa01234e69debd675dec7fb686d74d38574c687b899f357fb58214015",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "jgrpp-0.73.4",
+          "asset_id": 634503612,
+          "name": "openttd-jgrpp-0.73.4-windows-win64.zip",
+          "bytes": 26546972,
+          "expected_sha256": "07a1c41ea46a64fcef0d264a5f228d0275ac664a81eae3631d27b628f7f6da30",
+          "retained_observed_sha256": "07a1c41ea46a64fcef0d264a5f228d0275ac664a81eae3631d27b628f7f6da30"
+        }
+      ]
+    },
+    {
+      "id": "knuckles-chaotix-recompiled",
+      "canonical_issue": 1534,
+      "record_sha256": "0bc93f8ec2b7d4efe64882cfa24a3118abb4864425deb0cffe5dab2767182a4c",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "c54391f676b65c83dd42d065cfe6eb31409fe492312d2d7f5dba3967be46642d",
+      "core_input_sha256": "afb8f1371a5d32aa8cfbc40097a5cc529fc4174e293c89b2eff6cbeeed3cc5fe",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.14.0",
+          "asset_id": 670201685,
+          "name": "ChaotixRecompiled-0.14.0-windows-x64.zip",
+          "bytes": 9584735,
+          "expected_sha256": "a009ab5d0455d14da10ae3d253fee69238f02dc517ae0704368f77aa45b05944",
+          "retained_observed_sha256": "a009ab5d0455d14da10ae3d253fee69238f02dc517ae0704368f77aa45b05944"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.14.0",
+          "asset_id": 670201688,
+          "name": "ChaotixRecompiled-0.14.0-linux-x64.tar.gz",
+          "bytes": 5631016,
+          "expected_sha256": "6c6af5ca447f28f3f96e0138db714e04e2dbc2a474e502f9ba3afce926b392ac",
+          "retained_observed_sha256": "6c6af5ca447f28f3f96e0138db714e04e2dbc2a474e502f9ba3afce926b392ac"
+        }
+      ]
+    },
+    {
+      "id": "mdk-sdl-nemo22",
+      "canonical_issue": 1775,
+      "record_sha256": "14640c03d6ece4b81f5b45e1d03e0a43b5e3bf4c998a32973e236dfbdbbed6a0",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "0768cc11efc729adbf28b7da83686a1ed976f6548f3d0dcfc7a9867defd1cd3b",
+      "core_input_sha256": "5d2bef2943e725eadc738d816ec5e865cd239d20b7db97bce311f6dbea40639c",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.2.0",
+          "asset_id": 668236275,
+          "name": "mdk-win-x64.zip",
+          "bytes": 4144756,
+          "expected_sha256": "547af618d3479ec2172e6e5f1ab05cd3311a0ce9b9114cd4c5a2ade8e090e413",
+          "retained_observed_sha256": "547af618d3479ec2172e6e5f1ab05cd3311a0ce9b9114cd4c5a2ade8e090e413"
+        }
+      ]
+    },
+    {
+      "id": "noahvl-birdman64",
+      "canonical_issue": 1801,
+      "record_sha256": "d24a10caee4b8bd437071345aec3075e8cb892cf099a581d76b7cea2a3bd4840",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "6576dcdbaf856ee45519e500a517d48803baa2d61029a4b816b47cd57ba846ce",
+      "core_input_sha256": "7e31e5085d59a7a0962661c5fcf9fed07a12dcac08b5ff0bf6eb6251ca912099",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.5.1",
+          "asset_id": 662156495,
+          "name": "Birdman64-windows-x64.zip",
+          "bytes": 66899026,
+          "expected_sha256": "b03ca52fccb59d108854f2b955d0e3b0206a6bce9dbcf82edc2a5f2562232d5c",
+          "retained_observed_sha256": "b03ca52fccb59d108854f2b955d0e3b0206a6bce9dbcf82edc2a5f2562232d5c"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v1.5.1",
+          "asset_id": 662148911,
+          "name": "birdman64-linux-x64.tar.gz",
+          "bytes": 91388113,
+          "expected_sha256": "50626333b0622ab95f558f0ad84b6f52fbca84e423364cfbd566e40f8abe8443",
+          "retained_observed_sha256": "50626333b0622ab95f558f0ad84b6f52fbca84e423364cfbd566e40f8abe8443"
+        }
+      ]
+    },
+    {
+      "id": "omf2097-openomf",
+      "canonical_issue": 1856,
+      "record_sha256": "f58297a6bb5cf2809290dad8891bc7914543bef4392b0fb3b3e46beafb0a7f01",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "fc0ad906dca673b0bfd3682adfb8f635edfd884e3212208455000a668e599d6f",
+      "core_input_sha256": "71d41e3d9244bcee1796d0e267c991f2535344160fef29bb3ca2869e07be6f59",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "0.8.6",
+          "asset_id": 467381955,
+          "name": "openomf_0.8.6_windows.zip",
+          "bytes": 23093230,
+          "expected_sha256": "16e737154b61683d9674de978f48f13e493c6b590ab7237269490d31b6a2fb13",
+          "retained_observed_sha256": "16e737154b61683d9674de978f48f13e493c6b590ab7237269490d31b6a2fb13"
+        }
+      ]
+    },
+    {
+      "id": "openapoc-openapoc",
+      "canonical_issue": 1851,
+      "record_sha256": "d44c70db69dc80f1008523fcef3e14d985d27111bdd4a5cddd1de4f2858ba346",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "6c13e84fc7052a41b4cb0b1c29bcadfe003a873d1160f2d2eb0621665506de91",
+      "core_input_sha256": "b1bf30aabe69870a8bec35cc209d62add4b60b2717c467a32d8766d01565a249",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "20260408",
+          "asset_id": 393525727,
+          "name": "OpenApoc-x64-20260408.zip",
+          "bytes": 45177894,
+          "expected_sha256": "97efb47ac7411925511d40157553be67914f3d30bf4eb4cf83024cd456a228ef",
+          "retained_observed_sha256": "97efb47ac7411925511d40157553be67914f3d30bf4eb4cf83024cd456a228ef"
+        }
+      ]
+    },
+    {
+      "id": "openloco-openloco",
+      "canonical_issue": 1855,
+      "record_sha256": "d6d918e44829e69a30d5655110fa5c2edf2a8580ed55ae67787070cddcdb2cc0",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "5334f5077d6a3eac48522a2369315858b9f2a584d3283ffd336bb7d821d96d07",
+      "core_input_sha256": "a2a9d650b9fb0c971de38dd4946209052b84c12d08b502bfa45144aaa6d16693",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v26.09",
+          "asset_id": 573269380,
+          "name": "OpenLoco-v26.09-windows-portable-x64.zip",
+          "bytes": 16015478,
+          "expected_sha256": "07890fa5dbb7615a2055f90dd759b5fe96f48a95f18fcff9d819cf820e31b7e8",
+          "retained_observed_sha256": "07890fa5dbb7615a2055f90dd759b5fe96f48a95f18fcff9d819cf820e31b7e8"
+        }
+      ]
+    },
+    {
+      "id": "openrct2-openrct2",
+      "canonical_issue": 1854,
+      "record_sha256": "fbaf975d3a3760161dc686b13b4c327502c5e795e5a9fce4b0c9f08a75025435",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "30ec0704e08f36ea3c6d8767e510d3f7f8ef733575eb9f852a790738e5d5f5b9",
+      "core_input_sha256": "282fae46e212598e916ad78ae99938416e61fc557c3ea4b15b2abb1702e41dd8",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.5.6",
+          "asset_id": 627924130,
+          "name": "OpenRCT2-v0.5.6-windows-portable-x64.zip",
+          "bytes": 82152808,
+          "expected_sha256": "6c07393312a828f845c71c9c18cefe2da5b759fe2b17ee02fbb9e4540b396280",
+          "retained_observed_sha256": "6c07393312a828f845c71c9c18cefe2da5b759fe2b17ee02fbb9e4540b396280"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.5.6",
+          "asset_id": 627924161,
+          "name": "OpenRCT2-v0.5.6-Linux-bookworm-x86_64.tar.gz",
+          "bytes": 87358225,
+          "expected_sha256": "d439ad72b5206f8ad5b75f7419c13a2dd93743f6636bd37987cc1292375e6e42",
+          "retained_observed_sha256": "d439ad72b5206f8ad5b75f7419c13a2dd93743f6636bd37987cc1292375e6e42"
+        }
+      ]
+    },
+    {
+      "id": "opentyrian-opentyrian",
+      "canonical_issue": 1860,
+      "record_sha256": "10ef1b6aae05e563565da09fc3217b53e42c64b2372efca7a23f773630126698",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "88e8602465beb557b8bdfd921a8f4f8a1b8032b9591c8a79cdcfd22638209d45",
+      "core_input_sha256": "aebade843b785589e060f17cf167fdb5a6036c5a527ac09508badecf602518fc",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v2.1.20260913",
+          "asset_id": 562161395,
+          "name": "opentyrian-v2.1.20260913-windows-x86_64.zip",
+          "bytes": 6092537,
+          "expected_sha256": "7eddbe42439392ee8b2ffbe38c1c20a768da0c4afcc795ca31928c9dd6068f60",
+          "retained_observed_sha256": "7eddbe42439392ee8b2ffbe38c1c20a768da0c4afcc795ca31928c9dd6068f60"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v2.1.20260913",
+          "asset_id": 562160463,
+          "name": "opentyrian-v2.1.20260913-linux-x86_64.tar.gz",
+          "bytes": 6004739,
+          "expected_sha256": "77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3",
+          "retained_observed_sha256": "77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3"
+        }
+      ]
+    },
+    {
+      "id": "rise-of-the-triad-barrett-lunarmeadow",
+      "canonical_issue": 1776,
+      "record_sha256": "2d1957cb550f1ebdad1ab07a49937a6a40c4cc02cf313ed251d0e172658a3a69",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "14b7a040be87acf9997ad9a4ddd54aa31ef148b548e845430c174cf6318ece42",
+      "core_input_sha256": "e918a351982c5178b071d0eb3fc0aa5042e49bd741cf2beef3029ec7afa404f8",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.3-beta",
+          "asset_id": 447399696,
+          "name": "barrett-win64.zip",
+          "bytes": 2020033,
+          "expected_sha256": "fa0214cbcfb10b2cd7d8ead4e8f3fe77d9418f9dd5d54bd9a5f389cec1c4ba57",
+          "retained_observed_sha256": "fa0214cbcfb10b2cd7d8ead4e8f3fe77d9418f9dd5d54bd9a5f389cec1c4ba57"
+        }
+      ]
+    },
+    {
+      "id": "rocket-robot-on-wheels-rocket-r",
+      "canonical_issue": 1449,
+      "record_sha256": "a74907e033e46dcc19be282dd6e9485a2936d5c08531e9d11cb97dffbae2f9a6",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "d14d2e380354dbd82ad19f76f86005f148a832aafbf8612c5306f70516fe7723",
+      "core_input_sha256": "c60b6bd71063cc7674b01b00f0ba9615934b9b62ca5c7a9160f266623f8a3e50",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v.1.0.1",
+          "asset_id": 593934141,
+          "name": "Rocket-R-1.0.1-Windows-x64.zip",
+          "bytes": 22735057,
+          "expected_sha256": "d47ba319b8aa6bc3a348258a8cd1a5cf0f693eb129c87b2fc895d6f15dd87db1",
+          "retained_observed_sha256": "d47ba319b8aa6bc3a348258a8cd1a5cf0f693eb129c87b2fc895d6f15dd87db1"
+        }
+      ]
+    },
+    {
+      "id": "sdw-community-sheep-dog-n-wolf-rewooled",
+      "canonical_issue": 1882,
+      "record_sha256": "fd43fa56aa6db31f3d4d7d68ad6949d17f455e1f03d9b7a11a8c04850815c474",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "445bdc1722cb60795e1f6e12987e6cf3ef47f8fe69f55e2bff72c3ddad08ee57",
+      "core_input_sha256": "2d21453bb3d30c3852d801f4f45fb2e10b3a00df6ef5ab824aaa551946f7318d",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.1.3",
+          "asset_id": 657556895,
+          "name": "Rewooled-Windows-x64-1.1.3.zip",
+          "bytes": 4050500,
+          "expected_sha256": "b4d785cefabb4d818c5421cb5ed14cc2041d48f343b5167a74e185c403f9b4bd",
+          "retained_observed_sha256": "b4d785cefabb4d818c5421cb5ed14cc2041d48f343b5167a74e185c403f9b4bd"
+        }
+      ]
+    },
+    {
+      "id": "sonic-cd-2011-rsdkv3",
+      "canonical_issue": 1127,
+      "record_sha256": "0a4a8567490366d1cb8c0c10fb81100b331c3ca57ac049cc3a78825040b9cf9d",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "90a14fda7e5a2be555a043b2a24b9b7ac779fa2abfe2fa4d3ddc5af7be136dc0",
+      "core_input_sha256": "9fbcf666c4503e0546e70e10c3a890ef800280a91d6a8f5907f060a9e77f754c",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "1.3.3",
+          "asset_id": 311438653,
+          "name": "v3-windows-x64.zip",
+          "bytes": 1269201,
+          "expected_sha256": "6301768d67c06fd81a8bea598d318a9115cd2fca228fe6c98660e76337b8ae53",
+          "retained_observed_sha256": "6301768d67c06fd81a8bea598d318a9115cd2fca228fe6c98660e76337b8ae53"
+        }
+      ]
+    },
+    {
+      "id": "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+      "canonical_issue": 383,
+      "record_sha256": "0d48aa1d8762d02e2644c8f4a9b65e150fe09116c2dea34bf02c1919366b2b75",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "77a1f975cfde9521d94d268ea743d3aca876e00af53d6577ec50f9ac1aa22f59",
+      "core_input_sha256": "57105008b051d8197da291b1bdc9276d5af6dc24e56d70bfcc4e0ed3ee025175",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "1.3.3",
+          "asset_id": 311445048,
+          "name": "v4-windows-x64.zip",
+          "bytes": 1350673,
+          "expected_sha256": "e491bb9556b48bdb1fd656801a5bd7ce19dc0b7a31693bff754f619a9a8fa814",
+          "retained_observed_sha256": "e491bb9556b48bdb1fd656801a5bd7ce19dc0b7a31693bff754f619a9a8fa814"
+        }
+      ]
+    },
+    {
+      "id": "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+      "canonical_issue": 382,
+      "record_sha256": "8ccb352de02eb22197a316cb08309c0c7987889b7a01063cbc2b484a9fa33df2",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "925f12a6766d809ee9ecf44806b58935429b5bc11da363a8777eec3bb5744845",
+      "core_input_sha256": "24757a28a3539e2876d6ea0eedbcbaa8ac77744d457bf0e1d6a5fceb7cbbd01d",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "1.3.3",
+          "asset_id": 311445048,
+          "name": "v4-windows-x64.zip",
+          "bytes": 1350673,
+          "expected_sha256": "e491bb9556b48bdb1fd656801a5bd7ce19dc0b7a31693bff754f619a9a8fa814",
+          "retained_observed_sha256": "e491bb9556b48bdb1fd656801a5bd7ce19dc0b7a31693bff754f619a9a8fa814"
+        }
+      ]
+    },
+    {
+      "id": "starlancer-openreliant",
+      "canonical_issue": 1789,
+      "record_sha256": "51396cc892adc34375c5b39bb7a7eada17f55ad1daee087ec1cdbbdf179146c0",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "318e611e3e8190b8feeb03b0c3f9766a3c6bf984c15c7d364121f0325dca2ffe",
+      "core_input_sha256": "e0d71efd6a0884b003dcc4244d4f9a85a259c0beff95f8dcb50ba97cb2a2d835",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.20.0",
+          "asset_id": 666074443,
+          "name": "openreliant-v0.20.0-windows-x86_64.zip",
+          "bytes": 9783305,
+          "expected_sha256": "bd7bb7c903b9afec8178b0dd56f5a52b715f1e15842af65602e0d00bcf41ab79",
+          "retained_observed_sha256": "bd7bb7c903b9afec8178b0dd56f5a52b715f1e15842af65602e0d00bcf41ab79"
+        },
+        {
+          "platform": "linux-x86-64",
+          "release": "v0.20.0",
+          "asset_id": 666074390,
+          "name": "openreliant-v0.20.0-linux-x86_64.tar.gz",
+          "bytes": 10076353,
+          "expected_sha256": "844b6237afd9c76187f925f5d8f65fa12d6ce25ef6b96c034077f2422ccc06a7",
+          "retained_observed_sha256": "844b6237afd9c76187f925f5d8f65fa12d6ce25ef6b96c034077f2422ccc06a7"
+        }
+      ]
+    },
+    {
+      "id": "thatguymcd-glover-r",
+      "canonical_issue": 1822,
+      "record_sha256": "164d96a6a264165ec5656645336091e6c5823867d6430806c65a161ac8c8610f",
+      "maintenance": "managed-compatible-release",
+      "runtime_update_owner": "Portcove for managed route; external installations remain user/upstream managed",
+      "preparation_report_sha256": "f21083a3033fadca4b64c821f16493132552fb95eb5d0e92ead28f643fcd8be4",
+      "core_input_sha256": "47350965001e8455efcdd3951c7dae6e3f0a9c5b1bf6699b8f4f7d56465636b6",
+      "core_validator_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "assets_complete": true,
+      "assets": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.0.1",
+          "asset_id": 615812827,
+          "name": "Glover-R-1.0.1-Windows-x64.zip",
+          "bytes": 18291453,
+          "expected_sha256": "03c42de2f16412ac95e400c079bbb47144ad2457d697196b57e6d058bf639f53",
+          "retained_observed_sha256": "03c42de2f16412ac95e400c079bbb47144ad2457d697196b57e6d058bf639f53"
+        }
+      ]
+    }
+  ],
+  "scope": "Maintained per-record Core before/after declaration validation plus complete exact-release upstream assets. Retained independently expected/archive observations separately match all53 digests. No game/helper execution, native Linux, gameplay, packaged Desktop, real-save or full #2510 acceptance."
+}
