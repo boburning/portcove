@@ -41,11 +41,14 @@ success-output = "immediate"
 # CI 40165157806/a1 cut off the eight-scenario relocation recovery fixture at
 # 30.133s; its source-import sibling finished at 29.424s. Preserve all install
 # and adoption phases, assertions, cleanup, worker slots and zero retries.
+# CI40245072630/a1 also cut OriginalPaths off at30.114s after seven of eight
+# phases; preceding same-code Windows observations were29.805s (OriginalPaths)
+# and28.928s (Quarantine). All four share the same eight-scenario helper.
 # Exact Windows cases get finite 60s room plus per-scenario timing output;
 # product and child deadlines remain unchanged. This is harness calibration.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/) | test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/))'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
