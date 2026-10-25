@@ -3,6 +3,7 @@ interface SuccessfulSource {
   completed_at: string;
   evidence: string;
   hashes: Record<string, string>;
+  snapshot_kind?: "rolling-feed";
 }
 interface PendingObservation {
   source: string;
@@ -87,6 +88,8 @@ function checkpoint(value: unknown): DiscoveryCheckpoint {
       const source = object(value, "Checkpoint source");
       const completed_at = text(source.completed_at, "Checkpoint completion");
       clock(completed_at);
+      if (source.snapshot_kind !== undefined && source.snapshot_kind !== "rolling-feed")
+        throw new Error("Invalid checkpoint snapshot kind");
       return [
         id,
         {
@@ -94,6 +97,9 @@ function checkpoint(value: unknown): DiscoveryCheckpoint {
           completed_at,
           evidence: text(source.evidence, "Checkpoint source evidence"),
           hashes: stringMap(source.hashes, "Checkpoint hashes"),
+          ...(source.snapshot_kind === "rolling-feed"
+            ? { snapshot_kind: "rolling-feed" as const }
+            : {}),
         },
       ];
     }),
@@ -284,8 +290,10 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
     if (!/^[a-z0-9-]{1,80}$/u.test(sourceId) || seen.has(sourceId))
       throw new Error("Invalid or duplicate source identity");
     seen.add(sourceId);
-    // A partial read can supply leads, but never replaces the last complete baseline.
-    if (source.status !== "complete") continue;
+    // A rolling feed with a continuity gap still supplies positive leads, but
+    // never replaces its last complete baseline or successful clock.
+    const partialStream = source.status === "partial" && source.snapshot_kind === "rolling-feed";
+    if (source.status !== "complete" && !partialStream) continue;
     if (
       !source.evidence ||
       source.next_page !== null ||
@@ -294,7 +302,11 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
     )
       throw new Error("Complete source requires evidence and terminal pagination");
     if (source.records.length > 2000) throw new Error("Source record budget exceeded");
+    if (source.snapshot_kind !== undefined && source.snapshot_kind !== "rolling-feed")
+      throw new Error("Invalid source snapshot kind");
     const previous = Object.hasOwn(state.sources, sourceId) ? state.sources[sourceId] : undefined;
+    if (previous && previous.snapshot_kind !== source.snapshot_kind)
+      throw new Error("Source scope changed; reconcile the old checkpoint explicitly");
     if (previous && clock(previous.completed_at) > clock(run.observed_at))
       throw new Error("Observation predates successful checkpoint");
     const hashes: Record<string, string> = {};
@@ -325,8 +337,11 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
           };
       }
     }
+    if (partialStream) continue;
     // Disappearance is a lead, never a removal or automatic issue mutation.
-    for (const key of Object.keys(previous?.hashes ?? {})) {
+    for (const key of source.snapshot_kind === "rolling-feed"
+      ? []
+      : Object.keys(previous?.hashes ?? {})) {
       if (!Object.hasOwn(hashes, key)) {
         const id = observationHash({
           source: sourceId,
@@ -346,8 +361,11 @@ export function advanceDiscovery(stateValue: unknown, runValue: unknown): Discov
     next.sources[sourceId] = {
       completed_at: run.observed_at,
       evidence: text(source.evidence, "Source evidence"),
-      hashes,
+      hashes: source.snapshot_kind === "rolling-feed" ? { ...previous?.hashes, ...hashes } : hashes,
+      ...(source.snapshot_kind === "rolling-feed" ? { snapshot_kind: "rolling-feed" } : {}),
     };
+    if (Object.keys(next.sources[sourceId].hashes).length > 10000)
+      throw new Error("Rolling source identity capacity exceeded; retain old checkpoint");
   }
   if (Object.keys(next.pending).length > 10000)
     throw new Error("Pending budget exceeded; retain old checkpoint and resume");

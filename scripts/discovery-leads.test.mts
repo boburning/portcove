@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   acceptLeadPage,
-  leadFamilyCount,
-  leadFamilyIds,
   nextLeadPage,
   parseLeadState,
   pendingLeads,
   restartLeadSlice,
   LeadSearchChanged,
+  leadSearchFamilyCount,
+  leadFamilyIds,
 } from "./discovery-leads.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
@@ -29,6 +29,32 @@ const page = (items: ReturnType<typeof item>[], total_count = items.length) => (
   items,
 });
 void test("Switch searches preserve old pagination and carry their supported ordering contract", () => {
+  assert.deepEqual(leadFamilyIds.slice(0, 24), [
+    "new-recompiled",
+    "new-recomp",
+    "changed-recompilation",
+    "changed-native-port",
+    "ps2recomp",
+    "xboxrecomp",
+    "rexglue",
+    "ps3recomp",
+    "ps4-runtime",
+    "psprecomp",
+    "gcn-recomp",
+    "dolrecomp",
+    "psxrecomp",
+    "static-topic",
+    "xenonrecomp",
+    "psp-web-recomp",
+    "gcrecomp",
+    "nwii-recomp",
+    "xbox-xbe-recomp",
+    "rexglue-org",
+    "sp00nznet-owner",
+    "xbox-xbe-hyphen",
+    "rexglue-topic",
+    "xboxrecomp-topic",
+  ]);
   let state = parseLeadState(undefined);
   state = acceptLeadPage(
     state,
@@ -47,13 +73,13 @@ void test("Switch searches preserve old pagination and carry their supported ord
     "SwitchRecomp",
     "topic:nintendo-switch topic:static-recompilation",
   ];
-  for (let index = 4; index < leadFamilyCount; index++) {
+  for (let index = 24; index < leadSearchFamilyCount; index++) {
     state.next_family = index;
     const plan = nextLeadPage(state, now);
-    assert.match(plan.query, /pushed:.*fork:false$/u);
-    assert.ok(plan.query.startsWith(expected[index - 4]!));
+    assert.match(plan.query, /pushed:.*fork:true$/u);
+    assert.ok(plan.query.startsWith(expected[index - 24]!));
     assert.equal(plan.sort, "updated");
-    assert.match(plan.slice.terms!, /\[updated desc\]$/u);
+    assert.match(plan.slice.terms!, /\[updated desc\] \[fork:true\]$/u);
     // Same provider ID from multiple families remains one neutral research lead.
     state = acceptLeadPage(
       state,
@@ -67,14 +93,14 @@ void test("Switch searches preserve old pagination and carry their supported ord
   assert.equal(Object.values(state.records).filter((r) => r.id === 900).length, 1);
   assert.equal(state.records["900"]?.status, "pending");
   assert.equal(parseLeadState(JSON.parse(JSON.stringify(state))).next_family, 0);
-  assert.equal(leadFamilyIds.length, 8);
+  assert.equal(leadFamilyIds.length, 28);
 });
-void test("six-page runs rotate all eight families and preserve pending windows and HTTP ordering", (t) => {
+void test("six-page runs rotate all 28 families across five runs and preserve pending windows and HTTP ordering", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-switch-rotation-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   let state = parseLeadState(undefined);
   const requests: { family: string; page: number }[] = [];
-  for (let run = 0; run < 2; run++) {
+  for (let run = 0; run < 5; run++) {
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
     const budget = new DiscoveryBudget("ordinary");
     Object.assign(session, {
@@ -86,7 +112,7 @@ void test("six-page runs rotate all eight families and preserve pending windows 
       inventory: { issues: [] },
       journal: {
         format: 1,
-        started_at: run === 0 ? now : "2026-10-24T12:00:00Z",
+        started_at: new Date(Date.parse(now) + run * 86400000).toISOString(),
         notes: [],
         candidates: {},
         evidence: {},
@@ -126,20 +152,22 @@ void test("six-page runs rotate all eight families and preserve pending windows 
       sort: string;
       query: string;
     };
-    assert.equal(evidence.sort, run === 0 ? "best-match" : "updated");
+    assert.equal(evidence.sort, run === 4 ? "updated" : "best-match");
     state = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
     assert.deepEqual(
       session.leadSummary().pending_families,
-      run === 0 ? leadFamilyIds.slice(6) : leadFamilyIds.slice(4, 6),
+      leadFamilyIds.filter(
+        (id) => !requests.slice(run * 6, (run + 1) * 6).some((r) => r.family === id),
+      ),
     );
   }
   assert.deepEqual(
     requests.map((r) => r.family),
-    [...leadFamilyIds.slice(0, 6), ...leadFamilyIds.slice(6), ...leadFamilyIds.slice(0, 4)],
+    [...leadFamilyIds, ...leadFamilyIds.slice(0, 2)],
   );
   assert.deepEqual(
-    requests.slice(8).map((r) => r.page),
-    [2, 2, 2, 2],
+    requests.slice(28).map((r) => r.page),
+    [2, 2],
   );
   assert.equal(state.slices["new-recompiled"]?.until, now);
 });
@@ -157,7 +185,7 @@ void test("current, capped and typed-drift skips cannot hide a due Switch topic 
     now,
     "prior",
   );
-  for (let index = 1; index < 7; index++)
+  for (let index = 1; index < leadSearchFamilyCount - 1; index++)
     leads = acceptLeadPage(leads, nextLeadPage(leads, now), page([]), now, "current");
   const capped = leads.slices[leadFamilyIds[2]!]!;
   delete capped.completed_at;
@@ -210,6 +238,7 @@ void test("current, capped and typed-drift skips cannot hide a due Switch topic 
   assert.equal(session.leads.slices["changed-switch-topics"]?.page, 6);
   assert.ok(session.leads.records["1"], "retained prior identity survives");
   assert.ok(session.leads.records["99999"], "positive lead survives refused pagination");
+  assert.deepEqual(session.leads.records["99999"]?.search_families, ["new-recompiled"]);
 });
 for (const driftingFamilies of [1, 2, 4])
   void test(`${driftingFamilies} drifting search families cannot starve healthy searches and rotation`, (t) => {
@@ -264,7 +293,7 @@ for (const driftingFamilies of [1, 2, 4])
       },
     });
     session.discover();
-    assert.equal(requests.length, 6, "use six requests on independent families before repeating");
+    assert.equal(requests.length, 6, "spend the six-page bound across independent families");
     assert.equal(
       requests.filter((r) => decodeURIComponent(r).includes("recompiled in:")).length,
       1,
@@ -305,7 +334,7 @@ void test("Brawl missed by newest-ten remains discoverable and queued across pag
     now,
     "page1.json",
   );
-  for (let n = 0; n < leadFamilyCount - 1; n++)
+  for (let n = 0; n < leadSearchFamilyCount - 1; n++)
     state = acceptLeadPage(state, nextLeadPage(state, now), page([]), now, "other.json");
   state = parseLeadState(JSON.parse(JSON.stringify(state)));
   const second = nextLeadPage(state, "2026-10-24T13:00:00Z");
@@ -374,11 +403,11 @@ void test("failed, truncated, drifting and duplicate search pages preserve the l
         now,
         "bad",
       ),
-    /relocation needs continuity/,
-    "count drift must not mask a provider identity relocation",
+    /count changed/,
+    "a same-ID rename does not excuse incomplete pagination",
   );
 });
-void test("query overlap deduplicates provider identities, preserves disposition and refuses relocation", () => {
+void test("query overlap deduplicates IDs, preserves disposition and requeues same-ID relocation", () => {
   let state = parseLeadState(undefined);
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "first");
   state.records["1"]!.status = "held";
@@ -386,17 +415,18 @@ void test("query overlap deduplicates provider identities, preserves disposition
   state = acceptLeadPage(state, nextLeadPage(state, now), page([item(1)]), now, "second");
   assert.equal(Object.keys(state.records).length, 1);
   assert.equal(state.records["1"]!.status, "held");
-  assert.throws(
-    () =>
-      acceptLeadPage(
-        state,
-        nextLeadPage(state, now),
-        page([item(1, "other/game")]),
-        now,
-        "renamed",
-      ),
-    /relocation/,
+  const renamed = acceptLeadPage(
+    state,
+    nextLeadPage(state, now),
+    page([item(1, "other/game")]),
+    now,
+    "renamed",
   );
+  assert.equal(Object.keys(renamed.records).length, 1);
+  assert.equal(renamed.records["1"]?.repository, "other/game");
+  assert.deepEqual(renamed.records["1"]?.aliases, ["ports/game-1"]);
+  assert.equal(renamed.records["1"]?.status, "pending", "renew primary evidence after transfer");
+  assert.equal(state.records["1"]?.status, "held", "previous state is immutable");
   assert.throws(
     () =>
       acceptLeadPage(
@@ -672,4 +702,65 @@ void test("new window overlaps the completed interval and hints do not claim pac
   state.next_family = 0;
   const next = nextLeadPage(state, "2026-10-24T13:00:00Z");
   assert.equal(next.slice.since, "2026-10-21T12:56:46.011Z");
+});
+
+void test("pre-integration Switch fork scope retires page two while published family cursors retain meaning", () => {
+  const state = parseLeadState(undefined);
+  state.next_family = 23;
+  assert.equal(
+    nextLeadPage(parseLeadState(JSON.parse(JSON.stringify(state))), now).family,
+    "xboxrecomp-topic",
+  );
+  state.next_family = 24;
+  const first = nextLeadPage(state, now);
+  state.slices[first.family] = {
+    ...first.slice,
+    page: 2,
+    seen: [111],
+    terms: first.slice.terms!.replace(" [fork:true]", ""),
+  };
+  const plan = nextLeadPage(parseLeadState(JSON.parse(JSON.stringify(state))), now);
+  assert.equal(plan.retired, true);
+  assert.equal(plan.page, 1);
+  assert.deepEqual(plan.slice.seen, []);
+  assert.match(plan.query, /fork:true$/u);
+  const accepted = acceptLeadPage(state, plan, page([]), now, "new-fork-scope");
+  assert.equal(accepted.retired_slices?.[first.family]?.page, 2);
+  assert.deepEqual(accepted.retired_slices?.[first.family]?.seen, [111]);
+  assert.equal(accepted.slices[first.family]?.completed_at, now);
+});
+void test("partial family effort requires six observed families and the same primary investigations", () => {
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  let leads = parseLeadState(undefined);
+  leads = acceptLeadPage(leads, nextLeadPage(leads, now), page([item(1), item(2)]), now, "pending");
+  Object.assign(session, {
+    inventory: { issues: [] },
+    journal: { started_at: now },
+    leads,
+    leadCollectionAttempted: true,
+    leadPages: 0,
+    leadFamilies: new Set(leadFamilyIds.slice(0, 5)),
+    researchedLeads: new Set([1, 2]),
+  });
+  assert.equal(
+    session.leadWorkComplete(),
+    false,
+    "five observed families do not spend the six-family partial effort",
+  );
+  session.leadFamilies.add(leadFamilyIds[5]!);
+  assert.equal(session.leadWorkComplete(), true);
+  session.researchedLeads.delete(2);
+  assert.equal(
+    session.leadWorkComplete(),
+    false,
+    "family effort does not replace primary investigation",
+  );
+  session.leadPages = 4;
+  session.leadFamilies.clear();
+  session.researchedLeads.add(2);
+  assert.equal(
+    session.leadWorkComplete(),
+    true,
+    "four validated pages remain the original alternate bound",
+  );
 });

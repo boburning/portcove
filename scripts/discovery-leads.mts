@@ -1,5 +1,7 @@
 import { isRecord } from "./runtime-values.mts";
 import { investigationWindow } from "./discovery-checkpoint.mts";
+import { ecosystemSearchFamilies, parseRecompManifest } from "./discovery-ecosystems.mts";
+import type { RecompManifest } from "./discovery-ecosystems.mts";
 
 // Collection cache only: provider identities and research continuations, never planning fields.
 const families = [
@@ -11,34 +13,11 @@ const families = [
     clock: "pushed",
   },
   { id: "changed-native-port", terms: '"native port" in:name,description', clock: "pushed" },
-  {
-    id: "changed-switch-recomp",
-    terms: "switch recomp in:name,description",
-    clock: "pushed",
-    sort: "updated",
-  },
-  {
-    id: "changed-switch-native",
-    terms: '"Nintendo Switch" native in:name,description',
-    clock: "pushed",
-    sort: "updated",
-  },
-  {
-    id: "changed-switch-framework",
-    terms: "SwitchRecomp in:name,description",
-    clock: "pushed",
-    sort: "updated",
-  },
-  {
-    id: "changed-switch-topics",
-    terms: "topic:nintendo-switch topic:static-recompilation",
-    clock: "pushed",
-    sort: "updated",
-  },
+  ...ecosystemSearchFamilies,
 ] as const;
+export const leadSearchFamilyCount = families.length;
 export const leadFamilyIds: readonly string[] = families.map((family) => family.id);
-export const leadFamilyCount = families.length;
-export const advanceLeadFamily = (index: number) => (index + 1) % leadFamilyCount;
+export const advanceLeadFamily = (index: number) => (index + 1) % leadSearchFamilyCount;
 export const leadPageSize = 50;
 export interface LeadSlice {
   since: string;
@@ -65,6 +44,10 @@ export interface DiscoveryLead {
   research?: { evidence_id: string; file: string; material: string };
   disposition?: { reason: string; resume: string };
   checked_at?: string;
+  aliases?: string[];
+  created_at?: string;
+  manifest?: RecompManifest;
+  search_families?: string[];
   release_hint?: { assets_observed: boolean; observed_at: string; evidence: string };
 }
 export interface LeadState {
@@ -137,6 +120,40 @@ export function parseLeadState(value: unknown): LeadState {
       !["pending", "researched", "held", "no-change", "canonical"].includes(String(raw.status))
     )
       throw new Error("Invalid retained lead identity");
+    if (raw.created_at !== undefined && !clock(raw.created_at))
+      throw new Error("Invalid retained repository creation clock");
+    if (
+      raw.search_families !== undefined &&
+      (!Array.isArray(raw.search_families) ||
+        raw.search_families.length > families.length ||
+        !raw.search_families.every((id) => families.some((family) => family.id === id)))
+    )
+      throw new Error("Invalid retained ecosystem search families");
+    if (
+      raw.aliases !== undefined &&
+      (!Array.isArray(raw.aliases) ||
+        raw.aliases.length > 64 ||
+        !raw.aliases.every(
+          (a) => typeof a === "string" && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(a),
+        ))
+    )
+      throw new Error("Invalid retained repository aliases");
+    if (raw.manifest !== undefined) {
+      if (!isRecord(raw.manifest)) throw new Error("Invalid retained primary manifest");
+      const manifest = raw.manifest;
+      if (
+        !["systems", "types", "toolchains", "targets"].every((key) => Array.isArray(manifest[key]))
+      )
+        throw new Error("Retained primary manifest requires normalized lists");
+      if (raw.manifest.original !== undefined && !Array.isArray(raw.manifest.original))
+        throw new Error("Retained primary manifest requires normalized source releases");
+      parseRecompManifest({
+        ...raw.manifest,
+        system: raw.manifest.systems,
+        type: raw.manifest.types,
+        toolchain: raw.manifest.toolchains,
+      });
+    }
     if (
       raw.research !== undefined &&
       (!isRecord(raw.research) ||
@@ -186,7 +203,10 @@ export function retainLeadResults(
   rows: unknown[],
   observedAt: string,
   evidence: string,
+  family?: string,
 ): LeadState {
+  if (family !== undefined && !families.some((v) => v.id === family))
+    throw new Error("Unknown discovery search family");
   const next = structuredClone(state);
   const ids = new Set<number>();
   for (const raw of rows) {
@@ -200,12 +220,15 @@ export function retainLeadResults(
       ids.has(Number(raw.id))
     )
       throw new Error("Duplicate or malformed lead identity; retain prior continuation");
+    if (raw.created_at !== undefined && !clock(raw.created_at))
+      throw new Error("Invalid provider repository creation clock");
     const id = Number(raw.id);
     const repository = raw.full_name;
     ids.add(id);
     const old = next.records[String(id)];
-    if (old && old.repository.toLowerCase() !== raw.full_name.toLowerCase())
-      throw new Error("Lead repository relocation needs continuity review");
+    // GitHub's immutable numeric identity binds transfers and renames. Requeue the
+    // primary review while keeping one lead and its dated historical locations.
+    const relocated = old && old.repository !== raw.full_name;
     if (
       Object.values(next.records).some(
         (r) => r.repository.toLowerCase() === repository.toLowerCase() && r.id !== id,
@@ -216,7 +239,7 @@ export function retainLeadResults(
     const due =
       old?.checked_at && Date.parse(observedAt) - Date.parse(old.checked_at) >= 7 * 86400000;
     next.records[String(id)] =
-      old?.revision === revision && !due
+      old?.revision === revision && !due && !relocated
         ? old
         : {
             id,
@@ -227,7 +250,22 @@ export function retainLeadResults(
             observed_at: observedAt,
             evidence,
             status: "pending",
+            ...(typeof raw.created_at === "string" && clock(raw.created_at)
+              ? { created_at: raw.created_at }
+              : {}),
+            ...(old?.aliases || relocated
+              ? {
+                  aliases: [
+                    ...new Set([...(old?.aliases ?? []), ...(relocated ? [old.repository] : [])]),
+                  ].slice(-64),
+                }
+              : {}),
+            ...(old?.search_families ? { search_families: old.search_families } : {}),
           };
+    if (family)
+      next.records[String(id)]!.search_families = [
+        ...new Set([...(next.records[String(id)]!.search_families ?? []), family]),
+      ];
   }
   if (Object.keys(next.records).length > 10000) throw new Error("Retained lead capacity exceeded");
   return next;
@@ -235,8 +273,10 @@ export function retainLeadResults(
 export function nextLeadPage(state: LeadState, now: string) {
   if (!clock(now)) throw new Error("Invalid lead search clock");
   const family = families[state.next_family]!;
+  const includeForks = ecosystemSearchFamilies.some((f) => f.id === family.id);
+  // Keep the original four contracts stable; new ecosystem cursors bind fork coverage.
   const sort = "sort" in family ? family.sort : undefined;
-  const contract = `${family.terms} [${sort ? `${sort} desc` : "best-match"}]`;
+  const contract = `${family.terms} [${sort ? `${sort} desc` : "best-match"}]${includeForks ? " [fork:true]" : ""}`;
   const saved = state.slices[family.id];
   const retired = saved !== undefined && saved.terms !== contract;
   const previous = retired ? undefined : saved;
@@ -252,7 +292,7 @@ export function nextLeadPage(state: LeadState, now: string) {
   return {
     family: family.id,
     slice,
-    query: `${family.terms} ${family.clock}:${slice.since}..${slice.until} fork:false`,
+    query: `${family.terms} ${family.clock}:${slice.since}..${slice.until} fork:${includeForks}`,
     sort,
     page: slice.page,
     capped: slice.capped === true,
@@ -280,7 +320,7 @@ export function acceptLeadPage(
     throw new Error("Incomplete or malformed lead search page; retain prior continuation");
   const total = Number(response.total_count);
   const slice = structuredClone(plan.slice);
-  const next = retainLeadResults(state, response.items, observedAt, evidence);
+  const next = retainLeadResults(state, response.items, observedAt, evidence, plan.family);
   if (slice.total !== undefined && slice.total !== total)
     throw new LeadSearchChanged("Lead search count changed; retain prior continuation");
   if (plan.retired)

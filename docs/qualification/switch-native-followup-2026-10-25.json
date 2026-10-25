@@ -9668,5 +9668,18 @@
         "scope": "Frozen upstream repository activity only; recent pushes/releases do not establish usable player runtime, per-title progress or qualification."
       }
     ]
+  },
+  "discovery_integration": {
+    "related_owner_issue": 3099,
+    "integrated_target": "29a620cad15aa83139754bcdda003b989c6676d8",
+    "published_families_preserved": 24,
+    "appended_switch_families": 4,
+    "total_families": 28,
+    "charged_search_page_budget": 6,
+    "zero_request_scan_bound": 168,
+    "switch_order": "updated descending; fixed pushed windows, not immutable or newest-created",
+    "fork_scope": "All ecosystem families include forks for primary lineage review; four original broad contracts remain unchanged. Any earlier Switch fork:false slice is retired and restarted at page1.",
+    "partial_effort": "Four validated pages OR six distinct observed/current/capped/typed-drift families, plus unchanged primary investigation requirement. Partial effort does not establish complete ecosystem coverage.",
+    "scope": "Adopt concurrent maintained ecosystem registry, aliases/stable-ID continuity, manifest/feed/burst and intake-identity safeguards; append Switch queries to that model. Switch topic intersection prioritizes a subset of existing broad static-topic matches, not a disjoint source."
   }
 }
