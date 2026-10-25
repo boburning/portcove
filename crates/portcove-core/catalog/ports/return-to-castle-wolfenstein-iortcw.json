@@ -3,7 +3,7 @@
   "listing": {
     "id": "return-to-castle-wolfenstein-iortcw",
     "name": "Return to Castle Wolfenstein (iortcw)",
-    "summary": "Upstream route: Established source port with original-data copy instructions and desktop release archives. Limits: Latest published release is old; separate SP/MP and patch-data dependencies. Upstream platforms: Windows/Linux/macOS source-port archives. Mac universal-binary build instructions documented; exact selected archive CPUs unknown in frozen evidence. Original data: Latest published release is old; separate SP/MP and patch-data dependencies. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Established source port with original-data copy instructions and desktop release archives. Limits: Latest published release is old; separate SP/MP and patch-data dependencies. Upstream platforms: Windows/Linux/macOS source-port archives. Mac universal-binary build instructions documented; exact selected archive CPUs unknown in frozen evidence. Original data: Supply original Return to Castle Wolfenstein Main/ assets: SP needs pak0.pk3 and sp_pak1.pk3 through sp_pak3.pk3; MP needs the documented mp_bin/mp_pak/mp_pakmaps files from the owned installation. Merge upstream patch-data-141.zip (or the documented newer patch data); German/Spanish/French/Italian SP additionally use matching language patches. Keep SP/MP data separate. Portcove setup/gameplay not verified.",
     "original_game_title": "Return to Castle Wolfenstein",
     "project_url": "https://github.com/iortcw/iortcw",
     "platforms": [],

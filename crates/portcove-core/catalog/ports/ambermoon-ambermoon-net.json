@@ -3,7 +3,7 @@
   "listing": {
     "id": "ambermoon-ambermoon-net",
     "name": "Ambermoon (Ambermoon.net)",
-    "summary": "Upstream route: C# native rewrite with current Win/Linux/macOS packages. Limits: Review exact supported data and any bundled-asset rights separately from engine license. Upstream platforms: Windows/Linux packages (CPU unknown in frozen evidence); separate macOS64-bit Intel x86-64 and Apple-Silicon ARM64 downloads. Original data: Review exact supported data and any bundled-asset rights separately from engine license. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: C# native rewrite with current Win/Linux/macOS packages. Limits: Review exact supported data and any bundled-asset rights separately from engine license. Upstream platforms: Windows/Linux packages (CPU unknown in frozen evidence); separate macOS64-bit Intel x86-64 and Apple-Silicon ARM64 downloads. Original data: Retained Ambermoon.net 1.14.3 README says the distribution includes original Ambermoon version 1.22 and Ambermoon Advanced 1.33; it does not specify a separate player-supplied disk/ROM requirement. Exact selected package contents and permission for its bundled game assets remain unresolved; engine licensing alone does not establish asset redistribution rights. Portcove setup/gameplay not verified.",
     "original_game_title": "Ambermoon",
     "project_url": "https://github.com/Pyrdacor/Ambermoon.net",
     "platforms": [],

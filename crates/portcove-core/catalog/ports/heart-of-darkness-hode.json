@@ -3,7 +3,7 @@
   "listing": {
     "id": "heart-of-darkness-hode",
     "name": "Heart of Darkness (hode)",
-    "summary": "Research listing. Upstream route: Native engine rewrite with explicit original Windows data set and paths. Limits: Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Upstream platforms: Desktop source-build route; observed release binaries are Switch/Vita only. No established desktop package or desktop CPU artifact in frozen research. Original data: Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Portcove setup/gameplay not verified.",
+    "summary": "Research listing. Upstream route: Native engine rewrite with explicit original Windows data set and paths. Limits: Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Upstream platforms: Desktop source-build route; observed release binaries are Switch/Vita only. No established desktop package or desktop CPU artifact in frozen research. Original data: Supply original Heart of Darkness Windows release data, from the Demo or CD: hod.paf (or hod_demo.paf/hod_demo2.paf), setup.dat and matching *_hod.lvl, *_hod.sss and *_hod.mst files. Demo data provides demo content, not the full game. Exact localization/revision is not pinned in the retained README. Portcove setup/gameplay not verified.",
     "original_game_title": "Heart of Darkness",
     "project_url": "https://github.com/usineur/hode",
     "platforms": [],

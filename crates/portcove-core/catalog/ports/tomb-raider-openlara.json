@@ -3,7 +3,7 @@
   "listing": {
     "id": "tomb-raider-openlara",
     "name": "Tomb Raider (OpenLara)",
-    "summary": "Research listing. Upstream route: Classic Tomb Raider engine with Windows/Linux/macOS standalone artifacts. Limits: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Upstream platforms: Windows/Linux/macOS standalone release artifacts/source builds. Exact selected artifact CPU architectures unknown in frozen research. Original data: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Portcove setup/gameplay not verified.",
+    "summary": "Research listing. Upstream route: Classic Tomb Raider engine with Windows/Linux/macOS standalone artifacts. Limits: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Upstream platforms: Windows/Linux/macOS standalone release artifacts/source builds. Exact selected artifact CPU architectures unknown in frozen research. Original data: Original-data contract remains Unknown for this classic Tomb Raider OpenLara target: establish the accepted original platform/edition, required level/audio/video files and their layout for the selected standalone build. Retained README links a WebGL demo and standalone release but supplies no full-game input contract; demo content does not establish full retail-data compatibility. Portcove setup/gameplay not verified.",
     "original_game_title": "Tomb Raider",
     "project_url": "https://github.com/XProger/OpenLara",
     "platforms": [],
