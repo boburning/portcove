@@ -25,7 +25,7 @@ jobs:
       - name: Install pinned Rust
         uses: ./.github/actions/setup-rust
       - name: Run controlled payload
-        run: node scripts/ci-job-timeout-probe.mts run
+        run: exec node scripts/ci-job-timeout-probe.mts run
 
   verify:
     name: verify-job-timeout
@@ -36,6 +36,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      checks: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -49,4 +50,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" > "$RUNNER_TEMP/timeout-jobs.json"
           job_id=$(node -e 'const fs=require("node:fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(x.total_count!==2||x.jobs.length!==2)throw Error("Incomplete timeout job inventory");const rows=x.jobs.filter(j=>j.name==="controlled-job-timeout");if(rows.length!==1||!Number.isSafeInteger(rows[0].id))throw Error("Missing timeout job");process.stdout.write(String(rows[0].id));' "$RUNNER_TEMP/timeout-jobs.json")
           gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/$job_id/logs" > "$RUNNER_TEMP/timeout-job.log"
-          node scripts/ci-job-timeout-probe.mts verify "$RUNNER_TEMP/timeout-jobs.json" "$RUNNER_TEMP/timeout-job.log"
+          check_url=$(node -e 'const fs=require("node:fs");const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const row=x.jobs.find(j=>j.name==="controlled-job-timeout");const prefix="https://api.github.com/repos/"+process.env.GITHUB_REPOSITORY+"/check-runs/";if(typeof row.check_run_url!=="string"||!row.check_run_url.startsWith(prefix)||!/^\d+$/.test(row.check_run_url.slice(prefix.length)))throw Error("Unexpected check API identity");process.stdout.write(row.check_run_url);' "$RUNNER_TEMP/timeout-jobs.json")
+          gh api "$check_url" > "$RUNNER_TEMP/timeout-check.json"
+          gh api "$check_url/annotations?per_page=100" > "$RUNNER_TEMP/timeout-annotations.json"
+          node scripts/ci-job-timeout-probe.mts verify "$RUNNER_TEMP/timeout-jobs.json" "$RUNNER_TEMP/timeout-job.log" "$RUNNER_TEMP/timeout-check.json" "$RUNNER_TEMP/timeout-annotations.json"
