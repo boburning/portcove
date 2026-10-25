@@ -99,7 +99,7 @@ async fn unchanged_closed_policy_rules_resolve_successors_with_exact_provider_bi
 }
 
 #[tokio::test]
-async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_after_cache_expiry_and_on_fresh_install()
+async fn unchanged_authored_rules_follow_versioned_packages_after_cache_expiry_and_on_fresh_install()
  {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, old_tag, old_name, new_tag, new_name) in [
@@ -193,28 +193,8 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
     ] {
-        // Adopted portable and original-driven routes use their shipped rules.
-        // Sonic3K stays a frozen proposal pending its separate data transition.
-        let proposed;
-        let port = if matches!(
-            id,
-            "alariq-mc2"
-                | "battletanx-global-assault-pc-port"
-                | "brawmario-infinite-mario-64-ever"
-                | "dkc1-recomp"
-                | "road-rash-64-recompiled"
-                | "f-zero-snes-recomp"
-                | "dkc3-recomp"
-                | "super-mario-world-recomp"
-                | "the-legend-of-zelda-a-link-to-the-past-snes-recomp"
-                | "sonic-the-hedgehog-2-recomp"
-                | "super-bomberman-recomp"
-        ) {
-            catalog.port(id).unwrap()
-        } else {
-            proposed = crate::test_fixture::proposed_rollout_port(id);
-            &proposed
-        };
+        // Use each adopted route’s actual shipped rules unchanged.
+        let port = catalog.port(id).unwrap();
         let old = release(old_tag, vec![asset(old_name, Some('a'))]);
         let new = release(
             new_tag,
