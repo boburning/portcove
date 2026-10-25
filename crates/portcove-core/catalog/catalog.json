@@ -16142,8 +16142,7 @@
       ],
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
-        "macos-aarch64"
+        "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
       "automated_tested_platforms": [
@@ -16160,9 +16159,6 @@
           ],
           "linux-x86-64": [
             "BattleShip-x86_64.AppImage"
-          ],
-          "macos-aarch64": [
-            "BattleShip.dmg"
           ]
         }
       },
@@ -16174,9 +16170,6 @@
         ],
         "linux-x86-64": [
           "BattleShip-x86_64.AppImage",
-          "BattleShip"
-        ],
-        "macos-aarch64": [
           "BattleShip"
         ]
       },
@@ -16202,6 +16195,24 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Super Smash Bros.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "macOS Apple Silicon: get the upstream application",
+              "instruction": "Windows and Linux use Portcove’s managed Install route. On macOS Apple Silicon, get the non-JP BattleShip.dmg from upstream Releases for the USA source route. Portcove cannot extract or manage replacement of this disk image. Mount it yourself and copy the complete BattleShip.app to your chosen location; keep its bundled libraries, resources and Torch companion intact."
+            },
+            {
+              "title": "macOS: register the copy and choose Play",
+              "instruction": "Use Choose existing installation to select BattleShip.app/Contents/MacOS/BattleShip inside your copied application bundle. Review the executable and launch location, then choose Play explicitly. The upstream first-run wizard requests your own matching Super Smash Bros. USA 1.0 original and extracts its game assets. Discovery and registration do not run the wizard or Torch. Follow upstream instructions for updates to this copy."
+            },
+            {
+              "title": "macOS: preserve app data separately",
+              "instruction": "The upstream macOS bundle stores settings, saves and extracted game assets under ~/Library/Application Support/BattleShip/, outside the application bundle. Preserve that folder and your original game separately. An external registration does not give Portcove ownership, managed Update, Backup or Rollback for this copy."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/JRickey/BattleShip/releases/tag/v1.6"
+        },
         "artwork": {
           "game_id": 1626,
           "cover_id": 131928,

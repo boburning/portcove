@@ -1,0 +1,72 @@
+{
+  "id": 368973572,
+  "tag_name": "v1.6",
+  "draft": false,
+  "prerelease": false,
+  "published_at": "2026-08-12T03:19:33Z",
+  "assets": [
+    {
+      "id": 510994417,
+      "name": "BattleShip-android-armeabi-v7a.apk",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip-android-armeabi-v7a.apk",
+      "size": 112302311,
+      "digest": "sha256:21d9965ed694af5142edade56e094dc8e125f6819a60b2913b09646d4099ebe1"
+    },
+    {
+      "id": 510994421,
+      "name": "BattleShip-android.apk",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip-android.apk",
+      "size": 129968791,
+      "digest": "sha256:310f2ff55454faf6b8cfb9a3088beba3ef98cefb75b92c7b6bc8183a108648b8"
+    },
+    {
+      "id": 510994420,
+      "name": "BattleShip-JP-windows.zip",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip-JP-windows.zip",
+      "size": 6522841,
+      "digest": "sha256:5373a6153c4d4a10f5942228b5d301370bbfc893a7700e7f0ee4867cc9bfd57b"
+    },
+    {
+      "id": 510994416,
+      "name": "BattleShip-JP-x86_64.AppImage",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip-JP-x86_64.AppImage",
+      "size": 16513528,
+      "digest": "sha256:d183466f1225c403d921c25d4d675e2d73a50262912a5977609a73f43c78a5d0"
+    },
+    {
+      "id": 510994418,
+      "name": "BattleShip-JP.dmg",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip-JP.dmg",
+      "size": 13825952,
+      "digest": "sha256:e09250e677d4f4ed6ffdac1f4c5c35345b104e14e201fdc9124d0f03f429a007"
+    },
+    {
+      "id": 510994415,
+      "name": "BattleShip-windows.zip",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip-windows.zip",
+      "size": 8818427,
+      "digest": "sha256:a0c2ef997e7f561dc02da19b0e1134ecb9bfaac1d577d65ff04db3c7e27eadb4"
+    },
+    {
+      "id": 510994414,
+      "name": "BattleShip-x86_64.AppImage",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip-x86_64.AppImage",
+      "size": 15120888,
+      "digest": "sha256:c7b909e82c991cc8947acce0f3b4702959b4cdbd9781fc199b0dcf8015b87f35"
+    },
+    {
+      "id": 510994419,
+      "name": "BattleShip.dmg",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/BattleShip.dmg",
+      "size": 13140489,
+      "digest": "sha256:7e4d6c6e0e8d3ece9ca56d715024512aae401ae300260d54d1d56da207171d36"
+    },
+    {
+      "id": 510994410,
+      "name": "SHA256SUMS.txt",
+      "browser_download_url": "https://github.com/JRickey/BattleShip/releases/download/v1.6/SHA256SUMS.txt",
+      "size": 725,
+      "digest": "sha256:460a7e1c887161f22ef5c1850e412beaac6bf2ede3a5650058687c0caaff5d0f"
+    }
+  ]
+}
