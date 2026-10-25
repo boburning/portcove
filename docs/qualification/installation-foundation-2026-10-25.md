@@ -117,6 +117,16 @@ configuration fixes that cause. The unchanged formatting/index-preservation
 assertions then passed inside the maintained temporary root. This focused
 control does not replace the pending complete affected-suite rerun.
 
+The complete four-file authoring/workflow rerun then passed 59 cases with the
+same one existing Windows skip. All four requested files executed. The complete
+five-file rendered run executed 116 cases: 115 passed and the Library setup
+accessible-action fixture exhausted its default 5s. Its retained trace shows
+about 3s in first-render/assertion round trips, then a visible, enabled, stable
+button whose click had only 1838ms left. Only this Windows browser fixture gains
+a finite 15s test budget; other cases, assertions and zero retries remain. The
+five-file selection still requires a complete rerun. These browser fixtures do
+not establish native execution or real-save acceptance.
+
 Final reduced-source regressions, ordinary/narrow/keyboard/error/recovery
 browser flows, compatibility checks, complete-candidate independent review,
 five required exact-head hosted contexts with their selected producers,
