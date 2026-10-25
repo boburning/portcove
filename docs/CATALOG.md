@@ -84,6 +84,20 @@ without game-specific Rust or React code. The minimum integration shape is:
 ```
 
 These are reviewed facts, not an invitation to copy those paths to every game.
+For manual preparation that must finish before Play, `native-portable` may
+declare a `setup_marker` pointing to an upstream completion JSON record beneath
+an already declared persistent directory. Establish that upstream removes the
+record before starting and publishes it atomically after successful preparation.
+Core reads one bounded, single-link regular JSON object relative to the retained
+runtime working directory; it does not execute a helper or certify the original
+edition, data format or game content from that record. The upstream runtime keeps
+those checks. Missing, unreadable, malformed or oversized records keep Finish
+setup available and block launch. Native template capability 2 is required.
+A reviewed marker may be added under unchanged existing player-data coordinates
+for a new runtime; it never rewrites an installed contract. Changing or removing
+an existing marker needs a supported transition. First-Play file pickers remain
+Play and need no artificial completion marker.
+
 Every package hint must match for managed replacement; the shared native
 suitability check still rejects known foreign processors, platforms, supporting
 files and equally plausible variants. The existing channel and artifact-integrity

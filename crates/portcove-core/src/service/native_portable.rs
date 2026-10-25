@@ -2,12 +2,63 @@
 use super::*;
 
 impl PortcoveService {
+    /// Resolve only the registered managed copy's retained setup coordinates.
+    /// Returning a directory grants no helper execution or external ownership.
+    pub fn manual_setup_directory(&self, port_id: &str, install_id: &str) -> Result<PathBuf> {
+        let _lock = self.library.try_lock_port(port_id, "open-manual-setup")?;
+        let active = self.status(port_id)?.active.ok_or_else(|| {
+            PortcoveError::conflict("The installation changed. Refresh before opening setup.")
+        })?;
+        if active.id != install_id {
+            return Err(PortcoveError::conflict(
+                "The installation changed. Refresh before opening setup.",
+            ));
+        }
+        let port = self.installed_port(&active)?;
+        if !crate::preparation::has_manual_marker(&port) {
+            return Err(PortcoveError::usage(
+                "This installation has no manual setup folder.",
+            ));
+        }
+        self.managed_install_root(port_id, &active.path)?;
+        let root = crate::runtime::working_root(&port, &active);
+        crate::path::refuse_symlink_ancestors(&root)?;
+        if !fs::symlink_metadata(&root)?.is_dir() {
+            return Err(PortcoveError::verification(
+                "The setup directory is unavailable.",
+            ));
+        }
+        Ok(root)
+    }
+
     /// A new artifact cannot silently reinterpret retained player-data locations.
     /// Ports needing data migration keep their current runtime until supported.
     pub(super) fn require_portable_transition(
         &self,
         from: &InstallRecord,
         to: &PortDefinition,
+    ) -> Result<()> {
+        self.require_portable_transition_to(from, to, false)
+    }
+
+    pub(super) fn require_portable_rollback_transition(
+        &self,
+        from: &InstallRecord,
+        previous: &InstallRecord,
+    ) -> Result<()> {
+        if from.port_id != previous.port_id {
+            return Err(PortcoveError::verification(
+                "rollback target belongs to another port",
+            ));
+        }
+        self.require_portable_transition_to(from, &self.installed_port(previous)?, true)
+    }
+
+    fn require_portable_transition_to(
+        &self,
+        from: &InstallRecord,
+        to: &PortDefinition,
+        retained_rollback: bool,
     ) -> Result<()> {
         let retained = self.installed_port(from)?;
         if retained.adapter != AdapterKind::NativePortable
@@ -34,6 +85,13 @@ impl PortcoveService {
             || retained.runtime_source_materialization != to.runtime_source_materialization
             || retained.runtime_source_hashes != to.runtime_source_hashes
             || retained.source_environment != to.source_environment
+            || (retained.setup_marker != to.setup_marker
+                && !(retained.setup_marker.is_none()
+                    && crate::preparation::has_manual_marker(to)
+                    && crate::preparation::validate_manual_marker(to).is_ok())
+                && !(retained_rollback
+                    && crate::preparation::has_manual_marker(&retained)
+                    && to.setup_marker.is_none()))
         {
             return Err(PortcoveError::conflict(
                 "The new package changes how this installation stores or locates player data. Keep the current version and use upstream instructions until a supported data migration is available. Your installation and files have been preserved.",
@@ -219,6 +277,109 @@ mod tests {
         let mut service = PortcoveService::with_provider(library, provider).unwrap();
         service.catalog = catalog();
         service
+    }
+
+    #[tokio::test]
+    async fn manual_setup_progress_uses_retained_wrapper_and_never_runs_a_helper() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(
+            server.release_in_folder("1", 1, "v1/", "game.exe"),
+        )));
+        let mut service = build_service(library.clone(), provider.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+        document["ports"][0]["setup_marker"] = serde_json::json!("data/extract-info.json");
+        let next_catalog = Catalog::from_json(&document.to_string()).unwrap();
+        service.replace_catalog_for_test(next_catalog.clone());
+        // Current catalog additions do not rewrite the old installation's contract.
+        assert!(!service.status(ID).unwrap().readiness.unwrap().pending_setup);
+        assert!(service.manual_setup_directory(ID, &first.id).is_err());
+        fs::write(
+            first.path.join("v1/data/owned"),
+            b"prepared before first Play",
+        )
+        .unwrap();
+        *provider.0.lock().unwrap() = server.release_in_folder("2", 2, "v2/", "game.exe");
+        service.update(ID, None, None, false, |_| {}).await.unwrap();
+        let second = service.activate_staged(ID).unwrap();
+        let root = second.path.join("v2");
+        assert_eq!(
+            fs::read(root.join("data/owned")).unwrap(),
+            b"prepared before first Play"
+        );
+        assert_eq!(
+            service.manual_setup_directory(ID, &second.id).unwrap(),
+            root
+        );
+        assert!(service.manual_setup_directory(ID, &first.id).is_err());
+        let port = next_catalog.port(ID).unwrap();
+        let marker = root.join("data/extract-info.json");
+        let assert_pending = |service: &PortcoveService| {
+            let readiness = service.status(ID).unwrap().readiness.unwrap();
+            assert!(readiness.pending_setup);
+            assert!(!readiness.launchable);
+            assert!(
+                readiness
+                    .blockers
+                    .contains(&LaunchBlocker::PreparationRequired)
+            );
+            let error = service
+                .prepare_launch_for_install(port, &second, None, None)
+                .unwrap_err();
+            assert_eq!(error.details["path"], marker.display().to_string());
+        };
+        assert_pending(&service);
+        for invalid in [b"".as_slice(), b"{", b"[]", b"null", &vec![b' '; 65537]] {
+            fs::write(&marker, invalid).unwrap();
+            assert_pending(&service);
+        }
+        fs::remove_file(&marker).unwrap();
+        let other = temporary.path().join("separate.json");
+        fs::write(&other, b"{\"disc\":\"inert fixture\"}").unwrap();
+        fs::hard_link(&other, &marker).unwrap();
+        assert_pending(&service);
+        fs::remove_file(&marker).unwrap();
+        // Model upstream's atomic completion publication without executing it.
+        let pending = root.join("data/extract-info.json.partial");
+        fs::write(&pending, b"{\"disc\":\"inert fixture\",\"data_format\":1}").unwrap();
+        assert_pending(&service);
+        fs::rename(&pending, &marker).unwrap();
+        let restarted = build_service(library.clone(), provider.clone());
+        let readiness = restarted.status(ID).unwrap().readiness.unwrap();
+        assert!(!readiness.pending_setup);
+        assert!(readiness.launchable);
+        let spec = restarted
+            .prepare_launch_for_install(port, &second, None, None)
+            .unwrap();
+        assert_eq!(spec.working_directory, root);
+        assert!(!second.path.join(LAUNCH_MARKER).exists());
+        fs::remove_file(&marker).unwrap();
+        assert_pending(&restarted);
+        let mut changed = port.clone();
+        changed.setup_marker = Some("data/another.json".into());
+        assert!(
+            restarted
+                .require_portable_transition(&second, &changed)
+                .is_err()
+        );
+        changed.setup_marker = None;
+        assert!(
+            restarted
+                .require_portable_transition(&second, &changed)
+                .is_err()
+        );
+        // Runtime rollback retains historical semantics and carries current data.
+        assert_eq!(restarted.rollback(ID).unwrap().id, first.id);
+        assert_eq!(
+            fs::read(first.path.join("v1/data/owned")).unwrap(),
+            b"prepared before first Play"
+        );
     }
 
     #[tokio::test]

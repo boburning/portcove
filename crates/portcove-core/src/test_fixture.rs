@@ -155,6 +155,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
         {
             20
+        } else if crate::preparation::has_manual_marker(port) {
+            2
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
@@ -251,8 +253,9 @@ impl<'a> IndexedCatalogFixture<'a> {
 fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
-        ("resident-evil-gaiden-recomp", 19),
-        ("wave-race-64-racewave46", 19),
+        ("re-rac-rerac", 2),
+        ("resident-evil-gaiden-recomp", 21),
+        ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
     ] {
         let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);

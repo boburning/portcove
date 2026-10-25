@@ -65,6 +65,7 @@ impl PortcoveService {
         crate::runtime::require_ready(port, Platform::current()?, active)?;
         checkpoint()?;
         self.managed_install_root(&port.id, &active.path)?;
+        crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
         let executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
@@ -196,6 +197,7 @@ impl PortcoveService {
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
+        crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
         Ok(spec)
     }

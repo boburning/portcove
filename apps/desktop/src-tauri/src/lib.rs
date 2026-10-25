@@ -2048,6 +2048,22 @@ fn clear_host_tool_for(
 }
 
 #[tauri::command]
+async fn open_manual_setup_folder(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    install_id: String,
+    generation: u64,
+) -> DesktopResult<PathBuf> {
+    let state = state.inner().clone();
+    blocking_service_at_generation(state, generation, move |service| {
+        let path = service.manual_setup_directory(&port_id, &install_id)?;
+        open_directory(&path)?;
+        Ok(path)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn open_user_data(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -2710,6 +2726,7 @@ pub fn run() -> std::process::ExitCode {
             recheck_host_tool,
             open_host_tool_official_site,
             open_user_data,
+            open_manual_setup_folder,
             open_external_url,
             open_source_evidence,
             create_support_bundle,

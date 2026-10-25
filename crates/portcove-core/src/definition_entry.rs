@@ -154,6 +154,15 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if crate::preparation::has_manual_marker(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= 2
+            })
+        {
+            return Err(PortcoveError::verification(
+                "manual native setup progress requires capability version 2",
+            ));
+        }
         if !retained
             && crate::persistence::ready_staged_archive(&port)
             && !document.required_capabilities.iter().any(|requirement| {

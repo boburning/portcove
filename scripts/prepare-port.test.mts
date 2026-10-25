@@ -77,6 +77,9 @@ void test("portable preparation separates complete hint observations from lifecy
   assert.equal(unique.platforms[0]!.hint_matches.length, 1);
   assert.match(unique.platforms[0]!.next, /does not establish fit/);
   assert.deepEqual(unique.persistence, []);
+  assert.equal(unique.manual_setup.completion_record, null);
+  assert.match(unique.manual_setup.next, /atomically published JSON/);
+  assert.match(unique.manual_setup.next, /first-Play picker/);
   assert.match(unique.data_review, /empty contract needs evidence/);
   assert.match(unique.data_review, /compatible producer identity or supported invalidation/);
   const named = portablePreparationFeedback(

@@ -4,6 +4,7 @@ import { desktopApi } from "../../api";
 import type { PortDefinition } from "../../types";
 import type { Perform } from "../operations/use-operation-state";
 import { detailActions } from "./detail-actions";
+import { installRecord } from "../../components/rendered-test-fixtures";
 
 const port: PortDefinition = {
   ...portDefinition(),
@@ -24,6 +25,36 @@ const port: PortDefinition = {
 };
 
 describe("detail actions", () => {
+  it("binds a delayed setup-folder action to its original install and generation", async () => {
+    const open = vi.spyOn(desktopApi, "openManualSetupFolder").mockResolvedValue("runtime");
+    const pending: Array<() => Promise<unknown>> = [];
+    const perform: Perform = async (_name, task) => {
+      pending.push(task);
+      return undefined;
+    };
+    for (const generation of [7, 8]) {
+      const status = {
+        ...portStatus(),
+        active: installRecord({ id: `copy-${generation}`, port_id: port.id }),
+      };
+      const actions = detailActions({
+        port,
+        status,
+        sourcePath: "",
+        biosPath: "",
+        perform,
+        close: vi.fn(),
+        libraryGeneration: generation,
+      });
+      await actions.openSetupFolder?.();
+    }
+    for (const task of pending) await task();
+    expect(open.mock.calls).toEqual([
+      [port.id, "copy-7", 7],
+      [port.id, "copy-8", 8],
+    ]);
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });

@@ -1425,7 +1425,9 @@ impl Catalog {
                 || !port.setup_arguments.is_empty()
                 || !port.setup_output_paths.is_empty()
                 || port.setup_marker.is_some();
-            if port.adapter == AdapterKind::UpstreamManagedSetup
+            if crate::preparation::has_manual_marker(port) {
+                crate::preparation::validate_manual_marker(port)?;
+            } else if port.adapter == AdapterKind::UpstreamManagedSetup
                 || (port.adapter == AdapterKind::LibultrashipPortable && has_setup_contract)
             {
                 let valid_marker = port.setup_marker.as_ref().is_some_and(|marker| {

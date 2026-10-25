@@ -626,6 +626,8 @@ export const desktopApi = {
     invoke<InstallPlan>("plan_port", { portId, channel }),
   openUserData: (portId: string, generation: number) =>
     invoke<string>("open_user_data", { portId, generation }),
+  openManualSetupFolder: (portId: string, installId: string, generation: number) =>
+    invoke<string>("open_manual_setup_folder", { portId, installId, generation }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   setChannel: (portId: string, channel: ReleaseChannel, generation: number) =>
     invoke<PortStatus>("set_channel", { portId, channel, generation }),

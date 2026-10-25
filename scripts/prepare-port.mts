@@ -72,6 +72,10 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
     persistence: Array.isArray(record.integration.persistent_paths)
       ? record.integration.persistent_paths
       : [],
+    manual_setup: {
+      completion_record: record.integration.setup_marker ?? null,
+      next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
+    },
     launch_identity: {
       original_game_title: record.listing.original_game_title ?? null,
       next: record.listing.original_game_title

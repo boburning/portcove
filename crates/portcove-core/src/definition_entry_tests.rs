@@ -31,6 +31,33 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn native_manual_progress_requires_its_reader_and_owned_data_boundary() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("re-rac-rerac").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(1);
+    entry["required_capabilities"][0]["maximum_version"] = json!(2);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 2"));
+    entry["required_capabilities"][0]["minimum_version"] = json!(2);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    for marker in [
+        "../outside.json",
+        "outside.json",
+        "game-data",
+        "game-data/result.txt",
+    ] {
+        let mut changed = catalog.authoritative_document().clone();
+        changed
+            .ports
+            .iter_mut()
+            .find(|p| p.id == port.id)
+            .unwrap()
+            .setup_marker = Some(marker.into());
+        assert!(crate::Catalog::from_json(&serde_json::to_string(&changed).unwrap()).is_err());
+    }
+}
+
+#[test]
 fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     for id in [
@@ -300,6 +327,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
         {
             20
+        } else if crate::preparation::has_manual_marker(port) {
+            2
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {

@@ -84,7 +84,10 @@ import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
-import { portActionPresentation } from "../features/port-actions/port-action-presentation";
+import {
+  hasPendingSetupAction,
+  portActionPresentation,
+} from "../features/port-actions/port-action-presentation";
 import {
   presentPortAction,
   useOperationPresentation,
@@ -100,6 +103,7 @@ export interface DetailActions {
   install: AsyncAction;
   launch: AsyncAction;
   openUserData: AsyncAction;
+  openSetupFolder?: AsyncAction;
   reviewInstall: AsyncAction;
   restoreBackup: ApplyBackupAction;
   rollback: AsyncAction;
@@ -868,6 +872,8 @@ function StatusActionsGroup({
     Boolean(
       selectedSourceRequirement(sources.source, sources.sourcePath, sources.bios, sources.biosPath),
     );
+  const manualSetup =
+    installed && port.adapter === "native-portable" && hasPendingSetupAction(status);
   if (usesExternalRuntimeRoute(port, status)) {
     return (
       <section
@@ -966,6 +972,30 @@ function StatusActionsGroup({
           {managedPreparation && pendingSetup ? "Next step: prepare game data" : "Next step"}
         </h2>
       )}
+      {manualSetup && (
+        <div className="grid gap-3">
+          <p>Finish the game-file setup in the installed folder. Return here when it completes.</p>
+          <div className="primary-actions flex flex-wrap gap-2">
+            <Button
+              data-focusable
+              variant="primary"
+              disabled={Boolean(busy) || !actions.openSetupFolder}
+              onClick={() => void actions.openSetupFolder?.()}
+            >
+              Finish setup
+            </Button>
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy) || !onChanged}
+              onClick={() => onChanged?.()}
+            >
+              Check setup again
+            </Button>
+          </div>
+          <AuthoredPreparationGuidance port={port} ownership="managed" />
+        </div>
+      )}
       {managedPreparation && pendingSetup && sources.sourceReady && sources.biosReady && (
         <>
           <PreparationControl
@@ -984,7 +1014,7 @@ function StatusActionsGroup({
           />
         </>
       )}
-      {!hidePlay && (
+      {!hidePlay && !manualSetup && (
         <PrimaryActions
           trial={trial}
           installCancellations={installCancellations}
@@ -1044,6 +1074,7 @@ function RequirementsGroup({
   const authoredSetup =
     Boolean(port.presentation?.manual_setup || port.presentation?.manual_preparation) &&
     (port.adapter === "native-portable" || (!port.source_profile && !port.bios_source_profile));
+  if (installed && port.adapter === "native-portable" && pendingSetup) return null;
   if (!port.source_profile && !port.bios_source_profile && !managedPreparation && !authoredSetup)
     return null;
   return (

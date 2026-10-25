@@ -1763,15 +1763,18 @@ impl PortcoveService {
                     .validate_preparation_receipt(port, active, source)
                     .is_err();
             }
+            if crate::preparation::has_manual_marker(port) {
+                return crate::preparation::require_manual_setup(port, active).is_err();
+            }
             port.setup_marker
                 .as_ref()
                 .is_some_and(|marker| !active.path.join(marker).is_file())
         });
         if pending_setup
-            && status
-                .active
-                .as_ref()
-                .is_some_and(|active| crate::preparation::managed_install(port, active))
+            && status.active.as_ref().is_some_and(|active| {
+                crate::preparation::managed_install(port, active)
+                    || crate::preparation::has_manual_marker(port)
+            })
         {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
@@ -3398,7 +3401,7 @@ impl PortcoveService {
                 .rollback_target(port_id, &previous, status.active.as_ref())
                 .map_err(|failure| failure.error)?;
             if let Some(active) = &status.active {
-                self.require_portable_transition(active, &port)?;
+                self.require_portable_rollback_transition(active, &previous)?;
             }
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(&port, &previous.path)?;
@@ -3442,6 +3445,14 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
+        if let Some(active) = active {
+            self.require_portable_rollback_transition(active, previous)
+                .map_err(|error| RollbackTargetFailure {
+                    reason: PortActionReason::UnsafeData,
+                    error,
+                    definition: None,
+                })?;
+        }
         self.require_installed_shared_preferences(previous)
             .map_err(invalid)?;
         let qualification = self
@@ -15240,12 +15251,13 @@ fn main() {
     }
 
     #[test]
-    fn post_exit_sync_reuses_identical_bytes_but_detects_same_size_and_time_changes() {
+    fn post_exit_sync_preserves_source_times_and_detects_same_size_and_time_changes() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         let destination = temporary.path().join("destination");
         fs::write(&source, b"save-one").unwrap();
         fs::write(&destination, b"save-one").unwrap();
+        let source_stamp = fs::metadata(&source).unwrap().modified().unwrap();
         let stamp = std::time::UNIX_EPOCH + Duration::from_secs(86400);
         let times = fs::FileTimes::new().set_modified(stamp);
         fs::File::options()
@@ -15257,8 +15269,16 @@ fn main() {
         sync_entry(&source, &destination).unwrap();
         assert_eq!(
             fs::metadata(&destination).unwrap().modified().unwrap(),
-            stamp
+            source_stamp
         );
+        // Set equal timestamps before changing only the payload. Neither equal
+        // size nor equal time may skip the byte comparison.
+        fs::File::options()
+            .write(true)
+            .open(&destination)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
 
         fs::write(&source, b"save-two").unwrap();
         fs::File::options()
