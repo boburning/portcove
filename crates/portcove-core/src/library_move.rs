@@ -390,7 +390,7 @@ mod tests {
     use super::*;
     use crate::{ArtifactIdentity, ErrorCode, InstallRecord, Installer, ReleaseChannel};
 
-    fn fixture(root: &Path) -> PortcoveService {
+    pub(super) fn fixture(root: &Path) -> PortcoveService {
         let library = Library::open(root).unwrap();
         for (id, staged) in [("old", false), ("active", false), ("staged", true)] {
             let path = root.join("versions/starship").join(id);
@@ -901,3 +901,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "library_move_sequence_tests.rs"]
+mod sequence_tests;
