@@ -429,7 +429,14 @@ async function main() {
       ],
       {
         cwd: source,
-        environment: { PATH: "/usr/bin:/bin", HOME: directory, LANG: "C.UTF-8" },
+        environment: {
+          PATH: "/usr/bin:/bin",
+          HOME: directory,
+          LANG: "C.UTF-8",
+          // Retain only the observed public-runner routing signal. Otherwise
+          // the supervisor mistakes this credential-free child for local work.
+          ...(process.env.GITHUB_ACTIONS === "true" ? { GITHUB_ACTIONS: "true" } : {}),
+        },
         executionTimeoutMilliseconds: dependencyRemaining + 5000,
         queueDeadline: performance.now() + dependencyRemaining,
       },
