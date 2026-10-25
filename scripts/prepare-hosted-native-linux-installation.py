@@ -506,9 +506,16 @@ def prepare_runtime_packages(plan):
             with os.scandir(pending.pop()) as entries:
                 for entry in entries:
                     count += 1
-                    info = entry.stat(follow_symlinks=False)
+                    need(count <= 8192, "runtime input inventory exceeds bound")
+                    try:
+                        info = entry.stat(follow_symlinks=False)
+                    except FileNotFoundError:
+                        # APT atomically renames/removes partial downloads while
+                        # this detector samples. A vanished leaf stores no bytes;
+                        # retain its entry count and do not follow an alternative.
+                        continue
                     total += info.st_size
-                    need(count <= 8192 and total <= 512 * 1024 ** 2, "runtime input inventory exceeds bound")
+                    need(total <= 512 * 1024 ** 2, "runtime input inventory exceeds bound")
                     # APT uses temporary leaf symlinks for mirror/index inputs.
                     # This is a storage detector, not input admission: count the
                     # link itself without reading or traversing its target.

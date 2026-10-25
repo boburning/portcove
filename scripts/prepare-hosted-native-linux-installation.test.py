@@ -118,6 +118,36 @@ def runtime_fixture(root, refuse=False):
 
 @unittest.skipUnless(sys.platform == "linux", "actual Linux filesystem/command contracts")
 class RuntimePackages(unittest.TestCase):
+    def test_provider_partial_leaf_removed_between_scan_and_stat_is_not_reopened(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (_, _, _, wanted):
+            scan = os.scandir
+            command = installation.command
+            vanished = []
+            def invoke(arguments, check, **options):
+                if "update" in arguments:
+                    time.sleep(0.26)
+                return command(arguments, check, **options)
+            @contextmanager
+            def changing_scan(directory):
+                directory = Path(directory)
+                if directory.name == "partial" and not vanished:
+                    filename = directory / "provider-transient"
+                    filename.write_bytes(b"partial")
+                    with scan(directory) as entries:
+                        removed = next(entry for entry in entries if entry.name == filename.name)
+                    filename.unlink()
+                    vanished.append(removed.path)
+                    with scan(directory) as entries:
+                        yield iter([removed, *entries])
+                else:
+                    with scan(directory) as entries:
+                        yield entries
+            with patch.object(installation.os, "scandir", side_effect=changing_scan), \
+                    patch.object(installation, "command", side_effect=invoke):
+                self.assertTrue(installation.prepare_runtime_packages(wanted)["prepared"])
+            self.assertEqual(len(vanished), 1)
+            self.assertFalse(Path(vanished[0]).exists())
+
     def test_apt_leaf_links_are_counted_without_following_and_special_files_refuse(self):
         for kind in ("link", "fifo"):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (_, _, _, wanted):
