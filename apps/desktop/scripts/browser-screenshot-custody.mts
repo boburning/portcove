@@ -233,6 +233,10 @@ export function verifyScreenshotJobs(
       assert.ok(isRecord(step) && Number.isSafeInteger(step.number) && !numbers.has(step.number));
       numbers.add(step.number);
       assert.equal(step.status, "completed");
+      // setup-vp's optional cache post hook is skipped when caching is disabled.
+      // Actual install/bootstrap/capture/upload steps must still complete.
+      if (step.name === "Post Install pinned dependencies" && step.conclusion === "skipped")
+        continue;
       assert.equal(
         step.conclusion,
         step.name === "Intentional screenshot-only failure" ? "failure" : "success",
