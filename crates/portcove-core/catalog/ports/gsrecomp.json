@@ -3,12 +3,12 @@
   "listing": {
     "id": "gsrecomp",
     "name": "Golden Sun Recompiled (GSRecomp)",
-    "summary": "Explore Golden Sun Recompiled (GSRecomp) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Prepare either Golden Sun game from your own matching ROM through the shared upstream launcher.",
     "project_url": "https://github.com/Shmargus/GSRecomp",
     "issue_number": 1619,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Shmargus/GSRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
     "artwork": {
       "game_id": 1172,
       "cover_id": 85978,
@@ -16,6 +16,31 @@
       "image_sha256": "dff4cc742ba8d38f9e5ebe17b900ea1f1dfa453be1bff6ffedfa321e339aba0c",
       "game_slug": "golden-sun",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Prepare either game with the shared launcher",
+          "instruction": "Extract the whole official package. Choose GoldenSunLauncher.exe on Windows, or GoldenSunLauncher on Linux, then choose The Broken Seal or The Lost Age and your own matching USA/Europe GBA ROM. Keep the normal SHA-1 ROM check enabled. No GBA BIOS is required. The bundled compiler prepares game code on first launch and after updates; Linux also needs system SDL2 and OpenGL. Portcove does not run this builder during discovery."
+        },
+        {
+          "title": "Register the collection launcher",
+          "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; successful preparation is not completed gameplay qualification."
+        },
+        {
+          "title": "Keep current data and rebuild after updates",
+          "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. External save imports leave their originals in place and preserve conflicts under Saves/Imported. Legacy progress already inside this collection’s ROMs folder can move into Saves after verified copy or conflict preservation. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+        }
+      ]
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["GoldenSunRecompiled-", "-windows.zip"],
+      "linux-x86-64": ["GoldenSunRecompiled-", "-linux.zip"]
+    },
+    "original_game_title": "Golden Sun",
+    "release_url": "https://github.com/Shmargus/GSRecomp/releases",
+    "recommended_download_channel": "beta"
   }
 }
