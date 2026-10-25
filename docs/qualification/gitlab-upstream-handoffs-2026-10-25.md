@@ -82,7 +82,8 @@ The packaged `README-SETUP.txt`, `codegen_setup.c` and
 `build-release/Digimon_World_Recompiled.exe`. On Windows the setup host forwards
 with `CreateProcessA`, closes its child handles and exits. The guide registers
 the completed product directly, with project-root working directory and
-`--game game.toml --launcher`, following the packaged product handoff and batch
+`--game`, `game.toml` and `--launcher` as three separate lines in Portcove’s
+Arguments field, following the packaged product handoff and batch
 arguments rather than relying on detached-parent tracking. User-triggered
 upstream Generate/rebuild remains separate from registration and Play.
 

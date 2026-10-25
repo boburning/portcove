@@ -12565,7 +12565,7 @@
           },
           {
             "title": "Register the finished game player",
-            "instruction": "After upstream Generate & rebuild succeeds, select build-release/Digimon_World_Recompiled.exe inside that project, rather than the root setup-forwarding executable or the Play batch file. Set the working directory to the project root and launch arguments to --game game.toml --launcher, matching the reviewed upstream product handoff. Review and save these launch details, then choose Play explicitly."
+            "instruction": "After upstream Generate & rebuild succeeds, select build-release/Digimon_World_Recompiled.exe inside that project, rather than the root setup-forwarding executable or the Play batch file. Set the working directory to the project root. In Arguments, enter --game, game.toml and --launcher on three separate lines, one argument per line, matching the reviewed upstream product handoff. Review and save these launch details, then choose Play explicitly."
           },
           {
             "title": "Keep saves and upstream updates together",
