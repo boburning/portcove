@@ -2508,6 +2508,13 @@
       ]
     },
     {
+      "file": "scripts/upstream-health-triage.test.mts",
+      "memberships": [
+        ["catalog-full", 401],
+        ["repository-tools", 401]
+      ]
+    },
+    {
       "file": "scripts/upstream-health-monitor.test.mts",
       "memberships": [
         ["catalog-full", 400],
@@ -2540,13 +2547,6 @@
       "memberships": [
         ["catalog-full", 140],
         ["repository-tools", 140]
-      ]
-    },
-    {
-      "file": "scripts/upstream-health-triage.test.mts",
-      "memberships": [
-        ["catalog-full", 410],
-        ["repository-tools", 410]
       ]
     },
     {
