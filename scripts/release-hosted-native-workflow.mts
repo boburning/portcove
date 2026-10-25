@@ -23,6 +23,8 @@ import {
 import type { NativeRuntimeCustody } from "./release-native-runtime-custody.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { errorCode, isRecord } from "./runtime-values.mts";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { waitForNativePostSignReadiness } from "./release-native-postsign-readiness.mts";
 
 type Stage = "pre-sign" | "post-sign";
 const repository = fileURLToPath(new URL("../", import.meta.url));
@@ -313,12 +315,72 @@ export async function acknowledgeHostedLinuxWorkflowUpload(
   fence(c, current, selected === "pre-sign");
   return { acknowledgement_retained: true, authority: "none" };
 }
-/** Called only after the fixed same-job caller has established post prerequisites.
- * The native producer still independently authenticates every prerequisite. */
+/** Wait for fixed same-run signer completion before signaling. These scheduling
+ * observations cannot replace the producer's independent input authentication. */
 export async function startHostedLinuxWorkflowPostSign() {
   const c = await context("post-sign");
   const before = await original(c);
   await refusal(c, "pre-sign");
+  fence(c, before);
+  // Keep this original worker/job alive while the separate signers finish.
+  // A failed/ambiguous observation does not retry either signer or this attempt.
+  const record = await open(path.join(c.root, "native-post-sign-prerequisites.jsonl"), "wx", 0o600);
+  let retainedBytes = 0;
+  let lastStatus: number | null = null;
+  const retainObservation = async (value: unknown) => {
+    const bytes = Buffer.from(`${JSON.stringify(value)}\n`);
+    retainedBytes += bytes.length;
+    assert.ok(retainedBytes <= 65536);
+    await record.writeFile(bytes);
+    await record.sync();
+  };
+  try {
+    const active = () => fence(c, before);
+    const api = new GitHubApiClient((args, input) => {
+      active();
+      const remaining = Math.min(
+        c.deadline - performance.now(),
+        Number(before.end - process.hrtime.bigint()) / 1e6,
+      );
+      assert.ok(remaining >= 1);
+      return createGitHubRunner({
+        cwd: repository,
+        timeoutMs: Math.min(15000, Math.floor(remaining)),
+        maxBuffer: 2 * 1024 ** 2,
+      })([...args, "--hostname", "github.com"], input);
+    });
+    await waitForNativePostSignReadiness({
+      run: c.scope.identity.run_id,
+      revision: c.scope.identity.controller_revision,
+      active,
+      read: () => {
+        const result = api.request(
+          "GET",
+          `repos/boburning/portcove/actions/runs/${c.scope.identity.run_id}/attempts/1/jobs?per_page=100`,
+        );
+        lastStatus = result.status ?? null;
+        active();
+        assert.equal(result.status, 200);
+        assert.ok(
+          !result.headers.get("link"),
+          "native prerequisite inventory requires one complete page",
+        );
+        return result.body;
+      },
+      retain: retainObservation,
+      pause: () => delay(5000),
+    });
+  } catch (error) {
+    await retainObservation({
+      outcome: "refused-or-ambiguous",
+      last_http_status: lastStatus,
+      recovery_required: true,
+      authority: "none",
+    });
+    throw error;
+  } finally {
+    await record.close();
+  }
   fence(c, before);
   await signalFixedHostedLinuxPostStart();
   fence(c, await original(c));

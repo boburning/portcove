@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
@@ -131,6 +132,10 @@ void test(
       );
       assert.equal(view.pid, 456);
       assert.equal(view.exitCode, null);
+      assert.equal(view.signalCode, null);
+      assert.ok(view.stdout instanceof Readable);
+      assert.ok(view.stderr instanceof Readable);
+      assert.notEqual(view.stdout, view.stderr, "capture channels remain independent");
       assert.equal(client.launch?.environment.GH_TOKEN, undefined);
       assert.equal(
         client.launch?.sha256,
@@ -162,6 +167,8 @@ void test(
       session.observe("StopDriver", snapshot, app);
       assert.equal(client.stops, 1);
       assert.equal(client.reads, 1);
+      assert.equal(view.exitCode, 125);
+      assert.equal(view.signalCode, null, "broker exit must not invent a process signal");
       assert.equal(session.observe("Wait", snapshot, app).observed_processes, 2);
     } finally {
       rmSync(root, { recursive: true, force: true });
