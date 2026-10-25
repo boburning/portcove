@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 import { open } from "node:fs/promises";
 import { isRecord } from "./runtime-values.mts";
-import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import {
+  releaseControlPhaseProfile,
+  applicationProtectionObserver,
+  isSharedApplicationObserverPhase,
+  inspectControllerPurposePhase,
+} from "./release-control-phases.mts";
+import type { ReleaseControlPhase } from "./release-control-phases.mts";
 
 export const productionControllerWorkflow = ".github/workflows/application-update-production.yml";
 const repository = "boburning/portcove";
@@ -9,7 +15,7 @@ const repositoryId = "1354613114";
 const maximumWorkflowBytes = 64 * 1024;
 const admittedSources = new WeakMap<
   object,
-  { workflow: string; job: string; purpose: string; snapshot: string }
+  { workflow: string; job: string; purpose: string; snapshot: string; sharedObserver: boolean }
 >();
 
 function refuse(reason: string): never {
@@ -122,8 +128,79 @@ function admitController(
     qualification:
       "Source admission only; no candidate acceptance, platform reachability, execution, signing or publication authority",
   };
-  admittedSources.set(result, { workflow, job, purpose, snapshot: JSON.stringify(result) });
+  admittedSources.set(result, {
+    workflow,
+    job,
+    purpose,
+    snapshot: JSON.stringify(result),
+    sharedObserver: sharedObserverLayout(workflowBytes),
+  });
   return result;
+}
+
+function sharedObserverLayout(bytes: Uint8Array) {
+  // A protocol declaration in the actual workflow bytes authenticated above,
+  // not an environment selector, dispatch input, candidate or authority grant.
+  const count = Buffer.from(bytes)
+    .toString("utf8")
+    .split(/\r?\n/u)
+    .filter((line) => line === applicationProtectionObserver.source_marker).length;
+  if (count > 1) refuse("ambiguous observer layout");
+  return count === 1;
+}
+export function isSharedApplicationProtectionObserverSource(value: unknown) {
+  const saved = isRecord(value) ? admittedSources.get(value) : undefined;
+  if (!saved || saved.snapshot !== JSON.stringify(value))
+    throw new Error("original unchanged admitted production source required");
+  return (
+    saved.purpose === "application" &&
+    saved.workflow === productionControllerWorkflow &&
+    saved.job === applicationProtectionObserver.job &&
+    saved.sharedObserver
+  );
+}
+export function requireAdmittedProductionObserverSource(
+  value: unknown,
+  phase: "classification" | ReleaseControlPhase,
+  purpose: "application" | "catalog-publication",
+): asserts value is ReturnType<typeof admitProductionInputReader> {
+  requireAdmittedProductionSource(
+    value,
+    admittedProductionObserverProfile(value, phase).job,
+    purpose,
+  );
+}
+/** Exact expected observer from the original reader/observer's admitted bytes.
+ * A serialized source, candidate flag or default alias cannot select a layout. */
+export function admittedProductionObserverProfile(
+  value: unknown,
+  phase: "classification" | ReleaseControlPhase,
+) {
+  const saved = isRecord(value) ? admittedSources.get(value) : undefined;
+  if (
+    !saved ||
+    saved.workflow !== productionControllerWorkflow ||
+    saved.snapshot !== JSON.stringify(value)
+  )
+    throw new Error("original unchanged admitted production source required");
+  if (phase === "classification") {
+    if (saved.purpose !== "application") refuse("classification purpose");
+    return {
+      job: "classification_protection_observation",
+      name: "Observe release input protections",
+    };
+  }
+  inspectControllerPurposePhase(phase, saved.purpose);
+  const shared =
+    saved.purpose === "application" &&
+    saved.sharedObserver &&
+    isSharedApplicationObserverPhase(phase);
+  return shared
+    ? { job: applicationProtectionObserver.job, name: applicationProtectionObserver.name }
+    : {
+        job: releaseControlPhaseProfile(phase).observer_job,
+        name: releaseControlPhaseProfile(phase).observer_name,
+      };
 }
 
 /** Same-process source validation only; still requires actual OIDC and the
@@ -257,7 +334,9 @@ export function admitProductionProtectionObserver(
     rawPolicy,
     environment,
     workflowBytes,
-    releaseControlPhaseProfile(phase).observer_job,
+    sharedObserverLayout(workflowBytes) && isSharedApplicationObserverPhase(phase)
+      ? applicationProtectionObserver.job
+      : releaseControlPhaseProfile(phase).observer_job,
   );
 }
 

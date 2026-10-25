@@ -1,3 +1,4 @@
+# portcove-shared-application-observer-v1
 # Installed source only; remains held until separately approved exact configuration.
 name: Fixed application-update controller
 env:
@@ -572,9 +573,7 @@ jobs:
           phase: admission
   protection_observation:
     name: Observe production release input protections
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
-      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
-      != 'reused') }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' && (needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused')) }}
     needs:
       - admission
       - tool_bootstrap
@@ -592,8 +591,72 @@ jobs:
       - *a1
       - *a2
       - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' }}
         with:
           phase: admission
+          rounds: "14"
+          initial: "true"
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
+          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+      - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}
+        with:
+          phase: payload
+          rounds: "14"
+          initial: "true"
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
+          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+      - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        with:
+          phase: tuf-releases
+          rounds: "3"
+          initial: "false"
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
+          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+      - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        with:
+          phase: tuf-preview
+          rounds: "3"
+          initial: "false"
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
+          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+      - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        with:
+          phase: tuf-stable
+          rounds: "3"
+          initial: "false"
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
+          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+      - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        with:
+          phase: tuf-snapshot
+          rounds: "3"
+          initial: "false"
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
+          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+      - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        with:
+          phase: tuf-timestamp
+          rounds: "3"
+          initial: "false"
+          app_id: ${{ needs.admission.outputs.protection_app_id }}
+          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+      - uses: ./.github/actions/release-control-observer
+        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' }}
+        with:
+          phase: release-publication
           rounds: "14"
           initial: "true"
           app_id: ${{ needs.admission.outputs.protection_app_id }}
@@ -751,31 +814,6 @@ jobs:
           phase: payload
           role_key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           role_password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-  payload_protection_observation:
-    name: Observe payload signing input protections
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
-      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
-      'reused') }}
-    needs: *a7
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    environment: production-release-protection-observer
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      checks: read
-    steps:
-      - *a1
-      - *a2
-      - uses: ./.github/actions/release-control-observer
-        with:
-          phase: payload
-          rounds: "14"
-          initial: "true"
-          app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   tuf_releases:
     name: Sign authenticated Releases metadata
     if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
@@ -1021,68 +1059,6 @@ jobs:
           phase: tuf-timestamp
           role_key: ${{ secrets.PORTCOVE_TUF_TIMESTAMP_KEY }}
           role_password: ""
-  metadata_protection_observation:
-    name: Observe application metadata signing protections
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
-      (needs.coordinator.outputs.mode == 'metadata' || needs.payload_signing.result == 'success') &&
-      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success') }}
-    needs:
-      - admission
-      - tool_bootstrap
-      - tool_attest
-      - coordinator
-      - payload_signing
-    runs-on: ubuntu-22.04
-    timeout-minutes: 8
-    environment: production-release-protection-observer
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      checks: read
-    steps:
-      - *a1
-      - *a2
-      - uses: ./.github/actions/release-control-observer
-        with:
-          phase: tuf-releases
-          rounds: "3"
-          initial: "false"
-          app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
-      - uses: ./.github/actions/release-control-observer
-        with:
-          phase: tuf-preview
-          rounds: "3"
-          initial: "false"
-          app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
-      - uses: ./.github/actions/release-control-observer
-        with:
-          phase: tuf-stable
-          rounds: "3"
-          initial: "false"
-          app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
-      - uses: ./.github/actions/release-control-observer
-        with:
-          phase: tuf-snapshot
-          rounds: "3"
-          initial: "false"
-          app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
-      - uses: ./.github/actions/release-control-observer
-        with:
-          phase: tuf-timestamp
-          rounds: "3"
-          initial: "false"
-          app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   release_publication:
     name: Publish immutable application release
     if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
@@ -1154,32 +1130,6 @@ jobs:
         with:
           operation: release-publication
           phase: release-publication
-  release_protection_observation:
-    name: Observe immutable application release publication protections
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
-      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
-      != 'reused' && needs.attest.result == 'success' && (needs.tuf_timestamp.result == 'success' ||
-      needs.coordinator.outputs.signing_custody == 'reused')) }}
-    needs: *a8
-    runs-on: ubuntu-22.04
-    timeout-minutes: 6
-    environment: production-release-protection-observer
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      checks: read
-    steps:
-      - *a1
-      - *a2
-      - uses: ./.github/actions/release-control-observer
-        with:
-          phase: release-publication
-          rounds: "14"
-          initial: "true"
-          app_id: ${{ needs.admission.outputs.protection_app_id }}
-          private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
-          installation_id: ${{ needs.admission.outputs.protection_installation_id }}
   site_publication:
     name: Publish authenticated application site
     if: ${{ always() && ((needs.admission.outputs.publication_purpose == 'catalog-publication' &&

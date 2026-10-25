@@ -19,6 +19,7 @@ import {
 } from "./release-native-qualification-contract.mts";
 import {
   requireAdmittedProductionSource,
+  requireAdmittedProductionObserverSource,
   type admitProductionInputReader,
 } from "./production-controller-admission.mts";
 const roles = [
@@ -651,13 +652,7 @@ export function requireProtectionObserverSourceConfiguration(
 ) {
   if (phase === "classification" && purpose !== "application")
     throw new Error("catalog has no classification observer");
-  requireAdmittedProductionSource(
-    source,
-    phase === "classification"
-      ? "classification_protection_observation"
-      : releaseControlPhaseProfile(phase).observer_job,
-    purpose,
-  );
+  requireAdmittedProductionObserverSource(source, phase, purpose);
   return boundInputRoles(raw, source, purpose);
 }
 

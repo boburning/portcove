@@ -5,6 +5,103 @@ import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
 import { slice4CapacityResources } from "./release-capacity.mts";
+import { sharedProtectionOriginalJobDeadline } from "./release-signing-job-budget.mts";
+import { applicationProtectionObserver } from "./release-control-phases.mts";
+
+void test("shared observer phases retain mode routing and the original ten-minute provider allocation", async () => {
+  const workflow = parse(
+    await readFile(
+      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as Workflow;
+  const job = workflow.jobs.protection_observation!;
+  assert.deepEqual(job.needs, ["admission", "tool_bootstrap", "tool_attest", "coordinator"]);
+  assert.equal(job["timeout-minutes"], 10);
+  assert.equal(job.environment, "production-release-protection-observer");
+  assert.deepEqual(job.permissions, {
+    contents: "read",
+    actions: "read",
+    "id-token": "write",
+    checks: "read",
+  });
+  for (const [mode, reused, published, expected] of [
+    [
+      "release",
+      false,
+      false,
+      [
+        "admission",
+        "payload",
+        "tuf-releases",
+        "tuf-preview",
+        "tuf-stable",
+        "tuf-snapshot",
+        "tuf-timestamp",
+        "release-publication",
+      ],
+    ],
+    ["release", true, false, ["admission", "release-publication"]],
+    [
+      "metadata",
+      false,
+      false,
+      ["tuf-releases", "tuf-preview", "tuf-stable", "tuf-snapshot", "tuf-timestamp"],
+    ],
+    ["release", true, true, []],
+    ["held", false, false, []],
+  ] as const) {
+    const needs = {
+      admission: { outputs: { publication_purpose: "application" } },
+      tool_attest: { result: "success" },
+      coordinator: {
+        result: "success",
+        outputs: {
+          mode,
+          signing_custody: reused ? "reused" : "",
+          publication_custody: published ? "reused" : "",
+        },
+      },
+    };
+    const evaluate = (expression: string) =>
+      runInNewContext(expression.slice(3, -2), { needs, always: () => true }) as boolean;
+    const phases = evaluate(job.if!)
+      ? job.steps
+          .filter((step) => step.with?.phase && evaluate(step.if!))
+          .map((step) => step.with!.phase)
+      : [];
+    assert.deepEqual(phases, expected);
+  }
+  const now = Date.parse("2026-10-24T12:00:00Z");
+  const identity = { run_id: "123", controller_revision: "a".repeat(40) };
+  const inventory = {
+    total_count: 1,
+    jobs: [
+      {
+        id: 1,
+        name: applicationProtectionObserver.name,
+        run_id: 123,
+        run_attempt: 1,
+        head_sha: identity.controller_revision,
+        status: "in_progress",
+        started_at: new Date(now - 1000).toISOString(),
+      },
+    ],
+  };
+  assert.equal(sharedProtectionOriginalJobDeadline(inventory, identity, now, 100), 569100);
+  assert.equal(sharedProtectionOriginalJobDeadline(inventory, identity, now + 2000, 2100), 569100);
+  assert.throws(
+    () => sharedProtectionOriginalJobDeadline(inventory, identity, now + 570000, 570100),
+    /exhausted/u,
+  );
+  assert.throws(
+    () => sharedProtectionOriginalJobDeadline({ ...inventory, total_count: 2 }, identity, now, 100),
+    /inventory/u,
+  );
+  assert.equal(slice4CapacityResources.declared_job_minutes, 75);
+  assert.equal(slice4CapacityResources.declared_job_minutes + 10 + 10, 95);
+  assert.ok(95 < slice4CapacityResources.total_job_minutes);
+});
 
 type Step = {
   id?: string;
@@ -302,7 +399,6 @@ void test("actual held job conditions route retained custody without repeating s
                       "protection_observation",
                       "attest",
                       "release_publication",
-                      "release_protection_observation",
                     ].includes(name)) ||
                   (reused && (name === "payload_signing" || name.startsWith("tuf_")))
                 ? "skipped"
@@ -326,7 +422,6 @@ void test("actual held job conditions route retained custody without repeating s
   };
   for (const name of [
     "payload_signing",
-    "payload_protection_observation",
     ...["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => `tuf_${role}`),
   ]) {
     assert.equal(permitted(name, "release", true), false, name);
@@ -337,7 +432,6 @@ void test("actual held job conditions route retained custody without repeating s
     "protection_observation",
     "attest",
     "release_publication",
-    "release_protection_observation",
     "site_publication",
     "site_protection_observation",
   ]) {
@@ -358,14 +452,12 @@ void test("actual held job conditions route retained custody without repeating s
     "protection_observation",
     "attest",
     "payload_signing",
-    "payload_protection_observation",
     "tuf_releases",
     "tuf_preview",
     "tuf_stable",
     "tuf_snapshot",
     "tuf_timestamp",
     "release_publication",
-    "release_protection_observation",
   ])
     assert.equal(permitted(name, "release", true, undefined, true), false, name);
   for (const name of ["site_publication", "site_protection_observation"])
@@ -409,15 +501,12 @@ void test("actual held job conditions route retained custody without repeating s
     "protection_observation",
     "attest",
     "payload_signing",
-    "payload_protection_observation",
     "tuf_releases",
     "tuf_preview",
     "tuf_stable",
     "tuf_snapshot",
     "tuf_timestamp",
-    "metadata_protection_observation",
     "release_publication",
-    "release_protection_observation",
   ])
     assert.equal(
       permitted(name, "release", false, undefined, false, "catalog-publication"),
@@ -557,7 +646,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       slice4CapacityResources.declared_job_minutes,
       slice4CapacityResources.catalog_declared_job_minutes,
     ),
-    99,
+    75,
   );
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
@@ -685,23 +774,26 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     requiredJob(name).steps.filter(
       (step) => step.uses === "./.github/actions/release-control-observer",
     );
-  for (const name of [
-    "coordinator_protection_observation",
-    "protection_observation",
-    "payload_protection_observation",
-    "release_protection_observation",
-  ]) {
-    const calls = observerCalls(name);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0]?.with?.initial, "true");
-    assert.equal(calls[0]?.with?.rounds, "14");
-  }
+  const coordinatorCalls = observerCalls("coordinator_protection_observation");
+  assert.equal(coordinatorCalls.length, 1);
+  assert.equal(coordinatorCalls[0]?.with?.initial, "true");
+  assert.equal(coordinatorCalls[0]?.with?.rounds, "14");
   assert.deepEqual(
-    observerCalls("metadata_protection_observation").map((step) => [
+    observerCalls("protection_observation").map((step) => [
+      step.with?.phase,
       step.with?.initial,
       step.with?.rounds,
     ]),
-    Array.from({ length: 5 }, () => ["false", "3"]),
+    [
+      ["admission", "true", "14"],
+      ["payload", "true", "14"],
+      ...["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => [
+        `tuf-${role}`,
+        "false",
+        "3",
+      ]),
+      ["release-publication", "true", "14"],
+    ],
   );
   assert.deepEqual(
     observerCalls("catalog_metadata_protection_observation").map((step) => [

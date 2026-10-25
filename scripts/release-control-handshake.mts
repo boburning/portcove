@@ -13,6 +13,7 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import {
   inspectReleaseControlPhase,
   releaseControlPhaseProfile,
+  protectionObserverJobNames,
 } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
 
@@ -248,10 +249,13 @@ export async function waitForControlArtifact(
     while (++polls <= 81) {
       const matches = inventory().filter((a) => a.name === name);
       if (matches.length > 1) throw new Error("control artifact name ambiguous");
-      const producer = jobs().filter(
-        (j) =>
-          j.name === (role === "ready" ? phaseProfile.reader_name : phaseProfile.observer_name),
-      );
+      const allJobs = jobs();
+      const names =
+        role === "ready" ? [phaseProfile.reader_name] : protectionObserverJobNames(input.phase);
+      // Prefer the legacy phase-specific job if present. Old workflows also
+      // contain an admission job bearing the shared name; it is not that phase.
+      const selectedName = names.find((name) => allJobs.some((job) => job.name === name));
+      const producer = allJobs.filter((job) => job.name === selectedName);
       if (producer.length > 1) throw new Error("control producer job ambiguous");
       const job = producer[0];
       const artifact = matches[0];

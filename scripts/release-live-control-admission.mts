@@ -5,6 +5,7 @@ import {
   admitProductionCatalogInputReader,
   productionControllerWorkflow,
   readProductionControllerWorkflowBytes,
+  admittedProductionObserverProfile,
 } from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
@@ -330,7 +331,7 @@ async function authenticateControlSource(
       String(job.run_id) !== admitted.run_id ||
       job.run_attempt !== admitted.run_attempt ||
       job.head_sha !== admitted.revision ||
-      job.name !== profile.observer_name ||
+      job.name !== admittedProductionObserverProfile(admitted, phase).name ||
       !(
         (job.status === "completed" && job.conclusion === "success") ||
         (options.observedArtifact && job.status === "in_progress" && job.conclusion === null)

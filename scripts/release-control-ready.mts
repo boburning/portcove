@@ -1,10 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import {
   admitProductionProtectionObserver,
   admitProductionCatalogProtectionObserver,
   readProductionControllerWorkflowBytes,
+  isSharedApplicationProtectionObserverSource,
 } from "./production-controller-admission.mts";
 import { waitForControlArtifact, inspectControlRound } from "./release-control-handshake.mts";
 import {
@@ -12,6 +14,7 @@ import {
   inspectReleaseControlPhase,
 } from "./release-control-phases.mts";
 import { requireProtectionObserverSourceConfiguration } from "./release-authority-configuration-contract.mts";
+import { currentSharedProtectionJobDeadline } from "./release-signing-job-budget.mts";
 
 async function main() {
   const environment = { ...process.env };
@@ -57,19 +60,36 @@ async function main() {
     environment.PORTCOVE_EXPECTED_INSTALLATION_ID !== String(roles.protection_installation_id)
   )
     throw new Error("appointed observer mint target differs from the source-bound configuration");
+  const phaseDeadline = isSharedApplicationProtectionObserverSource(admitted)
+    ? currentSharedProtectionJobDeadline(
+        {
+          run_id: admitted.run_id,
+          run_attempt: 1,
+          controller_revision: admitted.revision,
+          controller_ref: admitted.execution_ref,
+        },
+        process.cwd(),
+        performance.now() + 570000,
+      )
+    : undefined;
   const root = path.join(
     environment.RUNNER_TEMP,
     `release-control-ready-${phase}${round ? `-r${round.index}` : ""}`,
   );
   await mkdir(root, { mode: 0o700 }); // existing state refuses; never repeat on retained state
-  await waitForControlArtifact(root, "ready", {
-    phase,
-    controller_revision: admitted.revision,
-    controller_ref: admitted.execution_ref,
-    run_id: String(admitted.run_id),
-    run_attempt: admitted.run_attempt,
-    ...(round ? { round } : {}),
-  });
+  await waitForControlArtifact(
+    root,
+    "ready",
+    {
+      phase,
+      controller_revision: admitted.revision,
+      controller_ref: admitted.execution_ref,
+      run_id: String(admitted.run_id),
+      run_attempt: admitted.run_attempt,
+      ...(round ? { round } : {}),
+    },
+    { ...(phaseDeadline === undefined ? {} : { phaseDeadline }) },
+  );
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   main().catch(() => {
