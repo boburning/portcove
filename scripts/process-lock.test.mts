@@ -220,3 +220,50 @@ void test("duplicate lease release is idempotent and cannot affect the next owne
     await rm(root, { recursive: true, force: true });
   }
 });
+
+void test("exact stale recovery refuses a different dead successor without removing it", async () => {
+  const { root, lockPath } = await fixture();
+  const expected = {
+    format_version: 1,
+    token: "expected",
+    pid: 999999,
+    created_at: "2026-01-01T00:00:00.000Z",
+    process_identity: "original",
+  };
+  const successor = { ...expected, token: "successor", process_identity: "different" };
+  try {
+    await mkdir(lockPath, { recursive: true });
+    await writeFile(path.join(lockPath, "owner.json"), JSON.stringify(expected));
+    let replaced = false;
+    await assert.rejects(
+      acquireOwnedProcessLock(
+        lockPath,
+        {},
+        {
+          expectedStaleOwner: expected,
+          canReclaim: true,
+          isProcessAlive() {
+            if (!replaced) {
+              replaced = true;
+              writeFileSync(path.join(lockPath, "owner.json"), JSON.stringify(successor));
+            }
+            return false;
+          },
+        },
+      ),
+      /recovery owner changed/,
+    );
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(lockPath, "owner.json"), "utf8")),
+      successor,
+    );
+    const recovered = await acquireOwnedProcessLock(
+      lockPath,
+      {},
+      { expectedStaleOwner: successor, isProcessAlive: () => false },
+    );
+    await recovered.release();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

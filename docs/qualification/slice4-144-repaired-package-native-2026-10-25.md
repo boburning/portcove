@@ -90,17 +90,119 @@ Preserve settings, input and generated `keybinds.ini`, actual memory cards,
 `mods/state.toml` and user texture-pack data. Keep bundled/executable mods,
 overlay toolchains, tools, JIT caches and diagnostic captures separate from
 player-data migration. Preserve explicitly chosen external paths; no legacy
-absolute-path migration is included. Disabled and enabled HD defaults, changed
-working directory, external selections, launcher behavior and complete retained
-state beyond the recorded disabled-default relocation case still require their
-applicable real-runtime observations.
+absolute-path migration is included. At the initial checkpoint, enabled HD defaults,
+changed working directory, external selections and launcher/lifecycle behavior
+still required their applicable real-runtime observations. The subsequent results
+below advance only the cases actually observed.
 
-The next bounded steps are the remaining enabled-default, changed-working-directory,
-explicit-path and launcher cases with retained-state readback. Then exercise actual ordinary Core
-materialization, launcher, install/update/rollback and retained-state readback.
+The remaining steps include launcher behavior and actual ordinary Core
+materialization, install/update/rollback and retained-state readback.
 Only a suitable pair enables freezing the capable ordinary-client baseline and
 recording initial absence before protected definition → artifact progression →
 compatible correction. Gen2 remains separate component evidence.
+
+## Subsequent resource-path observations
+
+Seven additional native cases used driver source
+`80cd64eb249d4667e9222294385948e12e1e50e1`, resource helper SHA-256
+`ba4d439bd963b21a004421568789938aacf1108de1941e2a6d5ed3f53c1a06c4`
+and wrapper `17d3a6b1919c7c73887301ebe37079ee28408ebbf1d285640fab2147d619cd2a`.
+All observed a responsive window, requested normal close, exited 0 without forced
+cleanup and retained positive outer settlement. None establishes gameplay.
+
+| Retained attempt              |   PID | Start (UTC, October 25) | Duration ms |
+| ----------------------------- | ----: | ----------------------- | ----------: |
+| `spike6-enabled-commit`       | 46392 | 09:10:28.8015258        |       31617 |
+| `spike6-enabled-relocation`   | 63500 | 09:12:01.0361241        |       17961 |
+| `spike7-enabled-commit`       | 53744 | 09:13:20.5469149        |       32546 |
+| `spike7-enabled-relocation`   | 30400 | 09:14:49.2783903        |       17759 |
+| `spike6-explicit-present`     |  6112 | 09:17:19.0599047        |       29606 |
+| `spike6-explicit-unavailable` | 66876 | 09:21:43.2814176        |       50149 |
+| `spike7-explicit-progression` | 63556 | 09:24:48.2974245        |       32413 |
+
+Both packages committed an enabled HD selection without a resource path. The
+actual logs resolved the generated pack beneath each executable. After moving
+each installation with its old root absent, a different working directory still
+resolved mods and memory cards beneath the new executable root. Seven retained
+settings/input/keybind/mod-state/texture-marker/blank-card files per package were
+byte-identical. The working directory had no mods or saves; it did receive runtime
+diagnostics. Blank-card equality remains insufficient for nonempty save/load or
+file-identity acceptance.
+
+The explicit external selection retained priority. When its owned user-data
+folder was temporarily renamed, the runtime recreated empty `replacements` and
+`dumps` at that same selected path; it did not refuse or substitute the generated
+default. Recovery retained the empty scaffold separately and restored the original
+user-data folder and matching marker bytes. Manually transferring the committed
+selection to the second package retained that external path and marker. This is
+native path/state evidence, not a Core update or permission to migrate/delete
+external data. No legacy absolute-path migration was performed.
+
+The closed runtime inventory found all 520/534 packaged immutable files unchanged
+and both materialized source copies matching. Its classification assertion failed
+on a startup-log locator and a freeze dump. The original failed inventory remains
+failed. Three retained diagnostics report `hard_freeze`: two at frame/cycle zero
+and one at frame 310/cycle 175250789. Later shared-working-directory telemetry was
+overwritten by later runs, so it cannot establish recovery within those original
+attempts. Neither a responsive window nor normal shutdown explains these dumps;
+their cause remains unresolved. Raw diagnostic memory and copyrighted source
+bytes remain private.
+
+## Bundled-compiler diagnostics and owned recovery
+
+The seven cases above selected GCC from the development host. The packages bundle
+TinyC, not GCC. Exact framework source selects bundled TinyC when host GCC is
+unavailable. Two fresh generated-cache diagnostics therefore restricted the child
+PATH to the observed Windows system/Windows directories, retained the previous
+caches by owned rename and used separate working directories. No software was
+installed. These were not fresh OS or empty system-cache observations.
+
+Both actual logs selected the bundled toolchain and `overlay autocompile enabled
+(tcc)`. Helper SHA-256 was
+`5e58bf06d555acdc492db4e05ce93f1f705059c25e7cbae3b84fdbb67e628caf`,
+wrapper `12dffa44090e5632a392bc4c48b4df1532d7bb67e39329521c4d7051e6c3501b`.
+Driver base was `432643a9f682c11de8fd398f1c69e56003fc0d91` plus the reviewed
+process-lock recovery delta, file SHA-256
+`3bcffa9f43b63aff3f2d5176d52ba541b913b13d995aef97ed7af980695cac53`.
+
+| Attempt           | PID / start UTC          | Duration ms | Final frames / cycles |
+| ----------------- | ------------------------ | ----------: | --------------------- |
+| `spike6-tcc-cold` | 58232 / 09:53:16.6243397 |       33571 | 823 / 464567040       |
+| `spike7-tcc-cold` | 15220 / 09:55:46.0301005 |       31675 | 829 / 467953920       |
+
+Both observed a responsive window and normal SDL window close, exit 0, no forced
+cleanup, zero autocompile degradation and zero automatic freeze dumps. Their
+unique working directories retained each attempt's final heartbeat and last-run
+report; positive process settlement was observed. No foreground screenshot,
+gameplay or nonempty save/load acceptance follows. These later TinyC results do
+not establish the cause of the earlier GCC-route dumps or whole-pair suitability.
+
+A preceding `spike6-cold-observation` failed before the payload directory existed.
+The old wrapper's `finally` masked the underlying error, which remains Unknown.
+Its original log, settlement, intent, preserved cache and owner records remain
+retained. The repaired wrapper records the primary error before settlement and
+continues to hold unknown-status attempts for explicit reconciliation.
+
+The delivering agent reconciled only that attempt's positively absent PID 45440
+and exact host/legacy owner tuples through the existing process-lock machinery.
+The new optional `expectedStaleOwner` guard refuses changed token, PID, creation
+time or process identity on every acquisition read. A regression replaces an
+observed stale owner with a different dead successor and verifies refusal and
+preservation; all six focused lock tests passed. Original owner bytes/hashes and
+recovery readbacks were retained before mutation. Independent review cleared the
+guard, exact recovery helper and error-preserving wrapper before use. No foreign
+lease, administrator action or automatic retry was involved.
+
+The proposed persistent set remains `saves`, `settings.toml`, `input.ini`,
+`keybinds.ini`, `mods/state.toml` and user `mods/texture-packs`. Version-local
+executable mods, toolchains, JIT/native DLL caches, overlay captures, heartbeat,
+last-run/startup diagnostics and freeze dumps are not player-data migration
+inputs. Actual ordinary Core materialization, launcher, update/rollback and
+nonempty retained-state observations remain pending. The compiled managed
+definition is still absent; an existing listing-only title is not absence of the
+title itself. Freeze the capable ordinary-client baseline and observe actual
+managed-definition absence before delivering the definition. Nothing here
+completes #246's protected journey or changes #315/#534 acceptance.
 
 ## Retention and acceptance boundaries
 
