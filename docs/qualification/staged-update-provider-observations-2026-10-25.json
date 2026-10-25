@@ -1,0 +1,228 @@
+{
+  "format_version": 1,
+  "generated_at": "2026-10-25T05:58:03.971558+00:00",
+  "kind": "Dated partial rollout evidence; not a live backlog",
+  "parent_owner": 2510,
+  "delivery_owner": 2926,
+  "base": "59c9afe4b386978b82d05ad2b0ec6cc98f6edda4",
+  "before_snapshot_source": "9316d54124ab372ada42c318bdf95d315d213b10",
+  "before_snapshot_relation": "Catalog tree verified equal to delivered base after PR3031",
+  "source_preservation_commit": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "delivery_status": "Candidate; final independent review, exact-head hosted CI and guarded merge pending at this source checkpoint",
+  "ports": 6,
+  "platform_scopes": 6,
+  "scope": "Windows staged-source release-provider conversion; existing runtime/source/data contracts preserved. Complete metadata and retained actual package hashes; no game/helper/original execution or new gameplay qualification.",
+  "errors": [],
+  "entries": [
+    {
+      "id": "f-zero-snes-recomp",
+      "canonical_issue": 1114,
+      "candidate_record_sha256": "01a1c28a77b8fbcb5d53715fd15ae9d00b2a5d5a80af9cee09acbca56b3f46b7",
+      "previous_record_sha256": "e564177b0d1eec2a14f9f0615c063d86b143b83e80e1a37348803cec16f799bb",
+      "source_review_commit": "1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-f-zero-snes-recomp\\completion-5ab4fbf8a95d870c4e9140269b53902e0e6602b2d8f69451d74f85562f59113f.json",
+      "report_sha256": "5ab4fbf8a95d870c4e9140269b53902e0e6602b2d8f69451d74f85562f59113f",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-f-zero-snes-recomp\\upstream-d8d1cb1c6609ff7d8629b190fd8dbe036678a0507e42c16929e0925b0ab71765.json",
+      "upstream_receipt_sha256": "d8d1cb1c6609ff7d8629b190fd8dbe036678a0507e42c16929e0925b0ab71765",
+      "validation_input_sha256": "658a492e1a0dc73cd5e18f2f7dfb5c7fab901a0f6de4b7a7aefe1b8d59438f0b",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v1.8.3",
+          "asset_id": 580473673,
+          "name": "FZeroSNESRecomp-1.8.3-windows-x64.zip",
+          "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
+          "size": 8247843,
+          "publisher_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "archive_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "retained_direct": {
+            "version": "v1.8.3",
+            "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
+            "size": 8247843,
+            "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+            "published_at": "2026-09-22T03:42:21Z"
+          },
+          "same_release_as_retained": true
+        }
+      ]
+    },
+    {
+      "id": "dkc3-recomp",
+      "canonical_issue": 723,
+      "candidate_record_sha256": "881ba54e6a27b42ab1a1464b5efca39bdc53dfb7eab64713ca28c9af0011eee2",
+      "previous_record_sha256": "0299fadf403865248e36d9326a8b2e6aca2e63ec43f28a722575b7a3ac82f2ba",
+      "source_review_commit": "3a033f19801a2bd3abf784d4b29c4462495d19de",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-dkc3-recomp-attempt2\\completion-527cc9692cc33ee09605bf2f8e0766153f2bb2d824fa5c49e09fcfe79bf59302.json",
+      "report_sha256": "527cc9692cc33ee09605bf2f8e0766153f2bb2d824fa5c49e09fcfe79bf59302",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-dkc3-recomp-attempt2\\upstream-74c76d813eb478201d4131851dd6e28bb6f7a76e8759454223b9d816b2e3a534.json",
+      "upstream_receipt_sha256": "74c76d813eb478201d4131851dd6e28bb6f7a76e8759454223b9d816b2e3a534",
+      "validation_input_sha256": "ca87e4c047ea607a837737ed3b8e341347c4eb66c93070198a0edcf101dfc998",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.0.6",
+          "asset_id": 560544858,
+          "name": "DKC3Recomp-v0.0.6-windows-x64.zip",
+          "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
+          "size": 6009000,
+          "publisher_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "archive_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "retained_direct": {
+            "version": "v0.0.6",
+            "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
+            "size": 6009000,
+            "sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+            "published_at": "2026-09-13T04:22:33Z"
+          },
+          "same_release_as_retained": true
+        }
+      ]
+    },
+    {
+      "id": "super-mario-world-recomp",
+      "canonical_issue": 147,
+      "candidate_record_sha256": "ee0d5a8337e5c46433eab6d15dc6ac1bfa66ed6d12c276aa47e51deeead0f45f",
+      "previous_record_sha256": "eea20e8893c3135cd46b6641c6fa3ab782079d2c5522c136591a93e023f9ec2c",
+      "source_review_commit": "6ecfaf99019cb03825ff361f48dd30839e075895",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-super-mario-world-recomp\\completion-2874941dcd6d4afebc66372b16d474f5e24847ac041d1fee08dd0a3a3c0af3c1.json",
+      "report_sha256": "2874941dcd6d4afebc66372b16d474f5e24847ac041d1fee08dd0a3a3c0af3c1",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-super-mario-world-recomp\\upstream-70e6967b451a4b84775cec003cb5eab7aa04485c5b8e1b17109e69ae0f943d7e.json",
+      "upstream_receipt_sha256": "70e6967b451a4b84775cec003cb5eab7aa04485c5b8e1b17109e69ae0f943d7e",
+      "validation_input_sha256": "a536c0d275226ea46c245214cc0ade8d6278d08a56c1aae80177bf7b5110c644",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.15.1",
+          "asset_id": 667939290,
+          "name": "SuperMarioWorldRecomp-windows-x64-v0.15.1.zip",
+          "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.15.1/SuperMarioWorldRecomp-windows-x64-v0.15.1.zip",
+          "size": 26146789,
+          "publisher_sha256": "d1c254308847a2391fc37b6c7ecd18c2622e9124774bb091d1d36196ab26608d",
+          "archive_sha256": "d1c254308847a2391fc37b6c7ecd18c2622e9124774bb091d1d36196ab26608d",
+          "retained_direct": {
+            "version": "v0.12.0",
+            "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.12.0/SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
+            "size": 9490376,
+            "sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+            "published_at": "2026-09-11T08:01:27Z"
+          },
+          "same_release_as_retained": false
+        }
+      ]
+    },
+    {
+      "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+      "canonical_issue": 151,
+      "candidate_record_sha256": "e8ea5c783489ca8fffe401cc3eeda57f22019d5d1f12488e7fc5ab322a1d0ffa",
+      "previous_record_sha256": "72d859ee5e89ed45be93287c08d9d1fdbf25187c3cf178c5a11ffd3da4141458",
+      "source_review_commit": "453598ea1187ea441c96659cf88df098c11b11d3",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-the-legend-of-zelda-a-link-to-the-past-snes-recomp\\completion-39ac25c0e54207370d40d45ad527328d634f833e12309420e57a614a82b78afb.json",
+      "report_sha256": "39ac25c0e54207370d40d45ad527328d634f833e12309420e57a614a82b78afb",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-the-legend-of-zelda-a-link-to-the-past-snes-recomp\\upstream-40d55874108a6f06315ec8883e1fea9b069ec9396ea4be1ceb89f76fb62d86c8.json",
+      "upstream_receipt_sha256": "40d55874108a6f06315ec8883e1fea9b069ec9396ea4be1ceb89f76fb62d86c8",
+      "validation_input_sha256": "0dacd7d69c8d4131456748e8a035fb03c2ff6fa9fe7fc54649fc18812fdf30da",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.6.5",
+          "asset_id": 654443863,
+          "name": "ZeldaALttPSNESRecomp-windows-x64-v0.6.5.zip",
+          "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.5/ZeldaALttPSNESRecomp-windows-x64-v0.6.5.zip",
+          "size": 13403140,
+          "publisher_sha256": "cc285a5328ee41ca2b5ce89035e5abe8795e9f64b0fec714e868e1265c47f094",
+          "archive_sha256": "cc285a5328ee41ca2b5ce89035e5abe8795e9f64b0fec714e868e1265c47f094",
+          "retained_direct": {
+            "version": "v0.6.1",
+            "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.1/ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
+            "size": 11388312,
+            "sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+            "published_at": "2026-08-06T01:58:24Z"
+          },
+          "same_release_as_retained": false
+        }
+      ]
+    },
+    {
+      "id": "sonic-the-hedgehog-2-recomp",
+      "canonical_issue": 153,
+      "candidate_record_sha256": "03a0dd0bc65362521ea6b31a05daa927cd90f426ae78608ecfcc20204cd93582",
+      "previous_record_sha256": "abc58fe7a345120bb380cc8c9e075123863e22f47b8ac6327444768fd8328141",
+      "source_review_commit": "177c8ca60abff1427e2e8a06a8ae267e61046ec5",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-sonic-the-hedgehog-2-recomp\\completion-3ac529f242088ba310a1737b8d8938604299b1859b1029bb5f0804049e682417.json",
+      "report_sha256": "3ac529f242088ba310a1737b8d8938604299b1859b1029bb5f0804049e682417",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-sonic-the-hedgehog-2-recomp\\upstream-b654188f4dffb33dc6dcd1d94b1f9387c06b9bd6af5baeb97f29891cb94e5216.json",
+      "upstream_receipt_sha256": "b654188f4dffb33dc6dcd1d94b1f9387c06b9bd6af5baeb97f29891cb94e5216",
+      "validation_input_sha256": "da9fd900e6badbbca50c0e4ee4d9d17549ee37e37543f42be4aad7e0bd5b2423",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.9.0",
+          "asset_id": 668051551,
+          "name": "SonicTheHedgehog2Recomp-windows-x64-v0.9.0.zip",
+          "url": "https://github.com/mstan/SonicTheHedgehog2Recomp/releases/download/v0.9.0/SonicTheHedgehog2Recomp-windows-x64-v0.9.0.zip",
+          "size": 7085134,
+          "publisher_sha256": "dd004d86524f7781a5768df87c2ad47b8dd960122ceb076c3766a36334ae0664",
+          "archive_sha256": "dd004d86524f7781a5768df87c2ad47b8dd960122ceb076c3766a36334ae0664",
+          "retained_direct": {
+            "version": "v0.8.3",
+            "url": "https://github.com/mstan/SonicTheHedgehog2Recomp/releases/download/v0.8.3/SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
+            "size": 7204657,
+            "sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+            "published_at": "2026-10-18T14:31:39Z"
+          },
+          "same_release_as_retained": false
+        }
+      ]
+    },
+    {
+      "id": "super-bomberman-recomp",
+      "canonical_issue": 724,
+      "candidate_record_sha256": "cdb241c160d365787b9fbda03ddd29ba4a822e1818750f337b22087e6c7cf849",
+      "previous_record_sha256": "94f1719f8457b06528129cef6733f22b6360671e6a16d8593d66cf68c7074c8b",
+      "source_review_commit": "56106599c1fb2f612fd642ee37c0e015611fc31d",
+      "report": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-super-bomberman-recomp\\completion-091a092dcbc35a4336137471fc60d5a2ca3521c78845b8e680eeae82de7863d6.json",
+      "report_sha256": "091a092dcbc35a4336137471fc60d5a2ca3521c78845b8e680eeae82de7863d6",
+      "upstream_receipt": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\staged-rollout-batch3\\prepare-super-bomberman-recomp\\upstream-97784d37204c1a05c3656f996c3af32cfde645b30a298eb9f3c9f27361e2c70f.json",
+      "upstream_receipt_sha256": "97784d37204c1a05c3656f996c3af32cfde645b30a298eb9f3c9f27361e2c70f",
+      "validation_input_sha256": "c6ad7b8a0bd0091ccc8f6c812f01d8927f3ed7dab7e7a21f2eec69d0e2aa5576",
+      "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+      "selected_artifacts": [
+        {
+          "platform": "windows-x86-64",
+          "release": "v0.1.1",
+          "asset_id": 531001333,
+          "name": "BombermanRecomp-windows-x64-v0.1.1.zip",
+          "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
+          "size": 1245795,
+          "publisher_sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+          "archive_sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+          "retained_direct": {
+            "version": "v0.1.1",
+            "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
+            "size": 1245795,
+            "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+            "published_at": "2026-08-26T16:01:04Z"
+          },
+          "same_release_as_retained": true
+        }
+      ]
+    }
+  ],
+  "local_feedback": {
+    "selection": "all catalog tests, unchanged-definition provider progressions and selected ready-archive lifecycle/recovery tests",
+    "passed": 136,
+    "failed": 0,
+    "filtered_out": 1922,
+    "log_sha256": "75db4619a8084c12ad4acb60c8dd6f8678d6c72a4b17707f1ae41e3e4762378c",
+    "scope": "First-party Core fixture evidence; not native upstream, gameplay, packaged Desktop or real-save acceptance"
+  },
+  "test_source_lf_sha256": {
+    "crates/portcove-core/src/catalog.rs": "b0c2d7c25f178884dd04d51fe7d894aa80a4ec086dfbc13f56e90e9f31c0dc43",
+    "crates/portcove-core/src/release/tests/unchanged_definition.rs": "67c872a6b5ac13148d2eaa69a2eb1e21112eea59a53e7e488ea0c47e905c1a4c"
+  }
+}

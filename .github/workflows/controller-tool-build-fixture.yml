@@ -86,6 +86,8 @@ jobs:
           name: controller-tool-build-fixture-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/controller-tool-build-fixture/*.json
+            ${{ runner.temp }}/controller-tool-build-fixture/pnpm-runtime/*/capture.json
+            ${{ runner.temp }}/controller-tool-build-fixture/frozen-native-graph/native-dependency-home/intent.json
             ${{ runner.temp }}/controller-tool-build-fixture/driver-refusal/*.json
             ${{ runner.temp }}/controller-tool-build-fixture/orphan-closure/*.json
             ${{ runner.temp }}/controller-tool-build-fixture/build-work/controller-tool-build-*/failure.json
