@@ -210,6 +210,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-run-evidence.test.mts",
     "scripts/required-node-test-reporter.test.mts",
     "scripts/test-duration-reporter.test.mts",
+    "scripts/ui-test-selection.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = ["scripts", "apps/desktop/scripts"].flatMap((directory) =>

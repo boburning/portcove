@@ -230,6 +230,17 @@ function coverageGit(root: string) {
       timeout: 10_000,
       windowsHide: true,
     });
+    assert.equal(
+      result.error,
+      undefined,
+      JSON.stringify({
+        args,
+        error: result.error?.message,
+        signal: result.signal,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }),
+    );
     assert.equal(result.status, 0, result.stdout + result.stderr);
   }
 }

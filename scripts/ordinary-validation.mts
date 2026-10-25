@@ -1178,6 +1178,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
+      "scripts/ui-test-selection.test.mts",
     ],
   ],
   [
