@@ -25,7 +25,12 @@ void test("effective nextest comparison handles TOML syntax and keeps semantic c
   );
   assert.equal(compareNextest("[[a]]\nx=1\n[[a]]\nx=2", "[[a]]\nx=2\n[[a]]\nx=1"), null);
   assert.equal(
-    compareNextest(base, formatted, () => ({ status: 1, stdout: "" })),
+    compareNextest(base, formatted, (command, _args, options) => {
+      assert.equal(command, process.platform === "win32" ? "python" : "python3");
+      assert.equal(options.timeout, 5000);
+      assert.equal(options.maxBuffer, 65536);
+      return { status: 1, stdout: "" };
+    }),
     null,
   );
   assert.equal(compareNextest(null, formatted), null);

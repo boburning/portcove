@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { parseDocument } from "yaml";
+import { isMap, parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 
 // Read-only source fixtures shared by workflow policy contracts; no test registration.
@@ -75,39 +75,51 @@ export const windowsQualificationRunner = await readFile(
   "utf8",
 );
 
-export function jobSection(name: string, nextName?: string) {
-  const end = nextName ? `(?=^  ${nextName}:)` : "(?![\\s\\S])";
-  return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
+export function workflowJobSource(source: string, name: string) {
+  const document = parseDocument(source, { uniqueKeys: true });
+  assert.equal(document.errors.length, 0, "workflow YAML must parse without errors");
+  assert.ok(isMap(document.get("jobs", true)), "workflow jobs must be a mapping");
+  const job = document.getIn(["jobs", name], true);
+  if (job === undefined) return "";
+  assert.ok(isMap(job) && job.range, `workflow job must be a mapping: ${name}`);
+  const [start, end] = job.range;
+  const lineStart = source.lastIndexOf("\n", start - 1) + 1;
+  const prefix = source.slice(lineStart, start);
+  return source.slice(/^\s*$/u.test(prefix) ? lineStart : start, end);
 }
 
-export const classify = jobSection("classify", "provenance");
-export const provenance = jobSection("provenance", "prose_checks");
-export const proseChecks = jobSection("prose_checks", "fast_rust");
-export const fastRust = jobSection("fast_rust", "fast_rust_quality");
-export const fastRustTests = jobSection("fast_rust_tests", "fast_rust_transport");
-export const fastPlatform = jobSection("fast_platform", "fast_rust_quality");
-export const fastRustQuality = jobSection("fast_rust_quality", "fast_frontend");
-export const fastFrontend = jobSection("fast_frontend", "fast_catalog");
-export const fastCatalog = jobSection("fast_catalog", "qualification_core_archive");
-export const qualificationCoreArchive = jobSection("qualification_core_archive", "rust_tests");
-export const rustTests = jobSection("rust_tests", "rust_workspace_tests");
-export const rustWorkspaceTests = jobSection("rust_workspace_tests", "rust_clippy");
-export const rustClippy = jobSection("rust_clippy", "windows_storage");
-export const windowsStorage = jobSection("windows_storage", "native_rust");
+export function jobSection(name: string) {
+  return workflowJobSource(workflow, name);
+}
 
-export const nativeRust = jobSection("native_rust", "intel_build");
-export const intelBuild = jobSection("intel_build", "intel_tests");
-export const intelTests = jobSection("intel_tests", "rust_docs");
-export const rustDocs = jobSection("rust_docs", "rust");
-export const rust = jobSection("rust", "rust_quality_full");
-export const rustQuality = jobSection("rust_quality_full", "rust-quality");
-export const rustQualityGate = jobSection("rust-quality", "frontend_full");
-export const frontend = jobSection("frontend_full", "frontend");
-export const frontendGate = jobSection("frontend", "catalog_full");
-export const catalog = jobSection("catalog_full", "catalog");
-export const catalogGate = jobSection("catalog", "fast_dependency_review");
-export const fastDependencyReview = jobSection("fast_dependency_review", "dependency_review_full");
-export const dependencyReview = jobSection("dependency_review_full", "dependency-review");
+export const classify = jobSection("classify");
+export const provenance = jobSection("provenance");
+export const proseChecks = jobSection("prose_checks");
+export const fastRust = jobSection("fast_rust");
+export const fastRustTests = jobSection("fast_rust_tests");
+export const fastPlatform = jobSection("fast_platform");
+export const fastRustQuality = jobSection("fast_rust_quality");
+export const fastFrontend = jobSection("fast_frontend");
+export const fastCatalog = jobSection("fast_catalog");
+export const qualificationCoreArchive = jobSection("qualification_core_archive");
+export const rustTests = jobSection("rust_tests");
+export const rustWorkspaceTests = jobSection("rust_workspace_tests");
+export const rustClippy = jobSection("rust_clippy");
+export const windowsStorage = jobSection("windows_storage");
+
+export const nativeRust = jobSection("native_rust");
+export const intelBuild = jobSection("intel_build");
+export const intelTests = jobSection("intel_tests");
+export const rustDocs = jobSection("rust_docs");
+export const rust = jobSection("rust");
+export const rustQuality = jobSection("rust_quality_full");
+export const rustQualityGate = jobSection("rust-quality");
+export const frontend = jobSection("frontend_full");
+export const frontendGate = jobSection("frontend");
+export const catalog = jobSection("catalog_full");
+export const catalogGate = jobSection("catalog");
+export const fastDependencyReview = jobSection("fast_dependency_review");
+export const dependencyReview = jobSection("dependency_review_full");
 export const dependencyReviewGate = jobSection("dependency-review");
 
 // Inert repository-health controls for the tool invoked by the live upstream workflow.

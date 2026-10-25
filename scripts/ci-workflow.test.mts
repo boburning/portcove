@@ -13,6 +13,7 @@ import {
   requiredFixture,
   workflow,
   workflowJob,
+  workflowJobSource,
   workflowStep,
   executableLines,
   qualificationWorkflow,
@@ -45,6 +46,42 @@ import {
   fastDependencyReview,
   dependencyReviewGate,
 } from "./ci-workflow-fixture.mts";
+
+void test("workflow job boundaries survive reordering and block or flow layout", () => {
+  for (const source of [
+    "jobs:\n  owner:\n    steps: [{run: owner-command}]\n  neighbor:\n    steps: [{run: neighbor-command}]\n",
+    "jobs:\n  neighbor:\n    steps: [{run: neighbor-command}]\n  owner:\n    steps: [{run: owner-command}]\n",
+    "jobs: {neighbor: {steps: [{run: neighbor-command}]}, owner: {steps: [{run: owner-command}]}}",
+    "jobs: {owner: {steps: [{run: owner-command}]}, neighbor: {steps: [{run: neighbor-command}]}}",
+  ]) {
+    const owner = workflowJobSource(source, "owner");
+    assert.deepEqual(parseDocument(owner).toJS(), { steps: [{ run: "owner-command" }] });
+    assert.doesNotMatch(owner, /neighbor-command/u);
+  }
+});
+
+void test("a neighboring job cannot satisfy an owner's required gate", () => {
+  const source =
+    "jobs:\n  owner:\n    steps: [{run: harmless-command}]\n  neighbor:\n    steps: [{run: required-gate}]\n";
+  assert.match(workflowJobSource(source, "neighbor"), /required-gate/u);
+  assert.doesNotMatch(workflowJobSource(source, "owner"), /required-gate/u);
+});
+
+void test("workflow job selection rejects malformed or duplicate YAML", () => {
+  for (const source of [
+    "jobs: {owner: [}",
+    "jobs: {owner: {}, owner: {steps: []}}",
+    "jobs: {owner: {steps: [], steps: []}}",
+    "jobs: []",
+    "jobs: {owner: null}",
+  ])
+    assert.throws(() => workflowJobSource(source, "owner"));
+});
+
+void test("missing retired jobs remain absent", () => {
+  assert.equal(workflowJobSource("jobs: {owner: {steps: []}}", "retired"), "");
+  assert.equal(fastPlatform, "");
+});
 
 void test("test reports inherit the candidate source separately from the executed checkout", () => {
   const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
