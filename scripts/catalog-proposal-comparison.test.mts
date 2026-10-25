@@ -177,6 +177,7 @@ void test("proposal identity report retains exact source execution persistence a
   port.source_profile = "replacement-source";
   requiredFixture(port.executable_hints)["linux-x86-64"] = ["replacement"];
   port.persistent_paths = ["replacement-saves"];
+  port.n64_runtime_at_executable_parent = true;
   requiredFixture(port.release).user_prepared = {
     "linux-x86-64": { mutable_paths: ["player-data"] },
   };
@@ -196,6 +197,11 @@ void test("proposal identity report retains exact source execution persistence a
     after: "replacement",
   });
   assert.ok(change.changes.persistence.some((item) => item.path === "$.persistent_paths[0]"));
+  assert.ok(
+    change.changes.execution.some(
+      (item) => item.path === "$.n64_runtime_at_executable_parent" && item.after === true,
+    ),
+  );
   assert.ok(
     change.changes.persistence.some(
       (item) => item.path === "$.release.user_prepared.linux-x86-64.mutable_paths",

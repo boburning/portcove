@@ -4,7 +4,7 @@
 //! upstream state. The retained adapter owns the declared `mods` tree; upstream
 //! still decides whether a selected package is compatible with a runtime.
 //! The bounded data-restoration receipt and conservative uninitialized-tree
-//! collection also serve ready staged archives. Its historical metadata filename
+//! collection also serve ready staged archives and opted-in N64 runtimes. Its historical metadata filename
 //! stays readable; it grants neither executable nor mod authenticity.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -689,7 +689,8 @@ impl PortcoveService {
             let plan = AdditiveTree::prepare(
                 &from,
                 &to,
-                crate::persistence::ready_staged_archive(port)
+                (crate::persistence::ready_staged_archive(port)
+                    || port.n64_runtime_at_executable_parent)
                     && !(relative == "mods" && owns_mods(port)),
             )?;
             if relative == "mods" && owns_mods(port) {

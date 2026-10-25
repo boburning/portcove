@@ -110,6 +110,14 @@ version 2 or later as its minimum. A `[1,2]` window is refused for that entry:
 version 1 engines could otherwise silently ignore the safety-relevant default.
 This compatibility check supplies no admission, signing or execution authority.
 
+Entries using `n64_runtime_at_executable_parent` require N64 portable minimum
+version 4. Earlier engines retain versions 1–3 but cannot interpret the new
+runtime coordinates, strict archive selection and pre-Play data preservation.
+New captures use retained-contract format 8; format 7 continues to mean versioned
+mod packages. Existing retained definitions are never recaptured or migrated by
+today's catalog. A change between these coordinates requires a supported explicit
+transition; an incompatible update preserves the working installation.
+
 Staged-source portable version 3 implements a user-prepared runtime's declared
 `runtime_subdirectory` as its launch working directory. Core verifies the whole
 registered tree and requires the executable inside that directory before creating

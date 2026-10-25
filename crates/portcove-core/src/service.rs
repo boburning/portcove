@@ -3021,10 +3021,8 @@ impl PortcoveService {
                 &mut *reporter.emit,
             )
             .await?;
-        let staged_activation = matches!(
-            port.adapter,
-            AdapterKind::NativePortable | AdapterKind::PsxRecompManaged
-        ) || crate::persistence::ready_staged_archive(port);
+        let staged_activation = port.adapter == AdapterKind::NativePortable
+            || crate::persistence::requires_restore_receipt(port);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install(
                 InstallRequest {
@@ -5478,9 +5476,10 @@ impl PortcoveService {
                 if self.catalog.port(&install.port_id).is_ok_and(|current| {
                     current.runtime_data_policy.is_some()
                         || current.managed_shared_preferences.is_some()
+                        || current.n64_runtime_at_executable_parent
                 }) {
                     return Err(PortcoveError::verification(
-                        "legacy installation cannot inherit today's credential or shared-preferences policy; retain its original route or review a fresh managed installation",
+                        "legacy installation cannot inherit today's runtime-coordinate, credential or shared-preferences policy; retain its original route or review a fresh managed installation",
                     ));
                 }
                 Ok(self.catalog.clone())

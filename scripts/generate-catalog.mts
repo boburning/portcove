@@ -203,6 +203,7 @@ function proposalChanges(before: CurrentCatalog, after: CurrentCatalog) {
             "launch_environment",
             "launch_arguments",
             "runtime_subdirectory",
+            "n64_runtime_at_executable_parent",
             "launch_from_install_root",
             "setup_executable_hints",
             "setup_arguments",

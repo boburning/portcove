@@ -39,6 +39,10 @@ impl EngineTemplateCapability {
             contract_version: 3,
         });
         supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: 4,
+        });
+        supported.push(Self {
             template: AdapterKind::PsxRecompManaged,
             contract_version: 2,
         });
@@ -418,9 +422,9 @@ mod tests {
             check_definition_capabilities(&request("staged-source-portable", 3, 3)).unwrap();
         assert!(staged.compatible);
         assert_eq!(staged.checks[0].installed_version, Some(3));
-        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 4, 4)).unwrap();
+        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 5, 5)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(3));
+        assert_eq!(n64.checks[0].installed_version, Some(4));
         let future =
             check_definition_capabilities(&request("staged-source-portable", 25, 25)).unwrap();
         assert!(!future.compatible);
@@ -708,6 +712,26 @@ mod tests {
     }
 
     #[test]
+    fn executable_parent_n64_requires_a_reader_with_preplay_preservation() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| entry.contract_version <= 3)
+            .collect();
+        let required = request("n64-recomp-portable", 4, 4);
+        assert!(
+            !check_with_inventory(&required, &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert!(
+            check_with_inventory(&request("n64-recomp-portable", 3, 3), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn prepared_settings_version_refuses_v4_inventory() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -741,7 +765,7 @@ mod tests {
         );
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 4, 4))
+            !check_definition_capabilities(&request("n64-recomp-portable", 5, 5))
                 .unwrap()
                 .compatible
         );

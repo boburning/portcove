@@ -74,6 +74,10 @@ impl InstalledContract {
             contract.original_format = Some(contract.format);
             contract.format = 5;
             contract.external_trust = Some(crate::ExternalRuntimeTrust::UserSelected);
+        } else if catalog.port(port_id)?.n64_runtime_at_executable_parent {
+            // Fence older readers without rewriting existing installed contracts.
+            contract.original_format = Some(contract.format);
+            contract.format = 8;
         } else if catalog.port(port_id)?.mod_package_policy.is_some() {
             contract.original_format = Some(contract.format);
             contract.format = 7;
@@ -103,7 +107,7 @@ impl InstalledContract {
             (5, Some(format @ 1..=3), None, Some(crate::ExternalRuntimeTrust::UserSelected)) => {
                 format
             }
-            (6 | 7, Some(format @ 1..=3), None, None) => format,
+            (6 | 7 | 8, Some(format @ 1..=3), None, None) => format,
             _ => {
                 return Err(PortcoveError::verification(
                     "retained preparation interpretation is unsupported or malformed",
@@ -142,7 +146,7 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if matches!(self.format, 4..=7) {
+        if matches!(self.format, 4..=8) {
             cache_key = serde_json::to_string(&(
                 self.original_format,
                 self.preparation_mode,
@@ -206,6 +210,15 @@ impl InstalledContract {
     }
 
     fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
+        if (self.format == 8)
+            != catalog
+                .port(&self.port_id)?
+                .n64_runtime_at_executable_parent
+        {
+            return Err(PortcoveError::verification(
+                "retained executable-parent N64 contract requires its matching envelope",
+            ));
+        }
         if (self.format == 7) != catalog.port(&self.port_id)?.mod_package_policy.is_some() {
             return Err(PortcoveError::verification(
                 "versioned mod package semantics require their retained interpretation envelope",
@@ -297,6 +310,79 @@ mod tests {
         let mut wrong = captured;
         wrong.format = 7;
         assert!(wrong.catalog(id).is_err());
+    }
+
+    #[test]
+    fn executable_parent_n64_captures_fence_legacy_and_indexed_readers() {
+        // Keep historical coordinates explicit when the live catalog advances.
+        let mut historical = Catalog::embedded().unwrap().authoritative_document();
+        let historical_port = historical
+            .ports
+            .iter_mut()
+            .find(|p| p.id == "road-rash-64-recompiled")
+            .unwrap();
+        if let Some(root) = historical_port.runtime_subdirectory.take() {
+            let prefix = format!("{root}/");
+            historical_port.persistent_paths = historical_port
+                .persistent_paths
+                .iter()
+                .map(|p| p.strip_prefix(&prefix).unwrap().to_owned())
+                .collect();
+        }
+        historical_port.n64_runtime_at_executable_parent = false;
+        historical_port.runtime_subdirectory = Some("historical-wrapper".into());
+        historical_port.persistent_paths = historical_port
+            .persistent_paths
+            .iter()
+            .map(|p| format!("historical-wrapper/{p}"))
+            .collect();
+        let original = Catalog::from_json(&serde_json::to_string(&historical).unwrap()).unwrap();
+        let legacy = InstalledContract::capture(&original, "road-rash-64-recompiled").unwrap();
+        let mut document = original.authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|p| p.id == "road-rash-64-recompiled")
+            .unwrap();
+        port.n64_runtime_at_executable_parent = true;
+        let prefix = format!("{}/", port.runtime_subdirectory.take().unwrap());
+        port.persistent_paths = port
+            .persistent_paths
+            .iter()
+            .map(|p| p.strip_prefix(&prefix).unwrap().to_owned())
+            .collect();
+        port.portable_marker = true;
+        let changed = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        for catalog in [
+            changed.clone(),
+            crate::test_fixture::indexed_catalog(&changed, "road-rash-64-recompiled"),
+        ] {
+            let contract = InstalledContract::capture(&catalog, "road-rash-64-recompiled").unwrap();
+            assert_eq!(contract.format, 8);
+            assert!(
+                contract
+                    .catalog("road-rash-64-recompiled")
+                    .unwrap()
+                    .port("road-rash-64-recompiled")
+                    .unwrap()
+                    .n64_runtime_at_executable_parent
+            );
+            let mut downgraded = contract.clone();
+            downgraded.format = downgraded.original_format.take().unwrap();
+            assert!(downgraded.catalog("road-rash-64-recompiled").is_err());
+        }
+        assert!(
+            !legacy
+                .catalog("road-rash-64-recompiled")
+                .unwrap()
+                .port("road-rash-64-recompiled")
+                .unwrap()
+                .n64_runtime_at_executable_parent
+        );
+        let mut wrong = legacy;
+        wrong.original_format = Some(wrong.format);
+        wrong.format = 8;
+        assert!(wrong.catalog("road-rash-64-recompiled").is_err());
     }
 
     #[test]

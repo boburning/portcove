@@ -253,6 +253,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             4
         } else if !port.release.user_prepared.is_empty() && port.runtime_subdirectory.is_some() {
             3
+        } else if port.n64_runtime_at_executable_parent {
+            4
         } else if port.n64_windows_initial_d3d12
             || port
                 .release
