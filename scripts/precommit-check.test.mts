@@ -112,6 +112,10 @@ function fixture(context: FixtureContext, drain?: () => Promise<void>) {
   git(cwd, "config", "user.name", "Portcove hook fixture");
   git(cwd, "config", "user.email", "hook-fixture@example.invalid");
   writeFileSync(path.join(cwd, "package.json"), '{"private":true,"type":"module"}\n');
+  // Local validation places temporary repositories beneath the ignored work/
+  // tree. Own the workspace boundary so vp check uses this fixture config,
+  // rather than inheriting the containing repository's work/** exclusion.
+  writeFileSync(path.join(cwd, "pnpm-workspace.yaml"), "packages: []\n");
   writeFileSync(
     path.join(cwd, "vite.config.ts"),
     'export default { fmt: {}, staged: { "*.js": "vp fmt --config vite.config.ts --ignore-path .gitignore" } };\n',
@@ -247,7 +251,7 @@ void test(
     configureHooks(cwd, "enable", env);
     writeFileSync(
       path.join(cwd, "vite.config.ts"),
-      'import { checkStagedFiles } from "./scripts/viteplus-cli.mts"; export default { staged: { "*.json": { title: "Check staged files", task: (files) => checkStagedFiles(files) } } };\n',
+      'import { checkStagedFiles } from "./scripts/viteplus-cli.mts"; export default { fmt: {}, staged: { "*.json": { title: "Check staged files", task: (files) => checkStagedFiles(files) } } };\n',
     );
     const directory = "catalog with ' quotes & symbols";
     mkdirSync(path.join(cwd, directory));
@@ -261,10 +265,19 @@ void test(
     // batches formatted 100 literal paths. Keep both batches and rollback proof;
     // allow only these owned hook commits finite 60s on Windows.
     const hookBudget = process.platform === "win32" ? 60_000 : 30_000;
-    run(cwd, "git", ["commit", "-qm", "large staged path set"], true, hookBudget);
+    const completed = run(cwd, "git", ["commit", "-qm", "large staged path set"], true, hookBudget);
     const first = files[0];
     assert.ok(first);
-    assert.equal(git(cwd, "show", `HEAD:${first}`), '{ "value": 1 }\n');
+    assert.equal(
+      git(cwd, "show", `HEAD:${first}`),
+      '{ "value": 1 }\n',
+      JSON.stringify({
+        stdout: completed.stdout,
+        stderr: completed.stderr,
+        working: readFileSync(path.join(cwd, first), "utf8"),
+        diff: git(cwd, "diff", "--", first),
+      }),
+    );
     writeFileSync(path.join(cwd, first), "{ invalid JSON\n");
     git(cwd, "add", first);
     writeFileSync(path.join(cwd, first), "{ invalid JSON\n// unstaged work\n");

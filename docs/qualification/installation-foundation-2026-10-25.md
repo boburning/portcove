@@ -1,7 +1,8 @@
 # Installation foundation — October 25, 2026
 
-This is the reduced delivery boundary for PR #2537, owned by #2510. It is
-unmerged candidate evidence. #2510 remains open, Public beta / Required, until
+This is the reduced delivery boundary for PR #2537, owned by #2510. At this
+source checkpoint it is unmerged candidate evidence; the PR and canonical
+issues record subsequent qualification and delivery. #2510 remains open, Public beta / Required, until
 the full original outcome is satisfied. The remaining finite rollout is #2926;
 its ports retain their existing canonical issues. A foundation merge is partial
 delivery, not all-port acceptance.
@@ -96,15 +97,25 @@ The full original 78-case selection is retained for rerun; focused passes do not
 establish a green complete batch. The earlier real transferred-backup metadata
 assertion failure remains distinct and requires import→backup→restore evidence.
 
-The first reduced-candidate authoring/workflow run passed57 cases, failed two
-owned hook subprocesses at their30s harness limits, and retained one existing
-Windows skip for Unix process-group interruption. The100-path staged formatter
+The first reduced-candidate authoring/workflow run passed 57 cases, failed two
+owned hook subprocesses at their 30s harness limits, and retained one existing
+Windows skip for Unix process-group interruption. The 100-path staged formatter
 case retains both formatting batches and failed-batch/index preservation
-assertions. Only its two owned Windows commit waits gain60s, within an explicit
-180s outer test limit; the installed-runtime setup probe gains60s within its
-existing180s outer limit. Default child limits, cleanup/retention guards and
+assertions. Only its two owned Windows commit waits gain 60s, within an explicit
+180s outer test limit; the installed-runtime setup probe gains 60s within its
+existing 180s outer limit. Default child limits, cleanup/retention guards and
 product deadlines remain unchanged. These calibrations still require a complete
 affected-suite rerun; earlier failures and unproven-writer fixtures are retained.
+
+The next complete run passed 58 cases, exposed one formatting assertion and
+retained the same Windows skip. Bounded controls reproduced that assertion
+inside the ignored repository temporary tree and passed outside it. Vite+
+resolves workspace-root check configuration: the nested fixture inherited the
+parent's `work/**` exclusion and silently checked no target files. Giving each
+synthetic repository its own `pnpm-workspace.yaml` and explicit local format
+configuration fixes that cause. The unchanged formatting/index-preservation
+assertions then passed inside the maintained temporary root. This focused
+control does not replace the pending complete affected-suite rerun.
 
 Final reduced-source regressions, ordinary/narrow/keyboard/error/recovery
 browser flows, compatibility checks, complete-candidate independent review,
