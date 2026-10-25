@@ -38,6 +38,7 @@ import { rustSupportInputIdentity } from "./rust-support-cache.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests, inspectLinuxSupervisor } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
+import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 
 const sourceRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -373,6 +374,16 @@ export async function superviseFixedHostedLinuxNativeStages() {
   try {
     await runStage(pre, original, original.deadline);
     preComplete = true;
+    phase = "pre-sign-handoff";
+    await retainReleaseRoutingMarker(
+      path.join(pre.temporary, "native-pre-sign-handoff-ready.json"),
+      {
+        schema_version: 1,
+        authority: "none",
+        binding: pre.binding,
+      },
+    );
+    original.recheck();
     phase = "waiting-for-post-start";
     const signalFile = path.join(pre.temporary, "native-post-start.json");
     while (true) {

@@ -569,7 +569,7 @@ void test("bootstrap environment excludes ambient credentials, wrappers, npm hoo
   ])
     assert.equal(Object.hasOwn(env, key), false);
 });
-void test("actual pinned AST rewrite preserves Unicode before imported module URLs", async (t) => {
+void test("actual pinned pack inlines dynamic cycles and preserves Unicode module URLs", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-unicode-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = path.join(root, "source"),
@@ -577,7 +577,11 @@ void test("actual pinned AST rewrite preserves Unicode before imported module UR
   await mkdir(path.join(source, "scripts"), { recursive: true });
   await writeFile(
     path.join(source, "scripts/imported.mts"),
-    'const label = "😀é"; export const location = import.meta.url; export {label};\n',
+    'const label = "😀é"; export const location = import.meta.url; export {label}; export async function check(){return (await import("./dynamic.mts")).read()};\n',
+  );
+  await writeFile(
+    path.join(source, "scripts/dynamic.mts"),
+    'import {label} from "./imported.mts"; export function read(){return label};\n',
   );
   for (const name of [
     ...controllerToolEntries,
@@ -586,9 +590,10 @@ void test("actual pinned AST rewrite preserves Unicode before imported module UR
   ])
     await writeFile(
       path.join(source, "scripts", `${name}.mts`),
-      'import {location,label} from "./imported.mts"; console.log(JSON.stringify({location,label,entry:import.meta.url}));\n',
+      'import {location,check} from "./imported.mts"; console.log(JSON.stringify({location,label:await check(),entry:import.meta.url}));\n',
     );
   await bundleControllerEntries(source, output);
+  await rm(source, { recursive: true });
   for (const file of [
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
     ...controllerToolChildren,

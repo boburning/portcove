@@ -824,3 +824,21 @@ runnable source/digest, actual authority/custody/protection/reservation and real
 protected/native/public observations remain required. No new job, spend,
 credential, privileged setup or manual step is introduced. Qualification and
 independent review belong to the owning receipt; all existing holds remain.
+
+The first candidate's ordinary CI retained two failures: the fixed-tool build
+rejected a coordinator shared chunk, and the inert Linux handoff fixture lost
+its event-loop reference while awaiting child teardown. Neither failure supplies
+native or production evidence. The repair explicitly fixes final bundler output
+inlining while retaining the external-chunk rejection; the fixture references
+its existing child during bounded teardown.
+
+The helper now waits for the producer's existing atomic public upload request
+before reading private clock/start records. After pre-sign stage settlement the
+original supervisor publishes an atomic sequencing-only handoff marker (at most
+4096 bytes, plus its retained hardlink alias; no additional content allocation).
+The helper still verifies the actual private settlement, source, custody and
+live original owner. Post-sign reads final records only after original-process
+exit. This prevents normal in-flight writes from masquerading as malformed
+completed claims; malformed completed records continue to refuse. The marker
+adds no acceptance or execution authority and stays inside the existing bounded
+lifecycle allocation.

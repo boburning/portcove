@@ -66,7 +66,14 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
       env: {},
       envPrefix: [],
       deps: { alwaysBundle: [/.*/] },
-      outputOptions: { entryFileNames: definition.output, codeSplitting: false },
+      // Use the final resolved output callback: opaque entries must remain one
+      // file even when a dynamically imported module cycles back to the entry.
+      outputOptions: (options) => ({
+        ...options,
+        entryFileNames: definition.output,
+        codeSplitting: false,
+        inlineDynamicImports: true,
+      }),
       plugins: [
         {
           name: "portcove-fixed-module-locations",

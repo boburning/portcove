@@ -242,7 +242,15 @@ export async function hostedLinuxWorkflowUploadRequest(raw: unknown) {
   const runner = await import("./release-hosted-native-runner.mts");
   for (;;) {
     c.active();
+    refusalAbsent(c);
     try {
+      // The existing producer publishes this routing marker atomically only
+      // after its clock/start records are complete. Never read an in-flight
+      // private record as though it were a completed, malformed claim.
+      await readControllerToolFile(
+        path.join(c.root, `portcove-native-linux-${selected}`, "native-job-upload-request.json"),
+        4096,
+      );
       const owner = await original(c);
       await refusal(c, selected);
       const read =
@@ -264,11 +272,14 @@ export async function hostedLinuxWorkflowUploadRequest(raw: unknown) {
       if (errorCode(error) !== "ENOENT") throw error;
       // Before first preparation, a missing clock/start row is not success.
       const started = await ownedJson(c.started);
+      assert.equal(started.binding, c.scope.binding);
       assert.equal(
         readProcessIdentity(Number(started.pid)),
         started.identity,
         "worker exited before readiness; retain effects and recover",
       );
+      refusalAbsent(c);
+      c.active();
       await delay(100);
     }
   }
@@ -320,6 +331,32 @@ export async function settleHostedLinuxWorkflowStage(raw: unknown) {
   for (;;) {
     const owner = await original(c, selected === "pre-sign");
     await refusal(c, selected);
+    if (selected === "post-sign" && owner.live) {
+      await delay(100);
+      continue;
+    }
+    if (selected === "pre-sign") {
+      // Atomic public sequencing hint only: the private settlement and original
+      // live owner below still have to satisfy every independent assertion.
+      try {
+        const bytes = await readControllerToolFile(
+          path.join(c.root, "native-pre-sign-handoff-ready.json"),
+          4096,
+        );
+        const ready: unknown = JSON.parse(bytes.toString("utf8"));
+        assert.ok(
+          isRecord(ready) &&
+            ready.schema_version === 1 &&
+            ready.authority === "none" &&
+            ready.binding === c.scope.binding,
+        );
+      } catch (error) {
+        if (errorCode(error) !== "ENOENT") throw error;
+        fence(c, owner);
+        await delay(100);
+        continue;
+      }
+    }
     const row = await optional(path.join(c.root, `${selected}-supervision-settlement.json`));
     if (row) {
       assert.equal(row.binding, c.scope.binding);
