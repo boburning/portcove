@@ -1186,6 +1186,16 @@ regression is skipped on Windows and must execute in its applicable hosted route
 The previous bootstrap delivery #3451 remains evidence only for its earlier
 inventory and actual six-tool smoke scope.
 
+Initial source `1a4f08593efe11f7f521f4e84f06ddc0686ab3dc` passed both tool
+fixtures in40190590510/a1, including the actual Windows prepared supervisor and
+Linux controlled-runtime interleaving regression. Required CI40190590531/a1
+retained a receiver source-only dependency-closure failure: importing runtime
+support merely to name three fixed inventory paths pulled an absent module into
+credential-free startup. The repair keeps those inventory paths literal, as for
+the existing Linux paths, without importing execution code. Local source-only
+closure and Windows inventory/receiver checks pass after that repair. Subsequent
+exact-source CI and fixture outcomes remain independently scoped.
+
 This adds no protected job, workflow permission, credential or resource-policy
 allocation. The Windows producer/account/direct capture/report and original-worker
 pre/post-sign proof joins remain engineering work, together with final whole-job
