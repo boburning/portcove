@@ -1,0 +1,2241 @@
+{
+  "format_version": 1,
+  "source_commit": "bd2651e7b5c64efdb33009098a5bd29354038dbf",
+  "observation_cutoff": "2026-10-25T11:40:38.721Z",
+  "scope": "Six existing upstream builder/component routes; partial #2510/#2926 delivery, no new managed ownership or stage promotion",
+  "authored_identities": 880,
+  "operational_definitions": 158,
+  "operational_bytes_unchanged": true,
+  "operational_sha256": "bd7c31c89948aa0b6c983cb6051913fc483de7457cae54cd44a497237641ea35",
+  "primary_source_record_count": 48,
+  "distinct_primary_source_count": 47,
+  "entries": [
+    {
+      "id": "burnout-2-timftw21",
+      "canonical_issue": 2447,
+      "path": "crates/portcove-core/catalog/ports/burnout-2-timftw21.json",
+      "before_sha256": "1cdef56470236b2afadb21aed796e640cef17add0c8e487c2c99e1f38412f50e",
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21-proposal.json",
+      "input_sha256": "9a5c1c9ae03b001ab899cf9bd5058abf6eca705a264d6fbdea692362ef083a03",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-burnout-2-timftw21\\burnout-2-timftw21-fa11978367d7728e041169ff9cc380f23f3423443f0190333d5ef109a34511a9.json",
+      "prepared_sha256": "fa11978367d7728e041169ff9cc380f23f3423443f0190333d5ef109a34511a9",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-burnout-2-timftw21\\completion-0c17aaa1e1be80273e1e8eddcdfa45bd246f5b6520eca26b2a4350d17e71bc4a.json",
+      "receipt_sha256": "0c17aaa1e1be80273e1e8eddcdfa45bd246f5b6520eca26b2a4350d17e71bc4a",
+      "source_commit": "2259fea7d99e16436456ce49467833dd918b1b7c",
+      "selected_release": "v1.9",
+      "platform_scope": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+      "steps": [
+        {
+          "title": "Prepare a player with upstream setup",
+          "instruction": "The official Installation.zip is a source and setup kit, not a ready-made player. On Windows, install the upstream LLVM 22.1-or-newer, Visual Studio 2026 C++/Windows SDK, CMake 4.2-or-newer, Git and Ninja prerequisites, extract the kit into a separate retained source folder, then deliberately run Build.cmd and select your own US Xbox XISO (.iso or .xiso). A full-disc dump needs upstream conversion first. The builder acquires dependencies and builds the player. Portcove does not run it during discovery."
+        },
+        {
+          "title": "Register the completed player",
+          "instruction": "When the upstream build succeeds, use Open game folder and choose b2.exe with that folder as its working directory in Portcove. Save the launch details, then choose Play separately. For Linux use upstream Install.desktop; macOS uses Install.command and its Xcode/macOS prerequisites. These experimental native platforms have separate dependency/build instructions; Windows package inspection does not qualify them. Keep source, build and data folders together, and rerun upstream setup after moving them."
+        },
+        {
+          "title": "Back up and rebuild when updating",
+          "instruction": "You or upstream own the runtime, generated game files and updates. Before updating, close the game and builder and back up data/user, data/local/settings.cfg and any data/local/custom-music beside the player. Extract updated source over the retained source folder while keeping build and data, then deliberately rerun the platform setup with your own XISO. Keep the old working copy and originals recoverable. Portcove external registration leaves files untouched and supplies no managed Update, Backup or Rollback."
+        }
+      ],
+      "update_owner": "player/upstream; external ownership retained",
+      "fit_disposition": "Official Installation.zip is source/setup, with external compiler/dependency/XISO preparation and retained source/build coordinates. Current native-portable replacement does not perform this build. Useful upstream setup remains selected; reconsider management on an official independently replaceable player or supported existing preparation contract.",
+      "status": "Actual maintained Core preparation passed; candidate review and delivery pending",
+      "authored_sha256": "392358baffb4870586feffed11025f1035a634ab9ee07aa74ad11ee18bc019ff",
+      "input_prepared_authored_binding": "Input and immutable prepared bytes are separate; authored hash binds formatted repository bytes. Semantic equality with the exact prepared record was verified.",
+      "current_route": "Existing listing; no operational integration",
+      "selected_route": "Upstream package/setup and non-owning completed-player registration",
+      "canonical_preparation": {
+        "issue_number": 2447,
+        "url": "https://github.com/boburning/portcove/issues/2447",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/2447",
+          "observed_at": "2026-10-25T11:30:35.006Z",
+          "body_sha256": "8014b289079e3bc117fb0122b08b10796517d80b64ccd7957a0361c89e446404",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": null,
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "canonical_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "primary_sources": [
+        {
+          "path": "BUILDING.txt",
+          "blob_sha": "2ccf6a554cae34aa46c592cb478b55217fa0f6df",
+          "sha256": "07326ccee334a2e4b3cadab2b50700fa72a220fd79479c50c2ef1722605ba2fc",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/BUILDING.txt",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/BUILDING.txt"
+        },
+        {
+          "path": "Build.cmd",
+          "blob_sha": "291aec60805f7c2a9c0ddf56f8234fd41a75815b",
+          "sha256": "13234c326832cd0013214e59c454846af0c55650281ac4069535017eb35b0e1e",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/Build.cmd",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/Build.cmd"
+        },
+        {
+          "path": "Build.sh",
+          "blob_sha": "334f4120976249f28f6a2eb18e25735d537334f0",
+          "sha256": "cf9e2354274048c1d8d0da748738984bbce0096c00b4cc4cc6f08b1c24c06fa6",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/Build.sh",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/Build.sh"
+        },
+        {
+          "path": "Install.command",
+          "blob_sha": "5df677058f12f4f4f0cb7d77d5217ef6b7f07e13",
+          "sha256": "00fb106ef7260cf60545048a716e974b4475c655b866c1113787ad671fe367c3",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/Install.command",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/Install.command"
+        },
+        {
+          "path": "Install.desktop",
+          "blob_sha": "4df1d75f359a97bd9cf2643ec2aea2619ca8ad92",
+          "sha256": "9b16a2a7dd26379d03ea8b5a0b9fab95351c8382106655e955fe71022dc460f0",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/Install.desktop",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/Install.desktop"
+        },
+        {
+          "path": "Install.sh",
+          "blob_sha": "12d165e7c822fc2e35936116e0aba8e857a7d8fa",
+          "sha256": "e9bbf8f01d7998ee34ec144165f1f18c65b51a72816d9d899517e3f0c1f2cc03",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/Install.sh",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/Install.sh"
+        },
+        {
+          "path": "LICENSE",
+          "blob_sha": "61e27e9d2a6b1dd412d9d44f2daac25d9684179b",
+          "sha256": "b0ee3134264f3ecbd2f5eb9e58f3a2b54e016b41c4b48bd3c8cd11382f629a2d",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/LICENSE",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/LICENSE"
+        },
+        {
+          "path": "NOTICE.md",
+          "blob_sha": "5896a9b02d3327d1e37b5792c55be55212ab7ef0",
+          "sha256": "c26c1d38243e272f60573069c81301c2cc11309ee50b5b9d0966cf63b327ba9f",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/NOTICE.md",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/NOTICE.md"
+        },
+        {
+          "path": "README.md",
+          "blob_sha": "30cc93ccc173a5b6bbd509e762a79716766a9cbc",
+          "sha256": "f4a43e4fd6b51e075ec7695b4ef80d2fffc6638c5f81b12d19cc403ed57d82ae",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/README.md",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/README.md"
+        },
+        {
+          "path": "cmake/package.ps1",
+          "blob_sha": "2a2c59d6cb794bde596b4a6f18d2817668af4571",
+          "sha256": "b55bf4e36ef2243ad3e45b552ef6be013b94a3b1a8545bdfff89e7e3e7653971",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/burnout-2-timftw21/cmake__package.ps1",
+          "url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/cmake/package.ps1"
+        }
+      ],
+      "complete_release_inventory": true,
+      "release_count": 10,
+      "selected_game_release": {
+        "id": 423033460,
+        "tag": "v1.9",
+        "url": "https://github.com/timftw21/burnout2-recompilation/releases/tag/v1.9"
+      },
+      "selected_assets_complete": true,
+      "game_release_assets": [
+        {
+          "id": 673540930,
+          "name": "Installation.zip",
+          "url": "https://github.com/timftw21/burnout2-recompilation/releases/download/v1.9/Installation.zip",
+          "size": 728542,
+          "digest": "sha256:83982aa0cc231d920e403ee3c70a321b6d32b08823d5dafb7491f985748c0ce2"
+        }
+      ],
+      "related": [],
+      "artwork_change": {
+        "game_id": 3840,
+        "cover_id": 126527,
+        "image_id": "co2pmn",
+        "image_sha256": "74976a1b89848f15359717c555c095d5a35564b92636404faf8cb1c1cf4475b1",
+        "game_slug": "burnout-2-point-of-impact",
+        "match_kind": "underlying-game"
+      },
+      "artifact_observations": [
+        {
+          "id": "burnout-2-timftw21",
+          "asset": "Installation.zip",
+          "asset_id": 666698569,
+          "publisher_expected_sha256": "sha256:db7e99cfd0fdd40399139a0e3d8304a3ff82f26a844cbaaac9d25cf0ffc4a551",
+          "observed_sha256": "db7e99cfd0fdd40399139a0e3d8304a3ff82f26a844cbaaac9d25cf0ffc4a551",
+          "size": 720598,
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/burnout-2-timftw21-group9.zip",
+          "retained_layout": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/burnout-2-timftw21-group9-contents.json",
+          "observation": "Historical release bytes only; not the newly selected release",
+          "scope": "No acquisition, extraction, helper, compiler, installer, original or player execution"
+        }
+      ],
+      "validation_scope": "Actual maintained canonical-bound Core listing preparation; complete fresh metadata and pinned source. Prior actual archive observations remain version scoped. No compiler, installer, original, helper or player executed; no managed lifecycle, native/gameplay, packaged Desktop or real-save qualification."
+    },
+    {
+      "id": "derrickgold-ar-recomp",
+      "canonical_issue": 1791,
+      "path": "crates/portcove-core/catalog/ports/derrickgold-ar-recomp.json",
+      "before_sha256": "e58d0ed4d447ed9ba3cc0546fc427428f681fe713e12c83d93b030b478345ff6",
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp-proposal.json",
+      "input_sha256": "4a230e5072dbb2fed16153e6ae22d7b8744806e614ab56a63eb145a89ad91319",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-derrickgold-ar-recomp\\derrickgold-ar-recomp-4a230e5072dbb2fed16153e6ae22d7b8744806e614ab56a63eb145a89ad91319.json",
+      "prepared_sha256": "4a230e5072dbb2fed16153e6ae22d7b8744806e614ab56a63eb145a89ad91319",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-derrickgold-ar-recomp\\completion-5932ddeb2fbaeddf82f1a5a0c8edd7b5698ab5166af72fd4d7e695a3430a7c56.json",
+      "receipt_sha256": "5932ddeb2fbaeddf82f1a5a0c8edd7b5698ab5166af72fd4d7e695a3430a7c56",
+      "source_commit": "93c2786af6012325cc00c414c7bff07aa22ce672",
+      "selected_release": "v0804",
+      "platform_scope": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+      "steps": [
+        {
+          "title": "Prepare the game with the upstream Builder",
+          "instruction": "The portable download is ActRaiser Recomp Builder, not a prepared player. For a Windows or macOS portable desktop bundle, extract it into a writable folder, keep its .portable marker and BuilderData together, then deliberately open ActRaiserRecompBuilder.exe on Windows or the matching Builder app’s Workshop. The generic Linux x64 tar.xz uses ./run-build.sh to open the Workshop in your browser; follow its upstream prerequisites. Choose your own supported USA ActRaiser ROM and Build game. The bundle supplies its compiler; Portcove does not run it during discovery. Use the matching package and instructions for your platform."
+        },
+        {
+          "title": "Add the completed game",
+          "instruction": "The default output is ActRaiserRecomp beside the Builder. Choose the completed game executable in that output folder in Portcove, with its folder as the working directory. Keep its DLLs, user-rom.sfc, tools, assets, settings and saves together. Save launch details, then choose Play separately. If application control blocks a builder tool, retain its error and use upstream/administrator guidance."
+        },
+        {
+          "title": "Back up and rebuild to update",
+          "instruction": "You or upstream own the generated player and updates. Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder. Upstream migrates older save.srm/save.ini or actraiser.srm to Slot 1 and keeps originals under saves/legacy-layout. Use Import previous installation for older utils layouts. Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
+        }
+      ],
+      "update_owner": "player/upstream; external ownership retained",
+      "fit_disposition": "Official portable archive is a ROM compiler/Workshop, not a prepared player. Game replacement rebuilds generated code and has explicit legacy saves/storage migration. Preserve this richer builder; reconsider management on supported preparation or independently replaceable player.",
+      "status": "Actual maintained Core preparation passed; candidate review and delivery pending",
+      "authored_sha256": "bbe11eab2c6179bf172ca345e15c15d1c8cae5dd08cdee898e6cb446d3c1c2cd",
+      "input_prepared_authored_binding": "Input and immutable prepared bytes are separate; authored hash binds formatted repository bytes. Semantic equality with the exact prepared record was verified.",
+      "current_route": "Existing listing; no operational integration",
+      "selected_route": "Upstream package/setup and non-owning completed-player registration",
+      "canonical_preparation": {
+        "issue_number": 1791,
+        "url": "https://github.com/boburning/portcove/issues/1791",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/1791",
+          "observed_at": "2026-10-25T11:32:29.133Z",
+          "body_sha256": "b512a84d41908a97809dd0e26419767b4ed293f95d4f533de7abeb387d0dc493",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": null,
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "canonical_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "primary_sources": [
+        {
+          "path": "LICENSE",
+          "blob_sha": "bbd91b92924012675e4dfc3a43378664101aca72",
+          "sha256": "cfb9beef33285bf6024ff82338f678e8e01422a7a727114c103dd9ba1d0b1286",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp/LICENSE",
+          "url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "blob_sha": "eb10c8115435e3a4abc95a73f0b446dcf1faa422",
+          "sha256": "9c5f2422ff06c926a574262938c04deefd96a9964875dce1c198e076f6491685",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp/README.md",
+          "url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md"
+        },
+        {
+          "path": "docs/desktop-packaging.md",
+          "blob_sha": "f00318f3eca8aa684027ebb2985584334f2f3f51",
+          "sha256": "9163c71271d88d94dad82c3c8134e74434657484ab7b2dcf4d30d96e93ae7f89",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp/docs__desktop-packaging.md",
+          "url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/docs/desktop-packaging.md"
+        },
+        {
+          "path": "docs/save-format.md",
+          "blob_sha": "2aa0f7fc9d7c1a1d7d066791fe2c8c493a20cfb8",
+          "sha256": "144a10a717a3bbd7c30a588885beb5006001f96862719eaf9941237c62e027f4",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp/docs__save-format.md",
+          "url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/docs/save-format.md"
+        },
+        {
+          "path": "installer/README.md",
+          "blob_sha": "152be03f6f1ccdf28ec83c5c09e1df528bcbf529",
+          "sha256": "127c12d96320bb1f74c9be35576fb2c283454113c583c6cf4945dea39d7735fd",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp/installer__README.md",
+          "url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/installer/README.md"
+        },
+        {
+          "path": "src/save/save_paths.c",
+          "blob_sha": "8fc7b946261ef84508ee0c1f6a49dbe6bf142029",
+          "sha256": "77cd69d0b4c495daadba572a590d9d6bc4ce5a5f06ac5be0fb89387ed25461ed",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp/src__save__save_paths.c",
+          "url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/src/save/save_paths.c"
+        },
+        {
+          "path": "src/save/save_slots_migration.inc",
+          "blob_sha": "0400321785343fa7148b3ef5ecaf3b0a9a60a5ec",
+          "sha256": "0b518c994a454f79453f146f7e10420de68692606d0e0359bd108da4c60e287a",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/derrickgold-ar-recomp/src__save__save_slots_migration.inc",
+          "url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/src/save/save_slots_migration.inc"
+        }
+      ],
+      "complete_release_inventory": true,
+      "release_count": 10,
+      "selected_game_release": {
+        "id": 421404277,
+        "tag": "v0804",
+        "url": "https://github.com/DerrickGold/ar-recomp/releases/tag/v0804"
+      },
+      "selected_assets_complete": true,
+      "game_release_assets": [
+        {
+          "id": 667784439,
+          "name": "actraiser-recomp-linux-arm64.tar.xz",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/actraiser-recomp-linux-arm64.tar.xz",
+          "size": 73541776,
+          "digest": "sha256:067018b0a94d7409e96cf60659a05c706453c35f0989d73d9c2a74913f7dce9a"
+        },
+        {
+          "id": 667784424,
+          "name": "actraiser-recomp-linux-arm64.tar.xz.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/actraiser-recomp-linux-arm64.tar.xz.sha256",
+          "size": 102,
+          "digest": "sha256:4205da458dc6af70ef47e4fe06422199cc6b9b05579c0554d41153e476204831"
+        },
+        {
+          "id": 667784606,
+          "name": "actraiser-recomp-linux-x86_64.tar.xz",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/actraiser-recomp-linux-x86_64.tar.xz",
+          "size": 79681584,
+          "digest": "sha256:6fa465aa89a364a0f9dc7fccf96901fa4f3f7b5aaeeeefd7588aeac67f9a08d3"
+        },
+        {
+          "id": 667784603,
+          "name": "actraiser-recomp-linux-x86_64.tar.xz.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/actraiser-recomp-linux-x86_64.tar.xz.sha256",
+          "size": 103,
+          "digest": "sha256:0fc72cd63caa91859a083cb6e2c56d891d14c78b8e99ec22c100e1a2e4adfc72"
+        },
+        {
+          "id": 667784842,
+          "name": "ActRaiserRecompBuilder-macos-arm64-portable.zip",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-arm64-portable.zip",
+          "size": 107028679,
+          "digest": "sha256:7ae98442fbc18e81be6128db51b3adfb577a43e1ca2f25ac6bd47cbbd29326c3"
+        },
+        {
+          "id": 667784814,
+          "name": "ActRaiserRecompBuilder-macos-arm64-portable.zip.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-arm64-portable.zip.sha256",
+          "size": 114,
+          "digest": "sha256:9e72456d26d1db9c654c46ff5e3df7d36ecc5dc4aa252ff6704cace0c7ce6170"
+        },
+        {
+          "id": 667785089,
+          "name": "ActRaiserRecompBuilder-macos-arm64.app.zip",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-arm64.app.zip",
+          "size": 106361423,
+          "digest": "sha256:679ea243132702b4c3d0d7b8a5fc89d8df126f20df795498cd2e19f7a55b5970"
+        },
+        {
+          "id": 667785083,
+          "name": "ActRaiserRecompBuilder-macos-arm64.app.zip.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-arm64.app.zip.sha256",
+          "size": 109,
+          "digest": "sha256:459a95cc2a44fcad7e1e6b976e35ad873248d9f3f0647985fc6e4553808276d2"
+        },
+        {
+          "id": 667785457,
+          "name": "ActRaiserRecompBuilder-macos-x86_64-portable.zip",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-x86_64-portable.zip",
+          "size": 112221366,
+          "digest": "sha256:df05b5ce2869fbee87404d459359441a0bcf5fd3a3448b673b9f48de029dea04"
+        },
+        {
+          "id": 667785455,
+          "name": "ActRaiserRecompBuilder-macos-x86_64-portable.zip.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-x86_64-portable.zip.sha256",
+          "size": 115,
+          "digest": "sha256:fc74160078d81e7b3d24cbed92576d916de8e1baae8694ab397041b0ff122a18"
+        },
+        {
+          "id": 667785840,
+          "name": "ActRaiserRecompBuilder-macos-x86_64.app.zip",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-x86_64.app.zip",
+          "size": 111539006,
+          "digest": "sha256:f03d0b46425f987bdd7b1b4bb1a8700a65ad7130ffe002d16573164ea3059d6c"
+        },
+        {
+          "id": 667785830,
+          "name": "ActRaiserRecompBuilder-macos-x86_64.app.zip.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-macos-x86_64.app.zip.sha256",
+          "size": 110,
+          "digest": "sha256:a615044b6e35e82b9d48b02e75d95904468f9653d160e2f52f831b5ce9f11ed0"
+        },
+        {
+          "id": 667781492,
+          "name": "ActRaiserRecompBuilder-steam-deck-portable.tar.xz",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-steam-deck-portable.tar.xz",
+          "size": 217608304,
+          "digest": "sha256:4b7feeef377891acf02ca510fd86e2006a4d40723c7851704ad7ef611612c74c"
+        },
+        {
+          "id": 667781473,
+          "name": "ActRaiserRecompBuilder-steam-deck-portable.tar.xz.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-steam-deck-portable.tar.xz.sha256",
+          "size": 116,
+          "digest": "sha256:0db72dd3d9d893c91fcb238079a658d5e25aab7cd830f2ea8706ed5fb14e2392"
+        },
+        {
+          "id": 667782205,
+          "name": "ActRaiserRecompBuilder-steam-deck.AppImage",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-steam-deck.AppImage",
+          "size": 223201784,
+          "digest": "sha256:987fb125bac941d41d250766a6cb7a204132cd0b51d056e165414612cf45e777"
+        },
+        {
+          "id": 667782194,
+          "name": "ActRaiserRecompBuilder-steam-deck.AppImage.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-steam-deck.AppImage.sha256",
+          "size": 109,
+          "digest": "sha256:56ec4a65795a9d42635acf6c99502c5cf72fa95b24dee65f69afe3c36adb4217"
+        },
+        {
+          "id": 667783257,
+          "name": "ActRaiserRecompBuilder-windows-arm64-portable.zip",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-arm64-portable.zip",
+          "size": 113960821,
+          "digest": "sha256:1693791c1dacbe0b32c2260cee25fdfe9f1f30e3e6b6c046d0bccb09cae830e4"
+        },
+        {
+          "id": 667783248,
+          "name": "ActRaiserRecompBuilder-windows-arm64-portable.zip.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-arm64-portable.zip.sha256",
+          "size": 116,
+          "digest": "sha256:88bc0236901d5441f03b311e28ad6b44592cab5c50fccc6ca960b1a49e59613a"
+        },
+        {
+          "id": 667783402,
+          "name": "ActRaiserRecompBuilder-windows-arm64.exe",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-arm64.exe",
+          "size": 124897691,
+          "digest": "sha256:b630b9aa9e4b67fe4ed6cef872ef5924f050793e9d9bbe31aa00a3938d6eecad"
+        },
+        {
+          "id": 667783388,
+          "name": "ActRaiserRecompBuilder-windows-arm64.exe.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-arm64.exe.sha256",
+          "size": 107,
+          "digest": "sha256:83079afbdc8fa372ece831360b201f9cf4581884cdae36760e8db46009bc2a8c"
+        },
+        {
+          "id": 667783879,
+          "name": "ActRaiserRecompBuilder-windows-x86_64-portable.zip",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-x86_64-portable.zip",
+          "size": 119322656,
+          "digest": "sha256:742db317d347f507c3671338f00d2d2fb22a882c5b8f630101479849f2d04b92"
+        },
+        {
+          "id": 667783838,
+          "name": "ActRaiserRecompBuilder-windows-x86_64-portable.zip.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-x86_64-portable.zip.sha256",
+          "size": 117,
+          "digest": "sha256:04545306b39388aa8abd32f8ea66692f4164789a5f82d65a96bd1c2226ff69e1"
+        },
+        {
+          "id": 667784110,
+          "name": "ActRaiserRecompBuilder-windows-x86_64.exe",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-x86_64.exe",
+          "size": 130354685,
+          "digest": "sha256:fd887b53b84e54046144585f412a8e361b7841d07963cd119ff4591720a3f550"
+        },
+        {
+          "id": 667784100,
+          "name": "ActRaiserRecompBuilder-windows-x86_64.exe.sha256",
+          "url": "https://github.com/DerrickGold/ar-recomp/releases/download/v0804/ActRaiserRecompBuilder-windows-x86_64.exe.sha256",
+          "size": 108,
+          "digest": "sha256:9ee34798c05584916ecaadf950c31c55842c37b2ed6b6f5bca9f77fa9d490155"
+        }
+      ],
+      "related": [],
+      "artwork_change": null,
+      "artifact_observations": [
+        {
+          "id": "derrickgold-ar-recomp",
+          "asset": "ActRaiserRecompBuilder-windows-x86_64-portable.zip",
+          "asset_id": 667783879,
+          "publisher_expected_sha256": "sha256:742db317d347f507c3671338f00d2d2fb22a882c5b8f630101479849f2d04b92",
+          "observed_sha256": "742db317d347f507c3671338f00d2d2fb22a882c5b8f630101479849f2d04b92",
+          "size": 119322656,
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/derrickgold-ar-recomp-group10.zip",
+          "retained_layout": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/derrickgold-ar-recomp-group10-contents.json",
+          "observation": "Current selected game release bytes, rehashed; prior bounded layout remains applicable",
+          "scope": "No acquisition, extraction, helper, compiler, installer, original or player execution"
+        }
+      ],
+      "validation_scope": "Actual maintained canonical-bound Core listing preparation; complete fresh metadata and pinned source. Prior actual archive observations remain version scoped. No compiler, installer, original, helper or player executed; no managed lifecycle, native/gameplay, packaged Desktop or real-save qualification."
+    },
+    {
+      "id": "gsrecomp",
+      "canonical_issue": 1619,
+      "path": "crates/portcove-core/catalog/ports/gsrecomp.json",
+      "before_sha256": "eeff17543f7577405701497243c13ffdb6ac30b15ae5221890c4eaec04a52652",
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp-proposal-v3.json",
+      "input_sha256": "4fe2122eb5f60dcc5070b479d9d75a00d58676a6999ea3e02a724beb8ef9f817",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-gsrecomp-v3\\gsrecomp-4fe2122eb5f60dcc5070b479d9d75a00d58676a6999ea3e02a724beb8ef9f817.json",
+      "prepared_sha256": "4fe2122eb5f60dcc5070b479d9d75a00d58676a6999ea3e02a724beb8ef9f817",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-gsrecomp-v3\\completion-022b79bed36cebb3bf8297fd1b13022069b9c565c97db454d9001d7f7a7b0df6.json",
+      "receipt_sha256": "022b79bed36cebb3bf8297fd1b13022069b9c565c97db454d9001d7f7a7b0df6",
+      "source_commit": "c72ef00dad078f6a714258d3e157ee6ea3d4a4ab",
+      "selected_release": "0.6",
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
+      "steps": [
+        {
+          "title": "Prepare either game with the shared launcher",
+          "instruction": "Extract the whole official package. Choose GoldenSunLauncher.exe on Windows, or GoldenSunLauncher on Linux, then choose The Broken Seal or The Lost Age and your own matching USA/Europe GBA ROM. Keep the normal SHA-1 ROM check enabled. No GBA BIOS is required. The bundled compiler prepares game code on first launch and after updates; Linux also needs system SDL2 and OpenGL. Portcove does not run this builder during discovery."
+        },
+        {
+          "title": "Register the collection launcher",
+          "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; successful preparation is not completed gameplay qualification."
+        },
+        {
+          "title": "Keep current data and rebuild after updates",
+          "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. External save imports leave their originals in place and preserve conflicts under Saves/Imported. Legacy progress already inside this collection’s ROMs folder can move into Saves after verified copy or conflict preservation. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+        }
+      ],
+      "update_owner": "player/upstream; external ownership retained",
+      "fit_disposition": "The collection rebuilds game libraries from two ROM workflows after updates; generated output, shared data and games-specific settings must agree. Existing adapters do not own this regeneration. Root original-material license remains unselected; retain the canonical official personal noncommercial workflow without inferring a redistribution grant.",
+      "status": "Actual maintained Core preparation passed; candidate review and delivery pending",
+      "repair": "Distinguish external import originals retained from verified in-collection legacy progress movement; previous immutable input and receipt retained.",
+      "authored_sha256": "ec2263c314769605eafde03e1f141e725e9207d59264a54da9123c6d502f4b81",
+      "input_prepared_authored_binding": "Input and immutable prepared bytes are separate; authored hash binds formatted repository bytes. Semantic equality with the exact prepared record was verified.",
+      "current_route": "Existing listing; no operational integration",
+      "selected_route": "Upstream package/setup and non-owning completed-player registration",
+      "canonical_preparation": {
+        "issue_number": 1619,
+        "url": "https://github.com/boburning/portcove/issues/1619",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/1619",
+          "observed_at": "2026-10-25T11:39:50.169Z",
+          "body_sha256": "cfdd994ed8fb003853437fd3d434493ed8f806e82a0008f4f04e2f1c2ae55cbf",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": null,
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "canonical_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "primary_sources": [
+        {
+          "path": "BUILDING.md",
+          "blob_sha": "91f3b4694f6ff9b744afc33783574daca280aa99",
+          "sha256": "de1f314248f947991c7b0a2b316dd6031693e0ddbeb57f6396edb29284729ce4",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/BUILDING.md",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/BUILDING.md"
+        },
+        {
+          "path": "LICENSE",
+          "blob_sha": "ad8df40c9593f6c1c21e9bbf4f34f9411d243daa",
+          "sha256": "f5d6d0dc0d6245d02d379cf66f9c2a82eabb27d785a1feac3b9f5e3be70f9ab2",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/LICENSE",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "blob_sha": "89db59bbebe0efbbd0c762f3fb2c821b4c435701",
+          "sha256": "9e2a74527ec55ba099cfc49ae5131132e369b30c88511602ab6ca38973c00750",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/README.md",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md"
+        },
+        {
+          "path": "build_dev.bat",
+          "blob_sha": "01000aaebf5049caf6260e633651f9e1ca420fe3",
+          "sha256": "deea828a5557dee4124d987dd64d8db163ee133119bec2e335f4e0eca16076eb",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/build_dev.bat",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/build_dev.bat"
+        },
+        {
+          "path": "build_launcher.bat",
+          "blob_sha": "352a0a0d23d089724ce88fb909917d4f58eb6654",
+          "sha256": "52f3e0ab467d3dd93f014e70d0107e69cbfa652c92100ce92d6368f64cc55a22",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/build_launcher.bat",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/build_launcher.bat"
+        },
+        {
+          "path": "scripts/release/README.txt",
+          "blob_sha": "2a71f7007554ad04a4524a8b16c97de23a0fb16e",
+          "sha256": "1fc53ccb34f66d0995c2c539bede4f966f8a7caf3afb07511e6567904b68b567",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/scripts__release__README.txt",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/scripts/release/README.txt"
+        },
+        {
+          "path": "launcher/collection_update.h",
+          "blob_sha": "62a1423a98f1a53acc16df53108a1081693f7ee5",
+          "sha256": "9f7e86a26248d1787a5645dffcbfa3d591d15d761f0f72f11e3acff42c2e1d6e",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/launcher__collection_update.h",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/launcher/collection_update.h"
+        },
+        {
+          "path": "launcher/collection_storage.h",
+          "blob_sha": "9325354d92591745d3a5a943753a8875b4defa98",
+          "sha256": "1213d162dec64d093f9591c7d42d346f05db8f2030991ad2ca75d639edae27b0",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/launcher__collection_storage.h",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/launcher/collection_storage.h"
+        },
+        {
+          "path": "launcher/collection_build.h",
+          "blob_sha": "d1c641e7a50466588939cc0c4a63f3829ab9de4e",
+          "sha256": "4cef7a0e5a82bb5adebe2a596152874f29bf22b8231acb135197a6289eaf4acc",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/launcher__collection_build.h",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/launcher/collection_build.h"
+        },
+        {
+          "path": "engine/LICENSE",
+          "blob_sha": "ad85577e44af92cedfdeae3c81dcc5ad34aa8b1f",
+          "sha256": "265faba0468f73bd44cbd156e072fe32f77ba6e372df2733b3a7595f440973cb",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/engine__LICENSE",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/engine/LICENSE"
+        },
+        {
+          "path": "ATTRIBUTION.md",
+          "blob_sha": "70d7c42b0bf57ad4ce9a644131f83ed95275c522",
+          "sha256": "b285d46ab7b6d88dfc3133cf5539081b4e3384e022765750209ec5dc69e1aa16",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/ATTRIBUTION.md",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/ATTRIBUTION.md"
+        },
+        {
+          "path": "BUILDING.md",
+          "blob_sha": "91f3b4694f6ff9b744afc33783574daca280aa99",
+          "sha256": "de1f314248f947991c7b0a2b316dd6031693e0ddbeb57f6396edb29284729ce4",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/BUILDING.md",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/BUILDING.md"
+        },
+        {
+          "path": "MUSIC_MODS.md",
+          "blob_sha": "46524852ca9b57514054aebed610595e1cacd3ec",
+          "sha256": "b6e58feff538f8ab8e4f8475e39074df0425ffdf3fbad2988f810b50416f6001",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp/MUSIC_MODS.md",
+          "url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/MUSIC_MODS.md"
+        }
+      ],
+      "complete_release_inventory": true,
+      "release_count": 18,
+      "selected_game_release": {
+        "id": 422956488,
+        "tag": "0.6",
+        "url": "https://github.com/Shmargus/GSRecomp/releases/tag/0.6"
+      },
+      "selected_assets_complete": true,
+      "game_release_assets": [
+        {
+          "id": 673198178,
+          "name": "GoldenSunRecompiled-0.6-linux.zip",
+          "url": "https://github.com/Shmargus/GSRecomp/releases/download/0.6/GoldenSunRecompiled-0.6-linux.zip",
+          "size": 61397569,
+          "digest": "sha256:9f5abde4709b6290e5bfe70caedc1f2620b8aa9a06f145e9f1a5d6eec56614a2"
+        },
+        {
+          "id": 673198053,
+          "name": "GoldenSunRecompiled-0.6-windows.zip",
+          "url": "https://github.com/Shmargus/GSRecomp/releases/download/0.6/GoldenSunRecompiled-0.6-windows.zip",
+          "size": 89439713,
+          "digest": "sha256:86151f3fb08ca2fb59bdcee2570252417003b075f1fab674f1cdf5cf8be40687"
+        }
+      ],
+      "related": [],
+      "artwork_change": null,
+      "artifact_observations": [
+        {
+          "id": "gsrecomp",
+          "asset": "GoldenSunRecompiled-0.5.3-windows.zip",
+          "asset_id": 660397255,
+          "publisher_expected_sha256": "sha256:0ae2e77bcb004a30d44fa5ecbb5f9d08fc7d7def3f112ee4a6ba0610130a08c4",
+          "observed_sha256": "0ae2e77bcb004a30d44fa5ecbb5f9d08fc7d7def3f112ee4a6ba0610130a08c4",
+          "size": 88825526,
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/gsrecomp-group10.zip",
+          "retained_layout": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/gsrecomp-group10-contents.json",
+          "observation": "Historical release bytes only; not the newly selected release",
+          "scope": "No acquisition, extraction, helper, compiler, installer, original or player execution"
+        }
+      ],
+      "validation_scope": "Actual maintained canonical-bound Core listing preparation; complete fresh metadata and pinned source. Prior actual archive observations remain version scoped. No compiler, installer, original, helper or player executed; no managed lifecycle, native/gameplay, packaged Desktop or real-save qualification."
+    },
+    {
+      "id": "sonic-mania-sonic-mania-decompilation-rsdkv5",
+      "canonical_issue": 384,
+      "path": "crates/portcove-core/catalog/ports/sonic-mania-sonic-mania-decompilation-rsdkv5.json",
+      "before_sha256": "b2a6ae923a3f2ae51427fb2387a6dc451e4599c85f57029b13ee75763c94ee01",
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/sonic-mania-sonic-mania-decompilation-rsdkv5-proposal.json",
+      "input_sha256": "bb8ee847d325277156cb89da724eee263f05133710ed125fc4c58014a03fb191",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-sonic-mania-sonic-mania-decompilation-rsdkv5\\sonic-mania-sonic-mania-decompilation-rsdkv5-bb8ee847d325277156cb89da724eee263f05133710ed125fc4c58014a03fb191.json",
+      "prepared_sha256": "bb8ee847d325277156cb89da724eee263f05133710ed125fc4c58014a03fb191",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-sonic-mania-sonic-mania-decompilation-rsdkv5\\completion-a4fb6c8696d153d4c94db8a9e513f82b2209349e03321496cbe421f50dbefb31.json",
+      "receipt_sha256": "a4fb6c8696d153d4c94db8a9e513f82b2209349e03321496cbe421f50dbefb31",
+      "source_commit": "56cf1bbac45ebf9da5df781c2983317c3fbb6d5f",
+      "selected_release": "v1.1.1",
+      "platform_scope": ["windows-x86-64"],
+      "steps": [
+        {
+          "title": "Pair the game module with its matching engine",
+          "instruction": "The reviewed mania-windows-x64.zip contains v5/Game.dll and v5U/Game.dll, not a player executable. Follow upstream’s guide to obtain the matching RSDKv5 or RSDKv5U engine, use only the matching Game.dll variant beside that engine, and supply assets from your own supported Sonic Mania (Plus) release. The Netflix Games version is not supported. Keep this prepared folder separate from your only working copy."
+        },
+        {
+          "title": "Register the prepared player",
+          "instruction": "Choose the actual matching engine executable after upstream setup, with its prepared game folder as the working directory. Game.dll is a module, not a launch target. Read-only discovery and downloading do not run or combine modules/helpers. Upstream’s save-transfer guidance can bring over your own original PC save data; keep a separate original copy. Keep your actual save data, settings and mods with that prepared folder. Save launch details first, then choose Play separately."
+        },
+        {
+          "title": "Keep runtime replacement with upstream",
+          "instruction": "Use upstream’s compatible engine/Game.dll pair and a separately prepared replacement folder when updating; keep the current folder and its saves recoverable until the replacement works. You or upstream provide runtime updates; Portcove does not back up or roll back this external copy. This download is a game module rather than a complete player, so finish pairing it through upstream before registering."
+        }
+      ],
+      "update_owner": "player/upstream; external ownership retained",
+      "fit_disposition": "The actual selected archive contains two incompatible Game.dll modules and no engine executable. A separate compatible RSDK engine and original assets are required. Native-portable is one archive/runtime, and existing staged adapters do not compose this engine/module pair. Retain supported pairing/source-build instructions and non-owning completed player; reconsider management on a complete compatible upstream player or supported reviewed shared composition.",
+      "status": "Actual maintained Core preparation passed; candidate review and delivery pending",
+      "authored_sha256": "d889f0f860f7834a6e37a7d50713fa6ab4935db363bbc95a0151a4c242ea323c",
+      "input_prepared_authored_binding": "Input and immutable prepared bytes are separate; authored hash binds formatted repository bytes. Semantic equality with the exact prepared record was verified.",
+      "current_route": "Existing listing; no operational integration",
+      "selected_route": "Upstream package/setup and non-owning completed-player registration",
+      "canonical_preparation": {
+        "issue_number": 384,
+        "url": "https://github.com/boburning/portcove/issues/384",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/384",
+          "observed_at": "2026-10-25T11:32:42.292Z",
+          "body_sha256": "bed57326dcfb82d26e373a7c2cffcd1cc1bf3d86b6e9ea6683dab3f2c3c5962f",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": null,
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "canonical_planning": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "primary_sources": [
+        {
+          "path": "LICENSE.md",
+          "blob_sha": "f69e7dfbe9b1b30e01652b8af875d53d29a8018c",
+          "sha256": "02e47485cb616c234a549c92b5ec79805c47a7d342baf5218472680edcdb6bca",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/sonic-mania-sonic-mania-decompilation-rsdkv5/LICENSE.md",
+          "url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/LICENSE.md"
+        },
+        {
+          "path": "README.md",
+          "blob_sha": "a3f2883f5f1dca8d6d7a1365a30734a933bb18ab",
+          "sha256": "71bef8b9164ec1c66ee948a516c5dfd65072bea30685e617e1026b9aecf27cd1",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/sonic-mania-sonic-mania-decompilation-rsdkv5/README.md",
+          "url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/README.md"
+        },
+        {
+          "path": ".gitmodules",
+          "blob_sha": "137972648c5f461d97f7c41bc8f6920c9cfd515d",
+          "sha256": "f7ede6f7748aa7a7e142ad3308fcd183bc1cf1faff91828885ce2441ec78fff9",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/sonic-mania-sonic-mania-decompilation-rsdkv5/.gitmodules",
+          "url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/.gitmodules"
+        }
+      ],
+      "complete_release_inventory": true,
+      "release_count": 3,
+      "selected_game_release": {
+        "id": 258992811,
+        "tag": "v1.1.1",
+        "url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases/tag/v1.1.1"
+      },
+      "selected_assets_complete": true,
+      "game_release_assets": [
+        {
+          "id": 311368566,
+          "name": "mania-linux.zip",
+          "url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases/download/v1.1.1/mania-linux.zip",
+          "size": 3700618,
+          "digest": "sha256:de4b3400602f60e9a90102a5ef8478e399cd43610ae9abb25ee120c881352176"
+        },
+        {
+          "id": 311368574,
+          "name": "mania-windows-x64.zip",
+          "url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases/download/v1.1.1/mania-windows-x64.zip",
+          "size": 2944446,
+          "digest": "sha256:7a0698087e3ffdb1eff2e4f8dfe8b17bdfcef879cf07dc2a9294d241bbdcc356"
+        },
+        {
+          "id": 311368571,
+          "name": "mania-windows.zip",
+          "url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases/download/v1.1.1/mania-windows.zip",
+          "size": 2218492,
+          "digest": "sha256:b0587fc03d750a12f581d553f765f6d238fca53ebbdb0da750cd8008af9d00e7"
+        }
+      ],
+      "related": [
+        {
+          "repository": "RSDKModding/RSDKv5-Decompilation",
+          "repository_id": 500449747,
+          "parent": null,
+          "source_commit": "191d7aea6c262d891244172a8609ac69fbfd7571",
+          "complete_release_inventory": true,
+          "release_count": 3,
+          "selected_release": {
+            "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/258991624",
+            "assets_url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/258991624/assets",
+            "upload_url": "https://uploads.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/258991624/assets{?name,label}",
+            "html_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/tag/v1.1.1",
+            "id": 258991624,
+            "author": {
+              "login": "Mefiresu",
+              "id": 15063879,
+              "node_id": "MDQ6VXNlcjE1MDYzODc5",
+              "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/Mefiresu",
+              "html_url": "https://github.com/Mefiresu",
+              "followers_url": "https://api.github.com/users/Mefiresu/followers",
+              "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+              "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+              "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+              "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+              "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+              "repos_url": "https://api.github.com/users/Mefiresu/repos",
+              "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+              "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+              "type": "User",
+              "user_view_type": "public",
+              "site_admin": false
+            },
+            "node_id": "RE_kwDOHdRB084Pb-YI",
+            "tag_name": "v1.1.1",
+            "target_commitish": "master",
+            "name": "RSDKv5 + U 1.1.1",
+            "draft": false,
+            "immutable": false,
+            "prerelease": false,
+            "created_at": "2025-10-31T19:52:08Z",
+            "updated_at": "2025-11-02T01:03:55Z",
+            "published_at": "2025-11-01T23:53:16Z",
+            "assets": [
+              {
+                "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266832",
+                "id": 311266832,
+                "node_id": "RA_kwDOHdRB084SjY4Q",
+                "name": "v5-android.zip",
+                "label": null,
+                "uploader": {
+                  "login": "Mefiresu",
+                  "id": 15063879,
+                  "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/Mefiresu",
+                  "html_url": "https://github.com/Mefiresu",
+                  "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                  "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                  "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                  "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                  "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                  "type": "User",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/zip",
+                "state": "uploaded",
+                "size": 16006860,
+                "digest": "sha256:611e4ed6934186a56aaab663c638615a603f6ad77633cd5f9bc57d57415873a6",
+                "download_count": 13504,
+                "created_at": "2025-11-01T10:12:05Z",
+                "updated_at": "2025-11-01T10:12:06Z",
+                "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-android.zip"
+              },
+              {
+                "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266830",
+                "id": 311266830,
+                "node_id": "RA_kwDOHdRB084SjY4O",
+                "name": "v5-linux.zip",
+                "label": null,
+                "uploader": {
+                  "login": "Mefiresu",
+                  "id": 15063879,
+                  "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/Mefiresu",
+                  "html_url": "https://github.com/Mefiresu",
+                  "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                  "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                  "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                  "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                  "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                  "type": "User",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/zip",
+                "state": "uploaded",
+                "size": 1644234,
+                "digest": "sha256:e3987d98c3d216c95b6c7eae496d37b291c2437eb5bf9542df933258a45f9b68",
+                "download_count": 1912,
+                "created_at": "2025-11-01T10:12:04Z",
+                "updated_at": "2025-11-01T10:12:05Z",
+                "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-linux.zip"
+              },
+              {
+                "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266825",
+                "id": 311266825,
+                "node_id": "RA_kwDOHdRB084SjY4J",
+                "name": "v5-windows-x64.zip",
+                "label": null,
+                "uploader": {
+                  "login": "Mefiresu",
+                  "id": 15063879,
+                  "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/Mefiresu",
+                  "html_url": "https://github.com/Mefiresu",
+                  "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                  "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                  "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                  "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                  "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                  "type": "User",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/zip",
+                "state": "uploaded",
+                "size": 1523089,
+                "digest": "sha256:5a4629ecbdf6f32da9f620b9c3167b6c26b5a112ee81e54ce1574d91d62bdf61",
+                "download_count": 7925,
+                "created_at": "2025-11-01T10:12:02Z",
+                "updated_at": "2025-11-01T10:12:04Z",
+                "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-windows-x64.zip"
+              },
+              {
+                "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266829",
+                "id": 311266829,
+                "node_id": "RA_kwDOHdRB084SjY4N",
+                "name": "v5-windows.zip",
+                "label": null,
+                "uploader": {
+                  "login": "Mefiresu",
+                  "id": 15063879,
+                  "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                  "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/Mefiresu",
+                  "html_url": "https://github.com/Mefiresu",
+                  "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                  "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                  "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                  "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                  "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                  "type": "User",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/zip",
+                "state": "uploaded",
+                "size": 1383972,
+                "digest": "sha256:b9a93664f3865fdc34ee91d2078f568d4d10242caf68e77332245dd4e5c45760",
+                "download_count": 2791,
+                "created_at": "2025-11-01T10:12:04Z",
+                "updated_at": "2025-11-01T10:12:04Z",
+                "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-windows.zip"
+              }
+            ],
+            "tarball_url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/tarball/v1.1.1",
+            "zipball_url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/zipball/v1.1.1",
+            "body": "New minor release with a few improvements and bugfixes:\r\n* `Settings.ini` now always gets created on Switch/Android platforms for easier modification\r\n* Fix inaccurate scene switching in rare scenarios\r\n* ModAPI: Fixed memory corruption when using `GetSettingsString`/`SetSettingsString`\r\n* Linux: Fixed empty logs/ini files on some distros\r\n* DX11: Fix crash when no shaders were found (mainly in legacy mode)\r\n\r\n**Full Changelog**: https://github.com/RSDKModding/RSDKv5-Decompilation/compare/v1.1.0...v1.1.1\r\n\r\n**As a reminder, release builds and autobuilds lock the ability to use Origins Plus DLC content. If you'd like to enable it, you will need to [manually build the decompilation](https://github.com/RSDKModding/RSDKv5-Decompilation#how-to-build).**",
+            "reactions": {
+              "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/258991624/reactions",
+              "total_count": 14,
+              "+1": 4,
+              "-1": 0,
+              "laugh": 0,
+              "hooray": 0,
+              "confused": 0,
+              "heart": 5,
+              "rocket": 2,
+              "eyes": 3
+            }
+          },
+          "selected_assets_complete": true,
+          "assets": [
+            {
+              "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266832",
+              "id": 311266832,
+              "node_id": "RA_kwDOHdRB084SjY4Q",
+              "name": "v5-android.zip",
+              "label": null,
+              "uploader": {
+                "login": "Mefiresu",
+                "id": 15063879,
+                "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/Mefiresu",
+                "html_url": "https://github.com/Mefiresu",
+                "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                "type": "User",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/zip",
+              "state": "uploaded",
+              "size": 16006860,
+              "digest": "sha256:611e4ed6934186a56aaab663c638615a603f6ad77633cd5f9bc57d57415873a6",
+              "download_count": 13504,
+              "created_at": "2025-11-01T10:12:05Z",
+              "updated_at": "2025-11-01T10:12:06Z",
+              "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-android.zip"
+            },
+            {
+              "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266830",
+              "id": 311266830,
+              "node_id": "RA_kwDOHdRB084SjY4O",
+              "name": "v5-linux.zip",
+              "label": null,
+              "uploader": {
+                "login": "Mefiresu",
+                "id": 15063879,
+                "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/Mefiresu",
+                "html_url": "https://github.com/Mefiresu",
+                "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                "type": "User",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/zip",
+              "state": "uploaded",
+              "size": 1644234,
+              "digest": "sha256:e3987d98c3d216c95b6c7eae496d37b291c2437eb5bf9542df933258a45f9b68",
+              "download_count": 1912,
+              "created_at": "2025-11-01T10:12:04Z",
+              "updated_at": "2025-11-01T10:12:05Z",
+              "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-linux.zip"
+            },
+            {
+              "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266825",
+              "id": 311266825,
+              "node_id": "RA_kwDOHdRB084SjY4J",
+              "name": "v5-windows-x64.zip",
+              "label": null,
+              "uploader": {
+                "login": "Mefiresu",
+                "id": 15063879,
+                "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/Mefiresu",
+                "html_url": "https://github.com/Mefiresu",
+                "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                "type": "User",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/zip",
+              "state": "uploaded",
+              "size": 1523089,
+              "digest": "sha256:5a4629ecbdf6f32da9f620b9c3167b6c26b5a112ee81e54ce1574d91d62bdf61",
+              "download_count": 7925,
+              "created_at": "2025-11-01T10:12:02Z",
+              "updated_at": "2025-11-01T10:12:04Z",
+              "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-windows-x64.zip"
+            },
+            {
+              "url": "https://api.github.com/repos/RSDKModding/RSDKv5-Decompilation/releases/assets/311266829",
+              "id": 311266829,
+              "node_id": "RA_kwDOHdRB084SjY4N",
+              "name": "v5-windows.zip",
+              "label": null,
+              "uploader": {
+                "login": "Mefiresu",
+                "id": 15063879,
+                "node_id": "MDQ6VXNlcjE1MDYzODc5",
+                "avatar_url": "https://avatars.githubusercontent.com/u/15063879?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/Mefiresu",
+                "html_url": "https://github.com/Mefiresu",
+                "followers_url": "https://api.github.com/users/Mefiresu/followers",
+                "following_url": "https://api.github.com/users/Mefiresu/following{/other_user}",
+                "gists_url": "https://api.github.com/users/Mefiresu/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/Mefiresu/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/Mefiresu/subscriptions",
+                "organizations_url": "https://api.github.com/users/Mefiresu/orgs",
+                "repos_url": "https://api.github.com/users/Mefiresu/repos",
+                "events_url": "https://api.github.com/users/Mefiresu/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/Mefiresu/received_events",
+                "type": "User",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/zip",
+              "state": "uploaded",
+              "size": 1383972,
+              "digest": "sha256:b9a93664f3865fdc34ee91d2078f568d4d10242caf68e77332245dd4e5c45760",
+              "download_count": 2791,
+              "created_at": "2025-11-01T10:12:04Z",
+              "updated_at": "2025-11-01T10:12:04Z",
+              "browser_download_url": "https://github.com/RSDKModding/RSDKv5-Decompilation/releases/download/v1.1.1/v5-windows.zip"
+            }
+          ],
+          "primary_sources": [
+            {
+              "path": "LICENSE.md",
+              "blob_sha": "2caaa066de3a09860857a78fab999ca0cd716f2b",
+              "sha256": "ed1139e9fe16b99b4af1d38327a168729b3eb2c290eb88586ca9f139a61d5b19",
+              "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/RSDKModding__RSDKv5-Decompilation/LICENSE.md",
+              "url": "https://github.com/RSDKModding/RSDKv5-Decompilation/blob/191d7aea6c262d891244172a8609ac69fbfd7571/LICENSE.md"
+            },
+            {
+              "path": "README.md",
+              "blob_sha": "c16b24cb4a8d90b9727faec628a7b0ae9cb29bc8",
+              "sha256": "08249705a5df306336bfd2f279566e5f99d0dc5c56a62c80012a81a4a4136cd6",
+              "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/RSDKModding__RSDKv5-Decompilation/README.md",
+              "url": "https://github.com/RSDKModding/RSDKv5-Decompilation/blob/191d7aea6c262d891244172a8609ac69fbfd7571/README.md"
+            }
+          ],
+          "observed_at": "2026-10-25T11:27:38.906Z"
+        }
+      ],
+      "artwork_change": null,
+      "artifact_observations": [
+        {
+          "id": "sonic-mania-sonic-mania-decompilation-rsdkv5",
+          "asset": "mania-windows-x64.zip",
+          "asset_id": 311368574,
+          "publisher_expected_sha256": "sha256:7a0698087e3ffdb1eff2e4f8dfe8b17bdfcef879cf07dc2a9294d241bbdcc356",
+          "observed_sha256": "7a0698087e3ffdb1eff2e4f8dfe8b17bdfcef879cf07dc2a9294d241bbdcc356",
+          "size": 2944446,
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/sonic-mania-sonic-mania-decompilation-rsdkv5.zip",
+          "retained_layout": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/sonic-mania-sonic-mania-decompilation-rsdkv5-contents.json",
+          "observation": "Current selected game release bytes, rehashed; prior bounded layout remains applicable",
+          "scope": "No acquisition, extraction, helper, compiler, installer, original or player execution"
+        }
+      ],
+      "validation_scope": "Actual maintained canonical-bound Core listing preparation; complete fresh metadata and pinned source. Prior actual archive observations remain version scoped. No compiler, installer, original, helper or player executed; no managed lifecycle, native/gameplay, packaged Desktop or real-save qualification."
+    },
+    {
+      "id": "wipeout-3-special-edition-recomp",
+      "canonical_issue": 172,
+      "path": "crates/portcove-core/catalog/ports/wipeout-3-special-edition-recomp.json",
+      "before_sha256": "08e68637635bd3ef18adb1158260dcfeb87d1eb5f9364022f41b9d797b6fa918",
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/wipeout-3-special-edition-recomp-proposal.json",
+      "input_sha256": "ce80494f4847d2f78ca143f60b9f26df913776830226a2c2f8286245dd429691",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-wipeout-3-special-edition-recomp\\wipeout-3-special-edition-recomp-b579692195ae6d66af5146891ffe8eb9d24dda50583bb23be2b3e2232f6cf99c.json",
+      "prepared_sha256": "b579692195ae6d66af5146891ffe8eb9d24dda50583bb23be2b3e2232f6cf99c",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-wipeout-3-special-edition-recomp\\completion-a84a71dad800d77708eda171c248f8f13570beddc50e13394a6e21907cfed410.json",
+      "receipt_sha256": "a84a71dad800d77708eda171c248f8f13570beddc50e13394a6e21907cfed410",
+      "source_commit": "f1ab735d3bd71f1527a2580d1a210a809d116248",
+      "selected_release": null,
+      "platform_scope": [],
+      "steps": [
+        {
+          "title": "Prepare the European Special Edition through upstream",
+          "instruction": "Follow the pinned upstream source guide: initialize its recursive submodules, build its emitters, generate from your own complete European WipEout 3 Special Edition SCES-02845 14-track CUE/BIN set, then build the psx-runtime target. game.toml identifies that edition; the README’s USA table is inconsistent. Register the resulting native runtime with the prepared project folder as its working directory; the code generator is not the player. Both this repository and its separate release-badge destination have complete empty release histories at review, so no downloadable player or automatic repository substitution is established."
+        },
+        {
+          "title": "Keep updates and data with your working copy",
+          "instruction": "Save the completed runtime’s launch details, then choose Play separately. Keep your original disc, generated output, game.toml/game_options.toml, configured saves memory-card folder, mods and any custom data paths backed up with your working copy. You or upstream own replacement and preparation. Prepare updates separately and retain the current copy until ready. Portcove leaves external files untouched and supplies no managed Update, Backup or Rollback."
+        }
+      ],
+      "update_owner": "player/upstream; external ownership retained",
+      "fit_disposition": "Both canonical mstan and linked TechnicallyComputers repositories have complete empty release histories. Source flow and exact European disc identity are established; no binary authority substitution or platform-qualified runtime archive is inferred. Preserve useful source preparation and external completed runtime. Reconsider managed creation on an attributable runnable artifact and compatible supported preparation/data contract.",
+      "status": "Actual maintained Core preparation passed; candidate review and delivery pending",
+      "authored_sha256": "b579692195ae6d66af5146891ffe8eb9d24dda50583bb23be2b3e2232f6cf99c",
+      "input_prepared_authored_binding": "Input and immutable prepared bytes are separate; authored hash binds formatted repository bytes. Semantic equality with the exact prepared record was verified.",
+      "current_route": "Existing listing; no operational integration",
+      "selected_route": "Upstream source preparation and non-owning completed-player registration",
+      "canonical_preparation": {
+        "issue_number": 172,
+        "url": "https://github.com/boburning/portcove/issues/172",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/172",
+          "observed_at": "2026-10-25T11:32:48.293Z",
+          "body_sha256": "97f6df8c487a2a4664ef0208fd787e34f52a6d881c5a4470cb592ffdcc447cad",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": null,
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "canonical_planning": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Researching",
+        "Effort": "Unknown"
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "382a484643a1d4822d4205661dbc858e0602bdfa",
+          "sha256": "3c653a6c80b9d6fdd528ed58eeb24afd9bd3e4b05d0643aee74d83641278da86",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/wipeout-3-special-edition-recomp/README.md",
+          "url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+        },
+        {
+          "path": "game.toml",
+          "blob_sha": "60ac185a161e95e799961bb84108f668a6c60cd5",
+          "sha256": "48077f18d0887b9f8cb72a499becf50a28fdcab25a0c99e69526dc660ac3d536",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/wipeout-3-special-edition-recomp/game.toml",
+          "url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/game.toml"
+        },
+        {
+          "path": "CMakeLists.txt",
+          "blob_sha": "df1be34242cc797e3a02d22fd17635f362c25140",
+          "sha256": "7956d905fcbf3a1bc372400d2e253a5b21c441461fdbad31a7f3833b0728d15e",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/wipeout-3-special-edition-recomp/CMakeLists.txt",
+          "url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/CMakeLists.txt"
+        },
+        {
+          "path": "scripts/package_setup_release.sh",
+          "blob_sha": "61ac802fc41ebac4437c8aa87d861f5addc6b8e8",
+          "sha256": "3e0771afde367494e1fb2e9e2e7881769a4650f4252a1d83ed5c61d5fbb4d986",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/wipeout-3-special-edition-recomp/scripts__package_setup_release.sh",
+          "url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/scripts/package_setup_release.sh"
+        },
+        {
+          "path": ".gitmodules",
+          "blob_sha": "f2bdb82e426ecb81f22510e878303fec098bd38c",
+          "sha256": "1151108b4de00f737586ec0ec580da00fc624071d6cdfa777e223cb3054fb23f",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/wipeout-3-special-edition-recomp/.gitmodules",
+          "url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/.gitmodules"
+        }
+      ],
+      "complete_release_inventory": true,
+      "release_count": 0,
+      "selected_game_release": null,
+      "selected_assets_complete": true,
+      "game_release_assets": [],
+      "related": [
+        {
+          "repository": "TechnicallyComputers/Wipeout-3-Special-Edition-Recomp",
+          "repository_id": 1334621375,
+          "parent": null,
+          "source_commit": "bbb8e5ac77b95ea098469e56364e7803017d0e89",
+          "complete_release_inventory": true,
+          "release_count": 0,
+          "selected_release": null,
+          "selected_assets_complete": true,
+          "assets": [],
+          "primary_sources": [
+            {
+              "path": "README.md",
+              "blob_sha": "e371a683d545b51012723c28171f4e64469ec6ae",
+              "sha256": "c7ded858271ed7f259f3cea365eacef3165efc4d8bc89f2edc86d9df88033068",
+              "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/TechnicallyComputers__Wipeout-3-Special-Edition-Recomp/README.md",
+              "url": "https://github.com/TechnicallyComputers/Wipeout-3-Special-Edition-Recomp/blob/bbb8e5ac77b95ea098469e56364e7803017d0e89/README.md"
+            }
+          ],
+          "observed_at": "2026-10-25T11:27:35.934Z"
+        }
+      ],
+      "artwork_change": {
+        "game_id": 44855,
+        "cover_id": 115128,
+        "image_id": "co2gu0",
+        "image_sha256": "5deb79fb098b28d69a1cb67a0bd21aa5d26597d735a2006d7b824aa609fd820e",
+        "game_slug": "wipeout-3-special-edition",
+        "match_kind": "underlying-game"
+      },
+      "artifact_observations": [],
+      "validation_scope": "Actual maintained canonical-bound Core listing preparation; complete fresh metadata and pinned source. Prior actual archive observations remain version scoped. No compiler, installer, original, helper or player executed; no managed lifecycle, native/gameplay, packaged Desktop or real-save qualification."
+    },
+    {
+      "id": "xander-haj-z3r",
+      "canonical_issue": 1912,
+      "path": "crates/portcove-core/catalog/ports/xander-haj-z3r.json",
+      "before_sha256": "6236ea52bff0ee2c82af977598c18044ad46b6403d00fba4dd312b4165814589",
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj-z3r-proposal.json",
+      "input_sha256": "ef42ee581abece741de59b5075a6d974d728a6949160e34bda6da74bf920fdf9",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-xander-haj-z3r\\xander-haj-z3r-ef42ee581abece741de59b5075a6d974d728a6949160e34bda6da74bf920fdf9.json",
+      "prepared_sha256": "ef42ee581abece741de59b5075a6d974d728a6949160e34bda6da74bf920fdf9",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-xander-haj-z3r\\completion-4a216271fb463076e003389bebd7188d349a16df4fb1d947e2a5027ff7ae1be5.json",
+      "receipt_sha256": "4a216271fb463076e003389bebd7188d349a16df4fb1d947e2a5027ff7ae1be5",
+      "source_commit": "dd44234a6baaaafa1bdee0a71e1006fc8877ab20",
+      "selected_release": "v0.8.1",
+      "platform_scope": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+      "steps": [
+        {
+          "title": "Let the upstream launcher prepare your own game",
+          "instruction": "The recommended Windows download is the upstream lawn/Z3R Launcher setup package. Open that installer deliberately after downloading, then use its guided preparation. Install its published package for your platform, choose your own clean USA A Link to the Past .sfc, and follow its setup/extract/build steps. The Windows setup package includes the lightweight Git/Python/TCC/SDL2 toolkit; choosing a separate MSBuild route needs its own build tools. Linux and macOS use their matching upstream dependency guide. Portcove does not install these tools or run the launcher during discovery. When setup finishes, register the prepared zelda3.exe on Windows or native zelda3 player on Linux/macOS with its project folder as the working directory, then choose Play explicitly."
+        },
+        {
+          "title": "Keep the generated assets and player data together",
+          "instruction": "Keep the complete prepared project, your original ROM, zelda3_assets.dat, zelda3.user.ini overrides, saves, custom sprites/shaders/MSU packs, and any randomizer YAML, seed/spoiler files or selected feature-asset folders separately backed up. The game tries zelda3.user.ini before zelda3.ini. Keep packaged defaults with their own release and use user overrides for personal settings. The native release ZIP supplies a player and SDL but no generated zelda3_assets.dat; copying that executable alone is not finished setup."
+        },
+        {
+          "title": "Regenerate matching assets when updating",
+          "instruction": "Let the selected upstream launcher manage its own project setup and updates. The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games. The launcher’s Updates action uses its matching platform installer or self-replacement route; keep that owner. Its download feed follows releases without a fixed tag in this listing."
+        }
+      ],
+      "update_owner": "player/upstream; external ownership retained",
+      "fit_disposition": "The related lawn launcher owns installer/self-update and original-ROM project extraction/build. Game assets must be regenerated on relevant source/YAML/INI changes; preserving arbitrary old zelda3_assets.dat would not satisfy that protocol. Retain richer upstream setup; no competing native-portable owner. Helpers remain the same game identity.",
+      "status": "Actual maintained Core preparation passed; candidate review and delivery pending",
+      "authored_sha256": "44c9f8be521fdbbfe5b98c3b0e6e1739b805085006639f607a277824988946ec",
+      "input_prepared_authored_binding": "Input and immutable prepared bytes are separate; authored hash binds formatted repository bytes. Semantic equality with the exact prepared record was verified.",
+      "current_route": "Existing listing; no operational integration",
+      "selected_route": "Upstream package/setup and non-owning completed-player registration",
+      "canonical_preparation": {
+        "issue_number": 1912,
+        "url": "https://github.com/boburning/portcove/issues/1912",
+        "specification": {
+          "status": "observed",
+          "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/1912",
+          "observed_at": "2026-10-25T11:32:58.197Z",
+          "body_sha256": "7131b79863822faaeeecf2f0990e9292b29be358bd01de4c58e5c79643ad5d10",
+          "location": "files.upstream -> observations[facts_endpoint].body.body"
+        },
+        "authored_acquisition_condition": null,
+        "next": "Read the complete retained canonical specification and relevant Roadmap context before deciding route, lineage, acquisition conditions or deferrals. An upstream README, published package, checksum or technical adapter fit does not resolve an existing named condition.",
+        "scope": "Authoring reminder only. No prose is classified into a hold, grant, support state or management right. Preserve reviewed authored conditions; Core remains the operation authority. No additional request or approval is introduced."
+      },
+      "canonical_planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "primary_sources": [
+        {
+          "path": "LICENSE.txt",
+          "blob_sha": "c58f6c8621360a8398598b0d199ed2eaec288ccb",
+          "sha256": "78b243fa858f4bcb49f8ccca14fec262f62fcee4e44a1ce7565840bdb4ca2217",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj-z3r/LICENSE.txt",
+          "url": "https://github.com/xander-haj/Z3R/blob/dd44234a6baaaafa1bdee0a71e1006fc8877ab20/LICENSE.txt"
+        },
+        {
+          "path": "readme.md",
+          "blob_sha": "1911127757075f05ba8070ae5f5a3a36ac9ed324",
+          "sha256": "9716949ab7cf50c1360d3363df192d7bb9e04aea24c4cc941132e66edb4a7de7",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj-z3r/readme.md",
+          "url": "https://github.com/xander-haj/Z3R/blob/dd44234a6baaaafa1bdee0a71e1006fc8877ab20/readme.md"
+        },
+        {
+          "path": "src/zelda_rtl.c",
+          "blob_sha": "9a7d8e5c8433db9e99ca6fcbb4f88adbde4eeacd",
+          "sha256": "22cac812a82ae01db7ccccfd95f5f60f466a56e2c98ce6832635e95e39e49cb7",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj-z3r/src__zelda_rtl.c",
+          "url": "https://github.com/xander-haj/Z3R/blob/dd44234a6baaaafa1bdee0a71e1006fc8877ab20/src/zelda_rtl.c"
+        },
+        {
+          "path": "src/main.c",
+          "blob_sha": "912f4098cab4399886ab738fd669365a2d1ee413",
+          "sha256": "9592d02772cd587e509c0c21db58657285c0337158cf5df4032deb87016aa9b4",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj-z3r/src__main.c",
+          "url": "https://github.com/xander-haj/Z3R/blob/dd44234a6baaaafa1bdee0a71e1006fc8877ab20/src/main.c"
+        },
+        {
+          "path": "assets/restool.py",
+          "blob_sha": "e695c9794a99a99ce6a2a63b603258d0dc733514",
+          "sha256": "28b27a616b8e53d543e8c1d15a5e431a81704c818676fc206f640139604cda69",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj-z3r/assets__restool.py",
+          "url": "https://github.com/xander-haj/Z3R/blob/dd44234a6baaaafa1bdee0a71e1006fc8877ab20/assets/restool.py"
+        },
+        {
+          "path": "zelda3.ini",
+          "blob_sha": "c2e59fb6e4228a0437e9fe6e38bfd644cd074a0f",
+          "sha256": "7d4f1e7d3d60022736c8c1aa94a28194f839bb60496c821a2cd785b09b11b613",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj-z3r/zelda3.ini",
+          "url": "https://github.com/xander-haj/Z3R/blob/dd44234a6baaaafa1bdee0a71e1006fc8877ab20/zelda3.ini"
+        }
+      ],
+      "complete_release_inventory": true,
+      "release_count": 7,
+      "selected_game_release": {
+        "id": 340145785,
+        "tag": "v0.2.4",
+        "url": "https://github.com/xander-haj/Z3R/releases/tag/v0.2.4"
+      },
+      "selected_assets_complete": true,
+      "game_release_assets": [
+        {
+          "id": 449208639,
+          "name": "Z3R-linux-x64.AppImage",
+          "url": "https://github.com/xander-haj/Z3R/releases/download/v0.2.4/Z3R-linux-x64.AppImage",
+          "size": 6632640,
+          "digest": "sha256:3ea84a56fe6f09bae8580a3f38eb13c4a52d10d6548e79b5ccc52560d8506092"
+        },
+        {
+          "id": 449208643,
+          "name": "Z3R-linux-x64.AppImage.tar.gz",
+          "url": "https://github.com/xander-haj/Z3R/releases/download/v0.2.4/Z3R-linux-x64.AppImage.tar.gz",
+          "size": 6494212,
+          "digest": "sha256:699599fb2d0549fd75b5c3212b7f1576191b8c6209a8c7b63097fd87efc3b5bc"
+        },
+        {
+          "id": 449208607,
+          "name": "Z3R-linux-x64.tar.gz",
+          "url": "https://github.com/xander-haj/Z3R/releases/download/v0.2.4/Z3R-linux-x64.tar.gz",
+          "size": 840642,
+          "digest": "sha256:e5ccc6eab9732c9bc3d022b938b46a6cd891ad4c85b817477346e6f8f1a71321"
+        },
+        {
+          "id": 449209093,
+          "name": "Z3R-linux.flatpak",
+          "url": "https://github.com/xander-haj/Z3R/releases/download/v0.2.4/Z3R-linux.flatpak",
+          "size": 639368,
+          "digest": "sha256:5648c839e30fdac3a1cf1b2840e633ef0cb321daae7f1e8f60979b5b0e66a0b3"
+        },
+        {
+          "id": 449208027,
+          "name": "Z3R-macos-apple-silicon.tar.gz",
+          "url": "https://github.com/xander-haj/Z3R/releases/download/v0.2.4/Z3R-macos-apple-silicon.tar.gz",
+          "size": 830144,
+          "digest": "sha256:9e84353c39c32a3d61a81d6f7b8fb75a301e1570f22d996f0b1e53789fe2aaeb"
+        },
+        {
+          "id": 449208248,
+          "name": "Z3R-macos-intel.tar.gz",
+          "url": "https://github.com/xander-haj/Z3R/releases/download/v0.2.4/Z3R-macos-intel.tar.gz",
+          "size": 867052,
+          "digest": "sha256:b555ccbfbb5a3146c1d3f1ddf27fc0bd8bff131e7c44acf02076f886aa5b2c96"
+        },
+        {
+          "id": 449208484,
+          "name": "Z3R-windows-x64.zip",
+          "url": "https://github.com/xander-haj/Z3R/releases/download/v0.2.4/Z3R-windows-x64.zip",
+          "size": 1573323,
+          "digest": "sha256:3a44ee3688ffe4e78ed51af25b547f70428d53388394aa032a079a4d45b7ceb7"
+        }
+      ],
+      "related": [
+        {
+          "repository": "xander-haj/lawn",
+          "repository_id": 1246398139,
+          "parent": null,
+          "source_commit": "883cced10e5eb4bee81be56513ec96df8ddf5763",
+          "complete_release_inventory": true,
+          "release_count": 4,
+          "selected_release": {
+            "url": "https://api.github.com/repos/xander-haj/lawn/releases/338100091",
+            "assets_url": "https://api.github.com/repos/xander-haj/lawn/releases/338100091/assets",
+            "upload_url": "https://uploads.github.com/repos/xander-haj/lawn/releases/338100091/assets{?name,label}",
+            "html_url": "https://github.com/xander-haj/lawn/releases/tag/v0.8.1",
+            "id": 338100091,
+            "author": {
+              "login": "github-actions[bot]",
+              "id": 41898282,
+              "node_id": "MDM6Qm90NDE4OTgyODI=",
+              "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+              "html_url": "https://github.com/apps/github-actions",
+              "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+              "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+              "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+              "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+              "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+              "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+              "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+              "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+              "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+              "type": "Bot",
+              "user_view_type": "public",
+              "site_admin": false
+            },
+            "node_id": "RE_kwDOSkqGu84UJv97",
+            "tag_name": "v0.8.1",
+            "target_commitish": "main",
+            "name": "Z3R Launcher v0.8.1",
+            "draft": false,
+            "immutable": false,
+            "prerelease": false,
+            "created_at": "2026-06-11T16:30:40Z",
+            "updated_at": "2026-06-11T16:53:05Z",
+            "published_at": "2026-06-11T16:49:53Z",
+            "assets": [
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873061",
+                "id": 444873061,
+                "node_id": "RA_kwDOSkqGu84ahDll",
+                "name": "Z3R-Launcher-linux-x64.AppImage",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/octet-stream",
+                "state": "uploaded",
+                "size": 89040064,
+                "digest": "sha256:37f58e5bd7c1dbb41885380d845d6de892c3e71fa6c4dfa55efd7922bae77b81",
+                "download_count": 79,
+                "created_at": "2026-06-11T16:43:33Z",
+                "updated_at": "2026-06-11T16:43:37Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.AppImage"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873062",
+                "id": 444873062,
+                "node_id": "RA_kwDOSkqGu84ahDlm",
+                "name": "Z3R-Launcher-linux-x64.AppImage.tar.gz",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/gzip",
+                "state": "uploaded",
+                "size": 88155703,
+                "digest": "sha256:89953cf44859e2cf344b50a8238b52a5983cdebe315d73fc287712fe5ad89ade",
+                "download_count": 13,
+                "created_at": "2026-06-11T16:43:33Z",
+                "updated_at": "2026-06-11T16:43:36Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.AppImage.tar.gz"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873060",
+                "id": 444873060,
+                "node_id": "RA_kwDOSkqGu84ahDlk",
+                "name": "Z3R-Launcher-linux-x64.deb",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/x-debian-package",
+                "state": "uploaded",
+                "size": 3654208,
+                "digest": "sha256:c2e1c1faf0d93169259baebbb6c5f585ec0c54303c7953f9374f9653186d4811",
+                "download_count": 9,
+                "created_at": "2026-06-11T16:43:33Z",
+                "updated_at": "2026-06-11T16:43:34Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.deb"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873059",
+                "id": 444873059,
+                "node_id": "RA_kwDOSkqGu84ahDlj",
+                "name": "Z3R-Launcher-linux-x64.rpm",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/x-redhat-package-manager",
+                "state": "uploaded",
+                "size": 3654702,
+                "digest": "sha256:692756bbbbc11957de82151fc288c3b99569a49f69ad50d6cace37ef1489ff14",
+                "download_count": 7,
+                "created_at": "2026-06-11T16:43:33Z",
+                "updated_at": "2026-06-11T16:43:34Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.rpm"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444868082",
+                "id": 444868082,
+                "node_id": "RA_kwDOSkqGu84ahCXy",
+                "name": "Z3R-Launcher-linux.flatpak",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/octet-stream",
+                "state": "uploaded",
+                "size": 2344904,
+                "digest": "sha256:d5f8a48129e0bdb666b54e277baea3494160a94ffd4481252d57987571803e22",
+                "download_count": 72,
+                "created_at": "2026-06-11T16:37:43Z",
+                "updated_at": "2026-06-11T16:37:44Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux.flatpak"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444875302",
+                "id": 444875302,
+                "node_id": "RA_kwDOSkqGu84ahEIm",
+                "name": "Z3R-Launcher-macos-universal.dmg",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/x-apple-diskimage",
+                "state": "uploaded",
+                "size": 10156933,
+                "digest": "sha256:c76c46f200daf5028c13f2a98c33892c61388f3d71f6e4c146467d28f96064eb",
+                "download_count": 28,
+                "created_at": "2026-06-11T16:46:47Z",
+                "updated_at": "2026-06-11T16:46:48Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-macos-universal.dmg"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444880953",
+                "id": 444880953,
+                "node_id": "RA_kwDOSkqGu84ahFg5",
+                "name": "Z3R-Launcher-windows-x64-setup.exe",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/x-msdos-program",
+                "state": "uploaded",
+                "size": 84733063,
+                "digest": "sha256:f3eebbb5aa300d006cea03befc6b236281e67ed7634b242d5cc2859c57b2e9f1",
+                "download_count": 283,
+                "created_at": "2026-06-11T16:52:58Z",
+                "updated_at": "2026-06-11T16:53:02Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-windows-x64-setup.exe"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444880954",
+                "id": 444880954,
+                "node_id": "RA_kwDOSkqGu84ahFg6",
+                "name": "Z3R-Launcher-windows-x64.exe",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/x-msdos-program",
+                "state": "uploaded",
+                "size": 10028544,
+                "digest": "sha256:cd7ddd42214aeadce7d26c3193744ec75b64a21fb6329f8130af3f60d987279b",
+                "download_count": 151,
+                "created_at": "2026-06-11T16:52:58Z",
+                "updated_at": "2026-06-11T16:52:59Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-windows-x64.exe"
+              },
+              {
+                "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444880952",
+                "id": 444880952,
+                "node_id": "RA_kwDOSkqGu84ahFg4",
+                "name": "Z3R-Launcher-windows-x64.msi",
+                "label": "",
+                "uploader": {
+                  "login": "github-actions[bot]",
+                  "id": 41898282,
+                  "node_id": "MDM6Qm90NDE4OTgyODI=",
+                  "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                  "gravatar_id": "",
+                  "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                  "html_url": "https://github.com/apps/github-actions",
+                  "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                  "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                  "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                  "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                  "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                  "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                  "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                  "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                  "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                  "type": "Bot",
+                  "user_view_type": "public",
+                  "site_admin": false
+                },
+                "content_type": "application/x-msdownload",
+                "state": "uploaded",
+                "size": 138364040,
+                "digest": "sha256:8e90c8206a269a7ff5c7abb2aeeb13a32d3448f8da23052b45702a320fbf9c0d",
+                "download_count": 22,
+                "created_at": "2026-06-11T16:52:58Z",
+                "updated_at": "2026-06-11T16:53:05Z",
+                "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-windows-x64.msi"
+              }
+            ],
+            "tarball_url": "https://api.github.com/repos/xander-haj/lawn/tarball/v0.8.1",
+            "zipball_url": "https://api.github.com/repos/xander-haj/lawn/zipball/v0.8.1",
+            "body": "Download the launcher for your operating system below.\n\n**Full Changelog**: https://github.com/xander-haj/lawn/compare/v0.8.0...v0.8.1",
+            "reactions": {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/338100091/reactions",
+              "total_count": 2,
+              "+1": 2,
+              "-1": 0,
+              "laugh": 0,
+              "hooray": 0,
+              "confused": 0,
+              "heart": 0,
+              "rocket": 0,
+              "eyes": 0
+            }
+          },
+          "selected_assets_complete": true,
+          "assets": [
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873061",
+              "id": 444873061,
+              "node_id": "RA_kwDOSkqGu84ahDll",
+              "name": "Z3R-Launcher-linux-x64.AppImage",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/octet-stream",
+              "state": "uploaded",
+              "size": 89040064,
+              "digest": "sha256:37f58e5bd7c1dbb41885380d845d6de892c3e71fa6c4dfa55efd7922bae77b81",
+              "download_count": 79,
+              "created_at": "2026-06-11T16:43:33Z",
+              "updated_at": "2026-06-11T16:43:37Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.AppImage"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873062",
+              "id": 444873062,
+              "node_id": "RA_kwDOSkqGu84ahDlm",
+              "name": "Z3R-Launcher-linux-x64.AppImage.tar.gz",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/gzip",
+              "state": "uploaded",
+              "size": 88155703,
+              "digest": "sha256:89953cf44859e2cf344b50a8238b52a5983cdebe315d73fc287712fe5ad89ade",
+              "download_count": 13,
+              "created_at": "2026-06-11T16:43:33Z",
+              "updated_at": "2026-06-11T16:43:36Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.AppImage.tar.gz"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873060",
+              "id": 444873060,
+              "node_id": "RA_kwDOSkqGu84ahDlk",
+              "name": "Z3R-Launcher-linux-x64.deb",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/x-debian-package",
+              "state": "uploaded",
+              "size": 3654208,
+              "digest": "sha256:c2e1c1faf0d93169259baebbb6c5f585ec0c54303c7953f9374f9653186d4811",
+              "download_count": 9,
+              "created_at": "2026-06-11T16:43:33Z",
+              "updated_at": "2026-06-11T16:43:34Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.deb"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444873059",
+              "id": 444873059,
+              "node_id": "RA_kwDOSkqGu84ahDlj",
+              "name": "Z3R-Launcher-linux-x64.rpm",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/x-redhat-package-manager",
+              "state": "uploaded",
+              "size": 3654702,
+              "digest": "sha256:692756bbbbc11957de82151fc288c3b99569a49f69ad50d6cace37ef1489ff14",
+              "download_count": 7,
+              "created_at": "2026-06-11T16:43:33Z",
+              "updated_at": "2026-06-11T16:43:34Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux-x64.rpm"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444868082",
+              "id": 444868082,
+              "node_id": "RA_kwDOSkqGu84ahCXy",
+              "name": "Z3R-Launcher-linux.flatpak",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/octet-stream",
+              "state": "uploaded",
+              "size": 2344904,
+              "digest": "sha256:d5f8a48129e0bdb666b54e277baea3494160a94ffd4481252d57987571803e22",
+              "download_count": 72,
+              "created_at": "2026-06-11T16:37:43Z",
+              "updated_at": "2026-06-11T16:37:44Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-linux.flatpak"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444875302",
+              "id": 444875302,
+              "node_id": "RA_kwDOSkqGu84ahEIm",
+              "name": "Z3R-Launcher-macos-universal.dmg",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/x-apple-diskimage",
+              "state": "uploaded",
+              "size": 10156933,
+              "digest": "sha256:c76c46f200daf5028c13f2a98c33892c61388f3d71f6e4c146467d28f96064eb",
+              "download_count": 28,
+              "created_at": "2026-06-11T16:46:47Z",
+              "updated_at": "2026-06-11T16:46:48Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-macos-universal.dmg"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444880953",
+              "id": 444880953,
+              "node_id": "RA_kwDOSkqGu84ahFg5",
+              "name": "Z3R-Launcher-windows-x64-setup.exe",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/x-msdos-program",
+              "state": "uploaded",
+              "size": 84733063,
+              "digest": "sha256:f3eebbb5aa300d006cea03befc6b236281e67ed7634b242d5cc2859c57b2e9f1",
+              "download_count": 283,
+              "created_at": "2026-06-11T16:52:58Z",
+              "updated_at": "2026-06-11T16:53:02Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-windows-x64-setup.exe"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444880954",
+              "id": 444880954,
+              "node_id": "RA_kwDOSkqGu84ahFg6",
+              "name": "Z3R-Launcher-windows-x64.exe",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/x-msdos-program",
+              "state": "uploaded",
+              "size": 10028544,
+              "digest": "sha256:cd7ddd42214aeadce7d26c3193744ec75b64a21fb6329f8130af3f60d987279b",
+              "download_count": 151,
+              "created_at": "2026-06-11T16:52:58Z",
+              "updated_at": "2026-06-11T16:52:59Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-windows-x64.exe"
+            },
+            {
+              "url": "https://api.github.com/repos/xander-haj/lawn/releases/assets/444880952",
+              "id": 444880952,
+              "node_id": "RA_kwDOSkqGu84ahFg4",
+              "name": "Z3R-Launcher-windows-x64.msi",
+              "label": "",
+              "uploader": {
+                "login": "github-actions[bot]",
+                "id": 41898282,
+                "node_id": "MDM6Qm90NDE4OTgyODI=",
+                "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+                "html_url": "https://github.com/apps/github-actions",
+                "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+                "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+                "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+                "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+                "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+                "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+                "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+                "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+                "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+                "type": "Bot",
+                "user_view_type": "public",
+                "site_admin": false
+              },
+              "content_type": "application/x-msdownload",
+              "state": "uploaded",
+              "size": 138364040,
+              "digest": "sha256:8e90c8206a269a7ff5c7abb2aeeb13a32d3448f8da23052b45702a320fbf9c0d",
+              "download_count": 22,
+              "created_at": "2026-06-11T16:52:58Z",
+              "updated_at": "2026-06-11T16:53:05Z",
+              "browser_download_url": "https://github.com/xander-haj/lawn/releases/download/v0.8.1/Z3R-Launcher-windows-x64.msi"
+            }
+          ],
+          "primary_sources": [
+            {
+              "path": "README.md",
+              "blob_sha": "20d9a45c37ba98529eddb4c46a5b008770245113",
+              "sha256": "21ce7eb5dc7f238501fafa5da5b00904bf093475d4c2178027dd3daa25ff722c",
+              "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/xander-haj__lawn/README.md",
+              "url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md"
+            }
+          ],
+          "observed_at": "2026-10-25T11:27:32.712Z"
+        }
+      ],
+      "artwork_change": null,
+      "artifact_observations": [
+        {
+          "id": "xander-haj-z3r",
+          "asset": "Z3R-windows-x64.zip",
+          "asset_id": 449208484,
+          "publisher_expected_sha256": "sha256:3a44ee3688ffe4e78ed51af25b547f70428d53388394aa032a079a4d45b7ceb7",
+          "observed_sha256": "3a44ee3688ffe4e78ed51af25b547f70428d53388394aa032a079a4d45b7ceb7",
+          "size": 1573323,
+          "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/xander-haj-z3r-group7.zip",
+          "retained_layout": "E:/Codex-Evidence/simpler-installation-rollout-20261023/packages/xander-haj-z3r-group7-contents.json",
+          "observation": "Current selected game release bytes, rehashed; prior bounded layout remains applicable",
+          "scope": "No acquisition, extraction, helper, compiler, installer, original or player execution"
+        }
+      ],
+      "validation_scope": "Actual maintained canonical-bound Core listing preparation; complete fresh metadata and pinned source. Prior actual archive observations remain version scoped. No compiler, installer, original, helper or player executed; no managed lifecycle, native/gameplay, packaged Desktop or real-save qualification."
+    }
+  ],
+  "evidence_limits": "Three unchanged current game archives and two historical archives rehashed against fresh exact publisher asset digests. Burnout 2 v1.9 and GSRecomp 0.6 were not acquired. Lawn setup/engine component bytes are not acquired or qualified by this review.",
+  "delivery_status": "Complete candidate review, required exact-head CI, guarded merge and canonical readback remain delivery steps at this source checkpoint."
+}

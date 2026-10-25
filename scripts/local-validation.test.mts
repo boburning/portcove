@@ -86,6 +86,49 @@ void test("portability literal baseline retains its native scanner contract acro
     }
 });
 
+void test("manual job timeout inputs retain direct contracts across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    ".node-version",
+    "scripts/runtime-values.mts",
+    "scripts/resource-command.mts",
+    "scripts/heavy-rust-test-lock.mts",
+    "scripts/ci-job-timeout-probe.mts",
+    ".github/workflows/job-timeout-rehearsal.yml",
+    "scripts/ci-job-timeout-probe-sibling.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        assert.equal(
+          selected.has("scripts/ci-job-timeout-probe.test.mts"),
+          !file.includes("-sibling"),
+          JSON.stringify(change),
+        );
+    }
+});
+
 void test("browser artifact custody inputs retain direct contracts across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const inputs = [

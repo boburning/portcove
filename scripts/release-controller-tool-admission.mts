@@ -13,6 +13,8 @@ import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   controllerToolPredicateType,
+  windowsControllerToolPredicateType,
+  controllerToolPlatformProfile,
   controllerToolEntries,
   inspectControllerToolArchive,
   readControllerToolFile,
@@ -21,12 +23,14 @@ import {
   requestAssemblerToken,
   verifyControllerToolBootstrapJobIdentity,
   inspectAssemblerIdentityExpectation,
+  controllerToolBootstrapProfile,
 } from "./assembler-job-identity.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
 export interface ControllerToolArtifactExpected {
+  platform?: "windows-x86_64";
   controller_revision: string;
   source_tree: string;
   controller_ref: string;
@@ -37,9 +41,13 @@ export interface ControllerToolArtifactExpected {
 }
 function expectedInput(raw: ControllerToolArtifactExpected) {
   const expected = structuredClone(raw);
+  const selected = Object.hasOwn(expected, "platform");
   if (
     Object.keys(expected).sort().join(",") !==
-      "artifact_id,controller_ref,controller_revision,run_attempt,run_id,sha256,source_tree" ||
+      (selected
+        ? "artifact_id,controller_ref,controller_revision,platform,run_attempt,run_id,sha256,source_tree"
+        : "artifact_id,controller_ref,controller_revision,run_attempt,run_id,sha256,source_tree") ||
+    (selected && expected.platform !== "windows-x86_64") ||
     !/^[a-f0-9]{40}$/.test(expected.controller_revision) ||
     !/^[a-f0-9]{40}$/.test(expected.source_tree) ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(
@@ -54,6 +62,25 @@ function expectedInput(raw: ControllerToolArtifactExpected) {
     throw new Error("exact fixed controller tool artifact identity required");
   return expected;
 }
+function toolProfile(expected: ControllerToolArtifactExpected) {
+  const platform = expected.platform ?? "linux-x86_64";
+  const windows = platform === "windows-x86_64";
+  return {
+    ...controllerToolPlatformProfile(platform),
+    ...controllerToolBootstrapProfile(platform),
+    artifact: windows ? "trusted-controller-tools-windows" : "trusted-controller-tools",
+    bundle_member: windows
+      ? "controller-tools-windows-attestation.json"
+      : "controller-tools-attestation.json",
+    predicate_type: windows ? windowsControllerToolPredicateType : controllerToolPredicateType,
+    subject: windows ? "controller-tools-windows-manifest" : "controller-tools-manifest",
+  };
+}
+function predicateProfile(expected: ControllerToolArtifactExpected) {
+  return expected.platform === "windows-x86_64"
+    ? { schema_version: 2, platform: "windows-x86_64" }
+    : { schema_version: 1 };
+}
 function artifact(
   raw: unknown,
   expected: ControllerToolArtifactExpected,
@@ -61,11 +88,12 @@ function artifact(
   sha256: string,
   bundle = false,
 ) {
+  const profile = toolProfile(expected);
   if (
     !isRecord(raw) ||
     raw.id !== id ||
     raw.name !==
-      `${bundle ? "trusted-controller-tools-attestation" : "trusted-controller-tools"}-${expected.run_id}-${expected.run_attempt}` ||
+      `${profile.artifact}${bundle ? "-attestation" : ""}-${expected.run_id}-${expected.run_attempt}` ||
     raw.expired !== false ||
     raw.digest !== `sha256:${sha256}` ||
     typeof raw.size_in_bytes !== "number" ||
@@ -116,6 +144,7 @@ export async function verifiedControllerToolPaths(receipt: object) {
   const retained = receivedTools.get(receipt);
   if (!retained || retained.scope !== "github.com")
     throw new Error("actual same-process controller tool verification required");
+  const profile = toolProfile(retained.expected);
   for (const file of retained.files) {
     const bytes = await readControllerToolFile(path.join(retained.tools, file.path), file.bytes);
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
@@ -128,13 +157,14 @@ export async function verifiedControllerToolPaths(receipt: object) {
     throw new Error("verified tool manifest changed");
   return Object.freeze({
     identity: Object.freeze(structuredClone(retained.expected)),
+    platform: profile.platform,
     root: retained.tools,
-    node: path.join(retained.tools, "bin/node"),
-    cli: path.join(retained.tools, "bin/portcove"),
-    rust: path.join(retained.tools, "bin/portcove-release-tools"),
+    node: path.join(retained.tools, `bin/node${profile.suffix}`),
+    cli: path.join(retained.tools, `bin/portcove${profile.suffix}`),
+    rust: path.join(retained.tools, `bin/portcove-release-tools${profile.suffix}`),
     tauriAddon: path.join(retained.tools, "bin/tauri-addon.node"),
-    nativeDriver: path.join(retained.tools, "bin/tauri-driver"),
-    pnpm: path.join(retained.tools, "bin/pnpm"),
+    nativeDriver: path.join(retained.tools, `bin/tauri-driver${profile.suffix}`),
+    pnpm: path.join(retained.tools, `bin/pnpm${profile.suffix}`),
     publicAssets: path.join(retained.tools, "release"),
     compiler_source_closure: path.join(retained.tools, "compiler-source-closure.json"),
     entries: Object.freeze(
@@ -147,7 +177,6 @@ export async function verifiedControllerToolPaths(receipt: object) {
     ),
   });
 }
-const producerName = "Prepare trusted application controller tools";
 /** The producer's raw JWT is consumed only in this process and never retained.
  * The existing attestation action signs this public predicate and exact manifest. */
 export async function prepareControllerToolPredicate(
@@ -156,9 +185,10 @@ export async function prepareControllerToolPredicate(
   rawIdentity: unknown,
 ) {
   const expected = expectedInput(raw);
+  const profile = toolProfile(expected);
   const identityExpected = inspectAssemblerIdentityExpectation(structuredClone(rawIdentity));
   if (
-    identityExpected.audience !== "portcove-controller-tool-bootstrap" ||
+    identityExpected.audience !== profile.audience ||
     identityExpected.controller_revision !== expected.controller_revision ||
     identityExpected.controller_ref !== expected.controller_ref ||
     identityExpected.run_id !== expected.run_id ||
@@ -198,12 +228,18 @@ export async function prepareControllerToolPredicate(
     const inspected = inspectControllerToolArchive(archive, {
       source_commit: expected.controller_revision,
       source_tree: expected.source_tree,
+      platform: profile.platform,
     });
     phase = "fresh-producer-identity";
     const token = await requestAssemblerToken(identityExpected.audience);
-    const identity = await verifyControllerToolBootstrapJobIdentity(token, identityExpected, {
-      transport: { cwd: root },
-    });
+    const identity = await verifyControllerToolBootstrapJobIdentity(
+      token,
+      identityExpected,
+      {
+        transport: { cwd: root },
+      },
+      profile.platform,
+    );
     if (
       identity.evidence_scope !== "github.com" ||
       Date.now() >= Date.parse(identity.expires_at) ||
@@ -211,7 +247,7 @@ export async function prepareControllerToolPredicate(
     )
       throw new Error("bootstrap identity/upload drifted");
     const predicate = {
-      schema_version: 1,
+      ...predicateProfile(expected),
       role: "fixed-controller-tools",
       repository,
       repository_id: 1354613114,
@@ -235,17 +271,29 @@ export async function prepareControllerToolPredicate(
     };
     const bytes = JSON.stringify(predicate);
     if (Buffer.byteLength(bytes) > 65536) throw new Error("bootstrap predicate exceeds bound");
-    await writeFile(path.join(root, "controller-tools-predicate.json"), bytes, {
-      flag: "wx",
-      mode: 0o600,
-    });
     await writeFile(
-      path.join(root, "controller-tools-manifest.json"),
+      path.join(
+        root,
+        `${profile.platform === "windows-x86_64" ? "controller-tools-windows" : "controller-tools"}-predicate.json`,
+      ),
+      bytes,
+      {
+        flag: "wx",
+        mode: 0o600,
+      },
+    );
+    await writeFile(
+      path.join(
+        root,
+        `${profile.platform === "windows-x86_64" ? "controller-tools-windows" : "controller-tools"}-manifest.json`,
+      ),
       inspected.files.get("manifest.json")!,
       { flag: "wx", mode: 0o600 },
     );
     return {
       predicate,
+      predicate_type: profile.predicate_type,
+      subject_name: profile.subject,
       manifest_sha256: inspected.manifest_sha256,
       directory: attempt,
       authority: "none",
@@ -284,6 +332,7 @@ export async function receiveControllerTools(
   remaining(15000);
   const expected = expectedInput(raw),
     bundle = structuredClone(rawBundle);
+  const profile = toolProfile(expected);
   if (
     Object.keys(bundle).sort().join(",") !== "artifact_id,sha256" ||
     !Number.isSafeInteger(bundle.artifact_id) ||
@@ -292,7 +341,9 @@ export async function receiveControllerTools(
     !/^[a-f0-9]{64}$/.test(bundle.sha256)
   )
     throw new Error("independent bootstrap attestation bundle identity required");
-  const directory = await mkdtemp(path.join(parent, "controller-tool-receiver-"));
+  const directory = await mkdtemp(
+    path.join(parent, profile.platform === "windows-x86_64" ? "ctr-" : "controller-tool-receiver-"),
+  );
   let phase = "provider-before";
   try {
     const home = path.join(directory, "reader-home");
@@ -397,13 +448,14 @@ export async function receiveControllerTools(
     const inspected = inspectControllerToolArchive(archive, {
       source_commit: expected.controller_revision,
       source_tree: expected.source_tree,
+      platform: profile.platform,
     });
     const entries = inspectBoundedZip(bundleArchive, {
       compressedBytes: 1024 ** 2,
       expandedBytes: 512 * 1024,
       files: 1,
       nameBytes: 64,
-      allowedPaths: new Set(["controller-tools-attestation.json"]),
+      allowedPaths: new Set([profile.bundle_member]),
     }).entries;
     const entry = entries[0];
     if (entries.length !== 1 || !entry || entry.bytes < 1)
@@ -428,15 +480,15 @@ export async function receiveControllerTools(
       manifestPath,
       bundlePath,
       expected,
-      controllerToolPredicateType,
+      profile.predicate_type,
       { ...options, environment },
     );
     if (
       statement._type !== "https://in-toto.io/Statement/v1" ||
-      statement.predicateType !== controllerToolPredicateType ||
+      statement.predicateType !== profile.predicate_type ||
       JSON.stringify(statement.subject) !==
         JSON.stringify([
-          { name: "controller-tools-manifest", digest: { sha256: inspected.manifest_sha256 } },
+          { name: profile.subject, digest: { sha256: inspected.manifest_sha256 } },
         ]) ||
       !isRecord(statement.predicate) ||
       !isRecord(statement.predicate.producer)
@@ -451,7 +503,7 @@ export async function receiveControllerTools(
     )
       throw new Error("bootstrap signed numeric producer identity unavailable");
     const wanted = {
-      schema_version: 1,
+      ...predicateProfile(expected),
       role: "fixed-controller-tools",
       repository,
       repository_id: 1354613114,
@@ -494,7 +546,11 @@ export async function receiveControllerTools(
         String(job.run_id) !== expected.run_id ||
         job.run_attempt !== expected.run_attempt ||
         job.head_sha !== expected.controller_revision ||
-        job.name !== producerName ||
+        job.name !== profile.job ||
+        (profile.labels &&
+          (!Array.isArray(job.labels) ||
+            job.labels.length > 16 ||
+            profile.labels.some((label) => !(job.labels as unknown[]).includes(label)))) ||
         job.status !== "completed" ||
         job.conclusion !== "success" ||
         job.check_run_url !==

@@ -24,6 +24,7 @@ import {
 import {
   inspectNativeRuntimeSupport,
   nativeRuntimeSupport,
+  windowsNativeRuntimeSupport,
 } from "./release-native-runtime-support.mts";
 import {
   inspectNativeRuntimeCustody,
@@ -770,6 +771,73 @@ void test("prepared support accepts only the fixed Linux product and exact sourc
   assert.throws(() => inspectNativeRuntimeSupport(changed, source, otherArchitecture));
 });
 
+void test("Windows prepared support metadata refuses platform, source, architecture and compiler-selection changes", () => {
+  const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const source = Buffer.from("inert prepared Windows supervisor source"),
+    binary = Buffer.alloc(128);
+  binary.write("MZ");
+  binary.writeUInt32LE(64, 60);
+  binary.write("PE\0\0", 64);
+  binary.writeUInt16LE(0x8664, 68);
+  binary.writeUInt16LE(0x20b, 88);
+  const metadata = {
+    schema_version: 1,
+    product: windowsNativeRuntimeSupport.product,
+    platform: "windows-x86_64",
+    rustc_arguments: [...windowsNativeRuntimeSupport.arguments],
+    compiler: {
+      verbose_version: "inert build compiler",
+      sysroot: "C:\\build-only",
+      commands: [
+        {
+          command: "rustc",
+          resolved: "C:\\build-only\\rustc.exe",
+          bytes: 1,
+          sha256: "a".repeat(64),
+        },
+      ],
+      environment: [],
+    },
+    input_fingerprint: "b".repeat(64),
+    source: { bytes: source.length, sha256: hash(source) },
+    output: { bytes: binary.length, sha256: hash(binary), mode: 0o666 },
+  };
+  assert.equal(
+    inspectNativeRuntimeSupport(metadata, source, binary, "windows-x86_64").output.sha256,
+    hash(binary),
+  );
+  assert.throws(() => inspectNativeRuntimeSupport(metadata, source, binary));
+  assert.throws(() =>
+    inspectNativeRuntimeSupport(
+      { ...metadata, platform: "linux-x86_64" },
+      source,
+      binary,
+      "windows-x86_64",
+    ),
+  );
+  assert.throws(() =>
+    inspectNativeRuntimeSupport(
+      { ...metadata, runtime_compiler: "selected.exe" },
+      source,
+      binary,
+      "windows-x86_64",
+    ),
+  );
+  assert.throws(() =>
+    inspectNativeRuntimeSupport(metadata, Buffer.from("changed"), binary, "windows-x86_64"),
+  );
+  const arm = Buffer.from(binary);
+  arm.writeUInt16LE(0xaa64, 68);
+  assert.throws(() =>
+    inspectNativeRuntimeSupport(
+      { ...metadata, output: { ...metadata.output, sha256: hash(arm) } },
+      source,
+      arm,
+      "windows-x86_64",
+    ),
+  );
+});
+
 void test(
   "Linux executing custody refuses writable/link/replaced inputs and retains ancestry",
   { skip: process.platform !== "linux" || process.getuid?.() === 0 },
@@ -832,13 +900,16 @@ void test(
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
 import {mkdirSync,writeFileSync,readFileSync,chmodSync,mkdtempSync} from 'node:fs';
 import {createHash} from 'node:crypto';import path from 'node:path';import {performance} from 'node:perf_hooks';
-import {controllerToolPaths} from ${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)};
+import * as realTools from ${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)};
+import {lstat as realLstat,realpath} from 'node:fs/promises';
+const {controllerToolPaths}=realTools;
 import {controllerNodeVersion} from ${JSON.stringify(new URL("./controller-node-runtime.mts", import.meta.url).href)};
 import {nativeRuntimeSupport as fixed} from ${JSON.stringify(new URL("./release-native-runtime-support.mts", import.meta.url).href)};
 import {rustSupportInputIdentity} from ${JSON.stringify(new URL("./rust-support-cache.mts", import.meta.url).href)};
 const root=process.argv[1],hash=b=>createHash('sha256').update(b).digest('hex'),toolReceipts=new WeakMap(),parents=new WeakMap();
-globalThis.runtimeFixture={tools:async r=>{assert.ok(toolReceipts.has(r),'original tools');return toolReceipts.get(r)},parent:async r=>{assert.ok(parents.has(r),'original parent');return parents.get(r)}};
-registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}){if(s==='./release-controller-tool-admission.mts')return {url:'controlled:tools',shortCircuit:true};if(s==='./release-hosted-native-parent.mts')return {url:'controlled:parent',shortCircuit:true}}return next(s,c)},load(u,c,next){if(u==='controlled:tools')return {format:'module',source:'export const verifiedControllerToolPaths=globalThis.runtimeFixture.tools;',shortCircuit:true};if(u==='controlled:parent')return {format:'module',source:'export const requireActualHostedNativeParentSource=globalThis.runtimeFixture.parent;',shortCircuit:true};return next(u,c)}});
+let gate,corruptRead=false;
+globalThis.runtimeFixture={read:async(...args)=>{const bytes=await realTools.readControllerToolFile(...args);return corruptRead?Buffer.from('controlled changed acquisition'):bytes},inspect:realTools.inspectControllerToolManifest,realpath,lstat:async file=>{const current=gate;if(current&&file===current.file){gate=undefined;current.enter();await current.release}return realLstat(file)},tools:async r=>{assert.ok(toolReceipts.has(r),'original tools');return toolReceipts.get(r)},parent:async r=>{assert.ok(parents.has(r),'original parent');return parents.get(r)}};
+registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}){if(s==='./release-controller-tool-admission.mts')return {url:'controlled:tools',shortCircuit:true};if(s==='./release-hosted-native-parent.mts')return {url:'controlled:parent',shortCircuit:true};if(s==='./release-controller-tools.mts')return {url:'controlled:read',shortCircuit:true};if(s==='node:fs/promises')return {url:'controlled:fs',shortCircuit:true}}return next(s,c)},load(u,c,next){if(u==='controlled:tools')return {format:'module',source:'export const verifiedControllerToolPaths=globalThis.runtimeFixture.tools;',shortCircuit:true};if(u==='controlled:parent')return {format:'module',source:'export const requireActualHostedNativeParentSource=globalThis.runtimeFixture.parent;',shortCircuit:true};if(u==='controlled:read')return {format:'module',source:'export const readControllerToolFile=globalThis.runtimeFixture.read;export const inspectControllerToolManifest=globalThis.runtimeFixture.inspect;',shortCircuit:true};if(u==='controlled:fs')return {format:'module',source:'export const lstat=globalThis.runtimeFixture.lstat;export const realpath=globalThis.runtimeFixture.realpath;',shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)}),source=Buffer.from('inert fixed source'),binary=Buffer.alloc(64);
 binary.set([127,69,76,70,2,1]);binary.writeUInt16LE(62,18);
 const compiler={verbose_version:'build-only',sysroot:'/unavailable-build',commands:[{command:'rustc',resolved:null}],environment:[]};
@@ -850,7 +921,7 @@ function fixture(name){
  const files=[];for(const name of controllerToolPaths){const filename=path.join(tools,name);mkdirSync(path.dirname(filename),{recursive:true,mode:0o700});const bytes=name===fixed.source?source:name===fixed.binary?binary:name===fixed.metadata?metadata:name==='bin/node'?readFileSync(process.execPath):Buffer.from('inert '+name);if(name!==fixed.source)writeFileSync(filename,bytes,{flag:'wx',mode:name.startsWith('bin/')?0o700:0o600});files.push({path:name,bytes:bytes.length,sha256:hash(bytes)})}
  const identity={controller_revision:'a'.repeat(40),source_tree:'b'.repeat(40),controller_ref:'refs/tags/fixed-fixture',run_id:'99',run_attempt:1};
  writeFileSync(path.join(tools,'manifest.json'),JSON.stringify({schema_version:2,source_commit:identity.controller_revision,source_tree:identity.source_tree,platform:'linux-x86_64',node_version:controllerNodeVersion,bundler:'vite-plus@1.3.0',tauri_cli_version:'2.12.2',files}),{mode:0o600});
- const tool={},parent={};toolReceipts.set(tool,{root:tools,node:path.join(tools,'bin/node'),identity});parents.set(parent,{producer:{...identity},stage:'payload-signing',platform_label:'linux-x86_64',deadline:performance.now()+60000,recheck(){assert.ok(performance.now()<this.deadline)}});
+ const tool={},parent={};toolReceipts.set(tool,{root:tools,node:path.join(tools,'bin/node'),platform:'linux-x86_64',identity});parents.set(parent,{producer:{...identity},stage:'payload-signing',platform_label:'linux-x86_64',deadline:performance.now()+60000,recheck(){assert.ok(performance.now()<this.deadline)}});
  return {directory,tools,tool,parent,entry:path.join(tools,'scripts/release-hosted-native-runner.bundle.mjs')};
 }
 let f=fixture('valid');const runtime=await api.prepareHostedNativeRuntime(f.tool,f.parent,f.entry);
@@ -867,6 +938,17 @@ const target=path.join(f.tools,'scripts/rust-test-tree-supervisor.mts'),saved=re
 await assert.rejects(api.requireHostedNativeRuntime(runtime,f.parent));writeFileSync(target,saved);
 await assert.rejects(api.requireHostedNativeRuntime(runtime,f.parent),/original/);assert.throws(()=>deps.rustSupportCompilerIdentity(),/expired/);
 const post=fixture('post-sign');parents.get(post.parent).stage='release-publication';const postRuntime=await api.prepareHostedNativeRuntime(post.tool,post.parent,post.entry);assert.equal((await api.requireHostedNativeRuntime(postRuntime,post.parent)).root,post.tools);
+const refused=fixture('support-preparation-refusal'),refusedRuntime=await api.prepareHostedNativeRuntime(refused.tool,refused.parent,refused.entry),missingOutput=path.join(refused.directory,'absent');
+await assert.rejects(api.hostedNativeSupportDependencies(refusedRuntime,refused.parent,missingOutput));mkdirSync(missingOutput,{mode:0o700});
+await assert.rejects(api.requireHostedNativeRuntime(refusedRuntime,refused.parent),/original/);
+// Controlled acquisition drift restores the read interface without changing file custody.
+// The suspended getter must still observe another getter's irreversible refusal.
+const concurrent=fixture('concurrent-stop'),concurrentRuntime=await api.prepareHostedNativeRuntime(concurrent.tool,concurrent.parent,concurrent.entry);
+let enter,release;const entered=new Promise(resolve=>{enter=resolve}),released=new Promise(resolve=>{release=resolve});
+gate={file:path.join(concurrent.tools,fixed.binary),enter,release:released};
+const suspended=api.requireHostedNativeRuntime(concurrentRuntime,concurrent.parent);const suspendedResult=suspended.then(value=>({value}),error=>({error}));
+await entered;corruptRead=true;await assert.rejects(api.requireHostedNativeRuntime(concurrentRuntime,concurrent.parent));corruptRead=false;release();
+const stoppedResult=await suspendedResult;assert.ok(stoppedResult.error,'a concurrent refusal must stop an already suspended getter');assert.match(stoppedResult.error.message,/stopped|expired/);
 for(const kind of ['writable-root','writable-file','wrong-source','wrong-run','copied-tool','copied-parent','wrong-stage']){
  f=fixture(kind);if(kind==='writable-root')chmodSync(f.tools,0o777);if(kind==='writable-file')chmodSync(f.entry,0o666);
  if(kind==='wrong-source')toolReceipts.get(f.tool).identity.controller_revision='c'.repeat(40);

@@ -31,6 +31,7 @@ export function assemblerIdentityFixture(
     jobId?: number;
     checkRunId?: number;
     runAttempt?: number;
+    labels?: readonly string[];
   } = {
     workflow: productionControllerWorkflow,
     job: "Trusted package assembly",
@@ -81,6 +82,7 @@ export function assemblerIdentityFixture(
     head_sha: expected.controller_revision,
     status: "completed",
     name: "Other job",
+    labels: [...(profile.labels ?? [])],
     check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${1000 + id}`,
   });
   const transport = {

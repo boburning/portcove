@@ -12,7 +12,7 @@ import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.m
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mts";
 import {
-  nativeRuntimeSupport,
+  nativeRuntimeSupportProfile,
   inspectNativeRuntimeSupport,
 } from "./release-native-runtime-support.mts";
 
@@ -373,10 +373,8 @@ export async function buildControllerTools(
         { flag: "wx", mode: 0o600 },
       );
     }
-    if (platform === "linux-x86_64") {
-      phase = "fixed-native-support-product";
-      await materializeControllerNativeSupport(sourceRoot, tools, env);
-    }
+    phase = "fixed-native-support-product";
+    await materializeControllerNativeSupport(sourceRoot, tools, env, platform);
     phase = "fixed-compiler-source-closure";
     await materializeControllerCompilerSource(sourceRoot, tools, expected);
     guard();
@@ -425,43 +423,47 @@ export async function materializeControllerNativeSupport(
   sourceRoot: string,
   tools: string,
   environment: NodeJS.ProcessEnv,
+  platform: ControllerToolPlatform = "linux-x86_64",
 ) {
-  if (process.platform !== "linux" || process.arch !== "x64")
-    throw new Error("fixed Linux support build required");
+  const profile = nativeRuntimeSupportProfile(platform);
+  const os = platform === "linux-x86_64" ? "linux" : "win32";
+  if (process.platform !== os || process.arch !== "x64")
+    throw new Error("fixed platform support build required");
   const compiler = rustSupportCompilerIdentity({ runSync: spawnSync, environment });
-  const output = path.join(tools, nativeRuntimeSupport.binary);
+  const output = path.join(tools, profile.binary);
   const prepared = prepareRustSupportArtifact({
     root: sourceRoot,
-    product: nativeRuntimeSupport.product,
-    source: nativeRuntimeSupport.source,
+    product: profile.product,
+    source: profile.source,
     output,
-    rustcArgs: nativeRuntimeSupport.arguments,
+    rustcArgs: profile.arguments,
     compiler,
     environment,
-    platform: "linux",
+    platform: os,
     architecture: "x64",
     runSync: spawnSync,
   });
   await chmod(output, 0o700);
-  const source = await readControllerToolFile(
-    path.join(sourceRoot, nativeRuntimeSupport.source),
-    65536,
-  );
-  const binary = await readControllerToolFile(output, nativeRuntimeSupport.maximumBinaryBytes);
+  const source = await readControllerToolFile(path.join(sourceRoot, profile.source), 65536);
+  const binary = await readControllerToolFile(output, profile.maximumBinaryBytes);
   const metadata = {
     schema_version: 1,
-    product: nativeRuntimeSupport.product,
-    platform: "linux-x86_64",
+    product: profile.product,
+    platform,
     compiler,
     input_fingerprint: prepared.fingerprint,
-    rustc_arguments: nativeRuntimeSupport.arguments,
+    rustc_arguments: profile.arguments,
     source: { bytes: source.length, sha256: hash(source) },
-    output: { bytes: binary.length, sha256: hash(binary), mode: 0o700 },
+    output: {
+      bytes: binary.length,
+      sha256: hash(binary),
+      mode: platform === "linux-x86_64" ? 0o700 : 0o666,
+    },
   };
-  inspectNativeRuntimeSupport(metadata, source, binary);
+  inspectNativeRuntimeSupport(metadata, source, binary, platform);
   const bytes = Buffer.from(JSON.stringify(metadata));
   if (bytes.length > 65536) throw new Error("native support metadata exceeds bound");
-  await writeFile(path.join(tools, nativeRuntimeSupport.metadata), bytes, {
+  await writeFile(path.join(tools, profile.metadata), bytes, {
     flag: "wx",
     mode: 0o600,
   });

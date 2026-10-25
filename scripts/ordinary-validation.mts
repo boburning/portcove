@@ -374,6 +374,8 @@ const workflowFeatureTests = [
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
+  ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
+  [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
   ...[
     ".github/actions/retain-browser-diagnostics/action.yml",
     ".github/workflows/browser-artifact-custody.yml",
@@ -1625,6 +1627,16 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 
 // Source declarations are consumed by a cheap Node contract even when no release
 // script changes. Keep the consumer's own input inventory authoritative.
+for (const file of [
+  ".node-version",
+  "scripts/runtime-values.mts",
+  "scripts/resource-command.mts",
+  "scripts/heavy-rust-test-lock.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/ci-job-timeout-probe.test.mts",
+  ]);
 for (const file of nativeCompatibilitySourcePaths)
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),

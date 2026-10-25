@@ -2693,6 +2693,14 @@
         ["catalog-full-2", 16001],
         ["release-check", 16201]
       ]
+    },
+    {
+      "file": "scripts/ci-job-timeout-probe.test.mts",
+      "memberships": [
+        ["windows-storage-3", 1000001],
+        ["catalog-full-2", 1000001],
+        ["repository-tools-2", 1000001]
+      ]
     }
   ]
 }
