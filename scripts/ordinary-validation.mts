@@ -373,6 +373,12 @@ const workflowFeatureTests = [
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...[
+    ".github/actions/retain-browser-diagnostics/action.yml",
+    ".github/workflows/browser-artifact-custody.yml",
+    "scripts/fixtures/browser-upload-baseline.json",
+    "apps/desktop/scripts/browser-screenshot-custody.mts",
+  ].map((file): [string, string[]] => [file, ["scripts/ci-frontend-workflow.test.mts"]]),
   ["scripts/rust-coverage.mts", ["scripts/rust-coverage.test.mts"]],
   [".config/rust-coverage.json", ["scripts/rust-coverage.test.mts"]],
   ["scripts/ci-workflow.test.mts", workflowContractTests],

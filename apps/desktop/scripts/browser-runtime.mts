@@ -13,6 +13,13 @@ import {
   inspectProbeTrace,
   verifyProbeResult,
 } from "./browser-trace-probe.mts";
+import {
+  runScreenshotOnlyProbe,
+  screenshotContext,
+  screenshotRoutes,
+  verifyScreenshotJobs,
+  verifyScreenshotPacket,
+} from "./browser-screenshot-custody.mts";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const root = path.resolve(desktop, "../..");
@@ -211,7 +218,24 @@ async function probeBrowserTrace() {
 async function runBrowserRuntime() {
   if (process.argv[2] === "bootstrap") await bootstrapChromium();
   else if (process.argv[2] === "probe") await probeBrowserTrace();
-  else throw new Error("Usage: browser-runtime.mts bootstrap|probe");
+  else if (process.argv[2] === "screenshot-only")
+    await runScreenshotOnlyProbe(chromium, root, process.argv[3] ?? "", process.env);
+  else if (process.argv[2] === "verify-screenshot-only") {
+    const context = screenshotContext(process.env);
+    const directory = path.resolve(process.argv[3] ?? "");
+    const jobs: unknown = JSON.parse(readFileSync(process.argv[4] ?? "", "utf8"));
+    verifyScreenshotJobs(jobs, context);
+    for (const route of screenshotRoutes) {
+      const packet = path.join(
+        directory,
+        `browser-traces-${route}-${context.run}-${context.attempt}`,
+      );
+      console.log(JSON.stringify(verifyScreenshotPacket(packet, route, context)));
+    }
+  } else
+    throw new Error(
+      "Usage: browser-runtime.mts bootstrap|probe|screenshot-only ROUTE|verify-screenshot-only DIRECTORY JOBS",
+    );
   return Number(process.exitCode ?? 0);
 }
 

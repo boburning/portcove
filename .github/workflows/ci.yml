@@ -512,28 +512,9 @@ jobs:
         run: node scripts/ci-baseline.mts frontend
       - name: Retain affected browser diagnostics
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: ./.github/actions/retain-browser-diagnostics
         with:
           name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            work/bt/**/*.trace.zip
-            work/bt/**/screenshots/**/*.png
-            .vitest/attachments/failure-screenshots/**/*.png
-            apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
-            .vitest/attachments/**/*.json
-            apps/desktop/.vitest/attachments/**/*.json
-            outputs/slice5-cards/**/*.png
-            outputs/detail-composition/**/*.png
-            outputs/observation-clarity/**/*.png
-            outputs/uiux-game-titles/**/*.png
-            outputs/detail-tabs/**/*.png
-            outputs/uiux-remainder/**/*.png
-            outputs/ui-refinement/**/*.png
-            outputs/uiux-task-isolation/**/*.png
-            work/installation-rendered/**/*.png
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: warn
       - name: Record dependency cache observation
         if: always()
         continue-on-error: true
@@ -1312,28 +1293,9 @@ jobs:
           if-no-files-found: warn
       - name: Retain browser diagnostics
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: ./.github/actions/retain-browser-diagnostics
         with:
           name: browser-traces-full-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            work/bt/**/*.trace.zip
-            work/bt/**/screenshots/**/*.png
-            .vitest/attachments/failure-screenshots/**/*.png
-            apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
-            .vitest/attachments/**/*.json
-            apps/desktop/.vitest/attachments/**/*.json
-            outputs/slice5-cards/**/*.png
-            outputs/detail-composition/**/*.png
-            outputs/observation-clarity/**/*.png
-            outputs/uiux-game-titles/**/*.png
-            outputs/detail-tabs/**/*.png
-            outputs/uiux-remainder/**/*.png
-            outputs/ui-refinement/**/*.png
-            outputs/uiux-task-isolation/**/*.png
-            work/installation-rendered/**/*.png
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: warn
       - name: Test application release records
         working-directory: .
         run: |
@@ -1517,25 +1479,6 @@ jobs:
           if-no-files-found: warn
       - name: Retain failed contributor browser diagnostics
         if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: ./.github/actions/retain-browser-diagnostics
         with:
           name: browser-traces-contributor-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            work/bt/**/*.trace.zip
-            work/bt/**/screenshots/**/*.png
-            .vitest/attachments/failure-screenshots/**/*.png
-            apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
-            .vitest/attachments/**/*.json
-            apps/desktop/.vitest/attachments/**/*.json
-            outputs/slice5-cards/**/*.png
-            outputs/detail-composition/**/*.png
-            outputs/observation-clarity/**/*.png
-            outputs/uiux-game-titles/**/*.png
-            outputs/detail-tabs/**/*.png
-            outputs/uiux-remainder/**/*.png
-            outputs/ui-refinement/**/*.png
-            outputs/uiux-task-isolation/**/*.png
-            work/installation-rendered/**/*.png
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: warn
