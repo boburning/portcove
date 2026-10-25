@@ -45,8 +45,28 @@ if (
   throw new Error(`Chromium executable is outside the browser cache: ${executable}`);
 }
 
-async function bootstrapChromium() {
-  const metrics = createCiMetrics();
+function headlessShellExecutable() {
+  // Pinned Playwright exposes the same registry used by --only-shell and
+  // headless launch. BrowserType.executablePath() instead names full Chromium.
+  // Registry shape changes produce unknown diagnostics, never a guessed path.
+  const bundle: unknown = createRequire(import.meta.resolve("playwright"))(
+    "playwright-core/lib/coreBundle",
+  );
+  const registryModule = isRecord(bundle) ? bundle.registry : null;
+  const registry = isRecord(registryModule) ? registryModule.registry : null;
+  if (!isRecord(registry) || typeof registry.findExecutable !== "function")
+    throw new Error("Unknown pinned browser registry");
+  const shell: unknown = Reflect.apply(registry.findExecutable, registry, [
+    "chromium-headless-shell",
+  ]);
+  if (!isRecord(shell) || typeof shell.executablePath !== "function")
+    throw new Error("Missing pinned headless shell");
+  const shellExecutable: unknown = Reflect.apply(shell.executablePath, shell, []);
+  if (typeof shellExecutable !== "string") throw new Error("Missing pinned headless executable");
+  return shellExecutable;
+}
+
+function recordBrowserCache(metrics: ReturnType<typeof createCiMetrics>) {
   // Presence is an observation before installation, not proof of a usable cache.
   // Diagnostic metadata must never replace the actual installer/readiness result.
   try {
@@ -55,23 +75,7 @@ async function bootstrapChromium() {
     );
     const metadata: unknown = JSON.parse(manifest.toString("utf8"));
     const version = isRecord(metadata) ? metadata.version : null;
-    // Pinned Playwright exposes the same registry used by --only-shell and
-    // headless launch. BrowserType.executablePath() instead names full Chromium.
-    // Registry shape changes produce unknown diagnostics, never a guessed path.
-    const bundle: unknown = createRequire(import.meta.resolve("playwright"))(
-      "playwright-core/lib/coreBundle",
-    );
-    const registryModule = isRecord(bundle) ? bundle.registry : null;
-    const registry = isRecord(registryModule) ? registryModule.registry : null;
-    if (!isRecord(registry) || typeof registry.findExecutable !== "function")
-      throw new Error("Unknown pinned browser registry");
-    const shell: unknown = Reflect.apply(registry.findExecutable, registry, [
-      "chromium-headless-shell",
-    ]);
-    if (!isRecord(shell) || typeof shell.executablePath !== "function")
-      throw new Error("Missing pinned headless shell");
-    const shellExecutable: unknown = Reflect.apply(shell.executablePath, shell, []);
-    if (typeof shellExecutable !== "string") throw new Error("Missing pinned headless executable");
+    const shellExecutable = headlessShellExecutable();
     const shellPresent = existsSync(shellExecutable);
     const physicalShell = shellPresent
       ? realpathSync(shellExecutable)
@@ -97,6 +101,11 @@ async function bootstrapChromium() {
   } catch {
     metrics.record("browser-bootstrap:cache", { cache_outcome: "unknown" });
   }
+}
+
+async function bootstrapChromium() {
+  const metrics = createCiMetrics();
+  recordBrowserCache(metrics);
   const result = metrics.measure("browser-bootstrap:install", () =>
     spawnCommand(
       process.execPath,
