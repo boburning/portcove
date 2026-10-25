@@ -474,9 +474,10 @@ fn preflight(
         return Err(invalid("ZIP64 end record is missing or unsupported"));
     }
     if count > limits.entries as u64 {
-        return Err(invalid(
-            "directory entry limit exceeded; source ZIP has too many entries",
-        ));
+        return Err(
+            invalid("directory entry limit exceeded; source ZIP has too many entries")
+                .detail("maximum_entries", limits.entries.to_string()),
+        );
     }
     if size
         .checked_add(extension_bytes)
