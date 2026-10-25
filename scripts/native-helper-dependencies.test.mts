@@ -30,6 +30,7 @@ import {
   nativeHelperRoots,
   nativeHelperSharedSources,
   captureDesktopReceiptInputs,
+  observeDesktopHarnessInputs,
 } from "./native-helper-dependencies.mts";
 import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-execution-plan.mts";
 import { resolveDesktopSelection } from "./desktop-scenarios.mts";
@@ -165,10 +166,35 @@ void test("production capture retains partial failed evidence before any native 
     typeof failure.captured_inputs === "number" && typeof failure.declared_inputs === "number",
   );
   assert(failure.captured_inputs < failure.declared_inputs);
+  const observedOutput = path.join(directory, "observed-failed");
+  await mkdir(observedOutput);
+  await assert.rejects(
+    observeDesktopHarnessInputs({
+      custody: null,
+      capture: {
+        root: directory,
+        values: { app: process.execPath },
+        plan,
+        output: observedOutput,
+        revision: "a".repeat(40),
+      },
+    }),
+    /ENOENT/,
+  );
+  const observedFailure = record(
+    JSON.parse(await readFile(path.join(observedOutput, "input-capture-failure.json"), "utf8")),
+  );
+  assert.equal(observedFailure.failed_path, missing);
+  assert.equal(observedFailure.complete, false);
+  assert.deepEqual(
+    record(JSON.parse(await readFile(path.join(observedOutput, "evidence.json"), "utf8"))).inputs,
+    receipt.inputs,
+  );
   const harness = await readFile(path.join(root, prefix + "desktop-test.mts"), "utf8");
   assert(
-    harness.indexOf("await captureDesktopReceiptInputs") <
-      harness.indexOf("await acquireNativeSessionLock"),
+    harness.indexOf("await observeDesktopHarnessInputs") >= 0 &&
+      harness.indexOf("await observeDesktopHarnessInputs") <
+        harness.indexOf("await acquireNativeSessionLock"),
   );
 });
 void test("declaration check rejects undeclared, dynamic, inline and escaping imports", async (t) => {

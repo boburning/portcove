@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-zelda-tears-of-the-kingdom-switch-edition-totk-recomp",
+    "name": "The Legend of Zelda: Tears of the Kingdom — Switch edition (totk-recomp)",
+    "summary": "Experimental Documented AArch64 main and parts of SDK translated ahead of time to C++ for Linux x86-64, native Switch services/NVN-on-Vulkan runtime. Not a zeldaret matching-decomp playable route by association. Upstream maturity: One outdoor walk on author SteamDeck measured62–64fps, not full-game stability/completion. Shaders first-start warmup; faster codegen planned absent. PC clangO2 build17min wall/2.1hCPU, Deck estimate1–1.5h unmeasured. Acquisition: No releases/assets. Source build_from_xci.sh imports own dump, generates C++, compiles and packs local dist. Launcher setup/version/extraction UI exists but game-build button is NOT wired; CLI required. Capstone exactly5.0.9;16GBRAM and45GB peak disk documented. Outputs derived from game must remain private. Platforms: Linux x86-64 AVX2 (Haswell/Zen2 or newer); Steam Deck upstream tested. Windows/macOS not established. Build on Deck unmeasured; distrobox Ubuntu24.04 or Linux PC source route. Original data: Own1.0.0 cartridge XCI title0100F2C0115B6000, main buildID082CE09B06E33A12, ownprod.keys with master key revision0x0E. Other versions unsupported. Separate firmware not specified in root. Exact regional digest Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "The Legend of Zelda: Tears of the Kingdom — Switch edition",
+    "project_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
+    "artwork": {
+      "game_id": 119388,
+      "cover_id": 274264,
+      "image_id": "co5vmg",
+      "image_sha256": "43c1ab5bea6d4e2ec8805820d75b62a954275e30a69acb2967377e56bd2eceda",
+      "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2966
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-legend-of-zelda-tears-of-the-kingdom-switch-edition-totk-recomp",
+    "origin": {
+      "project_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1426858058"
+      }
+    },
+    "decisions": []
+  }
+}

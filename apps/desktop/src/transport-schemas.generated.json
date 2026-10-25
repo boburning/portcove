@@ -3763,6 +3763,13 @@
         ],
         "type": "object"
       },
+      "ModPackagePolicy": {
+        "description": "Preserve complete mod package versions without replacing packaged defaults.\nThis grants neither executable trust nor mod/save compatibility.",
+        "enum": [
+          "versioned-packages-v1"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -3916,6 +3923,16 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "mod_package_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModPackagePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "n64_windows_initial_d3d12": {
             "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
@@ -20811,6 +20828,13 @@
         ],
         "type": "object"
       },
+      "ModPackagePolicy": {
+        "description": "Preserve complete mod package versions without replacing packaged defaults.\nThis grants neither executable trust nor mod/save compatibility.",
+        "enum": [
+          "versioned-packages-v1"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -21438,6 +21462,16 @@
           "$ref": "#/$defs/Platform"
         },
         "type": "array"
+      },
+      "mod_package_policy": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModPackagePolicy"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "n64_windows_initial_d3d12": {
         "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
@@ -27377,6 +27411,13 @@
         ],
         "type": "object"
       },
+      "ModPackagePolicy": {
+        "description": "Preserve complete mod package versions without replacing packaged defaults.\nThis grants neither executable trust nor mod/save compatibility.",
+        "enum": [
+          "versioned-packages-v1"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -27530,6 +27571,16 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "mod_package_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModPackagePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "n64_windows_initial_d3d12": {
             "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",

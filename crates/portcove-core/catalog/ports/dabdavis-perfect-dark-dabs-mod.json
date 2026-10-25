@@ -3,12 +3,12 @@
   "listing": {
     "id": "dabdavis-perfect-dark-dabs-mod",
     "name": "Perfect Dark / Perfect Dark Dab's Mod (DabDavis)",
-    "summary": "Explore Perfect Dark / Perfect Dark Dab's Mod (DabDavis) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Perfect Dark fork with its own updater and original-ROM setup; keep expanded saves with a compatible player.",
     "project_url": "https://github.com/DabDavis/perfect-dark-dabs-mod",
     "issue_number": 1866,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/DabDavis/perfect-dark-dabs-mod",
+    "availability": "packages",
+    "setup_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md",
     "artwork": {
       "game_id": 1463,
       "cover_id": 336883,
@@ -16,6 +16,26 @@
       "image_sha256": "b4527efe3caaec5486b90fecdad0978574ce819f4024e5dd29f4565443871afc",
       "game_slug": "perfect-dark",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the fork’s player and updater",
+          "instruction": "Extract the complete Windows package into its own folder. Put your own Perfect Dark USA Rev 1 / US v1.1 ROM in data as pd.ntsc-final.z64, then choose pd.x86_64.exe with the package folder as its working directory. Other regions are not supported by this fork. Keep it separate from a stock Perfect Dark installation to keep settings and saves separate. The fork supplies its own runtime updater."
+        },
+        {
+          "title": "Keep updates and data with the working copy",
+          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Back up the complete external game folder and any custom data locations, including data, pd.ini, saves and mods. Ordinary stock-format setups remain readable by the unmodified port; expanded simulant setups and moved-stat formats require a compatible version. Replacing or rolling back a runtime does not convert or rewind these saves."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["pd-dabs-mod-", "x86_64-windows.zip"]
+    },
+    "original_game_title": "Perfect Dark",
+    "release_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases",
+    "recommended_download_channel": "stable"
   }
 }

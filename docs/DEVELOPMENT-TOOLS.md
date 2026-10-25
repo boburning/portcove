@@ -792,6 +792,19 @@ critical-path time. The complete Rust feedback goal of less than ten minutes is
 a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes and zero automatic test retries remain in force.
 
+The remaining full-workspace native/Intel and Windows workspace-other qualification
+jobs use `scripts/qualification-nextest.mts` with their original package scope,
+partitions, default profile and archive/remap inputs. It verifies pinned Node and
+nextest, retains complete compiled and selected inventories, and joins original
+libtest JSON outcomes to selected case identities through the shared reporter.
+Each fresh `work/test-results/qualification-*` packet retains raw inventories,
+request context, outcome stream, hashes and separate inventory/execution timings.
+Always-run artifacts retain these packets after failure. Ignored/filter-match
+records and whole-binary exclusions remain dispositions rather than executions;
+source declarations absent from a platform's compiled inventory remain unknown.
+No cold-cache, speedup or additional native-product acceptance follows from these
+reporting records.
+
 Use `node scripts/ci-metrics.mts summarize DIRECTORY` for downloaded reports.
 Browser bootstrap records executable presence before provisioning, the installed
 Playwright package manifest digest/version and its exact relative Chromium
@@ -2392,10 +2405,13 @@ does not execute nextest.
 
 The core property tests generate archive-path aliases and digest/scope combinations.
 Run `cargo test -p portcove-core --lib property_` through the storage wrapper.
-For diagnostic coverage, `cargo-llvm-cov` 0.9.1 and the pinned Rust toolchain's
-`llvm-tools-preview` component support `cargo llvm-cov test -p portcove-core --lib
---lcov --output-path outputs/property-coverage.lcov property_`. This intentionally
-scoped report is not a whole-project coverage score or a new acceptance threshold.
+For an opt-in Windows Core path investigation, `just rust-coverage` uses the
+optional coverage tool pin and a separate dated nightly compiler with matching
+LLVM tools. It records discovery, original test outcomes, actual branch counters
+and source/compiler/target/feature-selection provenance in a fresh packet. See
+[measured coverage](reference/test-coverage.md#rust-path-branch-investigation)
+for setup, boundaries and retained failure evidence. Ordinary checks do not install
+or execute this tool, and no coverage percentage becomes an acceptance threshold.
 
 Use the existing mutation tool on a disposable source snapshot with isolated
 build output. Windows source copying can fail on frontend dependency symlinks;

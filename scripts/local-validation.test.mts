@@ -49,6 +49,253 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("portability literal baseline retains its native scanner contract across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const input = "scripts/fixtures/rscheck-portability-baseline.json";
+  const sibling = "scripts/fixtures/rscheck-portability-baseline-sibling.json";
+  for (const file of [input, sibling])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        assert.equal(
+          selected.has("scripts/run-rscheck.test.mts"),
+          file === input,
+          JSON.stringify(change),
+        );
+    }
+});
+
+void test("manual job timeout inputs retain direct contracts across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    ".node-version",
+    "scripts/runtime-values.mts",
+    "scripts/resource-command.mts",
+    "scripts/heavy-rust-test-lock.mts",
+    "scripts/ci-job-timeout-probe.mts",
+    ".github/workflows/job-timeout-rehearsal.yml",
+    "scripts/ci-job-timeout-probe-sibling.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        assert.equal(
+          selected.has("scripts/ci-job-timeout-probe.test.mts"),
+          !file.includes("-sibling"),
+          JSON.stringify(change),
+        );
+    }
+});
+
+void test("browser artifact custody inputs retain direct contracts across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const inputs = [
+    ".github/actions/retain-browser-diagnostics/action.yml",
+    ".github/workflows/browser-artifact-custody.yml",
+    "scripts/fixtures/browser-upload-baseline.json",
+    "apps/desktop/scripts/browser-screenshot-custody.mts",
+  ];
+  const sibling = "scripts/fixtures/browser-upload-baseline-sibling.json";
+  for (const file of [...inputs, sibling])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        assert.equal(
+          selected.has("scripts/ci-frontend-workflow.test.mts"),
+          file !== sibling,
+          JSON.stringify(change),
+        );
+    }
+});
+
+void test("qualification outcome helpers retain all direct consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const paths = [
+    "scripts/qualification-nextest.mts",
+    "scripts/runtime-values.mts",
+    "scripts/fixtures/nextest-inventory-baseline.json",
+    "scripts/nextest-outcomes.mts",
+    ".node-version",
+    ".github/quality-tools.json",
+  ];
+  for (const file of [...paths, "scripts/fixtures/nextest-inventory-baseline-sibling.json"])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = baselineContractTests(
+        buildValidationPlan({
+          changes: [change],
+          eventName: "pull_request",
+          base: "a".repeat(40),
+          mergeBase: "a".repeat(40),
+          head: "b".repeat(40),
+          checkout: "b".repeat(40),
+        }),
+        { fileExists: () => false },
+      );
+      const expected = paths.includes(file);
+      for (const selected of [local.nodeTests, new Set(hosted)])
+        assert.equal(
+          selected.has("scripts/qualification-nextest.test.mts"),
+          expected,
+          JSON.stringify(change),
+        );
+      if (
+        [
+          "scripts/qualification-nextest.mts",
+          "scripts/nextest-outcomes.mts",
+          "scripts/runtime-values.mts",
+        ].includes(file)
+      )
+        for (const selected of [local.nodeTests, new Set(hosted)])
+          for (const consumer of ["scripts/audit.test.mts", "scripts/precommit-check.test.mts"])
+            assert.ok(selected.has(consumer), `${JSON.stringify(change)} must retain ${consumer}`);
+    }
+});
+
+void test("native input observation and its fixed oracle retain direct consumers across lifecycle edits", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumer = "scripts/desktop-input-observation.test.mts";
+  const sibling = "scripts/fixtures/desktop-input-observation-baseline-sibling.json";
+  for (const file of [
+    "scripts/native-helper-dependencies.mts",
+    "apps/desktop/scripts/desktop-test.mts",
+    "scripts/fixtures/desktop-input-observation-baseline.json",
+    sibling,
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      assert.equal(local.nodeTests.has(consumer), file !== sibling, JSON.stringify(change));
+      assert.equal(hosted.includes(consumer), file !== sibling, JSON.stringify(change));
+      if (file === "scripts/native-helper-dependencies.mts")
+        for (const retained of [
+          "native-helper-dependencies",
+          "native-confirmation",
+          "desktop-execution-plan",
+          "windows-helper-checks",
+        ]) {
+          assert.ok(local.nodeTests.has(`scripts/${retained}.test.mts`));
+          assert.ok(hosted.includes(`scripts/${retained}.test.mts`));
+        }
+    }
+});
+
+void test("opt-in Rust coverage inputs retain contracts across lifecycle and rename edits", () => {
+  for (const input of [
+    "scripts/rust-coverage.mts",
+    ".config/rust-coverage.json",
+    "scripts/test-coverage-config.mts",
+    "scripts/quality-tools.mts",
+    "scripts/resource-command.mts",
+    "scripts/resource-capacity.mts",
+    "scripts/runtime-values.mts",
+  ]) {
+    for (const change of [
+      { status: "M", path: input },
+      { status: "A", path: input },
+      { status: "D", path: input },
+      { status: "R100", previousPath: input, path: "docs/moved.md" },
+      { status: "R100", previousPath: "docs/moved.md", path: input },
+    ]) {
+      const selected = classifyChanges([change], { fileExists: () => false });
+      assert.ok(selected.nodeTests.has("scripts/rust-coverage.test.mts"), JSON.stringify(change));
+      if (input === "scripts/test-coverage-config.mts")
+        assert.ok(selected.nodeTests.has("scripts/ui-test-selection.test.mts"));
+    }
+  }
+});
+
 void test("qualification archive helper and oracle retain surviving contracts without sibling inference", () => {
   for (const file of [
     "scripts/windows-qualification-rust.mts",
@@ -2564,7 +2811,7 @@ void test("native enlargement helper edits select receipt contracts and related 
   assert.equal(selection.ui, true);
 });
 
-void test("upstream test families preserve shared owners and narrow the planner to its consumers", async () => {
+void test("upstream families retain shared owners and narrow planner and retained-artifact consumers", async () => {
   const { buildValidationPlan } = await import("./validation-plan.mts");
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const broad = [
@@ -2581,6 +2828,15 @@ void test("upstream test families preserve shared owners and narrow the planner 
     "scripts/upstream-health-plan.test.mts",
     "scripts/upstream-health-planning.test.mts",
   ];
+  const retainedArtifact = "scripts/fixtures/upstream-health-retained-artifacts.json";
+  const sibling = "scripts/fixtures/upstream-health-retained-artifacts-sibling.json";
+  const retainedConsumers = [
+    "scripts/upstream-observer.test.mts",
+    "scripts/upstream-health-providers.test.mts",
+    "scripts/upstream-health-planning.test.mts",
+    "scripts/upstream-health-accounting.test.mts",
+    "scripts/upstream-health-source-archives.test.mts",
+  ];
   for (const file of [
     "scripts/upstream-observer.mts",
     "scripts/observe-configured-upstream.mts",
@@ -2591,6 +2847,8 @@ void test("upstream test families preserve shared owners and narrow the planner 
     "scripts/fixtures/upstream-health-accounting-cases.json",
     "scripts/fixtures/upstream-health-pins.json",
     "scripts/fixtures/upstream-health-fade-to-black.json",
+    retainedArtifact,
+    sibling,
     "release/upstream-observer.json",
   ]) {
     for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
@@ -2620,7 +2878,14 @@ void test("upstream test families preserve shared owners and narrow the planner 
         checkout: "b".repeat(40),
       });
       const hosted = baselineContractTests(plan, { fileExists: () => false });
-      const expected = file === "scripts/upstream-health-plan.mts" ? planner : broad;
+      const expected =
+        file === "scripts/upstream-health-plan.mts"
+          ? planner
+          : file === retainedArtifact
+            ? retainedConsumers
+            : file === sibling
+              ? []
+              : broad;
       const label = JSON.stringify(input);
       for (const required of expected) {
         assert.ok(local.nodeTests.has(required), "local " + required + ": " + label);
@@ -2630,19 +2895,23 @@ void test("upstream test families preserve shared owners and narrow the planner 
           "hosted " + required + ": " + label,
         );
       }
-      if (file === "scripts/upstream-health-plan.mts") {
+      if (
+        file === "scripts/upstream-health-plan.mts" ||
+        file === retainedArtifact ||
+        file === sibling
+      ) {
         assert.deepEqual(
           [...local.nodeTests]
             .filter((selected) => selected.startsWith("scripts/upstream-"))
             .sort(),
-          [...planner].sort(),
+          [...expected].sort(),
           label,
         );
         if (variant.startsWith("R"))
           assert.ok(local.nodeTests.has("scripts/repository-skills.test.mts"), label);
         assert.deepEqual(
           hosted.filter((selected) => selected.startsWith("scripts/upstream-")).sort(),
-          [...planner].sort(),
+          [...expected].sort(),
           label,
         );
       }

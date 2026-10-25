@@ -7,8 +7,8 @@
     "project_url": "https://github.com/AurelioB/BanjoRecomp-Android",
     "issue_number": 1794,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/AurelioB/BanjoRecomp-Android",
+    "availability": "packages",
+    "setup_url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md",
     "artwork": {
       "game_id": 2148,
       "cover_id": 528449,
@@ -16,6 +16,21 @@
       "image_sha256": "578beb8f394d692c83b886b70aad4effd70a6d9f29bb872c3714b9703e9a69fa",
       "game_slug": "banjo-kazooie",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install the Android ARM64 APK from this fork’s selected release, then open the app and choose your own North American 1.0 Banjo-Kazooie ROM when asked. The app handles its supported ROM import; there is no PC extraction/build step for the player. Desktop Banjo releases and another fork’s setup are separate choices."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Saves, configuration, imported ROM, mods, texture packs and caches use app-private storage under com.aure.banjorecomp. Preserve that data before uninstalling or clearing app data. Follow the upstream Android update process so the installed app identity/signature can be retained. Portcove does not back up this Android profile or manage APK replacement."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/AurelioB/BanjoRecomp-Android/blob/android-v0.1.1/README.md"
+    },
+    "release_url": "https://github.com/AurelioB/BanjoRecomp-Android/releases"
   }
 }

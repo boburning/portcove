@@ -4,6 +4,27 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub(crate) fn versioned_mod_catalog() -> crate::Catalog {
+    crate::Catalog::from_json(
+        &serde_json::json!({
+            "schema_version": 1, "ports": [{
+                "id": "versioned-mod-fixture", "name": "Versioned mod fixture",
+                "summary": "Inert ready archive with explicit package preservation",
+                "project_url": "https://example.invalid/versioned-mod-fixture",
+                "support_tier": "beta", "channels": ["stable"],
+                "platforms": ["windows-x86-64"], "adapter": "staged-source-portable",
+                "release": {"repository": "fixture/versioned-mod"},
+                "executable_hints": {"windows-x86-64": ["game.exe"]},
+                "persistent_paths": ["saves", "settings.ini", "mods"],
+                "runtime_mutable_paths": ["cache"],
+                "mod_package_policy": "versioned-packages-v1"
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap()
+}
+
 pub(crate) fn definition_requirements(
     port: &crate::PortDefinition,
     default_version: u32,
@@ -174,6 +195,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             20
         } else if crate::preparation::has_manual_marker(port) {
             2
+        } else if port.mod_package_policy.is_some() {
+            24
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {

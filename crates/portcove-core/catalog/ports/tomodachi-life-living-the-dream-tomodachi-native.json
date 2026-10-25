@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tomodachi-life-living-the-dream-tomodachi-native",
+    "name": "Tomodachi Life: Living the Dream (tomodachi-native)",
+    "summary": "Experimental Tomodachi-specific nxnative-derived AppleARM64 rewrite/Horizon/Metal4 adaptation Upstream maturity: UpstreamMacislandtour/name/Miicreation/sound,notfullplaythrough; iPadstarts/runsnotplayedthrough; inputlater-sceneand55fpsbusy-scene limits. Acquisition: Macsourcebringup+build_mac_app.py; optionalembed copies/clonesowndata intoApplicationSupport; rebuildkeep-data preservesRomFS. iOSbuild/signlocally,gamecontent separate; no release. Platforms: AppleSiliconmacOS26targetbutdeveloped/testedmacOS27,26untried. iPadAirM2/iPadOS27 boundedstartup; iPhonebuildsunrun. NoMaccontroller yet. Original data: Ownbase1.0.0NSPtitle010051F0207B2000+prod.keys; localv0rewrittenmodules/RomFS/shaders. Otherregion/updateUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Tomodachi Life: Living the Dream",
+    "project_url": "https://github.com/kuosuko/tomodachi-native",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/kuosuko/tomodachi-native",
+    "issue_number": 2981,
+    "artwork": {
+      "game_id": 337036,
+      "cover_id": 531013,
+      "image_id": "cobdqd",
+      "image_sha256": "eaa5ab3451530ae4851571c6c1750d73f03ef95bc74ec881f4c99b9cb7824632",
+      "game_slug": "tomodachi-life-living-the-dream",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "tomodachi-life-living-the-dream-tomodachi-native",
+    "origin": {
+      "project_url": "https://github.com/kuosuko/tomodachi-native",
+      "repository": {
+        "host": "github.com",
+        "id": "1421445048"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -7,8 +7,8 @@
     "project_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX",
     "issue_number": 813,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX",
+    "availability": "source-only",
+    "setup_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX#readme",
     "artwork": {
       "game_id": 21760,
       "cover_id": 115480,
@@ -16,6 +16,20 @@
       "image_sha256": "f5f17cd0528c0c599ec41e956a95578f4601e4748c9bf9e0777b12826e168005",
       "game_slug": "metal-slug-xx",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow the title-specific Metal Slug XX build guide with your own extracted game data. Select metalslugxx.exe, keeping the matching rexruntime.dll, rexruntimerd.dll or rexruntimed.dll build companion beside it. Set the documented --game_data_root argument to your actual extracted data location and retain the prepared working folder. rexglue.exe is code generation, not the player; a ReXGlue SDK archive alone is not this game's prepared runtime. Build/code-generation commands remain deliberate upstream actions."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX#readme"
     }
   }
 }

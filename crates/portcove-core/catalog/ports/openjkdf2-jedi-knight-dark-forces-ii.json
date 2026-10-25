@@ -3,12 +3,12 @@
   "listing": {
     "id": "openjkdf2-jedi-knight-dark-forces-ii",
     "name": "OpenJKDF2",
-    "summary": "Explore OpenJKDF2 and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use your own Jedi Knight game files with OpenJKDF2’s first-launch setup and upstream updater.",
     "project_url": "https://github.com/shinyquagsire23/OpenJKDF2",
     "issue_number": 725,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/shinyquagsire23/OpenJKDF2",
+    "availability": "packages",
+    "setup_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
     "artwork": {
       "game_id": 150,
       "cover_id": 101009,
@@ -16,6 +16,26 @@
       "image_sha256": "0a4eb3217216c14d88b1ef97a38cab2ad6166c110f11ea081575a580dcd8230c",
       "game_slug": "star-wars-jedi-knight-dark-forces-ii",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Complete original-game setup in OpenJKDF2",
+          "instruction": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater."
+        },
+        {
+          "title": "Keep updates and data with the working copy",
+          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["win64-debug.zip"]
+    },
+    "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
+    "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases",
+    "recommended_download_channel": "beta"
   }
 }

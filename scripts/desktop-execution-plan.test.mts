@@ -3,6 +3,7 @@ import {
   nativeHelperRegistryPath,
   nativeHelperSharedSources,
   captureDesktopReceiptInputs,
+  observeDesktopHarnessInputs,
 } from "./native-helper-dependencies.mts";
 import assert from "node:assert/strict";
 import { readFile, mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
@@ -1155,13 +1156,6 @@ void test("coordinator preserves gap position and leaves attempt attribution to 
 });
 
 void test("harness hashes preserved inputs and the current planner/coordinator bytes", async (t) => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("const inputs");
-  const end = source.indexOf("let runnerMetadata");
-  assert(start > 0 && end > start);
   const root = fileURLToPath(new URL("../", import.meta.url));
   const selection = resolveDesktopSelection({ profile: "smoke", platform: process.platform });
   const values = Object.fromEntries(
@@ -1169,21 +1163,15 @@ void test("harness hashes preserved inputs and the current planner/coordinator b
   );
   const output = await mkdtemp(path.join(os.tmpdir(), "pcv-harness-inputs-"));
   t.after(() => rm(output, { recursive: true, force: true }));
-  const inputs = await runInNewContext(`(async()=>{${source.slice(start, end)}return inputs})()`, {
-    selection,
-    application: process.execPath,
-    planDesktopExecution,
-    values,
-    root,
-    path,
-    port: 4455,
-    fileIdentity,
-    Promise,
-    executionPlan: planDesktopExecution(selection),
-    captureDesktopReceiptInputs,
+  const { inputs } = await observeDesktopHarnessInputs({
     custody: null,
-    output,
-    revision: "a".repeat(40),
+    capture: {
+      root,
+      values: { ...values, app: process.execPath },
+      plan: planDesktopExecution(selection),
+      output,
+      revision: "a".repeat(40),
+    },
   });
   const expectedFiles = planDesktopExecution(selection).receiptInputs.map((input) =>
     input.kind === "file" ? path.join(root, input.path) : process.execPath,

@@ -98,8 +98,8 @@ void test("shared observer phases retain mode routing and the original ten-minut
     () => sharedProtectionOriginalJobDeadline({ ...inventory, total_count: 2 }, identity, now, 100),
     /inventory/u,
   );
-  assert.equal(slice4CapacityResources.declared_job_minutes, 75);
-  assert.equal(slice4CapacityResources.declared_job_minutes + 10 + 10, 95);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 85);
+  assert.equal(slice4CapacityResources.declared_job_minutes + 10, 95);
   assert.ok(95 < slice4CapacityResources.total_job_minutes);
 });
 
@@ -112,6 +112,7 @@ type Step = {
   env?: Record<string, string>;
 };
 type Job = {
+  name?: string;
   if?: string;
   steps: Step[];
   needs?: string | string[];
@@ -385,6 +386,7 @@ void test("actual held job conditions route retained custody without repeating s
     failed?: string,
     published = false,
     purpose = "application",
+    transport = "fixed-job",
   ) => {
     const needs = Object.fromEntries(
       Object.keys(workflow.jobs).map((name) => [
@@ -411,7 +413,7 @@ void test("actual held job conditions route retained custody without repeating s
                   publication_custody: published ? "reused" : "",
                 }
               : name === "admission"
-                ? { publication_purpose: purpose }
+                ? { publication_purpose: purpose, classification_transport: transport }
                 : {},
         },
       ]),
@@ -444,6 +446,34 @@ void test("actual held job conditions route retained custody without repeating s
   }
   assert.equal(permitted("tuf_preview", "metadata", false, "tuf_releases"), false);
   assert.equal(permitted("release_publication", "release", true, "attest"), false);
+  assert.equal(permitted("release_publication", "release", false, "native_linux"), false);
+  assert.equal(permitted("release_publication", "release", true, "native_linux"), true);
+  for (const transport of ["legacy-app", "", "unknown"]) {
+    assert.equal(
+      permitted("native_linux", "release", false, undefined, false, "application", transport),
+      false,
+    );
+    assert.equal(
+      permitted(
+        "release_publication",
+        "release",
+        false,
+        "native_linux",
+        false,
+        "application",
+        transport,
+      ),
+      transport === "legacy-app",
+    );
+  }
+  assert.equal(permitted("native_linux", "release", false), true);
+  assert.equal(permitted("native_linux", "release", true), false);
+  assert.equal(permitted("native_linux", "held", false), false);
+  assert.equal(permitted("native_linux", "metadata", false), false);
+  assert.equal(
+    permitted("native_linux", "release", false, undefined, false, "catalog-publication"),
+    false,
+  );
   assert.equal(permitted("site_publication", "release", true, "release_publication"), false);
   assert.equal(permitted("site_publication", "metadata", false), true);
   assert.equal(permitted("site_publication", "metadata", false, "tuf_timestamp"), false);
@@ -646,14 +676,14 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       slice4CapacityResources.declared_job_minutes,
       slice4CapacityResources.catalog_declared_job_minutes,
     ),
-    75,
+    85,
   );
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
   for (const [name, job] of Object.entries(jobs)) {
-    assert.equal(job["runs-on"], "ubuntu-22.04", name);
+    assert.equal(job["runs-on"], name === "native_linux" ? "ubuntu-24.04" : "ubuntu-22.04", name);
     if (job.permissions?.actions === "read")
       assert.equal(
         job.permissions.checks,
@@ -910,4 +940,56 @@ void test("actual observer installation guard refuses drift before invoking its 
     );
     assert.equal(result.status, status, result.stderr);
   }
+});
+
+void test("Linux proof stays on one bounded job without a payload dependency cycle or signing-key authority", async () => {
+  const workflow = parse(
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
+  ) as Workflow;
+  const job = workflow.jobs.native_linux!;
+  assert.equal(job.name, "Qualify hosted Linux installed continuity");
+  assert.equal(job["runs-on"], "ubuntu-24.04");
+  assert.equal(job["timeout-minutes"], 10);
+  assert.equal(job.environment, "production-native-linux");
+  assert.deepEqual(job.permissions, {
+    contents: "read",
+    actions: "read",
+    "id-token": "write",
+    checks: "read",
+  });
+  assert.deepEqual(job.needs, [
+    "admission",
+    "tool_bootstrap",
+    "tool_attest",
+    "coordinator",
+    "independent_admission",
+    "attest",
+  ]);
+  assert.deepEqual(
+    job.steps
+      .filter((step) => step.uses === "./.github/actions/release-native-linux")
+      .map((step) => step.with?.stage),
+    ["pre-sign", "post-sign"],
+  );
+  assert.ok(
+    !JSON.stringify(job).includes("secrets.") &&
+      !JSON.stringify(job).includes("create-github-app-token"),
+  );
+  assert.ok(workflow.jobs.release_publication!.needs!.includes("native_linux"));
+  const visit = (name: string, stack = new Set<string>()) => {
+    assert.ok(!stack.has(name), `dependency cycle at ${name}`);
+    const next = new Set([...stack, name]);
+    const dependencies = workflow.jobs[name]!.needs;
+    for (const dependency of typeof dependencies === "string"
+      ? [dependencies]
+      : (dependencies ?? []))
+      visit(dependency, next);
+  };
+  for (const name of Object.keys(workflow.jobs)) visit(name);
+  const diagnostics = job.steps.filter((step) => step.if === "${{ always() }}");
+  assert.equal(diagnostics.length, 2);
+  assert.equal(diagnostics[0]!.run, "node scripts/release-controller-diagnostics.mts native-linux");
+  assert.equal(diagnostics[1]!.with?.path, "${{ runner.temp }}/native-public-evidence-linux");
+  assert.equal(diagnostics[1]!.with?.["retention-days"], 7);
+  assert.equal(diagnostics[1]!.with?.overwrite, false);
 });

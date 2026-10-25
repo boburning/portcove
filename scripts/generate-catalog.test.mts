@@ -3,6 +3,7 @@ import { readFileSync, mkdtempSync, writeFileSync, mkdirSync, existsSync } from 
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 
 import {
   requiredFixture,
@@ -134,5 +135,118 @@ void test("current schema-2 authoring deterministically owns the embedded catalo
     for (const evidenceId of stringArray(contract.evidence_ids)) {
       assert.equal(evidenceIds.has(evidenceId), true, `${contract.id}: ${evidenceId}`);
     }
+  }
+});
+
+void test("proposal artwork retains accepted listing covers without widening operational authority", () => {
+  const fixture = isolatedGenerator();
+  // Materialize the operational fixture before adding a separately authored
+  // listing. Invoke directly below so the historical fixture sync cannot erase it.
+  assert.equal(fixture.run().status, 0);
+  const accepted = readFileSync(join(fixture.catalogs, "catalog-current-authoring.json"));
+  const mapping = {
+    game_id: 987654321,
+    cover_id: 576176,
+    image_id: "cocckw",
+    image_sha256: "a".repeat(64),
+    game_slug: "accepted-original",
+    match_kind: "underlying-game",
+  };
+  const listing = {
+    id: "accepted-listing",
+    name: "Accepted Listing",
+    summary: "Reviewed listing before managed adoption.",
+    project_url: "https://example.org/accepted-listing",
+    artwork: mapping,
+  };
+  writeFileSync(
+    join(fixture.catalogs, "ports", `${listing.id}.json`),
+    JSON.stringify({ format_version: 1, listing }),
+  );
+  const input = fixtureCatalog(fixtureJson(accepted));
+  const promoted = { ...listing, presentation: { artwork: mapping } };
+  delete (promoted as Record<string, unknown>).artwork;
+  input.ports.push(promoted);
+  const proposal = join(fixture.scratch, "proposal.json");
+  const identities = join(fixture.scratch, "identities.json");
+  writeFileSync(
+    identities,
+    JSON.stringify({
+      [listing.id]: {
+        underlying_game: {
+          game_id: 987654321,
+          slug: "accepted-original",
+          names: ["Accepted Original"],
+          evidence_url: "https://example.org/original-identity",
+        },
+      },
+    }),
+  );
+  for (const mode of [
+    "ordinary",
+    "changed-project",
+    "refresh",
+    "changed-source",
+    "declared-original",
+  ]) {
+    const candidate = structuredClone(input);
+    const last = requiredFixture(candidate.ports.at(-1));
+    if (mode === "changed-project") last.project_url = "https://example.org/different-project";
+    if (mode === "changed-source" || mode === "declared-original")
+      last.source_profile = "new-source";
+    writeFileSync(proposal, JSON.stringify(candidate));
+    const output = join(fixture.scratch, mode);
+    const result = spawnSync(
+      process.execPath,
+      [
+        "scripts/generate-catalog.mts",
+        "--prepare-artwork",
+        proposal,
+        "--output-dir",
+        output,
+        "--credentials-file",
+        join(fixture.scratch, "absent-provider-credentials.json"),
+        "--artwork-ids",
+        listing.id,
+        ...(mode === "refresh" ? ["--refresh-artwork", listing.id] : []),
+        ...(mode === "declared-original" ? ["--identities", identities] : []),
+      ],
+      { cwd: fixture.scratch, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const evidence = fixtureJson(readFileSync(join(output, "artwork-evidence.json")));
+    const records = evidence.records;
+    assert.ok(Array.isArray(records));
+    const observation = record(
+      records.find((value: unknown) => record(value).port_id === listing.id),
+    );
+    const prepared = fixtureCatalog(
+      fixtureJson(readFileSync(join(output, "catalog-proposal.json"))),
+    );
+    if (mode === "ordinary" || mode === "declared-original" || mode === "refresh") {
+      assert.deepEqual(prepared, candidate);
+      assert.equal(
+        observation.reason,
+        mode === "ordinary"
+          ? "accepted-mapping-reused"
+          : mode === "refresh"
+            ? "accepted-mapping-retained-after-unavailable-refresh"
+            : "accepted-original-game-reused",
+      );
+    } else {
+      assert.notEqual(observation.reason, "accepted-mapping-reused");
+      assert.equal(requiredFixture(prepared.ports.at(-1)).presentation?.artwork, undefined);
+    }
+    assert.deepEqual(
+      readFileSync(join(fixture.catalogs, "catalog-current-authoring.json")),
+      accepted,
+    );
+    if (mode === "ordinary") {
+      assert.equal(record(evidence.provider_metrics).game_requests, 0);
+      assert.equal(record(evidence.provider_metrics).authentication_requests, 0);
+    }
+    assert.equal(record(evidence.provider_metrics).image_requests, 0);
+    assert.equal(typeof evidence.accepted_artwork_context_sha256, "string");
+    assert.notEqual(evidence.accepted_artwork_context_sha256, evidence.accepted_catalog_sha256);
   }
 });

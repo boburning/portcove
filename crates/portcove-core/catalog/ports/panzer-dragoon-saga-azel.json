@@ -7,8 +7,8 @@
     "project_url": "https://github.com/yaz0r/Azel",
     "issue_number": 376,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/yaz0r/Azel",
+    "availability": "source-only",
+    "setup_url": "https://github.com/yaz0r/Azel#readme",
     "artwork": {
       "game_id": 1671,
       "cover_id": 526947,
@@ -16,6 +16,20 @@
       "image_sha256": "1b15a0a55737380943f5a927b9c4d74d2181058fa2ee7989a66952d5917f5cd9",
       "game_slug": "panzer-dragoon-saga",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow the Windows Visual Studio 2022/CMake guide with recursive submodules. Deliberately run vs2022.bat, open the generated solution and build its PDS project. Put your own CD1 contents in data/ as documented and keep that prepared working layout with the native game output. The reviewed project is an early, buggy semi-playable build through Arachnoth; a source checkout is not a ready player package. Register only the prepared native output with its actual working folder and arguments."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/yaz0r/Azel#readme"
     }
   }
 }

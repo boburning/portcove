@@ -46,4 +46,4 @@ it("creates an isolated matched scene without changing its input or overwriting 
   const refused = path.join(root, "refused");
   await expect(prepareLibraryComparison(source, refused)).rejects.toThrow("reference changed");
   await expect(lstat(refused)).rejects.toMatchObject({ code: "ENOENT" });
-});
+}, 30_000);

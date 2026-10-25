@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { isRecord } from "./runtime-values.mts";
+import baseline from "./fixtures/nextest-inventory-baseline.json" with { type: "json" };
+import { runnableWorkspaceImpactTests } from "./rust-test-impact.mts";
 import {
   runnableWindowsRustTests,
   windowsPartitionOutcomeSelection,
@@ -10,7 +12,41 @@ import {
   nextestOutcomeSelection,
   parseNextestOutcomes,
   runNextestWithOutcomes,
+  runnableNextestTests,
 } from "./nextest-outcomes.mts";
+
+for (const control of baseline.cases)
+  void test(`shared nextest inventory preserves old parser observations: ${control.id}`, () => {
+    for (const [name, parse] of [
+      ["workspace", runnableWorkspaceImpactTests],
+      ["windows", runnableWindowsRustTests],
+    ] as const)
+      for (const allowSkipped of [false, true]) {
+        const expected = Reflect.get(control.expected, `${name}-${allowSkipped}`) as unknown;
+        let actual: unknown;
+        try {
+          actual = {
+            outcome: "success",
+            selected: [...parse(control.input, { allowSkipped })].sort(),
+          };
+        } catch (error) {
+          assert.ok(error instanceof Error);
+          actual = { outcome: "failure", message: error.message };
+        }
+        assert.deepEqual(actual, expected);
+      }
+  });
+
+void test("shared parser retains explicit default-skip permission separately from ordinary skipped suites", () => {
+  const control = baseline.cases.find((item) => item.id === "skipped-default-filter-empty");
+  assert.ok(control);
+  assert.throws(() => runnableNextestTests(control.input, { allowSkipped: true }));
+  assert.throws(() => runnableNextestTests(control.input, { allowDefaultSkipped: true }));
+  assert.equal(
+    runnableNextestTests(control.input, { allowSkipped: true, allowDefaultSkipped: true }).size,
+    0,
+  );
+});
 
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/nextest-outcomes/${name}`, import.meta.url), "utf8");

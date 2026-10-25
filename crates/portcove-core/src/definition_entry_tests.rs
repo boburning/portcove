@@ -77,6 +77,27 @@ fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
 }
 
 #[test]
+fn versioned_mod_package_entries_require_their_reader_even_when_retained() {
+    let catalog = crate::test_fixture::versioned_mod_catalog();
+    let mut entry = entry_for_port(&catalog.ports()[0]);
+    entry["required_capabilities"][0]["maximum_version"] = json!(24);
+    for minimum in [1, 22, 23] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 24"));
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            index(&bytes, "versioned-mod-fixture")
+                .inspect_retained_entry("official", "versioned-mod-fixture", &bytes)
+                .unwrap_err()
+                .message
+                .contains("version 24")
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(24);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn prepared_source_directory_requires_v18_and_preserves_its_projection() {
     let catalog = crate::Catalog::from_json(include_str!(
         "../tests/fixtures/prepared-source-directory.json"
@@ -329,6 +350,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             20
         } else if crate::preparation::has_manual_marker(port) {
             2
+        } else if port.mod_package_policy.is_some() {
+            24
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {

@@ -279,6 +279,28 @@ export async function prepareActualHostedLinuxInstallation(
   assert.equal(dependencyReadback.dependencies_prepared, true);
   active();
   // The module is attested controller code. Native source is data, never root code.
+  const helper = await readControllerToolFile(files[3]!, 65536);
+  const runtimeLifetime = lifetime(90000);
+  const runtimeInputs = await run(
+    "hosted-runtime-inputs",
+    "/usr/bin/sudo",
+    [
+      "-n",
+      "--",
+      "/usr/bin/python3",
+      "-I",
+      "-S",
+      "-B",
+      "-c",
+      helper.toString("utf8"),
+      "--runtime-packages",
+      JSON.stringify({ schema_version: 1, binding, ...runtimeLifetime, context }),
+    ],
+    runtimeLifetime,
+  );
+  assert.equal(runtimeInputs.binding, binding);
+  assert.equal(runtimeInputs.prepared, true);
+  active();
   const setupLifetime = lifetime(150000);
   const setup = await run(
     "hosted-primitives",
@@ -313,7 +335,6 @@ export async function prepareActualHostedLinuxInstallation(
     tools: { node: identities[0], driver: identities[1] },
     context,
   };
-  const helper = await readControllerToolFile(files[3]!, 65536);
   active();
   const installed = await run(
     "hosted-materialization",

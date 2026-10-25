@@ -122,9 +122,19 @@ IDs/count honestly when 50/day or the budget cannot cover them.
 New-lead coverage is separate from canonical rotation. `collect` first runs
 `discover`: up to six charged search pages across newly created recomp/recompiled
 repositories and recently pushed recompilation/native-port projects. Each page
-contains at most fifty results using GitHub's documented default best-match
-ordering within the fixed time window, rather than newest-activity ordering.
-The four broad families match names/descriptions. Appended ecosystem families
+contains at most fifty results. The four broad and twenty existing ecosystem
+contracts retain default best-match ordering and their numeric cursor positions.
+Four Switch-focused families append after them: `switch recomp`,
+`"Nintendo Switch" native`, `SwitchRecomp` (including README references), and
+the `nintendo-switch` + `static-recompilation` topic intersection. Only these
+four use repository-search `updated` descending ordering within fixed windows,
+not newest-created order or an immutable snapshot. The narrowed Switch topic
+query prioritizes that console within the existing broad static topic; these
+are not four disjoint sources. All twenty-eight families rotate through the
+same six charged requests, with persisted continuations. Zero-request current,
+capped or deferred skips have a finite family-count-times-six scan bound
+(168 at this registry size); they do not consume a charged HTTP page.
+The four broad families match names/descriptions. Existing ecosystem families
 also inspect framework references in README files: PS2Recomp, XboxRecomp,
 ReXGlue/XenonRecomp, PS3Recomp, bbport, PSPRecomp/PSP-Web-Recomp,
 gcn-recomp/DolRecomp/GCRecomp/NWiiRecomp, PSXRecomp and XboxXBERecomp,
@@ -153,9 +163,9 @@ does not change the stricter canonical inventory reconciliation rules below.
 Defer only the drifting family for that foreground session and continue the
 independent families within the same six-request allowance. Keep validated
 positive lead identities from the refused page, but never count it as validated
-pagination or advance its successful clock. The receipt lists observed and
-deferred families separately from successful pages. Quiet rotation may proceed
-after four successful pages, or after at least four families have a valid page,
+pagination or advance its successful clock. The receipt lists pending, observed
+and deferred families separately from successful pages. Quiet rotation may proceed
+after four successful pages, or after six distinct families have a valid page,
 current completion, retained cap or typed drift deferral in this session, and
 the required upstream investigations are complete. Budget refusal, failed HTTP
 and malformed/identity failures cannot manufacture that coverage. A session
@@ -173,6 +183,24 @@ review even without a source push, because release-only changes can satisfy a
 reconsideration trigger. Retain reasons and exact continuation; none of this
 creates planning or support authority. Partial collection and unfinished research
 remain visible even when the foreground process finishes normally.
+
+A rapid cluster of new implementations from one console warrants a focused
+source sweep in the same investigation workflow. For Switch, review r/decomps
+**New**, its retained next-page cursor when accessible, PlayPorted's
+`/consoles/switch/` origin catalog (not `/runs-on/switch/`), Recompendium and
+RecompSoftware's Switch-origin entries, OpenGamePorts, current Quiver, Retro
+Catalog and directly discovered framework organizations. Capture clocks, scope,
+repository transfers and inaccessible/partial sources. These are manual source
+checks, not a second collector or scheduled acceptance. Social posts lead to
+primary-source qualification; no issue is created automatically from a post.
+
+Switch describes both a source and a destination. Ports **to** Switch, helpers,
+mods, emulator packages and arbitrary framework names are not independent
+Switch-to-desktop ports. Resolve numeric repository identity and lineage before
+intake; a shared framework does not merge distinct games, and a platform-only
+fork does not automatically create a new implementation. Native ARM64
+compatibility layers, static recompilers, hybrid interpreters and matching
+decompilations need separate architecture and player-route assessments.
 
 ### Ecosystem continuity and burst signals
 

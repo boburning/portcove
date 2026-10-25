@@ -1,0 +1,1264 @@
+{
+  "format_version": 1,
+  "purpose": "Dated evidence for eighteen source/setup guides; partial #2510/#2926 delivery, not a live backlog or universal qualification",
+  "initial_source": "e097215744911053defd74c066b119df51b763f2",
+  "preserved_source": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "observed_at": "2026-10-25T08:57:45.448Z",
+  "coverage": {
+    "identities": 18,
+    "complete_empty_github_release_inventories": 18,
+    "unchanged_readme_blobs": 17,
+    "freshly_reviewed_changed_readme_blobs": 1,
+    "actual_core_listing_preparations": 18,
+    "new_managed_integrations": 0,
+    "preserved_operational_integrations": 158,
+    "authored_identities": 878
+  },
+  "entries": [
+    {
+      "id": "advance-wars-recompiled",
+      "canonical_issue": 166,
+      "path": "crates/portcove-core/catalog/ports/advance-wars-recompiled.json",
+      "before_sha256": "c436fe264c5b22da2d0d2626c1c1bd8bae3d01b318914022bdfefa8a5fc0d821",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/advance-wars-recompiled.json",
+      "proposal_input_sha256": "f8ffdd61dae95228af3283a062d7c3fc7937128cfe7ad420804a4fcebe0c6a40",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-advance-wars-recompiled\\advance-wars-recompiled-f8ffdd61dae95228af3283a062d7c3fc7937128cfe7ad420804a4fcebe0c6a40.json",
+      "prepared_record_sha256": "f8ffdd61dae95228af3283a062d7c3fc7937128cfe7ad420804a4fcebe0c6a40",
+      "authored_sha256": "f8ffdd61dae95228af3283a062d7c3fc7937128cfe7ad420804a4fcebe0c6a40",
+      "source": {
+        "source_commit": "cb3facb53b6be32e4fc37e04d849ff4dddbab05f",
+        "readme_blob": "9b46708e7be22c40ccb3f1abe7bda0ce14ed4057",
+        "sha256": "e719417f708697d0a5df9f1d096a75c043d487bd1fd7ba7ac1aa1df842800171",
+        "primary_url": "https://github.com/sp00nznet/advancewars/blob/cb3facb53b6be32e4fc37e04d849ff4dddbab05f/README.md",
+        "reviewed_previous_blob": "9b46708e7be22c40ccb3f1abe7bda0ce14ed4057",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "advance-wars-recompiled",
+        "status": "passed",
+        "repository_id": 1184062839,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "cb3facb53b6be32e4fc37e04d849ff4dddbab05f"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Deferred",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Researching",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use your own Advance Wars USA Rev 1 original with the upstream Windows alpha guide. Run Setup.cmd deliberately; it records setup.log, skips completed work and can be resumed. The generated Advance Wars (recomp).cmd launches the prepared game. For native registration, choose build/Release/AWRE.exe, use the prepared project root as working directory and game/aw.gba as the argument in Change launch details. Compiler tools are not the game; the reviewed alpha has no audio."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Use your own Advance Wars USA Rev 1 original with the upstream Windows alpha guide. Run Setup.cmd deliberately; it records setup.log, skips completed work and can be resumed. The generated Advance Wars (recomp).cmd launches the prepared game. For native registration, choose build/Release/AWRE.exe, use the prepared project root as working directory and game/aw.gba as the argument in Change launch details. Compiler tools are not the game; the reviewed alpha has no audio.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "f442bd8932e3d62c25e352b7b12724ebcce69666a7ec28f898b622d853953f88",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-advance-wars-recompiled\\completion-5e842377a600f369bcf4a70c535cc5fec34229ee55b684ab66a26e9eda82b88d.json",
+        "receipt_sha256": "5e842377a600f369bcf4a70c535cc5fec34229ee55b684ab66a26e9eda82b88d"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "deep-fear-saturn-pc",
+      "canonical_issue": 1578,
+      "path": "crates/portcove-core/catalog/ports/deep-fear-saturn-pc.json",
+      "before_sha256": "56bcc4f849617124bb34118914dc7051a9d3a852c488890b13be3203d2d9d70f",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/deep-fear-saturn-pc.json",
+      "proposal_input_sha256": "3a6d1bc0f0a2fbca20b2f70e801d07c014ddd0a2e8618e228b4e85ba79016f67",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-deep-fear-saturn-pc\\deep-fear-saturn-pc-3a6d1bc0f0a2fbca20b2f70e801d07c014ddd0a2e8618e228b4e85ba79016f67.json",
+      "prepared_record_sha256": "3a6d1bc0f0a2fbca20b2f70e801d07c014ddd0a2e8618e228b4e85ba79016f67",
+      "authored_sha256": "3a6d1bc0f0a2fbca20b2f70e801d07c014ddd0a2e8618e228b4e85ba79016f67",
+      "source": {
+        "source_commit": "c3d3e4aed34678139e97b5cb83c4fd7b0cf1d343",
+        "readme_blob": "6b9c8cd1921c1a52d5dd7b2fc638414a2f6fb942",
+        "sha256": "6bfad1c1706dca39864d37033ec4dea4d6caed47a7c6abc0a8a5d12e1363385d",
+        "primary_url": "https://github.com/vs-sr-dev/pc-deepfear/blob/c3d3e4aed34678139e97b5cb83c4fd7b0cf1d343/README.md",
+        "reviewed_previous_blob": "6b9c8cd1921c1a52d5dd7b2fc638414a2f6fb942",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "deep-fear-saturn-pc",
+        "status": "passed",
+        "repository_id": 1389588757,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "c3d3e4aed34678139e97b5cb83c4fd7b0cf1d343"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use both of your own complete Europe MK-81804 V1.001 (1998-07-13) cue/bin disc sets with upstream's recursive saturnkit checkout. Its CMake/Ninja, clang and SDL3 preparation needs both extracted discs and audio. Run any documented tools/run.py --play command deliberately from the repository root; discovery does not invoke it. The reviewed milestone reaches the first room and walking, not a packaged full-game release. Register only a native game output you have prepared with its required working folder, not a Python disc or compiler tool."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Use both of your own complete Europe MK-81804 V1.001 (1998-07-13) cue/bin disc sets with upstream's recursive saturnkit checkout. Its CMake/Ninja, clang and SDL3 preparation needs both extracted discs and audio. Run any documented tools/run.py --play command deliberately from the repository root; discovery does not invoke it. The reviewed milestone reaches the first room and walking, not a packaged full-game release. Register only a native game output you have prepared with its required working folder, not a Python disc or compiler tool.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "cdde2212c766e94c627f3bece8795a0553ad0e134b80dec939a70b02dd76c8ee",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-deep-fear-saturn-pc\\completion-98dc309f2964d2df93ebad3e9b9677112146a2ddf6a8b4d186d075913801725f.json",
+        "receipt_sha256": "98dc309f2964d2df93ebad3e9b9677112146a2ddf6a8b4d186d075913801725f"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "god-of-war-kiexster",
+      "canonical_issue": 1671,
+      "path": "crates/portcove-core/catalog/ports/god-of-war-kiexster.json",
+      "before_sha256": "ae24873517cbb8c8b13256f15fd1289daecf2d9b6afdad12c13b0387ffcd3d9b",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/god-of-war-kiexster.json",
+      "proposal_input_sha256": "d37045c84e92891084832d52f5b63f7d72b6ade16255062711c89716d9130aed",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-god-of-war-kiexster\\god-of-war-kiexster-d37045c84e92891084832d52f5b63f7d72b6ade16255062711c89716d9130aed.json",
+      "prepared_record_sha256": "d37045c84e92891084832d52f5b63f7d72b6ade16255062711c89716d9130aed",
+      "authored_sha256": "d37045c84e92891084832d52f5b63f7d72b6ade16255062711c89716d9130aed",
+      "source": {
+        "source_commit": "2d3c91dc173727058073c267bbfb27b3dab703a1",
+        "readme_blob": "793aa42e7eb8f77515af253883e261f56124fe40",
+        "sha256": "4fe5107e932b4b20fe5711ec2948dbb621014d627bcb959bdbaabe30d96d96bd",
+        "primary_url": "https://github.com/KIexster/god-of-war-recomp/blob/2d3c91dc173727058073c267bbfb27b3dab703a1/README.md",
+        "reviewed_previous_blob": "67d96319398cc294f1daa2f1f29ae594aa21adfb",
+        "unchanged_since_previous_review": false
+      },
+      "upstream_release_observation": {
+        "id": "god-of-war-kiexster",
+        "status": "passed",
+        "repository_id": 1405085225,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": false,
+        "source_commit": "2d3c91dc173727058073c267bbfb27b3dab703a1"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use your own God of War NTSC-U SCUS-97399 files, including both DVD layers and the required IRX/.disc_layout files beside the ELF. Follow upstream's documented 1_instalar_herramientas and 2_compilar preparation scripts deliberately; 3_ejecutar_manual.cmd is its untimed manual launch. Register ps2EntryRunner.exe only when its explicit working folder, data and invocation reproduce the prepared native runtime. Portcove does not import a setup script's environment or run its compiler during discovery. The current upstream save/load and full-completion work remains in progress."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Use your own God of War NTSC-U SCUS-97399 files, including both DVD layers and the required IRX/.disc_layout files beside the ELF. Follow upstream's documented 1_instalar_herramientas and 2_compilar preparation scripts deliberately; 3_ejecutar_manual.cmd is its untimed manual launch. Register ps2EntryRunner.exe only when its explicit working folder, data and invocation reproduce the prepared native runtime. Portcove does not import a setup script's environment or run its compiler during discovery. The current upstream save/load and full-completion work remains in progress.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "f3f4af5d7f66a300e958c87a10ec5d1245c58db5f4a82133459629e82cd4bc23",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-god-of-war-kiexster\\completion-86695559b3a695118daa6ea3466375d88680a342eae460120ad3d9cc0ba67d30.json",
+        "receipt_sha256": "86695559b3a695118daa6ea3466375d88680a342eae460120ad3d9cc0ba67d30"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "kirby-64-recompiled",
+      "canonical_issue": 1574,
+      "path": "crates/portcove-core/catalog/ports/kirby-64-recompiled.json",
+      "before_sha256": "66863945b764fe378c3fb1b6a12d93964a1ed7842fd0e8a8516897befdc7eef0",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/kirby-64-recompiled.json",
+      "proposal_input_sha256": "a19820f7968752e507509cac11898bdef341b701ee99b86ca60dbbea57b48e89",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-kirby-64-recompiled\\kirby-64-recompiled-a19820f7968752e507509cac11898bdef341b701ee99b86ca60dbbea57b48e89.json",
+      "prepared_record_sha256": "a19820f7968752e507509cac11898bdef341b701ee99b86ca60dbbea57b48e89",
+      "authored_sha256": "a19820f7968752e507509cac11898bdef341b701ee99b86ca60dbbea57b48e89",
+      "source": {
+        "source_commit": "480ed7e2a3160087bbe5f680f08e601eef7a4d69",
+        "readme_blob": "78a407483b1d95c74a5c7b9dc3f05e34bec912a7",
+        "sha256": "604778253a75cd68e6fe1bf90ab00e8827685226f27e76487e01208ca15efd81",
+        "primary_url": "https://github.com/Kirby64Ret/Kirby64Recomp/blob/480ed7e2a3160087bbe5f680f08e601eef7a4d69/README.md",
+        "reviewed_previous_blob": "78a407483b1d95c74a5c7b9dc3f05e34bec912a7",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "kirby-64-recompiled",
+        "status": "passed",
+        "repository_id": 800782180,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "480ed7e2a3160087bbe5f680f08e601eef7a4d69"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "This project is under construction and has no published player downloads at the reviewed cutoff. Follow its recursive clone and make instructions; the documented native output is build/Kirby64Recompiled and your own supported NK4E.z64 must be in its launch working directory. Keep the selected toolchain and original-file requirements from upstream. Register only a prepared native game output, not the compiler tools."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "This project is under construction and has no published player downloads at the reviewed cutoff. Follow its recursive clone and make instructions; the documented native output is build/Kirby64Recompiled and your own supported NK4E.z64 must be in its launch working directory. Keep the selected toolchain and original-file requirements from upstream. Register only a prepared native game output, not the compiler tools.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "cd47f9cbc2ab58d631a0a193aeee9ea714d8138c0dde279a4cbe0710c360a92a",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-kirby-64-recompiled\\completion-89f2a7cf35794f788be4a79af8f96e978d2a9858ba58e7b515b5f89954e3cad6.json",
+        "receipt_sha256": "89f2a7cf35794f788be4a79af8f96e978d2a9858ba58e7b515b5f89954e3cad6"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "metal-slug-xx-rexglue",
+      "canonical_issue": 813,
+      "path": "crates/portcove-core/catalog/ports/metal-slug-xx-rexglue.json",
+      "before_sha256": "2aa49cd89ae19f8dc4ce88dc720cefbcf24a7ed964f4bdd5f1403f5622607aff",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/metal-slug-xx-rexglue.json",
+      "proposal_input_sha256": "11cf80a91251af00872a1002dec0bb57aef10b8647900fe0237e8f9942c9caef",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-metal-slug-xx-rexglue\\metal-slug-xx-rexglue-11cf80a91251af00872a1002dec0bb57aef10b8647900fe0237e8f9942c9caef.json",
+      "prepared_record_sha256": "11cf80a91251af00872a1002dec0bb57aef10b8647900fe0237e8f9942c9caef",
+      "authored_sha256": "11cf80a91251af00872a1002dec0bb57aef10b8647900fe0237e8f9942c9caef",
+      "source": {
+        "source_commit": "bb11ea63595c9af62cb97feb1ef330ba05d32c92",
+        "readme_blob": "fda1eb5ad93598a57965dc80237f463547162b51",
+        "sha256": "da003fb84af0317abc4b8a45f954730917dc0cdf2335479f6973be9823462338",
+        "primary_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX/blob/bb11ea63595c9af62cb97feb1ef330ba05d32c92/README.md",
+        "reviewed_previous_blob": "fda1eb5ad93598a57965dc80237f463547162b51",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "metal-slug-xx-rexglue",
+        "status": "passed",
+        "repository_id": 1289901336,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "bb11ea63595c9af62cb97feb1ef330ba05d32c92"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow the title-specific Metal Slug XX build guide with your own extracted game data. Select metalslugxx.exe, keeping the matching rexruntime.dll, rexruntimerd.dll or rexruntimed.dll build companion beside it. Set the documented --game_data_root argument to your actual extracted data location and retain the prepared working folder. rexglue.exe is code generation, not the player; a ReXGlue SDK archive alone is not this game's prepared runtime. Build/code-generation commands remain deliberate upstream actions."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Follow the title-specific Metal Slug XX build guide with your own extracted game data. Select metalslugxx.exe, keeping the matching rexruntime.dll, rexruntimerd.dll or rexruntimed.dll build companion beside it. Set the documented --game_data_root argument to your actual extracted data location and retain the prepared working folder. rexglue.exe is code generation, not the player; a ReXGlue SDK archive alone is not this game's prepared runtime. Build/code-generation commands remain deliberate upstream actions.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "3b6877aebca8c0668ba286110460dae6cc0ba5038dca75c932f32150e9f624d2",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-metal-slug-xx-rexglue\\completion-ae8a14c7e0fedf1b6b92e8bcdc602a2d05ed6cf3d82e3222a2f60b1ff29d82f5.json",
+        "receipt_sha256": "ae8a14c7e0fedf1b6b92e8bcdc602a2d05ed6cf3d82e3222a2f60b1ff29d82f5"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "mortal-kombat-shaolin-monks-recomp-ogmidway",
+      "canonical_issue": 1714,
+      "path": "crates/portcove-core/catalog/ports/mortal-kombat-shaolin-monks-recomp-ogmidway.json",
+      "before_sha256": "f0b4319f3a5ee1a33213b6cf0068d6f9c6fa6c24b74e4b68c93ba6c468d2c47b",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/mortal-kombat-shaolin-monks-recomp-ogmidway.json",
+      "proposal_input_sha256": "a78965617a2f9eb33f6dbaf05692a76621fa3c760f0aaa085b41c6cd201747d1",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-mortal-kombat-shaolin-monks-recomp-ogmidway\\mortal-kombat-shaolin-monks-recomp-ogmidway-a78965617a2f9eb33f6dbaf05692a76621fa3c760f0aaa085b41c6cd201747d1.json",
+      "prepared_record_sha256": "a78965617a2f9eb33f6dbaf05692a76621fa3c760f0aaa085b41c6cd201747d1",
+      "authored_sha256": "a78965617a2f9eb33f6dbaf05692a76621fa3c760f0aaa085b41c6cd201747d1",
+      "source": {
+        "source_commit": "9c014184b54f8f4235db9327bf6a5d77566475c5",
+        "readme_blob": "5fa47b4ed53176f5cbe34cb974dac9890ac91bc8",
+        "sha256": "f6e2f2635e72c9df919610c944e93eedd7308406ca66280f69590b4e181be66e",
+        "primary_url": "https://github.com/OGmidway/mksm-recomp/blob/9c014184b54f8f4235db9327bf6a5d77566475c5/README.md",
+        "reviewed_previous_blob": "5fa47b4ed53176f5cbe34cb974dac9890ac91bc8",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "mortal-kombat-shaolin-monks-recomp-ogmidway",
+        "status": "passed",
+        "repository_id": 1410192068,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "9c014184b54f8f4235db9327bf6a5d77566475c5"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "This upstream project explicitly reports that it is not a playable release yet: first-stage graphics are badly corrupted. Its developer build uses your own NTSC-U retail SLUS-210.87 files and docs/BUILDING.md. Keep that limitation with any experimental native build you register; Portcove does not supply a ready game package or repair the engine."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Preserved title-specific upstream output/source/development limitations after fresh primary review",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "fea612a3e5d401718fa7e505ab8ce32a098297d1e7c8dcdb159bd0e55085b4d9",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-mortal-kombat-shaolin-monks-recomp-ogmidway\\completion-fd4a2cb7c034fba453001c79554db03698c70bb1adeb6ceca7884c80cdc89897.json",
+        "receipt_sha256": "fd4a2cb7c034fba453001c79554db03698c70bb1adeb6ceca7884c80cdc89897"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "panzer-dragoon-saga-azel",
+      "canonical_issue": 376,
+      "path": "crates/portcove-core/catalog/ports/panzer-dragoon-saga-azel.json",
+      "before_sha256": "bd7b111180c0b6fa64149ecd10fd4a0c03b85928f611bf3858581a6b7afa7518",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/panzer-dragoon-saga-azel.json",
+      "proposal_input_sha256": "ad0e9bd7e0ee2132d7150c545d74ad52a54d7b0b22995a9d5602d2c5600b5ae4",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-panzer-dragoon-saga-azel\\panzer-dragoon-saga-azel-ad0e9bd7e0ee2132d7150c545d74ad52a54d7b0b22995a9d5602d2c5600b5ae4.json",
+      "prepared_record_sha256": "ad0e9bd7e0ee2132d7150c545d74ad52a54d7b0b22995a9d5602d2c5600b5ae4",
+      "authored_sha256": "ad0e9bd7e0ee2132d7150c545d74ad52a54d7b0b22995a9d5602d2c5600b5ae4",
+      "source": {
+        "source_commit": "c52329fb257561abff05531a8335e34137d67098",
+        "readme_blob": "00135f0c76392a2b8c480fde00fa585a3f003b40",
+        "sha256": "04a09ca2c50df5127c65f2071978272c9fe4632fb741a55a492a315c94c9f095",
+        "primary_url": "https://github.com/yaz0r/Azel/blob/c52329fb257561abff05531a8335e34137d67098/README.md",
+        "reviewed_previous_blob": "00135f0c76392a2b8c480fde00fa585a3f003b40",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "panzer-dragoon-saga-azel",
+        "status": "passed",
+        "repository_id": 882546688,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "c52329fb257561abff05531a8335e34137d67098"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow the Windows Visual Studio 2022/CMake guide with recursive submodules. Deliberately run vs2022.bat, open the generated solution and build its PDS project. Put your own CD1 contents in data/ as documented and keep that prepared working layout with the native game output. The reviewed project is an early, buggy semi-playable build through Arachnoth; a source checkout is not a ready player package. Register only the prepared native output with its actual working folder and arguments."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Follow the Windows Visual Studio 2022/CMake guide with recursive submodules. Deliberately run vs2022.bat, open the generated solution and build its PDS project. Put your own CD1 contents in data/ as documented and keep that prepared working layout with the native game output. The reviewed project is an early, buggy semi-playable build through Arachnoth; a source checkout is not a ready player package. Register only the prepared native output with its actual working folder and arguments.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "a94408207ed7c521a68e5606b22bb2242ede7480dd64fe5f1d6195679c2cd74e",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-panzer-dragoon-saga-azel\\completion-791a9e2945acd248ba06eed539e5872d9d9646a4a36fe0b8b878036feafa2529.json",
+        "receipt_sha256": "791a9e2945acd248ba06eed539e5872d9d9646a4a36fe0b8b878036feafa2529"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "sin-punishment-recompiled",
+      "canonical_issue": 167,
+      "path": "crates/portcove-core/catalog/ports/sin-punishment-recompiled.json",
+      "before_sha256": "fde4323f26edda2dc93034194a36a9aa0d00e8db191d3c5293dc391efbae479b",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/sin-punishment-recompiled.json",
+      "proposal_input_sha256": "949ea9598c0415e512a6026c445c209b0179095bc1a531c7d140ff7606607249",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-sin-punishment-recompiled\\sin-punishment-recompiled-949ea9598c0415e512a6026c445c209b0179095bc1a531c7d140ff7606607249.json",
+      "prepared_record_sha256": "949ea9598c0415e512a6026c445c209b0179095bc1a531c7d140ff7606607249",
+      "authored_sha256": "949ea9598c0415e512a6026c445c209b0179095bc1a531c7d140ff7606607249",
+      "source": {
+        "source_commit": "8c31a07009464a0f285fb40e252789393bd101b1",
+        "readme_blob": "de54e004d02d342aedfc68cc2128681b92302f43",
+        "sha256": "294b9ce4e6bf50bfb22580287129cccd5fa54d1498cda22d2a0e9c2dd8d44f32",
+        "primary_url": "https://github.com/maximilianoide/sin-punishment-recompiled/blob/8c31a07009464a0f285fb40e252789393bd101b1/README.md",
+        "reviewed_previous_blob": "de54e004d02d342aedfc68cc2128681b92302f43",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "sin-punishment-recompiled",
+        "status": "passed",
+        "repository_id": 1329263718,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "8c31a07009464a0f285fb40e252789393bd101b1"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Researching",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Understand the current development limit",
+          "instruction": "Upstream’s current milestone reaches the native title screen; gameplay/runtime completion remains in progress and no player package is published. Its public build guide also requires rom/sinpunishment_patched.z64 and a working-image patch pipeline that is not published. Your clean Japanese ROM and a clean clone alone do not establish a reproducible game build. Keep using an existing prepared development copy if you have one, preserving its files and limitations; do not select N64Recomp/RSPRecomp compiler tools as the player."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+        }
+      ],
+      "guidance_change": "Preserved title-specific upstream output/source/development limitations after fresh primary review",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "606b657ef3d04f740018b437e3db50a66e002d44a803273e4a0b314a8ec4c86e",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-sin-punishment-recompiled\\completion-83ec9363ab5ae0c088e836ecfb60578b5969b14b1d0f72de18de4eddf46f4ea9.json",
+        "receipt_sha256": "83ec9363ab5ae0c088e836ecfb60578b5969b14b1d0f72de18de4eddf46f4ea9"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "sonic-advance-sat-r-sa2-repository",
+      "canonical_issue": 380,
+      "path": "crates/portcove-core/catalog/ports/sonic-advance-sat-r-sa2-repository.json",
+      "before_sha256": "5f402945ca5c3ebbf9573206c75117f899e4171ace4fb054eb7d1d138c12635a",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/sonic-advance-sat-r-sa2-repository.json",
+      "proposal_input_sha256": "9eaf75180fc2fb8a77bec9bd816e8a90c3c853f7e088c77c3017d293a134932c",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-sonic-advance-sat-r-sa2-repository\\sonic-advance-sat-r-sa2-repository-9eaf75180fc2fb8a77bec9bd816e8a90c3c853f7e088c77c3017d293a134932c.json",
+      "prepared_record_sha256": "9eaf75180fc2fb8a77bec9bd816e8a90c3c853f7e088c77c3017d293a134932c",
+      "authored_sha256": "9eaf75180fc2fb8a77bec9bd816e8a90c3c853f7e088c77c3017d293a134932c",
+      "source": {
+        "source_commit": "393357f7c9d46b5c10b6c41a57b80fe3b58f3c8d",
+        "readme_blob": "738e2761e0a74519fed24bfbd7ac5fc72a0d5b31",
+        "sha256": "c1c124461b96ab5bc875547b2f426f9e0dec2a688947e6bed72493da2c303592",
+        "primary_url": "https://github.com/SAT-R/sa2/blob/393357f7c9d46b5c10b6c41a57b80fe3b58f3c8d/README.md",
+        "reviewed_previous_blob": "738e2761e0a74519fed24bfbd7ac5fc72a0d5b31",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "sonic-advance-sat-r-sa2-repository",
+        "status": "passed",
+        "repository_id": 466264592,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "393357f7c9d46b5c10b6c41a57b80fe3b58f3c8d"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "This shared repository contains Sonic Advance 1 and 2. Use the Sonic Advance 1 source/edition instructions; its listed sa1.gba output is a GBA ROM, not a native PC executable. The README’s sa2 SDL commands describe Sonic Advance 2 and do not establish this game’s native output. Only select an existing native Sonic Advance 1 player if you have separately prepared one; keep the title-specific native-build question explicit."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Preserved title-specific upstream output/source/development limitations after fresh primary review",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "4d33b022010e4bd9b723889d01f05d98c4252302a4db303c6237f16c592c07af",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-sonic-advance-sat-r-sa2-repository\\completion-c20b03e494b6aeb82529426d70a6eda61b4002b090fb13298d659340709a500f.json",
+        "receipt_sha256": "c20b03e494b6aeb82529426d70a6eda61b4002b090fb13298d659340709a500f"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "sonic-advance-2-sat-r-sa2-repository",
+      "canonical_issue": 381,
+      "path": "crates/portcove-core/catalog/ports/sonic-advance-2-sat-r-sa2-repository.json",
+      "before_sha256": "e257412f88aa569c1c21d4350bf0267fd364706b1a9ae3a16f9031d20aea9d84",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/sonic-advance-2-sat-r-sa2-repository.json",
+      "proposal_input_sha256": "ce99dd9fcacf2f064d0e48ea6276983506aadae70d461159ce64afd91fb6952c",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-sonic-advance-2-sat-r-sa2-repository\\sonic-advance-2-sat-r-sa2-repository-ce99dd9fcacf2f064d0e48ea6276983506aadae70d461159ce64afd91fb6952c.json",
+      "prepared_record_sha256": "ce99dd9fcacf2f064d0e48ea6276983506aadae70d461159ce64afd91fb6952c",
+      "authored_sha256": "ce99dd9fcacf2f064d0e48ea6276983506aadae70d461159ce64afd91fb6952c",
+      "source": {
+        "source_commit": "393357f7c9d46b5c10b6c41a57b80fe3b58f3c8d",
+        "readme_blob": "738e2761e0a74519fed24bfbd7ac5fc72a0d5b31",
+        "sha256": "c1c124461b96ab5bc875547b2f426f9e0dec2a688947e6bed72493da2c303592",
+        "primary_url": "https://github.com/SAT-R/sa2/blob/393357f7c9d46b5c10b6c41a57b80fe3b58f3c8d/README.md",
+        "reviewed_previous_blob": "738e2761e0a74519fed24bfbd7ac5fc72a0d5b31",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "sonic-advance-2-sat-r-sa2-repository",
+        "status": "passed",
+        "repository_id": 466264592,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "393357f7c9d46b5c10b6c41a57b80fe3b58f3c8d"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use your own supported Sonic Advance 2 ROM and upstream’s SDL build instructions. The documented Windows target is make sdl_win32, producing sa2.sdl_win32.exe; Linux/macOS use make sdl and sa2.sdl. The separate make win32 OpenGL target is documented as nonfunctional. These are Sonic Advance 2 outputs, not Sonic Advance 1. Keep the prepared working folder when registering your existing native player."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Preserved title-specific upstream output/source/development limitations after fresh primary review",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "7c0b5d2ebf9b4b5e952574fac1acea9b3b200df651021355cb1d8aceef15295e",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-sonic-advance-2-sat-r-sa2-repository\\completion-73214d13340e1157c8c3a9da7f0e9524ce86ad98b21e5b2798224cb24ffd45af.json",
+        "receipt_sha256": "73214d13340e1157c8c3a9da7f0e9524ce86ad98b21e5b2798224cb24ffd45af"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "star-wars-rogue-squadron-64-recompiled",
+      "canonical_issue": 1576,
+      "path": "crates/portcove-core/catalog/ports/star-wars-rogue-squadron-64-recompiled.json",
+      "before_sha256": "2a40cfea4ccef6cb62ed803a20690350544eba93b0b9ea2bb2aef4f7eca5eab4",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/star-wars-rogue-squadron-64-recompiled.json",
+      "proposal_input_sha256": "37420560a7573a584732b4cca7da9037b3ceea9aecd57543043df69cdc0490cb",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-star-wars-rogue-squadron-64-recompiled\\star-wars-rogue-squadron-64-recompiled-37420560a7573a584732b4cca7da9037b3ceea9aecd57543043df69cdc0490cb.json",
+      "prepared_record_sha256": "37420560a7573a584732b4cca7da9037b3ceea9aecd57543043df69cdc0490cb",
+      "authored_sha256": "37420560a7573a584732b4cca7da9037b3ceea9aecd57543043df69cdc0490cb",
+      "source": {
+        "source_commit": "365ac476e1fb0fe682a23e15f9bd981ddc51d4ff",
+        "readme_blob": "718e7063b585c56c407b80ce464df0044373ac75",
+        "sha256": "3a501a46f17f9d6b7cf0261ae665a4a42a4cd6027bcaf55526ededdcd1fead3c",
+        "primary_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/365ac476e1fb0fe682a23e15f9bd981ddc51d4ff/README.md",
+        "reviewed_previous_blob": "718e7063b585c56c407b80ce464df0044373ac75",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "star-wars-rogue-squadron-64-recompiled",
+        "status": "passed",
+        "repository_id": 1213945966,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "365ac476e1fb0fe682a23e15f9bd981ddc51d4ff"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow the native build guide with your own Star Wars: Rogue Squadron USA v1.0 original and required RT64/toolchain preparation. The documented Windows player is RogueSquadron64Recomp.exe. Place rogue_squadron.z64, rogue_squadron.v64 or rogue_squadron.n64 in the launch working directory for the upstream import, and preserve roguesq_input.json beside the player. Register that game output, not N64Recomp/RSPRecomp. Steam relay has separate optional SDK/runtime requirements. A macOS cross-build that cannot render is not a qualified playable runtime."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Follow the native build guide with your own Star Wars: Rogue Squadron USA v1.0 original and required RT64/toolchain preparation. The documented Windows player is RogueSquadron64Recomp.exe. Place rogue_squadron.z64, rogue_squadron.v64 or rogue_squadron.n64 in the launch working directory for the upstream import, and preserve roguesq_input.json beside the player. Register that game output, not N64Recomp/RSPRecomp. Steam relay has separate optional SDK/runtime requirements. A macOS cross-build that cannot render is not a qualified playable runtime.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "0ff5b876b1bc1bc58ebe879987583e11bcc55e80db303d89a552be6f4de90bcf",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-star-wars-rogue-squadron-64-recompiled\\completion-1424f28a8b086a52ca3d4ab064635b6b0fd89a011f5a596f453f7da99be3d289.json",
+        "receipt_sha256": "1424f28a8b086a52ca3d4ab064635b6b0fd89a011f5a596f453f7da99be3d289"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "super-mario-strikers-aurorastrikers",
+      "canonical_issue": 818,
+      "path": "crates/portcove-core/catalog/ports/super-mario-strikers-aurorastrikers.json",
+      "before_sha256": "17f35147a95b659017bc2f602cf5c6dd9bf70f90f74d9ef6c70a9e43c345d7d1",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/super-mario-strikers-aurorastrikers.json",
+      "proposal_input_sha256": "4fb8c727d2870d0a26499bf26fb113dc0d89e82ebe939f5945e615b3b6ad6a12",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-super-mario-strikers-aurorastrikers\\super-mario-strikers-aurorastrikers-4fb8c727d2870d0a26499bf26fb113dc0d89e82ebe939f5945e615b3b6ad6a12.json",
+      "prepared_record_sha256": "4fb8c727d2870d0a26499bf26fb113dc0d89e82ebe939f5945e615b3b6ad6a12",
+      "authored_sha256": "4fb8c727d2870d0a26499bf26fb113dc0d89e82ebe939f5945e615b3b6ad6a12",
+      "source": {
+        "source_commit": "78972d011b955f5416b49dc85fb27091937982cf",
+        "readme_blob": "33d1cd85b9038a8559437bc0b988dd635eb3af69",
+        "sha256": "f918c8de546247ae82702ac3cf518ff98d9ddfa2a62247be09330bb1b082ac7b",
+        "primary_url": "https://github.com/Saffsanity/AuroraStrikers/blob/78972d011b955f5416b49dc85fb27091937982cf/README.md",
+        "reviewed_previous_blob": "33d1cd85b9038a8559437bc0b988dd635eb3af69",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "super-mario-strikers-aurorastrikers",
+        "status": "passed",
+        "repository_id": 1368874077,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "78972d011b955f5416b49dc85fb27091937982cf"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Blocked",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Post-1.0",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Review upstream's exact component permission conditions before a local build or use: reconstructed src/include status is unsettled, and the port's CC0 and third-party component notices do not grant rights to the originals. If you have an established basis for that operation, follow the source guide with your own G4QE01 USA Super Mario Strikers disc. Its player is build-pc/bin/AuroraStrikers.exe with --disc and your absolute image path; keep the prepared project working directory and arguments. Upstream prohibits redistribution of the game-derived built executable. Portcove does not build or distribute it, and these instructions grant no permission."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Review upstream's exact component permission conditions before a local build or use: reconstructed src/include status is unsettled, and the port's CC0 and third-party component notices do not grant rights to the originals. If you have an established basis for that operation, follow the source guide with your own G4QE01 USA Super Mario Strikers disc. Its player is build-pc/bin/AuroraStrikers.exe with --disc and your absolute image path; keep the prepared project working directory and arguments. Upstream prohibits redistribution of the game-derived built executable. Portcove does not build or distribute it, and these instructions grant no permission.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "9ff749d09fb11e5d9b89249f10b129ec473a41087f612cb9750111852e5df565",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-super-mario-strikers-aurorastrikers\\completion-d4a68a3ca57d9106a2b2f999648e15b428648c8d4e0287153af60d6ec6b5222f.json",
+        "receipt_sha256": "d4a68a3ca57d9106a2b2f999648e15b428648c8d4e0287153af60d6ec6b5222f"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "super-metroid-snesrev-sm",
+      "canonical_issue": 340,
+      "path": "crates/portcove-core/catalog/ports/super-metroid-snesrev-sm.json",
+      "before_sha256": "6592ee7fe6fd5a669da7f5c3e9babd4a8f34f3dd162af8a00bb83deed15d2e0a",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/super-metroid-snesrev-sm.json",
+      "proposal_input_sha256": "91b4c55110f8b7839afeab2a88f8a4f3288dc2af81f171f2bd30e55f3e0181b8",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-super-metroid-snesrev-sm\\super-metroid-snesrev-sm-91b4c55110f8b7839afeab2a88f8a4f3288dc2af81f171f2bd30e55f3e0181b8.json",
+      "prepared_record_sha256": "91b4c55110f8b7839afeab2a88f8a4f3288dc2af81f171f2bd30e55f3e0181b8",
+      "authored_sha256": "91b4c55110f8b7839afeab2a88f8a4f3288dc2af81f171f2bd30e55f3e0181b8",
+      "source": {
+        "source_commit": "578f90b3cc49557bb70060ad033bb90b8cf8ac50",
+        "readme_blob": "4e9dc038343edc2e59a7fa93085350a2566f4c83",
+        "sha256": "01f1c98c43eacb6c53b2b73a46f4987d24bb0a579304514e0085db3c6297c51b",
+        "primary_url": "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/README.md",
+        "reviewed_previous_blob": "4e9dc038343edc2e59a7fa93085350a2566f4c83",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "super-metroid-snesrev-sm",
+        "status": "passed",
+        "repository_id": 609755453,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "578f90b3cc49557bb70060ad033bb90b8cf8ac50"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow the linked BUILDING.md for your own Super Metroid source. Upstream expects the supported sm.smc in the runtime root and uses a frame-by-frame comparison mode, writing mismatch snapshots under saves. Keep that source/runtime layout and the upstream limitations with your own native build; this is not a packaged game download."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Preserved title-specific upstream output/source/development limitations after fresh primary review",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "2d44992b61a8db6568200dacdbab95890c938ca68f93ee659b41b647a398ecc9",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-super-metroid-snesrev-sm\\completion-df9fb4c9a2947ac428e78fbebd71871df2e4aba96a705c70b8c2d8bccd2353d2.json",
+        "receipt_sha256": "df9fb4c9a2947ac428e78fbebd71871df2e4aba96a705c70b8c2d8bccd2353d2"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "the-wind-waker-recomp",
+      "canonical_issue": 170,
+      "path": "crates/portcove-core/catalog/ports/the-wind-waker-recomp.json",
+      "before_sha256": "2796ed24a07c534f9757d6b7cbbee6fc551e1a84928dfe90bc474c7a2fa485be",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/the-wind-waker-recomp.json",
+      "proposal_input_sha256": "13eb9b7d1d26bc0263a3ef751da51639db6253a89feac9a3738cf91980535154",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-the-wind-waker-recomp\\the-wind-waker-recomp-13eb9b7d1d26bc0263a3ef751da51639db6253a89feac9a3738cf91980535154.json",
+      "prepared_record_sha256": "13eb9b7d1d26bc0263a3ef751da51639db6253a89feac9a3738cf91980535154",
+      "authored_sha256": "13eb9b7d1d26bc0263a3ef751da51639db6253a89feac9a3738cf91980535154",
+      "source": {
+        "source_commit": "b02a1d5b32e6452287f021612e0ac075ac472331",
+        "readme_blob": "fd4b6de1b6487fac3927175e02318ed45b2bea20",
+        "sha256": "0355518d5e9c80dabd993ecb48d552a4baa99d9fea1c5fbd5d799be636fc73f5",
+        "primary_url": "https://github.com/sp00nznet/ww/blob/b02a1d5b32e6452287f021612e0ac075ac472331/README.md",
+        "reviewed_previous_blob": "fd4b6de1b6487fac3927175e02318ed45b2bea20",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "the-wind-waker-recomp",
+        "status": "passed",
+        "repository_id": 1169100751,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "b02a1d5b32e6452287f021612e0ac075ac472331"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Triage",
+        "Priority": "Medium",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Understand the current development limit",
+          "instruction": "This project currently demonstrates the Wind Waker renderer and framework, with the frame loop driven manually; it is not yet the game. Its Windows ww_launcher.exe is that development renderer. Follow upstream’s developer instructions with your own disc/main.dol only if you are preparing or retaining this experimental renderer; preserve its working directory and documented --iso arguments. Do not select gcrecomp_recompiler.exe as the runtime. A playable game route still requires upstream runtime completion."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+        }
+      ],
+      "guidance_change": "Preserved title-specific upstream output/source/development limitations after fresh primary review",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "d9bdf3503135305386ca38e2375ce6bdc46cb841fedea8d9d13da54a0a06be8a",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-the-wind-waker-recomp\\completion-e2219fa23c46b0d86e2ac7e31a5c9a0d084079797adc31637e98bcf8e41d76e8.json",
+        "receipt_sha256": "e2219fa23c46b0d86e2ac7e31a5c9a0d084079797adc31637e98bcf8e41d76e8"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "theme-hospital-matteo-pacini-enhanced",
+      "canonical_issue": 1950,
+      "path": "crates/portcove-core/catalog/ports/theme-hospital-matteo-pacini-enhanced.json",
+      "before_sha256": "df0db4a475d9f3227b3ccd71543bd5b44c26964e1592ecc19d2735df3ca314bf",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/theme-hospital-matteo-pacini-enhanced.json",
+      "proposal_input_sha256": "f32c52603e4a5c216f33f80525dc6d80961c74538f3bc570251cd7032de73ea1",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-theme-hospital-matteo-pacini-enhanced\\theme-hospital-matteo-pacini-enhanced-f32c52603e4a5c216f33f80525dc6d80961c74538f3bc570251cd7032de73ea1.json",
+      "prepared_record_sha256": "f32c52603e4a5c216f33f80525dc6d80961c74538f3bc570251cd7032de73ea1",
+      "authored_sha256": "f32c52603e4a5c216f33f80525dc6d80961c74538f3bc570251cd7032de73ea1",
+      "source": {
+        "source_commit": "7993814a4f562a1898b20621dbfa60644f9697d7",
+        "readme_blob": "d6aadc697f20fdfad478d519978a0d7226740ce5",
+        "sha256": "96ae1b9bc8378a78035daed7a1e4b2414508ed1bf8a6d0a72f503a08ee528e46",
+        "primary_url": "https://github.com/matteo-pacini/theme-hospital-enhanced/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
+        "reviewed_previous_blob": "d6aadc697f20fdfad478d519978a0d7226740ce5",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "theme-hospital-matteo-pacini-enhanced",
+        "status": "passed",
+        "repository_id": 1401277649,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "7993814a4f562a1898b20621dbfa60644f9697d7"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Use the appropriate runtime",
+          "instruction": "This reconstructs the DOS Theme Hospital executable. Its hospital.exe/hosp.exe outputs use DOS/4GW and DOSBox; they are not native Windows players to register directly. Before following the source build, establish the needed input and toolchain/component permissions: the guide names its accepted GOG offline installer/HOSPITAL.EXE, its first Nix shell downloads proprietary Watcom 10.5/10.6 CDs, and tools GPL does not grant rights to reconstructed, Miles, Smacker or Watcom code. An owned GOG copy alone does not settle every component. The conditional DOS build/run guide remains upstream; Portcove invokes no installer or toolchain. For a distinct managed native alternative, find CorsixTH in Discover."
+        }
+      ],
+      "guidance_change": "This reconstructs the DOS Theme Hospital executable. Its hospital.exe/hosp.exe outputs use DOS/4GW and DOSBox; they are not native Windows players to register directly. Before following the source build, establish the needed input and toolchain/component permissions: the guide names its accepted GOG offline installer/HOSPITAL.EXE, its first Nix shell downloads proprietary Watcom 10.5/10.6 CDs, and tools GPL does not grant rights to reconstructed, Miles, Smacker or Watcom code. An owned GOG copy alone does not settle every component. The conditional DOS build/run guide remains upstream; Portcove invokes no installer or toolchain. For a distinct managed native alternative, find CorsixTH in Discover.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "4d10d686a87f9191709347070590b874f3a41fc64c3b6f7d343caea4a6e280c8",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-theme-hospital-matteo-pacini-enhanced\\completion-384f16a0ca22cb77e06344bb5348360857cddad202a80f8d1c49c0e2d4abbbf8.json",
+        "receipt_sha256": "384f16a0ca22cb77e06344bb5348360857cddad202a80f8d1c49c0e2d4abbbf8"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "timesplitters-future-perfect-recomp-neilseligmann",
+      "canonical_issue": 1713,
+      "path": "crates/portcove-core/catalog/ports/timesplitters-future-perfect-recomp-neilseligmann.json",
+      "before_sha256": "01420829cbf9b2e771ea644dc5df32b3a9d9fb08686325aeec688b7efc1394fb",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/timesplitters-future-perfect-recomp-neilseligmann.json",
+      "proposal_input_sha256": "4c244c78fad6cfb1234660dd901410f979355374926ece959647b5f42c7dc3b9",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-timesplitters-future-perfect-recomp-neilseligmann\\timesplitters-future-perfect-recomp-neilseligmann-4c244c78fad6cfb1234660dd901410f979355374926ece959647b5f42c7dc3b9.json",
+      "prepared_record_sha256": "4c244c78fad6cfb1234660dd901410f979355374926ece959647b5f42c7dc3b9",
+      "authored_sha256": "4c244c78fad6cfb1234660dd901410f979355374926ece959647b5f42c7dc3b9",
+      "source": {
+        "source_commit": "dd3f062cdd7f6b7a35e15185dd14ee1b046ae64f",
+        "readme_blob": "996555fa9ff567eec6fa844cfc82b484e6329d69",
+        "sha256": "26f0c675a036f7d92fbb2be6ca2874a41a2e9a4ca2a345610f987cadbab2ba4a",
+        "primary_url": "https://github.com/NeilSeligmann/tsfp-recomp/blob/dd3f062cdd7f6b7a35e15185dd14ee1b046ae64f/README.md",
+        "reviewed_previous_blob": "996555fa9ff567eec6fa844cfc82b484e6329d69",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "timesplitters-future-perfect-recomp-neilseligmann",
+        "status": "passed",
+        "repository_id": 1412169064,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "dd3f062cdd7f6b7a35e15185dd14ee1b046ae64f"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use the Linux developer quick start with your own Xbox NTSC-U TimeSplitters: Future Perfect disc. The supported extracted default.xbe SHA-256 is 3cfd001a84fc3e08175d6c4b2e42ebf49577a089b5d0bd87ac724f61a41816bc; the reviewed guide does not support other dumps. Its XDVDFS/code-generation steps and local build are deliberate upstream actions. Use the documented native play invocation with --disc and its interactive/Vulkan options, preserving the prepared working folder and data. Register only that prepared native runtime. Other platforms and full-game behavior need separate evidence."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Use the Linux developer quick start with your own Xbox NTSC-U TimeSplitters: Future Perfect disc. The supported extracted default.xbe SHA-256 is 3cfd001a84fc3e08175d6c4b2e42ebf49577a089b5d0bd87ac724f61a41816bc; the reviewed guide does not support other dumps. Its XDVDFS/code-generation steps and local build are deliberate upstream actions. Use the documented native play invocation with --disc and its interactive/Vulkan options, preserving the prepared working folder and data. Register only that prepared native runtime. Other platforms and full-game behavior need separate evidence.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "333331f8b7e08eacade1ea8b18ca08559e977ab40e21454bbf045e2c28ea4802",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-timesplitters-future-perfect-recomp-neilseligmann\\completion-28f9aa362045b67d9bdff19e6a134113fb84409c7b9538e47f23bc03e5095712.json",
+        "receipt_sha256": "28f9aa362045b67d9bdff19e6a134113fb84409c7b9538e47f23bc03e5095712"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "virtual-hydlide-saturn-pc",
+      "canonical_issue": 1579,
+      "path": "crates/portcove-core/catalog/ports/virtual-hydlide-saturn-pc.json",
+      "before_sha256": "2e937eda67241efe57cb9fd6d5bd18ce5ded03080a43f07a579fd4b9e071b3cc",
+      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/virtual-hydlide-saturn-pc.json",
+      "proposal_input_sha256": "804a20b4ea3950a77f347463bf5854901dba056810636f17da5d9100512c4570",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-virtual-hydlide-saturn-pc\\virtual-hydlide-saturn-pc-804a20b4ea3950a77f347463bf5854901dba056810636f17da5d9100512c4570.json",
+      "prepared_record_sha256": "804a20b4ea3950a77f347463bf5854901dba056810636f17da5d9100512c4570",
+      "authored_sha256": "804a20b4ea3950a77f347463bf5854901dba056810636f17da5d9100512c4570",
+      "source": {
+        "source_commit": "74e8e8abfc5a23623dab610cc207e26bbf9d0ec9",
+        "readme_blob": "dd5ef007ee3ad106b812f19532ffc84853dac6a7",
+        "sha256": "086abbb87a91ac70131a7246f9efabebfd214b6ae2f5c917297eef416d366a39",
+        "primary_url": "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/74e8e8abfc5a23623dab610cc207e26bbf9d0ec9/README.md",
+        "reviewed_previous_blob": "dd5ef007ee3ad106b812f19532ffc84853dac6a7",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "virtual-hydlide-saturn-pc",
+        "status": "passed",
+        "repository_id": 1389068420,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "74e8e8abfc5a23623dab610cc207e26bbf9d0ec9"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use your own complete Europe MK-81380 V1.000 (1995-06-30) cue/bin track set with upstream's current saturnkit source guide. Follow its compiler/SDL3 preparation from the repository root and keep extracted data plus audio with the resulting native player. The reviewed milestone provides video, input and sound with upstream's interpolation and remaining limitations. Register only a prepared native game output with its actual working directory. Portcove runs no disc or recompiler helper during discovery."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Use your own complete Europe MK-81380 V1.000 (1995-06-30) cue/bin track set with upstream's current saturnkit source guide. Follow its compiler/SDL3 preparation from the repository root and keep extracted data plus audio with the resulting native player. The reviewed milestone provides video, input and sound with upstream's interpolation and remaining limitations. Register only a prepared native game output with its actual working directory. Portcove runs no disc or recompiler helper during discovery.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "88a8c59ea3c6470101bfa4c12ad068868f28c7b729dbd99d7b9cb05e8d816149",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-source-only-virtual-hydlide-saturn-pc\\completion-114b6dc81750a8a5dbddcc8cdd14b074eb5eacea4084e77a94bc67ca154ecc42.json",
+        "receipt_sha256": "114b6dc81750a8a5dbddcc8cdd14b074eb5eacea4084e77a94bc67ca154ecc42"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+    },
+    {
+      "id": "wave-race-blue-storm-recompiled",
+      "canonical_issue": 1572,
+      "path": "crates/portcove-core/catalog/ports/wave-race-blue-storm-recompiled.json",
+      "before_sha256": "a0041e560daf3cc11db2268ee1676111eea3bf5592009b60a5da7ee388f280ee",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/source-guidance-batch7/wave-launch-input-2.json",
+      "proposal_input_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-wave-launch-repair\\wave-race-blue-storm-recompiled-3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9.json",
+      "prepared_record_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
+      "authored_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
+      "source": {
+        "source_commit": "dc9a34b6a05618bc359da8ca54ba40d457d39a16",
+        "readme_blob": "655f5d89d3612f914348827921b55c444c77983e",
+        "sha256": "f0e5c9724baa46c49a33ad1e864b9ea3461653aa9404a014dc9d98c75a51d93c",
+        "primary_url": "https://github.com/ethannicholas/bluestorm-recomp/blob/dc9a34b6a05618bc359da8ca54ba40d457d39a16/README.md",
+        "reviewed_previous_blob": "655f5d89d3612f914348827921b55c444c77983e",
+        "unchanged_since_previous_review": true
+      },
+      "upstream_release_observation": {
+        "id": "wave-race-blue-storm-recompiled",
+        "status": "passed",
+        "repository_id": 1394187111,
+        "release_count": 0,
+        "release_inventory_complete": true,
+        "releases": [],
+        "readme_unchanged": true,
+        "source_commit": "dc9a34b6a05618bc359da8ca54ba40d457d39a16"
+      },
+      "canonical_state": "OPEN",
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "current_route": "Listing-only; upstream source/development build or permitted prepared copy",
+      "selected_route": "Source-build instructions with non-owning registration only for a supported native output; source-only availability matches the observed lack of published releases",
+      "update_owner": "Player/upstream; no Core replacement, backup, restore or runtime rollback for external files",
+      "setup_data_boundary": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Follow upstream's recursive gcnrecomp/build guide with your own GWRE01 USA Wave Race: Blue Storm disc. The Windows player is build/waverace.exe; use the repository root as working directory. Before Play, use the configured original image or keep only the intended .iso in rom/; alternatively set the image-path argument in Change launch details. Use the ordinary invocation unless you deliberately prepare optional VR. Preserve saves/memcard_a.raw as actual player data outside Portcove backup; shader cache is separate. Upstream prohibits redistribution of the game-derived output. Keep the prepared source/data/runtime together; this project offers no complete game package for Portcove to replace."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "guidance_change": "Follow upstream's recursive gcnrecomp/build guide with your own GWRE01 USA Wave Race: Blue Storm disc. The Windows player is build/waverace.exe; use the repository root as working directory. Before Play, use the configured original image or keep only the intended .iso in rom/; alternatively set the image-path argument in Change launch details. Use the ordinary invocation unless you deliberately prepare optional VR. Preserve saves/memcard_a.raw as actual player data outside Portcove backup; shader cache is separate. Upstream prohibits redistribution of the game-derived output. Keep the prepared source/data/runtime together; this project offers no complete game package for Portcove to replace.",
+      "validation": {
+        "operational": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "listing_input_sha256": "36c498985b4f2edb5db6b9f05dfd76f25dab127b92310f064241b15c5ff2a656",
+        "validator_artifact_sha256": "2b75fc32395c0e806eb55a9cb0c160e6efd89d9a76f7045161a5309ae637f620",
+        "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-wave-launch-repair\\completion-3f6a707fcbd014454fdd6d30b68e7fa6de32271eb578fd1bf5a54e2ff3875e1c.json",
+        "receipt_sha256": "3f6a707fcbd014454fdd6d30b68e7fa6de32271eb578fd1bf5a54e2ff3875e1c"
+      },
+      "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions.",
+      "supplied_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/wave-race-blue-storm-recompiled.json",
+      "proposal_input_copy_scope": "Frozen byte-identical copy of the actual supplied input. The original changed-proposal output and receipt remain the exact preparation evidence; later unchanged-input preparation has no files.records output and is not substituted."
+    }
+  ],
+  "evidence_scope": "PrimaryREADME/GitblobSHA1/contentSHA256 and complete release metadata plus Core listing inspection. No artifact/game/helper/compiler/installer/original acquisition or execution. No native/gameplay, managed-replacement, packagedDesktop or real-save claim. Source discovery and permitted-copy guidance grant no permission or ownership; exact Strikers and ThemeHospital component/toolchain limits retained.",
+  "remaining": "#2510/#2926 full commitment remains open. Catalog presence does not establish Reviewed/Supported. Original524identities/312affectedadditions/22roadmapjoins and existing deferrals/ownership remain preserved; broader fit/maintenance/joins and six originalDirectdecisions remain separately owned.",
+  "delivery_base": "432643a9f682c11de8fd398f1c69e56003fc0d91",
+  "observed_at_primary_cutoff": "2026-10-25T08:57:45.448Z",
+  "reconciled_at": "2026-10-25T09:24:16.471Z",
+  "review_repairs": [
+    {
+      "source": "4559e2efb890c6063b783ca1773a8299338117ef",
+      "finding": "Report incorrectly called SA2 SDL nonfunctional; corrected to documented SDL targets versus nonfunctional separate OpenGL target.",
+      "scope": "Dated report only; authored guide already correct."
+    },
+    {
+      "source": "4559e2efb890c6063b783ca1773a8299338117ef",
+      "finding": "Wave Race invented first-Play image picker; replaced with configured image/rom-folder/positional image-path argument before explicit Play.",
+      "scope": "Actual guide, regenerated listing, report and exact repaired Core listing preparation.",
+      "historical_input_preservation": {
+        "source": "4559e2efb890c6063b783ca1773a8299338117ef",
+        "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/source-guidance-batch7/wave-race-blue-storm-recompiled-4559.json",
+        "sha256": "f893bbfd8d14e6fd74879f9df93a5c06809e013ce31a55234ebaadff1984e9d9",
+        "scope": "Original proposal input preserved before correction; original source, prepared output and receipt unchanged."
+      }
+    }
+  ]
+}

@@ -154,6 +154,16 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port.mod_package_policy.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 24
+            })
+        {
+            return Err(PortcoveError::verification(
+                "versioned mod packages require staged-source capability version 24",
+            ));
+        }
         if crate::preparation::has_manual_marker(&port)
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= 2

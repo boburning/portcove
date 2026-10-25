@@ -7,8 +7,8 @@
     "project_url": "https://github.com/Saffsanity/AuroraStrikers",
     "issue_number": 818,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Saffsanity/AuroraStrikers",
+    "availability": "source-only",
+    "setup_url": "https://github.com/Saffsanity/AuroraStrikers#readme",
     "artwork": {
       "game_id": 2256,
       "cover_id": 89895,
@@ -16,6 +16,20 @@
       "image_sha256": "9953c59416011cdbe3074beed3a4ac8863368b7e11c1d31cf11445864279dc8b",
       "game_slug": "super-mario-strikers",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Review upstream's exact component permission conditions before a local build or use: reconstructed src/include status is unsettled, and the port's CC0 and third-party component notices do not grant rights to the originals. If you have an established basis for that operation, follow the source guide with your own G4QE01 USA Super Mario Strikers disc. Its player is build-pc/bin/AuroraStrikers.exe with --disc and your absolute image path; keep the prepared project working directory and arguments. Upstream prohibits redistribution of the game-derived built executable. Portcove does not build or distribute it, and these instructions grant no permission."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Saffsanity/AuroraStrikers#readme"
     }
   }
 }

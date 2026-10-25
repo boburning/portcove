@@ -997,3 +997,210 @@ Initial hosted tool run40166261816/1 at source17111bff passed the native offline
 Follow-up tool run40166999999/1 at source6a8b0b77 passed build144977ms/210000ms and offline fixtures, then retained an explicit resource-queue refusal before any dependency payload or intent. The credential-free environment had dropped the observed GITHUB_ACTIONS signal and selected local resource-handover admission on the disposable hosted runner. The fixture now preserves only that already-observed routing signal alongside its fixed PATH/HOME/LANG; it imports no credentials, does not invent hosted identity locally, and retains the existing hosted lock/supervisor, original phase deadline and sanitized install environment. Artifact12588414227 SHA2568ac823e5e836cde313b82b4c0afd48f1e6412cec8735434eee1804fe82d36496 and original logs remain failed full-graph evidence.
 
 Run40167395606/1 at source25cb7764 passed build143956ms/210000ms and reached supervisor setup, then refused with `spawnSync rustc ENOENT` before dependency execution. Its fixed minimal PATH had excluded the installed Rust toolchain needed by the existing containment supervisor. Ordinary fixture setup now receives the same observed compiler PATH and Rustup/Cargo homes used by its preceding tool build, with its private HOME and no credential variables. The Python install still supplies its separate fixed credential-free command environment. No production environment, phase deadline or containment requirement changes. Artifact12588980059 SHA256407f41f325e785cb9e056910f33fcb56bf815bbb07869b878fe6da9077a6c3e5 remains failed full-graph evidence.
+
+## Fixed hosted Linux runtime input preparation (October25)
+
+The remaining preparation gap was concrete: the original-parent installation expected WebKitWebDriver/Xvfb and the exact Ubuntu profile input, but its caller did not prepare them. The attested root helper now prepares a closed runtime package list and the unchanged pinned profile archive/input before existing account/profile effects, under the original parent/generation and at most90seconds. Ubuntu-only authenticated APT uses private lists/cache, zero retries, no removals,128MiB per-file writes and an8192entry/512MiB overrun detector. Fixed stage markers and bounded failed command streams preserve refusals and ambiguous/partial effects. No directory, package set, mirror, authority or deadline can be selected by input data. A retained attempt refuses reuse.
+
+Readback binds original context, exact source/profile bytes, complete requested package versions and runtime executable hashes; changed input refuses before materialization. The existing standard hosted credential-free readiness diagnostic now invokes this same input implementation, captures actual success/refusal/ambiguity and stops before account setup if inputs fail. Diagnostic and production correlations cannot be imported as admission or native acceptance. The existing5minute diagnostic and original production570second/210second-reserve clocks remain finite and unchanged; evidence selectors retain small records, exact profile/archive and bounded failed streams for7days rather than uploading the private package caches.
+
+Independent review found an initial clean-checkout parent assumption. The root helper now creates only a missing fixed work parent with original broker ownership, validates existing ancestry, and keeps attempt creation exclusive. The initial test fixture had precreated that parent; it now starts absent and exercises linked/writable-parent refusals. A second review finding moved existing exact-HEAD/clean-source verification ahead of privileged ordinary-fixture input preparation and binds the helper bytes to their exact committed blob. Wrong HEAD, dirty source and changed helper refuse before sudo. Retained test failures include an expired1second fixture plan and a misplaced assertion, repaired without changing production deadlines. Focused results and actual hosted behavior are recorded in the owning receipt; prior inert primitive, dependency and native failures retain their scopes. No new owner setup action is requested, and production remains held.
+
+The first source-bound package diagnostic,40170800837/a1 atc7554757, passed37 qualifier contracts but refused during its first index stage with `runtime input kind differs`. The original artifact12590039618 (2681bytes,SHA256245302921ee3c6cbfee135fd38376883b4b9fe45e49ff1efdf96e3d2f69a7bdb) retains the intent, stage and captured failure. Package installation/profile extraction/native setup were not reached; the old refusal remains failed. The inventory detector now counts APT temporary leaf symlinks without reading or traversing their targets, as it already counts regular-file bytes and directory entries. This does not admit any package or profile input: their authenticated archive and exact-byte/root-owned readback rules remain unchanged. FIFOs/sockets/devices still refuse, now with a bounded relative path and mode. A dangling external leaf-link regression proves no target traversal; an actual FIFO regression proves refusal before a success receipt. Fresh source-bound hosted outcomes belong to the owning delivery receipt.
+
+Diagnostic40171320073/a1 at56fd1d6c advanced through index update and runtime package installation, then refused at exact profile download. Artifact12590114233 (3186bytes,SHA256d2d05f3aff9c436786f9cf849e9208f072747ecf3741c98c187fe4952fde43fe) retains all three stage markers and the failed capture; package effects are retained. Its captured streams were empty and the old error did not record exit/signal, so the precise cause is unproven. The fixed APT options now disable disk package/source metadata caches; this keeps them in memory rather than writing shared caches under the profile download's existing39592-byte per-file cap. That cap, exact archive/profile hashes, attempt clock and private input detector remain unchanged. Command refusals now retain the actual exit/signal alongside bounded streams, verified with a real failing subprocess. A new source-bound observation is required; the failed run is not retried or credited as profile/native success.
+
+Diagnostic40171645811/a1 at342e1a76 refused during index update when APT removed the enumerated `lists/partial/_etc_apt_apt-mirrors.txt_dists_noble-security_restricted_binary-amd64_Packages.Jt4rDF` before its no-follow stat. Artifact12589564639 (2784bytes,SHA25629490cfe47fda7623adcbc53363da72675adf219d5c1d40700adbd43b6190f06) retains this actual path and original failure. The detector now skips only FileNotFoundError for a leaf that vanished after enumeration, retaining its entry count and without reopening or traversing an alternative. All other I/O errors, special-file kinds, byte/entry limits and original-parent fences remain. A real DirEntry captured before unlink reproduces the race in the focused contract. This resolves a sampled-storage race; it establishes neither headroom nor a capacity reservation, and exact input admission/readback is unchanged.
+
+Diagnostic40172024733/a1 at9a3bfb5f passed index update and runtime installation, then retained profile-download exit-25 (SIGXFSZ), with empty captured streams. Artifact12591175419 is3192bytes/SHA25622e4bb8efcd61f284262d941887709846f457a087ba950098614e634c148d79f. The profile download now uses the same128MiB per-process scratch-file limit as the other APT commands; RLIMIT_FSIZE applies to every process file, including metadata scratch, rather than to the archive alone. The separate archive admission limit remains39592bytes with the exact approved SHA256, before any parser/extraction. A39593-byte regression refuses before extraction or a success receipt. The private512MiB sampled-input detector,90-second original-clock allocation, exact extracted1936-byte profile guard and resource-policy restrictions remain. This explicitly distinguishes scratch allocation from admitted archive size; neither is a capacity reservation. The prior failed run remains failed and package effects retained.
+
+## Payload pre-sign producer rendezvous (October 25)
+
+The selected fixed-job payload credential route now waits for both exact same-run, attempt-1 Windows/Linux pre-sign producer jobs and their bounded original artifact locators before it emits credential routing or reaches App/key-bearing steps. This is scheduling only: every existing signature, complete-opportunity, native-stage, minimum-client, candidate, custody and current-control verifier remains mandatory. In particular, hosted Windows continuity cannot become Windows client-minimum acceptance through readiness. Legacy credential routes and unrelated phases retain their existing behavior.
+
+Only complete duplicate-free job/artifact inventories, literal producer states, exact source/run/attempt, repository identities, nonexpired bounded provider locators and unique fixed names are eligible for another pending observation. Refusal, ambiguity or malformed/changed evidence stops immediately. The existing artifact inventory reader retains its four-page ceiling. One shared120-GET allowance includes the original payload clock lookup and all artifact pages/polls, with five-second spacing and the existing original570-second payload job deadline; waiting cannot mint another signing allocation. A private CreateNew64KiB log retains scheduling/refusal evidence and mirrors only those bounded public records to provider logs, including refusal before the composite artifact uploader can run. The bounded2MiB response buffer/log are explicit resource-estimate inputs. The75/40 alternative job-minute estimates,100-minute ceiling and existing archive/cache/retention/no-spend boundaries remain. The changed resource-policy digest and executable source invalidate prior ratification before use.
+
+Controlled tests exercise missing-to-ready progress, wrong source/attempt/owner, duplicate or incomplete inventories, expired/oversize metadata, failed producer, ambiguous GET, original-source expiry after awaited retention, finite exhaustion, actual GET-only wrapper/clock binding and repeat refusal, and the actual routing entry's zero-output refusal. They do not establish an actual producer, eligible reservation or protected/native acceptance. Native job wiring/resource reconciliation, Windows/client evidence and the final reviewed runnable revision/digest remain unfinished; production stays held. No new owner mechanism choice or manual setup is requested.
+
+## Held Linux native job wiring (October 25)
+
+The held controller now calls the prepared Linux producer twice on one `native_linux` job/VM, in fixed pre-sign then post-sign order, with the existing original570-second worker clock inside one ten-minute provider allocation. It starts after the original tool bootstrap/attestation, coordinator, independent admission and aggregate attestation. It deliberately has no payload/TUF job dependency: pre-sign artifacts must be available while the payload route waits, and the existing same-job post-sign scheduler subsequently observes the authenticated signers. Fresh application publication additionally requires this native job to succeed; retained signing custody keeps its existing recovery behavior. Catalog and metadata paths do not start this job. The original admission job already derives `classification_transport` from the complete ratified source/configuration; only its exact `fixed-job` output starts native Linux and requires its success for fresh publication. Exact `legacy-app` preserves legacy fresh-publication routing, while missing/unknown transport cannot bypass the selected gate. Its fixed `production-native-linux` identity receives contents/actions/checks read and id-token write, without an App private key, release key or publication permission.
+
+Source-only Actions request/ack readers now defer the signing-producer dependency until the attested worker actually runs. A clean package-denial loader checks that the source entrypoints remain usable without installing signing dependencies. Fixed public lifecycle rows are collected after success/refusal into one bounded diagnostic artifact; missing, oversized or invalid rows remain explicitly unavailable. Raw logs, candidate data, configuration, proof contents and credentials are outside that allowlist. Diagnostics do not stop, retry, settle or accept a worker.
+
+The actual application estimate is85job-minutes (previous75 plus Linux10), with catalog40 as the mutually exclusive alternative; a future Windows10 would make95, below the unchanged100-minute ceiling. Diagnostic artifacts increase10→11, within the existing66files/64KiB-per-file contract; cache/archive/seven-day/no-spend restrictions remain. These changed workflow/resource-policy and executable identities invalidate previous ratification before use. The source is preparation only: the actual Windows two-stage producer, native/full client evidence, eligible reservation and final runnable-source reconciliation remain pending. No protected dispatch or new manual setup is performed; production remains held, #254 Done, #315/#534/#246 pending, Chameleon protected acceptance unset and slice5 excluded.
+
+## Windows executing-file custody preparation (October 25)
+
+The shared executable-custody reader now supports the selected Windows host path
+with actual OS owner/ACL observations. Linux ownership/mode behavior is preserved.
+The fixed Windows OS reader receives only inert UTF-8 JSON paths through stdin,
+with a cleared child environment, no profiles, no caller script and no ACL/owner
+mutation. It requires the fixed `C:\Windows` system root and canonical installed
+PowerShell7 path already required by the Windows native driver. Missing or other
+runtime paths refuse; no installation or search-path fallback occurs.
+It allows only the broker, SYSTEM, Administrators and the existing OS
+TrustedInstaller identity as owners/writers. Applicable explicit and inherited
+foreign file-write or ancestor-replacement permissions refuse; inherited-only
+rules are interpreted at the object where they apply.
+
+Canonical local paths, regular single-link files and non-reparse ancestry are
+required. Retained observations join broker SID, owner and complete DACL SDDL
+with file/volume identity, creation/size/change timestamps and relevant mode.
+File identity and canonical resolution are checked around the ACL read;
+subsequent rechecks compare the complete retained map. Directory child-list
+timestamps are excluded so ordinary unrelated child creation does not invalidate
+protected ancestry. Unsupported, unreadable, changed or over-bound information
+refuses without a fallback. Limits are128 files,4096 unique ancestry entries,
+64 levels,256KiB request,1MiB output and15 seconds per OS read.
+
+Actual ordinary, non-elevated local Windows fixtures establish unchanged
+readback, same-byte replacement refusal, hard-link/junction/invalid-path refusal,
+and foreign file-write/ancestor-replacement ACL refusal. Only owned inert fixture
+ACLs were changed and restored by the tests; the production reader is read-only.
+The initial Windows PowerShell5 JSON-array decoding failure remains retained;
+explicit array assignment and text/UTF-8 transport repaired that reader boundary.
+Original CI40184775750/a1 at85743ae2 then timed out in both first PowerShell5 OS
+reads at the unchanged15-second operation bound; that Windows step's other36 cases passed.
+That failure and original job log remain retained. The reader now uses the
+existing PowerShell7 path and retains three bounded stage markers plus a bounded
+primary child error for diagnosis. Its timeout/output/request limits are unchanged.
+Any later pass establishes only that subsequent path, not a cause for the prior
+timeouts. The existing Linux controller-tool fixture40184775760/a1 passed at the
+original source and retains that scope.
+The same original run's Linux catalog leaf also failed the exact Windows-command
+assertion, which still listed only the three previous files. Its correction adds
+the custody test while preserving exact execution checks in both fast and full
+Windows plans. Source016094ee's actual Windows job121145276946 then passed all
+three custody cases (7733ms file duration) at unchanged limits, with no skipped
+cases; its original Node context records checkout e262eed3552b1f74616463e66baf44c368f7057e.
+This is actual hosted filesystem evidence, not native/client acceptance or a
+complete passing CI claim for that intermediate source.
+Its supplementary controller-tool fixture40185471511/a1 separately failed while
+the live dependency overrun scan observed a pnpm staging leaf that disappeared
+before stat. That original failure remains retained. The narrow repair counts
+the observed entry, skips only that missing live leaf without following another
+path, and preserves byte/count/deadline limits and strict settled graph readback.
+The inert regression removes a real staging entry between enumeration and stat;
+it does not substitute for a successful hosted tool build.
+At source2bee931f, controller-tool fixture40186191846/a1 passes with the live
+scan repair. Required CI40186191925/a1 separately retains a Python regression
+callback loop-binding lint failure; its catalog and Windows helper jobs pass.
+Binding the callback's fixture values explicitly repairs the lint error without
+changing the production reader, limits or the regression assertions.
+Final exact-source test/review/CI identities belong to the owning delivery receipt.
+The new test is registered in ordinary Windows helper, full catalog and release
+checks, and selected by the existing release-security ownership rule.
+
+This delivers filesystem-custody preparation, not a Windows native producer or
+tool-artifact credential. The current controller-tool manifest and runtime still
+select Linux binaries; Windows tools/materialization, separate candidate-account
+execution, direct capture/report/proof and same-worker pre/post-sign upload joins
+remain necessary. No Linux tool artifact is relabeled as Windows-capable. Actual
+Windows Server continuity remains distinct from Windows client-minimum acceptance.
+No new admin, credential, authority or resource-policy action is requested.
+Production stays held; final source/digest/configuration reconciliation and all
+existing admission/custody/recovery prerequisites remain mandatory. D1/D2/D3,
+Unknown availability/headroom, no capacity reservation, #254 Done,
+#315/#534/#246 pending, Chameleon acceptance hold and Slice5 exclusion remain.
+
+## Windows controller-tool bootstrap preparation (October 25)
+
+The maintained fixed-source builder now produces actual Windows x64 Node, Core
+CLI, release-tools, pinned Tauri addon and tauri-driver executables, plus the
+same fixed controller bundles and compiler-source closure. Windows has an explicit
+schema-3 inventory with `.exe` names; Linux schema2 and its support product remain
+the default. Windows omits the Linux reaper/child assets. Existing protected
+receivers do not accept this new inventory: a caller must explicitly select
+Windows for opaque archive inspection. Parsing these bytes grants no issuer,
+attestation, native capability or execution authority.
+
+The standalone package manager uses the official `@pnpm/exe.win32-x64@12.14.0`
+archive, selected from that exact version's declared platform dependency and
+pinned by SHA512 in the existing reader. The raw four-member TAR parser retains
+its compressed/expanded/header/entry bounds and extension/link refusal; Windows
+also requires an AMD64 PE32+ image. It never invokes the package's downloader.
+Actual local binary SHA256
+`62946d1c8169b8db90a73348a0b094f495eac159450f75a72a19da0321f8e6b2`
+(51222016bytes) reports12.14.0, accepts the matching offline frozen lock and
+refuses the changed lock, with lifecycle/hook outputs absent in both cases.
+
+The existing ordinary tool-build fixture adds one standard Windows2022 job,
+contents-read only,15minutes, exact PR source checkout, fresh outputs/dependencies,
+no role credentials/caches, and bounded public JSON evidence retained seven days
+without overwrite. Its real executable/Core inert-inspection/offline-package-manager
+smoke and packed-command refusals are bracketed by actual Windows filesystem
+custody. Build outputs use fresh home ancestry rather than assuming shared temp
+ancestry is protected. Cold build time, expanded size and actual hosted execution
+remain observations to obtain; Windows Server is not Windows11 client-minimum
+acceptance. The local focused suite retained20pass/1packing failure: the shared
+dependency tree cannot resolve the declared Sigstore packages. That foreign tree
+was not modified; fresh locked hosted installation supplies independent evidence.
+The first actual Windows fixture40188114615/a1, job121153125585, retained an
+MSVC LNK1104 failure while compiling the process-supervisor support helper before
+the Core build. The reported private hash/attempt-qualified output path was268
+characters. As a targeted repair, Windows-only private build directory prefixes are
+shortened; Linux paths, helper identity, cleanup and all limits remain unchanged.
+No host-wide long-path setting or administrator action is introduced. The later
+build must establish its own outcome rather than treating this diagnosis as a pass.
+
+This does not add a protected job or change its85/40/hard100 resource declaration.
+The future Windows build/runtime/attestation arrangement must fit the existing
+ceiling and be source/digest reconciled before use; the ordinary15-minute fixture
+does not establish that fit. Platform-bound producer authentication, protected
+receiver/runtime integration, separate candidate execution, direct capture/report
+and same-worker pre/post-sign joins remain. No new host setup, admin prompt,
+credential, publisher authority or protected execution is requested. D1/D2/D3,
+$0 stop-usage and all other resource/admission restrictions remain. Availability
+and headroom Unknown; no capacity reservation. #254 Done; #315/#534/#246 pending;
+Chameleon protected_acceptance unset; production held; Slice5 excluded.
+
+## Windows native tool custody and runtime binding (October 25)
+
+The explicit Windows schema3 inventory now includes the fixed Windows process-tree
+supervisor source, prepared AMD64 PE executable and exact build metadata. Both
+runtime compiler identity and support-artifact callbacks consume that prepared
+product; runtime compilation and shared-cache fallback remain refused. Windows
+uses owner/ACL/file-identity custody, including an exclusively created intent in
+the exact fresh output directory before executable materialization. Linux keeps
+its existing ELF product, file modes, inventory and default wire selection.
+
+The prepared Windows bootstrap has a distinct OIDC audience, numeric job identity,
+`windows-2022` runner label, artifact and attestation names, subject and signed
+predicate. Only an explicit Windows expectation selects that receiver; default
+callers still select Linux. Exact signed source/tree/run/attempt and bounded
+provider readback remain required. Injected verification fixtures cannot mint a
+production receipt. The shared native runtime binds the actual OS and original
+parent's platform to the privately verified tools, checks the executing Node and
+entry bytes, and rechecks custody before use. Preparation refusal permanently
+stops that runtime. A concurrent refusal must also stop an already suspended
+getter after its final await; restored inputs cannot revive it.
+
+The credential-free ordinary Windows qualification adds actual execution of this
+prepared supervisor through the existing resource-admitted runner seam. It retains
+`prepared-supervisor.json` alongside its existing executable, package-manager and
+custody observations. Current-source hosted outcomes and independent review belong
+to the owning delivery receipt; synthetic PE metadata or controlled getter tests
+are not actual Windows execution or protected acceptance. The Linux interleaving
+regression is skipped on Windows and must execute in its applicable hosted route.
+The previous bootstrap delivery #3451 remains evidence only for its earlier
+inventory and actual six-tool smoke scope.
+
+Initial source `1a4f08593efe11f7f521f4e84f06ddc0686ab3dc` passed both tool
+fixtures in40190590510/a1, including the actual Windows prepared supervisor and
+Linux controlled-runtime interleaving regression. Required CI40190590531/a1
+retained a receiver source-only dependency-closure failure: importing runtime
+support merely to name three fixed inventory paths pulled an absent module into
+credential-free startup. The repair keeps those inventory paths literal, as for
+the existing Linux paths, without importing execution code. Local source-only
+closure and Windows inventory/receiver checks pass after that repair. Subsequent
+exact-source CI and fixture outcomes remain independently scoped.
+
+This adds no protected job, workflow permission, credential or resource-policy
+allocation. The Windows producer/account/direct capture/report and original-worker
+pre/post-sign proof joins remain engineering work, together with final whole-job
+resource fit and source/digest/grant reconciliation. No owner setup step is needed
+for this preparation. D1/D2/D3 and all spending/admission/recovery restrictions
+remain: availability/headroom Unknown, no capacity reservation, #254 Done,
+#315/#534/#246 pending, Chameleon protected acceptance unset, production held and
+Slice5 excluded.

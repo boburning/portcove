@@ -214,6 +214,15 @@ requires its reviewed numeric redirect identity from bounded JSON metadata.
 Every shared port must have the applicable reviewed scope. Changed conditions
 remain actionable; a hash match cannot approve a new endpoint or identity.
 
+Tests distinguish current direct pins from retained bindings whose catalog ports
+now use dynamic GitHub acquisition. The historical artifact projections come
+from catalog commit `3305a4707d5b902fe5565608c3330cecc8b701da`; the test fixture
+retains its source hashes and grants no current acquisition or identity authority.
+Current direct pins must still match current inputs, while retained cases require
+the exact historical port/platform binding and the current repository/platform
+declaration. Missing, duplicate or unused projections fail. All reviewed policy
+facts and endpoint/source-archive checks remain in place.
+
 The retained Star Fox `kandowontu/starfox-enhanced` 404 is an acquisition-endpoint
 condition. Its separately reviewed successor decision and current project
 location are reported from the authoring lineage records. The old endpoint stays

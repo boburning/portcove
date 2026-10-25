@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "yo-kai-watch-4-yw4recomp",
+    "name": "Yo-kai Watch 4++ (YW4Recomp)",
+    "summary": "Experimental AArch64 main/sdk to C via Clang with native Vulkan services; no linked emulator code claimed. Eden visual reference only. Upstream maturity: Early boot/new game/house/town/menus/autosave30fps; missing effects/crashes beyond reached areas, no full playthrough. Acquisition: No releases. Python/Git/Clang/GCC/VulkanSDK local ingest/translation/shaders/build. Platforms: Windows x64 Vulkan1.3 built/tested; Linux x64 planned/untested despite badge; no Mac. Original data: Own4++ ExeFS/RomFS update2.2.0 exact hash-checked build. Not generic originalYW4. Exact hashes/title/region and separate keys/firmware not in root. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Yo-kai Watch 4++",
+    "project_url": "https://github.com/ILFforever/YW4Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ILFforever/YW4Recomp",
+    "artwork": {
+      "game_id": 127255,
+      "cover_id": 311098,
+      "image_id": "co6o1m",
+      "image_sha256": "057b4a439acf7230063a699b227a012daa020f4b88bfb095dde125a05a3788c4",
+      "game_slug": "yo-kai-watch-4-plus-plus",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2952
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "yo-kai-watch-4-yw4recomp",
+    "origin": {
+      "project_url": "https://github.com/ILFforever/YW4Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428228424"
+      }
+    },
+    "decisions": []
+  }
+}

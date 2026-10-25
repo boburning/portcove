@@ -151,13 +151,30 @@ fn simultaneous_desktop_and_cli_sessions_have_distinct_leases_envelopes_and_file
     let temp = tempfile::tempdir().unwrap();
     let directory = temp.path().join("diagnostics");
     let barrier = Arc::new(Barrier::new(SESSION_LIMIT));
-    let threads: Vec<_> = (0..SESSION_LIMIT).map(|index| {
+    // Exercise eight simultaneous writers with real, exclusively leased slots.
+    // Preparation is sequential: best-effort startup may legitimately refuse a
+    // session under its 250 ms product deadline or transient inventory contention.
+    // The separate blocked-bootstrap test owns that unavailable-startup contract.
+    let directory = portcove_core::prepare_support_log_directory(&directory).unwrap();
+    let prepared: Vec<_> = (0..SESSION_LIMIT)
+        .map(|index| {
+            let surface = if index % 2 == 0 {
+                Surface::Desktop
+            } else {
+                Surface::Cli
+            };
+            let host = HostDiagnostics::disabled(surface, false);
+            let prepared =
+                HostDiagnostics::prepare_session(directory.clone(), host.session_id, surface);
+            assert!(prepared.allocation.is_some());
+            (host, prepared, surface)
+        })
+        .collect();
+    let threads: Vec<_> = prepared.into_iter().enumerate().map(|(index, (host, prepared, surface))| {
         let barrier = barrier.clone();
-        let directory = directory.clone();
         std::thread::spawn(move || {
             barrier.wait();
-            let surface = if index % 2 == 0 { Surface::Desktop } else { Surface::Cli };
-            let (host, guard) = HostDiagnostics::start_in(&directory, surface, false);
+            let (host, guard) = host.start_prepared(prepared);
             assert!(guard.is_some());
             tracing::subscriber::with_default(tracing_subscriber::registry().with(host.layer()), || {
                 tracing::info!(target: "portcove_diagnostics", sequence = index as u64, message = "isolated session fixture");

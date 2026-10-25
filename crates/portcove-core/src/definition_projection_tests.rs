@@ -80,9 +80,9 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if crate::preparation::has_manual_marker(&typed) {
-        2
-    } else if typed.adapter == crate::AdapterKind::PsxRecompManaged {
+    let version = if crate::preparation::has_manual_marker(&typed)
+        || typed.adapter == crate::AdapterKind::PsxRecompManaged
+    {
         2
     } else if typed
         .release
@@ -91,6 +91,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
+    } else if typed.mod_package_policy.is_some() {
+        24
     } else if crate::persistence::ready_staged_archive(&typed) {
         23
     } else if crate::managed_runtime_policy::requires_provider_resolution(&typed) {

@@ -7,8 +7,8 @@
     "project_url": "https://github.com/izzy2lost/perfect_dark",
     "issue_number": 1867,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/izzy2lost/perfect_dark",
+    "availability": "packages",
+    "setup_url": "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md",
     "artwork": {
       "game_id": 1463,
       "cover_id": 336883,
@@ -16,6 +16,21 @@
       "image_sha256": "b4527efe3caaec5486b90fecdad0978574ce819f4024e5dd29f4565443871afc",
       "game_slug": "perfect-dark",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Open this fork’s Android APK and use its ROM picker for your own Perfect Dark NTSC-U Rev 1/US 1.1 .z64, the recommended edition (MD5 e03b088b6ac9e0080440efed07c1e40f). The app verifies and copies it to Android/data/com.perfectdark.port/files/data/pd.ntsc-final.z64. US 1.0 is a separate warned alternative; do not assume the parent’s custom PAL/Japanese desktop executables are Android builds."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "Before moving from the older signed app to version 2.0.0, preserve and verify a separate copy of Android/data/com.perfectdark.port/files/eeprom.bin and any other app data you need. The maintainer lost the former signing key: this release requires a manual uninstall/reinstall, which must not precede preservation of the working copy’s data. Keep the saved copy until the new app works and the upstream restore path is confirmed. Portcove does not perform this Android transition or promise an automatic restore. Optional local netplay/mod support remains upstream-limited."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/izzy2lost/perfect_dark/blob/2.0.0/README.md"
+    },
+    "release_url": "https://github.com/izzy2lost/perfect_dark/releases"
   }
 }

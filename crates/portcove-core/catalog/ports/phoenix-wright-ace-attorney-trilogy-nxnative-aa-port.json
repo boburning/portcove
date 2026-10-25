@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "phoenix-wright-ace-attorney-trilogy-nxnative-aa-port",
+    "name": "Phoenix Wright: Ace Attorney Trilogy (nxnative-aa-port)",
+    "summary": "Experimental Maintained nxnative-derived Apple per-title compatibility fork with desktop host profiles Upstream maturity: Phoenix Wright123: upstream Mac/iOS play and save-load fix; keyboard/controller/mouse-as-touch. No full-collection playthrough claim. Acquisition: Sourcebuild Macdm/host/dmhost with title GAME and explicit patchedmodule/RomFS/shader/font/save paths; iOSscriptbuildsIPA. No release. External/player rebuild owner; exact forkupdate/save transition Unknown. Platforms: Apple Silicon Mac and iOS upstream profile observations; other desktop platforms unestablished. Original data: Ownbase+update1.1.0,title0100CB000A142000,prod.keys;hostpatched_v196608/RomFS/fonts/shader/savepaths. Region/fingerprintUnknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Phoenix Wright: Ace Attorney Trilogy",
+    "project_url": "https://github.com/armyja/nxnative-aa-port",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/armyja/nxnative-aa-port",
+    "artwork": {
+      "game_id": 21610,
+      "cover_id": 476311,
+      "image_id": "coa7iv",
+      "image_sha256": "2c44a1fe9a10ead405017090442fbbf7e00b765c77afe69d63f1c6ceba0c61e0",
+      "game_slug": "phoenix-wright-ace-attorney-trilogy",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2975
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "phoenix-wright-ace-attorney-trilogy-nxnative-aa-port",
+    "origin": {
+      "project_url": "https://github.com/armyja/nxnative-aa-port",
+      "repository": {
+        "host": "github.com",
+        "id": "1424498472"
+      }
+    },
+    "decisions": []
+  }
+}

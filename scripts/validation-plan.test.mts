@@ -18,6 +18,22 @@ import {
 import { discoverCiPlan } from "./select-ci-plan.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 const sha = (c: string) => c.repeat(40);
+
+void test("opt-in Rust coverage inputs retain hosted contracts across lifecycle and rename edits", () => {
+  for (const file of ["scripts/rust-coverage.mts", ".config/rust-coverage.json"]) {
+    for (const values of [
+      {},
+      { status: "A", oldMode: "000000" },
+      { status: "D", newMode: "000000" },
+      { status: "R100", newPath: "docs/moved.md" },
+      { status: "R100", oldPath: "docs/moved.md" },
+    ]) {
+      const selected = plan([change(file, values)]);
+      assert.ok(selected.groups.includes("catalog"), JSON.stringify({ file, values }));
+      assert.ok(selected.groups.includes("rust-quality"), JSON.stringify({ file, values }));
+    }
+  }
+});
 const change = (file: string, values: Partial<ValidationChangeInput> = {}) => ({
   status: "M",
   oldMode: "100644",
@@ -64,6 +80,8 @@ void test("qualification archive inputs retain ordinary Rust coverage across eve
 void test("hosted report source, its actual companion and shared fixtures retain release security ownership", () => {
   for (const file of [
     "scripts/release-native-source-provider.mts",
+    "scripts/release-native-presign-readiness.mts",
+    "scripts/release-native-presign-readiness.test.mts",
     "scripts/release-native-postsign-readiness.mts",
     "scripts/release-native-source-provider.test.mts",
     "scripts/release-hosted-native-linux-report.test.mts",

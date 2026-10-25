@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mario-kart-8-deluxe-mk8-recomp",
+    "name": "Mario Kart 8 Deluxe (mk8-recomp)",
+    "summary": "Experimental Current native integration uses static CPU modules/native Vulkan/services. Older suyu hybrid AOT+JIT tracks explicitly historical and retired. Upstream maturity: Claims four-course Mushroom Cup, native save/restart and59.50–59.96fps controls; full-game and true125/250fps unresolved. Acquisition: No releases/tags/assets. Game-linked binaries prohibited; source/tooling only after provenance review. Current local integration generates private modules. Platforms: Current native consumer OS/CPU matrix not established by root independently of retired suyu benchmarks. Original data: Own previously extracted MK8D inputs matching current native integration profile. Root does not pin current game update/region/hashes or key/firmware needs. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Mario Kart 8 Deluxe",
+    "project_url": "https://github.com/dougchansan/mk8-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/dougchansan/mk8-recomp",
+    "artwork": {
+      "game_id": 26764,
+      "cover_id": 94741,
+      "image_id": "co213p",
+      "image_sha256": "0091f5120a0c7c1d7cbfb451728c9ce60e24e13e2f659d4a5a1277b984cc4173",
+      "game_slug": "mario-kart-8-deluxe",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2945
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mario-kart-8-deluxe-mk8-recomp",
+    "origin": {
+      "project_url": "https://github.com/dougchansan/mk8-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1365334008"
+      }
+    },
+    "decisions": []
+  }
+}

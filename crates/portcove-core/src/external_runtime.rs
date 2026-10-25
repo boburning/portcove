@@ -829,15 +829,29 @@ mod tests {
         fs::hard_link(&file, &alias).unwrap();
         assert!(hash_stable_regular(&file, 7, &|| Ok(())).is_err());
         fs::remove_file(alias).unwrap();
+        let original_modified = fs::metadata(&file).unwrap().modified().unwrap();
         let changed = std::cell::Cell::new(false);
         assert!(
             hash_stable_regular(&file, 7, &|| {
                 if !changed.replace(true) {
-                    fs::write(&file, b"changed")?;
+                    fs::write(&file, b"changed").expect("same-size fixture mutation must succeed");
+                    // A same-tick write can retain identical observable metadata
+                    // on Linux. Exercise a definite same-size metadata change,
+                    // without sleeping or changing the production inspection.
+                    fs::OpenOptions::new()
+                        .write(true)
+                        .open(&file)
+                        .expect("modified fixture must open for timestamp setup")
+                        .set_modified(original_modified + std::time::Duration::from_secs(2))
+                        .expect("fixture timestamp must visibly change");
                 }
                 Ok(())
             })
             .is_err()
+        );
+        assert_ne!(
+            fs::metadata(&file).unwrap().modified().unwrap(),
+            original_modified
         );
         assert_eq!(fs::read(file).unwrap(), b"changed");
     }

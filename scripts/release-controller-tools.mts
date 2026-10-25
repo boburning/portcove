@@ -62,6 +62,48 @@ export const controllerToolPaths = Object.freeze(
     ...controllerToolAssets,
   ].sort(),
 );
+export type ControllerToolPlatform = "linux-x86_64" | "windows-x86_64";
+/** Windows bootstrap inventory is explicit. It has no Linux process-tree product
+ * and does not make the currently Linux-only native runner Windows-capable. */
+const windowsAssets = Object.freeze([
+  "deny.toml",
+  ".github/workflows/application-update-production.yml",
+  ".github/workflows/release.yml",
+  ".github/repository-ruleset.json",
+  ".github/qualification-coverage.json",
+  "release/package-policy.json",
+  "apps/desktop/src-tauri/tauri.release-public.conf.json",
+  "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+] as const);
+const windowsPaths = Object.freeze(
+  [
+    "bin/node.exe",
+    "bin/portcove.exe",
+    "bin/portcove-release-tools.exe",
+    "bin/tauri-addon.node",
+    "bin/tauri-driver.exe",
+    "bin/pnpm.exe",
+    "pnpm-license.txt",
+    "pnpm-notices.txt",
+    "bin/native-windows-tree-supervisor.exe",
+    "native-windows-support.json",
+    controllerCompilerSourceAsset,
+    ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
+    ...windowsAssets,
+  ].sort(),
+);
+export function controllerToolPlatformProfile(platform: ControllerToolPlatform) {
+  if (platform !== "linux-x86_64" && platform !== "windows-x86_64")
+    throw new Error("fixed controller tool platform required");
+  return Object.freeze({
+    platform,
+    schema_version: platform === "linux-x86_64" ? 2 : 3,
+    suffix: platform === "linux-x86_64" ? "" : ".exe",
+    assets: platform === "linux-x86_64" ? controllerToolAssets : windowsAssets,
+    children: platform === "linux-x86_64" ? controllerToolChildren : [],
+    paths: platform === "linux-x86_64" ? controllerToolPaths : windowsPaths,
+  });
+}
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export async function readControllerToolFile(filename: string, maximum = 128 * 1024 ** 2) {
   const file = await open(
@@ -96,14 +138,20 @@ export async function readControllerToolFile(filename: string, maximum = 128 * 1
 }
 
 export const controllerToolPredicateType = "https://portcove.dev/attestations/controller-tools/v1";
-export function inspectControllerToolManifest(raw: unknown) {
+export const windowsControllerToolPredicateType =
+  "https://portcove.dev/attestations/controller-tools/windows-v1";
+export function inspectControllerToolManifest(
+  raw: unknown,
+  platform: ControllerToolPlatform = "linux-x86_64",
+) {
+  const profile = controllerToolPlatformProfile(platform);
   const value: unknown = structuredClone(raw);
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
       "bundler,files,node_version,platform,schema_version,source_commit,source_tree,tauri_cli_version" ||
-    value.schema_version !== 2 ||
-    value.platform !== "linux-x86_64" ||
+    value.schema_version !== profile.schema_version ||
+    value.platform !== profile.platform ||
     value.node_version !== controllerNodeVersion ||
     value.bundler !== "vite-plus@1.3.0" ||
     value.tauri_cli_version !== "2.12.2" ||
@@ -112,7 +160,7 @@ export function inspectControllerToolManifest(raw: unknown) {
     typeof value.source_tree !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_tree) ||
     !Array.isArray(value.files) ||
-    value.files.length !== controllerToolPaths.length
+    value.files.length !== profile.paths.length
   )
     throw new Error("fixed controller tool manifest differs");
   let total = 0;
@@ -120,7 +168,7 @@ export function inspectControllerToolManifest(raw: unknown) {
     if (
       !isRecord(file) ||
       Object.keys(file).sort().join(",") !== "bytes,path,sha256" ||
-      file.path !== controllerToolPaths[index] ||
+      file.path !== profile.paths[index] ||
       typeof file.bytes !== "number" ||
       !Number.isSafeInteger(file.bytes) ||
       file.bytes < 1 ||
@@ -130,14 +178,14 @@ export function inspectControllerToolManifest(raw: unknown) {
     )
       throw new Error("controller tool inventory differs");
     total += file.bytes;
-    return { path: controllerToolPaths[index]!, bytes: file.bytes, sha256: file.sha256 };
+    return { path: profile.paths[index]!, bytes: file.bytes, sha256: file.sha256 };
   });
   if (total > 320 * 1024 ** 2) throw new Error("controller tool expanded bytes exceed bound");
   return {
-    schema_version: 2,
+    schema_version: profile.schema_version,
     source_commit: value.source_commit,
     source_tree: value.source_tree,
-    platform: "linux-x86_64",
+    platform: profile.platform,
     node_version: controllerNodeVersion,
     bundler: "vite-plus@1.3.0",
     tauri_cli_version: "2.12.2",
@@ -147,19 +195,20 @@ export function inspectControllerToolManifest(raw: unknown) {
 /** No extraction: every opaque byte is checked before any receiver file write. */
 export function inspectControllerToolArchive(
   raw: Buffer,
-  expected: { source_commit: string; source_tree: string },
+  expected: { source_commit: string; source_tree: string; platform?: ControllerToolPlatform },
 ) {
+  const profile = controllerToolPlatformProfile(expected.platform ?? "linux-x86_64");
   if (!Buffer.isBuffer(raw) || raw.length < 22 || raw.length > 320 * 1024 ** 2)
     throw new Error("controller tool ZIP exceeds compressed bound");
   const archive = Buffer.from(raw);
   const { entries } = inspectBoundedZip(archive, {
     compressedBytes: 320 * 1024 ** 2,
     expandedBytes: 320 * 1024 ** 2 + 65536,
-    files: controllerToolPaths.length + 1,
+    files: profile.paths.length + 1,
     nameBytes: 128,
-    allowedPaths: new Set([...controllerToolPaths, "manifest.json"]),
+    allowedPaths: new Set([...profile.paths, "manifest.json"]),
   });
-  if (entries.length !== controllerToolPaths.length + 1)
+  if (entries.length !== profile.paths.length + 1)
     throw new Error("controller tool ZIP inventory incomplete");
   const read = (name: string, maximum: number) => {
     const entry = entries.find((item) => item.name === name);
@@ -175,7 +224,10 @@ export function inspectControllerToolArchive(
     return bytes;
   };
   const manifestBytes = read("manifest.json", 65536);
-  const manifest = inspectControllerToolManifest(JSON.parse(manifestBytes.toString("utf8")));
+  const manifest = inspectControllerToolManifest(
+    JSON.parse(manifestBytes.toString("utf8")),
+    profile.platform,
+  );
   if (
     manifest.source_commit !== expected.source_commit ||
     manifest.source_tree !== expected.source_tree

@@ -196,6 +196,13 @@ the consent-bound manifest and verifies staged data before collecting current
 runtime progress. Historical byte-only backup integrity is not retroactively
 strengthened. See [definition compatibility](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
 
+Ready archives can explicitly retain the closed `mod_package_policy` for complete
+versioned mod packages. Capability 24 and installed-contract format 7 fence older
+readers. `service/psx_mod_data.rs` owns the shared package coexistence algorithm,
+including retained-runtime preflight for explicit restore; its historical module
+and receipt names do not restrict the policy to PS1. A policy change is a data
+contract change, never inferred from a persistent folder or current catalog.
+
 ## Source import journal interpretation
 
 Source import admits publication through the existing atomic cancellation boundary

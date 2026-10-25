@@ -1,0 +1,173 @@
+{
+  "source": "fe45fb8f73308e5ef40e218faa5a756ded598175",
+  "observed_run": 40189792440,
+  "observed_attempt": 1,
+  "observed_job": 121158210871,
+  "raw_findings": 88,
+  "scopes": [
+    {
+      "source": "apps/desktop/src-tauri/src/application_update_restart.rs",
+      "file": "apps/desktop/src-tauri/src/application_update_restart_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["/owned host helpers/fusermount3"]
+    },
+    {
+      "source": "apps/desktop/src-tauri/src/source_removal.rs",
+      "file": "apps/desktop/src-tauri/src/source_removal_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["D:/Original ü/game.iso"]
+    },
+    {
+      "source": "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs",
+      "file": "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["/usr/bin/env", "/owned host helpers/fusermount3", "/owned library"]
+    },
+    {
+      "source": "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
+      "file": "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
+      "kind": "test-only literal controls",
+      "values": ["/keytype", "/scheme", "/keyval/public"]
+    },
+    {
+      "source": "crates/portcove-release-tools/src/definition_repository/tests.rs",
+      "file": "crates/portcove-release-tools/src/definition_repository/tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["/absolute"]
+    },
+    {
+      "source": "crates/portcove-cli/src/human/transfers.rs",
+      "file": "crates/portcove-cli/src/human/transfers_tests.rs",
+      "kind": "test-only literal controls",
+      "values": [
+        "/game files/星の狐.z64",
+        "/original/星の狐.z64",
+        "/new\nlocation.z64",
+        "/restored",
+        "/original",
+        "/export/metadata.json",
+        "/copied payload",
+        "/restore target"
+      ]
+    },
+    {
+      "source": "crates/portcove-cli/src/human/task_results.rs",
+      "file": "crates/portcove-cli/src/human/task_results_tests.rs",
+      "kind": "test-only literal controls",
+      "values": [
+        "/library/备份/backup-1",
+        "/managed\nゲーム\u001b",
+        "/original\nゲーム\u001b",
+        "/library",
+        "/library/ports",
+        "/library/user/starship",
+        "/managed/retained-install",
+        "/library/セーブ\tsettings\u001b",
+        "/library/ゲーム",
+        "/owned/ゲーム\nfolder",
+        "/owned/ゲーム/game"
+      ]
+    },
+    {
+      "source": "crates/portcove-core/src/relative_file_set.rs",
+      "file": "crates/portcove-core/src/relative_file_set_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["C:/outside", "/DARK.GOB"]
+    },
+    {
+      "source": "crates/portcove-core/src/external_runtime/shared_preferences.rs",
+      "file": "crates/portcove-core/src/external_runtime/shared_preferences_tests.rs",
+      "kind": "test-only literal controls",
+      "values": [
+        "C:\\Runtime\\runtime_prefs.ini",
+        "C:\\café",
+        "C:\\game\nfile",
+        "C:\\game\u0000file"
+      ]
+    },
+    {
+      "source": "crates/portcove-core/src/service/ghostship_legacy_save.rs",
+      "file": "crates/portcove-core/src/service/ghostship_legacy_save_tests.rs",
+      "kind": "test-only literal controls",
+      "values": [
+        "/shipSaveData/achievementSaveData/entries/0/id",
+        "/shipSaveData/achievementSaveData/entries/0/progress",
+        "/shipSaveData/achievementSaveData/cheated",
+        "/shipSaveData/achievementSaveData/capStars",
+        "/shipSaveData/achievementSaveData/coins",
+        "/shipSaveData/randoSaveData/randoSaveChecks/0/randoItemId",
+        "/shipSaveData/randoSaveData/randoSaveChecks/0/randoAct",
+        "/shipSaveData/randoSaveData/randoSaveChecks/1/randoAct",
+        "/shipSaveData/randoSaveData/randoSaveChecks/0/obtained",
+        "/shipSaveData/randoSaveData/randoSaveChecks/0/skipped",
+        "/shipSaveData/randoSaveData/randoSaveEntrances/0/destinationId",
+        "/shipSaveData/randoSaveData/randoSaveEntrances/1/destinationId",
+        "/shipSaveData/randoSaveData/randoSaveEntrances/1/randoEntranceId",
+        "/shipSaveData/randoSaveData/randoSaveEntrances/1/found",
+        "/shipSaveData/randoSaveData/randoSaveOptions/9",
+        "/shipSaveData/randoSaveData/finalSeed",
+        "/version",
+        "/capLevel",
+        "/capArea",
+        "/capPos/x",
+        "/capPos/y",
+        "/capPos/z",
+        "/flags",
+        "/courseStars/BOB",
+        "/courseCoinScores/RR"
+      ]
+    },
+    {
+      "source": "crates/portcove-core/src/service/catalog_download_tests.rs",
+      "file": "crates/portcove-core/src/service/catalog_download_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["/repos/owner/game/releases/7", "/download/game.zip", "/download/game.zip.sha256"]
+    },
+    {
+      "source": "crates/portcove-core/src/failure.rs",
+      "file": "crates/portcove-core/src/failure_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["C:/Games/<preserve>"]
+    },
+    {
+      "source": "crates/portcove-core/src/cancellation.rs",
+      "file": "crates/portcove-core/src/cancellation_managed_builder_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["/L", "/deny"],
+      "inherited_global_values": ["/d", "/c", "/J"]
+    },
+    {
+      "source": "crates/portcove-core/src/runtime_path_policy.rs",
+      "file": "crates/portcove-core/src/runtime_path_policy_tests.rs",
+      "kind": "test-only literal controls",
+      "values": [
+        "C:\\Games\\DKC3",
+        "C:\\Games with spaces\\F-Zero",
+        "\\\\?\\C:\\Games\\F-Zero",
+        "\\\\server\\games\\F-Zero",
+        "\\\\?\\UNC\\server\\games\\F-Zero",
+        "C:\\Juegos\\José",
+        "C:\\Games\\日本語",
+        "C:\\Games\\bad\tname",
+        "C:\\Games\\runtime\\game.exe",
+        "C:\\Games\\runtime",
+        "C:\\Originals\\game.sfc",
+        "C:\\Originals\\日本語.sfc",
+        "C:\\日本語",
+        "/home/日本語"
+      ]
+    },
+    {
+      "source": "crates/portcove-core/src/runtime_path_policy.rs",
+      "file": "crates/portcove-core/src/runtime_path_policy.rs",
+      "kind": "exact Windows extended UNC prefix",
+      "values": ["\\\\?\\UNC\\"]
+    },
+    {
+      "source": "crates/portcove-core/src/preparation_ghostship.rs",
+      "file": "crates/portcove-core/src/preparation_ghostship_tests.rs",
+      "kind": "test-only literal controls",
+      "values": ["E:/fixture/Ghostship", "E:/fixture with spaces/baserom.us.z64"]
+    }
+  ]
+}

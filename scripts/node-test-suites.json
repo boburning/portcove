@@ -493,6 +493,14 @@
       ]
     },
     {
+      "file": "scripts/rust-coverage.test.mts",
+      "memberships": [
+        ["windows-storage-3", 108],
+        ["catalog-full-2", 4508],
+        ["repository-tools-2", 108]
+      ]
+    },
+    {
       "file": "scripts/cleanup-intel-artifacts.test.mts",
       "memberships": [
         ["catalog-full-2", 7900],
@@ -978,6 +986,14 @@
       "memberships": [
         ["catalog-full-2", 5300],
         ["repository-tools-2", 900]
+      ]
+    },
+    {
+      "file": "scripts/qualification-nextest.test.mts",
+      "memberships": [
+        ["windows-storage-3", 109],
+        ["catalog-full-2", 6352],
+        ["repository-tools-2", 2352]
       ]
     },
     {
@@ -1783,6 +1799,13 @@
       "memberships": [
         ["catalog-full-2", 15148],
         ["release-check", 13448]
+      ]
+    },
+    {
+      "file": "scripts/release-native-presign-readiness.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15901],
+        ["release-check", 16101]
       ]
     },
     {
@@ -2661,6 +2684,22 @@
       "memberships": [
         ["catalog-full", 1200],
         ["roadmap-check", 1200]
+      ]
+    },
+    {
+      "file": "scripts/release-native-runtime-custody.test.mts",
+      "memberships": [
+        ["windows-helpers-3", 400],
+        ["catalog-full-2", 16001],
+        ["release-check", 16201]
+      ]
+    },
+    {
+      "file": "scripts/ci-job-timeout-probe.test.mts",
+      "memberships": [
+        ["windows-storage-3", 1000001],
+        ["catalog-full-2", 1000001],
+        ["repository-tools-2", 1000001]
       ]
     }
   ]

@@ -3,12 +3,12 @@
   "listing": {
     "id": "dkfans-keeperfx",
     "name": "Dungeon Keeper / KeeperFX (dkfans)",
-    "summary": "Explore Dungeon Keeper / KeeperFX (dkfans) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Set up KeeperFX with your own Dungeon Keeper files using the upstream installer or complete package.",
     "project_url": "https://github.com/dkfans/keeperfx",
     "issue_number": 1833,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/dkfans/keeperfx",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/dkfans/keeperfx/wiki#installation-of-keeperfx",
     "artwork": {
       "game_id": 35,
       "cover_id": 182022,
@@ -16,6 +16,30 @@
       "image_sha256": "9a3409c8b4937b0a9bc70951a1e808112122847099411625581b845a97d4745a",
       "game_slug": "dungeon-keeper",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the upstream setup for your own Dungeon Keeper",
+          "instruction": "The upstream Windows web installer is the simplest setup route. Follow the linked instructions, choose a separate KeeperFX folder and supply your own supported Dungeon Keeper CD, GOG, EA or Steam files. If you downloaded the complete .7z package here, extract it with your archive tool and open keeperfx-launcher.exe yourself; it prompts for the original files. The archive is not an installer, and patches/alphas alone are not a complete game."
+        },
+        {
+          "title": "Choose the upstream launcher",
+          "instruction": "On Windows 10 or newer, choose keeperfx-launcher.exe from the prepared KeeperFX folder, with that folder as its working directory. It provides setup, settings and upstream updates. Save launch details in Portcove, then choose Play separately. Upstream also documents keeperfx-launcher-legacy.exe or the direct keeperfx.exe route for older environments; those are deliberate alternatives, not another required setup question."
+        },
+        {
+          "title": "Preserve the external copy when updating",
+          "instruction": "Let the upstream launcher provide updates, and keep a separate copy of your working folder before replacing files. Preserve save (including settings.toml), keeperfx.cfg, original data, screenshots and any custom maps, campaigns or mods. Select the CD’s keeper folder when upstream asks for original CD data; other editions have their own folder rules in the linked guide. Portcove does not own these files or provide managed Update, Backup or Rollback for them."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/dkfans/keeperfx/wiki#installation-of-keeperfx"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["keeperfx_", "_complete.7z"]
+    },
+    "original_game_title": "Dungeon Keeper",
+    "release_url": "https://github.com/dkfans/keeperfx/releases",
+    "recommended_download_channel": "stable"
   }
 }

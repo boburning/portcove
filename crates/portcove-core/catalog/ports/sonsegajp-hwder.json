@@ -3,7 +3,7 @@
   "listing": {
     "id": "sonsegajp-hwder",
     "name": "Hyrule Warriors: Definitive Edition / Hyrule Warriors: Definitive Edition Recomp (sonsegajp)",
-    "summary": "Explore Hyrule Warriors: Definitive Edition / Hyrule Warriors: Definitive Edition Recomp (sonsegajp) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Experimental AArch64 to C then Windows x64 native executable; custom kernel/services/GPU Vulkan. Runtime reads original NSO segments/data from owned package; no CPU JIT claimed. Upstream maturity: Upstream boot/menus/movies/Adventure/Legend battles/saves/audio claims, test prereleases; no independent play/qualification. Acquisition: Actual win64 test ZIPs. Source build explicitly generates C from dump; player-release instructions only provide NSP/keys to packaged executable, so do not assert first-run local game-code generation absent further evidence. Platforms: Windows10/11 x64 AVX2 Vulkan1.2; MediaFoundation required for movies (N edition extra featurepack). No other desktop offer. Original data: Own base NSP title0100AE00096EA000 and prod.keys. Runtime decrypts ExeFS/RomFS directly; exact base revision/region fingerprint and firmware/font dependency not established by root. Separate musoh matching project targets1.0.1 and must not overwrite this base profile. Portcove setup/gameplay untested; no operational integration offered.",
     "project_url": "https://github.com/sonsegajp/HWDER",
     "issue_number": 1827,
     "platforms": [],

@@ -184,6 +184,7 @@ function proposalChanges(before: CurrentCatalog, after: CurrentCatalog) {
           [
             "persistent_paths",
             "persistent_file_patterns",
+            "mod_package_policy",
             "runtime_mutable_paths",
             "runtime_mutable_file_patterns",
             "user_data_environment",
@@ -343,6 +344,23 @@ function compatibilityFixtureReview(catalog: CurrentCatalog) {
 }
 const authored = readCatalogSource(catalogRoot);
 const current = authored.catalog;
+// Listing-only entries can already own reviewed covers before gaining an
+// integration. Supply those accepted facts only to artwork preparation; Core's
+// accepted operational baseline and compatibility checks remain unchanged.
+const acceptedArtwork = {
+  ...current,
+  ports: [
+    ...current.ports,
+    ...authored.records
+      .filter(({ integration }) => !integration)
+      .map(({ listing }) => ({
+        id: listing.id,
+        name: listing.name,
+        project_url: listing.project_url,
+        presentation: { artwork: listing.artwork },
+      })),
+  ],
+};
 
 function option(name: string, required: true): string;
 function option(name: string, required?: boolean): string | null;
@@ -450,7 +468,7 @@ async function prepareArtworkProposal(fullProposal = false) {
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
   const result = await prepareCatalogArtwork(input, {
     ...inspector,
-    acceptedCatalog: current,
+    acceptedCatalog: acceptedArtwork,
     identities,
     refreshPortIds,
     ...(selectedPortIds ? { selectedPortIds } : {}),
@@ -488,6 +506,7 @@ async function prepareArtworkProposal(fullProposal = false) {
     format_version: 1,
     input_sha256: digest(input),
     accepted_catalog_sha256: digest(current),
+    accepted_artwork_context_sha256: digest(acceptedArtwork),
     proposed_catalog_sha256: digest(result.catalog),
     differences: differences(input, result.catalog),
     records: result.records,

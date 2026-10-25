@@ -80,3 +80,59 @@ void test("checks multiline spelling while documenting aliases and comment limit
     { path: file, line: 1 },
   ]);
 });
+
+void test("exact Clap parser constructors do not exempt bare, process or other namespaces", () => {
+  const file = "crates/portcove-cli/src/args.rs";
+  for (const source of ["clap::Command::new(name)", "clap\n :: \nCommand::new(name)"])
+    assert.deepEqual(findDirectChildProcessCalls([[file, source]]), []);
+  for (const prefix of ["", "std::process::", "other::", "myclap::", "other::clap::"])
+    assert.deepEqual(findDirectChildProcessCalls([[file, `${prefix}Command::new(program)`]]), [
+      { path: file, line: 1 },
+    ]);
+  assert.deepEqual(
+    findDirectChildProcessCalls([
+      [file, "clap::Command::new(name);\nstd::process::Command::new(program)"],
+    ]),
+    [{ path: file, line: 2 }],
+  );
+  for (const [source, line] of [
+    ["other:: clap::Command::new(program)", 1],
+    ["other ::\n clap :: Command::new(program)", 2],
+    ["other::<T>:: clap::Command::new(program)", 1],
+    ["other::r#clap::Command::new(program)", 1],
+    ["éclap::Command::new(program)", 1],
+    ["other:: /* comment */ clap::Command::new(program)", 1],
+    ["other:: /* comment ( */ clap::Command::new(program)", 1],
+    ["other:: // comment\n clap::Command::new(program)", 2],
+    ["/* ambiguous preceding comment */ clap::Command::new(program)", 1],
+  ] as const)
+    assert.deepEqual(findDirectChildProcessCalls([[file, source]]), [{ path: file, line }]);
+});
+
+void test("reviewed extracted subprocess fixtures retain exact paths and denied siblings", () => {
+  const fixtures = [
+    "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
+    "crates/portcove-cli/tests/host_diagnostics.rs",
+    "crates/portcove-cli/tests/machine_contract/human_presentation.rs",
+    "crates/portcove-cli/tests/machine_contract/preparation.rs",
+    "crates/portcove-core/src/definition_publication_connected_tests.rs",
+    "crates/portcove-diagnostics/src/writer_tests.rs",
+    "crates/portcove-release-tools/tests/tuf_repository/isolated/renewal.rs",
+    "crates/portcove-release-tools/tests/tuf_repository/isolated.rs",
+    "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
+    "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs",
+  ];
+  for (const file of fixtures) {
+    for (const name of [file, file.replaceAll("/", "\\")])
+      assert.deepEqual(findDirectChildProcessCalls([[name, "Command::new(owned_fixture)"]]), []);
+    const sibling = file.replace(/\.rs$/u, "_other.rs");
+    assert.deepEqual(findDirectChildProcessCalls([[sibling, "Command::new(program)"]]), [
+      { path: sibling, line: 1 },
+    ]);
+  }
+  const production = "apps/desktop/src-tauri/src/application_update_process_environment.rs";
+  assert.deepEqual(
+    findDirectChildProcessCalls([[production, "std::process::Command::new(program)"]]),
+    [{ path: production, line: 1 }],
+  );
+});

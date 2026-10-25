@@ -8,6 +8,7 @@ use portcove_core::{
     PortcoveError, ReleaseChannel,
 };
 use std::path::PathBuf;
+use tauri::Manager;
 
 #[tauri::command]
 pub(crate) async fn preview_managed_route_change(
@@ -88,7 +89,6 @@ pub(crate) async fn preview_user_selected_runtime(
 #[tauri::command]
 pub(crate) async fn register_user_selected_runtime(
     app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
     port_id: String,
     executable: PathBuf,
     working_directory: PathBuf,
@@ -96,6 +96,9 @@ pub(crate) async fn register_user_selected_runtime(
     expected_preview: String,
     generation: u64,
 ) -> DesktopResult<Option<ExternalRuntimeRecord>> {
+    let state = app
+        .try_state::<DesktopState>()
+        .ok_or_else(|| PortcoveError::unsupported("Desktop application state is unavailable"))?;
     let review = preview_user_selected_runtime(
         state.clone(),
         port_id.clone(),
@@ -177,7 +180,6 @@ pub(crate) async fn preview_user_selected_runtime_relink(
 #[tauri::command]
 pub(crate) async fn relink_user_selected_runtime(
     app: tauri::AppHandle,
-    state: tauri::State<'_, DesktopState>,
     port_id: String,
     executable: PathBuf,
     working_directory: PathBuf,
@@ -185,6 +187,9 @@ pub(crate) async fn relink_user_selected_runtime(
     expected_preview: String,
     generation: u64,
 ) -> DesktopResult<Option<ExternalRuntimeRecord>> {
+    let state = app
+        .try_state::<DesktopState>()
+        .ok_or_else(|| PortcoveError::unsupported("Desktop application state is unavailable"))?;
     let review = preview_user_selected_runtime_relink(
         state.clone(),
         port_id.clone(),
@@ -273,17 +278,16 @@ pub(crate) async fn relink_external_runtime(
         )
         .into());
     }
-    if let Some(shared) = &review.proposed.shared_preferences {
-        if !confirm_destructive(
+    if let Some(shared) = &review.proposed.shared_preferences
+        && !confirm_destructive(
             &app,
             "Review shared preferences",
             shared.write_scope_disclosure()?,
             "Accept shared preferences",
         )
         .await
-        {
-            return Ok(None);
-        }
+    {
+        return Ok(None);
     }
     if !confirm_destructive(&app, "Change game folder", format!(
         "Change {} from {} to {}? All external game files, settings and saves stay where they are. Portcove will verify and launch the replacement folder. It will not copy, update, back up or delete either folder.",

@@ -553,9 +553,10 @@ impl InboxScan<'_> {
         let charge = match self.profile.kind {
             SourceKind::File | SourceKind::UpstreamValidatedDisc | SourceKind::RelativeFileSet => 0,
             SourceKind::FileSet if metadata.is_file() => {
-                let mut archive = zip::ZipArchive::new(fs::File::open(path)?).map_err(|error| {
-                    PortcoveError::source(format!("invalid file-set ZIP: {error}"))
-                })?;
+                let mut archive =
+                    crate::archive::open_zip(fs::File::open(path)?).map_err(|error| {
+                        PortcoveError::source(format!("invalid file-set ZIP: {error}"))
+                    })?;
                 if archive.len() > 4096 {
                     self.reached.insert(SourceDiscoveryLimit::Entries);
                     return Ok(None);

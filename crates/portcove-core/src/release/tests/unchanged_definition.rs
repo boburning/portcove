@@ -299,7 +299,7 @@ fn variant_port() -> PortDefinition {
 #[tokio::test]
 async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives() {
     let catalog = crate::Catalog::embedded().unwrap();
-    // Both successors are controlled fixtures, not published upstream releases.
+    // Successors are controlled fixtures, not published upstream releases.
     for (id, old_tag, old_name, new_tag, new_name) in [
         (
             "infinite-undiscovery-doc-haz",
@@ -315,16 +315,37 @@ async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_complianc
             "beta-7.2",
             "ctr-native-beta-7_2-windows-x86.zip",
         ),
+        (
+            "mstan-supermarioadvance4recomp",
+            "v0.0.3",
+            "SuperMarioAdvance4Recomp-windows-x64-v0.0.3.zip",
+            "v0.0.4",
+            "SuperMarioAdvance4Recomp-windows-x64-v0.0.4.zip",
+        ),
+        (
+            "mstan-wariowaretwistedrecomp",
+            "v0.0.2",
+            "WarioWareTwistedRecomp-windows-x64-v0.0.2.zip",
+            "v0.0.3",
+            "WarioWareTwistedRecomp-windows-x64-v0.0.3.zip",
+        ),
     ] {
         let port = catalog.port(id).unwrap();
         let mut old = release(old_tag, vec![asset(old_name, Some('a'))]);
         old["prerelease"] = true.into();
+        // Replace an existing processor label. Appending ARM64 to an x64 name
+        // describes a universal package, which is a real competing choice.
+        let other_arch = if new_name.contains("x64") {
+            new_name.replace("x64", "arm64")
+        } else {
+            new_name.replace(".zip", "-arm64.zip")
+        };
         let mut next = release(
             new_tag,
             vec![
                 asset(new_name, Some('b')),
                 asset(&new_name.replace(".zip", "-LGPL-Compliance.zip"), Some('c')),
-                asset(&new_name.replace(".zip", "-arm64.zip"), Some('d')),
+                asset(&other_arch, Some('d')),
                 asset(&new_name.replace(".zip", "-symbols.zip"), Some('e')),
                 asset(&format!("{new_name}.sha256"), None),
             ],
@@ -477,7 +498,7 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
     let current = release("v1.0.0", vec![asset("Game-linux-x64.AppImage", Some('a'))]);
     let (api_root, requests, server) = serve_http(vec![
         metadata(),
-        releases(&[current.clone()]),
+        releases(std::slice::from_ref(&current)),
         metadata(),
         releases(&[current]),
     ]);

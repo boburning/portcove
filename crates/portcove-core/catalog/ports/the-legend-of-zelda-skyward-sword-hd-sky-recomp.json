@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-skyward-sword-hd-sky-recomp",
     "name": "The Legend of Zelda: Skyward Sword HD (Sky Recomp)",
-    "summary": "Research listing. Upstream route: Record as research/alpha with source and architecture review, not polished launch-ready candidate. Limits: Experimental with crashes/menu freezes/rendering differences; full-game stability unestablished. Upstream platforms: Experimental Windows/Linux64-bit x86-64 AVX2/FMA and macOS Apple-Silicon ARM64/Intel package/build claims. Full-game stability unestablished; source claims require scoped verification. Original data: Own uncompressed Switch v1.0.0 game files; no updates; no game assets/keys claimed included. Portcove setup/gameplay not verified.",
+    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Platforms: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Original data: OwnSkywardSwordHDv1.0.0withoutupdates,preparedgamefiles;launcherneitherdecryptsNSP/XCInoracceptskeys. Portcove setup/gameplay untested; no operational integration offered.",
     "original_game_title": "The Legend of Zelda: Skyward Sword HD",
     "project_url": "https://github.com/Apolinario-coder/SkyRecomp",
     "platforms": [],

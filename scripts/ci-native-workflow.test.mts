@@ -116,7 +116,7 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
   assert.match(windows, /id: native-quality-pins/);
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
-  assert.match(windows, /taiki-e\/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177/);
+  assert.match(windows, /taiki-e\/install-action@1e29709c0ec63babbe8f266397a465f29a825f91/);
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
   assert.ok(
     windows.indexOf("Provision existing pinned prebuilt quality tools") <
@@ -169,7 +169,7 @@ void test("fixed-account cases execute on Windows in both fast and qualification
         workflowStep(job, "Test inert fixed-account setup and capability contracts on Windows").run,
       ),
       [
-        "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts",
+        "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts",
       ],
     );
   }

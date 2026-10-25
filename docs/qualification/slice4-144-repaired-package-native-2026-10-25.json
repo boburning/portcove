@@ -1,0 +1,593 @@
+{
+  "format_version": 1,
+  "scope": "actual package startup, path/state and bounded compiler diagnostics; no Core lifecycle or protected acceptance",
+  "retention": "private local records; hashes do not establish hosted artifact availability",
+  "automatic_retry": false,
+  "records": [
+    {
+      "path": "work/slice4/144-spike-pair/acquisition-receipts.json",
+      "bytes": 1625,
+      "sha256": "caf49255ca7ab9ca2d22d9b8d1ea0c7e06507049a23433d03a01254aac0bec49"
+    },
+    {
+      "path": "work/slice4/144-spike-pair/executable-sidecar-readback.json",
+      "bytes": 2061,
+      "sha256": "f4eb7faae9de2304ab0f8203fcf310dcfd4e60303419fd0542d72992c58a99b4"
+    },
+    {
+      "path": "work/slice4/144-spike-pair/runtime-flags-bound.json",
+      "bytes": 253,
+      "sha256": "bd2335b645bc861a6b9561bb9712c760105611baa8dc75a74951162985c14fa6"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/intent.json",
+      "bytes": 232,
+      "sha256": "5f005aa969ae58e6f54950c573b54d83d33a1de103c5f20dd62acf1479ee6739"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/extracted-manifests.json",
+      "bytes": 201185,
+      "sha256": "b64d34497293135e6b8014b9be52378a0e1b95fa0b0ee89f773fb84be716da8d"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/operator-token-observation.json",
+      "bytes": 92,
+      "sha256": "c0efe3c5bb061c8309836a1148b43d66c8592592f66f66c4ca5e04b209858fc5"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-first/process.json",
+      "bytes": 1570,
+      "sha256": "112d6e918e28a02f0751754e61029fcb5d3f288a65cb87b178d9b0e869160239"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-first-outer-settlement.json",
+      "bytes": 283,
+      "sha256": "2f34ab86838e4c1a43f8a2c50a80d1602f486370303c0b88cab1479ce5c7b6f7"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-first-readback.json",
+      "bytes": 288,
+      "sha256": "180a33e0626f6a0793aa41bf0bc9ed3f10603293eb552de794bc55a2c6635f11"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-first/process.json",
+      "bytes": 1441,
+      "sha256": "016c3362ae528fe9ae9bb6c3d3dd43e07306b5e59a3bbd0ac82cefe1cfb368f6"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-first-outer-settlement.json",
+      "bytes": 283,
+      "sha256": "5ec88603b7fc6c1a62bdca7142619b58330133c024e81bfbf0a87329ffd1c603"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-observation-copy.json",
+      "bytes": 80184,
+      "sha256": "97e5b6ee407c7f1c38ae9e7b5388be2635d727532cf1ce2e12bf3c72ed6ad741"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-visibility/process.json",
+      "bytes": 1739,
+      "sha256": "8a28b26159cfc7713c6ea33fb4dde9b71435767baf244753ab1a372153eea382"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-visibility/window-observations.jsonl",
+      "bytes": 329,
+      "sha256": "a09553096b6b59c248aae0824d3fa2e54d41815fde929e39a4d87ff349ddb6d3"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-visibility-outer-settlement.json",
+      "bytes": 300,
+      "sha256": "4a6008d9f0bdc85457847f7790b7762615bc0d205d7b82444f6e0ed4fb7f8d37"
+    },
+    {
+      "path": "work/slice4/run-144-spike-native.ps1",
+      "bytes": 8927,
+      "sha256": "849559e11c579d4df102ba122818611dccfef1fe907bb1cad0b295b55943a23a"
+    },
+    {
+      "path": "work/slice4/run-144-spike-admitted.mjs",
+      "bytes": 2776,
+      "sha256": "f4ce683cc3fb8bbe059dada851f572128122612c0963428a08d917b2e8403012"
+    },
+    {
+      "path": "work/slice4/run-144-spike-visibility.ps1",
+      "bytes": 10429,
+      "sha256": "b49ef488f742525e182945726b92497d158ac13a08e9369182a7e8b9805f3eaf"
+    },
+    {
+      "path": "work/slice4/run-144-spike-visibility-admitted.mjs",
+      "bytes": 2802,
+      "sha256": "6eb70553a54923b0a943fe96fffaa3a429bdadcffb940956969c9628d427849c"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-relocation-intent.json",
+      "bytes": 1459,
+      "sha256": "852f5637015ce2bb96b6dc4bc4cb265d924b2d9b69bfc6cd7019e466c827d95b"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-relocation-readback.json",
+      "bytes": 1522,
+      "sha256": "c27cef88b4cf1f7a20b7176562d1b325c2bf525dc45731dfea3c1952e9a4404c"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-relocated-disabled/process.json",
+      "bytes": 1739,
+      "sha256": "620f127acddeb279df19eadf7a1b7852a181cba402d45d80f4c21816c26c02db"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-relocated-disabled-outer-settlement.json",
+      "bytes": 306,
+      "sha256": "a2dceddeb0adbc9ae79bb4ea398e9da071669309d8999d35b0bb2d796394da5a"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-relocated-disabled-readback.json",
+      "bytes": 2053,
+      "sha256": "827645f623d283a5cca2782e8bfe28ccb5b8f67346e647a08556d37efafadf2f"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-commit/process.json",
+      "bytes": 1735,
+      "sha256": "cdc0cefc092c2d4e47d0452e8bfe156808079beebefe895ab9d696deb45c6d4d"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-commit/stdout.log",
+      "bytes": 3909,
+      "sha256": "cbb3be41d74536a76649b66742d700a29fe42d5215fc8056ca88e242bba710d6"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-commit/stderr.log",
+      "bytes": 595,
+      "sha256": "c1cc665020fbbba1de697a18ddc25445d44bcde271d02d4967bc707da8f05ab7"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-commit/window-observations.jsonl",
+      "bytes": 329,
+      "sha256": "8ef065bb72b9fcd1ef79e741b9ee03d379526e4709be4ab4910969c3d81ab0dd"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-commit-outer-settlement.json",
+      "bytes": 302,
+      "sha256": "656a94f4371419777ed2432251f0c3f21336e9303a907cfce94211f915025746"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation/process.json",
+      "bytes": 1774,
+      "sha256": "4caacaf5d8bc96ede2326c7c88b4a70b0a580b0e99a1d79a2c2480221aeedce0"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation/stdout.log",
+      "bytes": 3997,
+      "sha256": "0ab44619bfc435f4b0fcb81cec900563c774d62b5e5b0cc032b0a06d25c7cce1"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation/stderr.log",
+      "bytes": 603,
+      "sha256": "1421ee7ed410061cf7f51250a1f84f96d13bf3ae5cbed5445a4d6092f75af8c4"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation/window-observations.jsonl",
+      "bytes": 213,
+      "sha256": "e71701f7ec113432bf40255912b22feda38c5290eacc7779cad160e32264f20b"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation-outer-settlement.json",
+      "bytes": 314,
+      "sha256": "3a25f4469f01cd207a356add9a397395dc224502c1f774bb140df07b77e84439"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-commit/process.json",
+      "bytes": 1743,
+      "sha256": "d3bc711a2512cd81f437285c3bcb0acab1213a82f08e67a958eab4b238202423"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-commit/stdout.log",
+      "bytes": 3931,
+      "sha256": "722a108a28b5734d2fb4f2bf72f9be5d906596d35548841d0d824c9035450ff9"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-commit/stderr.log",
+      "bytes": 597,
+      "sha256": "c70831da9bdc6b6b9a87aa63778e51d23c9804a7177dcdcb83bbb5eb6872a844"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-commit/window-observations.jsonl",
+      "bytes": 209,
+      "sha256": "369aae292b7806af469cbe2b0a83dd2b60ff84016e7b151b90aad3df06e1c01c"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-commit-outer-settlement.json",
+      "bytes": 304,
+      "sha256": "40cea5f58d2a9eb2ac1dbfe7bc104e0b2139ba853be28fb4ed4df0bd37f03dc9"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation/process.json",
+      "bytes": 1774,
+      "sha256": "2314407921b6cbdb59799ee39cb6f089826ea16e653fab66a09b33159ab5d8b4"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation/stdout.log",
+      "bytes": 3997,
+      "sha256": "137b1148a1cd8aef6bf2879b07423a23d383022a1466add3ce8d0337cbbb3e75"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation/stderr.log",
+      "bytes": 603,
+      "sha256": "89847b91f270171b7b4425bd1b7cf0cf3317ed2cd3e47010d9071af069178d79"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation/window-observations.jsonl",
+      "bytes": 209,
+      "sha256": "a58034e515b918d75a95bdcb0304edcdcfa04035ad12e4e05559fe8affec28a3"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation-outer-settlement.json",
+      "bytes": 314,
+      "sha256": "c9b385c322d0dbf4614caa7455456490983d63a24ad8fbc57e9aec5529793156"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-present/process.json",
+      "bytes": 1771,
+      "sha256": "15d44bf5a8b6be210990a6174fa2bf4600ecaffe751d7d078a07111e457476c8"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-present/stdout.log",
+      "bytes": 3937,
+      "sha256": "4cbed8a2e834a4e8a4447c2abf0b29bbe6564a1fe4b46bc17ee30d3e78889fbf"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-present/stderr.log",
+      "bytes": 601,
+      "sha256": "73bfaa46c947f5ccbb794d0543a0c05c59506a1deb4f2d2bf7eb8dd2cf854920"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-present/window-observations.jsonl",
+      "bytes": 215,
+      "sha256": "2567e5b73eb485f6a747ca42751a674f15c629a30a7f6766dba3e16c99da27d4"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-present-outer-settlement.json",
+      "bytes": 312,
+      "sha256": "6bde7be0077a15ee16e3d254e1c69051c605ce0f0f0b46fcb9382be095544359"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-unavailable/process.json",
+      "bytes": 1776,
+      "sha256": "fb50ed6f6d7c491c43aa8f4693acdba58a9fd9875dbb296249188184123d945c"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-unavailable/stdout.log",
+      "bytes": 3937,
+      "sha256": "4cbed8a2e834a4e8a4447c2abf0b29bbe6564a1fe4b46bc17ee30d3e78889fbf"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-unavailable/stderr.log",
+      "bytes": 603,
+      "sha256": "8f8d4d1e1b07e6fd5d3e281b4a6ecb5b2ab38119b3d8ca5e88c3c70a75a2dd22"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-unavailable/window-observations.jsonl",
+      "bytes": 194,
+      "sha256": "2568f81cffb41961b1d199bb11c85aeb5b6153c72b3553eb7c67a2146d719571"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-unavailable-outer-settlement.json",
+      "bytes": 316,
+      "sha256": "b6a5d0483512f6916d1c904f6e7adbfca98936e61613174ac59f1b9286c32249"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-explicit-progression/process.json",
+      "bytes": 1776,
+      "sha256": "d031b1198594e759ca1579de72900e0c7e81f36d6c8106a57649be8c58612810"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-explicit-progression/stdout.log",
+      "bytes": 3937,
+      "sha256": "8c3b5caf388e64dde016c1a954dd0de06b1d4f1c484c26eaac0d08e7170071f3"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-explicit-progression/stderr.log",
+      "bytes": 603,
+      "sha256": "cf42987fcd4ffd2ac199d76d0846211b28d90073b56b1aea8fc694925feb6fc2"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-explicit-progression/window-observations.jsonl",
+      "bytes": 328,
+      "sha256": "329bf54fb152e15f6e94624f3edf89a8b9e0a9c241bd408ed9227e5d8922b89e"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-explicit-progression-outer-settlement.json",
+      "bytes": 316,
+      "sha256": "a423cffabad770d6774812cd74a6ebcf1985f74ea4c31d88e16d66e39b0a7687"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/enabled-default-input.toml",
+      "bytes": 229,
+      "sha256": "ed4a983d3d14fbcd10e1dfa5d1582ab2e57ba54cfbaab9159156a66b649f25ed"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-committed.toml",
+      "bytes": 242,
+      "sha256": "f4fc916c284175f8527e2e0949d069c9551d76614bb99379b13f09e451132af5"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-intent.json",
+      "bytes": 482,
+      "sha256": "61b9b3f948b452f2ba041d161e13d81d72a5b92d4d3add3d0b9337dc6afd91d3"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation-intent.json",
+      "bytes": 1459,
+      "sha256": "505b80d543107ba32ed131b6d27cee8ec6ae9a2c6e103758ea66cc302f923062"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation-readback.json",
+      "bytes": 1079,
+      "sha256": "b10038b998adf27a1f22e7ca248f78ea6d46d7117591af19e40219a2e75a38d2"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocation-retained-state.json",
+      "bytes": 2084,
+      "sha256": "49682bb8e931bc2007b2988d34c9475aac7e67c0b0b49b096dcf7bdfc4560241"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-state-before.toml",
+      "bytes": 20,
+      "sha256": "9d1eabc8f25098cf9c54131f432a46a8889855e4b0c319e7433b31f403f1a3b0"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-committed.toml",
+      "bytes": 405,
+      "sha256": "90538cdcbfb090a84502150fe998846b54d2abec7e90805c79f84120316055f5"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-intent.json",
+      "bytes": 359,
+      "sha256": "7eab497788964309abf59371331465c382df2ae951837ff4ca3060a7de7a69e1"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-recovery-readback.json",
+      "bytes": 370,
+      "sha256": "3126c38bf107aa006f52eab530733dce5f716502a6a4b1c0c6854ad1f0895f70"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-state-before.toml",
+      "bytes": 242,
+      "sha256": "f4fc916c284175f8527e2e0949d069c9551d76614bb99379b13f09e451132af5"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-unavailable-intent.json",
+      "bytes": 649,
+      "sha256": "2afca0c9856489cc77a9f4fa6d8cd10a197c8e966e9647a52a97c7eafd37ce2e"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-explicit-unavailable-readback.json",
+      "bytes": 440,
+      "sha256": "7fa7fe40313c0fe49ff1dcdb3662a44acedefd85904720bb6ddc08ec2ab9bc75"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-committed.toml",
+      "bytes": 242,
+      "sha256": "f4fc916c284175f8527e2e0949d069c9551d76614bb99379b13f09e451132af5"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-intent.json",
+      "bytes": 318,
+      "sha256": "9ebc6366598d286f09cbaec86f2d101215d92ea85f5ab17c3d72489997fd7710"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation-intent.json",
+      "bytes": 1463,
+      "sha256": "14c2fd5a71953d086a5c4094e5d12203ace7c19c4e0da0403d297e46aa7e4f65"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation-readback.json",
+      "bytes": 1079,
+      "sha256": "68103502de00d72e0d76dd4909eb65393112c96f557b752e3a7a9c6a4f9dd240"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-relocation-retained-state.json",
+      "bytes": 2072,
+      "sha256": "259bad40472c48d9ac88bf9a40419a844bf869c153a5e0e7d19ca34298fa6dc7"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-enabled-state-before.toml",
+      "bytes": 20,
+      "sha256": "9d1eabc8f25098cf9c54131f432a46a8889855e4b0c319e7433b31f403f1a3b0"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-explicit-progression-intent.json",
+      "bytes": 554,
+      "sha256": "7a2038d87a5e56a2a7aebaccba4423ee51301dea59194ab8c4c5738816d358d6"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-explicit-state-before.toml",
+      "bytes": 242,
+      "sha256": "f4fc916c284175f8527e2e0949d069c9551d76614bb99379b13f09e451132af5"
+    },
+    {
+      "path": "work/slice4/run-144-spike-resources.ps1",
+      "bytes": 10483,
+      "sha256": "ba4d439bd963b21a004421568789938aacf1108de1941e2a6d5ed3f53c1a06c4"
+    },
+    {
+      "path": "work/slice4/run-144-spike-resources-admitted.mjs",
+      "bytes": 2855,
+      "sha256": "17d3a6b1919c7c73887301ebe37079ee28408ebbf1d285640fab2147d619cd2a"
+    },
+    {
+      "path": "work/slice4/144-spike-pair/framework-spike7-mod-packages.cpp",
+      "bytes": 211700,
+      "sha256": "d986e5df3d377dc04a2251740970a948252860844377480a5143c1ab2687f209"
+    },
+    {
+      "path": "work/slice4/144-spike-pair/framework-spike7-mod-runtime.cpp",
+      "bytes": 166757,
+      "sha256": "e03e5aaea50e99463234ef8f50a66626fb87f8573cbedee84c316bc247ab6793"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-tcc-cold/process.json",
+      "bytes": 1756,
+      "sha256": "3fc3bf8c082a8c12286a2cb4d1ad043d285919a3ad1d2c57e23083bf98c0ce3c"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-tcc-cold/process-started.json",
+      "bytes": 1369,
+      "sha256": "ea8b8abb9efdd3503a24e99063634fe658e25793ffddf8603b66747472a19cfd"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-tcc-cold/stdout.log",
+      "bytes": 3918,
+      "sha256": "98cbfd523efbc83b6f604de55c129ab24c5330a4e1ba5805a305ec745060b6d3"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-tcc-cold/stderr.log",
+      "bytes": 603,
+      "sha256": "542288039cb374272299d1c51b6398db81c73aa98ec1464bb1228166d7de231d"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-tcc-cold/window-observations.jsonl",
+      "bytes": 209,
+      "sha256": "aa39f0cff7e5be676d319645b790b13b584f248c6820ad54764d559875ba6842"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-tcc-cold-outer-settlement.json",
+      "bytes": 304,
+      "sha256": "d625de9fd5a6e601a26e8f826d031f92db925c368d967c26a56ab4536602d613"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-tcc-cold-intent.json",
+      "bytes": 620,
+      "sha256": "ff3ae7d27d1c056bb1d918e828c4bb86e5f1e080971ea6106af83fe0c33cebdc"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/cold-spike6-tcc-cwd/psx_freeze_heartbeat.json",
+      "bytes": 21721,
+      "sha256": "3dc75a6bfc4b550854b34b9b2a0715d74f19698a9fcc1fee53ece3a5b9f5b53f"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/cold-spike6-tcc-cwd/psx_last_run_report.json",
+      "bytes": 7750,
+      "sha256": "61c5c53f233ac133a2ccecfd7f7d8f7e2bab7bc5c2e1617363cac052be6789c1"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-tcc-cold/process.json",
+      "bytes": 1756,
+      "sha256": "08a5f9c211621d90874b65b94c88c417815d44a1a1b75fec39f62a6907fff21b"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-tcc-cold/process-started.json",
+      "bytes": 1369,
+      "sha256": "3ee8bc453c23db623a92ef3b843669fbfffcb33214d11b4a886e9c098c53dede"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-tcc-cold/stdout.log",
+      "bytes": 3918,
+      "sha256": "5ecb63fa6e840539412aa3b15a723995e4c87905f1b7fdefe5c4658bf8de538d"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-tcc-cold/stderr.log",
+      "bytes": 603,
+      "sha256": "3d59e4ab0f3cf3eee02fe49535a9b20c1003b24609ec74b5ad73a774590a244e"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-tcc-cold/window-observations.jsonl",
+      "bytes": 326,
+      "sha256": "b205011a26eb38407af8a992a5e7eaa0eb632fb131582da1fcdac522eefb189d"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-tcc-cold-outer-settlement.json",
+      "bytes": 304,
+      "sha256": "8c6de20c16c08ac3f48c939b869484fa4e8db10b1819f85abdda4cfbaadcd29d"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike7-tcc-cold-intent.json",
+      "bytes": 10030,
+      "sha256": "c052bd2f5f8dabc97ba6dcb3959f1de6ce6354eebd4e2be739a7fcca6182cdf2"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/cold-spike7-tcc-cwd/psx_freeze_heartbeat.json",
+      "bytes": 21723,
+      "sha256": "1aa38505009d4b6ad839295602cc9c10c6a4eb5663a82e7cc4ed4580b63dbffa"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/cold-spike7-tcc-cwd/psx_last_run_report.json",
+      "bytes": 7654,
+      "sha256": "18a00af9cee20a4e1e80d19b4eb4c0db18f7056210447076b2660405b6981e9b"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/resource-results.json",
+      "bytes": 17892,
+      "sha256": "dd3a8370c6020c44d2bac5091dfa05c87f4907bc71f97e21ca55f5f993783d97"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/qualified-runtime-inventory.json",
+      "bytes": 274897,
+      "sha256": "26d7b2ae563bc45f274d310ec8f2f3def1f3876acc4c17728ff74df2836fdcb3"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-cold-intent.json",
+      "bytes": 6811,
+      "sha256": "e236e69ec4b21a95c3c10765d9bd7b9ca3bd2a2f32a8d0d7ee63fb7598882dee"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-cold-observation-outer-settlement.json",
+      "bytes": 315,
+      "sha256": "9e205c4d498ce6e681c77c3a88eeba3dac2b12795de79d357757c2fc0892f176"
+    },
+    {
+      "path": "work/slice4/144-spike6-cold-observation.log",
+      "bytes": 466,
+      "sha256": "454e805e5e5c1e0dc872f534b472dabf167893f84395151d7b8071e51413781f"
+    },
+    {
+      "path": "work/slice4/144-cold-owned-lease-recovery-intent.json",
+      "bytes": 3098,
+      "sha256": "ed208bd6604d19fd968df497089e200832d7d07db1321e6544a2d1389034f2ab"
+    },
+    {
+      "path": "work/slice4/144-cold-owned-lease-recovery-result.json",
+      "bytes": 547,
+      "sha256": "ac43a54a18fb0922342a71675049ddf0ea8e63ea2d6a28670e91269086b3323e"
+    },
+    {
+      "path": "work/slice4/recover-144-cold-owned-lease.mjs",
+      "bytes": 3150,
+      "sha256": "b849d428e38bfc3195dddb4f82b399c0361ed7d42c02d1bcfa5b41b370099c8a"
+    },
+    {
+      "path": "work/slice4/run-144-spike-toolchainless.ps1",
+      "bytes": 10941,
+      "sha256": "5e58bf06d555acdc492db4e05ce93f1f705059c25e7cbae3b84fdbb67e628caf"
+    },
+    {
+      "path": "work/slice4/run-144-spike-toolchainless-admitted-v2.mjs",
+      "bytes": 3247,
+      "sha256": "12dffa44090e5632a392bc4c48b4df1532d7bb67e39329521c4d7051e6c3501b"
+    },
+    {
+      "path": "work/slice4/144-spike-pair/framework-spike7-freeze-heartbeat.c",
+      "bytes": 49061,
+      "sha256": "a929d08d38ee09da690fbcc937a11df09402d23dd4d3d702782e0daa36f86eb8"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/spike6-enabled-relocated/psx_freeze_dump_psx-runtime_1792917387_0.json",
+      "bytes": 10510,
+      "sha256": "a5c4f2be2c5524ab0947ccbdad7fe76c4f67c78fcee3634670333d3b5cf1f93d"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/unrelated-working-directory/psx_freeze_dump_psx-runtime_1792919692_0.json",
+      "bytes": 10510,
+      "sha256": "27b05b5dfd56118966c01bbdfdfc5b82fdc1baef5fb87473037574733b114288"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/unrelated-working-directory/psx_freeze_dump_psx-runtime_1792920141_0.json",
+      "bytes": 16616,
+      "sha256": "ff38886d68507e511ab432b0e609c71a32a3a7decdc90ebd304a9d591c5c453f"
+    },
+    {
+      "path": "work/slice4/native144-spike-20261025/tcc-results.json",
+      "bytes": 12918,
+      "sha256": "b57b475d65aeadb8527c07c44ae5ca2190742a2cee4e59cffa9afb642a25a86e"
+    }
+  ]
+}

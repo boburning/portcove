@@ -26,6 +26,107 @@ import {
   dependencyReview,
 } from "./ci-workflow-fixture.mts";
 
+function resolveBrowserUpload(config: unknown, action: unknown, id: string) {
+  assert.ok(isRecord(config) && isRecord(config.jobs));
+  const job = config.jobs[id];
+  assert.ok(isRecord(job) && Array.isArray(job.steps));
+  const callers: unknown[] = job.steps.filter(
+    (step: unknown) =>
+      isRecord(step) && step.uses === "./.github/actions/retain-browser-diagnostics",
+  );
+  assert.equal(callers.length, 1, `${id} has one browser uploader`);
+  const caller = callers[0];
+  assert.ok(isRecord(caller) && isRecord(caller.with));
+  assert.deepEqual(Object.keys(caller.with), ["name"]);
+  assert.ok(isRecord(action) && isRecord(action.runs));
+  assert.equal(action.runs.using, "composite");
+  assert.ok(Array.isArray(action.runs.steps) && action.runs.steps.length === 1);
+  const child: unknown = action.runs.steps[0];
+  assert.ok(isRecord(child) && isRecord(child.with));
+  assert.equal(child.if, "always()", "failure callers must enter the uploader child");
+  assert.equal(child.with.name, "${{ inputs.name }}");
+  const withValues: Record<string, unknown> = { ...child.with, name: caller.with.name };
+  return {
+    name: caller.name,
+    if: caller.if,
+    uses: child.uses,
+    with: withValues,
+  };
+}
+
+async function browserUploadConfiguration() {
+  const action = parseDocument(
+    await readFile(
+      new URL("../.github/actions/retain-browser-diagnostics/action.yml", import.meta.url),
+      "utf8",
+    ),
+    { uniqueKeys: true },
+  );
+  assert.deepEqual(action.errors, []);
+  const config = parseDocument(workflow, { uniqueKeys: true });
+  assert.deepEqual(config.errors, []);
+  return { config: config.toJS() as unknown, action: action.toJS() as unknown };
+}
+
+void test("shared browser uploader preserves the original three caller contracts structurally", async () => {
+  const { config, action } = await browserUploadConfiguration();
+  const baseline: unknown = JSON.parse(
+    await readFile(new URL("./fixtures/browser-upload-baseline.json", import.meta.url), "utf8"),
+  );
+  assert.ok(isRecord(baseline) && Array.isArray(baseline.rows));
+  assert.equal(baseline.rows.length, 3);
+  for (const row of baseline.rows) {
+    assert.ok(isRecord(row) && typeof row.job === "string");
+    assert.deepEqual(resolveBrowserUpload(config, action, row.job), row.step);
+  }
+  // Equivalent YAML layout is accepted; semantic changes must fail the oracle.
+  const roundTrip: unknown = JSON.parse(JSON.stringify(config));
+  assert.deepEqual(
+    resolveBrowserUpload(roundTrip, action, "fast_frontend"),
+    resolveBrowserUpload(config, action, "fast_frontend"),
+  );
+  for (const [section, key, value] of [
+    ["child", "if", "success()"],
+    ["child", "uses", "actions/upload-artifact@changed"],
+    ["with", "path", "work/bt/**/*.trace.zip\n"],
+    ["caller", "if", "success()"],
+    ["callerWith", "name", "foreign-artifact"],
+  ] as const) {
+    const changedConfig: unknown = structuredClone(config),
+      changedAction: unknown = structuredClone(action);
+    assert.ok(isRecord(changedConfig) && isRecord(changedConfig.jobs));
+    const job = changedConfig.jobs.fast_frontend;
+    assert.ok(isRecord(job) && Array.isArray(job.steps));
+    const caller: unknown = job.steps.find(
+      (step: unknown) =>
+        isRecord(step) && step.uses === "./.github/actions/retain-browser-diagnostics",
+    );
+    assert.ok(isRecord(caller) && isRecord(caller.with));
+    assert.ok(
+      isRecord(changedAction) &&
+        isRecord(changedAction.runs) &&
+        Array.isArray(changedAction.runs.steps),
+    );
+    const child: unknown = changedAction.runs.steps[0];
+    assert.ok(isRecord(child) && isRecord(child.with));
+    const target =
+      section === "child"
+        ? child
+        : section === "with"
+          ? child.with
+          : section === "caller"
+            ? caller
+            : caller.with;
+    target[key] = value;
+    assert.throws(() =>
+      assert.deepEqual(
+        resolveBrowserUpload(changedConfig, changedAction, "fast_frontend"),
+        resolveBrowserUpload(config, action, "fast_frontend"),
+      ),
+    );
+  }
+});
+
 void test("Fallow execution provisions its pinned process-custody compiler before analysis", () => {
   const job = workflowJob("frontend_full");
   assert.ok(Array.isArray(job.steps));
@@ -37,6 +138,72 @@ void test("Fallow execution provisions its pinned process-custody compiler befor
     (step) => isRecord(step) && step.run === "node scripts/run-fallow.mts",
   );
   assert.ok(compiler >= 0 && analyzer > compiler);
+});
+
+void test("screenshot-only diagnostic is manual, preserves failure guards and verifies all attempt packets", async () => {
+  const document = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/browser-artifact-custody.yml", import.meta.url),
+      "utf8",
+    ),
+    { uniqueKeys: true },
+  );
+  assert.deepEqual(document.errors, []);
+  const config: unknown = document.toJS();
+  assert.ok(isRecord(config) && isRecord(config.on) && isRecord(config.jobs));
+  assert.deepEqual(Object.keys(config.on), ["workflow_dispatch"]);
+  assert.deepEqual(config.permissions, { contents: "read" });
+  const probe = config.jobs["screenshot-only"],
+    verify = config.jobs.verify;
+  assert.ok(
+    isRecord(probe) &&
+      isRecord(probe.strategy) &&
+      isRecord(probe.strategy.matrix) &&
+      Array.isArray(probe.steps),
+  );
+  assert.deepEqual(probe.strategy.matrix.route, ["fast", "full", "contributor"]);
+  assert.equal(probe.strategy["fail-fast"], false);
+  assert.equal(probe["continue-on-error"], true);
+  assert.equal(probe["timeout-minutes"], 15);
+  assert.ok(
+    probe.steps.every(
+      (step: unknown) => isRecord(step) && !Object.hasOwn(step, "continue-on-error"),
+    ),
+  );
+  const failure: unknown = probe.steps.find(
+    (step: unknown) => isRecord(step) && step.name === "Intentional screenshot-only failure",
+  );
+  const upload: unknown = probe.steps.find(
+    (step: unknown) => isRecord(step) && step.name === "Retain screenshot-only diagnostics",
+  );
+  assert.ok(isRecord(failure) && isRecord(upload));
+  assert.equal(
+    failure.run,
+    'node apps/desktop/scripts/browser-runtime.mts screenshot-only "$PROBE_ROUTE"',
+  );
+  assert.equal(upload.uses, "./.github/actions/retain-browser-diagnostics");
+  assert.equal(
+    upload.if,
+    "(matrix.route != 'contributor' && always()) || (matrix.route == 'contributor' && failure())",
+  );
+  assert.deepEqual(upload.with, {
+    name: "browser-traces-${{ matrix.route }}-${{ github.run_id }}-${{ github.run_attempt }}",
+  });
+  assert.ok(isRecord(verify) && Array.isArray(verify.steps));
+  assert.equal(verify.needs, "screenshot-only");
+  assert.equal(verify.if, "always()");
+  assert.deepEqual(verify.permissions, { contents: "read", actions: "read" });
+  assert.ok(!Object.hasOwn(verify, "continue-on-error"));
+  const final: unknown = verify.steps.find(
+    (step: unknown) =>
+      isRecord(step) && step.name === "Verify all three packets and original step outcomes",
+  );
+  assert.ok(isRecord(final) && typeof final.run === "string");
+  assert.match(final.run, /attempts\/\$GITHUB_RUN_ATTEMPT\/jobs\?per_page=100/u);
+  assert.match(
+    final.run,
+    /browser-runtime\.mts verify-screenshot-only work\/downloaded-browser-custody/u,
+  );
 });
 
 void test("selective Fallow workflow has compiler custody and outer timeout headroom", async () => {
@@ -204,7 +371,6 @@ void test("full frontend qualification provisions browser artifacts before compo
     run = full.indexOf("run frontend:verify");
   assert.ok(provision >= 0 && run > provision);
   assert.match(full, /browser-traces-full/);
-  assert.match(full, /work\/bt/);
   assert.doesNotMatch(full, /work\/browser-traces/);
   const jobBoundary = /\n {2}[a-zA-Z][a-zA-Z_-]*:/u;
   const fast = requiredFixture(
@@ -238,24 +404,17 @@ void test("full frontend qualification provisions browser artifacts before compo
   );
   assert.ok(runtime.indexOf("run browser:bootstrap") < runtime.indexOf("run frontend:runtime"));
   assert.equal(requiredFixture(AUDIT_STAGES[0]).id, "fallow");
-  for (const [name, block] of [
-    ["full", full],
-    ["fast", fast],
-    ["contributor", contributor],
+  const { config, action } = await browserUploadConfiguration();
+  for (const [name, id] of [
+    ["full", "frontend_full"],
+    ["fast", "fast_frontend"],
+    ["contributor", "frontend_portability"],
   ] as const) {
-    const uploadIndex = block.indexOf(`name: browser-traces-${name}-`);
-    assert.ok(uploadIndex >= 0, `${name} must preserve failed browser evidence`);
-    const stepStart = block.lastIndexOf("      - name:", uploadIndex);
-    assert.ok(stepStart >= 0);
-    const nextStep = block.indexOf("\n      - name:", uploadIndex);
-    const upload = block.slice(uploadIndex, nextStep < 0 ? undefined : nextStep);
-    const prefix = block.slice(stepStart, uploadIndex);
-    assert.match(
-      prefix,
-      name === "contributor"
-        ? /if: failure\(\)\r?\n +uses: actions\/upload-artifact@/
-        : /if: always\(\)\r?\n +uses: actions\/upload-artifact@/,
-    );
+    const step = resolveBrowserUpload(config, action, id);
+    assert.equal(step.if, name === "contributor" ? "failure()" : "always()");
+    assert.match(String(step.with.name), new RegExp(`^browser-traces-${name}-`));
+    assert.ok(typeof step.with.path === "string");
+    const upload = step.with.path;
     if (name !== "contributor") {
       for (const retained of [
         ".vitest/attachments/**/*.json",
@@ -269,8 +428,8 @@ void test("full frontend qualification provisions browser artifacts before compo
     }
     assert.match(upload, /work\/bt\/\*\*\/\*\.trace\.zip/);
     assert.match(upload, /\.vitest\/attachments\/failure-screenshots\/\*\*\/\*\.png/);
-    assert.match(upload, /include-hidden-files: true/);
-    assert.match(upload, /retention-days: 7/);
+    assert.equal(step.with["include-hidden-files"], true);
+    assert.equal(step.with["retention-days"], 7);
     assert.doesNotMatch(upload, /^ +work\/bt\r?$/m);
   }
 });
@@ -335,21 +494,10 @@ void test("browser uploads select the actual trace and screenshot output layout"
       ),
     ),
   );
-  const document = parseDocument(workflow, { uniqueKeys: true });
-  assert.deepEqual(document.errors, []);
-  const parsed: unknown = document.toJS();
-  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  const { config, action } = await browserUploadConfiguration();
   for (const id of ["fast_frontend", "frontend_full", "frontend_portability"]) {
-    const job = parsed.jobs[id];
-    assert.ok(isRecord(job) && Array.isArray(job.steps));
-    const upload: unknown = job.steps.find(
-      (step: unknown) =>
-        isRecord(step) &&
-        isRecord(step.with) &&
-        typeof step.with.name === "string" &&
-        step.with.name.startsWith("browser-traces-"),
-    );
-    assert.ok(isRecord(upload) && isRecord(upload.with) && typeof upload.with.path === "string");
+    const upload = resolveBrowserUpload(config, action, id);
+    assert.ok(typeof upload.with.path === "string");
     const patterns = upload.with.path
       .split(/\r?\n/u)
       .map((line) => line.trim())

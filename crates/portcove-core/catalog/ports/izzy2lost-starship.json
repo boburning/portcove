@@ -7,8 +7,8 @@
     "project_url": "https://github.com/izzy2lost/Starship",
     "issue_number": 1890,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/izzy2lost/Starship",
+    "availability": "packages",
+    "setup_url": "https://github.com/izzy2lost/Starship/blob/v2.0.0/README.md",
     "artwork": {
       "game_id": 2591,
       "cover_id": 524514,
@@ -16,6 +16,21 @@
       "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
       "game_slug": "star-fox-64",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish setup in the upstream Android app",
+          "instruction": "Install this fork’s Starship Android APK, open it and use the system file picker for your own Star Fox 64 US 1.0 or US 1.1 .z64 ROM. The app converts the ROM on the device; no PC Torch or copied sf64.o2r is needed. Japanese/European ROMs may supply optional voice language data with a US base; they are not base-game replacements."
+        },
+        {
+          "title": "Keep your data when changing versions",
+          "instruction": "The release provides in-game mods and saves managers. Use those to preserve your data before changing or removing the app, and retain your original ROM. It reads the chosen ROM through the system picker rather than requiring a broad storage grant. The release lists Android 7+ with ARM64 or ARMv7; these are upstream requirements, not Portcove device observations. Updates and profile handling remain upstream-owned."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/izzy2lost/Starship/blob/v2.0.0/README.md"
+    },
+    "release_url": "https://github.com/izzy2lost/Starship/releases"
   }
 }

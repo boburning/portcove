@@ -160,6 +160,22 @@ uses conservative additive collection: canonical-only data survives and differin
 copies require a deliberate resolution. Existing source/build integrations keep
 their preparation and collection contracts.
 
+A ready staged archive whose reviewed mod layout is
+`mods/packages/<id>/<version>` may opt into
+`mod_package_policy: "versioned-packages-v1"` with the exact `mods` persistent
+root. This requires capability 24, a format-7 retained contract and runtime-local
+data. Direct-write `user_data_environment` bindings are refused because they bypass
+package restoration. Core reuses the existing complete-package coexistence
+behavior: absent versions are staged
+privately and published without overwriting, successor-only packages survive,
+and same-ID/version content conflicts report both paths before activation or
+explicit data restore. Package identity compares contents rather than publisher
+timestamps; current root state keeps its replacement/deletion behavior. Preserve
+the player's choices without rebasing them onto a new default. This policy does
+not authenticate mod code, promise compatibility, or preserve generated executable
+caches. An old contract merely declaring `mods` does not acquire these semantics;
+changing the policy holds replacement until a supported transition exists.
+
 Declared data copies preserve exact file modification times, including upstream
 original-data integrity records that depend on them. New backups verify those
 times separately from content; old byte-only snapshots retain their historical
@@ -518,7 +534,12 @@ Missing, ambiguous, mismatched or
 unusable assets produce specific nonblocking cover exceptions and generated
 fallback; a decoded image cannot establish semantic identity.
 
-The assembled accepted records are the baseline. Unchanged port/source
+The assembled accepted records are the baseline. Artwork preparation also reads
+accepted listing-only covers, so adding a managed integration can retain its
+reviewed artwork. This artwork context has a separate evidence digest and does
+not expand the accepted Core operational baseline. A changed source profile still
+requires a matching explicit original-game identity to reuse that game's cover.
+Unchanged port/source
 identities reuse accepted mappings without provider requests; distinct ports may
 reuse a uniquely accepted original-game mapping without merging their identities.
 An ordinary executable release does not trigger artwork searches. For an assessed
@@ -1516,6 +1537,17 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+When a record names a canonical issue, `canonical_preparation` points to its exact
+retained specification in `files.upstream`, with the observed timestamp and UTF-8
+body SHA-256, or explicitly says that it was not observed. Read the complete
+specification and relevant Roadmap context before deciding route, lineage,
+acquisition conditions or deferrals. `--issue` uses the existing bounded issue
+read; record/project preparation does not gain a new request or approval gate.
+This feedback does not infer permission, a hold, support or ownership from prose.
+An already published package and technical fit do not resolve an existing named
+condition. Carry a reviewed operation condition through the existing
+`download_block_reason` contract where applicable.
 
 For a proposed `native-portable` record, the completion receipt also shows literal
 package-hint matches among the supported ZIP/tar.gz/tgz archives for each declared platform, whether each matching asset has

@@ -57,6 +57,46 @@ void test("macOS qualification recognizes only the maintained portability input 
   }
 });
 
+void test("qualification reporter callers cannot change mode, partition, runtime setup or failure handling", () => {
+  for (const name of ["native_rust", "intel_tests", "rust_workspace_tests"])
+    for (const mutation of [
+      "disabled",
+      "ignored-failure",
+      "wrong-mode",
+      "extra-selector",
+      "missing-runtime",
+    ]) {
+      const changed = editedWorkflow((jobs) => {
+        const job = jobs[name];
+        const caller = requiredFixture(
+          steps(job).find(
+            (step) =>
+              typeof step.run === "string" &&
+              step.run.startsWith("node scripts/qualification-nextest.mts "),
+          ),
+        );
+        const originalCommand = caller.run;
+        assert.ok(typeof originalCommand === "string");
+        if (mutation === "disabled") caller.if = false;
+        if (mutation === "ignored-failure") caller["continue-on-error"] = true;
+        if (mutation === "wrong-mode")
+          caller.run = "node scripts/qualification-nextest.mts foreign";
+        if (mutation === "extra-selector") caller.run = originalCommand + " --profile hidden";
+        if (mutation === "missing-runtime") {
+          const setup = requiredFixture(
+            steps(job).find((step) => step.uses === "./.github/actions/setup-rust"),
+          );
+          record(setup.with)["test-fixtures"] = false;
+        }
+      });
+      assert.throws(
+        () => validateQualificationCoverage(inventory, changed),
+        /Qualification/u,
+        `${name}/${mutation}`,
+      );
+    }
+});
+
 void test("missing, extra, duplicate, or zero inventories fail closed", () => {
   assert.throws(
     () => validateQualificationCoverage({ ...inventory, jobs: [] }, workflow),
@@ -259,7 +299,9 @@ void test("disabled expressions, missing consumer partitions and fake platform l
     (jobs) => {
       const consumer = requiredFixture(
         steps(jobs.native_rust).find(
-          (step) => typeof step.run === "string" && step.run.startsWith("cargo nextest run"),
+          (step) =>
+            typeof step.run === "string" &&
+            step.run.startsWith("node scripts/qualification-nextest.mts native"),
         ),
       );
       consumer.if = false;

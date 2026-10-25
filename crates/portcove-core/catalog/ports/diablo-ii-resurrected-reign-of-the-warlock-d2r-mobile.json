@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diablo-ii-resurrected-reign-of-the-warlock-d2r-mobile",
+    "name": "Diablo II: Resurrected — Reign of the Warlock (d2r-mobile)",
+    "summary": "Experimental DiabloIIResurrected-specific nativeARM64 compatibility host with Metal/Vulkan platform adaptations Upstream maturity: Upstream broadmobileplayability/performanceclaims; Macfirstversion and keyboard/gamepadactualoperationlimits remain inreadme. Do not inheritphysicaldeviceorfullgameguarantees. Acquisition: setup.sh preparespatchedmodules/shaders locally; mac_app.sh buildsMac.app (DM_MAC_M3 olderAPI). PublishediOSshellbuild-inputZIPs andAndroid/HarmonyOSshellassets need ownruntime/data; no prebuiltcommercialgame. Upstream/playerrebuilds afternewcommit. Platforms: AppleSiliconmacOS26+orolderAPI15–25 documented; Intelnot supported. iOS26/olderAPI18–25; AndroidARM64API31+/Vulkan1.1,HarmonyOS separatecommunityscope; tvOScharacterselectpreviewonly. Original data: OwnSwitchgame+expansion1.0.34.0(PC3.3.94012),matchingExeFS/RomFS,ownprod.keysforextraction; localpatchedmodules/shaders. Expansionrequired,otherbuildIDsnotassumed. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Diablo II: Resurrected — Reign of the Warlock",
+    "project_url": "https://github.com/jhaizhou-ops/d2r-mobile",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/jhaizhou-ops/d2r-mobile",
+    "issue_number": 2978
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "diablo-ii-resurrected-reign-of-the-warlock-d2r-mobile",
+    "origin": {
+      "project_url": "https://github.com/jhaizhou-ops/d2r-mobile",
+      "repository": {
+        "host": "github.com",
+        "id": "1415313946"
+      }
+    },
+    "decisions": []
+  }
+}

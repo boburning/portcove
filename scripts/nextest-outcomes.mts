@@ -19,6 +19,58 @@ interface BinarySelection {
   cases: Map<string, { identity: string; selected: boolean; ignored: boolean }>;
 }
 
+/** Validate discovery identities without treating ignored or filtered cases as executed. */
+export function runnableNextestTests(
+  inventory: unknown,
+  { allowSkipped = false, allowDefaultSkipped = false } = {},
+) {
+  if (
+    !isRecord(inventory) ||
+    typeof inventory["test-count"] !== "number" ||
+    !Number.isSafeInteger(inventory["test-count"]) ||
+    inventory["test-count"] < 0 ||
+    !isRecord(inventory["rust-suites"])
+  )
+    throw new Error("Incomplete nextest workspace inventory");
+  let total = 0;
+  const matched = new Set<string>();
+  for (const [binaryId, suite] of Object.entries(inventory["rust-suites"])) {
+    const skipped =
+      isRecord(suite) &&
+      (suite.status === "skipped" ||
+        (allowDefaultSkipped && suite.status === "skipped-default-filter"));
+    if (
+      !isRecord(suite) ||
+      typeof suite["package-name"] !== "string" ||
+      !/^[a-z0-9][a-z0-9-]*$/u.test(suite["package-name"]) ||
+      suite["binary-id"] !== binaryId ||
+      (suite.status !== "listed" && !(allowSkipped && skipped)) ||
+      !isRecord(suite.testcases)
+    )
+      throw new Error("Unexpected nextest workspace suite identity or coverage");
+    if (skipped && Object.keys(suite.testcases).length)
+      throw new Error("Skipped nextest suite contained test records");
+    for (const [name, detail] of Object.entries(suite.testcases)) {
+      total++;
+      const status =
+        isRecord(detail) && isRecord(detail["filter-match"])
+          ? detail["filter-match"].status
+          : undefined;
+      if (
+        !name ||
+        !isRecord(detail) ||
+        typeof detail.ignored !== "boolean" ||
+        (status !== "matches" && status !== "mismatch")
+      )
+        throw new Error("Invalid nextest workspace test record");
+      if (status === "matches" && !detail.ignored)
+        matched.add(JSON.stringify([suite["package-name"], binaryId, name]));
+    }
+  }
+  if (total !== inventory["test-count"]) throw new Error("Truncated nextest workspace inventory");
+  return matched;
+}
+
 /** Bind the result dialect to discovery metadata, never infer a binary ID from its display name. */
 export function nextestOutcomeSelection(inventory: unknown, selected: ReadonlySet<string>) {
   if (!selected.size || selected.size > maximumCases)
@@ -349,7 +401,7 @@ export function runNextestWithOutcomes(
   const context = {
     invocation_id: randomUUID(),
     source: label("PORTCOVE_HEAD_SHA"),
-    checkout: label("GITHUB_SHA"),
+    checkout: label("PORTCOVE_CHECKOUT_SHA") ?? label("GITHUB_SHA"),
     run: label("GITHUB_RUN_ID"),
     attempt: label("GITHUB_RUN_ATTEMPT"),
     job: label("GITHUB_JOB"),

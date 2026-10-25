@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-legend-of-zelda-breath-of-the-wild-switch-edition-savagewindrecomp",
+    "name": "The Legend of Zelda: Breath of the Wild — Switch edition (SavageWindRecomp)",
+    "summary": "Experimental LAS-derived static code generated locally; native Windows/Linux Vulkan runtime. Upstream maturity: Shrine/GreatPlateau only; nobody past plateau, alpha tester preview; distant-map rendering and controller/gyro validation incomplete. Acquisition: Alpha3 ZIP/AppImages launcher validates/copies data, builds image and recompiles locally; no Nintendo package/decryption workflow. Platforms: Actual Windows x64 and Linux x64 SSE4.2/Vulkan1.3 packages; AVX2/FMA optional faster mode. Linux aarch64 asset highly experimental, never real ARM hardware. Original data: Own extracted BOTW1.9.0 ExeFS(main/main.npdm/rtld/sdk/subsdk0) plus complete merged RomFS. NEVER decrypts; no keys/firmware/dump tools supplied. DLC unsupported.1.8.2 may run but explicitly unsupported. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "The Legend of Zelda: Breath of the Wild — Switch edition",
+    "project_url": "https://github.com/Revivedx/SavageWindRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Revivedx/SavageWindRecomp",
+    "artwork": {
+      "game_id": 7346,
+      "cover_id": 172453,
+      "image_id": "co3p2d",
+      "image_sha256": "63356e0bc0058032ae5e03ce22d5f292bea4da3779396de23530090cfd3f94b7",
+      "game_slug": "the-legend-of-zelda-breath-of-the-wild",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2960
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "the-legend-of-zelda-breath-of-the-wild-switch-edition-savagewindrecomp",
+    "origin": {
+      "project_url": "https://github.com/Revivedx/SavageWindRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1422474621"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,1070 @@
+{
+  "format_version": 1,
+  "source_commit": "dc20c28c830caedb76f0ab6599a106287d64d30f",
+  "observation_cutoff": "2026-10-25T10:31:23.282Z",
+  "scope": "Seven finite existing listing identities; not whole-inventory qualification or completion of #2510/#2926.",
+  "identity_count": 878,
+  "operational_definition_count": 158,
+  "entries": [
+    {
+      "id": "blacklabelhq-medievilrecomp",
+      "canonical_issue": 1844,
+      "path": "crates/portcove-core/catalog/ports/blacklabelhq-medievilrecomp.json",
+      "before_sha256": "6c5783b2da53bc61851466f0126419d1c845151f57d14cfadb42f56810fd487c",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/blacklabelhq-medievilrecomp-proposal.json",
+      "proposal_input_sha256": "1f10151cbf2176fac577e0ed5094e9556f76ac34b38e03462965e76c821609bf",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-blacklabelhq-medievilrecomp\\blacklabelhq-medievilrecomp-1f10151cbf2176fac577e0ed5094e9556f76ac34b38e03462965e76c821609bf.json",
+      "prepared_record_sha256": "1f10151cbf2176fac577e0ed5094e9556f76ac34b38e03462965e76c821609bf",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-blacklabelhq-medievilrecomp\\completion-5e3d6517f926ce54331a6b8e6bda28dd09ba339781c932dfa572801f87ed6582.json",
+      "receipt_sha256": "5e3d6517f926ce54331a6b8e6bda28dd09ba339781c932dfa572801f87ed6582",
+      "source_commit": "b9e46db34db40d6e5c8e19b538e4d517299a4012",
+      "release": "v0.2b",
+      "platforms": ["windows-x86-64"],
+      "steps": [
+        {
+          "title": "Prepare the Windows player",
+          "instruction": "Extract the official Windows x64 ZIP into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe in that folder when saving launch details. Registration does not start the game."
+        },
+        {
+          "title": "Choose your original disc in the game",
+          "instruction": "Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery."
+        },
+        {
+          "title": "Let the game provide updates",
+          "instruction": "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+        }
+      ],
+      "update_owner": "player/upstream; external files remain outside Core replacement/backup/rollback ownership",
+      "status": "Privately Core-prepared; complete-candidate review and delivery pending",
+      "authored_sha256": "148db2252ce734b2dea9f76880152cbb013ff9a7f0c795ad12982b46a52b3036",
+      "current_route": "Existing listing-only upstream/external route",
+      "selected_route": "Concrete upstream setup and non-owning player guidance",
+      "fit_disposition": "Retain the enabled upstream runtime updater and first-launch disc picker. A reviewed sole-owner managed replacement contract would be needed to change this boundary.",
+      "release_observation": {
+        "repository_id": 1335783481,
+        "repository": "BlackLabelHQ/MediEvilRecomp",
+        "observed_at": "2026-10-25T10:25:27.024Z",
+        "complete_release_inventory": true,
+        "release_count": 2,
+        "selected_release": "v0.2b",
+        "selected_release_prerelease": false,
+        "selected_assets_complete": true,
+        "assets": [
+          {
+            "id": 608601762,
+            "name": "MediEvilRecomp-v0.2b-linux-x64.tar.gz",
+            "size": 43927735,
+            "digest": "sha256:314e3e5a62424d0ef95aa7311bda50e4708dc7e25f5f787baa91565e9851ecb1",
+            "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases/download/v0.2b/MediEvilRecomp-v0.2b-linux-x64.tar.gz"
+          },
+          {
+            "id": 608601764,
+            "name": "MediEvilRecomp-v0.2b-macos-arm64.zip",
+            "size": 43030322,
+            "digest": "sha256:8cdba531db9cb9239333970696b3eb08c634cf588e36135f4978652ffc50b0db",
+            "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases/download/v0.2b/MediEvilRecomp-v0.2b-macos-arm64.zip"
+          },
+          {
+            "id": 608601760,
+            "name": "MediEvilRecomp-v0.2b-macos-x64.zip",
+            "size": 44678985,
+            "digest": "sha256:08e1ab0c8b05af961aa77beb2d506c6f15f39306e73fcda5489693773e33da97",
+            "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases/download/v0.2b/MediEvilRecomp-v0.2b-macos-x64.zip"
+          },
+          {
+            "id": 608601766,
+            "name": "MediEvilRecomp-v0.2b-windows-arm64.zip",
+            "size": 41908218,
+            "digest": "sha256:b90a093e8d999131053363feec1b6f7d0d08247e347e6995b8a7d8a647d395f2",
+            "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases/download/v0.2b/MediEvilRecomp-v0.2b-windows-arm64.zip"
+          },
+          {
+            "id": 608601763,
+            "name": "MediEvilRecomp-v0.2b-windows-x64.zip",
+            "size": 43548960,
+            "digest": "sha256:167b2fc2cdcd42cc134726f76df43250930e2f494483bc3a60e0e16431e52967",
+            "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases/download/v0.2b/MediEvilRecomp-v0.2b-windows-x64.zip"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "bce2f2636b7ada53b9cfdb980d46873d0dfa9eb7",
+          "sha256": "b2a92342007fba72a4870486737e601040562864194ddbf1c8b2502ee2943cbe",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/blacklabelhq-medievilrecomp/README.md",
+          "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md"
+        },
+        {
+          "path": "misc/AutoUpdater.cs",
+          "blob_sha": "3d7562391d6cc3269956716b8136cc36fce68d60",
+          "sha256": "0d2fd68c9ba5c5605c37c481b2bbe34a5a09ad4be442565bb0f56fcba788cc9b",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/blacklabelhq-medievilrecomp/misc__AutoUpdater.cs",
+          "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/misc/AutoUpdater.cs"
+        },
+        {
+          "path": "Program.cs",
+          "blob_sha": "e06202fd37bc0faadf9a55f9adc445b136d2a5c4",
+          "sha256": "92a91bb4651318619ba1591029809f8602298f704a9a783bd49b69dbc8f6184f",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/blacklabelhq-medievilrecomp/Program.cs",
+          "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/Program.cs"
+        },
+        {
+          "path": ".gitmodules",
+          "blob_sha": "ef6c39b779926d7f0933893a872b937fd943945f",
+          "sha256": "32ac66b13ce0d41a1a4ca34d47f1013a907c091eea9bdf79ae1c0ed6036ac4da",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/blacklabelhq-medievilrecomp/.gitmodules",
+          "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/.gitmodules"
+        },
+        {
+          "path": "RecompOne.MediEvil.csproj",
+          "blob_sha": "ee7878ba75b89dc0f2a7b29741f495044383f8ba",
+          "sha256": "2667c9ad104196ad06016e257e4cc8fe7861ec0a3e2f33434df7a9c7ac83ff86",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/blacklabelhq-medievilrecomp/RecompOne.MediEvil.csproj",
+          "url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/RecompOne.MediEvil.csproj"
+        }
+      ],
+      "artifact_revalidation": [
+        {
+          "id": "blacklabelhq-medievilrecomp",
+          "asset_id": 608601763,
+          "name": "MediEvilRecomp-v0.2b-windows-x64.zip",
+          "publisher_expected_sha256": "167b2fc2cdcd42cc134726f76df43250930e2f494483bc3a60e0e16431e52967",
+          "observed_sha256": "167b2fc2cdcd42cc134726f76df43250930e2f494483bc3a60e0e16431e52967",
+          "size": 43548960,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\blacklabelhq-medievilrecomp-group8.zip",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\blacklabelhq-medievilrecomp-group8.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        }
+      ],
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_state": "OPEN",
+      "delivery_status": "Authored from exact Core-prepared record; complete-candidate review, exact-head hosted checks and guarded delivery pending. No canonical stage promotion or owner closure."
+    },
+    {
+      "id": "dabdavis-perfect-dark-dabs-mod",
+      "canonical_issue": 1866,
+      "path": "crates/portcove-core/catalog/ports/dabdavis-perfect-dark-dabs-mod.json",
+      "before_sha256": "6c9fa63833894ac9bf5ad0fbb116f28d660c86ffb67e4a9ab5326e437b9c41eb",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dabdavis-perfect-dark-dabs-mod-proposal.json",
+      "proposal_input_sha256": "b3c9d83c31b68945cdd334a06087dccf8bd66b2d033f4cd37103696880499c2d",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-dabdavis-perfect-dark-dabs-mod\\dabdavis-perfect-dark-dabs-mod-b3c9d83c31b68945cdd334a06087dccf8bd66b2d033f4cd37103696880499c2d.json",
+      "prepared_record_sha256": "b3c9d83c31b68945cdd334a06087dccf8bd66b2d033f4cd37103696880499c2d",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-dabdavis-perfect-dark-dabs-mod\\completion-88c8f522f51cf98fc75ba2abf35829cbc6864b78142dcf4cac0b1e56656fca3a.json",
+      "receipt_sha256": "88c8f522f51cf98fc75ba2abf35829cbc6864b78142dcf4cac0b1e56656fca3a",
+      "source_commit": "a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379",
+      "release": "v3.15.1",
+      "platforms": [],
+      "steps": [
+        {
+          "title": "Use the fork’s player and updater",
+          "instruction": "Extract the complete Windows package into its own folder. Put your own Perfect Dark USA Rev 1 / US v1.1 ROM in data as pd.ntsc-final.z64, then choose pd.x86_64.exe with the package folder as its working directory. Other regions are not supported by this fork. Keep it separate from a stock Perfect Dark installation to keep settings and saves separate. The fork supplies its own runtime updater."
+        },
+        {
+          "title": "Keep updates and data with the working copy",
+          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Back up the complete external game folder and any custom data locations, including data, pd.ini, saves and mods. Ordinary stock-format setups remain readable by the unmodified port; expanded simulant setups and moved-stat formats require a compatible version. Replacing or rolling back a runtime does not convert or rewind these saves."
+        }
+      ],
+      "update_owner": "player/upstream; external files remain outside Core replacement/backup/rollback ownership",
+      "status": "Privately Core-prepared; complete-candidate review and delivery pending",
+      "authored_sha256": "2a7a2b86e567022303af4e96ed197ddac56688221a24e432acae04be314a9ff3",
+      "current_route": "Existing listing-only upstream/external route",
+      "selected_route": "Concrete upstream setup and non-owning player guidance",
+      "fit_disposition": "Retain the updater that replaces/renames the running player and its expanded save compatibility. This fork is distinct from the stock managed Perfect Dark integration.",
+      "release_observation": {
+        "repository_id": 1353360049,
+        "repository": "DabDavis/perfect-dark-dabs-mod",
+        "observed_at": "2026-10-25T10:25:30.596Z",
+        "complete_release_inventory": true,
+        "release_count": 29,
+        "selected_release": "v3.15.1",
+        "selected_release_prerelease": false,
+        "selected_assets_complete": true,
+        "assets": [
+          {
+            "id": 660965768,
+            "name": "patchnotes.txt",
+            "size": 119306,
+            "digest": "sha256:e652577d54c3a8e447c1c85742b9491013e6ed972f2174fbb1babd138e6bb182",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/patchnotes.txt"
+          },
+          {
+            "id": 660965775,
+            "name": "pd-dabs-mod-arm64-osx.tar.xz",
+            "size": 4703956,
+            "digest": "sha256:2f55c054fd0cce44250946082b776f2678e82f60f9aadd150c25f3ca71b18e77",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd-dabs-mod-arm64-osx.tar.xz"
+          },
+          {
+            "id": 660965771,
+            "name": "pd-dabs-mod-x86_64-linux.tar.gz",
+            "size": 8517398,
+            "digest": "sha256:12d03c8736cadfaf0649e00db9d44c638cfe1df7cbaf698c6007d40dd17fef73",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd-dabs-mod-x86_64-linux.tar.gz"
+          },
+          {
+            "id": 660965762,
+            "name": "pd-dabs-mod-x86_64-osx.tar.xz",
+            "size": 5025176,
+            "digest": "sha256:3ca9a33bdafe6b829c9c46761d5bac7b1938d9d4314cbc85d7092fc347647a18",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd-dabs-mod-x86_64-osx.tar.xz"
+          },
+          {
+            "id": 660965769,
+            "name": "pd-dabs-mod-x86_64-windows.zip",
+            "size": 10484470,
+            "digest": "sha256:f7102c87254fcee5d6b02dc3972de0438abe8f85e21a69167436cf53ca691e96",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd-dabs-mod-x86_64-windows.zip"
+          },
+          {
+            "id": 660965794,
+            "name": "pd.arm64-osx",
+            "size": 12328008,
+            "digest": "sha256:b4c7784807ba961bf48b030ca8b71fa0dfd1a6d05b6be3a9363434e6bf3ff7c6",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd.arm64-osx"
+          },
+          {
+            "id": 660965806,
+            "name": "pd.x86_64-linux",
+            "size": 22063680,
+            "digest": "sha256:7ebd86a16eff691c04eaa4509e34d5da5840cff9507b174e9b7a55c0ec0e7162",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd.x86_64-linux"
+          },
+          {
+            "id": 660965809,
+            "name": "pd.x86_64-linux.debug",
+            "size": 37514808,
+            "digest": "sha256:d7075371b43c34a88690d20c7dccde830348b358888d95a2006e0bf28c058ece",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd.x86_64-linux.debug"
+          },
+          {
+            "id": 660965811,
+            "name": "pd.x86_64-osx",
+            "size": 12670312,
+            "digest": "sha256:93e1c2ca6920bde17bb129bb2f3679ec6c8e818c54c5be0d07d70b39de25f92c",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd.x86_64-osx"
+          },
+          {
+            "id": 660965814,
+            "name": "pd.x86_64-windows.exe",
+            "size": 27442620,
+            "digest": "sha256:ce0c44fa8b89921b9545ea0a2ddf0e15d2d47088d3553ed4608c456e4f438f78",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd.x86_64-windows.exe"
+          },
+          {
+            "id": 660965837,
+            "name": "pd.x86_64-windows.exe.debug",
+            "size": 49307053,
+            "digest": "sha256:41e3870355b244c07622dc9d2d4ac68afef37884b7d40eda90826383df2d15fa",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/pd.x86_64-windows.exe.debug"
+          },
+          {
+            "id": 660965848,
+            "name": "update.txt",
+            "size": 465,
+            "digest": "sha256:48dc1a673fe0f47222e936843fc9114927787fe5ccab3c6cac825f8bbcee18c8",
+            "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases/download/v3.15.1/update.txt"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "181c8e61524a3537a202cb5806bd9cf6386510d4",
+          "sha256": "4a76086e48892974d47476aadc684cbc5f78e2f26f7548a4c3c4c5abdd9ac0fe",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dabdavis-perfect-dark-dabs-mod/README.md",
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md"
+        },
+        {
+          "path": "port/src/update.c",
+          "blob_sha": "b32b6b91782812e8746281e45e85e526e5a8f856",
+          "sha256": "605d1bfb3020516b482948125ecc8c34be50511b14f3e8dcea2fe80bcb265ba7",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dabdavis-perfect-dark-dabs-mod/port__src__update.c",
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/update.c"
+        },
+        {
+          "path": "port/src/fs.c",
+          "blob_sha": "96b427a6590fa2bdd8452ca09bb588df67b5cfab",
+          "sha256": "2fd86b6fc635c450121f8af8acf5e6b474c3d4039ecf0487b40dea16d987fe6b",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dabdavis-perfect-dark-dabs-mod/port__src__fs.c",
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/fs.c"
+        },
+        {
+          "path": "port/src/config.c",
+          "blob_sha": "66a4de22c9c9e4363b7435c077903268707738da",
+          "sha256": "518c958bdfdc736c490431271764ce0ddcc2ff00f656686ec7bde0078690e3de",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dabdavis-perfect-dark-dabs-mod/port__src__config.c",
+          "url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/port/src/config.c"
+        }
+      ],
+      "artifact_revalidation": [
+        {
+          "id": "dabdavis-perfect-dark-dabs-mod",
+          "asset_id": 660965769,
+          "name": "pd-dabs-mod-x86_64-windows.zip",
+          "publisher_expected_sha256": "f7102c87254fcee5d6b02dc3972de0438abe8f85e21a69167436cf53ca691e96",
+          "observed_sha256": "f7102c87254fcee5d6b02dc3972de0438abe8f85e21a69167436cf53ca691e96",
+          "size": 10484470,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\dabdavis-perfect-dark-dabs-mod.zip",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\dabdavis-perfect-dark-dabs-mod.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        }
+      ],
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_state": "OPEN",
+      "delivery_status": "Authored from exact Core-prepared record; complete-candidate review, exact-head hosted checks and guarded delivery pending. No canonical stage promotion or owner closure."
+    },
+    {
+      "id": "gizcesi-opentricky",
+      "canonical_issue": 1857,
+      "path": "crates/portcove-core/catalog/ports/gizcesi-opentricky.json",
+      "before_sha256": "d8d5822cca3b079668876e7652a987c02616f21786fda7224a98e8dcbe8aebd1",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/gizcesi-opentricky-proposal.json",
+      "proposal_input_sha256": "c87e958ca116e1fa238e83bc850429f4a64cbc205eb534a889c8181639b72a08",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-gizcesi-opentricky\\gizcesi-opentricky-c87e958ca116e1fa238e83bc850429f4a64cbc205eb534a889c8181639b72a08.json",
+      "prepared_record_sha256": "c87e958ca116e1fa238e83bc850429f4a64cbc205eb534a889c8181639b72a08",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-gizcesi-opentricky\\completion-a4b44d0c198aaf4b89dd32145c73de81e9790d3533f47c5db9935cee68d56ca4.json",
+      "receipt_sha256": "a4b44d0c198aaf4b89dd32145c73de81e9790d3533f47c5db9935cee68d56ca4",
+      "source_commit": "b20f394f3fc11b684fbbe01ad70f795def4ae70b",
+      "release": "v0.1.3-unstable",
+      "platforms": ["windows-x86-64"],
+      "steps": [
+        {
+          "title": "Let the upstream launcher finish setup",
+          "instruction": "Extract the complete official unstable Windows x64 ZIP into a new empty folder. On first deliberate launch of OpenTricky.exe, choose your own USA original-Xbox SSX Tricky ISO or XISO. PS2, GameCube, PAL and Japanese editions are not supported by this route. Windows 10/11 x64 and Direct3D 11 are required. The package has no installer."
+        },
+        {
+          "title": "Keep the launcher as the update owner",
+          "instruction": "Choose OpenTricky.exe with its folder as the working directory when registering it, then save launch details and choose Play separately. The launcher controls game settings, original-disc selection and consented signature-checked updates. Portcove leaves the external runtime under that owner; discovery never starts the updater. The documented Linux/Steam Deck route uses Wine/Proton with the Windows package; it is not a separate native Linux archive."
+        },
+        {
+          "title": "Preserve saves when changing versions",
+          "instruction": "Back up Documents/My Games/SSX Tricky/Saves, or the local Saves directory and portable.txt if you chose portable saves. Keep settings.ini, screenshots and bug reports separately as needed. For 0.1.2 use the launcher’s updater. From 0.1.1 upstream requires a fresh folder, choosing the disc again and fresh settings; keep the old working copy and do not copy its settings.ini over 0.1.3. New launch shortcuts use bin/SSX Tricky.exe. External registration provides no Portcove-managed Update, Backup or Rollback."
+        }
+      ],
+      "update_owner": "player/upstream; external files remain outside Core replacement/backup/rollback ownership",
+      "status": "Privately Core-prepared; complete-candidate review and delivery pending",
+      "authored_sha256": "bfe1d4357924bd6172545330d80c133b38eda0e553bcec6a1aaf754e50483d23",
+      "current_route": "Existing listing-only upstream/external route",
+      "selected_route": "Concrete upstream setup and non-owning player guidance",
+      "fit_disposition": "Retain the launcher’s consented signature-checked updates, original-disc validation and version-specific settings migration. Wine/Proton is separate from native Linux support.",
+      "release_observation": {
+        "repository_id": 1404285107,
+        "repository": "GiZcesi/OpenTricky",
+        "observed_at": "2026-10-25T10:25:33.832Z",
+        "complete_release_inventory": true,
+        "release_count": 4,
+        "selected_release": "v0.1.3-unstable",
+        "selected_release_prerelease": true,
+        "selected_assets_complete": true,
+        "assets": [
+          {
+            "id": 637668994,
+            "name": "OpenTricky-0.1.3-unstable-win64.zip",
+            "size": 61817756,
+            "digest": "sha256:410205d7036eab8baadbb758f44cfe2cbfbaa49e6147ebcd5dbc220b1faac06d",
+            "url": "https://github.com/GiZcesi/OpenTricky/releases/download/v0.1.3-unstable/OpenTricky-0.1.3-unstable-win64.zip"
+          },
+          {
+            "id": 637669006,
+            "name": "SHA256SUMS.txt",
+            "size": 102,
+            "digest": "sha256:80ec96292e04e558b6b594d45a50e114f1fd78897c2a74298ebe89a9b766d8cf",
+            "url": "https://github.com/GiZcesi/OpenTricky/releases/download/v0.1.3-unstable/SHA256SUMS.txt"
+          },
+          {
+            "id": 637669003,
+            "name": "SHA256SUMS.txt.sig",
+            "size": 64,
+            "digest": "sha256:4c2b686d6280332df588e66bb7d6d834f507ed46540a88ee73cf192764186618",
+            "url": "https://github.com/GiZcesi/OpenTricky/releases/download/v0.1.3-unstable/SHA256SUMS.txt.sig"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "9717102bf20583567b1205977fa79e34c0a3dc7a",
+          "sha256": "d644269328e4120d3735202a46a1f766f7326de5afd60d06e0269ff6d2359d5d",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/gizcesi-opentricky/README.md",
+          "url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md"
+        },
+        {
+          "path": "port/launcher/app/ot_update.cpp",
+          "blob_sha": "7bdefec298b4577e9e7f429dc413cde77b8d63be",
+          "sha256": "ea39c737aacd03ccd7ec16c8b328390fe7b9aa08fc08a4d783778f336a52b811",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/gizcesi-opentricky/port__launcher__app__ot_update.cpp",
+          "url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/port/launcher/app/ot_update.cpp"
+        },
+        {
+          "path": "port/launcher/app/ot_install.cpp",
+          "blob_sha": "d0a5577d5e077fabc50bdf108d868947ad525c89",
+          "sha256": "46e2933a6b36c73f56391ee337ef3774a37d9ec0d640fdc4afad09358f0ac9bf",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/gizcesi-opentricky/port__launcher__app__ot_install.cpp",
+          "url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/port/launcher/app/ot_install.cpp"
+        },
+        {
+          "path": "port/launcher/app/main.cpp",
+          "blob_sha": "ad8f3743e149dc50dc2070a2ecf07adcaf553acb",
+          "sha256": "ed4ae7f31a06462780aec9584185bc0f0db750ef760214df81e7b165ad20686b",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/gizcesi-opentricky/port__launcher__app__main.cpp",
+          "url": "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/port/launcher/app/main.cpp"
+        }
+      ],
+      "artifact_revalidation": [
+        {
+          "id": "gizcesi-opentricky",
+          "asset_id": 637668994,
+          "name": "OpenTricky-0.1.3-unstable-win64.zip",
+          "publisher_expected_sha256": "410205d7036eab8baadbb758f44cfe2cbfbaa49e6147ebcd5dbc220b1faac06d",
+          "observed_sha256": "410205d7036eab8baadbb758f44cfe2cbfbaa49e6147ebcd5dbc220b1faac06d",
+          "size": 61817756,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\gizcesi-opentricky-group10.zip",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\gizcesi-opentricky-group10.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        }
+      ],
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_state": "OPEN",
+      "delivery_status": "Authored from exact Core-prepared record; complete-candidate review, exact-head hosted checks and guarded delivery pending. No canonical stage promotion or owner closure."
+    },
+    {
+      "id": "openjkdf2-jedi-knight-dark-forces-ii",
+      "canonical_issue": 725,
+      "path": "crates/portcove-core/catalog/ports/openjkdf2-jedi-knight-dark-forces-ii.json",
+      "before_sha256": "ffe74aa71d4de25312c4709160c81505bddb38b1799ac9c25ae5376d62957d40",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/openjkdf2-jedi-knight-dark-forces-ii-proposal.json",
+      "proposal_input_sha256": "a6f90d73ca45e375d6767970b2d65ae88bd7067c1285e2fe8d8bbee8bd61350c",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-openjkdf2-jedi-knight-dark-forces-ii\\openjkdf2-jedi-knight-dark-forces-ii-a6f90d73ca45e375d6767970b2d65ae88bd7067c1285e2fe8d8bbee8bd61350c.json",
+      "prepared_record_sha256": "a6f90d73ca45e375d6767970b2d65ae88bd7067c1285e2fe8d8bbee8bd61350c",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-openjkdf2-jedi-knight-dark-forces-ii\\completion-e52ccbf2bf124b1e0805f1b60d860e050bc3a47cec1f1cd3a6295d4b9f734ceb.json",
+      "receipt_sha256": "e52ccbf2bf124b1e0805f1b60d860e050bc3a47cec1f1cd3a6295d4b9f734ceb",
+      "source_commit": "814b684c0d06bbfc6e1121941fc8a9e88e3aede7",
+      "release": "v0.9.9",
+      "platforms": [],
+      "steps": [
+        {
+          "title": "Complete original-game setup in OpenJKDF2",
+          "instruction": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater."
+        },
+        {
+          "title": "Keep updates and data with the working copy",
+          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+        }
+      ],
+      "update_owner": "player/upstream; external files remain outside Core replacement/backup/rollback ownership",
+      "status": "Privately Core-prepared; complete-candidate review and delivery pending",
+      "authored_sha256": "f49db17fe02aa724502f518825027b3ef00ef67fbc60c6a5e64f300b12fd0878",
+      "current_route": "Existing listing-only upstream/external route",
+      "selected_route": "Concrete upstream setup and non-owning player guidance",
+      "fit_disposition": "Retain the upstream importer and updater. A mutable update-disable setting is not a supported managed sole-owner contract; preserve its useful existing setup and data layout.",
+      "release_observation": {
+        "repository_id": 139542792,
+        "repository": "shinyquagsire23/OpenJKDF2",
+        "observed_at": "2026-10-25T10:25:38.488Z",
+        "complete_release_inventory": true,
+        "release_count": 128,
+        "selected_release": "v0.9.9",
+        "selected_release_prerelease": true,
+        "selected_assets_complete": true,
+        "assets": [
+          {
+            "id": 467433219,
+            "name": "android-OpenJKDF2-arm64-v8a.apk",
+            "size": 4999097,
+            "digest": "sha256:103c7138a648e1f50d3d87d3221101bc3871d02157ef22933fbf134573a73527",
+            "url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/download/v0.9.9/android-OpenJKDF2-arm64-v8a.apk"
+          },
+          {
+            "id": 467434251,
+            "name": "macos-debug.tar.gz",
+            "size": 20405239,
+            "digest": "sha256:634b45568967067ca2acc0cd157c60691e7c6b9a438d29e734911266b86d7240",
+            "url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/download/v0.9.9/macos-debug.tar.gz"
+          },
+          {
+            "id": 467433885,
+            "name": "nintendo-dsi-debug.zip",
+            "size": 1389418,
+            "digest": "sha256:07b412b715cb5abd817bb72faab46409074c2ce60d9bce2a73976e4862c3d6e8",
+            "url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/download/v0.9.9/nintendo-dsi-debug.zip"
+          },
+          {
+            "id": 467433319,
+            "name": "nintendo-dsi-shareware-demo.zip",
+            "size": 32155822,
+            "digest": "sha256:3ac84a9c33522f714ea9494c57e619bf18fc7b472d3db9b98682642aad0ff86d",
+            "url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/download/v0.9.9/nintendo-dsi-shareware-demo.zip"
+          },
+          {
+            "id": 467433914,
+            "name": "win64-debug.zip",
+            "size": 18249906,
+            "digest": "sha256:842d2ece45f52cd533df341107a4b415d7cd35c2ccff44100664195bc95e8c28",
+            "url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/download/v0.9.9/win64-debug.zip"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "ac1c319eb895326f25c1afa42f0f0c231b32afb3",
+          "sha256": "31345dcc6b31291b933d3224b1e87662117c6c199d0cf66c6b5777e9f1a0238f",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/openjkdf2-jedi-knight-dark-forces-ii/README.md",
+          "url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md"
+        },
+        {
+          "path": "LICENSE.md",
+          "blob_sha": "77df059a14ac2122c999153e97257e33c962da64",
+          "sha256": "2f4b8fa145aa8f7ca0c75717f480b090ee9d23ae0832a7f6de28b84ee7e38727",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/openjkdf2-jedi-knight-dark-forces-ii/LICENSE.md",
+          "url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/LICENSE.md"
+        },
+        {
+          "path": "src/Platform/Common/stdUpdater.cpp",
+          "blob_sha": "4326a695c85c54dc558bbf6cdd29c5a6c11030c5",
+          "sha256": "f7fe8c3a65bbe6b507b5b60c01167464aa8d6a75afb773b4afc364ed25170a82",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/openjkdf2-jedi-knight-dark-forces-ii/src__Platform__Common__stdUpdater.cpp",
+          "url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/src/Platform/Common/stdUpdater.cpp"
+        },
+        {
+          "path": "src/Main/InstallHelper.c",
+          "blob_sha": "11115ef9e55d6ddb1eded4fa7d45c474586473f8",
+          "sha256": "0f505f50c3c6ae1c50588b774abfcdda5a0dfce3de44aec76cb7974819739c9b",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/openjkdf2-jedi-knight-dark-forces-ii/src__Main__InstallHelper.c",
+          "url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/src/Main/InstallHelper.c"
+        },
+        {
+          "path": "src/Main/sithMain.c",
+          "blob_sha": "b4cce6a071b3809e8d6c322795df3171c033a320",
+          "sha256": "aa8d42335657c734a326ac97f1696197554ca4e7ce0e4445d72921adff5068bb",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/openjkdf2-jedi-knight-dark-forces-ii/src__Main__sithMain.c",
+          "url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/src/Main/sithMain.c"
+        }
+      ],
+      "artifact_revalidation": [
+        {
+          "id": "openjkdf2-jedi-knight-dark-forces-ii",
+          "asset_id": 467433914,
+          "name": "win64-debug.zip",
+          "publisher_expected_sha256": "842d2ece45f52cd533df341107a4b415d7cd35c2ccff44100664195bc95e8c28",
+          "observed_sha256": "842d2ece45f52cd533df341107a4b415d7cd35c2ccff44100664195bc95e8c28",
+          "size": 18249906,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\openjkdf2-jedi-knight-dark-forces-ii.zip",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\openjkdf2-jedi-knight-dark-forces-ii.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        }
+      ],
+      "planning": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "canonical_state": "OPEN",
+      "delivery_status": "Authored from exact Core-prepared record; complete-candidate review, exact-head hosted checks and guarded delivery pending. No canonical stage promotion or owner closure."
+    },
+    {
+      "id": "uzdoom-uzdoom",
+      "canonical_issue": 1899,
+      "path": "crates/portcove-core/catalog/ports/uzdoom-uzdoom.json",
+      "before_sha256": "54f00be59d1abf35cfc8c711759e06cd4d00cfe53a67e398b65d91e62d1824f5",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom-proposal.json",
+      "proposal_input_sha256": "7d09ae69cec1904ab23e3e57a74927378dc7923ff955e1a5bd0a297a1596ad5d",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-uzdoom-uzdoom\\uzdoom-uzdoom-7d09ae69cec1904ab23e3e57a74927378dc7923ff955e1a5bd0a297a1596ad5d.json",
+      "prepared_record_sha256": "7d09ae69cec1904ab23e3e57a74927378dc7923ff955e1a5bd0a297a1596ad5d",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-uzdoom-uzdoom\\completion-27c329bb3132057861c2f9d6042b4c9c4dc7c906aa018ef3802ad7d700f34422.json",
+      "receipt_sha256": "27c329bb3132057861c2f9d6042b4c9c4dc7c906aa018ef3802ad7d700f34422",
+      "source_commit": "7910df7102033fd7754a317f3254f24101135926",
+      "release": "5.0.3",
+      "platforms": ["windows-x86-64"],
+      "steps": [
+        {
+          "title": "Use the upstream-owned player",
+          "instruction": "Extract the complete official Windows x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register. Other upstream platforms use their own AppImage or Mac disk-image setup; this Windows package does not establish their operation."
+        },
+        {
+          "title": "Choose your game data",
+          "instruction": "Use the launcher to select your own supported IWAD or compatible free game data. Keep mods and game data under the upstream documented setup. Adding launch details does not start a game; choose Play separately."
+        },
+        {
+          "title": "Update through upstream",
+          "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup."
+        }
+      ],
+      "update_owner": "player/upstream; external files remain outside Core replacement/backup/rollback ownership",
+      "status": "Privately Core-prepared; complete-candidate review and delivery pending",
+      "authored_sha256": "17a07c494216ca20e4daad53824afb18e87cdb763fbd42939bd6432a175d0805",
+      "current_route": "Existing listing-only upstream/external route",
+      "selected_route": "Concrete upstream setup and non-owning player guidance",
+      "fit_disposition": "Retain the Windows launcher/updater.exe runtime replacement workflow. Other offered upstream AppImage/disk-image formats require their own handling; no native platform qualification is inferred.",
+      "release_observation": {
+        "repository_id": 1076246580,
+        "repository": "UZDoom/UZDoom",
+        "observed_at": "2026-10-25T10:25:41.563Z",
+        "complete_release_inventory": true,
+        "release_count": 7,
+        "selected_release": "5.0.3",
+        "selected_release_prerelease": false,
+        "selected_assets_complete": true,
+        "assets": [
+          {
+            "id": 584674268,
+            "name": "Linux-UZDoom-Release-x86_64.AppImage",
+            "size": 34560504,
+            "digest": "sha256:9c5166febc09cbf80c24612a78829037c953f38c4d986e36f8475ddd507e0228",
+            "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/Linux-UZDoom-Release-x86_64.AppImage"
+          },
+          {
+            "id": 584674270,
+            "name": "Linux-UZDoom-Release-x86_64.AppImage.zsync",
+            "size": 118347,
+            "digest": "sha256:b6902ef31642aed3ca1f490682ff8f306219f7ed8fe9f5ef7048e815a4ad53aa",
+            "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/Linux-UZDoom-Release-x86_64.AppImage.zsync"
+          },
+          {
+            "id": 584674271,
+            "name": "MacOS-UZDoom-Release-ARM64.dmg",
+            "size": 32247467,
+            "digest": "sha256:789465d31dd970c3bff7b929c7f74d090f730d8934a3a0f7aef92befd5582666",
+            "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/MacOS-UZDoom-Release-ARM64.dmg"
+          },
+          {
+            "id": 584674267,
+            "name": "Windows-UZDoom-Release-x86_64.zip",
+            "size": 29337585,
+            "digest": "sha256:3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+            "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/Windows-UZDoom-Release-x86_64.zip"
+          },
+          {
+            "id": 584674266,
+            "name": "_release.json",
+            "size": 1160,
+            "digest": "sha256:6bdd076643f04607cf68e2a10781b7d2abd67de5458851467f733d92ac3451a9",
+            "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/_release.json"
+          },
+          {
+            "id": 584674269,
+            "name": "_release.json.asc",
+            "size": 228,
+            "digest": "sha256:cbfdee3c58cd00ee5dae81c51488aade99504ffaa49bb7e0806950647dc987ea",
+            "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/_release.json.asc"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "637c5cfa0b897e1b027e5bac783122ebe05747e3",
+          "sha256": "fca5726eae7e7b55048078c2b5e62f51db0f4b9a1b91c2817ef43ad8dbd8bd75",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/README.md",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md"
+        },
+        {
+          "path": "src/win32/updater.c",
+          "blob_sha": "e4747a1d2efc57cb1d9e979188842a1d9e871e72",
+          "sha256": "16fd8e87e163500e3ceb68512c450008f996302b17f5b4fa48a37bdd96969fff",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/src__win32__updater.c",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/src/win32/updater.c"
+        },
+        {
+          "path": "src/widgets/launcherwindow.cpp",
+          "blob_sha": "fc7fff0833554abdb4f1ba38c3bcb7891abff186",
+          "sha256": "061bec2dbd56fbbabc2e501410657aca8cd2cf86a449d7c6b84990d09408e871",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/src__widgets__launcherwindow.cpp",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/src/widgets/launcherwindow.cpp"
+        },
+        {
+          "path": "src/common/platform/win32/i_specialpaths.cpp",
+          "blob_sha": "593eaa48287428e122acdd9bee2eefdf258943d6",
+          "sha256": "5199c7a701aa1d0e03ca07e1cbc21aac302684b6062296d600014ac875a67f3a",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/src__common__platform__win32__i_specialpaths.cpp",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/src/common/platform/win32/i_specialpaths.cpp"
+        },
+        {
+          "path": "src/gameconfigfile.cpp",
+          "blob_sha": "1558ac3bf9ce88932524fcfd48ef930bccb5fe86",
+          "sha256": "26ee38c992f9a81dca22cd082470d9e822b399b9c34ce8d0d6ccf470a80aeefb",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/src__gameconfigfile.cpp",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/src/gameconfigfile.cpp"
+        },
+        {
+          "path": "LICENSE",
+          "blob_sha": "fcb6e0bb123609c79a697020bdf520be9b9fac38",
+          "sha256": "0b00d6920a9f75f0d4b2b5833fab0243444b0f11b2303570614a9f3fb415f35a",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/LICENSE",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/LICENSE"
+        },
+        {
+          "path": "src/widgets/updatebuttonbar.cpp",
+          "blob_sha": "96cf94220269ffa9684e56fbed48ffa686d08717",
+          "sha256": "e2d6589606207d82085f8a061695df1dfd74d8ec3e2028d3cde5c8f08a42101e",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/src__widgets__updatebuttonbar.cpp",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/src/widgets/updatebuttonbar.cpp"
+        },
+        {
+          "path": "src/version.h",
+          "blob_sha": "6f073b48e3c371f60a7e4fb877b6a979eeccff48",
+          "sha256": "4708b47d6cb17437ec9f7c24a50688baa000c09664ec420dd4ece3671cc8c0b2",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/uzdoom-uzdoom/src__version.h",
+          "url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/src/version.h"
+        }
+      ],
+      "artifact_revalidation": [
+        {
+          "id": "uzdoom-uzdoom",
+          "asset_id": 584674267,
+          "name": "Windows-UZDoom-Release-x86_64.zip",
+          "publisher_expected_sha256": "3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+          "observed_sha256": "3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+          "size": 29337585,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\uzdoom-uzdoom.zip",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\uzdoom-uzdoom.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        }
+      ],
+      "planning": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "canonical_state": "OPEN",
+      "delivery_status": "Authored from exact Core-prepared record; complete-candidate review, exact-head hosted checks and guarded delivery pending. No canonical stage promotion or owner closure."
+    },
+    {
+      "id": "dkfans-keeperfx",
+      "canonical_issue": 1833,
+      "path": "crates/portcove-core/catalog/ports/dkfans-keeperfx.json",
+      "before_sha256": "2956dcab6951b0a7b26e9685d9c805ab2947f57952a739fc5129b8dd987e2600",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dkfans-keeperfx-proposal.json",
+      "proposal_input_sha256": "878721b5d13bef0653440d1f174e494e6068700ee4ceaff31f1aaa4020e4bdbc",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-dkfans-keeperfx\\dkfans-keeperfx-878721b5d13bef0653440d1f174e494e6068700ee4ceaff31f1aaa4020e4bdbc.json",
+      "prepared_record_sha256": "878721b5d13bef0653440d1f174e494e6068700ee4ceaff31f1aaa4020e4bdbc",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-dkfans-keeperfx\\completion-d28fc61dd144a0be94f0c2ba7d850eebe3783055924aad3e6fc8415a5af7fcd5.json",
+      "receipt_sha256": "d28fc61dd144a0be94f0c2ba7d850eebe3783055924aad3e6fc8415a5af7fcd5",
+      "source_commit": "392c7ebdbbd6da6e9596ac769edb4353a01dca5f",
+      "release": "v1.4.0",
+      "platforms": ["windows-x86-64"],
+      "steps": [
+        {
+          "title": "Use the upstream setup for your own Dungeon Keeper",
+          "instruction": "The upstream Windows web installer is the simplest setup route. Follow the linked instructions, choose a separate KeeperFX folder and supply your own supported Dungeon Keeper CD, GOG, EA or Steam files. If you downloaded the complete .7z package here, extract it with your archive tool and open keeperfx-launcher.exe yourself; it prompts for the original files. The archive is not an installer, and patches/alphas alone are not a complete game."
+        },
+        {
+          "title": "Choose the upstream launcher",
+          "instruction": "On Windows 10 or newer, choose keeperfx-launcher.exe from the prepared KeeperFX folder, with that folder as its working directory. It provides setup, settings and upstream updates. Save launch details in Portcove, then choose Play separately. Upstream also documents keeperfx-launcher-legacy.exe or the direct keeperfx.exe route for older environments; those are deliberate alternatives, not another required setup question."
+        },
+        {
+          "title": "Preserve the external copy when updating",
+          "instruction": "Let the upstream launcher provide updates, and keep a separate copy of your working folder before replacing files. Preserve save (including settings.toml), keeperfx.cfg, original data, screenshots and any custom maps, campaigns or mods. Select the CD’s keeper folder when upstream asks for original CD data; other editions have their own folder rules in the linked guide. Portcove does not own these files or provide managed Update, Backup or Rollback for them."
+        }
+      ],
+      "update_owner": "player/upstream; external files remain outside Core replacement/backup/rollback ownership",
+      "status": "Privately Core-prepared; complete-candidate review and delivery pending",
+      "authored_sha256": "df2f2d2e64604fa81842d331589a07d11f145169a2e94ab239f2d4a536c05f7c",
+      "current_route": "Existing listing-only upstream/external route",
+      "selected_route": "Concrete upstream setup and non-owning player guidance",
+      "fit_disposition": "Official complete release is 7z and the simplest supported setup is upstream web-installer/launcher import. Existing NativePortable ZIP/tar.gz/tgz handling does not supply these installer/7z semantics. Keep the upstream update owner.",
+      "release_observation": {
+        "repository_id": 40917535,
+        "repository": "dkfans/keeperfx",
+        "observed_at": "2026-10-25T10:25:45.841Z",
+        "complete_release_inventory": true,
+        "release_count": 11,
+        "selected_release": "v1.4.0",
+        "selected_release_prerelease": false,
+        "selected_assets_complete": true,
+        "assets": [
+          {
+            "id": 466546409,
+            "name": "keeperfx_1_4_0_complete.7z",
+            "size": 374587275,
+            "digest": "sha256:82d9d5634e8ea6cabb8f62fbd4830b758919893863cd313517af256a3040a279",
+            "url": "https://github.com/dkfans/keeperfx/releases/download/v1.4.0/keeperfx_1_4_0_complete.7z"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "7f49ea3ea2e7fbaa03cf97cda828f0610811fbe1",
+          "sha256": "8f86b5434629b78964d24a98f82f5cc1b8d50d53ce271b30666f3aac8872b409",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dkfans-keeperfx/README.md",
+          "url": "https://github.com/dkfans/keeperfx/blob/392c7ebdbbd6da6e9596ac769edb4353a01dca5f/README.md"
+        },
+        {
+          "path": "src/config.c",
+          "blob_sha": "4b537b79523b9e0ba8eb1b1f345b8e79684d3d44",
+          "sha256": "540c7d6f65f9bb087528ac2a81de255c7ff1f8ddf9946a1f9c9779c57809536f",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dkfans-keeperfx/src__config.c",
+          "url": "https://github.com/dkfans/keeperfx/blob/392c7ebdbbd6da6e9596ac769edb4353a01dca5f/src/config.c"
+        },
+        {
+          "path": "src/config.h",
+          "blob_sha": "a44dcc2f801c2a9ab4e614a9a3dce05496ccc696",
+          "sha256": "0ef5b8cf7e88b33f8610db373a9a011f86345940cf8c02a83a707d55b8274ddd",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dkfans-keeperfx/src__config.h",
+          "url": "https://github.com/dkfans/keeperfx/blob/392c7ebdbbd6da6e9596ac769edb4353a01dca5f/src/config.h"
+        },
+        {
+          "path": "src/config_settings.c",
+          "blob_sha": "f639ecb1f2b258d45e2cd11b339b2b75f95c4466",
+          "sha256": "73eb9a5bd791fbc7eefae5f0c58335ca29432960593a7a02635c0edb0ff7a290",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/dkfans-keeperfx/src__config_settings.c",
+          "url": "https://github.com/dkfans/keeperfx/blob/392c7ebdbbd6da6e9596ac769edb4353a01dca5f/src/config_settings.c"
+        }
+      ],
+      "artifact_revalidation": [],
+      "planning": {
+        "Status": "Triage",
+        "Priority": "Medium",
+        "Horizon": "Later",
+        "Target release": "1.0",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Researching",
+        "Effort": "M"
+      },
+      "canonical_state": "OPEN",
+      "delivery_status": "Authored from exact Core-prepared record; complete-candidate review, exact-head hosted checks and guarded delivery pending. No canonical stage promotion or owner closure."
+    },
+    {
+      "id": "doukutsu-rs-doukutsu-rs",
+      "canonical_issue": 1813,
+      "path": "crates/portcove-core/catalog/ports/doukutsu-rs-doukutsu-rs.json",
+      "before_sha256": "0efddc42dec0ddc3f053e256e381bb674ee23ac4fdd6981edc43a0e8c4dba9b2",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/doukutsu-rs-doukutsu-rs-proposal.json",
+      "proposal_input_sha256": "0c1cc227473eb39dbf230f755e246f37021aa2a97a943f49928fc199193f9630",
+      "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-doukutsu-rs-doukutsu-rs\\doukutsu-rs-doukutsu-rs-0c1cc227473eb39dbf230f755e246f37021aa2a97a943f49928fc199193f9630.json",
+      "prepared_record_sha256": "0c1cc227473eb39dbf230f755e246f37021aa2a97a943f49928fc199193f9630",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-player-guidance-batch9\\prepare-doukutsu-rs-doukutsu-rs\\completion-3b7a9c14ea5b541ff955987354f9b125c6a415c35faf566a6f1fc4ce8aedf6b7.json",
+      "receipt_sha256": "3b7a9c14ea5b541ff955987354f9b125c6a415c35faf566a6f1fc4ce8aedf6b7",
+      "source_commit": "8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c",
+      "release": "1.0.0",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+      "steps": [
+        {
+          "title": "Prepare a separate Cave Story folder",
+          "instruction": "Keep your current game and store installation. For the original freeware edition, put the downloaded doukutsu-rs Windows executable beside a copy of your Doukutsu.exe and data folder; first launch extracts the additional original resources. For supported Cave Story+ editions, use your own data folder as described by upstream. The 2026 Steam remaster is not established by this guide, and remastered saves are incompatible with original-version saves. If an Epic copy contains the stray opengl32.dll described upstream, apply its fix only to your separate prepared copy."
+        },
+        {
+          "title": "Add the prepared player",
+          "instruction": "On Windows, select the downloaded x86_64 doukutsu-rs executable and its containing game folder as the working directory. Save launch details, then choose Play separately. Keep its matching data folder in place. Linux publishes a standalone x86_64 ELF, and the Mac downloads contain separate Intel or Apple Silicon app bundles; follow the linked platform instructions for those instead of treating the Windows download as an installer."
+        },
+        {
+          "title": "Keep the chosen edition and user data",
+          "instruction": "You own updates to this external copy. Prepare another version separately and keep your current player, original data and saves until it works. The engine normally uses the operating system’s doukutsu-rs user-data folder, or a sibling user folder in portable mode. Its Advanced menu can open the user-data folder; keep a separate backup of it, including settings.json and saves, before changing versions or editions. Portcove does not back up, roll back or delete this external game/data tree."
+        }
+      ],
+      "update_owner": "player/upstream; external files remain outside Core replacement/backup/rollback ownership",
+      "status": "Privately Core-prepared; complete-candidate review and delivery pending",
+      "authored_sha256": "9cb4634f364b3fac2d8f2a1ae50d9018cc63413ac225a7e3a8924e73a549ece3",
+      "current_route": "Existing listing-only upstream/external route",
+      "selected_route": "Concrete upstream setup and non-owning player guidance",
+      "fit_disposition": "Official Windows/Linux players are standalone PE/ELF, and Mac ZIPs contain app bundles. They do not fit current NativePortable archive/bundle handling. Keep a useful non-owning player route with the actual edition/data boundary.",
+      "release_observation": {
+        "repository_id": 288316523,
+        "repository": "doukutsu-rs/doukutsu-rs",
+        "observed_at": "2026-10-25T10:25:50.345Z",
+        "complete_release_inventory": true,
+        "release_count": 18,
+        "selected_release": "1.0.0",
+        "selected_release_prerelease": false,
+        "selected_assets_complete": true,
+        "assets": [
+          {
+            "id": 437660778,
+            "name": "doukutsu-rs_android_1.0.0.universal.apk",
+            "size": 25464237,
+            "digest": "sha256:fae4e1629c81a911a01677d2979ed53e03b86cad18b08b0ce4d7287f9affe275",
+            "url": "https://github.com/doukutsu-rs/doukutsu-rs/releases/download/1.0.0/doukutsu-rs_android_1.0.0.universal.apk"
+          },
+          {
+            "id": 437660768,
+            "name": "doukutsu-rs_linux_1.0.0.x86_64.elf",
+            "size": 10167544,
+            "digest": "sha256:88d1bca22dfbc50515f12457d7927f95ead7529c3df7dc6c8fdaa70d1f022ef2",
+            "url": "https://github.com/doukutsu-rs/doukutsu-rs/releases/download/1.0.0/doukutsu-rs_linux_1.0.0.x86_64.elf"
+          },
+          {
+            "id": 437660748,
+            "name": "doukutsu-rs_macos_1.0.0.arm64.zip",
+            "size": 3958896,
+            "digest": "sha256:0a7491f7c68e8a438160a67a4152fcca6619ce7a3e6db9aec46f8505c99ab1fd",
+            "url": "https://github.com/doukutsu-rs/doukutsu-rs/releases/download/1.0.0/doukutsu-rs_macos_1.0.0.arm64.zip"
+          },
+          {
+            "id": 437660735,
+            "name": "doukutsu-rs_macos_1.0.0.x86_64.zip",
+            "size": 4249938,
+            "digest": "sha256:7368ee266d1c02d5d6c0c3f12734d0f0358e55a640fdc4a5372e758ab40bad7c",
+            "url": "https://github.com/doukutsu-rs/doukutsu-rs/releases/download/1.0.0/doukutsu-rs_macos_1.0.0.x86_64.zip"
+          },
+          {
+            "id": 438099518,
+            "name": "doukutsu-rs_switch_1.0.0.arm64.nro",
+            "size": 6683797,
+            "digest": "sha256:4e9433c958f8b56839062a6e26cdfb4ea75d419d4f606fe4788346f8def4b87c",
+            "url": "https://github.com/doukutsu-rs/doukutsu-rs/releases/download/1.0.0/doukutsu-rs_switch_1.0.0.arm64.nro"
+          },
+          {
+            "id": 437660715,
+            "name": "doukutsu-rs_windows_1.0.0.i686.exe",
+            "size": 7437824,
+            "digest": "sha256:0f326f8ed2e755286a265202a8b8adf880929daac7751d87a24d044568c2e520",
+            "url": "https://github.com/doukutsu-rs/doukutsu-rs/releases/download/1.0.0/doukutsu-rs_windows_1.0.0.i686.exe"
+          },
+          {
+            "id": 437660702,
+            "name": "doukutsu-rs_windows_1.0.0.x86_64.exe",
+            "size": 8534016,
+            "digest": "sha256:8cbe97195f53618ba34a6da34e77f52c4d135eeaadc6f0753f467b879e9b04f6",
+            "url": "https://github.com/doukutsu-rs/doukutsu-rs/releases/download/1.0.0/doukutsu-rs_windows_1.0.0.x86_64.exe"
+          }
+        ]
+      },
+      "primary_sources": [
+        {
+          "path": "README.md",
+          "blob_sha": "1f0a8e8db40f20b2cbc979b7f92f84e8c4ab6b4a",
+          "sha256": "5e2175ef79e09d19447b76676ad6f3c927cefe7259734a32757b37362ffef0ae",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/doukutsu-rs-doukutsu-rs/README.md",
+          "url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md"
+        },
+        {
+          "path": "src/game/filesystem_container.rs",
+          "blob_sha": "5be25e59731bcd3f8798fed7e6656aae32c7c848",
+          "sha256": "ed739472508717ba25dbcd759fe014cbe086e4359fda3c002613f230986a687d",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/doukutsu-rs-doukutsu-rs/src__game__filesystem_container.rs",
+          "url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/src/game/filesystem_container.rs"
+        },
+        {
+          "path": "src/game/settings.rs",
+          "blob_sha": "5df130102e0bd19ecce3aa9946aa32816c0eba5c",
+          "sha256": "cb037903f91b71678a37254c21aa34ace1f07b57a206ab7d5be4f66036f55b75",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/doukutsu-rs-doukutsu-rs/src__game__settings.rs",
+          "url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/src/game/settings.rs"
+        },
+        {
+          "path": "src/scene/title_scene.rs",
+          "blob_sha": "5b50c590a8853bbb8fbe39646c4059fc39730d80",
+          "sha256": "c49f0cc94c5e5369cff8b32691b6613a4ea45ac443793f2a3a8d2a022ffabdc7",
+          "retained_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-player-guidance-batch9/doukutsu-rs-doukutsu-rs/src__scene__title_scene.rs",
+          "url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/src/scene/title_scene.rs"
+        }
+      ],
+      "artifact_revalidation": [
+        {
+          "id": "doukutsu-rs-doukutsu-rs",
+          "asset_id": 437660748,
+          "name": "doukutsu-rs_macos_1.0.0.arm64.zip",
+          "publisher_expected_sha256": "0a7491f7c68e8a438160a67a4152fcca6619ce7a3e6db9aec46f8505c99ab1fd",
+          "observed_sha256": "0a7491f7c68e8a438160a67a4152fcca6619ce7a3e6db9aec46f8505c99ab1fd",
+          "size": 3958896,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\doukutsu-rs-doukutsu-rs-doukutsu-rs_macos_1.0.0.arm64.zip",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\doukutsu-rs-doukutsu-rs-doukutsu-rs_macos_1.0.0.arm64.zip.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        },
+        {
+          "id": "doukutsu-rs-doukutsu-rs",
+          "asset_id": 437660735,
+          "name": "doukutsu-rs_macos_1.0.0.x86_64.zip",
+          "publisher_expected_sha256": "7368ee266d1c02d5d6c0c3f12734d0f0358e55a640fdc4a5372e758ab40bad7c",
+          "observed_sha256": "7368ee266d1c02d5d6c0c3f12734d0f0358e55a640fdc4a5372e758ab40bad7c",
+          "size": 4249938,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\doukutsu-rs-doukutsu-rs-doukutsu-rs_macos_1.0.0.x86_64.zip",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\doukutsu-rs-doukutsu-rs-doukutsu-rs_macos_1.0.0.x86_64.zip.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        },
+        {
+          "id": "doukutsu-rs-doukutsu-rs",
+          "asset_id": 437660702,
+          "name": "doukutsu-rs_windows_1.0.0.x86_64.exe",
+          "publisher_expected_sha256": "8cbe97195f53618ba34a6da34e77f52c4d135eeaadc6f0753f467b879e9b04f6",
+          "observed_sha256": "8cbe97195f53618ba34a6da34e77f52c4d135eeaadc6f0753f467b879e9b04f6",
+          "size": 8534016,
+          "path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\doukutsu-rs-doukutsu-rs-doukutsu-rs_windows_1.0.0.x86_64.exe",
+          "retained_metadata": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\packages\\doukutsu-rs-doukutsu-rs-doukutsu-rs_windows_1.0.0.x86_64.exe.json",
+          "scope": "Rehashed retained actual artifact against fresh complete publisher inventory. No extraction or execution."
+        }
+      ],
+      "planning": {
+        "Status": "Triage",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Researching",
+        "Effort": "S"
+      },
+      "canonical_state": "OPEN",
+      "delivery_status": "Authored from exact Core-prepared record; complete-candidate review, exact-head hosted checks and guarded delivery pending. No canonical stage promotion or owner closure."
+    }
+  ],
+  "validation": {
+    "core_listing_preparations": 7,
+    "fresh_complete_release_histories": 7,
+    "fresh_selected_asset_inventories": 7,
+    "primary_source_blob_count": 34,
+    "rehashed_retained_actual_artifacts": 8,
+    "keeperfx_wiki": {
+      "commit": "5cf6c0b40f7a088339c3f9cd5b22cc4895316b30",
+      "fresh_head_unchanged": true,
+      "retained_primary": "E:/Codex-Evidence/simpler-installation-rollout-20261023/dkfans-keeperfx-classic-handoff-source-evidence.json"
+    },
+    "limits": "Seven route source/metadata refresh; eight previously acquired package bytes revalidated. KeeperFX archive and Linux doukutsu binary were not acquired. No package, helper, game or original executed.",
+    "authored_formatting": "Repository commit hook formats authored JSON whitespace. Authored hashes bind exact committed Git blobs; immutable input, prepared-record and receipt hashes remain separate, with JSON semantic equality verified."
+  },
+  "remaining": "All six original Direct-route decisions, other fitting adoption/maintenance/lineage/joins and full original Public beta acceptance remain open. Native/packaged Desktop/real-save and publication owners remain independent."
+}

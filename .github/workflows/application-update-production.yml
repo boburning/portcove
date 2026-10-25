@@ -768,6 +768,53 @@ jobs:
     if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
       (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
       != 'reused') }}
+  native_linux:
+    name: Qualify hosted Linux installed continuity
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
+      needs.admission.outputs.classification_transport == 'fixed-job' &&
+      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
+      'reused') }}
+    needs:
+      - admission
+      - tool_bootstrap
+      - tool_attest
+      - coordinator
+      - independent_admission
+      - attest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production-native-linux
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      checks: read
+    env:
+      PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
+    steps:
+      - *a1
+      - *a2
+      - name: Keep the original Linux worker through pre-sign upload and readback
+        uses: ./.github/actions/release-native-linux
+        with:
+          stage: pre-sign
+      - name: Wait for authenticated signers and complete post-sign proof on the same worker
+        uses: ./.github/actions/release-native-linux
+        with:
+          stage: post-sign
+      - name: Retain bounded public native lifecycle rows after success or refusal
+        if: ${{ always() }}
+        run: node scripts/release-controller-diagnostics.mts native-linux
+      - name: Preserve original native attempt without logs, candidate data or credentials
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-native-diagnostics-linux-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-public-evidence-linux
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+          compression-level: 0
   payload_signing:
     name: Sign admitted updater payloads
     if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
@@ -1064,7 +1111,10 @@ jobs:
     if: ${{ needs.admission.outputs.publication_purpose == 'application' && (always() &&
       needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
       != 'reused' && needs.attest.result == 'success' && (needs.tuf_timestamp.result == 'success' ||
-      needs.coordinator.outputs.signing_custody == 'reused')) }}
+      needs.coordinator.outputs.signing_custody == 'reused') &&
+      (needs.coordinator.outputs.signing_custody == 'reused' ||
+      needs.admission.outputs.classification_transport == 'legacy-app' ||
+      (needs.admission.outputs.classification_transport == 'fixed-job' && needs.native_linux.result == 'success'))) }}
     needs:
       - admission
       - tool_bootstrap
@@ -1078,6 +1128,7 @@ jobs:
       - tuf_stable
       - tuf_snapshot
       - tuf_timestamp
+      - native_linux
     runs-on: ubuntu-22.04
     timeout-minutes: 6
     environment: production-release-publication

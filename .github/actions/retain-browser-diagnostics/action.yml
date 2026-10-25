@@ -1,0 +1,32 @@
+name: Retain browser diagnostics
+description: Retain the common browser trace, screenshot and capture metadata outputs.
+inputs:
+  name:
+    description: Existing caller-owned artifact identity.
+    required: true
+runs:
+  using: composite
+  steps:
+    - if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ inputs.name }}
+        path: |
+          work/bt/**/*.trace.zip
+          work/bt/**/screenshots/**/*.png
+          .vitest/attachments/failure-screenshots/**/*.png
+          apps/desktop/.vitest/attachments/failure-screenshots/**/*.png
+          .vitest/attachments/**/*.json
+          apps/desktop/.vitest/attachments/**/*.json
+          outputs/slice5-cards/**/*.png
+          outputs/detail-composition/**/*.png
+          outputs/observation-clarity/**/*.png
+          outputs/uiux-game-titles/**/*.png
+          outputs/detail-tabs/**/*.png
+          outputs/uiux-remainder/**/*.png
+          outputs/ui-refinement/**/*.png
+          outputs/uiux-task-isolation/**/*.png
+          work/installation-rendered/**/*.png
+        include-hidden-files: true
+        retention-days: 7
+        if-no-files-found: warn

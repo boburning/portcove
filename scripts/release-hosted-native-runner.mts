@@ -10,12 +10,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
-import {
-  prepareActualHostedLinuxPreSignJob,
-  readBackActualHostedLinuxPreSignUpload,
-  prepareActualHostedLinuxPostSignJob,
-  readBackActualHostedLinuxPostSignUpload,
-} from "./release-hosted-native-job.mts";
 import { receiveControllerTools } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 
@@ -194,6 +188,15 @@ async function runNativeJob(
   });
   let phase = "preparation";
   try {
+    // Only the original attested worker loads the bundled signing producer.
+    // Source-only Actions request/ack readers have no dependency installation
+    // and must not import that producer merely to inspect public routing.
+    const {
+      prepareActualHostedLinuxPreSignJob,
+      readBackActualHostedLinuxPreSignUpload,
+      prepareActualHostedLinuxPostSignJob,
+      readBackActualHostedLinuxPostSignUpload,
+    } = await import("./release-hosted-native-job.mts");
     const upload =
       stage === "payload-signing"
         ? await prepareActualHostedLinuxPreSignJob(root, originalDeadline, runtimeInput)

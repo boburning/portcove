@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kirby-and-the-forgotten-land-nxport",
+    "name": "Kirby and the Forgotten Land (nxport)",
+    "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: iOS/macOS tested upstream; invisibleexhale/shadowrounding; exactversion Unknown. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for Kirby and the Forgotten Land. Exactacceptedversion/region/titleID Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "original_game_title": "Kirby and the Forgotten Land",
+    "project_url": "https://github.com/nxporting/nxport",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/nxporting/nxport",
+    "issue_number": 2968,
+    "artwork": {
+      "game_id": 172427,
+      "cover_id": 180932,
+      "image_id": "co3vlw",
+      "image_sha256": "b8e49e86f247d86702968589428cbdb7544dac07c7ab55ccca56ee13539e61ef",
+      "game_slug": "kirby-and-the-forgotten-land",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kirby-and-the-forgotten-land-nxport",
+    "origin": {
+      "project_url": "https://github.com/nxporting/nxport",
+      "repository": {
+        "host": "github.com",
+        "id": "1423948699"
+      }
+    },
+    "decisions": []
+  }
+}

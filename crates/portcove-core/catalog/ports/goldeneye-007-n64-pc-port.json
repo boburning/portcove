@@ -3,12 +3,12 @@
   "listing": {
     "id": "goldeneye-007-n64-pc-port",
     "name": "GoldenEye 007 N64 PC Port",
-    "summary": "Explore GoldenEye 007 N64 PC Port and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Native GoldenEye 007 project with original-file setup; fresh package acquisition awaits the inherited-code permission decision.",
     "project_url": "https://github.com/jkdansereau/goldeneye-pc-port",
     "issue_number": 1129,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port",
+    "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
     "artwork": {
       "game_id": 1638,
       "cover_id": 576176,
@@ -16,6 +16,27 @@
       "image_sha256": "6937741f1cbcd1394211af3a808040fdff0c9fc02eab5f2f506f7ea700c5f779",
       "game_slug": "goldeneye-007",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "GoldenEye 007",
+    "release_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases",
+    "download_block_reason": "Fresh package acquisition is held while the linked inherited n64decomp/007 code has no attributable grant: the upstream NOTICE excludes it from the port-layer MIT license. Reconsider after an attributable grant or an explicitly reviewed operation basis covers that exact linked code; a published archive or owned original alone does not settle it.",
+    "manual_setup": {
+      "help_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Check the exact upstream permission condition",
+          "instruction": "The reviewed Windows v0.5.0 package fits the existing ready-archive lifecycle technically, but the upstream NOTICE excludes inherited src/, include/ and assets/ from its MIT license and the build links those sources. Fresh package acquisition is held pending an attributable grant or an explicitly reviewed basis for that exact operation. This is separate from original-file verification, optional gameplay observations and whether an executable can run."
+        },
+        {
+          "title": "Keep a permitted existing copy together",
+          "instruction": "If you already have a copy you are permitted to use, keep its complete matching runtime and your own required NTSC-U USA big-endian original. The reviewed player is ge007.x86_64.exe; select its containing folder as working directory, save launch details and choose Play deliberately. The game performs its own asset preparation. These instructions do not grant permission to acquire, register or execute a copy, and Portcove does not certify successful upstream conversion or gameplay."
+        },
+        {
+          "title": "Preserve your actual data before changing copies",
+          "instruction": "For an externally owned copy, preserve data/ge007.ntsc-final.z64, data/ge007.eep, data/ge007.ini, emulator-import backups and ppm screenshots, plus any selected custom locations. The upstream importer has 99 backup names and can overwrite its last slot when full. Keep generated sidecars and shader lists with their producing runtime; optional source/Python tools are separate deliberate actions. You or upstream provide external updates. Portcove registration does not update, back up, roll back or delete those external files."
+        }
+      ]
     }
   }
 }

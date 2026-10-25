@@ -7,8 +7,8 @@
     "project_url": "https://github.com/sp00nznet/advancewars",
     "issue_number": 166,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/sp00nznet/advancewars",
+    "availability": "source-only",
+    "setup_url": "https://github.com/sp00nznet/advancewars#readme",
     "artwork": {
       "game_id": 1691,
       "cover_id": 525738,
@@ -16,6 +16,20 @@
       "image_sha256": "26bc49cd5c5617fb10d474c370c8890d549a1fa4657b6af300472ee30eb2fd8c",
       "game_slug": "advance-wars",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare upstream or keep an existing game build",
+          "instruction": "Use your own Advance Wars USA Rev 1 original with the upstream Windows alpha guide. Run Setup.cmd deliberately; it records setup.log, skips completed work and can be resumed. The generated Advance Wars (recomp).cmd launches the prepared game. For native registration, choose build/Release/AWRE.exe, use the prepared project root as working directory and game/aw.gba as the argument in Change launch details. Compiler tools are not the game; the reviewed alpha has no audio."
+        },
+        {
+          "title": "Keep your files and update through upstream",
+          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/sp00nznet/advancewars#readme"
     }
   }
 }
