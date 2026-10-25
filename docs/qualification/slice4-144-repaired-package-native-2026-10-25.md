@@ -39,7 +39,7 @@ zero-candidate-process readback.
    responsive titled window observed, normal close requested, exit 0, no forced
    cleanup; 34,191 ms. OpenBIOS, USA serial SLUS-00561, OpenGL and runtime/render
    initialization appear in the actual logs. All packaged files remained
-   unchanged. Actual memory-card files were created, `keybinds.ini` was generated,
+   unchanged. `keybinds.ini` was generated,
    and `mods/state.toml` contained only `format_version = 2`, without a persisted
    generated absolute texture path.
 2. `spike7-first`, PID 27780, started `2026-10-25T08:39:56.8224888Z`:
@@ -59,12 +59,15 @@ zero-candidate-process readback.
    was absent. The relocated package opened a responsive window and closed
    normally, exit 0, no forced cleanup; 31,004 ms. Readback found all seven
    tracked settings/input/keybind/mod-state/texture-data/memory-card files
-   byte-identical. The default HD feature remained disabled and mod state still
+   byte-identical. Both blank memory-card files were present in the pre/post
+   relocation readbacks; their first creation timing was not independently
+   captured. Equality proves neither file-identity preservation nor loading
+   nonempty player saves. The default HD feature remained disabled and mod state still
    contained only `format_version = 2`. This establishes that bounded relocation
    case, not the remaining enabled-default or full lifecycle cases.
 
 These windows were not foreground at capture time, so no screenshot or visual
-gameplay acceptance is claimed. Memory-card file creation is not in-game
+gameplay acceptance is claimed. Memory-card file presence is not in-game
 save/load evidence. The forensic copy includes caches for diagnosis and is not
 the proposed persistent-data migration policy.
 
