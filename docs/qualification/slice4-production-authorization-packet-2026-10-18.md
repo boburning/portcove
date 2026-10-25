@@ -1582,3 +1582,12 @@ this does not wire a protected Windows job or establish direct capture/native
 acceptance. Remaining producer/account/capture/proof joins, resource fit and final
 runnable source/digest/grant reconciliation stay pending. No new owner action is
 requested; all existing issue acceptance and production holds remain.
+
+The [hosted Windows isolated-account primitive](slice4-hosted-observations-2026-10-22.md#hosted-windows-isolated-account-primitive-preparation-october-25)
+uses the existing launcher with a generated memory-only credential on a disposable
+standard runner, avoiding workstation passwords, Credential Manager and manual
+admin steps. Diagnostic context and controlled tests cannot mint protected/native
+acceptance. Actual hosted results belong to its delivery receipt. Protected
+Windows producer/candidate/source/runtime/capture/proof joins and resource fit
+remain unfinished engineering; no production job or execution authority is added.
+All existing issue, capacity, custody, recovery and production holds remain.

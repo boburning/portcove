@@ -1,6 +1,7 @@
 /** Credential-free source/tool qualification. Never a native or protected producer. */
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { openSync, closeSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile, lstat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -26,6 +27,53 @@ import {
 } from "./release-native-runtime-support.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
+import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
+import { isRecord } from "./runtime-values.mts";
+import { isDeepStrictEqual } from "node:util";
+import { readNativeCapturedStream } from "./release-native-capture-files.mts";
+
+/** Captured streams may honestly be empty. This grants no executable custody or
+ * capture provenance; retain operation and readback failures independently. */
+export async function observeWindowsAccountCommand(
+  directory: string,
+  status: number | undefined,
+  operationError: unknown,
+  readbackFailures: readonly string[],
+) {
+  const base = {
+    status: status ?? null,
+    resource_error:
+      operationError instanceof Error
+        ? operationError.message.slice(0, 1024)
+        : operationError === undefined
+          ? null
+          : "resource operation refused",
+    readback_failures: [...readbackFailures],
+    authority: "none",
+  };
+  try {
+    const bytes = await readNativeCapturedStream(directory, "account.stderr.bin");
+    return {
+      ...base,
+      stderr: {
+        observation: "read" as const,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        prefix_base64: bytes.subarray(0, 16384).toString("base64"),
+        truncated: bytes.length > 16384,
+      },
+    };
+  } catch (error) {
+    return {
+      ...base,
+      stderr: {
+        observation: "refused" as const,
+        error:
+          error instanceof Error ? error.message.slice(0, 1024) : "captured stderr read refused",
+      },
+    };
+  }
+}
 
 async function main() {
   assert.ok(process.argv.length === 2 && process.platform === "win32" && process.arch === "x64");
@@ -239,6 +287,114 @@ async function main() {
       scope: "inert resource-admitted child only; no candidate/native acceptance",
       authority: "none",
     });
+    phase = "actual-hosted-Windows-account-primitives";
+    const broker = readProcessIdentity(process.pid);
+    assert.ok(broker && broker.startsWith(`win32:${process.pid}:`));
+    const context = {
+      schema_version: 1,
+      source_commit: expected.commit,
+      source_tree: expected.tree,
+      binding: randomBytes(32).toString("hex"),
+      broker_pid: process.pid,
+      broker_created_filetime: broker.split(":")[2],
+      run_id: process.env.GITHUB_RUN_ID,
+      run_attempt: 1,
+    };
+    const stdout = openSync(path.join(directory, "account.stdout.bin"), "wx");
+    const stderr = openSync(path.join(directory, "account.stderr.bin"), "wx");
+    let accountStatus: number | undefined;
+    let accountError: unknown;
+    try {
+      accountStatus = await runResourceCommand(
+        "analysis",
+        "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-File",
+          path.join(built.tools, "scripts/release-hosted-native-windows-setup.ps1"),
+          "-ContextBase64",
+          Buffer.from(JSON.stringify(context)).toString("base64"),
+        ],
+        {
+          cwd: source,
+          environment: {
+            ...environment,
+            GITHUB_ACTIONS: "true",
+            GITHUB_REPOSITORY: "boburning/portcove",
+            RUNNER_ENVIRONMENT: "github-hosted",
+            GITHUB_EVENT_NAME: process.env.GITHUB_EVENT_NAME,
+            GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
+            GITHUB_RUN_ID: process.env.GITHUB_RUN_ID,
+            GITHUB_RUN_ATTEMPT: process.env.GITHUB_RUN_ATTEMPT,
+            SystemDrive: process.env.SystemDrive,
+          },
+          output: { stdout, stderr },
+          executionTimeoutMilliseconds: 85000,
+          supervise: (args, dependencies) =>
+            runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+        },
+      );
+    } catch (error) {
+      accountError = error;
+    } finally {
+      closeSync(stdout);
+      closeSync(stderr);
+    }
+    const readbackFailures: string[] = [];
+    for (const name of [
+      "intent.json",
+      "account-created.json",
+      "result.json",
+      "capture/observed.json",
+    ]) {
+      const filename = path.join("C:\\ProgramData\\PortcoveHostedNativeQualification", name);
+      try {
+        const bytes = await readControllerToolFile(filename, 65536);
+        const value: unknown = JSON.parse(bytes.toString("utf8"));
+        assert.ok(
+          isRecord(value) && isDeepStrictEqual(value.context, context),
+          "retained account evidence belongs to another attempt",
+        );
+        await record(`account-${path.basename(name)}`, value);
+      } catch (error) {
+        if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT"))
+          readbackFailures.push(
+            error instanceof Error ? error.message.slice(0, 1024) : "account evidence read refused",
+          );
+      }
+    }
+    const command = await observeWindowsAccountCommand(
+      directory,
+      accountStatus,
+      accountError,
+      readbackFailures,
+    );
+    await record("account-command.json", command);
+    if (accountError !== undefined) {
+      if (accountError instanceof Error) throw accountError;
+      throw new Error("hosted account resource operation refused", { cause: accountError });
+    }
+    assert.deepEqual(readbackFailures, []);
+    assert.equal(command.stderr.observation, "read");
+    const account: unknown = JSON.parse(
+      (await readControllerToolFile(path.join(directory, "account-result.json"), 65536)).toString(
+        "utf8",
+      ),
+    );
+    assert.ok(isRecord(account));
+    assert.equal(accountStatus, 0);
+    assert.deepEqual(account.context, context);
+    assert.equal(account.disabled, true);
+    assert.equal(account.job_empty, true);
+    assert.equal(account.root_exited, true);
+    assert.deepEqual(account.remaining_pids, []);
+    assert.deepEqual(account.cleanup_failures, []);
+    assert.ok(isRecord(account.root_identity) && isRecord(account.observed));
+    assert.equal(account.root_identity.pid, account.observed.pid);
+    assert.equal(account.failure, null);
+    assert.equal(account.authority, "none");
     recheckNativeRuntimeCustody(files, custody);
     await record("result.json", {
       status: "pass",

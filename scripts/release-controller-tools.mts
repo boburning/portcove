@@ -74,6 +74,11 @@ const windowsAssets = Object.freeze([
   "release/package-policy.json",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+  "scripts/release-hosted-native-windows-setup.ps1",
+  "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-registry.ps1",
+  "scripts/fixtures/native-account-gui-probe.ps1",
 ] as const);
 const windowsPaths = Object.freeze(
   [

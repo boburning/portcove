@@ -9,6 +9,11 @@ on:
       - scripts/github-*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
+      - scripts/release-hosted-native-windows-setup.ps1
+      - scripts/release-hosted-native-windows-setup.cs.txt
+      - scripts/native-qualification-account.cs.txt
+      - scripts/native-qualification-account-registry.ps1
+      - scripts/fixtures/native-account-gui-probe.ps1
       - scripts/fixtures/tuf-worker-fixture.mts
       - scripts/fixtures/trusted-assembly-fixture.mts
       - scripts/reconstruct-application-update-records.mts
@@ -35,6 +40,11 @@ on:
       - scripts/release-controller-tool*.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
+      - scripts/release-hosted-native-windows-setup.ps1
+      - scripts/release-hosted-native-windows-setup.cs.txt
+      - scripts/native-qualification-account.cs.txt
+      - scripts/native-qualification-account-registry.ps1
+      - scripts/fixtures/native-account-gui-probe.ps1
       - scripts/release-connected-fixture.test.mts
       - scripts/fixtures/tuf-worker-fixture.mts
       - scripts/fixtures/trusted-assembly-fixture.mts

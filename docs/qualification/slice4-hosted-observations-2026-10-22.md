@@ -1204,3 +1204,60 @@ for this preparation. D1/D2/D3 and all spending/admission/recovery restrictions
 remain: availability/headroom Unknown, no capacity reservation, #254 Done,
 #315/#534/#246 pending, Chameleon protected acceptance unset, production held and
 Slice5 excluded.
+
+## Hosted Windows isolated account primitive preparation (October 25)
+
+The fixed Windows tool diagnostic now prepares one fresh `PortcoveNativeQual`
+account on its disposable standard Windows2022 runner and exercises the existing
+native launcher with the retained inert GUI/profile/registry probe. It accepts
+only that workflow's pull-request or main-push diagnostic context, source-bound
+tool manifest and original direct-parent process generation. It does not admit a
+production parent, package, report, issuer or key. No local workstation account,
+password entry, elevation prompt, credential store or task is involved.
+
+A generated bounded read-only SecureString stays in the trusted helper process
+and is disposed after use. The account starts disabled with ordinary Users-only
+membership. Profile creation uses the previously successful fixed260-character
+buffer and verifies the actual ProfileList result. A fresh atomic broker/SYSTEM
+root retains the intent before account creation; source is candidate-read-only,
+work is candidate-modifiable and capture remains broker-only. Existing roots,
+accounts or profiles refuse adoption. The trusted launcher retains suspended
+creation, exact executable digest, non-admin token/profile checks, a new private
+window station/desktop and the existing finite kill-on-close JobObject. The inert
+probe must demonstrate actual HKCU/profile identity, responsive private GUI and
+an observed descendant in that original job. Positive root exit and empty-job
+readback remain mandatory; WinForms capability is not Tauri/WebView/package or
+minimum-client acceptance.
+
+Teardown and exact-account disabling are independent cleanup attempts. Both
+failures survive alongside the original failure; ambiguous job settlement stays
+false. Disabling prevents later logons and does not establish child termination.
+No account/profile/file deletion or automatic retry is implemented. Owned partial
+records remain on the disposable runner; only bounded context-matching public
+JSON and bounded diagnostic stderr are uploaded through the existing seven-day
+fixture artifact. Credentials never enter arguments, environment or receipts.
+The helper has a60second work fence with separate bounded teardown, inside
+an85second resource-admitted outer command. Queue admission and preparation use
+the existing Windows supervisor product and actual resource lease.
+
+Local tests execute the actual context parser, ordinary-local-call refusal,
+private directory creation/owner/DACL/readback and retained-directory refusal.
+Controlled extraction of the actual cleanup body tests teardown refusal plus
+independent disabling and simultaneous cleanup refusal. The actual first-effect
+statement boundary refuses stale parent generation and expired lifetime before
+directory creation. These tests create no account or profile. Initial local
+failure from PowerShell converting a null string argument to empty text remains
+retained; the native helper now handles both as no candidate grant. Independent
+review also found and repaired cleanup skipping and a missing final pre-effect
+fence. Actual hosted outcomes and exact delivery identities belong to the owning
+receipt, rather than being inferred from these fixtures.
+
+This prepares and qualifies an OS primitive. Original protected Windows parent,
+candidate materialization, complete native source/dependency/runtime installation,
+direct capture/report/proof and original-worker upload joins still need connection.
+No protected Windows job or production allocation is added. Protected resource
+fit, final runnable source/digest/configuration reconciliation and actual
+producer/custody/protection/coordinator prerequisites remain separate. D1/D2/D3,
+the $0 stop-usage boundary and all existing restrictions remain; availability and
+headroom Unknown, no capacity reservation. #254 Done; #315/#534/#246 pending;
+Chameleon protected acceptance unset; production held; Slice5 excluded.

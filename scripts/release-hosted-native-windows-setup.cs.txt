@@ -1,0 +1,64 @@
+// Fixed setup primitives for the disposable hosted native account. No credential
+// store, arbitrary command, account adoption, deletion or acceptance authority.
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Security;
+using System.Security.AccessControl;
+using System.Security.Cryptography;
+using System.Security.Principal;
+using System.Text;
+
+namespace Portcove.HostedNative {
+    public static class Setup {
+        [StructLayout(LayoutKind.Sequential)] struct Attributes {
+            public int length; public IntPtr descriptor; public int inherit;
+        }
+        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+        static extern bool CreateDirectoryW(string path, ref Attributes attributes);
+        [DllImport("userenv.dll", CharSet=CharSet.Unicode)]
+        static extern int CreateProfile(string sid, string name, StringBuilder path, uint size);
+
+        public static SecureString Password() {
+            byte[] bytes = new byte[32]; RandomNumberGenerator.Fill(bytes);
+            var value = new SecureString();
+            try {
+                foreach (char c in "Pc4!") value.AppendChar(c);
+                foreach (byte b in bytes) {
+                    value.AppendChar("0123456789abcdef"[b >> 4]);
+                    value.AppendChar("0123456789abcdef"[b & 15]);
+                }
+                value.MakeReadOnly(); return value;
+            } catch { value.Dispose(); throw; }
+            finally { Array.Clear(bytes, 0, bytes.Length); }
+        }
+        public static string Profile(string sid) {
+            // This fixed short name uses the successfully qualified 260-character
+            // buffer, not the earlier failed 32768-character setup call.
+            var result = new StringBuilder(260);
+            int status = CreateProfile(sid, "PortcoveNativeQual", result, 260);
+            if (status != 0) Marshal.ThrowExceptionForHR(status);
+            return result.ToString();
+        }
+        public static void Directory(string path, string owner, string candidate, bool writable) {
+            var acl = new DirectorySecurity();
+            acl.SetOwner(new SecurityIdentifier(owner));
+            acl.SetAccessRuleProtection(true, false);
+            var inheritance = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+            foreach (string sid in new [] {owner, "S-1-5-18"})
+                acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid),
+                    FileSystemRights.FullControl, inheritance, PropagationFlags.None, AccessControlType.Allow));
+            if (!String.IsNullOrEmpty(candidate))
+                acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(candidate),
+                    writable ? FileSystemRights.Modify : FileSystemRights.ReadAndExecute,
+                    inheritance, PropagationFlags.None, AccessControlType.Allow));
+            byte[] bytes = acl.GetSecurityDescriptorBinaryForm();
+            var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            try {
+                var attributes = new Attributes {length=Marshal.SizeOf<Attributes>(), descriptor=pinned.AddrOfPinnedObject()};
+                if (!CreateDirectoryW(path, ref attributes))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Fresh private native directory required; no adoption");
+            } finally { pinned.Free(); }
+        }
+    }
+}
