@@ -892,6 +892,8 @@ only after a visible post-start write, while the mock original claim continued
 to accept that owner until the caller observed refusal. The mock worker could
 therefore finish before the intended invalidation. The fixture now invalidates
 its owner before publishing that signal and requires the same identity in its
-original claim. The adversarial 25ms yield, failure/partial-marker assertions and
+original claim. The fixed-source scope stays independent from worker lease
+refusal, and the fixture additionally requires one spawn and incomplete post-sign
+state. The adversarial 25ms yield, failure/partial-marker assertions and
 all production deadlines remain. The failed workflow stays failed; successful
 build and fixture results retain their separate scopes.
