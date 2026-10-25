@@ -126,6 +126,18 @@ function attentionMatches(port: CatalogEntry, value: string, context: CatalogQue
   }
 }
 
+function integrationMembershipMatches(
+  port: CatalogEntry,
+  value: string,
+  context: CatalogQueryContext,
+) {
+  const status = context.library?.statuses.get(port.id);
+  const member =
+    status?.port_id === port.id &&
+    Boolean(status.active?.port_id === port.id || status.external_runtime?.port_id === port.id);
+  return value === "in-library" ? member : !member;
+}
+
 function matches(
   port: CatalogEntry,
   group: Group,
@@ -150,11 +162,7 @@ function matches(
     case "installationMethods":
       return port.presentation?.installation_method === value;
     case "membership": {
-      const status = context.library?.statuses.get(port.id);
-      const member =
-        status?.port_id === port.id &&
-        Boolean(status.active?.port_id === port.id || status.external_runtime?.port_id === port.id);
-      return value === "in-library" ? member : !member;
+      return integrationMembershipMatches(port, value, context);
     }
     case "attention":
       return attentionMatches(port, value, context);
@@ -242,6 +250,23 @@ function contextMatches(
   }
 }
 
+function listingPlatformMatch(
+  port: CatalogEntry,
+  value: string,
+  context: CatalogQueryContext,
+  status: PortStatus | undefined,
+): Match {
+  if (port.pendingSetup && !status?.external_runtime) return undefined;
+  // A selected installation has one observed platform. Declared project
+  // platforms must not make that installation appear compatible elsewhere.
+  const platforms = status?.external_runtime ? [status.external_runtime.platform] : port.platforms;
+  return platforms.length
+    ? platforms.some(
+        (platform) => platform === (value === "this-device" ? context.devicePlatform : value),
+      )
+    : undefined;
+}
+
 function listingMatch(
   port: CatalogEntry,
   group: Group,
@@ -251,17 +276,7 @@ function listingMatch(
   const status = context.library?.statuses.get(port.id);
   switch (group) {
     case "platforms": {
-      if (port.pendingSetup && !status?.external_runtime) return undefined;
-      // A selected installation has one observed platform. Declared project
-      // platforms must not make that installation appear compatible elsewhere.
-      const platforms = status?.external_runtime
-        ? [status.external_runtime.platform]
-        : port.platforms;
-      return platforms.length
-        ? platforms.some(
-            (platform) => platform === (value === "this-device" ? context.devicePlatform : value),
-          )
-        : undefined;
+      return listingPlatformMatch(port, value, context, status);
     }
     case "membership": {
       if (!context.library) return undefined;
@@ -356,13 +371,7 @@ function evaluateIntegrationQuery(
       Object.fromEntries(catalogQueryOptions[group].map((value) => [value, null])),
     ]),
   ) as CatalogQueryResult["counts"];
-  const empty = (state: "unresolved" | "unavailable"): CatalogQueryResult => ({
-    state,
-    query,
-    ports: [],
-    counts,
-    matchingContexts: new Map(),
-  });
+  const empty = (state: "unresolved" | "unavailable") => emptyQueryResult(state, query, counts);
   if (!supportedQuery(query)) return empty("unresolved");
   if (
     groups.some((group) =>
@@ -371,18 +380,47 @@ function evaluateIntegrationQuery(
   )
     return empty("unavailable");
 
-  const seen = new Set<string>();
-  const unique = ports.filter((port) => {
-    if (seen.has(port.id)) return false;
-    seen.add(port.id);
-    return true;
-  });
+  const unique = uniqueIntegrations(ports);
   const activeGroups = groups.filter((group) => query[group]?.length);
-  const privateGroups: Group[] = ["membership", "attention", "updates", "gameFiles"];
-  const requiresContexts =
-    (unique.length > 0 || !hasListings) &&
+  const requiresContexts = requiresContextJoin(unique, hasListings, activeGroups);
+  const browsing = coherentBrowsing(unique, context);
+  if (requiresContexts && !browsing) return empty("unavailable");
+  const input = { unique, query, context, counts, gameFilesAvailable };
+  return browsing
+    ? evaluateCoherentQuery(input, browsing)
+    : evaluateDeclaredQuery(input, hasListings, activeGroups);
+}
+
+interface IntegrationEvaluation {
+  unique: readonly CatalogEntry[];
+  query: CatalogQuery;
+  context: CatalogQueryContext;
+  counts: CatalogQueryResult["counts"];
+  gameFilesAvailable: boolean;
+}
+
+function emptyQueryResult(
+  state: "unresolved" | "unavailable",
+  query: unknown,
+  counts: CatalogQueryResult["counts"],
+): CatalogQueryResult {
+  return { state, query, ports: [], counts, matchingContexts: new Map() };
+}
+
+const privateGroups: readonly Group[] = ["membership", "attention", "updates", "gameFiles"];
+function requiresContextJoin(
+  ports: readonly CatalogEntry[],
+  hasListings: boolean,
+  activeGroups: readonly Group[],
+) {
+  return (
+    (ports.length > 0 || !hasListings) &&
     activeGroups.length > 1 &&
-    activeGroups.some((group) => privateGroups.includes(group));
+    activeGroups.some((group) => privateGroups.includes(group))
+  );
+}
+
+function coherentBrowsing(ports: readonly CatalogEntry[], context: CatalogQueryContext) {
   const browsing = context.browsing;
   const coherent = Boolean(
     browsing &&
@@ -390,67 +428,93 @@ function evaluateIntegrationQuery(
     context.library?.id === browsing.library.root &&
     /^[a-f0-9]{64}$/.test(browsing.workspace_binding_sha256) &&
     new Set(browsing.contexts.map((fact) => fact.context_id)).size === browsing.contexts.length &&
-    unique.every((port) => browsing.contexts.some((fact) => fact.port_id === port.id)),
+    ports.every((port) => browsing.contexts.some((fact) => fact.port_id === port.id)),
   );
-  if (requiresContexts && !coherent) return empty("unavailable");
-  if (coherent && browsing) {
-    const byPort = new Map<string, CatalogBrowsingContext[]>();
-    for (const fact of browsing.contexts) {
-      const facts = byPort.get(fact.port_id) ?? [];
-      facts.push(fact);
-      byPort.set(fact.port_id, facts);
-    }
-    const matching = (port: CatalogEntry, override?: [Group, string]) => {
-      const selected = groups.filter((group) => query[group]?.length || override?.[0] === group);
-      return (byPort.get(port.id) ?? []).map((fact) => ({
-        fact,
-        match: all(
-          selected.map((group) =>
-            any(
-              (override?.[0] === group ? [override[1]] : (query[group] ?? [])).map((value) =>
-                contextMatches(port, fact, group, value, context),
-              ),
+  return coherent ? browsing : undefined;
+}
+
+function uniqueIntegrations(ports: readonly CatalogEntry[]) {
+  const seen = new Set<string>();
+  return ports.filter((port) => {
+    if (seen.has(port.id)) return false;
+    seen.add(port.id);
+    return true;
+  });
+}
+
+function coherentMatcher(
+  query: CatalogQuery,
+  context: CatalogQueryContext,
+  browsing: CatalogBrowsingSnapshot,
+) {
+  const byPort = new Map<string, CatalogBrowsingContext[]>();
+  for (const fact of browsing.contexts) {
+    const facts = byPort.get(fact.port_id) ?? [];
+    facts.push(fact);
+    byPort.set(fact.port_id, facts);
+  }
+  const matching = (port: CatalogEntry, override?: [Group, string]) => {
+    const selected = groups.filter((group) => query[group]?.length || override?.[0] === group);
+    return (byPort.get(port.id) ?? []).map((fact) => ({
+      fact,
+      match: all(
+        selected.map((group) =>
+          any(
+            (override?.[0] === group ? [override[1]] : (query[group] ?? [])).map((value) =>
+              contextMatches(port, fact, group, value, context),
             ),
           ),
         ),
-      }));
-    };
-    for (const group of groups) {
-      for (const value of catalogQueryOptions[group]) {
-        if (!available(group, value, context, gameFilesAvailable)) continue;
-        const outcomes = unique.map((port) =>
-          any(matching(port, [group, value]).map((entry) => entry.match)),
-        );
-        counts[group][value] = outcomes.includes(undefined)
-          ? null
-          : outcomes.filter((match) => match === true).length;
-      }
+      ),
+    }));
+  };
+  return matching;
+}
+
+function evaluateCoherentQuery(
+  { unique, query, context, counts, gameFilesAvailable }: IntegrationEvaluation,
+  browsing: CatalogBrowsingSnapshot,
+): CatalogQueryResult {
+  const matching = coherentMatcher(query, context, browsing);
+  for (const group of groups) {
+    for (const value of catalogQueryOptions[group]) {
+      if (!available(group, value, context, gameFilesAvailable)) continue;
+      const outcomes = unique.map((port) =>
+        any(matching(port, [group, value]).map((entry) => entry.match)),
+      );
+      counts[group][value] = outcomes.includes(undefined)
+        ? null
+        : outcomes.filter((match) => match === true).length;
     }
-    const outcomes = unique.map((port) => ({ port, matches: matching(port) }));
-    if (outcomes.some((outcome) => any(outcome.matches.map((entry) => entry.match)) === undefined))
-      return empty("unavailable");
-    const matchingContexts = new Map(
-      outcomes.map(({ port, matches }) => [
-        port.id,
-        matches.filter((entry) => entry.match === true).map((entry) => entry.fact),
-      ]),
-    );
-    return {
-      state: "matched",
-      query,
-      counts,
-      ports: unique.filter((port) => matchingContexts.get(port.id)?.length),
-      matchingContexts,
-    };
   }
+  const outcomes = unique.map((port) => ({ port, matches: matching(port) }));
+  if (outcomes.some((outcome) => any(outcome.matches.map((entry) => entry.match)) === undefined))
+    return emptyQueryResult("unavailable", query, counts);
+  const matchingContexts = new Map(
+    outcomes.map(({ port, matches }) => [
+      port.id,
+      matches.filter((entry) => entry.match === true).map((entry) => entry.fact),
+    ]),
+  );
+  return {
+    state: "matched",
+    query,
+    counts,
+    ports: unique.filter((port) => matchingContexts.get(port.id)?.length),
+    matchingContexts,
+  };
+}
+
+function evaluateDeclaredQuery(
+  { unique, query, context, counts, gameFilesAvailable }: IntegrationEvaluation,
+  hasListings: boolean,
+  activeGroups: readonly Group[],
+): CatalogQueryResult {
   const groupMatches = (port: CatalogEntry, group: Group) =>
     !query[group]?.length || query[group].some((value) => matches(port, group, value, context));
   for (const group of groups) {
     const facetGroups = [...activeGroups.filter((active) => active !== group), group];
-    const facetRequiresContexts =
-      (unique.length > 0 || !hasListings) &&
-      facetGroups.length > 1 &&
-      facetGroups.some((active) => privateGroups.includes(active));
+    const facetRequiresContexts = requiresContextJoin(unique, hasListings, facetGroups);
     const otherMatches = unique.filter((port) =>
       groups.every((other) => other === group || groupMatches(port, other)),
     );
