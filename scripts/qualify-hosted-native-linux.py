@@ -12,16 +12,79 @@ import os
 import platform
 import re
 import select
+import selectors
+import signal
 import stat
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 
 USER = "portcove-native"
 INSTALLED = Path("/opt/portcove-native-readiness")
 GUEST = Path("/home/portcove-native/portcove-native")
 ENV = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "HOME": "/"}
+LIFETIME = None
+
+# Also compiled into the root setup. These are inherited fences, never authority.
+PARENT_FENCE = r'''
+def original_fence():
+    if LIFETIME is None:
+        return
+    assert set(LIFETIME)=={'broker_uid','broker_pid','broker_identity','deadline_ns'}, 'original parent fields differ'
+    assert type(LIFETIME['broker_uid']) is int and LIFETIME['broker_uid']>0
+    pid=LIFETIME['broker_pid']; assert type(pid) is int and 0<pid<2**32
+    assert isinstance(LIFETIME['deadline_ns'],str) and re.fullmatch(r'[1-9][0-9]{0,19}',LIFETIME['deadline_ns'])
+    assert time.monotonic_ns()<int(LIFETIME['deadline_ns']), 'original parent deadline expired'
+    fields=Path(f'/proc/{pid}/stat').read_text().rpartition(') ')[2].split()
+    assert len(fields)>=20 and fields[0]!='Z', 'original parent unavailable'
+    boot=Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+    assert f'linux:{boot}:{pid}:{fields[19]}'==LIFETIME['broker_identity'], 'original parent generation changed'
+    assert Path(f'/proc/{pid}').stat().st_uid==LIFETIME['broker_uid'], 'original parent owner changed'
+'''
+exec(PARENT_FENCE)
+original_fence = globals()["original_fence"]
+
+
+def original_deadline(seconds):
+    original_fence()
+    return min(time.monotonic() + seconds, int(LIFETIME["deadline_ns"]) / 1e9) if LIFETIME else time.monotonic() + seconds
+
+
+def bounded_process(arguments, timeout, environment=None):
+    """Bound pipe allocation while running; retain refusal and reap original group."""
+    deadline = original_deadline(timeout)
+    child = subprocess.Popen(arguments, env=environment or ENV, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    selector, streams, settled = selectors.DefaultSelector(), {"out": bytearray(), "err": bytearray()}, False
+    try:
+        for name, stream in (("out", child.stdout), ("err", child.stderr)):
+            os.set_blocking(stream.fileno(), False)
+            selector.register(stream, selectors.EVENT_READ, name)
+        while selector.get_map():
+            original_fence()
+            need(time.monotonic() < deadline, "original command deadline expired")
+            for event, _ in selector.select(0.05):
+                part = os.read(event.fd, 8192)
+                if not part:
+                    selector.unregister(event.fileobj)
+                else:
+                    maximum = 65536 if event.data == "out" else 8192
+                    need(len(streams[event.data]) + len(part) <= maximum, "fixed diagnostic output exceeds bound")
+                    streams[event.data].extend(part)
+        code = child.wait(timeout=max(0.001, deadline - time.monotonic()))
+        settled = True
+        original_fence()
+        return subprocess.CompletedProcess(arguments, code, bytes(streams["out"]), bytes(streams["err"]))
+    finally:
+        selector.close()
+        if not settled:
+            with suppress(ProcessLookupError):
+                os.killpg(child.pid, signal.SIGKILL)
+            child.wait(timeout=2)
+        child.stdout.close()
+        child.stderr.close()
 
 
 def need(value, message):
@@ -79,10 +142,7 @@ def require_setup_readback(setup, broker_uid):
 
 
 def command(arguments, timeout=15, environment=None):
-    reply = subprocess.run(
-        arguments, env=environment or ENV, stdin=subprocess.DEVNULL,
-        capture_output=True, timeout=timeout, check=False,
-    )
+    reply = bounded_process(arguments, timeout, environment)
     need(len(reply.stdout) <= 65536 and len(reply.stderr) <= 8192, "fixed diagnostic output exceeds bound")
     need(reply.returncode == 0, "fixed diagnostic command refused: " + reply.stderr.decode("utf-8", "replace")[:2048])
     return reply.stdout
@@ -119,27 +179,45 @@ def hosted_context(environment):
 
 
 ROOT_SETUP = r'''
-import fnmatch,hashlib,json,os,pwd,re,signal,stat,subprocess,sys,time
+import fnmatch,hashlib,json,os,pwd,re,selectors,signal,stat,subprocess,sys,time
 from pathlib import Path
+LIFETIME=json.loads(sys.argv[4]) if len(sys.argv)>=5 else None
+''' + PARENT_FENCE + r'''
 src=Path(sys.argv[1]); wanted=json.loads(sys.argv[2]); context=json.loads(sys.argv[3]); target=Path('/opt/portcove-native-readiness')
 result={'stage':'source-validation','completed':False,'failure':None,'source_sha256':wanted,'readback':None,'automatic_retry':False}
-deadline=time.monotonic()+60
+deadline=min(time.monotonic()+60,int(LIFETIME['deadline_ns'])/1e9) if LIFETIME else time.monotonic()+60
 def run(arguments,seconds,maximum=8192):
+ original_fence()
  remaining=min(seconds,deadline-time.monotonic()); assert remaining>0
  child=subprocess.Popen(arguments,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+ selector=selectors.DefaultSelector(); streams={'out':bytearray(),'err':bytearray()}; settled=False
  try:
-  stdout,stderr=child.communicate(timeout=remaining)
- except subprocess.TimeoutExpired as original:
-  # The original child has not been reaped, so its session/group identity
-  # cannot have been reused. Terminate only that fixed root command's group.
+  for name,stream in (('out',child.stdout),('err',child.stderr)):
+   os.set_blocking(stream.fileno(),False); selector.register(stream,selectors.EVENT_READ,name)
+  command_deadline=time.monotonic()+remaining
+  while selector.get_map():
+   original_fence(); assert time.monotonic()<command_deadline, 'original setup command expired'
+   for event,_ in selector.select(0.05):
+    part=os.read(event.fd,8192)
+    if not part: selector.unregister(event.fileobj)
+    else:
+     assert len(streams[event.data])+len(part)<=(maximum if event.data=='out' else 8192), 'fixed setup output exceeds bound'
+     streams[event.data].extend(part)
+  child.wait(timeout=max(0.001,command_deadline-time.monotonic())); settled=True
+ except BaseException:
   result['command_timeout']={'executable':arguments[0],'seconds':remaining,'group_kill_sent':False,'child_reaped':False}
   try:
-   os.killpg(child.pid,signal.SIGKILL)
-   result['command_timeout']['group_kill_sent']=True
-   child.communicate(timeout=2)
-   result['command_timeout']['child_reaped']=True
+   try:
+    os.killpg(child.pid,signal.SIGKILL); result['command_timeout']['group_kill_sent']=True
+   except ProcessLookupError: pass
+   child.wait(timeout=2); result['command_timeout']['child_reaped']=True
   except Exception as error: result['command_timeout']['settlement_error']=type(error).__name__
-  raise original
+  raise
+ finally:
+  selector.close()
+  child.stdout.close(); child.stderr.close()
+ stdout,stderr=bytes(streams['out']),bytes(streams['err'])
+ original_fence()
  assert len(stdout)<=maximum and len(stderr)<=8192 and child.returncode==0, 'fixed setup command refused'
  assert time.monotonic()<deadline, 'original setup deadline expired'
  return stdout
@@ -149,6 +227,7 @@ def bounded(filename,maximum=131072):
  return data
 def digest(data): return hashlib.sha256(data).hexdigest()
 def exclusive(filename,data):
+ original_fence(); assert time.monotonic()<deadline
  with Path(filename).open('xb') as f: f.write(data)
  Path(filename).chmod(0o444)
 def attachment_clear(pattern):
@@ -293,7 +372,20 @@ def setup_profile():
  assert set(after.get('opaque',{}))-set(before.get('opaque',{}))<=added, 'unrelated opaque policy appeared'
  assert bounded('/proc/sys/kernel/apparmor_restrict_unprivileged_userns',16).strip()==b'1'
  result['profile']['completed']=True
+if len(sys.argv)==6 and sys.argv[5]=='--readback':
+ original_fence()
+ intent=json.loads(bounded(target/'profile-intent.json',524288))
+ assert intent['context']==context and intent['source_sha256']==wanted, 'original root intent differs'
+ for name,expected_digest in wanted.items():
+  p=target/name; info=p.lstat()
+  assert stat.S_ISREG(info.st_mode) and info.st_uid==0 and not info.st_mode&0o222
+  assert digest(bounded(p,1048576))==expected_digest, 'installed primitive source differs'
+ observed=profile_summary(profile_state())
+ assert bounded('/proc/sys/kernel/apparmor_restrict_unprivileged_userns',16).strip()==b'1'
+ original_fence()
+ print(json.dumps({'profile':observed,'sources':wanted,'authority':'none'})); sys.exit(0)
 try:
+ original_fence()
  assert os.getuid()==0 and not target.exists() and not Path('/home/portcove-native').exists()
  try: pwd.getpwnam('portcove-native')
  except KeyError: pass
@@ -307,15 +399,19 @@ try:
  result['stage']='locked-account-readback'
  assert run(['/usr/bin/passwd','-S','portcove-native'],5).split()[1]==b'L'
  result['stage']='private-home-creation'
+ original_fence()
  Path(user.pw_dir).mkdir(mode=0o700)
  os.chown(user.pw_dir,user.pw_uid,user.pw_gid)
  result['stage']='source-install'
+ original_fence()
  target.mkdir(mode=0o755)
  for name,expected_digest in wanted.items():
+  original_fence()
   data=(src/name).read_bytes(); assert hashlib.sha256(data).hexdigest()==expected_digest
   p=target/name
   with p.open('xb') as f: f.write(data)
   p.chmod(0o444)
+ original_fence()
  root=Path('/home/portcove-native/portcove-native'); root.mkdir(mode=0o700); os.chown(root,user.pw_uid,user.pw_gid)
  setup_profile()
  result['stage']='user-manager'
@@ -538,9 +634,12 @@ def inert_entry(invocation):
     ], ENV)
 
 
-def probe():
+def probe(lifetime=None):
     import pwd
 
+    global LIFETIME
+    LIFETIME = lifetime
+    original_fence()
     user = pwd.getpwnam(USER)
     need(os.getuid() == user.pw_uid > 0 and os.getgid() == user.pw_gid, "separate qualification identity required")
     # Reuse the actual supervisor's resource and held-kernel-object checks.
@@ -548,6 +647,7 @@ def probe():
     invocation = os.urandom(32).hex()
     attempt = GUEST / "invocations" / invocation
     for directory in (GUEST / "invocations", attempt, attempt / "work", attempt / "work/home", attempt / "capture"):
+        original_fence()
         directory.mkdir(mode=0o700)
     ready = attempt / "capture/ready.json"
     unit = "portcove-native-" + invocation + ".service"
@@ -557,11 +657,17 @@ def probe():
               "unit_settled": False, "automatic_retry": False}
     process = group = generation = None
     control = supervisor["control_environment"]()
-    readiness_deadline = time.monotonic() + 15
+    # Reserve the existing eight-second matching recovery and ten-second launcher
+    # readback inside this same inherited lifetime.
+    readiness_deadline = min(time.monotonic() + 15, original_deadline(75) - 18) if lifetime else time.monotonic() + 15
+    need(readiness_deadline > time.monotonic(), "original probe/recovery allowance exhausted")
     supervisor["COMMAND_DEADLINE"] = readiness_deadline
     try:
         need(supervisor["unit_properties"](unit).get("LoadState") == "not-found", "diagnostic unit already exists")
         result["stage"] = "unit-start"
+        original_fence()
+        need(not lifetime or int(lifetime["deadline_ns"]) / 1e9 - time.monotonic() >= 53,
+             "original probe allowance cannot contain unit backstop and matching recovery")
         process = subprocess.Popen([
             "/usr/bin/systemd-run", "--user", "--quiet", "--pipe", "--wait", "--service-type=exec",
             "--unit=" + unit, "--property=MemoryMax=1073741824", "--property=MemorySwapMax=0",
@@ -572,6 +678,7 @@ def probe():
         ], env=control, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         deadline = readiness_deadline
         while time.monotonic() < deadline and process.poll() is None:
+            original_fence()
             properties = supervisor["unit_properties"](unit)
             if properties.get("ActiveState") == "active" and properties.get("MainPID", "0") != "0":
                 supervisor["inspect_unit_properties"](properties)
@@ -589,8 +696,10 @@ def probe():
         entry = supervisor["read_marker"](attempt / "capture/entry.json", 8192)
         result["entry"] = entry
         binding = release_binding(supervisor, unit, generation, group, entry, invocation, deadline)
+        original_fence()
         retain(attempt / "capture/release.json", binding)
         need(time.monotonic() < readiness_deadline, "original inert entry admission deadline expired")
+        original_fence()
         process.stdin.write(encode(binding) + b"\n")
         process.stdin.flush()
         process.stdin.close()
@@ -618,7 +727,7 @@ def probe():
     finally:
         # Recovery has its own fixed eight-second allowance within the probe's
         # outer lifetime, never the expired readiness command budget.
-        supervisor["COMMAND_DEADLINE"] = None
+        supervisor["COMMAND_DEADLINE"] = int(lifetime["deadline_ns"]) / 1e9 if lifetime else None
         if process is not None and process.stdin is not None:
             try:
                 process.stdin.close()
@@ -637,7 +746,7 @@ def probe():
                 result["cgroup_close_failure"] = str(error)
         if process is not None:
             try:
-                _stdout, stderr = process.communicate(timeout=10)
+                _stdout, stderr = process.communicate(timeout=max(0.001, min(10, int(lifetime["deadline_ns"]) / 1e9 - time.monotonic())) if lifetime else 10)
                 result["unit_launcher_exit"] = process.returncode
                 result["unit_stderr"] = stderr[:8192].decode("utf-8", "replace")
             except subprocess.TimeoutExpired:
@@ -665,9 +774,31 @@ def probe():
 
 
 def prepare():
-    context = hosted_context(os.environ)
+    return prepare_for_original_hosted_parent(Path(__file__).resolve().parent.parent, hosted_context(os.environ))
+
+
+def controller_pins(root, source_pins=None):
+    names = ("qualify-hosted-native-linux.py", "native-qualification-linux-supervisor.py")
+    pins = {name: file_hash(root / "scripts" / name) for name in names}
+    if source_pins is not None:
+        need(isinstance(source_pins, dict) and set(source_pins) == set(names)
+             and all(isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value) for value in source_pins.values())
+             and pins == source_pins, "controller primitive bytes differ from admitted tools")
+    return pins
+
+
+def prepare_for_original_hosted_parent(root, context, lifetime=None, source_pins=None):
+    """Inert primitives only. The external authenticated parent owns provenance.
+
+    This internal adapter neither authenticates the supplied context nor starts
+    a candidate. The ordinary diagnostic CLI retains its original guard.
+    """
+    global LIFETIME
+    LIFETIME = lifetime
+    original_fence()
     need(os.getuid() > 0, "ordinary hosted broker required")
-    root = Path(__file__).resolve().parent.parent
+    root = Path(root)
+    context = dict(context)
     env = {**ENV, "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_NO_REPLACE_OBJECTS": "1"}
     def git(*arguments):
         return command(["/usr/bin/git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
@@ -676,10 +807,10 @@ def prepare():
          "exact clean diagnostic source required")
     need('ID=ubuntu' in Path("/etc/os-release").read_text()
          and 'VERSION_ID="24.04"' in Path("/etc/os-release").read_text(), "actual Ubuntu24.04 required")
-    pins = {name: file_hash(root / "scripts" / name) for name in
-            ("qualify-hosted-native-linux.py", "native-qualification-linux-supervisor.py")}
+    pins = controller_pins(root, source_pins)
     context["profile_sha256"] = "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9"
     context["profile_scope"] = "two add-only Ubuntu bwrap labels; global bwrap attachment on this disposable diagnostic host only"
+    original_fence()
     directory = begin_attempt(root, context, pins, git("rev-parse", "HEAD^{tree}"))
     result = {"stage": "tool-observation", "failure": None, "setup": None, "probe": None}
     try:
@@ -691,26 +822,29 @@ def prepare():
         result["setup"] = json.loads(command([
             "/usr/bin/sudo", "-n", "--", "/usr/bin/timeout", "--kill-after=2s", "70s",
             "/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "LANG=C.UTF-8", "/usr/bin/python3", "-I", "-S", "-B", "-c",
-            ROOT_SETUP, str(root / "scripts"), json.dumps(pins), json.dumps(context),
+            ROOT_SETUP, str(root / "scripts"), json.dumps(pins), json.dumps(context), json.dumps(lifetime),
         ], timeout=75))
         require_setup_readback(result["setup"], os.getuid())
         result["stage"] = "inert-boundary-probe"
         probe_started = int(time.time())
-        reply = subprocess.run([
+        original_fence()
+        reply = bounded_process([
             "/usr/bin/sudo", "-n", "-H", "-u", USER, "--", "/usr/bin/env", "-i", "PATH=/usr/bin:/bin",
             "LANG=C.UTF-8", "HOME=/home/portcove-native", "/usr/bin/python3", "-I", "-S", "-B",
-            str(INSTALLED / "qualify-hosted-native-linux.py"), "--probe",
-        ], env=ENV, stdin=subprocess.DEVNULL, capture_output=True, timeout=75, check=False)
+            str(INSTALLED / "qualify-hosted-native-linux.py"),
+            *(["--probe-bound", json.dumps(lifetime)] if lifetime else ["--probe"]),
+        ], 75)
         need(len(reply.stdout) <= 65536 and len(reply.stderr) <= 8192, "probe output exceeds bound")
         result["probe_exit"] = reply.returncode
         result["probe_stderr"] = reply.stderr.decode("utf-8", "replace")
         result["probe"] = json.loads(reply.stdout)
-        if reply.returncode != 0 and result["probe"].get("entry_pid") is not None:
+        if lifetime is None and reply.returncode != 0 and result["probe"].get("entry_pid") is not None:
             try:
                 result["kernel_denials"] = denial_observation(result["probe"], probe_started, int(time.time()) + 1)
             except Exception as error:
                 result["kernel_denial_readback_failure"] = str(error)
         need(reply.returncode == 0 and result["probe"]["passed"], "actual hosted primitive diagnostic failed")
+        original_fence()
         result["stage"] = "bounded-primitives-observed"
     except Exception as error:
         result["failure"] = str(error)
@@ -755,9 +889,30 @@ def prepare():
     return 0 if result["failure"] is None else 1
 
 
+def readback_for_original_hosted_parent(root, context, lifetime, expected, source_pins):
+    global LIFETIME
+    LIFETIME = lifetime
+    original_fence()
+    root = Path(root)
+    pins = controller_pins(root, source_pins)
+    context = {**context, "profile_sha256": "11d39094f044f0cda0febb3ad517b830301da6b2ce929664af09ee9e4dd264f9",
+               "profile_scope": "two add-only Ubuntu bwrap labels; global bwrap attachment on this disposable diagnostic host only"}
+    observed = json.loads(command([
+        "/usr/bin/sudo", "-n", "--", "/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "LANG=C.UTF-8",
+        "/usr/bin/python3", "-I", "-S", "-B", "-c", ROOT_SETUP, str(root / "scripts"),
+        json.dumps(pins), json.dumps(context), json.dumps(lifetime), "--readback",
+    ], 15))
+    need(observed["profile"] == expected and observed["sources"] == pins, "active primitive profile/source readback differs")
+    original_fence()
+    print(json.dumps({"readback": True, **observed}))
+    return 0
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--entry":
         inert_entry(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "--probe-bound":
+        sys.exit(probe(json.loads(sys.argv[2])))
     else:
         need(sys.argv[1:] in (["--prepare"], ["--probe"]), "fixed diagnostic operation required")
         sys.exit(probe() if sys.argv[1] == "--probe" else prepare())

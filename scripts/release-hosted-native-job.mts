@@ -7,6 +7,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
 import { prepareHostedNativeRuntime } from "./release-hosted-native-runtime.mts";
+import { prepareActualHostedLinuxInstallation } from "./release-hosted-native-installation.mts";
 import {
   acquireActualHostedNativeCandidate,
   readActualHostedNativePostSignController,
@@ -76,6 +77,8 @@ export async function prepareActualHostedLinuxPreSignJob(
     runtimeTools === undefined
       ? undefined
       : await prepareHostedNativeRuntime(runtimeTools, parent, executingEntry!);
+  if (runtimeTools !== undefined)
+    await prepareActualHostedLinuxInstallation(parent, runtimeTools, runtime!);
   const candidate = await acquireActualHostedNativeCandidate(parent);
   const request = await prepareActualHostedNativeLinuxRequest(candidate);
   const capture = await captureActualHostedNativeLinuxInvocation(request, runtime);

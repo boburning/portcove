@@ -40,6 +40,9 @@ export const controllerToolAssets = Object.freeze([
   "release/package-policy.json",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+  "scripts/qualify-hosted-native-linux.py",
+  "scripts/native-qualification-linux-supervisor.py",
+  "scripts/prepare-hosted-native-linux-installation.py",
 ] as const);
 export const controllerToolPaths = Object.freeze(
   [

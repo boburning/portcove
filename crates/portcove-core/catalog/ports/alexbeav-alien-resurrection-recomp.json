@@ -25,22 +25,11 @@
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.1.4",
-          "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-windows-x64.zip",
-          "size": 29907400,
-          "sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
-          "published_at": "2026-10-02T15:45:25Z"
-        },
-        "linux-x86-64": {
-          "version": "v0.1.4",
-          "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
-          "size": 27800828,
-          "sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
-          "published_at": "2026-10-02T15:45:25Z"
-        }
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["alien-resurrection-recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["alien-resurrection-recomp-", "-linux-x64.zip"]
       }
     },
     "source_profile": "alien-resurrection-europe-psx",
