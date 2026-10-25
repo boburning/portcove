@@ -37,6 +37,20 @@
         {
           "pattern": "test/capture-target.ts",
           "exports": ["requireCompleteCaptureTarget"]
+        },
+        {
+          "pattern": "scripts/native-linux-driver-http.mts",
+          "exports": ["privateNativeDriverAgentState", "inspectPrivateNativeDriverRequest"]
+        },
+        {
+          "pattern": "scripts/native-linux-isolated-session.mts",
+          "exports": ["createNativeNamespaceStreamCapture"]
+        }
+      ],
+      "usedClassMembers": [
+        {
+          "implements": "NativeAccountDriverProcess",
+          "members": ["signalCode", "stdout", "stderr"]
         }
       ]
     }

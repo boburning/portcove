@@ -800,3 +800,36 @@ void test("coordinator helper and family owners provision their actual Desktop d
   }
   assert.equal(baselineRequiresDesktopDependencies(make(["docs/README.md"])), false);
 });
+
+void test("Python reporting changes provision Desktop dependencies for selected semantic suites", () => {
+  for (const file of ["scripts/python-test-results.mts", "scripts/python-test-results.py"]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const plan = buildValidationPlan({
+        changes: [
+          {
+            status: variant.startsWith("R") ? "R100" : variant,
+            oldPath: variant === "R-new" ? "docs/moved.md" : file,
+            newPath: variant === "R-old" ? "docs/moved.md" : file,
+            oldMode: variant === "A" ? "000000" : "100644",
+            newMode: variant === "D" ? "000000" : "100644",
+          },
+        ],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const label = `${file}:${variant}`;
+      const tests = baselineContractTests(plan, { fileExists: () => false });
+      for (const consumer of [
+        "scripts/release-semantic-source.test.mts",
+        "scripts/semantic-review-linux-supervisor.test.mts",
+      ])
+        assert.ok(tests.includes(consumer), label + ":" + consumer);
+      assert.equal(baselineRequiresDesktopDependencies(plan), true, label);
+      assert.equal(baselineRequiresPython(plan), true, label);
+    }
+  }
+  assert.equal(baselineRequiresDesktopDependencies(make(["docs/README.md"])), false);
+});

@@ -3,7 +3,7 @@
   "listing": {
     "id": "urban-chaos-openchaos",
     "name": "Urban Chaos (OpenChaos)",
-    "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux SteamDeck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Newer modernization; retain raw upstream claim as unverified, not Portcove support status. Portcove setup/gameplay not verified.",
+    "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux SteamDeck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
     "original_game_title": "Urban Chaos",
     "project_url": "https://github.com/UltimaBeaR/OpenChaos",
     "platforms": [],

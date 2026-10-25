@@ -390,6 +390,67 @@ service or recurring automation. Instructions alone do not prove adoption.
 
 ## Pickup, consumption and execution upkeep
 
+### Issue authoring and consolidated diagnostics
+
+Maintained specification rewrites validate the candidate with the doctor's
+selected-record rules before publication, using the affected issue and live
+Project fields. Preserve canonical identity and provenance markers, the exact
+body preimage and mutation readback. Bulk rewrites preflight every proposal
+before any write; see [generated GitHub text](DEVELOPMENT-TOOLS.md#generated-github-text).
+
+For a blocked port, prefer explicit facts in `Dependencies and blockers`:
+
+```markdown
+Blocker: Upstream has not published a usable native player.
+Resume condition: Upstream publishes a usable player or reproducible preparation instructions.
+```
+
+Both values must contain substantive text. `Reconsideration condition` is
+accepted during migration, including an existing substantive blocker paragraph.
+Legacy prose remains readable; a placeholder explicit field cannot pass because
+another sentence happens to contain a recognized verb. Research candidates use
+the shared renderer's `portcove-research` declaration (or the existing catalog
+and support disclaimer wording). Neither declaration grants catalog membership
+or support.
+
+The issue-event workflow collects checks independently and retains every actual
+result. One separate publisher maintains a single consolidated report on #2414.
+Its repository-wide concurrency group never cancels an active publisher and
+uses the single pending slot supported by the pinned actionlint release. A new
+publisher request can replace a pending publisher; the next publisher replays
+all retained dispatch entries and collector receipts, including results whose
+original publisher was interrupted or replaced. Queue order is not observation
+order: per-scope observation start, run and attempt prevent an older failure
+from replacing a newer recovery. Shared provider incidents group their affected
+scopes and reset information. A scoped success clears only its own observation;
+it cannot establish global health or clear another issue.
+
+Publisher run titles retain the exact collector run and attempt as a completion
+journal, including cancelled or overflowed publisher runs. Replay follows this
+journal's creation times rather than collector creation times: rerunning an old
+collector creates a fresh journal entry and cannot disappear behind the cursor.
+
+The publisher uploads and verifies its complete state artifact before publishing
+the comment pointer, then reads back the exact comment. Unchanged scopes create
+no new comment. Historical per-scope comments and failed runs remain evidence.
+Complete state is retained for 90 days; individual collector evidence for 30.
+If the referenced state artifact is unavailable, the publisher marks the same
+comment **Unable to verify**, preserves its original pointer and historical
+summary, and names the recovery condition. It cannot initialize a clean state
+from missing history. Restore the artifact or reconstruct its observations from
+retained results through reviewed recovery before resuming journal replay.
+Missing/expired receipts, an unfinished collector, incomplete inventory or a
+publication gap remain **Unable to verify** with a recovery condition. A later
+collector completion or manual dispatch of **Publish consolidated Roadmap
+report** resumes replay without repeating issue writes or checks. There is no
+periodic audit. If evidence has expired, reconcile the gap explicitly and run
+the required checks; do not seed a clean state from absent history.
+
+Substantial issue/Project batches request a full doctor after their writes finish.
+Concurrent unrelated activity may still invalidate inventory collection; retain
+that inconclusive receipt and resume one bounded full check after writes stabilize.
+A scoped pass and an incomplete global inventory never establish global health.
+
 One owner takes each coherent candidate through implementation, review fixes,
 validation, guarded merge and targeted reconciliation. Multiple local workers
 and models may proceed independently. Actual overlapping writers and shared-host

@@ -5938,7 +5938,7 @@
     {
       "id": "ambermoon-ambermoon-net",
       "name": "Ambermoon (Ambermoon.net)",
-      "summary": "Upstream route: C# native rewrite with current Win/Linux/macOS packages. Limits: Review exact supported data and any bundled-asset rights separately from engine license. Upstream platforms: Windows/Linux packages (CPU unknown in frozen evidence); separate macOS64-bit Intel x86-64 and Apple-Silicon ARM64 downloads. Original data: Review exact supported data and any bundled-asset rights separately from engine license. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: C# native rewrite with current Win/Linux/macOS packages. Limits: Review exact supported data and any bundled-asset rights separately from engine license. Upstream platforms: Windows/Linux packages (CPU unknown in frozen evidence); separate macOS64-bit Intel x86-64 and Apple-Silicon ARM64 downloads. Original data: Retained Ambermoon.net 1.14.3 README says the distribution includes original Ambermoon version 1.22 and Ambermoon Advanced 1.33; it does not specify a separate player-supplied disk/ROM requirement. Exact selected package contents and permission for its bundled game assets remain unresolved; engine licensing alone does not establish asset redistribution rights. Portcove setup/gameplay not verified.",
       "original_game_title": "Ambermoon",
       "project_url": "https://github.com/Pyrdacor/Ambermoon.net",
       "platforms": [],
@@ -6103,7 +6103,7 @@
     {
       "id": "atlantis-the-lost-tales-atlantis-native",
       "name": "Atlantis: The Lost Tales (Atlantis Native)",
-      "summary": "Research listing. Upstream route: Native Rust port, no game data included, current desktop release packages. Limits: New native implementation with broad original-edition data support; completion claims remain upstream-only. Upstream platforms: Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route. Original data: Newer project; verify end-to-end play and data extraction despite upstream completion claims. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Native Rust port, no game data included, current desktop release packages. Limits: New native implementation with broad original-edition data support; completion claims remain upstream-only. Upstream platforms: Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route. Original data: Supply owned Atlantis: The Lost Tales game files: a supported GOG installation or CD-derived folder with atlantis.exe and BIGCD1.BIG through BIGCD4.BIG (or the supported four disc images). Retained README accepts English 1997/2001, French May/August 1997, German August 1997, Dutch/Swedish June 1997, Spanish August 1997, Italian July 1997, patched 1.01/1999 and specified 1998 Traditional/1999 Simplified Chinese editions; preserve the selected release/language. Portcove setup/gameplay not verified.",
       "original_game_title": "Atlantis: The Lost Tales",
       "project_url": "https://github.com/ripleyXLR8/atlantis-native",
       "platforms": [],
@@ -6193,7 +6193,7 @@
     {
       "id": "baldur-s-gate-ii-original-gemrb",
       "name": "Baldur's Gate II (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Baldur's Gate II (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
       "original_game_title": "Baldur's Gate II (original)",
       "project_url": "https://github.com/gemrb/gemrb",
       "platforms": [],
@@ -6204,7 +6204,7 @@
     {
       "id": "baldur-s-gate-original-gemrb",
       "name": "Baldur's Gate (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Baldur's Gate (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
       "original_game_title": "Baldur's Gate (original)",
       "project_url": "https://github.com/gemrb/gemrb",
       "platforms": [],
@@ -6389,7 +6389,7 @@
     {
       "id": "bio-menace-reflectionhle",
       "name": "Bio Menace (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Bio Menace game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "Bio Menace",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -6617,7 +6617,7 @@
     {
       "id": "blood-raze",
       "name": "Blood (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Blood. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
       "original_game_title": "Blood",
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [],
@@ -6999,7 +6999,7 @@
     {
       "id": "cannon-fodder-2-open-fodder",
       "name": "Cannon Fodder 2 (Open Fodder)",
-      "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Confirm supported edition per game and clean source-data setup. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Supply Cannon Fodder 2 data from an upstream-supported Amiga or DOS CD release; Cannon Fodder 1/demo data does not provide this game. Exact language/revision requirements remain Unknown in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Cannon Fodder 2",
       "project_url": "https://github.com/OpenFodder/openfodder",
       "platforms": [],
@@ -7018,7 +7018,7 @@
     {
       "id": "cannon-fodder-open-fodder",
       "name": "Cannon Fodder (Open Fodder)",
-      "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Confirm supported edition per game and clean source-data setup. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native engine supports retail releases and Amiga demos; Windows installer available. Limits: Confirm supported edition per game and clean source-data setup. Upstream platforms: Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown. Original data: Supply Cannon Fodder data from an upstream-supported Amiga, Amiga CD32 or DOS CD release. Included cover-disk/PC demos provide their limited demo content, not the full retail game. Exact language/revision requirements remain Unknown in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Cannon Fodder",
       "project_url": "https://github.com/OpenFodder/openfodder",
       "platforms": [],
@@ -7112,7 +7112,7 @@
     {
       "id": "catacomb-3-d-the-descent-reflectionhle",
       "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Catacomb 3-D: The Descent game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "Catacomb 3-D: The Descent",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -7123,7 +7123,7 @@
     {
       "id": "cave-story-nxengine-evo",
       "name": "Cave Story (NXEngine-evo)",
-      "summary": "Upstream route: Upgraded native engine with Windows/Linux/macOS releases. Limits: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Upstream platforms: Windows/Linux/macOS runtime packages; exact selected package CPU architectures unknown in frozen research. Original data: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Upgraded native engine with Windows/Linux/macOS releases. Limits: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Upstream platforms: Windows/Linux/macOS runtime packages; exact selected package CPU architectures unknown in frozen research. Original data: Cave Story freeware data/preparation contract is Unknown in the retained NXEngine-evo README. Establish which original freeware release/localization and asset directory or separate data pack the chosen package needs, and whether those assets are already included. The README says its built-in data extractor was removed; do not infer that Cave Story+ data or another engine package is accepted. Portcove setup/gameplay not verified.",
       "original_game_title": "Cave Story",
       "project_url": "https://github.com/nxengine/nxengine-evo",
       "platforms": [],
@@ -7237,7 +7237,7 @@
     {
       "id": "chasm-the-rift-panzerchasm",
       "name": "Chasm: The Rift (PanzerChasm)",
-      "summary": "Research listing. Upstream route: Native recreation using original CSM.BIN; old Windows package and current source build steps. Limits: Latest release package dates to 2017; package freshness and upstream runtime behavior need checking. Upstream platforms: Historical2017 Windows package and current desktop source build; exact selected CPU architecture unknown in frozen research. Original data: Latest release package dates to 2017; package freshness and upstream runtime behavior need checking. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Native recreation using original CSM.BIN; old Windows package and current source build steps. Limits: Latest release package dates to 2017; package freshness and upstream runtime behavior need checking. Upstream platforms: Historical2017 Windows package and current desktop source build; exact selected CPU architecture unknown in frozen research. Original data: Supply original Chasm: The Rift CSM.BIN data from the owned DOS game installation; the README also documents extracting/installing the GOG Original CD image to obtain it. Place CSM.BIN beside PanzerChasm and its shaders/ directory, or select the data with --csm. Optional add-on data is separately selected with --addon. Exact source revision remains Unknown. Portcove setup/gameplay not verified.",
       "original_game_title": "Chasm: The Rift",
       "project_url": "https://github.com/Panzerschrek/Chasm-Reverse",
       "platforms": [],
@@ -8322,7 +8322,7 @@
     {
       "id": "descent-dxx-rebirth",
       "name": "Descent (DXX-Rebirth)",
-      "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: No binary assets on last GitHub release; resolve official current package source. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: Original-data contract remains Unknown in the retained DXX-Rebirth README for Descent. Establish the selected game's accepted retail/shareware/demo edition, patch/revision and required data location before offering setup. Descent and Descent II are distinct inputs; package availability is separate from supplying the corresponding game data. Portcove setup/gameplay not verified.",
       "original_game_title": "Descent",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "platforms": [],
@@ -8333,7 +8333,7 @@
     {
       "id": "descent-ii-dxx-rebirth",
       "name": "Descent II (DXX-Rebirth)",
-      "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: No binary assets on last GitHub release; resolve official current package source. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official README states full compatibility with both games and expansions. Limits: No binary assets on last GitHub release; resolve official current package source. Upstream platforms: Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown. Original data: Original-data contract remains Unknown in the retained DXX-Rebirth README for Descent II. Establish the selected game's accepted retail/shareware/demo edition, patch/revision and required data location before offering setup. Descent and Descent II are distinct inputs; package availability is separate from supplying the corresponding game data. Portcove setup/gameplay not verified.",
       "original_game_title": "Descent II",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "platforms": [],
@@ -8608,7 +8608,7 @@
     {
       "id": "doom-ii-crispy-doom-family",
       "name": "Doom II (Crispy Doom family)",
-      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Source-data contract remains Unknown in the retained Crispy Doom root README for Doom II. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Doom II data set. Portcove setup/gameplay not verified.",
       "original_game_title": "Doom II",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "platforms": [],
@@ -8703,7 +8703,7 @@
     {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
       "name": "Doom / The Ultimate Doom (Crispy Doom family)",
-      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Use the matching Doom/Ultimate Doom IWAD; the retained README explicitly allows Doom shareware DOOM1.WAD for limited shareware play and mentions BFG Doom Classic WAD support. Exact retail IWAD/revision for the selected full-game mode remains Unknown here; optional Freedoom is an alternative game-data route, not ownership of Doom. Portcove setup/gameplay not verified.",
       "original_game_title": "Doom / The Ultimate Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "platforms": [],
@@ -8825,7 +8825,7 @@
     {
       "id": "dragon-s-crown-pro-ps4-dragon-s-crown-pro-pc",
       "name": "Dragon's Crown Pro (PS4) (Dragon's Crown Pro PC)",
-      "summary": "Research listing. Upstream route: Windows ZIP and experimental Linux AppImage with own PKG import Limits: Native x86-64 compatibility-layer execution rather than decompilation/recompiler; Linux experimental. Upstream platforms: Windows x86-64 package is primary route; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+/Vulkan1.3. Direct PS4 x86-64 execution with replacement services. Original data: Exact own decrypted PS4 PKG revisions; executable hashes documented Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Windows ZIP and experimental Linux AppImage with own PKG import Limits: Native x86-64 compatibility-layer execution rather than decompilation/recompiler; Linux experimental. Upstream platforms: Windows x86-64 package is primary route; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+/Vulkan1.3. Direct PS4 x86-64 execution with replacement services. Original data: Supply your own decrypted Dragon's Crown Pro PS4 PKG: US CUSA10454 base 1.00 or base plus 1.01 update; Japan CUSA07001 base 1.00 or base plus 1.02/1.03; Asia/Hong Kong CUSA10209 base 1.00 or base plus 1.02. Updates require their matching base. Launcher validates title/content IDs, package versions and the documented per-build eboot.bin SHA-256 before installation; encrypted console packages and other code versions are refused. Preserve each build's separate testing limitations. Portcove setup/gameplay not verified.",
       "original_game_title": "Dragon's Crown Pro (PS4)",
       "project_url": "https://github.com/saulob/dragons-crown-pro-pc",
       "platforms": [],
@@ -8919,7 +8919,7 @@
     {
       "id": "duke-nukem-3d-raze",
       "name": "Duke Nukem 3D (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Duke Nukem 3D. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
       "original_game_title": "Duke Nukem 3D",
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [],
@@ -8949,7 +8949,7 @@
     {
       "id": "dune-ii-opendune",
       "name": "Dune II (OpenDUNE)",
-      "summary": "Upstream route: Native original-engine recreation with explicit v1.07 data and Windows/macOS archives. Limits: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Upstream platforms: Windows i686/x86-64 and macOS PowerPC/i686/x86-64 documented build targets; Linux source route. Selected historical archive CPUs require asset choice. Original data: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native original-engine recreation with explicit v1.07 data and Windows/macOS archives. Limits: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Upstream platforms: Windows i686/x86-64 and macOS PowerPC/i686/x86-64 documented build targets; Linux source route. Selected historical archive CPUs require asset choice. Original data: Supply original Dune II version 1.07 data files, including dune2.exe, in OpenDUNE data/. Retained README accepts the eu, hs and us 1.07 data sets; French requires eu/hs, and German requires eu. Do not substitute Dune 2000 data. Portcove setup/gameplay not verified.",
       "original_game_title": "Dune II",
       "project_url": "https://github.com/OpenDUNE/OpenDUNE",
       "platforms": [],
@@ -9455,7 +9455,7 @@
     {
       "id": "final-doom-crispy-doom-family",
       "name": "Final Doom (Crispy Doom family)",
-      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Source-data contract remains Unknown in the retained Crispy Doom root README for Final Doom. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Final Doom data set. Portcove setup/gameplay not verified.",
       "original_game_title": "Final Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "platforms": [],
@@ -9586,7 +9586,7 @@
     {
       "id": "freespace-2-freespace-open",
       "name": "FreeSpace 2 (FreeSpace Open)",
-      "summary": "Upstream route: Active source-port engine with current Win/Linux/macOS assets. Limits: Established engine with current release-candidate assets; select stable/RC channel deliberately and preserve launcher ownership. Upstream platforms: Current Windows/Linux/macOS FreeSpaceOpen engine assets; choose launcher/engine separately. Selected package CPU architectures unknown in frozen audit. Original data: Resolve engine vs launcher ownership and exact retail-data installation; observed top release is RC2 despite prerelease=false. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Active source-port engine with current Win/Linux/macOS assets. Limits: Established engine with current release-candidate assets; select stable/RC channel deliberately and preserve launcher ownership. Upstream platforms: Current Windows/Linux/macOS FreeSpaceOpen engine assets; choose launcher/engine separately. Selected package CPU architectures unknown in frozen audit. Original data: FreeSpace 2 original-data contract remains Unknown in the retained engine README. Establish whether the selected FS2 Open/launcher route needs an owned FreeSpace 2 retail installation or a separately licensed standalone campaign, and the exact accepted edition/patch and asset acquisition layout. Engine or launcher availability alone does not supply retail game assets. Portcove setup/gameplay not verified.",
       "original_game_title": "FreeSpace 2",
       "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
       "platforms": [],
@@ -10201,7 +10201,7 @@
     {
       "id": "heart-of-darkness-hode",
       "name": "Heart of Darkness (hode)",
-      "summary": "Research listing. Upstream route: Native engine rewrite with explicit original Windows data set and paths. Limits: Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Upstream platforms: Desktop source-build route; observed release binaries are Switch/Vita only. No established desktop package or desktop CPU artifact in frozen research. Original data: Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Native engine rewrite with explicit original Windows data set and paths. Limits: Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Upstream platforms: Desktop source-build route; observed release binaries are Switch/Vita only. No established desktop package or desktop CPU artifact in frozen research. Original data: Supply original Heart of Darkness Windows release data, from the Demo or CD: hod.paf (or hod_demo.paf/hod_demo2.paf), setup.dat and matching *_hod.lvl, *_hod.sss and *_hod.mst files. Demo data provides demo content, not the full game. Exact localization/revision is not pinned in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Heart of Darkness",
       "project_url": "https://github.com/usineur/hode",
       "platforms": [],
@@ -10212,7 +10212,7 @@
     {
       "id": "heretic-crispy-doom-family",
       "name": "Heretic (Crispy Doom family)",
-      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Source-data contract remains Unknown in the retained Crispy Doom root README for Heretic. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Heretic data set. Portcove setup/gameplay not verified.",
       "original_game_title": "Heretic",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "platforms": [],
@@ -10268,7 +10268,7 @@
     {
       "id": "hexen-crispy-doom-family",
       "name": "Hexen (Crispy Doom family)",
-      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Source-data contract remains Unknown in the retained Crispy Doom root README for Hexen. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Hexen data set. Portcove setup/gameplay not verified.",
       "original_game_title": "Hexen",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "platforms": [],
@@ -10345,7 +10345,7 @@
     {
       "id": "icewind-dale-ii-gemrb",
       "name": "Icewind Dale II (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Icewind Dale II game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
       "original_game_title": "Icewind Dale II",
       "project_url": "https://github.com/gemrb/gemrb",
       "platforms": [],
@@ -10364,7 +10364,7 @@
     {
       "id": "icewind-dale-original-gemrb",
       "name": "Icewind Dale (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Icewind Dale (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
       "original_game_title": "Icewind Dale (original)",
       "project_url": "https://github.com/gemrb/gemrb",
       "platforms": [],
@@ -10868,7 +10868,7 @@
     {
       "id": "jagged-alliance-2-ja2-stracciatella",
       "name": "Jagged Alliance 2 (JA2 Stracciatella)",
-      "summary": "Upstream route: Mature desktop port with explicit original-data directory and localization setup. Limits: Established Jagged Alliance 2 source-port route; preserve exact edition/localization and mod lineage. Upstream platforms: Desktop Windows/Linux/macOS source/package routes; exact selected artifact CPU architectures unknown in frozen research. Original data: Exact edition/localization; do not silently substitute another JA2 mod lineage. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature desktop port with explicit original-data directory and localization setup. Limits: Established Jagged Alliance 2 source-port route; preserve exact edition/localization and mod lineage. Upstream platforms: Desktop Windows/Linux/macOS source/package routes; exact selected artifact CPU architectures unknown in frozen research. Original data: Use original Jagged Alliance 2 installation data and point the JA2 Data Directory/game_dir at that installation. Select its matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty, or Russian Gold. Exact accepted release/patch fingerprints are not specified in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Jagged Alliance 2",
       "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
       "platforms": [],
@@ -10939,7 +10939,7 @@
     {
       "id": "jazz-jackrabbit-2-jazz2-resurrection",
       "name": "Jazz Jackrabbit 2 (Jazz² Resurrection)",
-      "summary": "Upstream route: Native C++ reimplementation with detailed desktop original-data setup. Limits: Supports several original editions; downloads use project site/release channel outside this code repo. Upstream platforms: Official project-site Windows/Linux/macOS downloads with original-data setup. Selected artifact CPU architectures unknown in frozen research. Original data: Supports several original editions; downloads use project site/release channel outside this code repo. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native C++ reimplementation with detailed desktop original-data setup. Limits: Supports several original editions; downloads use project site/release channel outside this code repo. Upstream platforms: Official project-site Windows/Linux/macOS downloads with original-data setup. Selected artifact CPU architectures unknown in frozen research. Original data: Supply the original Jazz Jackrabbit 2 installation directory contents in Jazz2 Resurrection Source/ (or its documented per-user Source directory for the selected package). README supports the Shareware Demo, Holiday Hare 98, The Secret Files and Christmas Chronicles, as well as the original game; each provides its own content. Exact accepted patch/localization remains Unknown here. Portcove setup/gameplay not verified.",
       "original_game_title": "Jazz Jackrabbit 2",
       "project_url": "https://github.com/deathkiller/jazz2-native",
       "platforms": [],
@@ -11164,7 +11164,7 @@
     {
       "id": "keen-dreams-reflectionhle",
       "name": "Keen Dreams (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Keen Dreams game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "Keen Dreams",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -11840,7 +11840,7 @@
     {
       "id": "master-of-orion-1oom-vanilla-branch",
       "name": "Master of Orion (1oom (vanilla branch))",
-      "summary": "Research listing. Upstream route: Native recreation with original v1.3 LBX input and Windows RC package. Limits: Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Upstream platforms: Windows release-candidate package on vanilla lineage; desktop source builds documented. Selected Windows CPU architecture unknown in frozen evidence; discontinued default branch differs. Original data: Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Native recreation with original v1.3 LBX input and Windows RC package. Limits: Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Upstream platforms: Windows release-candidate package on vanilla lineage; desktop source builds documented. Selected Windows CPU architecture unknown in frozen evidence; discontinued default branch differs. Original data: Legally own Master of Orion version 1.3 and supply its original LBX files. This 1oom target does not establish compatibility with a different original-game version; separately preserve its documented save-compatibility limitations. Portcove setup/gameplay not verified.",
       "original_game_title": "Master of Orion",
       "project_url": "https://github.com/1oom-fork/1oom",
       "platforms": [],
@@ -12122,7 +12122,7 @@
     {
       "id": "midtown-madness-sneak-preview-beta-build-1560-open1560",
       "name": "Midtown Madness Sneak Preview Beta / Build 1560 (Open1560)",
-      "summary": "Research listing. Upstream route: Partial native rewrite with OpenGL and downloadable build. Limits: Partial native rewrite targets preview build1560, not general retail Midtown Madness. Upstream platforms: Desktop downloadable build/source route for preview1560; exact package OS/CPU matrix unknown in frozen evidence. Do not advertise retail Midtown Madness. Original data: Do not advertise general retail Midtown Madness compatibility; upstream explicitly targets preview build 1560. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Partial native rewrite with OpenGL and downloadable build. Limits: Partial native rewrite targets preview build1560, not general retail Midtown Madness. Upstream platforms: Desktop downloadable build/source route for preview1560; exact package OS/CPU matrix unknown in frozen evidence. Do not advertise retail Midtown Madness. Original data: Original-data contract remains Unknown for Midtown Madness Sneak Preview Beta/build 1560. The retained Open1560 README identifies that exact target and partial assembly reuse, but does not establish which preview executable/data files are required, where they come from or their accepted digest. Do not substitute retail Midtown Madness assets without evidence. Portcove setup/gameplay not verified.",
       "original_game_title": "Midtown Madness Sneak Preview Beta / Build 1560",
       "project_url": "https://github.com/0x1F9F1/Open1560",
       "platforms": [],
@@ -12133,7 +12133,7 @@
     {
       "id": "might-and-magic-vii-openenroth",
       "name": "Might and Magic VII (OpenEnroth)",
-      "summary": "Research listing. Upstream route: Official README says MM7 playable; desktop nightly packages available. Limits: MM7 playable upstream; MM6/MM8 planned. Nightly-only releases may contain bugs. Upstream platforms: Nightly Windows x86/x86-64 ZIPs, Linux x86-64 Flatpak, macOS ARM64/x86-64 DMGs and Android universal APK. MM7 current; other MM games remain planned. Original data: MM6 and MM8 only planned; do not list them as playable current targets. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Official README says MM7 playable; desktop nightly packages available. Limits: MM7 playable upstream; MM6/MM8 planned. Nightly-only releases may contain bugs. Upstream platforms: Nightly Windows x86/x86-64 ZIPs, Linux x86-64 Flatpak, macOS ARM64/x86-64 DMGs and Android universal APK. MM7 current; other MM games remain planned. Original data: Supply original Might and Magic VII game data, from a GOG installation or another installed/extracted retail copy: at least ANIMS, DATA, MUSIC and SOUNDS directories. Point OPENENROTH_MM7_PATH at that data when needed. MM6/MM8 are planned targets, not substitutes for MM7 assets; exact accepted language/patch revision is not pinned in retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Might and Magic VII",
       "project_url": "https://github.com/OpenEnroth/OpenEnroth",
       "platforms": [],
@@ -12806,7 +12806,7 @@
     {
       "id": "nam-raze",
       "name": "NAM (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for NAM. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
       "original_game_title": "NAM",
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [],
@@ -12854,7 +12854,7 @@
     {
       "id": "need-for-speed-ii-special-edition-nfs-recompiled",
       "name": "Need for Speed II: Special Edition (NFS Recompiled)",
-      "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Supply an original Need for Speed II Special Edition installation plus its CD Fedata/GameData content. Source generation requires nfs2sen.exe and eacsnd.dll in nfs2se/. Exact supported language/patch and binary hashes are not stated in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Need for Speed II: Special Edition",
       "project_url": "https://github.com/motor-dev/nfs-recompiled",
       "platforms": [],
@@ -12873,7 +12873,7 @@
     {
       "id": "need-for-speed-ii-special-edition-nfsiise",
       "name": "Need for Speed II: Special Edition (NFSIISE)",
-      "summary": "Research listing. Upstream route: Cross-platform wrapper with Windows/Linux releases and original game support. Limits: Scope review: wrapper rather than full source reconstruction; exact source binaries/assets and architecture mapping. Upstream platforms: Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence. Original data: Scope review: wrapper rather than full source reconstruction; exact source binaries/assets and architecture mapping. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Cross-platform wrapper with Windows/Linux releases and original game support. Limits: Scope review: wrapper rather than full source reconstruction; exact source binaries/assets and architecture mapping. Upstream platforms: Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence. Original data: Supply original Need for Speed II Special Edition game data, including fedata and gamedata directories placed in the port game directory as documented by upstream. This is the Special Edition data contract, not ordinary NFS II or NFS III. Exact supported disc language/patch and original binary fingerprint remain Unknown in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Need for Speed II: Special Edition",
       "project_url": "https://github.com/zaps166/NFSIISE",
       "platforms": [],
@@ -12892,7 +12892,7 @@
     {
       "id": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
       "name": "Need for Speed III: Hot Pursuit (NFS Recompiled)",
-      "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Supply an original Need for Speed III: Hot Pursuit installation plus its CD Fedata/GameData content. Source generation requires nfs3.exe, eacsnd.dll, softtria.dll and voodoo2a.dll in nfs3hp/. Exact supported language/patch and binary hashes are not stated in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Need for Speed III: Hot Pursuit",
       "project_url": "https://github.com/motor-dev/nfs-recompiled",
       "platforms": [],
@@ -13749,7 +13749,7 @@
     {
       "id": "perimeter-emperor-s-testament-perimeter-community-engine",
       "name": "Perimeter: Emperor's Testament (Perimeter community engine)",
-      "summary": "Research listing. Upstream route: Open-source engine supports both games and original data; current source development. Limits: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Upstream platforms: Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research. Original data: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Open-source engine supports both games and original data; current source development. Limits: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Upstream platforms: Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research. Original data: Supply purchased Perimeter: Emperor's Testament game resources (models, textures, sounds, texts and configuration files) from the appropriate physical/digital release. Point the engine at that game content; do not assume the other Perimeter title supplies this target. Exact retail edition/patch/localization and any shared-base requirement remain Unknown in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Perimeter: Emperor's Testament",
       "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
       "platforms": [],
@@ -13768,7 +13768,7 @@
     {
       "id": "perimeter-perimeter-community-engine",
       "name": "Perimeter (Perimeter community engine)",
-      "summary": "Research listing. Upstream route: Open-source engine supports both games and original data; current source development. Limits: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Upstream platforms: Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research. Original data: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Open-source engine supports both games and original data; current source development. Limits: Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Upstream platforms: Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research. Original data: Supply purchased Perimeter game resources (models, textures, sounds, texts and configuration files) from the appropriate physical/digital release. Point the engine at that game content; do not assume the other Perimeter title supplies this target. Exact retail edition/patch/localization and any shared-base requirement remain Unknown in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Perimeter",
       "project_url": "https://github.com/KD-lab-Open-Source/Perimeter",
       "platforms": [],
@@ -13808,7 +13808,7 @@
     {
       "id": "planescape-torment-original-gemrb",
       "name": "Planescape: Torment (original) (GemRB)",
-      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Planescape: Torment (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
       "original_game_title": "Planescape: Torment (original)",
       "project_url": "https://github.com/gemrb/gemrb",
       "platforms": [],
@@ -14204,7 +14204,7 @@
     {
       "id": "powerslave-exhumed-dos-raze",
       "name": "PowerSlave / Exhumed (DOS) (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for PowerSlave / Exhumed (DOS). Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
       "original_game_title": "PowerSlave / Exhumed (DOS)",
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [],
@@ -14253,7 +14253,7 @@
     {
       "id": "prince-of-persia-dos-sdlpop",
       "name": "Prince of Persia (DOS) (SDLPoP)",
-      "summary": "Research listing. Upstream route: Native disassembly-derived port; official README links desktop builds externally. Limits: Review complete package contents and lawful original-data handling before managed admission. Upstream platforms: Official external desktop builds and documented Windows/Unix/macOS source compilation. Selected package CPU architectures unknown in frozen research. Original data: Review complete package contents and lawful original-data handling before managed admission. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Native disassembly-derived port; official README links desktop builds externally. Limits: Review complete package contents and lawful original-data handling before managed admission. Upstream platforms: Official external desktop builds and documented Windows/Unix/macOS source compilation. Selected package CPU architectures unknown in frozen research. Original data: Original-data/package contract remains Unknown for this SDLPoP route: establish whether the selected distribution already includes necessary Prince of Persia DOS data and which original v1.0/modified DAT set is accepted. Retained README supports original/mod DAT files and MIDISND*.DAT music, but does not establish a separate player-owned executable/ROM requirement. Do not impose one without evidence; asset permission review remains separate. Portcove setup/gameplay not verified.",
       "original_game_title": "Prince of Persia (DOS)",
       "project_url": "https://github.com/NagyD/SDLPoP",
       "platforms": [],
@@ -14403,7 +14403,7 @@
     {
       "id": "quake-ii-yamagi-quake-ii",
       "name": "Quake II (Yamagi Quake II)",
-      "summary": "Upstream route: Official Yamagi Windows 8.70a binary archive, or upstream 8.70 source build; own original Quake II data and separately selected expansion data/code. Limits: Official README describes mature enhanced client and addon repositories. GitHub Releases empty; official distribution site and expansion package handling need follow-up. Upstream platforms: Official Windows8.70a binary download and Linux/BSD source builds; code is64-bit clean but selected Windows artifact CPU unknown in frozen web page. macOS is community-supported. Original data: GitHub Releases empty; official distribution site and expansion package handling need follow-up. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official Yamagi Windows 8.70a binary archive, or upstream 8.70 source build; own original Quake II data and separately selected expansion data/code. Limits: Official README describes mature enhanced client and addon repositories. GitHub Releases empty; official distribution site and expansion package handling need follow-up. Upstream platforms: Official Windows8.70a binary download and Linux/BSD source builds; code is64-bit clean but selected Windows artifact CPU unknown in frozen web page. macOS is community-supported. Original data: Original-data contract remains Unknown in the retained Yamagi Quake II README: establish the classic Quake II retail installation/data set and accepted patch/revision before offering setup. The Reckoning and Ground Zero are separate add-on implementations/data, and Quake II Remaster assets use a separate Yamagi remaster project; do not assume they substitute for classic base-game files. Portcove setup/gameplay not verified.",
       "original_game_title": "Quake II",
       "project_url": "https://github.com/yquake2/yquake2",
       "platforms": [],
@@ -14452,7 +14452,7 @@
     {
       "id": "quake-ironwail",
       "name": "Quake (Ironwail)",
-      "summary": "Upstream route: Native Quake implementation with desktop packages. Limits: Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Upstream platforms: Windows/Linux native desktop packages/source builds, exact selected CPUs unknown in frozen evidence. macOS explicitly unsupported due to OpenGL4.3 requirements. Original data: Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native Quake implementation with desktop packages. Limits: Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Upstream platforms: Windows/Linux native desktop packages/source builds, exact selected CPUs unknown in frozen evidence. macOS explicitly unsupported due to OpenGL4.3 requirements. Original data: Use original Quake game data. Retained Ironwail README supports the 2021 rerelease and installed Steam Quake/add-ons through automatic discovery when no valid local Quake installation is present. Exact required classic/release PAK set and accepted data revision are not established by that README; mods/add-ons are separate data. Portcove setup/gameplay not verified.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/andrei-drexler/ironwail",
       "platforms": [],
@@ -14681,7 +14681,7 @@
     {
       "id": "redneck-rampage-raze",
       "name": "Redneck Rampage (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Redneck Rampage. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
       "original_game_title": "Redneck Rampage",
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [],
@@ -14756,7 +14756,7 @@
     {
       "id": "return-to-castle-wolfenstein-iortcw",
       "name": "Return to Castle Wolfenstein (iortcw)",
-      "summary": "Upstream route: Established source port with original-data copy instructions and desktop release archives. Limits: Latest published release is old; separate SP/MP and patch-data dependencies. Upstream platforms: Windows/Linux/macOS source-port archives. Mac universal-binary build instructions documented; exact selected archive CPUs unknown in frozen evidence. Original data: Latest published release is old; separate SP/MP and patch-data dependencies. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Established source port with original-data copy instructions and desktop release archives. Limits: Latest published release is old; separate SP/MP and patch-data dependencies. Upstream platforms: Windows/Linux/macOS source-port archives. Mac universal-binary build instructions documented; exact selected archive CPUs unknown in frozen evidence. Original data: Supply original Return to Castle Wolfenstein Main/ assets: SP needs pak0.pk3 and sp_pak1.pk3 through sp_pak3.pk3; MP needs the documented mp_bin/mp_pak/mp_pakmaps files from the owned installation. Merge upstream patch-data-141.zip (or the documented newer patch data); German/Spanish/French/Italian SP additionally use matching language patches. Keep SP/MP data separate. Portcove setup/gameplay not verified.",
       "original_game_title": "Return to Castle Wolfenstein",
       "project_url": "https://github.com/iortcw/iortcw",
       "platforms": [],
@@ -15000,7 +15000,7 @@
     {
       "id": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
       "name": "S.T.A.L.K.E.R.: Call of Pripyat (OpenXRay)",
-      "summary": "Upstream route: Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages. Limits: Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported. Upstream platforms: Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence. Original data: Shadow of Chernobyl and Enhanced Edition NOT supported. Mutable nightly tag needs asset identity handling. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages. Limits: Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported. Upstream platforms: Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence. Original data: Use original S.T.A.L.K.E.R.: Call of Pripyat game resources at version 1.6.02 for this OpenXRay target. Shadow of Chernobyl and Enhanced Edition data are outside this recorded scope. Exact distribution/localization layout is not pinned in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "S.T.A.L.K.E.R.: Call of Pripyat",
       "project_url": "https://github.com/OpenXRay/xray-16",
       "platforms": [],
@@ -15019,7 +15019,7 @@
     {
       "id": "s-t-a-l-k-e-r-clear-sky-openxray",
       "name": "S.T.A.L.K.E.R.: Clear Sky (OpenXRay)",
-      "summary": "Upstream route: Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages. Limits: Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported. Upstream platforms: Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence. Original data: Shadow of Chernobyl and Enhanced Edition NOT supported. Mutable nightly tag needs asset identity handling. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages. Limits: Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported. Upstream platforms: Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence. Original data: Use original S.T.A.L.K.E.R.: Clear Sky game resources at version 1.5.10 for this OpenXRay target. Shadow of Chernobyl and Enhanced Edition data are outside this recorded scope. Exact distribution/localization layout is not pinned in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
       "project_url": "https://github.com/OpenXRay/xray-16",
       "platforms": [],
@@ -15190,7 +15190,7 @@
     {
       "id": "shadow-warrior-raze",
       "name": "Shadow Warrior (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Shadow Warrior. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
       "original_game_title": "Shadow Warrior",
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [],
@@ -15846,7 +15846,7 @@
     {
       "id": "spear-of-destiny-reflectionhle",
       "name": "Spear of Destiny (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Spear of Destiny game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "Spear of Destiny",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -16015,7 +16015,7 @@
     {
       "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
       "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
-      "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Jedi Outcast SP only; Jedi Academy SP+MP. Different from already tracked Dark Forces II/OpenJKDF2 #725. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Original Jedi Outcast game-data contract remains partially Unknown: this is the Outcast single-player OpenJO target, not Jedi Academy or OpenJKDF2. The retained README documents Academy installation but does not establish Outcast required asset files, supported retail patch or exact setup layout; resolve those Outcast-specific inputs before offering setup. Portcove setup/gameplay not verified.",
       "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
       "project_url": "https://github.com/JACoders/OpenJK",
       "platforms": [],
@@ -16026,7 +16026,7 @@
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
       "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
-      "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Jedi Outcast SP only; Jedi Academy SP+MP. Different from already tracked Dark Forces II/OpenJKDF2 #725. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Own installed Jedi Academy game data (Steam/GOG/retail or the documented Mac App Store layout); extract OpenJK into its GameData directory. This target covers Academy SP and MP. Exact accepted patch/revision remains Unknown in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
       "project_url": "https://github.com/JACoders/OpenJK",
       "platforms": [],
@@ -16296,7 +16296,7 @@
     {
       "id": "strife-crispy-doom-family",
       "name": "Strife (Crispy Doom family)",
-      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Source-data contract remains Unknown in the retained Crispy Doom root README for Strife. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Strife data set. Portcove setup/gameplay not verified.",
       "original_game_title": "Strife",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "platforms": [],
@@ -16344,7 +16344,7 @@
     {
       "id": "super-3-d-noah-s-ark-dos-reflectionhle",
       "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Super 3-D Noah's Ark (DOS) game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "Super 3-D Noah's Ark (DOS)",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -16711,7 +16711,7 @@
     {
       "id": "syndicate-wars-syndicate-wars-fan-expansion",
       "name": "Syndicate Wars (Syndicate Wars Fan Expansion)",
-      "summary": "Upstream route: Maintained native port with current Windows/Ubuntu packages. Limits: Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Upstream platforms: Windows/Ubuntu packages and source builds; Windows MinGW32 dependency path documented. Exact selected artifact CPUs unknown in frozen release evidence. Original data: Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Maintained native port with current Windows/Ubuntu packages. Limits: Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Upstream platforms: Windows/Ubuntu packages and source builds; Windows MinGW32 dependency path documented. Exact selected artifact CPUs unknown in frozen release evidence. Original data: Supply an owned Syndicate Wars CD or CD image (including a supported digital-store image) during SyndWarsFX installation. Upstream installer copies required original files, downloads its extra gfx/sfx/level resources and may convert music; the disc/image is not needed after installation. Match the selected language to the source release; exact pressing/patch digest is Unknown here. Portcove setup/gameplay not verified.",
       "original_game_title": "Syndicate Wars",
       "project_url": "https://github.com/swfans/syndwarsfx",
       "platforms": [],
@@ -16947,7 +16947,7 @@
     {
       "id": "the-catacomb-abyss-reflectionhle",
       "name": "The Catacomb Abyss (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS The Catacomb Abyss game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "The Catacomb Abyss",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -16977,7 +16977,7 @@
     {
       "id": "the-catacomb-apocalypse-reflectionhle",
       "name": "The Catacomb Apocalypse (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS The Catacomb Apocalypse game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "The Catacomb Apocalypse",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -16999,7 +16999,7 @@
     {
       "id": "the-catacomb-armageddon-reflectionhle",
       "name": "The Catacomb Armageddon (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS The Catacomb Armageddon game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "The Catacomb Armageddon",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -17320,7 +17320,7 @@
     {
       "id": "tomb-raider-openlara",
       "name": "Tomb Raider (OpenLara)",
-      "summary": "Research listing. Upstream route: Classic Tomb Raider engine with Windows/Linux/macOS standalone artifacts. Limits: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Upstream platforms: Windows/Linux/macOS standalone release artifacts/source builds. Exact selected artifact CPU architectures unknown in frozen research. Original data: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Classic Tomb Raider engine with Windows/Linux/macOS standalone artifacts. Limits: Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Upstream platforms: Windows/Linux/macOS standalone release artifacts/source builds. Exact selected artifact CPU architectures unknown in frozen research. Original data: Original-data contract remains Unknown for this classic Tomb Raider OpenLara target: establish the accepted original platform/edition, required level/audio/video files and their layout for the selected standalone build. Retained README links a WebGL demo and standalone release but supplies no full-game input contract; demo content does not establish full retail-data compatibility. Portcove setup/gameplay not verified.",
       "original_game_title": "Tomb Raider",
       "project_url": "https://github.com/XProger/OpenLara",
       "platforms": [],
@@ -17415,7 +17415,7 @@
     {
       "id": "transport-tycoon-deluxe-openttd-upstream",
       "name": "Transport Tycoon Deluxe (OpenTTD (upstream))",
-      "summary": "Upstream route: Mature native reimplementation with free replacement data or original retail data. Limits: Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data. Upstream platforms: Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit. Original data: Already tracked JGR Patch Pack #1859 is a distinct fork; record upstream as an alternative, not duplicate alias. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature native reimplementation with free replacement data or original retail data. Limits: Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data. Upstream platforms: Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit. Original data: OpenTTD needs base graphics and sound data. Use the free OpenGFX/OpenSFX sets (OpenMSX supplies optional music), or copy original DOS/Windows Transport Tycoon Deluxe CD graphics/sound files into baseset/. Original commercial TTD assets are optional when using the free sets; original TTD music can be copied separately. Portcove setup/gameplay not verified.",
       "original_game_title": "Transport Tycoon Deluxe",
       "project_url": "https://github.com/OpenTTD/OpenTTD",
       "platforms": [],
@@ -17499,7 +17499,7 @@
     {
       "id": "ultima-vii-part-two-serpent-isle-exult",
       "name": "Ultima VII Part Two: Serpent Isle (Exult)",
-      "summary": "Upstream route: Official documentation says both games completable; established engine. Limits: Upstream says both UltimaVII games completable; stable release selection and independent game saves remain. Upstream platforms: Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots. Original data: Per-game data and saves; use stable release selection, not blindly newest snapshot. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official documentation says both games completable; established engine. Limits: Upstream says both UltimaVII games completable; stable release selection and independent game saves remain. Upstream platforms: Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots. Original data: Own original Ultima VII Part Two: Serpent Isle game data for this Exult target. The corresponding add-on is optional, not required to run the base game. Retained README does not pin accepted localization/revision or a minimum file manifest. Portcove setup/gameplay not verified.",
       "original_game_title": "Ultima VII Part Two: Serpent Isle",
       "project_url": "https://github.com/exult/exult",
       "platforms": [],
@@ -17510,7 +17510,7 @@
     {
       "id": "ultima-vii-the-black-gate-exult",
       "name": "Ultima VII: The Black Gate (Exult)",
-      "summary": "Upstream route: Official documentation says both games completable; established engine. Limits: Upstream says both UltimaVII games completable; stable release selection and independent game saves remain. Upstream platforms: Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots. Original data: Per-game data and saves; use stable release selection, not blindly newest snapshot. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official documentation says both games completable; established engine. Limits: Upstream says both UltimaVII games completable; stable release selection and independent game saves remain. Upstream platforms: Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots. Original data: Own original Ultima VII: The Black Gate game data for this Exult target. The corresponding add-on is optional, not required to run the base game. Retained README does not pin accepted localization/revision or a minimum file manifest. Portcove setup/gameplay not verified.",
       "original_game_title": "Ultima VII: The Black Gate",
       "project_url": "https://github.com/exult/exult",
       "platforms": [],
@@ -17547,7 +17547,7 @@
     {
       "id": "urban-chaos-openchaos",
       "name": "Urban Chaos (OpenChaos)",
-      "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux SteamDeck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Newer modernization; retain raw upstream claim as unverified, not Portcove support status. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux SteamDeck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
       "original_game_title": "Urban Chaos",
       "project_url": "https://github.com/UltimaBeaR/OpenChaos",
       "platforms": [],
@@ -18042,7 +18042,7 @@
     {
       "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
       "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
-      "summary": "Research listing. Upstream route: Native SDL2 Win/Linux/macOS packages and original-data setup. Limits: Native SDL2 port with Kilrathi Saga data and partial DOS compatibility; reference byte similarity does not measure gameplay completion. Upstream platforms: Native Windows/Linux/macOS SDL2 packages; selected CPU architectures unknown in frozen release evidence. Native port differs from incomplete reference reconstruction. Original data: Reference reconstruction incomplete; DOS data only partially supported, preserve exact edition contract. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Native SDL2 Win/Linux/macOS packages and original-data setup. Limits: Native SDL2 port with Kilrathi Saga data and partial DOS compatibility; reference byte similarity does not measure gameplay completion. Upstream platforms: Native Windows/Linux/macOS SDL2 packages; selected CPU architectures unknown in frozen release evidence. Native port differs from incomplete reference reconstruction. Original data: Supply original Wing Commander I: The Kilrathi Saga data, including GAMEDAT and STREAMS/PREFLITE.STR, STREAMS/POSFLITE.STR and STREAMS/MISSION.STR. Original DOS data is only partially supported. No copyrighted game data is included. The native SDL2 port autodetects the selected data directory; contributor WC1.ORI.EXE/code-full requirements are not universal player inputs. Exact accepted Saga/DOS patch fingerprints remain Unknown. Portcove setup/gameplay not verified.",
       "original_game_title": "Wing Commander (Kilrathi Saga)",
       "project_url": "https://github.com/neuromancer/wc1-re",
       "platforms": [],
@@ -18113,7 +18113,7 @@
     {
       "id": "wolfenstein-3d-reflectionhle",
       "name": "Wolfenstein 3D (ReflectionHLE)",
-      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Wolfenstein 3D game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
       "original_game_title": "Wolfenstein 3D",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "platforms": [],
@@ -18124,7 +18124,7 @@
     {
       "id": "wolfenstein-enemy-territory-et-legacy",
       "name": "Wolfenstein: Enemy Territory (ET: Legacy)",
-      "summary": "Upstream route: Official etlegacy.com stable 2.86.2 desktop installer/archive plus original freely released Wolfenstein: Enemy Territory data; package and original data are distinct. Limits: Maintained native continuation; official download site linked in README. GitHub Releases empty; resolve official package + original free data route. Upstream platforms: Official stable2.86.2 Windows x86/x86-64, Linux i386/x86-64/AArch64 and macOS x86-64/AArch64 installer/archive downloads.64-bit mods must match64-bit client. Original data: GitHub Releases empty; resolve official package + original free data route. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Official etlegacy.com stable 2.86.2 desktop installer/archive plus original freely released Wolfenstein: Enemy Territory data; package and original data are distinct. Limits: Maintained native continuation; official download site linked in README. GitHub Releases empty; resolve official package + original free data route. Upstream platforms: Official stable2.86.2 Windows x86/x86-64, Linux i386/x86-64/AArch64 and macOS x86-64/AArch64 installer/archive downloads.64-bit mods must match64-bit client. Original data: Use original free Wolfenstein: Enemy Territory game data under its original EULA; copy pak0.pk3 into etmain/. Third-party mods may also need pak1.pk3 and pak2.pk3. README links Splash Damage for the free release and targets compatibility with ET 2.60b; the GPL engine/mod source alone does not include game data. Portcove setup/gameplay not verified.",
       "original_game_title": "Wolfenstein: Enemy Territory",
       "project_url": "https://github.com/etlegacy/etlegacy",
       "platforms": [],
@@ -18315,7 +18315,7 @@
     {
       "id": "world-war-ii-gi-raze",
       "name": "World War II GI (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for World War II GI. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
       "original_game_title": "World War II GI",
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [],
@@ -18694,7 +18694,7 @@
     {
       "id": "zuma-deluxe-zuma-portable-circleshootapp",
       "name": "Zuma Deluxe (Zuma Portable / CircleShootApp)",
-      "summary": "Research listing. Upstream route: Decompilation called fully playable upstream; original-data and BASS dependency documented. Limits: Upstream says fully playable with expected bugs/inaccuracies; source build and separate BASS library remain required. Upstream platforms: Windows source-build scripts using legacy MSVC7 by default; optional64-bit build documented. No observed binary assets; output architecture must follow chosen toolchain/BASS library. Original data: Observed release has no binaries; version-specific data plus BASS redistribution/setup require review. Portcove setup/gameplay not verified.",
+      "summary": "Research listing. Upstream route: Decompilation called fully playable upstream; original-data and BASS dependency documented. Limits: Upstream says fully playable with expected bugs/inaccuracies; source build and separate BASS library remain required. Upstream platforms: Windows source-build scripts using legacy MSVC7 by default; optional64-bit build documented. No observed binary assets; output architecture must follow chosen toolchain/BASS library. Original data: Supply Zuma Deluxe data files from an owned original installation; assets and bass.dll are not included. For 32-bit builds use the original BASS 1.8 DLL; BASS 2.4 is required for 64-bit and optionally supported for 32-bit. The reconstruction reference is the official web/PopCap Ultimate Collection Zuma.exe SHA-256 51cf7bbc6df4a41ec137a52d4496c3149ba32c9ae2acc4653279d04c164809aa; exact Steam-data compatibility remains unestablished here. Portcove setup/gameplay not verified.",
       "original_game_title": "Zuma Deluxe",
       "project_url": "https://github.com/kyle-sylvestre/CircleShootApp",
       "platforms": [],

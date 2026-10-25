@@ -1,5 +1,6 @@
 import {
   requireAdmittedProductionSource,
+  requireAdmittedProductionObserverSource,
   productionControllerWorkflow,
 } from "./production-controller-admission.mts";
 import { requireVerifiedClassificationPrincipalIdentity } from "./assembler-job-identity.mts";
@@ -147,14 +148,8 @@ export function requireProductionProtectionObserver(
   now = Date.now(),
 ) {
   const roles = requireProtectionObserverSourceConfiguration(raw, source, phase, purpose);
-  requireAdmittedProductionSource(
-    source,
-    phase === "classification"
-      ? "classification_protection_observation"
-      : releaseControlPhaseProfile(phase).observer_job,
-    purpose,
-  );
-  requireVerifiedProtectionObserverIdentity(identity, phase, now);
+  requireAdmittedProductionObserverSource(source, phase, purpose);
+  requireVerifiedProtectionObserverIdentity(identity, phase, now, source);
   if (
     identity.evidence_scope !== "github.com" ||
     identity.workflow !== source.workflow ||

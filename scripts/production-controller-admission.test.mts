@@ -21,6 +21,9 @@ import {
   admitProductionNativeParent,
   productionHostedNativeJob,
   requireAdmittedProductionSource,
+  admitProductionProtectionObserver,
+  admittedProductionObserverProfile,
+  requireAdmittedProductionObserverSource,
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -48,6 +51,7 @@ import {
 } from "./fixtures/checkpoint-proof-fixture.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import { applicationProtectionObserver } from "./release-control-phases.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import {
   capacityExecutorRolesForPurpose,
@@ -104,6 +108,62 @@ const environment = {
   PORTCOVE_CONTROLLER_REF: "refs/tags/portcove-production-controller-fixture",
 };
 const raw = JSON.stringify(policy);
+
+void test("shared observer routing requires actual admitted workflow bytes and never appoints another purpose or job", () => {
+  const workflow = Buffer.concat([
+    Buffer.from(applicationProtectionObserver.source_marker + "\n"),
+    source,
+  ]);
+  const selected = {
+    ...policy,
+    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+  };
+  for (const phase of ["payload", "tuf-timestamp", "release-publication"] as const) {
+    const env = { ...environment, GITHUB_JOB: applicationProtectionObserver.job };
+    const original = admitProductionProtectionObserver(
+      JSON.stringify(selected),
+      env,
+      workflow,
+      phase,
+    );
+    assert.equal(
+      admittedProductionObserverProfile(original, phase).name,
+      applicationProtectionObserver.name,
+    );
+    requireAdmittedProductionObserverSource(original, phase, "application");
+    assert.throws(() =>
+      requireAdmittedProductionObserverSource({ ...original }, phase, "application"),
+    );
+    assert.throws(() =>
+      requireAdmittedProductionObserverSource(original, phase, "catalog-publication"),
+    );
+    assert.throws(() =>
+      requireAdmittedProductionObserverSource(original, "coordinator", "application"),
+    );
+    assert.throws(() =>
+      requireAdmittedProductionObserverSource(original, "site-publication", "application"),
+    );
+    assert.throws(() => admittedProductionObserverProfile(original, "catalog-definitions"));
+    assert.throws(
+      () => admitProductionProtectionObserver(raw, env, workflow, phase),
+      /source byte identity/u,
+    );
+    assert.throws(
+      () => admitProductionProtectionObserver(raw, env, source, phase),
+      /job or runner identity/u,
+    );
+    const legacy = admitProductionProtectionObserver(
+      raw,
+      { ...environment, GITHUB_JOB: releaseControlPhaseProfile(phase).observer_job },
+      source,
+      phase,
+    );
+    assert.equal(
+      admittedProductionObserverProfile(legacy, phase).name,
+      releaseControlPhaseProfile(phase).observer_name,
+    );
+  }
+});
 
 void test("hosted native parent default path retains original source and issuer without credentials, refuses changed inputs and cannot mint native acceptance", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "hosted-native-parent-source-"));

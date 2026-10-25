@@ -407,10 +407,10 @@ impl Guard {
         }
         // Acknowledgement alone is not sufficient: thread-local destruction may
         // remain. Never join a worker that could still block past our deadline.
-        if self.worker.as_ref().is_some_and(JoinHandle::is_finished) {
-            if let Some(worker) = self.worker.take() {
-                let _ = worker.join();
-            }
+        if self.worker.as_ref().is_some_and(JoinHandle::is_finished)
+            && let Some(worker) = self.worker.take()
+        {
+            let _ = worker.join();
         }
         let mut health = self.shared.health.snapshot();
         health.queue_depth = health.queue_depth.min(self.queue_capacity as u64);
@@ -579,11 +579,11 @@ fn run_worker(
                         shared.health.error(error);
                         failed = true;
                     }
-                    if !shared.abandon.load(Ordering::Acquire) {
-                        if let Err(error) = sink.finish(!failed) {
-                            shared.health.error(error);
-                            failed = true;
-                        }
+                    if !shared.abandon.load(Ordering::Acquire)
+                        && let Err(error) = sink.finish(!failed)
+                    {
+                        shared.health.error(error);
+                        failed = true;
                     }
                     shared.health.terminal(if failed {
                         FlushState::Failed

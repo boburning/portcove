@@ -40,7 +40,7 @@ function sameProcess(a: CapturedNativeProcess, b: CapturedNativeProcess) {
 }
 
 /** Fixed parent-appointed continuation inputs; data only, never a claim. */
-export function inspectWindowsPublicContinuationInput(raw: unknown) {
+function inspectWindowsPublicContinuationInput(raw: unknown) {
   assert.ok(isRecord(raw));
   const names = [
     "application",
@@ -211,7 +211,7 @@ export function assertWindowsPublicUserStatePreserved(
 
 /** Actual Windows operation, to be called only by the fixed parent under its native grant.
  * It neither issues a Check nor establishes native acceptance/publication authority. */
-export async function runWindowsPublicUpdateJourney(
+async function runWindowsPublicUpdateJourney(
   input: {
     phase?: "park-v0-with-v1" | "continue-with-v2";
     continuation?: ReturnType<typeof inspectWindowsPublicContinuationInput>;

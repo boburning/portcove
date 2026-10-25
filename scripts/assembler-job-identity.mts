@@ -1,7 +1,10 @@
 import { createPublicKey, verify } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import {
+  productionControllerWorkflow,
+  admittedProductionObserverProfile,
+} from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   releaseControlPhaseProfile,
@@ -400,7 +403,7 @@ async function verifyJobIdentity(
     refreshed.run_attempt !== expected.run_attempt ||
     refreshed.head_sha !== expected.controller_revision ||
     refreshed.check_run_url !== job.check_run_url ||
-    refreshed.name !== profile.job ||
+    refreshed.name !== job.name ||
     refreshed.status !== "in_progress"
   )
     throw new Error("selected assembler job changed during collection");
@@ -478,17 +481,14 @@ export function requireVerifiedProtectionObserverIdentity(
   value: unknown,
   phase: "classification" | ReleaseControlPhase,
   now = Date.now(),
+  source?: unknown,
 ): asserts value is Awaited<ReturnType<typeof verifyProductionClassificationObserverJobIdentity>> {
   const saved = isRecord(value) ? verifiedJobs.get(value) : undefined;
   const selected = phase === "classification" ? null : releaseControlPhaseProfile(phase);
   const profile =
     selected === null
       ? { ...protectionProfile, workflow: productionControllerWorkflow }
-      : {
-          workflow: productionControllerWorkflow,
-          job: selected.observer_name,
-          environment: selected.observer_environment,
-        };
+      : productionProtectionObserverProfile(phase, source);
   if (
     !Number.isFinite(now) ||
     now < 0 ||
@@ -806,18 +806,25 @@ export function verifyProductionProtectionObserverJobIdentity(
   expected: unknown,
   options: IdentityOptions = {},
   phase: unknown = "admission",
+  source?: unknown,
 ) {
-  const profile = releaseControlPhaseProfile(phase);
   return verifyJobIdentity(
-    {
-      workflow: productionControllerWorkflow,
-      job: profile.observer_name,
-      environment: profile.observer_environment,
-    },
+    productionProtectionObserverProfile(phase, source),
     token,
     expected,
     options,
   );
+}
+function productionProtectionObserverProfile(phase: unknown, source?: unknown): JobIdentityProfile {
+  const profile = releaseControlPhaseProfile(phase);
+  return {
+    workflow: productionControllerWorkflow,
+    job:
+      source === undefined
+        ? profile.observer_name
+        : admittedProductionObserverProfile(source, inspectReleaseControlPhase(phase)).name,
+    environment: profile.observer_environment,
+  };
 }
 export function verifyReleaseInputReaderJobIdentity(
   token: string,

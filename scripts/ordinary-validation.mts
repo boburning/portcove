@@ -303,6 +303,9 @@ const selectionContractTests = [
 ];
 
 const roadmapFeatureTests = [
+  "scripts/roadmap-authoring.test.mts",
+  "scripts/roadmap-report.test.mts",
+  "scripts/roadmap-publish.test.mts",
   "scripts/roadmap-execution.test.mts",
   "scripts/roadmap-intake.test.mts",
   "scripts/roadmap-views.test.mts",
@@ -836,6 +839,18 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/release-hosted-native-worker.mts",
     ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
+  [
+    "scripts/release-hosted-native-workflow.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
+  [
+    "scripts/release-native-postsign-readiness.mts",
+    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
+  [
+    ".github/actions/release-native-linux/action.yml",
+    ["scripts/release-hosted-native-runner.test.mts"],
   ],
   ...[
     "scripts/release-hosted-native-runtime.mts",

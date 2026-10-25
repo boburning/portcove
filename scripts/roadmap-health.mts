@@ -3,8 +3,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner, sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-api.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
+import { observationStatus } from "./roadmap-report.mts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const catalogPath = "crates/portcove-core/catalog/catalog.json";
@@ -40,6 +41,7 @@ export function selectRoadmapHealth(
     return { mode: "issues", issue: issueNumber(event.issue.number) };
   }
   if (eventName === "workflow_dispatch") {
+    if (isRecord(event.inputs) && event.inputs.inventory_items) return { mode: "none" };
     const value = isRecord(event.inputs) ? event.inputs.issue : undefined;
     return value == null || value === ""
       ? { mode: "global" }
@@ -253,7 +255,7 @@ function diagnosticDetails(report: Record<string, unknown>) {
 export function roadmapHealthSummary(report: Record<string, unknown>, runUrl: string) {
   const diagnosis = isRecord(report.diagnosis) ? report.diagnosis : {};
   return (
-    `Roadmap observation: **${configurationMissing(report) ? "not configured" : String(report.status)}** — ${declaredScope(report)}.\n\n` +
+    `Roadmap observation: **${configurationMissing(report) ? "not configured" : observationStatus(report) === "unable_to_verify" ? "Unable to verify" : String(report.status)}** — ${declaredScope(report)}.\n\n` +
     (typeof diagnosis.kind === "string"
       ? `Classification: \`${diagnosis.kind}\`. ${typeof diagnosis.recovery_condition === "string" ? diagnosis.recovery_condition : "Inspect the retained diagnostic artifact."}\n\n`
       : "") +
@@ -312,6 +314,19 @@ export function roadmapHealthComment(
 }
 
 async function main() {
+  const startedAt = new Date().toISOString();
+  const publication = (report: Record<string, unknown> | null) => {
+    mkdirSync(path.join(root, "work/roadmap-health"), { recursive: true });
+    writeFileSync(
+      path.join(root, "work/roadmap-health/publication.json"),
+      JSON.stringify({
+        format_version: 1,
+        run: Number(process.env.GITHUB_RUN_ID),
+        attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+        report,
+      }),
+    );
+  };
   const event: unknown = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8"));
   const selection = selectRoadmapHealth(
     process.env.GITHUB_EVENT_NAME ?? "",
@@ -328,6 +343,7 @@ async function main() {
     },
   );
   if (selection.mode === "none") {
+    publication(null);
     if (process.env.GITHUB_STEP_SUMMARY)
       appendFileSync(
         process.env.GITHUB_STEP_SUMMARY,
@@ -409,63 +425,18 @@ async function main() {
   }
   const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/${process.env.GITHUB_RUN_ATTEMPT}`;
   report.observation = {
+    started_at: startedAt,
     observed_at: new Date().toISOString(),
     checkout_head: checkoutHead,
     run_url: runUrl,
   };
   writeFileSync(path.join(directory, "report.json"), JSON.stringify(report));
+  publication(report);
   console.log(
     `Roadmap ${selection.mode} check: ${String(report.status)}; evidence: ${path.join(directory, "report.json")}`,
   );
   if (process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, roadmapHealthSummary(report, runUrl));
-  if (process.env.GITHUB_TOKEN) {
-    const api = new GitHubApiClient(
-      createGitHubRunner({
-        cwd: root,
-        spawn: (command, args, options) =>
-          spawnSync(command, args, {
-            ...options,
-            env: { ...(options.env ?? process.env), GH_TOKEN: process.env.GITHUB_TOKEN },
-          }),
-      }),
-    );
-    const comments = api.paginateRest(
-      `repos/${process.env.GITHUB_REPOSITORY}/issues/2414/comments?per_page=100`,
-      { identity: (value) => (isRecord(value) ? value.id : undefined) },
-    );
-    // Missing configuration shares one serialized incident; configured checks
-    // keep independent scope comments. Historical comments retain their evidence.
-    const previous = findRoadmapHealthComment(comments, report);
-    if (isRecord(previous) && typeof previous.id !== "number")
-      throw new Error("Diagnostic comment identity is unavailable");
-    const body = roadmapHealthComment(
-      report,
-      isRecord(previous) ? String(previous.body) : null,
-      runUrl,
-    );
-    if (body) {
-      const result = isRecord(previous)
-        ? api.request(
-            "PATCH",
-            `repos/${process.env.GITHUB_REPOSITORY}/issues/comments/${String(previous.id)}`,
-            { body },
-          ).body
-        : api.request("POST", `repos/${process.env.GITHUB_REPOSITORY}/issues/2414/comments`, {
-            body,
-          }).body;
-      if (!isRecord(result) || typeof result.id !== "number")
-        throw new Error(
-          "Diagnostic comment outcome is unknown; inspect exact readback before retrying",
-        );
-      const readback = api.request(
-        "GET",
-        `repos/${process.env.GITHUB_REPOSITORY}/issues/comments/${result.id}`,
-      ).body;
-      if (!isRecord(readback) || readback.body !== body)
-        throw new Error("Diagnostic comment readback differs; preserve the observed report");
-    }
-  }
   if (report.status !== "passed") process.exitCode = 1;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -3,7 +3,7 @@
   "listing": {
     "id": "dune-ii-opendune",
     "name": "Dune II (OpenDUNE)",
-    "summary": "Upstream route: Native original-engine recreation with explicit v1.07 data and Windows/macOS archives. Limits: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Upstream platforms: Windows i686/x86-64 and macOS PowerPC/i686/x86-64 documented build targets; Linux source route. Selected historical archive CPUs require asset choice. Original data: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Native original-engine recreation with explicit v1.07 data and Windows/macOS archives. Limits: Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Upstream platforms: Windows i686/x86-64 and macOS PowerPC/i686/x86-64 documented build targets; Linux source route. Selected historical archive CPUs require asset choice. Original data: Supply original Dune II version 1.07 data files, including dune2.exe, in OpenDUNE data/. Retained README accepts the eu, hs and us 1.07 data sets; French requires eu/hs, and German requires eu. Do not substitute Dune 2000 data. Portcove setup/gameplay not verified.",
     "original_game_title": "Dune II",
     "project_url": "https://github.com/OpenDUNE/OpenDUNE",
     "platforms": [],

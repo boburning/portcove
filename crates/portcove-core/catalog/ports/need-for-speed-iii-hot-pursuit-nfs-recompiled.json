@@ -3,7 +3,7 @@
   "listing": {
     "id": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
     "name": "Need for Speed III: Hot Pursuit (NFS Recompiled)",
-    "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects. Portcove setup/gameplay not verified.",
+    "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Supply an original Need for Speed III: Hot Pursuit installation plus its CD Fedata/GameData content. Source generation requires nfs3.exe, eacsnd.dll, softtria.dll and voodoo2a.dll in nfs3hp/. Exact supported language/patch and binary hashes are not stated in the retained README. Portcove setup/gameplay not verified.",
     "original_game_title": "Need for Speed III: Hot Pursuit",
     "project_url": "https://github.com/motor-dev/nfs-recompiled",
     "platforms": [],

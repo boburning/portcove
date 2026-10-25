@@ -771,3 +771,161 @@ at its ten-second test-harness bound. The analyzer-acquisition contract keeps
 all eight pin/import/gate assertions and now allows thirty seconds per private
 PowerShell invocation. This is finite harness calibration, not a product or
 release deadline change; it does not relabel the original failure as passing.
+
+## Fixed same-job Linux upload handoff (October 24)
+
+The prepared `release-native-linux` composite runs fixed pre-sign and post-sign
+calls on one original native job. Its source helper claims a no-replace intent
+before starting the worker, records the actual PID and creation identity, and
+requires that same identity, source/configuration binding and original clock
+before each handoff. A missing or partial start cannot retry. The driver sends
+no signing or observer credential; it inherits only the fixed native job's
+environment. Worker output stays in the existing bounded stage records rather
+than an unbounded background log.
+
+Before another process receives that environment, the helper receives and
+authenticates the existing full tool artifact/attestation into a private no-reuse
+directory. The fixed inventory now includes the opaque worker bundle and fixed
+bootstrap child, with no external package imports left in either bundle. It
+rechecks the original tool receipt and complete executable custody immediately
+before spawning the authenticated private Node; the shared setup-node pathname
+is never selected for this child. This adds one bounded tool receiver (the
+existing320MiB archive/1MiB attestation limits and expanded inventory), plus two
+at-most8192-byte startup records. Its storage and transfer must enter the final
+whole-job fit; no current headroom or capacity reservation is inferred.
+
+The ordinary hosted fixture exercises real file/PID continuity and the existing
+public request/ACK readers with source, attestation and native-worker peers
+explicitly controlled. Tool-build qualification separately loads the actual
+opaque worker and bootstrap and checks their credential-free source/usage
+refusals. These observations do not execute the authenticated packaged two-stage
+native opportunity; that remains part of the held runnable graph's qualification.
+
+Readiness exposes only the existing four bounded public proof files. The pinned
+Actions upload retains seven days, no overwrite, zero compression and failure
+for absent files. Its response enters the fixed ACK operation only through
+environment data and binds the exact request digest. The original private
+producer alone performs provider readback. A failed or ambiguous Actions result
+does not receive a fabricated ACK or another upload attempt. The original worker
+retains effects and expires inside its existing clock; normal job cleanup does
+not supply positive native acceptance.
+
+Pre-sign settlement requires the original live supervisor and actual stage/tree
+settlement. Post-sign settlement additionally requires its original final row
+and observed original-process exit. Late refusal rows, changed source/clock/PID,
+missing final state or incomplete tree evidence hold for recovery. Routing and
+settlement remain public correlation data with no native acceptance authority.
+
+This composite is prepared but not installed in the held application workflow.
+The future same-job caller must establish actual signed/TUF prerequisites
+between its pre-sign and post-sign calls; the producer independently authenticates
+them again. The Windows counterpart, whole-graph resource fit, final reviewed
+runnable source/digest, actual authority/custody/protection/reservation and real
+protected/native/public observations remain required. No new job, spend,
+credential, privileged setup or manual step is introduced. Qualification and
+independent review belong to the owning receipt; all existing holds remain.
+
+The first candidate's ordinary CI retained two failures: the fixed-tool build
+rejected a coordinator shared chunk, and the inert Linux handoff fixture lost
+its event-loop reference while awaiting child teardown. Neither failure supplies
+native or production evidence. The repair explicitly fixes final bundler output
+inlining while retaining the external-chunk rejection; the fixture references
+its existing child during bounded teardown.
+
+The helper now waits for the producer's existing atomic public upload request
+before reading private clock/start records. After pre-sign stage settlement the
+original supervisor publishes an atomic sequencing-only handoff marker (at most
+4096 bytes, plus its retained hardlink alias; no additional content allocation).
+The helper still verifies the actual private settlement, source, custody and
+live original owner. Post-sign reads final records only after original-process
+exit. This prevents normal in-flight writes from masquerading as malformed
+completed claims; malformed completed records continue to refuse. The marker
+adds no acceptance or execution authority and stays inside the existing bounded
+lifecycle allocation.
+
+At repair source `3bfd37fa090a591d300293652d4264316315375e`, ordinary
+CI `40146200042/a1` retained one catalog-test failure: actual worker packaging
+still emitted the coordinator shared chunk. The other four required contexts
+passed. The real file/PID handoff, including partial-record publication, passed
+in 10.85 seconds; the isolated dynamic-cycle pack fixture also passed. Tool-build
+fixture `40146199965/a1` remained failed at fixed-node-bundles. Thus redundant
+output-option aliases did not resolve actual packaging and are removed.
+
+The worker's artifact interface is a fixed subprocess command, not an imported
+bundle API. Its one entry now disables preservation of unused exported entry
+signatures, avoiding an unnecessary facade; source-module exports and all other
+tool entries retain their contracts. Packaging additionally requires zero worker
+bundle exports and still rejects every nonbuiltin chunk import. The synthetic
+fixture includes separate acyclic and cyclic dynamic imports plus exported entry
+bindings. The actual worker build remains the decisive verification; these edits
+alone do not establish a passing build.
+
+Source `72ad4b428c7803c8560e253a24b2f6cec0ca8915` still failed actual packaging
+in tool fixture `40147102815/a1`; its observed combined checkout was
+`980c8f811cf424db3161f16a57bea9aab95db901`, tree
+`f54390dfa3698c28483c1a0bc36474425b243c3b`, with exact parents
+`20fe75c10a8ecc478bee21c144ed6f0801e8dd73` and that candidate. Ordinary CI
+`40147102798/a1` retained the worker facade refusal and a separate main-branch
+omission: the new upstream-health triage test lacked required suite membership.
+The real file/PID handoff passed again (10.73 seconds). Neither option experiment
+is credited as successful packaging.
+
+The graph repair makes recovery's four coordinator-state imports static. State
+initialization is inert and these exports are function declarations; existing
+operation deadline checks stay unchanged. Read-only tracing of the maintained
+bare launchers (tool launch, job bootstrap/output and diagnostics), admission CLI
+and native bootstrap found no recovery edge or external package dependency, so
+that source-only boundary remains intact. Actual isolated source-launcher and
+worker packaging verification is still required. The reviewed main changes are
+composed with both independent ordinary-validation mappings preserved; the
+missing health-triage test is registered in both required catalog and local
+repository-tool suites. No admission, spending, credential or execution authority
+changes with these repairs.
+
+The repaired actual tool build passed at component source `a134876c` in
+fixture `40147693369/a1`: 137944ms cold build, 249800661 expanded bytes,
+50 Node passes/one skip and three Python passes. After generated commands were
+updated, source `6eef4e9d` built successfully again in `40148125644/a1`
+(78563ms, 249817045 expanded bytes). That latter workflow still failed its
+subsequent controlled supervisor fixture: simulated owner loss was injected
+only after a visible post-start write, while the mock original claim continued
+to accept that owner until the caller observed refusal. The mock worker could
+therefore finish before the intended invalidation. The fixture now invalidates
+its owner before publishing that signal and requires the same identity in its
+original claim. The fixed-source scope stays independent from worker lease
+refusal, and the fixture additionally requires one spawn and incomplete post-sign
+state. The adversarial 25ms yield, failure/partial-marker assertions and
+all production deadlines remain. The failed workflow stays failed; successful
+build and fixture results retain their separate scopes.
+
+## Fixed post-sign prerequisite scheduling (October 24)
+
+The same-job Linux handoff now waits for the original attempt's fixed payload-signing and Timestamp jobs before signaling the already running native worker. These are scheduling observations only: the post-sign producer must still authenticate the actual coordinator, candidate, signed context, Tough roles and package. An Actions conclusion cannot supply that provenance.
+
+Only complete, duplicate-free, single-page attempt-1 inventories with the exact selected run/source and literal status values are admitted. A valid pending or not-yet-observed prerequisite can be read again, within the original worker/provider clock and at most120 GETs with five-second spacing. Transport ambiguity, malformed identity/inventory, or a failed/cancelled/skipped prerequisite refuses immediately. No signer, upload or native attempt is retried. The original worker identity/custody/refusal/clock is rechecked after reads, retained observations, waits and final record closure, immediately before the post-sign signal.
+
+An exclusive, private scheduling log retains at most64KiB, including refusal/ambiguity outcome and the last observed HTTP status. Re-entering that retained attempt refuses. This bounded local log and up-to2MiB provider response buffer are additional resource inputs for the eventual complete graph estimate; they do not establish provider storage headroom or a reservation.
+
+Initial independent review found and required repair of a malformed validation Map tuple, status coercion that could misinterpret an array as completed, and a missing original-owner fence after awaited log closure. The corrected candidate includes malformed-status and process-death-during-close regressions. Final source review and hosted qualification belong to its owning delivery receipt. No production workflow job or credential boundary is activated by this change.
+
+The current application graph still declares99 job-minutes against the100-minute ceiling, including the wake allocation, and lacks both native jobs. Adding their existing ten-minute allocations directly would not fit. Full caller/observer/native scheduling and whole-graph fit remain engineering prerequisites; reducing declared limits without evidence, dropping meaningful protection checks, raising the ceiling or treating waiting as free is not an implementation remedy. Production remains held, with Unknown operation availability/headroom, no capacity reservation and the existing issue-specific acceptance boundaries.
+
+Initial exact-head CI40150809392/1 at686437be retained a repository type-check failure: narrowing of `raw.jobs` did not survive capture by the fixed-name mapping callback. The correction binds the already validated array to an explicit `unknown[]` local before iteration; runtime validation and refusal assertions are unchanged. Earlier local resource/WSL requests refused before payload execution and supply no test pass. The three focused scheduling/composite tests pass; full Linux file/PID, isolated tool build and all five required contexts remain source-bound hosted qualifications recorded in the delivery receipt.
+
+## Shared isolated application observer (October 24)
+
+The held application proposal combines admission, payload, the five TUF roles and immutable release observation into the existing isolated ten-minute protection-observer job. Classification, coordinator, site and catalog observation stay separate. The observer retains its appointed Administration-write App in GET-only code; candidate, native, assembly, signing and publication jobs receive no observer credential. Each phase keeps its own audience, source admission, readiness/nonce, requested facts and sixty-second freshness checks. No signing role or new principal is introduced.
+
+The actual admitted workflow bytes select the layout. A source-bound marker is a protocol declaration covered by the existing exact workflow digest, not an environment/input authority. The private source brand chooses one exact observer job/name for OIDC verification, the source/App/installation join and reader-side producer readback. Legacy sources retain their original exact phase-specific identities. A reader cannot accept a shared identity merely because its name is among known observers, and a shared source cannot accept a legacy alternative. Handshake discovery prefers the old phase-specific name when a historical inventory also includes the admission observer; collection alone grants no controls.
+
+All ready/collection phases intersect the same original provider job start plus the existing570-second execution bound. A later phase cannot mint a new job allowance. Collection carries the original cloned environment, source and deadline into token, identity, API and output work. Freshness remains separate from job duration. Unknown, expired or changed source/identity/clock, conflicting inventory or unresolved effects hold through existing recovery; no effect retry loop is added.
+
+The installed-but-held graph now declares75 application job-minutes including wake, versus the prior99. Catalog remains40, the hard ceiling remains100, and every existing job timeout, runner class, concurrency, cache/archive and seven-day retention restriction is preserved. Two future ten-minute native jobs would produce95 declared minutes. This is arithmetic feasibility only: neither native job is added by this observer change, and connected native callers, Windows, complete storage/archive/buffer estimates and real protected/native observations remain unfinished. Changed workflow/resource digests invalidate prior ratification before use; no headroom, availability or capacity reservation is inferred.
+
+Independent design review required repair of an initially overbroad alternate-name join. The corrected source selects exact profiles from the admitted layout; tests use genuinely verified disposable OIDC identities and source/App joins in both directions, direct reader mismatches, historical inventory preference, original-clock expiry and mode/reused-custody routing. The first focused run passed five cases and failed one fixture assertion against a nonexistent source field; that test now asserts the actual injected-provider scope and authenticated source brand. The guarded corrected local request refused before payload execution because source changed while queued; it supplies no test pass. Final exact-source hosted checks retain their own outcomes in the owning receipt. This preparation does not close #534/#315/#246, reopen #254, supply a production artifact or activate Apps, keys, publication or Slice5.
+
+Initial hosted CI40153539127/1 at a4af4243 retained three static-check failures: an unused old phase-profile local and two optional run-id types in new clock calls. The correction removes the unused local and serializes the already source-validated run IDs consistently with existing readiness records; provider clock and source validation remain unchanged. The original run and independent fixture outcomes retain their own scope in the delivery receipt.
+
+The next head711356cf passed repository formatting/lint/type checks but CI40153711681/1 refused two unused YAML anchors left after removal of the old observer jobs. Removing those unreferenced anchor declarations preserves the parsed dependency graph; both workflow copies and capacity workflow digests are refreshed together. That failed run and its fixture outcomes remain retained separately.
+
+At f564db6a, CI40153935723/1 passed four required contexts but catalog retained four test integration failures: two old99-minute expectations, the old installed observer inventory and a new publication-reader fixture missing mandatory immutable-release evidence. The test repair binds current75-minute/isolated-job expectations and supplies the existing positive immutable-release fixture only for publication; production guards are unchanged. All four repaired cases pass locally (24,293ms); fresh exact-head hosted coverage remains required. Tool fixture40153935710/1 separately passed52Node/1skip/3Python at its original source/tree scope.

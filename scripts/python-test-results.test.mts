@@ -8,6 +8,9 @@ import { fileURLToPath } from "node:url";
 import { readPythonReport, runPythonSuite } from "./python-test-results.mts";
 import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
+import { baselineTestArguments, baselineTestEnvironment } from "./ci-baseline.mts";
+import { parseNodeTestSuites } from "./node-test-suites.mts";
+import { readFileSync } from "node:fs";
 
 function fixture(t: TestContext, source: string) {
   const root = disposableDirectory(t, path.join(os.tmpdir(), "portcove-python-results-"));
@@ -23,6 +26,103 @@ function execute(suite: string) {
     { encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 3 * 1024 * 1024 },
   );
 }
+
+void test("Python wrappers retain finite outer headroom in every registered route", () => {
+  const registry = parseNodeTestSuites(
+    readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  const wrappers = [
+    "hosted-native-continuity",
+    "native-linux-isolated-init",
+    "native-linux-public-fuse",
+    "native-linux-public-network",
+    "native-linux-public-services",
+    "native-qualification-linux-supervisor",
+    "native-qualification-linux-transfer",
+    "release-hosted-native-linux-capture",
+    "release-semantic-source",
+    "semantic-review-linux-supervisor",
+  ];
+  for (const name of wrappers) {
+    const file = `scripts/${name}.test.mts`;
+    const owners = Object.entries(registry.suites).filter(([, suite]) =>
+      suite.files.includes(file),
+    );
+    assert.ok(owners.length > 0, `${file} needs a maintained execution route`);
+    for (const [owner, suite] of owners)
+      assert.ok(suite.arguments.includes("--test-timeout=60000"), `${file}: ${owner}`);
+    for (const contracts of [false, true])
+      assert.ok(baselineTestArguments([file], contracts).includes("--test-timeout=60000"));
+  }
+});
+
+void test("Python reporting refuses unbounded or invalid harness deadlines before launch", () => {
+  for (const timeout of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, 0.5])
+    assert.throws(
+      () =>
+        runPythonSuite(
+          "absent-suite.test.py",
+          { name: "invalid-budget", diagnostic() {} },
+          timeout,
+        ),
+      /positive finite integer/u,
+    );
+});
+
+void test(
+  "actual Python timeout retains readiness stderr and joins before the outer supervisor",
+  { timeout: 20_000 },
+  (t) => {
+    const suite = fixture(
+      t,
+      `import os, sys, time
+class Cases(unittest.TestCase):
+    def test_stuck(self):
+        print("PYTHON_TIMEOUT_READY=" + str(os.getpid()), file=sys.stderr, flush=True)
+        time.sleep(60)
+`,
+    );
+    const outer = path.join(path.dirname(suite), "timeout.test.mjs");
+    writeFileSync(
+      outer,
+      `import assert from 'node:assert/strict';
+import test from 'node:test';
+import {runPythonSuite} from ${JSON.stringify(new URL("./python-test-results.mts", import.meta.url).href)};
+test('inner Python timeout remains a failure with joined process', () => {
+  const diagnostics=[];
+  assert.throws(() => runPythonSuite(${JSON.stringify(suite)}, {
+    name:'controlled-python-timeout', diagnostic(line) { diagnostics.push(String(line)); }
+  }, 5000), /Python reporting incomplete; original status=.*ETIMEDOUT/u);
+  const ready=/PYTHON_TIMEOUT_READY=(\\d+)/u.exec(diagnostics.join('\\n'));
+  assert.ok(ready, 'Python must reach the deliberately stuck test');
+  const pid=Number(ready[1]);
+  assert.ok(Number.isSafeInteger(pid) && pid > 0);
+  assert.throws(() => process.kill(pid,0), {code:'ESRCH'});
+  assert.ok(!diagnostics.some(line => /^Python (?:case|inventory):/u.test(line)), 'Interrupted work cannot claim complete outcomes');
+  console.log('PYTHON_TIMEOUT_JOINED=' + pid);
+});
+`,
+    );
+    const env = baselineTestEnvironment();
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--test", "--test-timeout=10000", outer], {
+      env,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+      maxBuffer: 3 * 1024 * 1024,
+    });
+    assert.equal(result.error, undefined, result.stdout + result.stderr);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    const joined = /PYTHON_TIMEOUT_JOINED=(\d+)/u.exec(result.stdout);
+    assert.ok(joined, result.stdout);
+    assert.throws(() => process.kill(Number(joined[1]), 0), { code: "ESRCH" });
+    t.diagnostic(
+      "Python child deadline 5000ms; Node case 10000ms; command supervisor 15000ms; enclosing case 20000ms; direct child confirmed exited",
+    );
+  },
+);
 
 void test("Python cases retain selected identities, skips, expected failures and subtests", (t) => {
   const suite = fixture(

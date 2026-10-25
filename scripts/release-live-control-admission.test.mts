@@ -61,7 +61,11 @@ import {
   inspectApplicationReviewProducerConfiguration,
 } from "./release-control-inputs.mts";
 import { requireCurrentClassificationRequest } from "./release-classification-request.mts";
-import { releaseControlPhaseProfile, type ReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  applicationProtectionObserver,
+  releaseControlPhaseProfile,
+  type ReleaseControlPhase,
+} from "./release-control-phases.mts";
 import { retainProtectionObservationOutputs } from "./release-reviewed-inputs.mts";
 import {
   requireControllerJobSourceConfiguration,
@@ -157,10 +161,17 @@ void test("production observer joins original named source/OIDC and appointed mi
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  for (const [purpose, phase] of [
-    ["application", "classification"],
-    ["application", "coordinator"],
-    ["catalog-publication", "catalog-definitions"],
+  for (const [purpose, phase, shared] of [
+    ["application", "classification", false],
+    ["application", "coordinator", false],
+    ["catalog-publication", "catalog-definitions", false],
+    ...(["payload", "tuf-timestamp", "release-publication"] as const).flatMap(
+      (phase) =>
+        [
+          ["application", phase, false],
+          ["application", phase, true],
+        ] as const,
+    ),
   ] as const) {
     const configuration = selectedPublicationAuthoritiesFixture(purpose);
     const runtime = liveControlRuntimeFixture(
@@ -178,26 +189,32 @@ void test("production observer joins original named source/OIDC and appointed mi
             observer_audience: "portcove-release-classification-protection-v1",
           }
         : releaseControlPhaseProfile(phase);
-    const environment = { ...runtime.environment, GITHUB_JOB: profile.observer_job };
+    const workflow = shared
+      ? Buffer.concat([
+          Buffer.from(applicationProtectionObserver.source_marker + "\n"),
+          runtime.workflow,
+        ])
+      : runtime.workflow;
+    const environment = {
+      ...runtime.environment,
+      GITHUB_JOB: shared ? applicationProtectionObserver.job : profile.observer_job,
+    };
     const policy = {
       ...runtime.policy,
       mode:
         purpose === "application" ? "bounded-application-release" : "bounded-catalog-publication",
       authority_configuration_sha256: capacityDigest(configuration),
+      workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
     };
     const source =
       phase === "classification"
-        ? admitProductionClassificationObserver(
-            JSON.stringify(policy),
-            environment,
-            runtime.workflow,
-          )
+        ? admitProductionClassificationObserver(JSON.stringify(policy), environment, workflow)
         : (purpose === "application"
             ? admitProductionProtectionObserver
             : admitProductionCatalogProtectionObserver)(
             JSON.stringify(policy),
             environment,
-            runtime.workflow,
+            workflow,
             phase,
           );
     const expected = {
@@ -212,7 +229,11 @@ void test("production observer joins original named source/OIDC and appointed mi
     provider = assemblerIdentityFixture(
       { aud: expected.audience, sub: expected.subject, environment: profile.observer_environment },
       {},
-      { workflow: productionControllerWorkflow, job: profile.observer_name, runAttempt: 1 },
+      {
+        workflow: productionControllerWorkflow,
+        job: shared ? applicationProtectionObserver.name : profile.observer_name,
+        runAttempt: 1,
+      },
     );
     const identity =
       phase === "classification"
@@ -224,6 +245,7 @@ void test("production observer joins original named source/OIDC and appointed mi
             expected,
             { transport: { cwd: process.cwd() } },
             phase,
+            source,
           );
     const observer = configuration.journal.apps.protection_observer;
     const join = (
@@ -247,6 +269,41 @@ void test("production observer joins original named source/OIDC and appointed mi
       );
     assert.equal(join().classification_transport, "fixed-job");
     assert.equal(join().authority, "none");
+    if (phase === "payload" || phase === "tuf-timestamp" || phase === "release-publication") {
+      const otherWorkflow = shared
+        ? runtime.workflow
+        : Buffer.concat([
+            Buffer.from(applicationProtectionObserver.source_marker + "\n"),
+            runtime.workflow,
+          ]);
+      const otherPolicy = {
+        ...policy,
+        workflow_sha256: createHash("sha256").update(otherWorkflow).digest("hex"),
+      };
+      const otherSource = admitProductionProtectionObserver(
+        JSON.stringify(otherPolicy),
+        {
+          ...environment,
+          GITHUB_JOB: shared ? profile.observer_job : applicationProtectionObserver.job,
+        },
+        otherWorkflow,
+        phase,
+      );
+      assert.throws(
+        () => join(configuration, otherSource),
+        /original unexpired fixed protection observer identity/u,
+      );
+      await assert.rejects(
+        verifyProductionProtectionObserverJobIdentity(
+          provider.token,
+          expected,
+          { transport: { cwd: process.cwd() } },
+          phase,
+          otherSource,
+        ),
+        /signed check-run identity/u,
+      );
+    }
     assert.throws(() => join(configuration, { ...source }));
     assert.throws(() => join(configuration, source, { ...identity }));
     assert.throws(() =>
@@ -295,8 +352,50 @@ void test("production observer joins original named source/OIDC and appointed mi
             expected,
             { readKeys: provider.readKeys, transport: provider.transport },
             phase,
+            source,
           );
     assert.throws(() => join(configuration, source, injected));
+  }
+});
+
+void test("reader direct handoffs require the exact observer layout in admitted source bytes", async () => {
+  for (const phase of ["payload", "tuf-timestamp", "release-publication"] as const) {
+    for (const shared of [false, true]) {
+      const runtime = liveControlRuntimeFixture(
+        phase === "release-publication"
+          ? publicationProtection("a".repeat(40), true)
+          : protectionFixture("a".repeat(40)),
+        undefined,
+        phase,
+        true,
+      );
+      const workflow = shared
+        ? Buffer.concat([
+            Buffer.from(applicationProtectionObserver.source_marker + "\n"),
+            runtime.workflow,
+          ])
+        : runtime.workflow;
+      const environment = {
+        ...runtime.environment,
+        PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+          ...runtime.policy,
+          workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+        }),
+      };
+      runtime.observerJob.name = shared
+        ? applicationProtectionObserver.name
+        : releaseControlPhaseProfile(phase).observer_name;
+      const source = await authenticateReleaseControlSource(environment, workflow, runtime.options);
+      assert.equal(source.evidence_scope, "injected-provider");
+      requireAuthenticatedReleaseControlSource(source, phase);
+      runtime.observerJob.name = shared
+        ? releaseControlPhaseProfile(phase).observer_name
+        : applicationProtectionObserver.name;
+      await assert.rejects(
+        authenticateReleaseControlSource(environment, workflow, runtime.options),
+        /completed isolated observer job/u,
+      );
+    }
   }
 });
 
@@ -961,9 +1060,6 @@ void test("held controller uses a parallel tiny-artifact handshake and isolates 
       "classification_protection_observation",
       "coordinator_protection_observation",
       "protection_observation",
-      "payload_protection_observation",
-      "metadata_protection_observation",
-      "release_protection_observation",
       "site_protection_observation",
       "catalog_metadata_protection_observation",
     ].sort(),

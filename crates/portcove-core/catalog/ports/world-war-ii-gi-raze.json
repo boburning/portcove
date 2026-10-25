@@ -3,7 +3,7 @@
   "listing": {
     "id": "world-war-ii-gi-raze",
     "name": "World War II GI (Raze)",
-    "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for World War II GI. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
     "original_game_title": "World War II GI",
     "project_url": "https://github.com/ZDoom/Raze",
     "platforms": [],

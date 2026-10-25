@@ -5,6 +5,7 @@ import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
 import type { CatalogControlPhase } from "./release-control-phases.mts";
+import { applicationProtectionObserver } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 
@@ -19,7 +20,8 @@ type ClockRole =
   | "release-publication"
   | "site-publication"
   | "native-windows"
-  | "native-linux";
+  | "native-linux"
+  | "application-protection";
 type JobIdentity = {
   run_id: string;
   run_attempt: number;
@@ -60,12 +62,16 @@ function signingOriginalJobDeadline(
       "site-publication",
       "native-windows",
       "native-linux",
+      "application-protection",
     ].includes(String(rawRole))
   )
     throw new Error("fixed online signing role required");
   const role = rawRole as ClockRole;
   const maximum =
-    role === "payload" || role === "native-windows" || role === "native-linux"
+    role === "payload" ||
+    role === "native-windows" ||
+    role === "native-linux" ||
+    role === "application-protection"
       ? 570000
       : role === "candidate-building"
         ? 525000
@@ -98,23 +104,25 @@ function signingOriginalJobDeadline(
     ids.add(job.id);
   }
   const name =
-    role === "coordinator" || role === "release-publication" || role === "site-publication"
-      ? releaseControlPhaseProfile(role).reader_name
-      : role === "native-windows" || role === "native-linux"
-        ? hostedNativeJobProfile(role === "native-linux" ? "linux-x86_64" : "windows-x86_64").job
-        : role === "candidate-building"
-          ? "Authenticate release control inputs"
-          : role === "classification-writer"
-            ? "Persist independently reviewed classification"
-            : role === "classification-observer"
-              ? "Observe release input protections"
-              : releaseControlPhaseProfile(
-                  role.startsWith("catalog-")
-                    ? role
-                    : role === "payload"
-                      ? "payload"
-                      : `tuf-${role}`,
-                ).reader_name;
+    role === "application-protection"
+      ? applicationProtectionObserver.name
+      : role === "coordinator" || role === "release-publication" || role === "site-publication"
+        ? releaseControlPhaseProfile(role).reader_name
+        : role === "native-windows" || role === "native-linux"
+          ? hostedNativeJobProfile(role === "native-linux" ? "linux-x86_64" : "windows-x86_64").job
+          : role === "candidate-building"
+            ? "Authenticate release control inputs"
+            : role === "classification-writer"
+              ? "Persist independently reviewed classification"
+              : role === "classification-observer"
+                ? "Observe release input protections"
+                : releaseControlPhaseProfile(
+                    role.startsWith("catalog-")
+                      ? role
+                      : role === "payload"
+                        ? "payload"
+                        : `tuf-${role}`,
+                  ).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -210,6 +218,13 @@ export function nativeOriginalJobDeadline(platform: unknown, ...args: BudgetArgu
 }
 export function currentNativeJobDeadline(platform: unknown, ...args: CurrentArguments) {
   return currentSigningJobDeadline(nativeClockRole(platform), ...args);
+}
+/** One original shared observer allocation; individual phases cannot renew it. */
+export function sharedProtectionOriginalJobDeadline(...args: BudgetArguments) {
+  return signingOriginalJobDeadline("application-protection", ...args);
+}
+export function currentSharedProtectionJobDeadline(...args: CurrentArguments) {
+  return currentSigningJobDeadline("application-protection", ...args);
 }
 function catalogClockRole(raw: unknown): CatalogControlPhase {
   if (

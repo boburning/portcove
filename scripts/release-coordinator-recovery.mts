@@ -6,6 +6,12 @@ import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  readRetainedCapacityOperation,
+  readRetainedCoordinatorCheckpoint,
+  exportRetainedCoordinatorCheckpoint,
+  importCoordinatorCheckpoint,
+} from "./release-coordinator-state.mts";
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
@@ -197,7 +203,6 @@ export async function hydrateRetainedCoordinatorOperation(
   )
     throw new Error("retained operation proof identity differs");
   await hydrateRetainedCoordinatorCheckpoint(repository, proof.checkpoint, options);
-  const { readRetainedCapacityOperation } = await import("./release-coordinator-state.mts");
   return readRetainedCapacityOperation(repository, proof);
 }
 
@@ -264,7 +269,6 @@ export async function hydrateRetainedCoordinatorCheckpoint(
   if (bytes.length !== blobRaw.size) throw new Error("retained checkpoint payload differs");
   const blob = inspectRemoteGitObject("blob", entry.sha, bytes);
   writeRetainedCoordinatorObjects(repository, [commit.object, tree, blob]);
-  const { readRetainedCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
   return readRetainedCoordinatorCheckpoint(repository, checkpoint);
 }
 
@@ -339,7 +343,6 @@ export async function hydrateRetainedCoordinatorCheckpointExport(
     const commit = inspectRemoteCommitObject(result.body, selected);
     writeRetainedCoordinatorObjects(repository, [commit.object]);
   }
-  const { exportRetainedCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
   checkCoordinatorDeadline();
   const exported = exportRetainedCoordinatorCheckpoint(repository, checkpoint);
   checkCoordinatorDeadline();
@@ -598,7 +601,6 @@ async function recoverRemoteCoordinatorWithinScope(
     );
     checkCoordinatorDeadline();
     phase = "validate-and-import";
-    const { importCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
     const state = await importCoordinatorCheckpoint(
       localRepository,
       snapshot.checkpoint,
