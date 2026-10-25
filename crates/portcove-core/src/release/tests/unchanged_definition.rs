@@ -333,12 +333,19 @@ async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_complianc
         let port = catalog.port(id).unwrap();
         let mut old = release(old_tag, vec![asset(old_name, Some('a'))]);
         old["prerelease"] = true.into();
+        // Replace an existing processor label. Appending ARM64 to an x64 name
+        // describes a universal package, which is a real competing choice.
+        let other_arch = if new_name.contains("x64") {
+            new_name.replace("x64", "arm64")
+        } else {
+            new_name.replace(".zip", "-arm64.zip")
+        };
         let mut next = release(
             new_tag,
             vec![
                 asset(new_name, Some('b')),
                 asset(&new_name.replace(".zip", "-LGPL-Compliance.zip"), Some('c')),
-                asset(&new_name.replace(".zip", "-arm64.zip"), Some('d')),
+                asset(&other_arch, Some('d')),
                 asset(&new_name.replace(".zip", "-symbols.zip"), Some('e')),
                 asset(&format!("{new_name}.sha256"), None),
             ],

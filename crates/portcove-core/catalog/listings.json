@@ -13068,6 +13068,7 @@
         "warnings": [],
         "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme"
       },
+      "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3",
       "platforms": [
         "windows-x86-64"
       ]
@@ -13129,6 +13130,7 @@
         "warnings": [],
         "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
       },
+      "original_game_title": "WarioWare: Twisted!",
       "platforms": [
         "windows-x86-64"
       ]

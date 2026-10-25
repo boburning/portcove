@@ -12,7 +12,80 @@ import {
 } from "./upstream-observer.mts";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mts";
 import { validateHealthAccountingPolicy } from "./check-catalog-repositories.mts";
-import { healthArtifactHash, healthEndpointHash } from "./upstream-health-inputs.mts";
+import {
+  healthArtifactHash,
+  healthEndpointHash,
+  healthPortInputs,
+} from "./upstream-health-inputs.mts";
+import retainedArtifacts from "./fixtures/upstream-health-retained-artifacts.json" with { type: "json" };
+
+type MonitoringArtifactRule = {
+  port_id: string;
+  platform: string;
+  repository: string;
+  port_contract_sha256: string;
+};
+type RetainedArtifact = (typeof retainedArtifacts.artifacts)[number];
+const artifactKey = (id: string, platform: string) => JSON.stringify([id, platform]);
+
+function assertArtifactMonitoringBindings(
+  ports: readonly unknown[],
+  rules: readonly MonitoringArtifactRule[],
+  historical: readonly RetainedArtifact[],
+) {
+  const retained = new Map<string, RetainedArtifact>();
+  for (const row of historical) {
+    const key = artifactKey(row.port_id, row.platform);
+    assert.ok(!retained.has(key), "duplicate retained artifact projection");
+    retained.set(key, row);
+  }
+  const used = new Set<string>();
+  let current = 0;
+  for (const rule of rules) {
+    const port = requiredFixture(
+      ports.find((value) => isRecord(value) && value.id === rule.port_id),
+    );
+    assert.ok(isRecord(port) && isRecord(port.release));
+    const inputs = healthPortInputs(port);
+    const release = port.release;
+    if (Object.hasOwn(inputs.release.direct, rule.platform)) {
+      // A changed active artifact must never fall back to historical facts.
+      assert.equal(
+        healthArtifactHash(port, rule.platform),
+        rule.port_contract_sha256,
+        rule.port_id,
+      );
+      current++;
+      continue;
+    }
+    assert.equal(release.provider, "github");
+    assert.equal(release.repository, rule.repository);
+    assert.ok(isRecord(release.asset_hints));
+    const hints = release.asset_hints[rule.platform];
+    assert.ok(Array.isArray(hints) && hints.length > 0);
+    assert.ok(hints.every((hint: unknown) => typeof hint === "string" && hint.length > 0));
+    const key = artifactKey(rule.port_id, rule.platform);
+    const row = requiredFixture(retained.get(key));
+    assert.equal(
+      healthArtifactHash(
+        {
+          id: row.port_id,
+          release: { provider: row.provider, direct: { [row.platform]: row.artifact } },
+        },
+        row.platform,
+      ),
+      rule.port_contract_sha256,
+      rule.port_id,
+    );
+    used.add(key);
+  }
+  assert.deepEqual(
+    [...used].sort(),
+    [...retained.keys()].sort(),
+    "unused retained artifact projection",
+  );
+  return { current, retained: used.size, total: rules.length };
+}
 
 import {
   config,
@@ -459,7 +532,15 @@ void test("live monitoring policy retains valid artifact and endpoint contract b
     assert.ok(isRecord(port), id);
     return port;
   };
-  for (const rule of [...policy.pins, ...(policy.source_archives ?? [])])
+  assert.equal(retainedArtifacts.format_version, 1);
+  assert.equal(retainedArtifacts.source_commit, "3305a4707d5b902fe5565608c3330cecc8b701da");
+  const coverage = assertArtifactMonitoringBindings(
+    ports,
+    policy.pins,
+    retainedArtifacts.artifacts,
+  );
+  assert.equal(coverage.current + coverage.retained, coverage.total);
+  for (const rule of policy.source_archives ?? [])
     assert.equal(
       healthArtifactHash(portFor(rule.port_id), rule.platform),
       rule.port_contract_sha256,
@@ -473,4 +554,117 @@ void test("live monitoring policy retains valid artifact and endpoint contract b
       rule.port_id,
     );
   }
+});
+
+void test("monitoring bindings reject changed active pins and malformed retained scope", async (t) => {
+  const policy = validateHealthAccountingPolicy(
+    JSON.parse(
+      await readFile(
+        new URL("../.github/upstream-health-accounting.json", import.meta.url),
+        "utf8",
+      ),
+    ),
+  );
+  const row = requiredFixture(retainedArtifacts.artifacts[0]);
+  const rule = requiredFixture(
+    policy.pins.find((value) => value.port_id === row.port_id && value.platform === row.platform),
+  );
+  const port = {
+    id: row.port_id,
+    release: {
+      provider: "github",
+      repository: rule.repository,
+      asset_hints: { [row.platform]: ["owned.zip"] },
+    },
+  };
+  assert.deepEqual(assertArtifactMonitoringBindings([port], [rule], [row]), {
+    current: 0,
+    retained: 1,
+    total: 1,
+  });
+  const active = {
+    id: row.port_id,
+    release: { provider: row.provider, direct: { [row.platform]: row.artifact } },
+  };
+  assert.deepEqual(assertArtifactMonitoringBindings([active], [rule], []), {
+    current: 1,
+    retained: 0,
+    total: 1,
+  });
+  await t.test("changed active bytes cannot use a matching historical projection", () => {
+    const changed = structuredClone(active);
+    changed.release.direct[row.platform]!.sha256 = "0".repeat(64);
+    assert.throws(
+      () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+      assert.AssertionError,
+    );
+  });
+  await t.test("missing retained projection", () => {
+    assert.throws(
+      () => assertArtifactMonitoringBindings([port], [rule], []),
+      assert.AssertionError,
+    );
+  });
+  for (const [name, direct] of [
+    ["null", null],
+    ["array", []],
+    ["string", "invalid"],
+  ] as const)
+    await t.test(`malformed ${name} direct map cannot use historical facts`, () => {
+      const changed = { ...port, release: { ...port.release, direct } };
+      assert.throws(
+        () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+        /Invalid upstream health direct artifacts/u,
+      );
+    });
+  await t.test("malformed other-platform artifact cannot use historical facts", () => {
+    const changed = { ...port, release: { ...port.release, direct: { "other-platform": {} } } };
+    assert.throws(
+      () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+      /Invalid upstream health artifact identity/u,
+    );
+  });
+  await t.test("mutated retained bytes", () => {
+    const changed = structuredClone(row);
+    changed.artifact.sha256 = "0".repeat(64);
+    assert.throws(
+      () => assertArtifactMonitoringBindings([port], [rule], [changed]),
+      assert.AssertionError,
+    );
+  });
+  await t.test("duplicate retained projection", () => {
+    assert.throws(
+      () => assertArtifactMonitoringBindings([port], [rule], [row, row]),
+      /duplicate retained/u,
+    );
+  });
+  await t.test("unused retained projection", () => {
+    assert.throws(() => assertArtifactMonitoringBindings([], [], [row]), /unused retained/u);
+  });
+  for (const [field, value] of [
+    ["provider", "user-prepared"],
+    ["repository", "foreign/repository"],
+  ] as const)
+    await t.test(`changed current ${field}`, () => {
+      const changed = structuredClone(port);
+      changed.release[field] = value;
+      assert.throws(
+        () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+        assert.AssertionError,
+      );
+    });
+  await t.test("missing platform hints", () => {
+    const changed = structuredClone(port);
+    changed.release.asset_hints[row.platform] = [];
+    assert.throws(
+      () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+      assert.AssertionError,
+    );
+  });
+  await t.test("unknown rule cannot borrow another port's projection", () => {
+    assert.throws(
+      () => assertArtifactMonitoringBindings([port], [{ ...rule, port_id: "unbound-port" }], [row]),
+      assert.AssertionError,
+    );
+  });
 });

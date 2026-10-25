@@ -2564,7 +2564,7 @@ void test("native enlargement helper edits select receipt contracts and related 
   assert.equal(selection.ui, true);
 });
 
-void test("upstream test families preserve shared owners and narrow the planner to its consumers", async () => {
+void test("upstream families retain shared owners and narrow planner and retained-artifact consumers", async () => {
   const { buildValidationPlan } = await import("./validation-plan.mts");
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const broad = [
@@ -2581,6 +2581,15 @@ void test("upstream test families preserve shared owners and narrow the planner 
     "scripts/upstream-health-plan.test.mts",
     "scripts/upstream-health-planning.test.mts",
   ];
+  const retainedArtifact = "scripts/fixtures/upstream-health-retained-artifacts.json";
+  const sibling = "scripts/fixtures/upstream-health-retained-artifacts-sibling.json";
+  const retainedConsumers = [
+    "scripts/upstream-observer.test.mts",
+    "scripts/upstream-health-providers.test.mts",
+    "scripts/upstream-health-planning.test.mts",
+    "scripts/upstream-health-accounting.test.mts",
+    "scripts/upstream-health-source-archives.test.mts",
+  ];
   for (const file of [
     "scripts/upstream-observer.mts",
     "scripts/observe-configured-upstream.mts",
@@ -2591,6 +2600,8 @@ void test("upstream test families preserve shared owners and narrow the planner 
     "scripts/fixtures/upstream-health-accounting-cases.json",
     "scripts/fixtures/upstream-health-pins.json",
     "scripts/fixtures/upstream-health-fade-to-black.json",
+    retainedArtifact,
+    sibling,
     "release/upstream-observer.json",
   ]) {
     for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
@@ -2620,7 +2631,14 @@ void test("upstream test families preserve shared owners and narrow the planner 
         checkout: "b".repeat(40),
       });
       const hosted = baselineContractTests(plan, { fileExists: () => false });
-      const expected = file === "scripts/upstream-health-plan.mts" ? planner : broad;
+      const expected =
+        file === "scripts/upstream-health-plan.mts"
+          ? planner
+          : file === retainedArtifact
+            ? retainedConsumers
+            : file === sibling
+              ? []
+              : broad;
       const label = JSON.stringify(input);
       for (const required of expected) {
         assert.ok(local.nodeTests.has(required), "local " + required + ": " + label);
@@ -2630,19 +2648,23 @@ void test("upstream test families preserve shared owners and narrow the planner 
           "hosted " + required + ": " + label,
         );
       }
-      if (file === "scripts/upstream-health-plan.mts") {
+      if (
+        file === "scripts/upstream-health-plan.mts" ||
+        file === retainedArtifact ||
+        file === sibling
+      ) {
         assert.deepEqual(
           [...local.nodeTests]
             .filter((selected) => selected.startsWith("scripts/upstream-"))
             .sort(),
-          [...planner].sort(),
+          [...expected].sort(),
           label,
         );
         if (variant.startsWith("R"))
           assert.ok(local.nodeTests.has("scripts/repository-skills.test.mts"), label);
         assert.deepEqual(
           hosted.filter((selected) => selected.startsWith("scripts/upstream-")).sort(),
-          [...planner].sort(),
+          [...expected].sort(),
           label,
         );
       }

@@ -1,6 +1,7 @@
 /** Real bounded file rendezvous, controlled producer; no native acceptance. */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { retainHostedNativeDiagnostics } from "./release-controller-diagnostics.mts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
@@ -973,3 +974,80 @@ console.log('original receipt and bounded upload rendezvous passed');
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /original receipt and bounded upload rendezvous passed/u);
   });
+
+void test("source-only workflow routing imports without installed signing dependencies", () => {
+  const program = `import {registerHooks} from 'node:module';
+registerHooks({resolve(specifier,context,next){
+ if(!specifier.startsWith('node:')&&!specifier.startsWith('.')&&!specifier.startsWith('file:'))throw Error('uninstalled package:'+specifier);
+ return next(specifier,context);
+}});
+await import(${JSON.stringify(new URL("./release-hosted-native-workflow.mts", import.meta.url).href)});
+const reader=await import(${JSON.stringify(new URL("./release-hosted-native-runner.mts", import.meta.url).href)});
+if(typeof reader.readHostedNativeUploadRequest!=='function'||typeof reader.acknowledgeHostedNativePostSignUpload!=='function')throw Error('fixed readers absent');
+console.log('source-only handoffs available');`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", program], {
+    encoding: "utf8",
+    timeout: 15000,
+    maxBuffer: 65536,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /source-only handoffs available/u);
+});
+void test("native failure diagnostics retain only bounded public lifecycle rows without retrying partial state", async () => {
+  const { classifyChanges } = await import("./ordinary-validation.mts");
+  const selected = classifyChanges(
+    [{ status: "M", path: "scripts/release-controller-diagnostics.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(selected.nodeTests.has("scripts/release-hosted-native-runner.test.mts"));
+  assert.ok(selected.nodeTests.has("scripts/release-controller-transport.test.mts"));
+  const root = mkdtempSync(path.join(os.tmpdir(), "native-public-diagnostics-"));
+  const temporary = path.join(root, "temporary"),
+    home = path.join(root, "home"),
+    revision = "a".repeat(40);
+  mkdirSync(temporary);
+  mkdirSync(home);
+  const source = path.join(home, `.portcove-native-123-1-${revision}`);
+  mkdirSync(source);
+  const row = JSON.stringify({
+    schema_version: 1,
+    authority: "none",
+    recovery_required: true,
+    reason: "worker-refused-or-ambiguous",
+  });
+  writeFileSync(path.join(source, "native-supervision-refusal.json"), row);
+  writeFileSync(path.join(source, "native-supervision-settlement.json"), "x".repeat(65537));
+  writeFileSync(path.join(source, "private-key.json"), "fixture-private-must-never-copy");
+  try {
+    const directory = await retainHostedNativeDiagnostics(temporary, home, "123", revision);
+    const manifest = JSON.parse(readFileSync(path.join(directory, "manifest.json"), "utf8")) as {
+      authority: string;
+      files: { path: string; source: string }[];
+      unavailable: { path: string; reason: string }[];
+    };
+    assert.equal(manifest.authority, "none");
+    assert.equal(manifest.files.length, 1);
+    assert.equal(manifest.files[0]!.source, "native-supervision-refusal.json");
+    assert.equal(readFileSync(path.join(directory, manifest.files[0]!.path), "utf8"), row);
+    assert.ok(
+      manifest.unavailable.some(
+        (value) =>
+          value.path === "native-supervision-settlement.json" &&
+          value.reason === "unreadable-or-invalid",
+      ),
+    );
+    assert.ok(manifest.unavailable.some((value) => value.reason === "absent"));
+    assert.ok(!readFileSync(path.join(directory, "manifest.json"), "utf8").includes("private-key"));
+    await assert.rejects(
+      retainHostedNativeDiagnostics(temporary, home, "123", revision),
+      /EEXIST/u,
+    );
+    assert.equal(readFileSync(path.join(source, "native-supervision-refusal.json"), "utf8"), row);
+    await assert.rejects(
+      retainHostedNativeDiagnostics(temporary, home, "../123", revision),
+      /binding/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

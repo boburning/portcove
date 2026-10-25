@@ -3,7 +3,7 @@
 This is partial delivery for Public beta / Required #2510 and rollout child
 #2926. The foundation and earlier batches remain delivered. This batch starts
 from `d4d93d6ef5011319f9e4cc5d0f4b5e452e47bd15`, reconciles current main
-`35acf576`, and preserves the complete proposal source
+`35acf576` and then `8dc2753e2383cdaf4c4b8dbbdc12a0ef8f468541`, preserving the complete proposal source
 `9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1`. It does not close either owner or
 promote a port's Project status merely because a route is cataloged.
 
@@ -84,6 +84,17 @@ retained; fixture counters distinguish attempted requests from successful networ
 requests, and synthetic identity avoids collision with an actual accepted cover.
 Final independent candidate review and exact-head required hosted checks remain
 pending at this source checkpoint. No timeout or product assertion is weakened.
+
+CI `40176682084/a1` failed two cases: the new GBA entries lacked required original-game
+titles, and the synthetic foreign-processor fixture appended ARM64 to an already
+x64 filename, describing an equally plausible universal package. Core correctly
+refused that ambiguity. Both exact titles are now declared, and the fixture
+replaces the existing processor token; every selection assertion and production
+ambiguity guard remains. The failed run is retained. A resource-guarded local
+run on the repaired working candidate with main's updated TLS dependencies passed
+15/15 focused title, unchanged-provider and ready-archive preservation/recovery
+cases (2,043 outside the selection). This does not turn the failed broad run green;
+the final source requires its own complete applicable hosted checks.
 
 No game, helper, compiler or original was executed for these observations.
 Archive inspection, first-party fixtures, native execution, gameplay, packaged

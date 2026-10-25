@@ -2,7 +2,7 @@
   "format_version": 1,
   "purpose": "Dated partial #2510/#2926 evidence; not a live registry or full beta acceptance",
   "initial_source": "d4d93d6ef5011319f9e4cc5d0f4b5e452e47bd15",
-  "reconciled_source": "35acf576a5411a3c25f119a5af984658aaf38a78",
+  "reconciled_source": "8dc2753e2383cdaf4c4b8dbbdc12a0ef8f468541",
   "observed_at": "2026-10-25T08:17:58.332999+00:00",
   "preserved_rollout_source": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
   "coverage": {
@@ -21,7 +21,7 @@
       "canonical_issue": 1892,
       "authored_path": "crates/portcove-core/catalog/ports/mstan-supermarioadvance4recomp.json",
       "before_sha256": "4cbf3df0f80a096954295a98f17a77b69069d973d8c00fbffcaf95a15d226aa2",
-      "authored_sha256": "3d3001ea05e2f190c9568ffdbdfd508339ea1958c262a7450a02aa0f4e3de32b",
+      "authored_sha256": "b4eb4043221b0676ae05e3f8b06f185f96d8b241bae597c2961cd023882814ea",
       "platforms": ["windows-x86-64"],
       "previous_route": "Listing-only; external setup/registration remains available",
       "selected_route": "Existing ready staged-source-portable capability 23; managed compatible Windows runtime replacement",
@@ -77,7 +77,7 @@
       "canonical_issue": 1906,
       "authored_path": "crates/portcove-core/catalog/ports/mstan-wariowaretwistedrecomp.json",
       "before_sha256": "08e3bc95cf0ade0692cc2f79d369ffd9f49895e32ff5d9460f32c478884031db",
-      "authored_sha256": "499fd6a071b188f551666275fa4adb9ebfa9d2857510accbc9684fb421c066ed",
+      "authored_sha256": "13433df59f5ccb361d0193f1bc95e0a3483e400b40b34a745b2cd18db275a4dc",
       "platforms": ["windows-x86-64"],
       "previous_route": "Listing-only; external setup/registration remains available",
       "selected_route": "Existing ready staged-source-portable capability 23; managed compatible Windows runtime replacement",
@@ -186,5 +186,29 @@
     "selected_technical_proposal_preserved_commit": "fc4a1f98f7914aafc8111774d361f544dd3ceb20"
   },
   "evidence_scope": "Official release metadata and retained digest-matched archive/package/source inspection; first-party automated contracts. No helper/compiler/game/original executed, no native or packaged Desktop or real-save acceptance.",
-  "remaining": "#2510/#2926 remain open. GoldenEye technical fit is established but managed acquisition remains blocked by the precise permission condition. Other GBA mod/credential adoption, six original Direct decisions and inventory/maintenance/joins remain. Historical232-path extraction bookkeeping is separate from current per-port capability completion."
+  "remaining": "#2510/#2926 remain open. GoldenEye technical fit is established but managed acquisition remains blocked by the precise permission condition. Other GBA mod/credential adoption, six original Direct decisions and inventory/maintenance/joins remain. Historical232-path extraction bookkeeping is separate from current per-port capability completion.",
+  "validation_failures": [
+    {
+      "run": 40176682084,
+      "attempt": 1,
+      "source": "e097215744911053defd74c066b119df51b763f2",
+      "failed_cases": [
+        "catalog::tests::game_titles_describe_ports_without_combining_their_identities",
+        "release::tests::unchanged_definition::unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives"
+      ],
+      "causes": "Missing original-game titles in new integrations; fixture appended ARM64 to already x64 filename, describing an equally plausible universal package which Core correctly refused.",
+      "repair": "Add exact original-game titles; replace x64 token for foreign-processor fixture, retaining ambiguity refusal and all assertions. No production selection rule or timeout changed.",
+      "status": "Failed original run retained; repaired final candidate requires new exact-head hosted checks"
+    }
+  ],
+  "local_repaired_composition": {
+    "status": "passed",
+    "scope": "Working candidate with both exact CI assertion repairs plus merged8dc TLS dependency lock",
+    "tests_run": 15,
+    "tests_passed": 15,
+    "tests_outside_selection": 2043,
+    "filter": "test(unchanged_definition) | test(game_titles_describe) | test(ready_staged)",
+    "log": "E:/Codex-Evidence/simpler-installation-rollout-20261023/ready-rollout-batch6/focused-repair-composition-1.log",
+    "limits": "Focused feedback, not full green suite or final source hosted qualification; no timeout/assertion/production chooser change"
+  }
 }

@@ -23194,6 +23194,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Choose Play to open the upstream launcher and supply your own matching original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacements and preserves local settings, input pointers, user game.toml and local saves/ when that save mode is selected. Normal cartridge saves and optional state slots follow your selected original game file, usually outside the installation: back up that actual folder separately, including recovery siblings. Portcove backups do not include external originals, BIOS or saves. Generated executable caches and diagnostics stay with the runtime that produced them and are not carried into a replacement. Runtime rollback carries current declared data; it does not rewind saves or guarantee older readers can use newer data. Keep the packaged variants and compiler companions with their runtime; customized external data paths need separate preservation.",
+        "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3",
         "manual_setup": {
           "steps": [
             {
@@ -23262,6 +23263,7 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Choose Play to open the upstream launcher and supply your own matching original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacements and preserves local settings, input pointers, user game.toml and local saves/ when that save mode is selected. Normal cartridge saves and optional state slots follow your selected original game file, usually outside the installation: back up that actual folder separately, including recovery siblings. Portcove backups do not include external originals, BIOS or saves. Generated executable caches and diagnostics stay with the runtime that produced them and are not carried into a replacement. Runtime rollback carries current declared data; it does not rewind saves or guarantee older readers can use newer data. Keep the packaged variants and compiler companions with their runtime; customized external data paths need separate preservation.",
+        "original_game_title": "WarioWare: Twisted!",
         "manual_setup": {
           "steps": [
             {

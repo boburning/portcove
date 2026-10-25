@@ -42,7 +42,8 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
-    }
+    },
+    "original_game_title": "WarioWare: Twisted!"
   },
   "integration": {
     "support_tier": "beta",
