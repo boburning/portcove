@@ -897,3 +897,15 @@ refusal, and the fixture additionally requires one spawn and incomplete post-sig
 state. The adversarial 25ms yield, failure/partial-marker assertions and
 all production deadlines remain. The failed workflow stays failed; successful
 build and fixture results retain their separate scopes.
+
+## Fixed post-sign prerequisite scheduling (October 24)
+
+The same-job Linux handoff now waits for the original attempt's fixed payload-signing and Timestamp jobs before signaling the already running native worker. These are scheduling observations only: the post-sign producer must still authenticate the actual coordinator, candidate, signed context, Tough roles and package. An Actions conclusion cannot supply that provenance.
+
+Only complete, duplicate-free, single-page attempt-1 inventories with the exact selected run/source and literal status values are admitted. A valid pending or not-yet-observed prerequisite can be read again, within the original worker/provider clock and at most120 GETs with five-second spacing. Transport ambiguity, malformed identity/inventory, or a failed/cancelled/skipped prerequisite refuses immediately. No signer, upload or native attempt is retried. The original worker identity/custody/refusal/clock is rechecked after reads, retained observations, waits and final record closure, immediately before the post-sign signal.
+
+An exclusive, private scheduling log retains at most64KiB, including refusal/ambiguity outcome and the last observed HTTP status. Re-entering that retained attempt refuses. This bounded local log and up-to2MiB provider response buffer are additional resource inputs for the eventual complete graph estimate; they do not establish provider storage headroom or a reservation.
+
+Initial independent review found and required repair of a malformed validation Map tuple, status coercion that could misinterpret an array as completed, and a missing original-owner fence after awaited log closure. The corrected candidate includes malformed-status and process-death-during-close regressions. Final source review and hosted qualification belong to its owning delivery receipt. No production workflow job or credential boundary is activated by this change.
+
+The current application graph still declares99 job-minutes against the100-minute ceiling, including the wake allocation, and lacks both native jobs. Adding their existing ten-minute allocations directly would not fit. Full caller/observer/native scheduling and whole-graph fit remain engineering prerequisites; reducing declared limits without evidence, dropping meaningful protection checks, raising the ceiling or treating waiting as free is not an implementation remedy. Production remains held, with Unknown operation availability/headroom, no capacity reservation and the existing issue-specific acceptance boundaries.
