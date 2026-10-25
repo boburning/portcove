@@ -131,6 +131,11 @@ the existing GitHub provider and archive checks. A download publishes into a new
 user-owned child folder outside the Library and managed outputs; it never runs
 an installer. Shared release/package suitability and bounded native executable
 discovery supply suggestions; explicit registration and launch revalidate them.
+On Windows x64, bounded PE inspection includes x86 Win32 players through the OS's
+WOW64 support, while DLLs and foreign processors remain excluded. A complete
+search recommends only one target matching reviewed executable hints or the
+listing's game identity; other executable files remain selectable. Discovery
+does not execute a suggested game or converter.
 The final artifact-policy check and
 handoff commit share the policy-admission transaction. Recorded publication
 intent and receipts support restart recovery without adopting or deleting an
@@ -155,7 +160,10 @@ boundary in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md), not a second feed.
 `service/package_selection.rs` separates release choice from native asset ranking.
 The provider selects a channel or explicit release, inventories that release's
 assets within its existing bounds, and reports coverage independently of older
-history. Recommendations are suitability observations, never artifact admission
+history. Optional listing download hints can select a reviewed upstream-owned
+player or setup package; operational release hints take precedence. This keeps
+package facts in authoring while Core owns ranking and exact download review.
+Recommendations are suitability observations, never artifact admission
 or execution permission. `service/setup_discovery.rs` inspects native headers and
 processor information with entry, depth and candidate bounds; helpers and setup
 programs are deprioritized. It never executes a discovered file, traverses links,
@@ -170,6 +178,23 @@ retained persistence-coordinate compatibility protect replacement/removal. Setup
 can happen in the upstream game's first launch when its output follows that
 contract; this does not certify gameplay. External setup reminders/registrations
 retain their non-owning interpretation. See [portable authoring](CATALOG.md#managed-native-portable-packages).
+
+Ready `staged-source-portable` archives with no original-file, build, setup-helper,
+initialization or shared-account preparation use the same stage-before-activation
+and retained-coordinate guard. Core collects declared edits made before first Play;
+disposable runtime outputs stay with their version. The existing bounded
+install/manifest-bound data-restoration receipt distinguishes an initialized copy
+from historical unproven data. Without that receipt, collection is additive and
+conflicting copies remain recoverable. Raw Installer activation refuses, and
+interrupted publication checks retained contracts and data before changing the
+active pointer. New independent definitions of this shape require staged-source
+capability 23 and a format-6 retained envelope, including embedded/unscoped
+installs; deeper integrations keep their existing preparation contracts. Checked
+private data copies preserve exact file modification times or refuse before
+publication. New backup manifests bind a separate metadata digest; restore uses
+the consent-bound manifest and verifies staged data before collecting current
+runtime progress. Historical byte-only backup integrity is not retroactively
+strengthened. See [definition compatibility](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
 
 ## Source import journal interpretation
 
@@ -780,6 +805,29 @@ restore records remain excluded by the execution guard. A restore-only recovery
 hold does not hold deletion review of an otherwise usable snapshot. This preview
 check supplies no authorization; execution repeats its guards under the port lock.
 
+Restore review is read-only. Its fingerprint binds the selected backup,
+canonical player data, installed identities and the active retained collection
+contract. A bounded runtime snapshot distinguishes missing entries, directories
+and file contents, including data created before first Play where the retained
+native-portable or PSX contract permits collection. The existing closed runtime
+credential policy validates omitted names and types without opening credential
+contents. Canonical-only pattern names belong to the canonical fingerprint;
+normal collection removing them does not manufacture a changed runtime state.
+The safety-backup consequence reflects the files that collection will leave,
+including direct-root and conservative uninitialized PSX behavior. Existing
+coordinates use filesystem-resolved spelling, preserving Windows aliases and
+distinct names on case-sensitive filesystems.
+
+Execution consumes consent after a read-only state check under the port lock,
+then collects current runtime data and makes the safety copy. It checks runtime
+facts and the post-collection canonical snapshot again before publication. A
+known refusal after preparation durably cancels the still-unpublished operation
+before ordinary preparation cleanup, so recovery cannot publish that rejected
+copy. Cancellation requires the exact journal/path identity, an intact staged
+directory and no previous-data rename. An uncertain cancellation preserves its
+journal and payload and reports that cancellation was not confirmed; it never
+rewrites the journal from stale in-memory state or claims automatic rollback.
+
 `PortcoveService` remains the public facade for create/list/review/authorize/
 restore/delete backup operations. Its stable `BackupAction` and
 `BackupActionPreview` DTOs remain at the existing public paths. The private
@@ -812,7 +860,8 @@ source identity and refreshes the setup manifest before the unchanged supervised
 spawn. External-runtime preparation and durable launch-session ownership remain
 with the existing service facade.
 
-Creation locks the port, reconciles launched user data, writes and syncs a
+Creation locks the port, reconciles collectible user data under its retained
+launch/prelaunch contract, writes and syncs a
 bounded preparation identity before copying, then writes the private payload and
 manifest before publication through the existing backup-directory durability
 helpers. New manifests bind their backup ID to that staging name through an
@@ -2185,8 +2234,32 @@ It preserves registration identity, timestamps and the original catalog bytes;
 it never re-captures a possibly newer definition. A missing old folder is allowed,
 while its structural and account scope remain binding. New-folder shared consent
 uses the outer relink fingerprint. No external files or saves are moved or adopted.
-Managed planning, installation and updates refuse an extant external registration
-before provider resolution; the UI and adapters do not create another authority.
+Read-only managed planning can show an alternative while the registration stays
+usable. Ordinary installation and updates still refuse that ownership conflict;
+the UI and adapters do not create another authority.
+
+Core's reviewed external-to-managed transition prepares a separate verified
+native-portable copy with no shared-account or managed-preparation contract. It
+requires an empty Core data store, no managed version or unfinished download, and
+a destination outside the external folder. Its authorization binds the existing
+stable installation-review digest, retained definition and exact external-row
+bytes; volatile capacity is rechecked without invalidating consent. The existing
+installer stages, verifies and journals publication. Schema41 retains the exact
+external-registration SHA-256 in that journal and fences older writers. One
+immediate SQLite transaction checks the registration, pending launch/download and
+managed-version preimages, retires the external row and records the active
+verified install. No external files or data are adopted, copied or removed.
+
+Recovery reuses the retained native contract and repeats the separate-path,
+empty-data and registration checks, or recognizes the same already committed
+install. Conflicting state stays held with both copies preserved. Postcommit
+failure carries the publication owner's known install identity through later
+journal, activity or database-readback failure; current active state is confirmed
+separately. An upstream profile can still be shared when the player explicitly
+launches the new copy. A separate runtime is not a save migration or isolated
+profile. CLI/API81 and Tauri translate this Core review/apply operation; React
+holds only transient review state and keeps committed failure visible until an
+explicit current-state refresh.
 
 #### Upstream observations
 

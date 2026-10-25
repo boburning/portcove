@@ -267,6 +267,7 @@ impl DefinitionAcquisitionScope {
 pub struct ScopedResolvedRelease {
     pub(crate) release: ResolvedRelease,
     pub(crate) scope: Option<DefinitionAcquisitionScope>,
+    selection: Option<(serde_json::Value, crate::Platform, crate::ReleaseChannel)>,
 }
 
 impl ScopedResolvedRelease {
@@ -274,6 +275,7 @@ impl ScopedResolvedRelease {
         Self {
             release,
             scope: None,
+            selection: None,
         }
     }
 
@@ -286,7 +288,39 @@ impl ScopedResolvedRelease {
         Ok(Self {
             release,
             scope: Some(scope),
+            selection: None,
         })
+    }
+
+    /// Only the provider path binds reusable selection rules to observed bytes.
+    /// A client-supplied reviewed release alone cannot manufacture this proof.
+    pub(crate) fn for_selection(
+        mut self,
+        port: &PortDefinition,
+        platform: crate::Platform,
+        channel: crate::ReleaseChannel,
+    ) -> Result<Self> {
+        if self.release.channel != channel {
+            return Err(PortcoveError::verification(
+                "provider returned a different release channel",
+            ));
+        }
+        self.selection = Some((serde_json::to_value(port)?, platform, channel));
+        Ok(self)
+    }
+
+    pub(crate) fn require_selection(
+        &self,
+        port: &PortDefinition,
+        platform: crate::Platform,
+        channel: crate::ReleaseChannel,
+    ) -> Result<()> {
+        if self.selection.as_ref() != Some(&(serde_json::to_value(port)?, platform, channel)) {
+            return Err(PortcoveError::verification(
+                "acquisition resolution does not match the retained definition and platform",
+            ));
+        }
+        Ok(())
     }
 }
 

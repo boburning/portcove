@@ -123,6 +123,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             },
         },
         Commands::External { command } => match command {
+            ExternalCommand::ManagedPreview { .. } => ReadOnly,
+            ExternalCommand::ChangeToManaged { .. } => Recovering,
             ExternalCommand::Preview { .. }
             | ExternalCommand::SelectPreview { .. }
             | ExternalCommand::SelectRelinkPreview { .. }
@@ -233,6 +235,28 @@ fn apply_mode(apply: bool) -> StartupMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn managed_route_preview_preserves_recovery_and_apply_requires_the_review() {
+        let preview =
+            Cli::try_parse_from(["portcove", "external", "managed-preview", "port"]).unwrap();
+        assert_eq!(startup_mode(&preview.command), StartupMode::ReadOnly);
+        assert!(
+            Cli::try_parse_from(["portcove", "external", "change-to-managed", "port", "--yes"])
+                .is_err()
+        );
+        let apply = Cli::try_parse_from([
+            "portcove",
+            "external",
+            "change-to-managed",
+            "port",
+            "--expected-preview",
+            "reviewed-digest",
+            "--yes",
+        ])
+        .unwrap();
+        assert_eq!(startup_mode(&apply.command), StartupMode::Recovering);
+    }
 
     #[test]
     fn retained_build_reads_preserve_recovery_and_writes_require_a_review_digest() {

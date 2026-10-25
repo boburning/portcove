@@ -27,6 +27,10 @@ export type {
 export type CatalogDownloadCandidates =
   Generated.TransportOutputs["desktop_catalog_download_candidates"];
 export type SetupLaunchTargets = Generated.TransportOutputs["desktop_setup_launch_targets"];
+export type ManagedRouteChangePreview =
+  Generated.TransportOutputs["desktop_managed_route_change_preview"];
+export type ManagedRouteChangeResult =
+  Generated.TransportOutputs["desktop_managed_route_change_result"];
 export type CatalogDownloadPreview = Generated.TransportOutputs["desktop_catalog_download_preview"];
 export type CapabilityDocument = Generated.TransportOutputs["capabilities"];
 export type DefinitionCapabilityReport = Generated.TransportOutputs["definition_capability_report"];

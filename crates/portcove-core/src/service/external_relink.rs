@@ -6,9 +6,15 @@ impl PortcoveService {
     pub(super) fn require_managed_runtime_ownership(&self, status: &PortStatus) -> Result<()> {
         self.require_no_pending_setup(&status.port_id)?;
         if status.external_runtime.is_some() {
-            return Err(PortcoveError::conflict(
-                "this game uses an external folder; change its folder or remove its registration before installing a managed copy",
-            ));
+            let native_route = self
+                .catalog
+                .port(&status.port_id)
+                .is_ok_and(|port| port.adapter == AdapterKind::NativePortable);
+            return Err(PortcoveError::conflict(if native_route {
+                "this game uses an external folder; review a separate Portcove-managed copy before changing routes. Keep the current registration and files until the reviewed replacement is verified"
+            } else {
+                "this game uses an externally owned folder. Keep the current copy and review a separately prepared supported replacement before changing its registered launch details; this contract has no managed-copy transition"
+            }));
         }
         Ok(())
     }
@@ -48,7 +54,7 @@ impl PortcoveService {
         })?;
         if spec.trust == crate::ExternalRuntimeTrust::UserSelected {
             return Err(PortcoveError::unsupported(
-                "remove only this registration, then select the new executable and working directory; all external files remain in place",
+                "review and relink the selected executable and working directory through launch details; the current registration and all external files stay in place until the reviewed change",
             ));
         }
         if record.version != spec.version

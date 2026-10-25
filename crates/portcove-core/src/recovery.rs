@@ -11,6 +11,18 @@ pub(crate) fn recover_published_install(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
+    if let Some(expected) = &operation.external_registration_sha256
+        && (operation.kind != LifecycleOperationKind::Install
+            || !operation.activate
+            || expected.len() != 64
+            || !expected
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+    {
+        return Err(PortcoveError::state(
+            "external replacement journal has an invalid owner or registration identity",
+        ));
+    }
     // Recovery holds the journal owner's lock, not a lock inferred from its payload.
     // Verify that authority before publishing, registering, or cleaning any tree.
     if let Some(install) = &operation.install
@@ -181,7 +193,53 @@ pub(crate) fn recover_published_install(
             service
                 .library
                 .register_prepared_install(&install, &plan.inputs.install.id)?;
+        } else if let Some(expected) = &operation.external_registration_sha256 {
+            let status = service
+                .library
+                .status(&operation.port_id, install.channel)?;
+            if !status
+                .active
+                .as_ref()
+                .is_some_and(|active| active.id == install.id)
+            {
+                service.recover_managed_route_publication(&install, expected)?;
+            } else if status.external_runtime.is_some() {
+                return Err(PortcoveError::conflict(
+                    "committed managed replacement still has an external registration; preserve both records for recovery",
+                ));
+            }
         } else {
+            let already_active = service
+                .library
+                .status(&operation.port_id, install.channel)?
+                .active
+                .is_some_and(|active| active.id == install.id);
+            if operation.activate && !already_active {
+                let installer = Installer::new(service.library.clone())?;
+                match installer.retained_catalog(&install)? {
+                    Some(catalog)
+                        if crate::persistence::requires_restore_receipt(
+                            catalog.port(&install.port_id)?,
+                        ) =>
+                    {
+                        // Retain the old intent, but never replay its former
+                        // activate-before-restore ordering. A failed preflight
+                        // leaves the previous active and this staged copy intact.
+                        service.library.register_install(&install, false)?;
+                        service.prepare_recovered_psx_activation(&install)?;
+                    }
+                    None if service
+                        .catalog()
+                        .port(&install.port_id)
+                        .is_ok_and(crate::persistence::requires_restore_receipt) =>
+                    {
+                        return Err(PortcoveError::verification(
+                            "Interrupted activation has no retained player-data contract. Preserve both runtime copies and the journal; recover the missing contract before retrying.",
+                        ));
+                    }
+                    _ => {}
+                }
+            }
             service
                 .library
                 .register_install(&install, operation.activate)?;
@@ -374,6 +432,9 @@ pub(crate) fn recover_restore(
     let user_root = restore.user_root.clone();
     let previous = restore.previous_data.clone();
     if restore.phase == RestorePhase::ReadyToPublish {
+        if staged.exists() {
+            service.require_psx_restore_preflight(&operation.port_id, &staged)?;
+        }
         if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
                 (true, true, false) => {

@@ -13,6 +13,7 @@ impl PortcoveService {
 
     async fn plan_game_install_locked(&self, port_id: &str) -> Result<GameInstallPlan> {
         let status = self.status(port_id)?;
+        self.require_managed_runtime_ownership(&status)?;
         if status.active.is_some() {
             return Err(PortcoveError::conflict(
                 "this game is already installed; refresh before choosing setup, Play or an explicit update",

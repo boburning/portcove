@@ -237,8 +237,9 @@ pub use service::{
     AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadCandidate,
     CatalogDownloadCandidates, CatalogDownloadCoverage, CatalogDownloadPreview,
     CatalogDownloadRelease, CatalogDownloadRequest, CatalogPackageAssessment,
-    IdentifiedLaunchRequest, InstallOverrides, PendingSetupRecord, PendingSetupState,
-    PortRemovalPreview, PortcoveService, SetupLaunchTarget, SetupLaunchTargets,
+    IdentifiedLaunchRequest, InstallOverrides, ManagedRouteChangePreview, ManagedRouteChangeResult,
+    PendingSetupRecord, PendingSetupState, PortRemovalPreview, PortcoveService, SetupLaunchTarget,
+    SetupLaunchTargets,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
@@ -294,7 +295,9 @@ pub use types::*;
 // Public79 adds opt-in prepared original-directory environment binding (staged template18).
 // Public 80 adds explicit user-selected launch-only trust and reusable managed
 // initialization/data policies. Unknown trust and capability semantics refuse.
-pub const API_SCHEMA_VERSION: u32 = 80;
+// Public81 adds separately reviewed external-to-managed copy transitions.
+// Existing response meanings and operation-event schema3 remain unchanged.
+pub const API_SCHEMA_VERSION: u32 = 81;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

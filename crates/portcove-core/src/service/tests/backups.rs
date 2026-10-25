@@ -1,6 +1,278 @@
 //! Complete backup lifecycle fixture family; production authority stays in its owner.
 use super::*;
 
+fn set_data_time(path: &Path, stamp: std::time::SystemTime) {
+    fs::OpenOptions::new()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(stamp))
+        .unwrap();
+    assert_eq!(fs::metadata(path).unwrap().modified().unwrap(), stamp);
+}
+
+#[test]
+fn data_copy_and_equal_bytes_sync_preserve_exact_modification_time() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("original.bin");
+    let target = temporary.path().join("copied.bin");
+    fs::write(&source, b"owned original").unwrap();
+    let stamp = std::time::UNIX_EPOCH + std::time::Duration::new(1_700_000_000, 123_456_700);
+    set_data_time(&source, stamp);
+    crate::runtime_data_policy::copy_ordinary_file(&source, &target).unwrap();
+    assert_eq!(fs::metadata(&target).unwrap().modified().unwrap(), stamp);
+    set_data_time(&target, stamp + std::time::Duration::from_secs(2));
+    sync_entry(&source, &target).unwrap();
+    assert_eq!(fs::metadata(&target).unwrap().modified().unwrap(), stamp);
+    assert_eq!(fs::read(target).unwrap(), b"owned original");
+}
+
+#[test]
+fn backup_round_trip_preserves_metadata_and_refuses_timestamp_only_changes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port = "zelda64-recomp";
+    let user = library.user_dir(port).join("asset.bin");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::write(&user, b"owned original").unwrap();
+    let stamp = std::time::UNIX_EPOCH + std::time::Duration::new(1_700_000_000, 123_456_700);
+    set_data_time(&user, stamp);
+    let backup = service.create_backup(port).unwrap();
+    let saved = backup.path.join("data/asset.bin");
+    assert_eq!(fs::metadata(&saved).unwrap().modified().unwrap(), stamp);
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap()).unwrap();
+    assert!(
+        manifest["metadata_sha256"]
+            .as_str()
+            .is_some_and(|s| s.len() == 64)
+    );
+    fs::write(&user, b"current progress").unwrap();
+    let current_stamp = stamp + std::time::Duration::from_secs(10);
+    set_data_time(&user, current_stamp);
+    let authorization = backup_authorization(&service, port, &backup.id, BackupAction::Restore);
+    set_data_time(&saved, stamp + std::time::Duration::from_secs(1));
+    let stale = service
+        .restore_backup(port, &backup.id, &authorization.token)
+        .unwrap_err();
+    assert_eq!(stale.code, crate::ErrorCode::Conflict);
+    assert_eq!(fs::read(&user).unwrap(), b"current progress");
+    // A fresh review cannot authenticate a metadata-damaged snapshot either.
+    let authorization = backup_authorization(&service, port, &backup.id, BackupAction::Restore);
+    let damaged = service
+        .restore_backup(port, &backup.id, &authorization.token)
+        .unwrap_err();
+    assert!(damaged.message.contains("modification times"));
+    assert_eq!(fs::read(&user).unwrap(), b"current progress");
+    set_data_time(&saved, stamp);
+    let result = restore_authorized(&service, port, &backup.id).unwrap();
+    assert_eq!(fs::metadata(&user).unwrap().modified().unwrap(), stamp);
+    assert_eq!(fs::read(&user).unwrap(), b"owned original");
+    let safety = result.safety_backup.unwrap();
+    assert_eq!(
+        fs::read(safety.path.join("data/asset.bin")).unwrap(),
+        b"current progress"
+    );
+    assert_eq!(
+        fs::metadata(safety.path.join("data/asset.bin"))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        current_stamp
+    );
+}
+
+#[test]
+fn historical_byte_only_backup_keeps_its_existing_integrity_contract() {
+    let started = std::time::Instant::now();
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port = "zelda64-recomp";
+    let user = library.user_dir(port).join("save.dat");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::write(&user, b"historical save").unwrap();
+    let backup = service.create_backup(port).unwrap();
+    eprintln!("Historical backup created: {:?}", started.elapsed());
+    let path = backup.path.join("backup.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    manifest.as_object_mut().unwrap().remove("metadata_sha256");
+    fs::write(&path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+    // Old manifests did not authenticate original timestamps. Preserve the
+    // observed backup timestamp without inventing stronger historical evidence.
+    let stamp = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+    set_data_time(&backup.path.join("data/save.dat"), stamp);
+    fs::write(&user, b"current progress").unwrap();
+    restore_authorized(&service, port, &backup.id).unwrap();
+    eprintln!("Historical backup restored: {:?}", started.elapsed());
+    assert_eq!(fs::read(&user).unwrap(), b"historical save");
+    assert_eq!(fs::metadata(&user).unwrap().modified().unwrap(), stamp);
+    eprintln!(
+        "Historical backup assertions complete: {:?}",
+        started.elapsed()
+    );
+}
+
+struct ChangeReviewedBackupMetadata {
+    path: PathBuf,
+    remove_digest: bool,
+}
+
+struct ReplaceManifestDuringRestoreCapture {
+    path: PathBuf,
+}
+
+impl LifecycleFaultInjector for ReplaceManifestDuringRestoreCapture {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::RestoreManifestRecordLoaded {
+            let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&self.path)?)?;
+            value["sha256"] = serde_json::json!("0".repeat(64));
+            fs::write(&self.path, serde_json::to_vec(&value)?)?;
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn manifest_capture_cannot_mix_byte_integrity_with_another_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let mut service = service_with_release(library.clone(), "v1");
+    let port = "zelda64-recomp";
+    let user = library.user_dir(port).join("save.dat");
+    fs::create_dir_all(user.parent().unwrap()).unwrap();
+    fs::write(&user, b"snapshot").unwrap();
+    let backup = service.create_backup(port).unwrap();
+    fs::write(&user, b"current progress").unwrap();
+    let authorization = backup_authorization(&service, port, &backup.id, BackupAction::Restore);
+    service.faults = Arc::new(ReplaceManifestDuringRestoreCapture {
+        path: backup.path.join("backup.json"),
+    });
+    let error = service
+        .restore_backup(port, &backup.id, &authorization.token)
+        .unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("manifest changed while preparing review"),
+        "{error:?}"
+    );
+    assert_eq!(fs::read(&user).unwrap(), b"current progress");
+    assert_eq!(service.list_backups(port).unwrap().backups.len(), 1);
+}
+
+impl LifecycleFaultInjector for ChangeReviewedBackupMetadata {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == LifecycleFaultPoint::RestoreAuthorized {
+            let path = self.path.join("backup.json");
+            let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path)?)?;
+            if self.remove_digest {
+                value.as_object_mut().unwrap().remove("metadata_sha256");
+            } else {
+                value["metadata_sha256"] = serde_json::json!("0".repeat(64));
+            }
+            fs::write(path, serde_json::to_vec(&value)?)?;
+            let data = self.path.join("data/general.json");
+            let modified = fs::metadata(&data)?.modified()? + std::time::Duration::from_secs(2);
+            fs::OpenOptions::new()
+                .write(true)
+                .open(data)?
+                .set_times(fs::FileTimes::new().set_modified(modified))?;
+        }
+        Ok(())
+    }
+}
+
+fn assert_manifest_change_refuses_before_collecting_active_progress(remove_digest: bool) {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = register_zelda_install(&library, "v1", true);
+    let current = active.join("general.json");
+    fs::write(&current, b"snapshot progress").unwrap();
+    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+    let mut service = service_with_release(library.clone(), "v1");
+    let backup = service.create_backup("zelda64-recomp").unwrap();
+    let canonical = library.user_dir("zelda64-recomp").join("general.json");
+    assert_eq!(fs::read(&canonical).unwrap(), b"snapshot progress");
+    fs::write(&current, b"newer active progress").unwrap();
+    service.faults = Arc::new(ChangeReviewedBackupMetadata {
+        path: backup.path.clone(),
+        remove_digest,
+    });
+    let authorization = backup_authorization(
+        &service,
+        "zelda64-recomp",
+        &backup.id,
+        BackupAction::Restore,
+    );
+    let error = service
+        .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
+        .unwrap_err();
+    assert!(error.message.contains("manifest changed"), "{error:?}");
+    assert_eq!(fs::read(&canonical).unwrap(), b"snapshot progress");
+    assert_eq!(fs::read(&current).unwrap(), b"newer active progress");
+    assert_eq!(
+        service
+            .list_backups("zelda64-recomp")
+            .unwrap()
+            .backups
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn removed_metadata_digest_after_consent_cannot_downgrade_or_collect_live_progress() {
+    assert_manifest_change_refuses_before_collecting_active_progress(true);
+}
+
+#[test]
+fn replaced_metadata_digest_after_consent_cannot_rebind_or_collect_live_progress() {
+    assert_manifest_change_refuses_before_collecting_active_progress(false);
+}
+
+#[test]
+fn metadata_damaged_backup_refuses_before_collecting_changed_active_runtime() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = register_zelda_install(&library, "v1", true);
+    let current = active.join("general.json");
+    fs::write(&current, b"snapshot progress").unwrap();
+    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let backup = service.create_backup("zelda64-recomp").unwrap();
+    fs::write(&current, b"newer active progress").unwrap();
+    let data = backup.path.join("data/general.json");
+    let modified =
+        fs::metadata(&data).unwrap().modified().unwrap() + std::time::Duration::from_secs(2);
+    set_data_time(&data, modified);
+    let authorization = backup_authorization(
+        &service,
+        "zelda64-recomp",
+        &backup.id,
+        BackupAction::Restore,
+    );
+    let error = service
+        .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
+        .unwrap_err();
+    assert!(error.message.contains("modification times"), "{error:?}");
+    assert_eq!(
+        fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+        b"snapshot progress"
+    );
+    assert_eq!(fs::read(&current).unwrap(), b"newer active progress");
+    assert_eq!(
+        service
+            .list_backups("zelda64-recomp")
+            .unwrap()
+            .backups
+            .len(),
+        1
+    );
+}
+
 struct InjectCredentialIntoBackup {
     parent: PathBuf,
     point: LifecycleFaultPoint,
@@ -675,6 +947,7 @@ fn backup_create_assessment_preserves_mirrors_when_collection_skips_a_source_lin
 }
 
 fn assert_restore_recovers_before_and_after_user_data_publication(point: LifecycleFaultPoint) {
+    let started = std::time::Instant::now();
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let user_file = library.user_dir("zelda64-recomp").join("general.json");
@@ -683,6 +956,10 @@ fn assert_restore_recovers_before_and_after_user_data_publication(point: Lifecyc
     let original = service_with_release(library.clone(), "v2");
     let backup = original.create_backup("zelda64-recomp").unwrap();
     let versions = stale_restore_versions(&library, &original);
+    eprintln!(
+        "Restore {point:?} fixture prepared: {:?}",
+        started.elapsed()
+    );
 
     let service = service_with_fault(library.clone(), point);
     let authorization = backup_authorization(
@@ -695,6 +972,7 @@ fn assert_restore_recovers_before_and_after_user_data_publication(point: Lifecyc
         .restore_backup("zelda64-recomp", &backup.id, &authorization.token)
         .unwrap_err();
     assert!(error.message.contains("injected lifecycle failure"));
+    eprintln!("Restore {point:?} fault retained: {:?}", started.elapsed());
     assert_eq!(
         service
             .collect_user_data("zelda64-recomp")
@@ -711,9 +989,17 @@ fn assert_restore_recovers_before_and_after_user_data_publication(point: Lifecyc
     );
 
     let recovered = service_with_release(library, "v2");
+    eprintln!(
+        "Restore {point:?} recovery reopened: {:?}",
+        started.elapsed()
+    );
     assert_eq!(fs::read(&user_file).unwrap(), b"wanted");
     assert!(recovered.repair_plan().unwrap().items.is_empty());
     assert_restored_versions(&recovered, &versions);
+    eprintln!(
+        "Restore {point:?} assertions complete: {:?}",
+        started.elapsed()
+    );
 }
 
 #[test]
@@ -1186,6 +1472,7 @@ fn backup_interruption_child() {
 
 #[test]
 fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
+    let started = std::time::Instant::now();
     for (name, has_data, has_manifest) in [
         ("created", false, false),
         ("copied", true, false),
@@ -1193,6 +1480,10 @@ fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
         ("kept", true, true),
         ("published", false, false),
     ] {
+        eprintln!(
+            "Backup interruption {name} starting: {:?}",
+            started.elapsed()
+        );
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("library");
         let library = Library::open(&root).unwrap();
@@ -1220,6 +1511,10 @@ fn interrupted_backup_stages_are_visible_without_hiding_verified_backups() {
         .unwrap();
         assert_eq!(output.status.code(), Some(77), "{name}: {output:?}");
 
+        eprintln!(
+            "Backup interruption {name} child exited: {:?}",
+            started.elapsed()
+        );
         let parent = library.backups_dir().join(port_id);
         let stages = fs::read_dir(&parent)
             .unwrap()
@@ -1600,6 +1895,7 @@ fn restore_remains_authoritative_after_launch_rollback_and_staged_activation() {
 
 #[test]
 fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths() {
+    let started = std::time::Instant::now();
     const PORT: &str = "zelda64-recomp";
     const COMPANION: &str = "late.dll";
 
@@ -1612,6 +1908,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     let service = service_with_added_persistent_path(library.clone(), "v2", COMPANION);
 
     service.prepare_launch(PORT, None).unwrap();
+    eprintln!(
+        "Companion preservation launch complete: {:?}",
+        started.elapsed()
+    );
     assert!(!active.join(COMPANION).exists());
     assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
 
@@ -1625,6 +1925,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     let service = service_with_added_persistent_path(library, "v2", COMPANION);
 
     service.activate_staged(PORT).unwrap();
+    eprintln!(
+        "Companion preservation activation complete: {:?}",
+        started.elapsed()
+    );
     assert!(!staged.join(COMPANION).exists());
     let status = service.status(PORT).unwrap();
     assert_eq!(status.active.unwrap().version, "v2");
@@ -1640,6 +1944,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     let service = service_with_added_persistent_path(library, "v2", COMPANION);
 
     service.rollback(PORT).unwrap();
+    eprintln!(
+        "Companion preservation rollback complete: {:?}",
+        started.elapsed()
+    );
     assert!(!previous.join(COMPANION).exists());
     assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v1");
 
@@ -1661,6 +1969,10 @@ fn current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_p
     store.put(&mut operation).unwrap();
 
     service.recover_activation(&store, &mut operation).unwrap();
+    eprintln!(
+        "Companion preservation recovery complete: {:?}",
+        started.elapsed()
+    );
     assert!(!staged.join(COMPANION).exists());
     assert!(user_companion.is_file());
     assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");

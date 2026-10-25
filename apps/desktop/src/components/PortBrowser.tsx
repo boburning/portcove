@@ -28,6 +28,7 @@ import {
 import {
   catalogSetupPresentation,
   installedCardInputPresentation,
+  hasPendingSetupAction,
   portActionPresentation,
 } from "../features/port-actions/port-action-presentation";
 import type { PortDefinition, PortStatus } from "../types";
@@ -1301,6 +1302,14 @@ function PortCardStatus({
   );
   const overflowOrigin = `library:card-more:${port.id}`;
   const reviewOrigin = `${detailOrigin}:review`;
+  const reviewLabel =
+    port.pendingSetup?.state === "attention-required"
+      ? "Review download"
+      : port.pendingSetup
+        ? "Continue setup"
+        : hasPendingSetupAction(status)
+          ? "Finish setup"
+          : "Review game";
   return (
     <div
       className={cn(
@@ -1321,16 +1330,12 @@ function PortCardStatus({
               variant="outline"
               size="sm"
               className="flex-1"
-              aria-label={`Review game: ${gameIdentityLabel(port)}`}
+              aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
               aria-describedby={inputDescriptionId}
               data-detail-origin={reviewOrigin}
               onClick={() => onSelect(port.id, reviewOrigin)}
             >
-              {port.pendingSetup?.state === "attention-required"
-                ? "Review download"
-                : port.pendingSetup
-                  ? "Continue setup"
-                  : "Review game"}
+              {reviewLabel}
             </Button>
           )}
           {canLaunch && (
@@ -1452,6 +1457,8 @@ function readinessPresentation(
       action: "View setup options",
       tone: "available",
     } as const;
+  if (readiness === "setup" && hasPendingSetupAction(status))
+    return { label: "Setup required", action: "Finish setup", tone: "setup" } as const;
   if (
     (status?.active || status?.external_runtime) &&
     portActionPresentation(status, "launch").blocked

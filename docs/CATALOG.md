@@ -53,6 +53,16 @@ are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
 runtime instead uses the non-owning existing-installation route.
 
+Adding this route does not adopt an existing external registration. Players can
+review a separate managed copy while keeping the current copy usable. Core can
+switch a fitting fresh native-portable route after verified separate publication;
+the external files stay untouched and external saves are not copied. Retain
+owner-neutral listing instructions, including upstream profile locations, and
+put managed preservation promises only in integration presentation. A shared
+upstream profile may still be read on the next explicit Play. A saved Core data
+store or richer preparation/account contract requires its own compatible
+transition rather than guessing at migration or rewriting retained definitions.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route
@@ -74,11 +84,96 @@ without game-specific Rust or React code. The minimum integration shape is:
 ```
 
 These are reviewed facts, not an invitation to copy those paths to every game.
+For manual preparation that must finish before Play, `native-portable` may
+declare a `setup_marker` pointing to an upstream completion JSON record beneath
+an already declared persistent directory. Establish that upstream removes the
+record before starting and publishes it atomically after successful preparation.
+Core reads one bounded, single-link regular JSON object relative to the retained
+runtime working directory; it does not execute a helper or certify the original
+edition, data format or game content from that record. The upstream runtime keeps
+those checks. Missing, unreadable, malformed or oversized records keep Finish
+setup available and block launch. Native template capability 2 is required.
+A reviewed marker may be added under unchanged existing player-data coordinates
+for a new runtime; it never rewrites an installed contract. Changing or removing
+an existing marker needs a supported transition. First-Play file pickers remain
+Play and need no artificial completion marker.
+
 Every package hint must match for managed replacement; the shared native
 suitability check still rejects known foreign processors, platforms, supporting
 files and equally plausible variants. The existing channel and artifact-integrity
 rules remain in force. A missing digest can allow an explicitly unverified
 non-owning download, but cannot authenticate a managed installation.
+
+Review the actual linked or vendored components and their attributable grants,
+including packaged fonts. A parent's license, a published archive or resemblance
+to another project does not settle a separately authored component's permission.
+Retain a named acquisition condition at its exact operation scope. When fresh
+self-service acquisition is held, the authored listing can set
+`download_block_reason` to a bounded practical explanation and reconsideration
+condition. The generator emits listing format 2; Core refuses download options,
+preview and mutation before contacting the provider. This restriction grants no
+permission to acquire, register or execute an existing copy and does not rewrite
+its retained contract. Keep useful existing permitted-copy instructions and
+upstream links. Remove a restriction only after reviewing the changed fact.
+
+For an upstream-owned route, optional listing `download_asset_hints` maps a host
+platform to one through eight bounded, case-insensitive literal filename fragments.
+Optional `recommended_download_channel` selects `stable` or `beta` for the initial
+download lookup, for example when the reviewed player is published as a preview.
+A player's explicit saved channel or release takes precedence. This recommendation
+does not change an installed channel, version pin or update policy.
+Core uses all fragments together to recommend the reviewed player package or
+upstream installer. Prefer stable discriminators instead of a version string;
+retain a choice when incompatible variants are equally plausible. Operational
+release hints take precedence. `prepare-port` reports complete/partial selected
+asset coverage and competing literal matches as `download_preparation` feedback.
+This is advisory selection, compatible with descriptive listing format 1: it
+grants no authenticity, invocation or managed operation. Core still binds current
+release/asset IDs, destination and extraction in the download preview. A reviewed
+player ZIP named `debug` needs an explicit whole-filename hint; generic project
+or platform fragments do not override its exclusion. Symbols, source,
+checksum files, foreign platforms and processor mismatches remain excluded from
+recommendations. Explain the actual upstream setup and its update/data owner in
+the authored guide; downloading an installer never runs it.
+
+A ready native archive with reviewed disposable runtime writes may instead fit
+the existing `staged-source-portable` adapter; it does not require a source
+profile or build step. A ready archive may also receive one explicitly declared
+verified raw-file `copy`, with its exact destination declared persistent. This
+does not include extraction, generation, BIOS or helper preparation. Establish
+its actual executable-relative working directory,
+declare player data separately from disposable caches and diagnostics, and keep
+new package defaults version-owned. MC2 is an example: local settings/custom
+multiplayer data persist, while generated texture/geometry caches stay with each
+version. This is not permission to exempt arbitrary data folders or executable
+outputs. Review interrupted temporary writes and packaged script callers too.
+External user-profile saves remain outside backup ownership. Use
+`external-user-owned` saved-data presentation when normal saves are external,
+and explain any separately managed local settings in the authored instructions.
+The shared installation review surfaces that limit for every managed adapter;
+external registration must retain its ownership-neutral guide.
+Ready staged archives require capability version 23 for independent definition
+delivery. Core stages their installation before restoring declared data and
+activating. Data added before first Play participates in backup, update and
+rollback. A retained runtime without proof of completed Core data restoration
+uses conservative additive collection: canonical-only data survives and differing
+copies require a deliberate resolution. Existing source/build integrations keep
+their preparation and collection contracts.
+
+Declared data copies preserve exact file modification times, including upstream
+original-data integrity records that depend on them. New backups verify those
+times separately from content; old byte-only snapshots retain their historical
+limits. New ready archives retain a format-6 contract so older programs cannot
+apply timestamp-losing behavior to them. See [definition compatibility](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
+
+An explicitly hinted Win32 player can be recommended on a Windows x64 host;
+[Windows supplies WOW64 for x86 applications](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications).
+This does not establish game-specific dependencies, gameplay, or other processor
+compatibility. Supply the accurate `original_game_title` where the listing name
+also contains the engine/project name so bounded launch suggestions can identify
+the game among unrelated converters; equally plausible targets still require a choice.
+Portable preparation reports a missing original game title alongside package
+feedback. Use the canonical game identity; a helper name is not a substitute.
 
 Persistent paths are relative to the executable's directory, or the install root
 when `launch_from_install_root` is declared. Declare only compatible original
@@ -86,6 +181,42 @@ inputs, generated data, saves, settings and supported mods that should reach
 replacement versions. Outside data remains upstream/player-owned and outside
 Portcove backups. Describe setup and this limit in `presentation`; optional unknown
 gameplay evidence does not hide the listing or prevent a separately safe operation.
+
+Literal launch arguments and environment values also belong to that coordinate
+contract. A native portable replacement refuses changes to either, even when the
+declared data paths stay the same: changing `--data-dir` or a data-location
+environment variable cannot silently redirect a retained installation. A supported
+transition must establish compatibility before changing these execution facts.
+
+Put the actual next game-setup step first in the authored manual guide: original
+files the game will request, a required manual preparation, or an explicit statement
+that the package is ready for Play. Avoid a redundant first step telling the player
+to install. Desktop uses this first step in the managed installation review and
+keeps the guide in Files even when Core needs no source profile. Listing guides
+also survive as saved-download handoffs after a definition disappears. Keep their
+steps truthful for both routes, spell out any external launch arguments, and put
+managed retention/backup/replacement details in the integration's
+`presentation.manual_preparation`, which Desktop scopes to managed ownership.
+An empty Core
+input requirement describes Portcove's action; it does not assert that the upstream
+game never needs original files.
+
+Follow the selected fork's actual setup route. An Android APK belongs to Android's
+package manager and upstream app; a desktop parent's archive, converter, save path
+or native plugin is not its contract. Describe the app's own original-file picker
+or on-device preparation, actual profile location/export controls and meaningful
+update limits. A signing-key change that requires reinstall needs concrete data
+preservation instructions before uninstall. Keep source/artifact version conflicts
+explicitly unresolved rather than importing another build's inputs or save promises.
+
+Reference catalogs such as [Quiver](https://github.com/tgeorgiadis/quiver-launcher)
+can expose useful asset filters, preferred executables, required files and simpler
+upstream alternatives. Join by the exact implementation and reviewed lineage, then
+verify those hints against the selected upstream source and package. An empty
+required-files list does not establish an empty persistence contract; a portable
+marker can change storage behavior and needs its own upstream evidence. Keep
+distinct games sharing a repository separate. A reference catalog's release,
+checksum, scanner or verification label is not Portcove admission or qualification.
 
 Native portable runtimes use complete immutable-file verification. Changed package
 files or undeclared additions block update, version switching and managed removal
@@ -151,13 +282,54 @@ Separate safe selection of an artifact from qualification of that artifact and
 permission to install it. Keep pinned and user-managed limits explicit; a
 successful metadata check does not establish gameplay or authorize publication.
 
+## Managed PS1 package and player-data restoration
+
+`psx-recomp-managed` keeps its owned-disc/BIOS preparation and runtime generation.
+Official release discovery may replace changing direct manifests when the same
+reviewed package, executable and preparation rules apply. Native archives do not
+replace this richer integration. Platform commitments remain independently scoped.
+
+The upstream framework stages bundled mod packages into the same
+`mods/packages/<id>/<version>` tree used for player imports. For a retained
+contract declaring `mods`, Core preserves complete destination-only packages and
+adds complete absent versions through private, same-filesystem staging and atomic
+no-replace publication. An existing ID/version must have an identical complete
+tree; differing, missing or additional members, case/type conflicts and links hold
+the operation with exact paths. Preserve conflicting copies separately and resolve
+the reported conflict before retrying. Core does not identify which package was
+player-created, authenticate a modified mod, insert arbitrary unknown runtime
+files, rebase upstream selections or promise mod/save compatibility. Ordinary
+declared state retains its existing restore/deletion semantics. Runtime rollback
+carries current data, including selected mod versions; it does not rewind saves.
+
+PS1 installs publish inactive and run player-data preflight before activation.
+Older interrupted install journals use the same order; an already committed
+active version remains authoritative. Explicit backup restoration also preflights
+retained mod trees before publishing canonical data, including recovery replay.
+Failed copies preserve original sources and pre-existing destination packages;
+complete additions may already be present. Retrying recomputes from those copies.
+Interrupted private staging is retained in the existing owned staging namespace;
+this does not promise automatic reuse or cleanup of orphaned private copies.
+
+Before first Play, a historical runtime without proof of completed Core data
+restoration uses additive collection: canonical-only files stay, and differing
+common files hold for preservation review. A successful full restore records
+`.portcove-psx-data-restored.json` at the installation root, bound to the registered
+install and manifest. This lets subsequent collection preserve deliberate saves,
+settings and mod selections made before first Play. It is not a launch receipt or
+game-file/edition validation. Missing or stale proof never authorizes destructive
+collection; malformed or future proof holds rather than being overwritten. Only
+the exact PS1 metadata path and its defined atomic-write temporary names are
+excluded from package integrity checks. No undeclared `mods` path is adopted.
+
 ## Managed ReGaiden shared preferences
 
 The reviewed v0.4.1 Windows package uses the constrained
-`gbrecompiled-windows-v1` consent-bearing policy. Typed direct-release facts bind
-the artifact; `managed_shared_preferences_save_id` records the reviewed upstream
+`gbrecompiled-windows-v1` consent-bearing policy. An exact direct release or
+reusable GitHub package rules bind acquisition through the configured provider;
+`managed_shared_preferences_save_id` records the reviewed upstream
 save basename independently of the executable name. New declarations require
-staged-source capability 19 and the
+staged-source capability 19 for direct manifests or 21 for GitHub discovery, and the
 `regaiden-gbc` materialization that older engines cannot parse. Core retains
 explicit review of the Windows account and both shared/local preference paths
 in schema7 installation manifests. Local saves/settings are managed; the
@@ -171,7 +343,8 @@ this route neither migrates them nor establishes gameplay qualification.
 
 The reviewed official Windows v1.0.0 package uses the reusable
 `version-local-retroachievements-v1` runtime-data policy requiring staged-source
-capability 19. Typed retained direct-release facts bind its artifact. Ordinary `.runtime` saves and
+capability 19 for direct manifests or 21 for GitHub discovery. Core binds the
+provider's exact artifact facts to the retained rules. Ordinary `.runtime` saves and
 settings are managed; RetroAchievements credentials stay inside each version.
 They are never opened, hashed or copied. Whole-tree transfer and recovery refuse
 known credential names before reading payloads and again before publication.
@@ -192,8 +365,9 @@ basename file-set identities and aggregates are unchanged.
 
 The reviewed Windows TFE v1.22.420 package selects the constrained
 `tfe-dark-forces-portable-v1` initializer and requires staged-source capability
-**19**. Artifact/version/executable facts come from the retained direct release;
-its checked complete game-data layout, pilot/settings initialization and recovery
+**19** for direct manifests or **21** for GitHub discovery. The retained definition supplies executable and package rules; an exact
+direct release or the configured GitHub provider supplies changing artifact facts.
+Its checked complete game-data layout, pilot/settings initialization and recovery
 remain Core behavior. The exact old initializer retains its original meaning for
 persisted consumers. Transport schema **75** originally added the relative source shape and managed initializer;
 older consumers must refuse unsupported semantics. Full source inspection and
@@ -820,6 +994,43 @@ updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
 exact qualification record must not be broadened to manufacture automatic
 updates.
 
+An ordinary compatible upstream release must resolve and install with the same
+application and unchanged definition. Author the reusable integration rules;
+let the existing provider observe each release's version, asset ID, exact name,
+URL, size and independent digest. Core retains those exact facts with the
+installed artifact. A per-release JSON edit or automatic version-bump PR is not
+compatible progression. Historical source links and qualification hashes remain
+exact observations; their presence alone does not pin provider selection.
+Managed preparation records observed release facts in its receipt and preserves
+authored listing links, including a useful separate upstream launcher. It does
+not add a current-tag listing URL to an otherwise reusable managed definition.
+
+Preparation flags hints containing the observed release version for applicability
+review. Prefer stable discriminating fragments, including the actual package
+variant. Preserve numeric ABI/engine-generation requirements where intentional.
+Test unchanged rules through the production provider for N, N+1 and a fresh
+installation after N+1, including competing variants, foreign architectures and
+successor-specific integrity evidence. Ordinary observed release changes do not
+add a mandatory maintainer review or full gameplay campaign. Changed setup,
+executable/data coordinates, ownership or package handling can require a reviewed
+rule change; existing transition and recovery guards still apply.
+
+The reusable managed TFE, GB shared-preferences and version-local credentials
+policies support reviewed GitHub package rules as well as exact direct manifests.
+Fresh dynamic acquisition requires an opaque in-process resolver binding to the
+complete retained definition, platform, requested channel and exact release.
+A serialized review cannot supply that proof: Core resolves again and refuses
+changed facts before downloading. This binding is distinct from publisher-scope
+authorization. Offline installed-version checks still use the verified manifest
+and registered artifact, never today's latest release. Historical exact policy
+variants and direct-manifest targets retain their original meanings.
+
+Independent compatible definition delivery to installed clients remains with
+[#534](https://github.com/boburning/portcove/issues/534) and
+[#246](https://github.com/boburning/portcove/issues/246). It does not replace
+dynamic release discovery or authorize production publication in an ordinary
+catalog change.
+
 Declare the offered route's maintenance policy on its existing canonical Port
 issue during admission and subsequent disposition work, independently from its
 operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
@@ -1306,9 +1517,34 @@ explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailab
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
 
+For a proposed `native-portable` record, the completion receipt also shows literal
+package-hint matches among the supported ZIP/tar.gz/tgz archives for each declared platform, whether each matching asset has
+a published SHA-256, and whether the selected release's asset enumeration is
+complete. Resolve missing or ambiguous matches before acquisition review. This is
+authoring feedback, not a second package selector or a capability certificate.
+Review the executable headers and launch folder, then the runtime's actual writes
+and update behavior. Include compatible original inputs, generated data, mods,
+settings and relevant logs in the declared preservation contract. An empty
+contract is useful when evidence establishes external storage; describe that
+location and its backup limits, and classify the main saves/settings as
+`external-user-owned`. Inspect emitted writes beyond the save folder, including
+first-run failure instructions, preference exports, registry settings and mod
+state. A self-updater or a setup kit that regenerates
+version-dependent runtime code needs the appropriate existing integration or
+non-owning handoff. Keep the player's installed contract unchanged when adding a
+new route.
+
 The owned output directory is a resumable preparation checkpoint. Reuse it for
 several IDs sharing a repository to reuse endpoint observations. Collection is
 bounded to 12 HTTP requests including redirects, 8 MiB and two minutes per call.
+For a listing-only download, a reviewed `release_url` may identify a related
+upstream setup launcher while `project_url`, stable ID and canonical issue keep
+the game identity. Preparation records that public release repository separately
+and verifies release/asset provenance within the same budget and cache. The URL's
+tag path does not pin a version; `--release-tag` selects the exact observation.
+Managed package feedback uses the operational release specification instead of
+an optional listing helper. A provider outside the bounded GitHub collector
+remains explicitly unobserved; it never falls back to a different repository.
 Repository observations expire after 24 hours; issue/release/asset observations
 after one hour. Failed refreshes retain prior observations separately and do not
 report them as current; provider backoff survives resume. Malformed checkpoints

@@ -31,6 +31,52 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn native_manual_progress_requires_its_reader_and_owned_data_boundary() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("re-rac-rerac").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(1);
+    entry["required_capabilities"][0]["maximum_version"] = json!(2);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 2"));
+    entry["required_capabilities"][0]["minimum_version"] = json!(2);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    for marker in [
+        "../outside.json",
+        "outside.json",
+        "game-data",
+        "game-data/result.txt",
+    ] {
+        let mut changed = catalog.authoritative_document().clone();
+        changed
+            .ports
+            .iter_mut()
+            .find(|p| p.id == port.id)
+            .unwrap()
+            .setup_marker = Some(marker.into());
+        assert!(crate::Catalog::from_json(&serde_json::to_string(&changed).unwrap()).is_err());
+    }
+}
+
+#[test]
+fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in [
+        "alariq-mc2",
+        "crash-team-racing-ctr-native",
+        "f-zero-snes-recomp",
+    ] {
+        let mut entry = entry_for_port(catalog.port(id).unwrap());
+        for version in [1, 20, 21, 22] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(version);
+            entry["required_capabilities"][0]["maximum_version"] = json!(23);
+            assert!(inspect(&entry).unwrap_err().message.contains("version 23"));
+        }
+        entry["required_capabilities"][0]["minimum_version"] = json!(23);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+    }
+}
+
+#[test]
 fn prepared_source_directory_requires_v18_and_preserves_its_projection() {
     let catalog = crate::Catalog::from_json(include_str!(
         "../tests/fixtures/prepared-source-directory.json"
@@ -56,7 +102,7 @@ fn prepared_source_directory_requires_v18_and_preserves_its_projection() {
 
 #[test]
 fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let port = catalog.port("wave-race-64-racewave46").unwrap();
     let mut entry = entry_for_port(port);
     assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
@@ -128,6 +174,38 @@ fn inspect(value: &Value) -> Result<DefinitionEntryInspection> {
 }
 
 #[test]
+fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .ports()
+        .iter()
+        .find(|port| port.adapter == crate::AdapterKind::PsxRecompManaged)
+        .unwrap();
+    let mut entry = entry_for_port(port);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("capability version 2")
+    );
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    let retained = index(&bytes, &port.id)
+        .inspect_retained_entry("official", &port.id, &bytes)
+        .unwrap();
+    assert!(retained.capabilities().compatible);
+    assert_eq!(
+        serde_json::to_value(retained.port()).unwrap(),
+        entry["port"]
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(2);
+    entry["required_capabilities"][0]["maximum_version"] = json!(2);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(3);
+    entry["required_capabilities"][0]["maximum_version"] = json!(3);
+    assert!(!inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn exact_bytes_and_existing_port_projection_survive_inspection() {
     let value = catalog_fixture();
     let stable_id = value["stable_id"].as_str().unwrap();
@@ -177,7 +255,7 @@ fn initial_renderer_requires_an_entry_window_that_excludes_v1() {
 
 #[test]
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
     assert!(inspect(&entry).unwrap_err().message.contains("version 19"));
     entry["required_capabilities"][0]["maximum_version"] = json!(15);
@@ -201,6 +279,37 @@ fn managed_shared_preferences_require_a_window_excluding_older_readers() {
 }
 
 #[test]
+fn provider_bound_runtime_policies_exclude_older_readers_without_reinterpreting_direct_entries() {
+    let current = crate::Catalog::embedded().unwrap();
+    let historical = crate::test_fixture::historical_managed_policy_catalog();
+    for id in [
+        "the-force-engine-dark-forces",
+        "resident-evil-gaiden-recomp",
+        "wave-race-64-racewave46",
+    ] {
+        let mut entry = entry_for_port(current.port(id).unwrap());
+        for version in [1, 19, 20] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(version);
+            entry["required_capabilities"][0]["maximum_version"] = json!(version);
+            assert!(
+                inspect(&entry).unwrap_err().message.contains("version 21"),
+                "{id}: v{version}"
+            );
+        }
+        entry["required_capabilities"][0]["minimum_version"] = json!(21);
+        entry["required_capabilities"][0]["maximum_version"] = json!(21);
+        assert!(inspect(&entry).unwrap().capabilities().compatible, "{id}");
+        entry["port"] = serde_json::to_value(historical.port(id).unwrap()).unwrap();
+        entry["required_capabilities"][0]["minimum_version"] = json!(19);
+        entry["required_capabilities"][0]["maximum_version"] = json!(19);
+        assert!(
+            inspect(&entry).unwrap().capabilities().compatible,
+            "historical direct {id}"
+        );
+    }
+}
+
+#[test]
 fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
     for port in crate::Catalog::embedded().unwrap().ports() {
@@ -209,13 +318,21 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port
+        let version = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+            2
+        } else if port
             .release
             .user_prepared
             .values()
             .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
         {
             20
+        } else if crate::preparation::has_manual_marker(port) {
+            2
+        } else if crate::persistence::ready_staged_archive(port) {
+            23
+        } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
+            21
         } else if port.managed_initialization
             == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
             || port.runtime_data_policy

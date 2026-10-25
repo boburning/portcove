@@ -26,15 +26,10 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "direct-manifest",
+      "provider": "github",
       "repository": "TheForceEngine/TheForceEngine",
-      "direct": {
-        "windows-x86-64": {
-          "version": "1.22.420",
-          "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
-          "size": 10561878,
-          "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
-        }
+      "asset_hints": {
+        "windows-x86-64": ["TheForceEngine-v", ".zip"]
       }
     },
     "source_profile": "dark-forces-pc-complete-installed-data",

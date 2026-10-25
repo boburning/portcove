@@ -6,6 +6,9 @@ use std::{
     path::Path,
 };
 
+mod review;
+pub(crate) use review::{DataReview, ReviewedEntry};
+
 const CREDENTIAL: &str = "retroachievements.credentials";
 pub(crate) fn known_artifact(sha256: &str) -> bool {
     sha256.eq_ignore_ascii_case("f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")
@@ -30,11 +33,11 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let release = port.release.direct.get(&crate::Platform::WindowsX86_64);
     let legacy = port.runtime_data_policy == Some(crate::RuntimeDataPolicy::Racewave46V100Windows);
     if !legacy {
-        crate::managed_runtime_policy::artifact(port)?;
+        crate::managed_runtime_policy::validate_release_rules(port)?;
     }
     if port.adapter != crate::AdapterKind::StagedSourcePortable
         || port.platforms != [crate::Platform::WindowsX86_64]
-        || port.release.provider != crate::ReleaseSource::DirectManifest
+        || (legacy && port.release.provider != crate::ReleaseSource::DirectManifest)
         || !port.release.user_prepared.is_empty()
         || (legacy
             && release.is_none_or(|release| {
@@ -251,6 +254,7 @@ pub(crate) fn copy_ordinary_file(source: &Path, destination: &Path) -> Result<()
             "copy source changed during reading",
         ));
     }
+    preserve_modified_time(output.as_file(), &before)?;
     output.as_file().set_permissions(before.permissions())?;
     output.as_file().sync_all()?;
     crate::path::refuse_symlink_ancestors(destination)?;
@@ -258,6 +262,31 @@ pub(crate) fn copy_ordinary_file(source: &Path, destination: &Path) -> Result<()
         .persist(destination)
         .map_err(|error| PortcoveError::from(error.error))?;
     crate::durability::sync_publication(parent)
+}
+
+/// Data can contain upstream integrity records that bind file modification time.
+/// Refuse a rounding destination before publishing the private replacement.
+pub(crate) fn preserve_modified_time(output: &fs::File, source: &fs::Metadata) -> Result<()> {
+    let modified = source.modified()?;
+    output.set_times(fs::FileTimes::new().set_modified(modified))?;
+    if output.metadata()?.modified()? != modified {
+        return Err(PortcoveError::unsupported(
+            "destination cannot preserve the exact player-data modification time",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn modified_stamp(metadata: &fs::Metadata) -> Result<String> {
+    Ok(
+        match metadata.modified()?.duration_since(std::time::UNIX_EPOCH) {
+            Ok(value) => format!("{}:{:09}", value.as_secs(), value.subsec_nanos()),
+            Err(error) => {
+                let value = error.duration();
+                format!("-{}:{:09}", value.as_secs(), value.subsec_nanos())
+            }
+        },
+    )
 }
 
 pub(crate) fn check_launch(
@@ -580,7 +609,10 @@ mod tests {
 
     #[test]
     fn uppercase_known_digest_cannot_drop_the_credential_policy() {
-        let mut definition = port();
+        let mut definition = crate::test_fixture::historical_managed_policy_catalog()
+            .port("wave-race-64-racewave46")
+            .unwrap()
+            .clone();
         definition.runtime_data_policy = None;
         definition
             .release
@@ -620,7 +652,8 @@ mod tests {
 
     #[test]
     fn installed_policy_requires_actual_artifact_version_platform_and_no_adoption() {
-        let port = port();
+        let catalog = crate::test_fixture::historical_managed_policy_catalog();
+        let port = catalog.port("wave-race-64-racewave46").unwrap().clone();
         let artifact = crate::ArtifactIdentity {
             asset_name: "RaceWave46-Windows-x64-v1.0.0.zip".into(),
             size: 35_768_574,
@@ -959,7 +992,10 @@ mod tests {
 
     #[test]
     fn closed_policy_cannot_be_removed_or_attached_to_different_bytes() {
-        let mut p = port();
+        let mut p = crate::test_fixture::historical_managed_policy_catalog()
+            .port("wave-race-64-racewave46")
+            .unwrap()
+            .clone();
         validate(&p).unwrap();
         p.runtime_data_policy = None;
         assert!(validate(&p).is_err());

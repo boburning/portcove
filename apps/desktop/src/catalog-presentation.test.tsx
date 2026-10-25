@@ -6,6 +6,7 @@ import { ReleaseChannelControl } from "./components/ReleaseChannel";
 import { portDefinition, portStatus } from "./test-fixtures";
 import type { GithubAuthStatus, PortDefinition, PortStatus, ReleaseChannel } from "./types";
 import { formatBytes, platformLabel } from "./view-model";
+import { currentCatalogPort } from "./catalog-test-fixtures";
 
 describe("catalog and capacity presentation", () => {
   it.each([
@@ -317,6 +318,49 @@ it.each(["catalog", "library"] as const)(
     }
   },
 );
+it.each(["catalog", "library"] as const)(
+  "presents ReRAC's sole Core setup hold consistently on %s cards",
+  (view) => {
+    const port = currentCatalogPort("re-rac-rerac");
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: port.id,
+      active: { ...cardInstall, port_id: port.id },
+      readiness: { launchable: false, pending_setup: true, blockers: ["preparation_required"] },
+      port_actions: [
+        {
+          action: "launch",
+          availability: "waiting",
+          reason: "preparation_required",
+          definition: null,
+        },
+      ],
+    };
+    const renderCard = () =>
+      renderToStaticMarkup(
+        <PortBrowser
+          view={view}
+          ports={[port]}
+          statuses={new Map([[port.id, status]])}
+          overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+    const html = renderCard();
+    expect(html).toContain("Setup required");
+    expect(html).toContain("Finish setup");
+    expect(html).not.toContain("Launch needs review");
+    status.port_actions = [
+      { action: "launch", availability: "held", reason: "definition_ineligible", definition: null },
+    ];
+    expect(renderCard()).toContain("Launch needs review");
+    expect(renderCard()).not.toContain("Finish setup");
+  },
+);
+
 it.each(["stable", "beta", "rolling"] as const)(
   "labels the selected Catalog release channel %s without deriving it from support",
   (channel) => {

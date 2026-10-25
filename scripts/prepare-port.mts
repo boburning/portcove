@@ -11,7 +11,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
-import { collectPortFacts } from "./port-upstream-facts.mts";
+import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
   prepareCatalogArtwork,
@@ -51,6 +51,118 @@ interface PrepareOptions {
   artwork?: Pick<ArtworkPreparationOptions, "inspectGame" | "inspectImage">;
 }
 const owner = { format_version: 1, tool: "portcove-prepare-port" };
+type PackageFacts = Pick<
+  Awaited<ReturnType<typeof collectPortFacts>>,
+  "assets" | "assets_complete"
+> &
+  Partial<Pick<Awaited<ReturnType<typeof collectPortFacts>>, "release">>;
+
+/** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
+export function portablePreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
+  if (record.integration?.adapter !== "native-portable") return undefined;
+  const release = record.integration.release;
+  const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
+  const platforms = Array.isArray(record.integration.platforms)
+    ? record.integration.platforms.filter((value): value is string => typeof value === "string")
+    : [];
+  return {
+    ...packageHintFeedback(hints, platforms, facts, (name) =>
+      /\.(?:zip|tar\.gz|tgz)$/iu.test(name),
+    ),
+    persistence: Array.isArray(record.integration.persistent_paths)
+      ? record.integration.persistent_paths
+      : [],
+    manual_setup: {
+      completion_record: record.integration.setup_marker ?? null,
+      next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
+    },
+    launch_identity: {
+      original_game_title: record.listing.original_game_title ?? null,
+      next: record.listing.original_game_title
+        ? "Keep this underlying game title separate from its implementation and helper names."
+        : "Supply listing.original_game_title from the canonical game identity; do not make players distinguish the player from compiler or converter helpers.",
+    },
+    data_review:
+      "Review runtime writes as well as saves: original inputs, generated content, mods, logs and fallback locations. An empty contract needs evidence that ordinary data lives outside the runtime; disclose external backup limits. Self-replacement and version-dependent regeneration need another supported route. Generated executable caches need compatible producer identity or supported invalidation, not just a declared directory or ABI label.",
+    scope:
+      "Authoring observations only; Core retains package selection, trust and mutation authority.",
+  };
+}
+
+export function downloadPreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
+  const hints = record.listing.download_asset_hints;
+  if (!hints || !Object.keys(hints).length) return undefined;
+  return {
+    ...packageHintFeedback(hints, Object.keys(hints), facts),
+    scope:
+      "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified.",
+  };
+}
+
+function packageHintFeedback(
+  hints: Record<string, unknown>,
+  platforms: readonly string[],
+  facts: PackageFacts,
+  eligibleName?: (name: string) => boolean,
+) {
+  const tag =
+    isRecord(facts.release?.body) && typeof facts.release.body.tag_name === "string"
+      ? facts.release.body.tag_name
+      : null;
+  const versions =
+    tag && /\d+\.\d+/u.test(tag)
+      ? [...new Set([tag.toLowerCase(), tag.replace(/^v(?=\d)/iu, "").toLowerCase()])]
+      : [];
+  return {
+    assets_complete: facts.assets_complete,
+    maintenance: {
+      observed_release_tag: tag,
+      potential_version_restrictions: platforms.flatMap((platform) => {
+        const values = hints[platform];
+        const restricted = Array.isArray(values)
+          ? values.filter(
+              (value) =>
+                typeof value === "string" &&
+                versions.some((version) => value.toLowerCase().includes(version)),
+            )
+          : [];
+        return restricted.length ? [{ platform, hints: restricted }] : [];
+      }),
+      next: "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+      scope:
+        "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval.",
+    },
+    platforms: platforms.map((platform) => {
+      const values = hints[platform];
+      const needles = Array.isArray(values)
+        ? values.filter((value): value is string => typeof value === "string" && Boolean(value))
+        : [];
+      const matches = facts.assets.filter(
+        (asset): asset is Record<string, unknown> & { name: string } => {
+          if (!isRecord(asset) || typeof asset.name !== "string" || !needles.length) return false;
+          const name = asset.name.toLowerCase();
+          return (
+            (!eligibleName || eligibleName(name)) &&
+            needles.every((hint) => name.includes(hint.toLowerCase()))
+          );
+        },
+      );
+      return {
+        platform,
+        hint_matches: matches.map((asset) => ({
+          name: asset.name,
+          published_sha256:
+            typeof asset.digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(asset.digest),
+        })),
+        next: !facts.assets_complete
+          ? "Resolve incomplete selected-release assets before assessing package uniqueness."
+          : matches.length !== 1
+            ? "Review discriminating package hints; the selected release does not have exactly one literal match."
+            : "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition.",
+      };
+    }),
+  };
+}
 function openCheckpoint(directory: string) {
   try {
     mkdirSync(directory);
@@ -297,34 +409,47 @@ export async function preparePort(options: PrepareOptions) {
     : null;
   if (explicit && options.id && explicit.listing.id !== options.id)
     throw new Error("Record and selected stable ID differ.");
-  openCheckpoint(root);
-  try {
-    const facts = await collectPortFacts({
-      ...options.facts,
-      projectUrl: options.projectUrl ?? explicit?.listing.project_url,
-      issue: options.issue,
-      route: options.route ?? "listing",
-      releaseTag: options.releaseTag,
-      cacheDirectory: join(root, "facts"),
-    });
-    const matching = authored.records.filter(
-      (record) => record.listing.project_url === facts.project_url,
-    );
-    if (!explicit && !options.id && !facts.issue?.id && matching.length > 1)
+  const selected = authored.records.find((record) => record.listing.id === options.id);
+  const resolveIdentity = (projectUrl: string, issuePortId?: string) => {
+    const matching = authored.records.filter((record) => record.listing.project_url === projectUrl);
+    if (!explicit && !options.id && !issuePortId && matching.length > 1)
       throw new Error("Several implementations share this upstream; select the stable ID.");
-    const suggested = facts.repository
+    const suggested = githubRepository(projectUrl)
       ?.split("/")[1]
       ?.toLowerCase()
       .replace(/[^a-z0-9]+/gu, "-")
       .replace(/^-|-$/gu, "");
     const id =
-      explicit?.listing.id ?? options.id ?? facts.issue?.id ?? matching[0]?.listing.id ?? suggested;
+      explicit?.listing.id ?? options.id ?? issuePortId ?? matching[0]?.listing.id ?? suggested;
     if (!id) throw new Error("Supply a stable --id for this project.");
-    if (facts.issue?.id && facts.issue.id !== id)
+    if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
+    return { id, previous, base: explicit ?? previous };
+  };
+  openCheckpoint(root);
+  try {
+    const facts = await collectPortFacts({
+      ...options.facts,
+      projectUrl:
+        options.projectUrl ?? explicit?.listing.project_url ?? selected?.listing.project_url,
+      issue: options.issue,
+      route: options.route ?? "listing",
+      releaseTag: options.releaseTag,
+      resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
+        const { base } = resolveIdentity(projectUrl, issuePortId);
+        if (!base?.integration) return base?.listing.release_url;
+        const release = base.integration.release;
+        return isRecord(release) &&
+          (release.provider === undefined || release.provider === "github") &&
+          typeof release.repository === "string"
+          ? `https://github.com/${release.repository}`
+          : null;
+      },
+      cacheDirectory: join(root, "facts"),
+    });
+    const { id, previous, base } = resolveIdentity(facts.project_url, facts.issue?.id);
     const metadata = isRecord(facts.project?.body) ? facts.project.body : {};
-    const base = explicit ?? previous;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
       listing: {
@@ -344,6 +469,11 @@ export async function preparePort(options: PrepareOptions) {
     if (previous) checkLineageChange(previous, record);
     checkObservedRepository(record, metadata.id);
     if (
+      !record.integration &&
+      !(
+        record.listing.release_url &&
+        /^\/[^/]+\/[^/]+\/releases\/?$/u.test(new URL(record.listing.release_url).pathname)
+      ) &&
       facts.assets_complete &&
       facts.assets.length &&
       isRecord(facts.release?.body) &&
@@ -351,6 +481,9 @@ export async function preparePort(options: PrepareOptions) {
     ) {
       // Asset presence alone cannot establish that a usable game package exists.
       // Keep availability/platform claims authored by the selected route's reviewer.
+      // Managed release facts belong in the observation receipt, not an automatic
+      // version-specific listing edit. Preserve an authored release feed too;
+      // observing one release must not replace its deliberate ongoing route.
       record.listing.release_url = facts.release.body.html_url;
       record = checkedAuthoredPort(record);
     }
@@ -403,6 +536,8 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
+      portable_preparation: portablePreparationFeedback(record, facts),
+      download_preparation: downloadPreparationFeedback(record, facts),
       ...prepared,
       files: { ...prepared.files, upstream: immutableJson(root, "upstream", facts) },
       preparation_costs: preparationCosts(started),

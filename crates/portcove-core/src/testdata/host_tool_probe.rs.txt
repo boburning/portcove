@@ -23,6 +23,7 @@ fn main() {
         Some("extractdvd") => owned_conversion(&args),
         Some("extractcd") => owned_psx_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
+        Some(cli) if std::path::Path::new(cli).file_name().is_some_and(|name| name == "psxrecomp_cli.py") => owned_psx_build(&args),
         Some("--owned-builder-fixture") => {
             let mode = fs::read_to_string("owned-builder-mode").unwrap();
             fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
@@ -243,6 +244,43 @@ fn main() {
         }
         _ => println!("wrong program"),
     }
+}
+
+fn owned_psx_build(args: &[String]) {
+    // Only the first-party progression kit invokes this inert toolchain probe.
+    // No upstream script, compiler, game code or retail original is executed.
+    assert_eq!(fs::read("owned-progression-kit").unwrap(), b"first-party fixture");
+    assert!(args.iter().any(|arg| arg == "--no-toolchain-download"));
+    let argument = |name: &str| &args[args.iter().position(|arg| arg == name).unwrap() + 1];
+    match args[1].as_str() {
+        "generate" => {
+            let cue = std::path::Path::new(argument("--disc"));
+            let cue_text = fs::read_to_string(cue).unwrap();
+            assert!(cue_text.contains("TRACK 01 MODE2/2352"));
+            assert_eq!(fs::read(cue.parent().unwrap().join("disc%t.bin")).unwrap(), b"owned psx track");
+            assert_eq!(fs::read(argument("--bios")).unwrap(), b"owned inert bios");
+            fs::create_dir_all("psxrecomp/bios").unwrap();
+            fs::copy(argument("--bios"), "psxrecomp/bios/SCPH1001.BIN").unwrap();
+            fs::write("owned-generation-observed", b"verified owned disc and BIOS handoff").unwrap();
+        }
+        "rebuild" => {
+            assert_eq!(fs::read("owned-generation-observed").unwrap(), b"verified owned disc and BIOS handoff");
+            assert_eq!(fs::read("psxrecomp/bios/SCPH1001.BIN").unwrap(), b"owned inert bios");
+            let output = std::path::Path::new(argument("--build-dir"));
+            let version = fs::read_to_string("owned-bundled-version").unwrap();
+            let package = output.join("mods/packages/bundled").join(version);
+            fs::create_dir_all(&package).unwrap();
+            fs::write(package.join("package.toml"), b"inert bundled package").unwrap();
+            fs::write(output.join("mods/state.toml"), b"successor default state").unwrap();
+            fs::copy(argument("--config"), output.join("game.toml")).unwrap();
+            let basename = argument("--exe-basename");
+            let executable = if cfg!(windows) {format!("{basename}.exe")} else {basename.clone()};
+            fs::copy(env::current_exe().unwrap(), output.join(executable)).unwrap();
+        }
+        _ => panic!("unrecognized owned generation phase"),
+    }
+    // Keep the inert child observable to production process supervision.
+    thread::sleep(Duration::from_millis(120));
 }
 
 #[cfg(windows)]

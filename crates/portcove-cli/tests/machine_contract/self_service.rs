@@ -58,7 +58,7 @@ fn listing_only_selected_runtime_survives_cli_restart_relink_and_registration_re
     std::fs::write(&sentinel, b"player save stays in place").unwrap();
     // Keep a listing without an operational integration for launch-only registration.
     // This local native fixture is not an upstream package or gameplay observation.
-    let port = "opentyrian-opentyrian";
+    let port = "openra-openra";
     let listings = portcove(&library, &["--json", "catalog", "listings"]);
     assert!(listings.status.success(), "{listings:?}");
     assert!(

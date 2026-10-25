@@ -6,9 +6,8 @@
     "summary": "Explore Infinite Undiscovery Recomp (doc-haz) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
     "issue_number": 1670,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
+    "availability": "packages",
+    "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
     "artwork": {
       "game_id": 7019,
       "cover_id": 157311,
@@ -16,6 +15,97 @@
       "image_sha256": "3a2351226d066b1b6aea6f1a053216d0519f30b5301e9a623b3c27a39d72e2fa",
       "game_slug": "infinite-undiscovery",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Infinite Undiscovery",
+    "release_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["InfiniteUndiscoveryRecomp-", ".zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Import your own game on first Play",
+          "instruction": "The official Windows x64 ZIP is portable and has no installer. Choose InfiniteUndiscoveryRecomp.exe and keep its DLLs and notices together. On first Play, the game’s integrated wizard validates and imports your own Disc 1 from a supported XDVDFS ISO or extracted folder; Disc 2 and A/B Voucher DLC are optional. It identifies supported USA, USA-UNDUB, Europe, Japan and Asia editions from the media. Do not mix editions. Portcove does not run an extraction helper or developer compiler. Windows 10/11 x64 and Direct3D 12 are required; use Microsoft’s Visual C++ 2015–2022 x64 Redistributable if the documented runtime DLLs are missing."
+        },
+        {
+          "title": "Keep each content profile together",
+          "instruction": "The complete portable folder holds setup.json and separate USA, USA-UNDUB, EUROPE, JAPAN and ASIA profiles. Each configured profile owns its imported assets/DLC, saves and configuration. Keep cache/runtime.toml too: it contains runtime settings despite the cache folder name. Close the game before updates or copying data. Keep interrupted import/staging folders recoverable and consult upstream; do not merge different editions. Backups can include large original-game files and DLC, so keep them private. The separate IU Save Bridge companion is optional and is not run by Portcove."
+        },
+        {
+          "title": "Update an existing copy safely",
+          "instruction": "For a copy you register yourself, you or upstream provide updates. Extract a new official player into a separate folder, keep the working copy, and follow the selected release’s instructions for carrying its complete compatible content profiles and setup.json. Do not copy old runtime DLLs or shader caches over the replacement. Runtime rollback does not rewind saves or guarantee that older software can read them. The selected release-tag documentation had not tested the Disc 1 to Disc 2 transition. Later upstream documentation at 614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful transitions, while complete Disc 2 progression and a full playthrough remain unverified and a Vesplume Tower / Orb of Patience softlock remains under investigation. These are upstream reports; Portcove has not run the game."
+        }
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "release": {
+      "repository": "doc-haz/infinite-undiscovery-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["InfiniteUndiscoveryRecomp-", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["InfiniteUndiscoveryRecomp.exe"]
+    },
+    "persistent_paths": [
+      "setup.json",
+      "setup.json.tmp",
+      "USA/assets",
+      "USA/saves",
+      "USA/config.json",
+      "USA/config.json.tmp",
+      "USA/cache/runtime.toml",
+      "USA-UNDUB/assets",
+      "USA-UNDUB/saves",
+      "USA-UNDUB/config.json",
+      "USA-UNDUB/config.json.tmp",
+      "USA-UNDUB/cache/runtime.toml",
+      "EUROPE/assets",
+      "EUROPE/saves",
+      "EUROPE/config.json",
+      "EUROPE/config.json.tmp",
+      "EUROPE/cache/runtime.toml",
+      "JAPAN/assets",
+      "JAPAN/saves",
+      "JAPAN/config.json",
+      "JAPAN/config.json.tmp",
+      "JAPAN/cache/runtime.toml",
+      "ASIA/assets",
+      "ASIA/saves",
+      "ASIA/config.json",
+      "ASIA/config.json.tmp",
+      "ASIA/cache/runtime.toml"
+    ],
+    "runtime_mutable_paths": [
+      "USA/shaders",
+      "USA/logs",
+      "USA/cache/metadata",
+      "USA-UNDUB/shaders",
+      "USA-UNDUB/logs",
+      "USA-UNDUB/cache/metadata",
+      "EUROPE/shaders",
+      "EUROPE/logs",
+      "EUROPE/cache/metadata",
+      "JAPAN/shaders",
+      "JAPAN/logs",
+      "JAPAN/cache/metadata",
+      "ASIA/shaders",
+      "ASIA/logs",
+      "ASIA/cache/metadata"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Choose Play to import your own supported Disc 1 with the game’s setup wizard. Disc 2 and DLC are optional. Portcove updates the Windows player and preserves imported game files, saves and settings. Backups can be large and contain original-game files; keep them private. Runtime rollback keeps current saves, which older versions may not read. Requires Windows 10/11 x64, Direct3D 12 and Microsoft’s documented VC++ x64 runtime. Upstream reports incomplete full-game validation and a Vesplume Tower softlock under investigation."
     }
   }
 }

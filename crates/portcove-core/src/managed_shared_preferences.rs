@@ -35,7 +35,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let legacy = contract == PreparedSharedPreferencesContract::Regaiden041Windows;
     let reviewed = contract == PreparedSharedPreferencesContract::GbRecompiledWindowsV1;
     if reviewed {
-        crate::managed_runtime_policy::artifact(port)?;
+        crate::managed_runtime_policy::validate_release_rules(port)?;
         let save_id = port
             .managed_shared_preferences_save_id
             .as_deref()
@@ -56,7 +56,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         || (!reviewed && port.managed_shared_preferences_save_id.is_some())
         || port.platforms != [crate::Platform::WindowsX86_64]
         || port.adapter != crate::AdapterKind::StagedSourcePortable
-        || port.release.provider != crate::ReleaseSource::DirectManifest
+        || (legacy && port.release.provider != crate::ReleaseSource::DirectManifest)
         || !port.release.user_prepared.is_empty()
         || (legacy
             && release.is_none_or(|release| {
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn exact_managed_route_refuses_weakened_artifact_and_historical_reinterpretation() {
-        let catalog = crate::Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::historical_managed_policy_catalog();
         let port = catalog.port(PORT).unwrap().clone();
         validate(&port).unwrap();
         let artifact = crate::ArtifactIdentity {

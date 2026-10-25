@@ -50,7 +50,10 @@ impl ReleaseProvider for CompositeReleaseProvider {
             None => self
                 .resolve(port, channel, platform)
                 .await
-                .map(crate::ScopedResolvedRelease::legacy),
+                .and_then(|release| {
+                    crate::ScopedResolvedRelease::legacy(release)
+                        .for_selection(port, platform, channel)
+                }),
         }
     }
 

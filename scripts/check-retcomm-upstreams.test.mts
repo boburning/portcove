@@ -13,43 +13,31 @@ import type {
 
 // These fixtures inspect only the fields used by the RetComM boundary tests.
 // The generated Rust contract owns their field types; this is not catalog admission.
-type IndependentFixture = Pick<PortDefinition, "id" | "platforms" | "project_url"> & {
-  release: Partial<Pick<ReleaseSpec, "repository">> & {
+type IndependentFixture = Pick<PortDefinition, "id" | "adapter" | "platforms" | "project_url"> & {
+  release: Partial<Pick<ReleaseSpec, "repository" | "provider">> & {
     direct: { "windows-x86-64": Pick<DirectReleaseSpec, "url" | "sha256" | "size" | "version"> };
   };
 };
-function independentFixtures(catalog: unknown): IndependentFixture[] {
-  assert.ok(isRecord(catalog) && Array.isArray(catalog.ports));
-  const ports: unknown[] = catalog.ports;
-  const selected = ports.filter(
-    (entry) =>
-      isRecord(entry) &&
-      ["alexbeav-ape-escape-recomp", "alexbeav-alundra-recomp"].includes(String(entry.id)),
-  );
-  return selected.map((entry) => {
-    assertIndependentFixture(entry);
-    return entry;
-  });
-}
-function assertIndependentFixture(value: unknown): asserts value is IndependentFixture {
-  assert.ok(
-    isRecord(value) &&
-      typeof value.id === "string" &&
-      typeof value.project_url === "string" &&
-      Array.isArray(value.platforms) &&
-      value.platforms.every((platform: unknown) => typeof platform === "string") &&
-      isRecord(value.release) &&
-      (value.release.repository === undefined || typeof value.release.repository === "string") &&
-      isRecord(value.release.direct),
-  );
-  const artifact = value.release.direct["windows-x86-64"];
-  assert.ok(
-    isRecord(artifact) &&
-      typeof artifact.url === "string" &&
-      typeof artifact.sha256 === "string" &&
-      typeof artifact.size === "number" &&
-      typeof artifact.version === "string",
-  );
+function independentFixtures(): IndependentFixture[] {
+  // The direct-contract boundary remains testable when a real port moves to
+  // reusable provider rules. These inert identities grant no catalog admission.
+  return ["first", "second"].map((name): IndependentFixture => ({
+    id: `independent-${name}`,
+    adapter: "psx-recomp-managed",
+    project_url: `https://github.com/independent/${name}`,
+    platforms: ["windows-x86-64"],
+    release: {
+      provider: "direct-manifest",
+      direct: {
+        "windows-x86-64": {
+          url: `https://github.com/independent/${name}/releases/download/v1/game.zip`,
+          version: "v1",
+          size: 42,
+          sha256: "a".repeat(64),
+        },
+      },
+    },
+  }));
 }
 
 function requiredFixture<T>(value: T | null | undefined): T {
@@ -62,7 +50,7 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { spawnSync } = await import("node:child_process");
-  const { pathToFileURL } = await import("node:url");
+  const { pathToFileURL, fileURLToPath } = await import("node:url");
   const root = await mkdtemp(join(tmpdir(), "portcove-offline-"));
   try {
     await mkdir(join(root, "scripts"));
@@ -105,13 +93,7 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
       assert.doesNotMatch(invalid.stderr, /NETWORK_FORBIDDEN/);
     }
 
-    const actualCatalog: unknown = JSON.parse(
-      await readFile(
-        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
-        "utf8",
-      ),
-    );
-    const independent = independentFixtures(actualCatalog);
+    const independent = independentFixtures();
     assert.equal(independent.length, 2);
     await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
     await writeFile(catalogFile, JSON.stringify({ ports: [port, ...independent] }));
@@ -244,6 +226,64 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
     assert.equal(renamed.status, 0, renamed.stderr);
     assert.match(renamed.stdout, /independent-fixture/);
     assert.match(renamed.stdout, /Checked 1 local PlayStation upstream mapping\./);
+    const github = {
+      ...direct,
+      id: "independent-provider",
+      release: { repository: "independent/first" },
+    };
+    await writeFile(catalogFile, JSON.stringify({ ports: [port, github] }));
+    const provider = run("--offline");
+    assert.equal(provider.status, 0, provider.stderr);
+    assert.match(provider.stdout, /independent-provider/);
+    assert.match(provider.stdout, /upstream health NOT_CHECKED/);
+    assert.match(provider.stdout, /Checked 1 local PlayStation upstream mapping\./);
+    for (const [name, candidate] of [
+      [
+        "malformed release identity",
+        { ...github, release: { repository: "other/game?alias=owner" } },
+      ],
+      ["project alias", { ...github, project_url: `${github.project_url}?alias=other` }],
+      [
+        "mapped repository",
+        {
+          ...github,
+          project_url: "https://github.com/owner/game",
+          release: { repository: "owner/game" },
+        },
+      ],
+      [
+        "launcher substitution",
+        {
+          ...github,
+          project_url: "https://github.com/TechnicallyComputers/RetComM-Launcher",
+          release: { repository: "TechnicallyComputers/RetComM-Launcher" },
+        },
+      ],
+      [
+        "mixed direct authority",
+        { ...github, release: { ...github.release, direct: direct.release.direct } },
+      ],
+      ["other provider", { ...github, release: { ...github.release, provider: "gitlab" } }],
+      ["repeated platform", { ...github, platforms: ["windows-x86-64", "windows-x86-64"] }],
+    ] as const) {
+      await writeFile(catalogFile, JSON.stringify({ ports: [port, candidate] }));
+      const rejected = run("--offline");
+      assert.equal(rejected.status, 1, `${name}: ${rejected.stderr}`);
+      assert.match(rejected.stderr, /missing RetComM title mapping/);
+      assert.doesNotMatch(rejected.stderr, /NETWORK_FORBIDDEN/);
+    }
+    const actual = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        pathToFileURL(preload).href,
+        fileURLToPath(new URL("./check-retcomm-upstreams.mts", import.meta.url)),
+        "--offline",
+      ],
+      { encoding: "utf8", env: { ...process.env, RETCOMM_CATALOG_DIR: "" } },
+    );
+    assert.equal(actual.status, 0, actual.stderr);
+    assert.match(actual.stdout, /independent release rules or pinned artifacts/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -262,14 +302,7 @@ void test("RetComM remote manifests fall back only after 404 and retain access f
       new URL("./runtime-values.mts", import.meta.url),
       path.join(root, "scripts/runtime-values.mts"),
     );
-    const independent = independentFixtures(
-      JSON.parse(
-        await readFile(
-          new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
-          "utf8",
-        ),
-      ),
-    );
+    const independent = independentFixtures();
     assert.equal(independent.length, 2);
     await writeFile(
       path.join(root, "crates/portcove-core/catalog/catalog.json"),

@@ -109,8 +109,16 @@ pub(crate) enum KnownFailureCause {
     SourceChanged,
     AmbiguousAdoption,
     StaleRemoval,
-    PortableRuntimeModified,
+    PortableRuntimeModified {
+        directory: std::path::PathBuf,
+        failures: Vec<String>,
+    },
     PortableDataContractChanged,
+    ManagedRouteCommitted {
+        version: String,
+        previous_path: std::path::PathBuf,
+        current_confirmed: bool,
+    },
     RestoreRecovery,
     BackupDeletionRecovery,
     TfePreparationRecovery {
@@ -188,14 +196,55 @@ impl KnownFailureCause {
                 "removal_review_stale",
                 "The managed installations changed after removal was reviewed. Review the current removal plan and provide fresh consent.",
             ),
-            Self::PortableRuntimeModified => (
-                "portable_runtime_modified",
-                "Portcove found changed runtime files or unrecognized additions and stopped this operation. Your existing files were preserved. Review the affected paths in technical details. Back up your changes outside the managed installation, then restore changed package files or move unrecognized additions before trying again.",
-            ),
+            Self::PortableRuntimeModified {
+                directory,
+                failures,
+            } => {
+                let paths = failures
+                    .iter()
+                    .take(8)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let remainder = failures.len().saturating_sub(8);
+                return (
+                    "portable_runtime_modified",
+                    format!(
+                        "Package files changed, went missing, or unrecognized files were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move unrecognized additions before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
+                        directory.display(),
+                        paths,
+                        if remainder > 0 {
+                            format!("\n{remainder} more reported paths are in technical details.")
+                        } else {
+                            String::new()
+                        }
+                    ),
+                );
+            }
             Self::PortableDataContractChanged => (
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
             ),
+            Self::ManagedRouteCommitted {
+                version,
+                previous_path,
+                current_confirmed,
+            } => {
+                let outcome = if *current_confirmed {
+                    format!("The managed copy ({version}) is now active")
+                } else {
+                    format!(
+                        "The managed copy ({version}) was activated; its current active state is not confirmed"
+                    )
+                };
+                return (
+                    "managed_route_committed",
+                    format!(
+                        "{outcome}. Finishing the operation needs recovery. Restart Portcove to reconcile it, then review the current installation before continuing. Your previous external files remain at {}. They were not copied into the managed version.",
+                        previous_path.display()
+                    ),
+                );
+            }
             Self::RestoreRecovery => (
                 "restore_recovery_required",
                 "A backup restore is unfinished. Restart Portcove to reconcile it, then review recovery before launching or collecting saves. Preserve the backup and safety copy.",
@@ -333,6 +382,28 @@ impl PortcoveError {
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
         self.failure.known_cause = Some(cause);
         self
+    }
+
+    /// The publication owner supplies its observed successful metadata commit.
+    /// Failure diagnostics and optional database readback never establish it.
+    pub(crate) fn mark_managed_route_committed(
+        &mut self,
+        install: &crate::InstallRecord,
+        previous_path: &std::path::Path,
+        current_confirmed: bool,
+    ) {
+        self.failure.mutation_state = MutationState::Committed;
+        self.failure.known_cause = Some(KnownFailureCause::ManagedRouteCommitted {
+            version: install.version.clone(),
+            previous_path: previous_path.to_owned(),
+            current_confirmed,
+        });
+        self.details
+            .insert("committed_install_id".into(), install.id.clone());
+        self.details
+            .insert("committed_version".into(), install.version.clone());
+        self.details
+            .insert("external_files_preserved".into(), "true".into());
     }
 
     /// Display context from the operation's resolved definition, never diagnostics.
@@ -637,7 +708,13 @@ mod tests {
         for state in [MutationState::Unknown, MutationState::Committed] {
             for (cause, key, action) in [
                 (
-                    KnownFailureCause::PortableRuntimeModified,
+                    KnownFailureCause::PortableRuntimeModified {
+                        directory: std::path::PathBuf::from("C:/Games/<preserve>"),
+                        failures: vec![
+                            "changed: Game.exe".into(),
+                            "unexpected: custom-notes.txt".into(),
+                        ],
+                    },
                     "portable_runtime_modified",
                     "Back up",
                 ),
