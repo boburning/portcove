@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mlb-power-pros-2008-mlbpowerpros2008recomp",
+    "name": "MLB Power Pros 2008 (MLBPowerPros2008Recomp)",
+    "summary": "Upstream route: Upstream setup compiles from Wii USA disc; Win/Linux assets Limits: Setup verified only on developer PC upstream; Linux/SteamDeck experimental. Upstream platforms: Windows x86-64 and Linux x86-64 setup assets; Linux/SteamDeck experimental and setup previously verified only on developer PC upstream. Original data: Own clean MLB Power Pros 2008 Wii USA disc dump RL8E54. Upstream Setup verifies the game ID, extracts data and translates/compiles on the player PC. Neither game image, executable, keys nor firmware is supplied; exact supported dump representation/revision beyond the clean RL8E54 target follows the selected Setup. Portcove setup/gameplay not verified.",
+    "original_game_title": "MLB Power Pros 2008",
+    "project_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp",
+    "artwork": {
+      "game_id": 5010,
+      "cover_id": 209407,
+      "image_id": "co4hkv",
+      "image_sha256": "8af166b1c30964ec7dd5f190901829de1bf7207d9c57aeb0dc201333e3bcdb50",
+      "game_slug": "mlb-power-pros-2008",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2694
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mlb-power-pros-2008-mlbpowerpros2008recomp",
+    "origin": {
+      "project_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1418296430"
+      }
+    },
+    "decisions": []
+  }
+}

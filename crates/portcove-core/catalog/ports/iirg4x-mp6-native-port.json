@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "iirg4x-mp6-native-port",
+    "name": "Mario Party 6 (Starlit Party)",
+    "summary": "Upstream route: Upstream runtime package for Starlit Party; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports boards/modes/ending but only49of81minigames playable. Boards skip unsupported games with a notice; incompleteness remains visible. Only49/81 minigames playable; unsupported boards minigames skipped with notice. Windows/Android/browser assets; browser iPhone route not iOS runtime binary. Upstream platforms: Windows, Android ARM64 and browser/iPhone WebGPU. Web ZIP is not a native iOS binary; other desktop hosts Unknown. Original data: GameCube MarioParty6 USA own disc/extracted files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Mario Party 6",
+    "project_url": "https://github.com/iirg4x/mp6-native-port",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/iirg4x/mp6-native-port",
+    "artwork": {
+      "game_id": 2333,
+      "cover_id": 94776,
+      "image_id": "co214o",
+      "image_sha256": "3c8ade1cac90db2d59b63bf572dac01d199581e2b0263ed3194b69e2cae73f4e",
+      "game_slug": "mario-party-6",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2843
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "iirg4x-mp6-native-port",
+    "origin": {
+      "project_url": "https://github.com/iirg4x/mp6-native-port",
+      "repository": {
+        "host": "github.com",
+        "id": "1304098289"
+      }
+    },
+    "decisions": []
+  }
+}

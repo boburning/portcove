@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nycolazs-windwakerhd-android-plus",
+    "name": "The Legend of Zelda: The Wind Waker HD (Wind Waker HD Recompiled [Android] - Plus)",
+    "summary": "Upstream route: UpstreamAndroidPlusAPK locally prepares/staticallycompiles ownWiiUdata ondevice and runs nativeARM64/Vulkan. Its own permanent signing/updatekey and launcher own replacement; parentEnhanced/base projects are lineage, not an interchangeable package. Limits: Upstream only: Maintained Plus fork with localization/performance fixes. Enhanced/base parent scopes remain separate; no independent campaign/device qualification here. AndroidPlus builds on Enhanced then original Android port, adds BrazilianPortuguese. Reuse parent implementation/acquisition unless maintained difference warrants separate identity; AndroidARM64Vulkan only. Upstream platforms: Android ARM64/Vulkan, on-device preparation. Source needs SDK36/NDK27.2/JDK17; ancestry does not establish desktop player. Original data: WiiU WindWakerHD USA/Europe/Japan own game data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Legend of Zelda: The Wind Waker HD",
+    "project_url": "https://github.com/Nycolazs/WindWakerHD-Android-Plus",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Nycolazs/WindWakerHD-Android-Plus",
+    "artwork": {
+      "game_id": 2276,
+      "cover_id": 172350,
+      "image_id": "co3ozi",
+      "image_sha256": "2a1bbeb196640888a17f5911593796fe7fe73c25fff25201c789ad6ea0cec8f6",
+      "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2857
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nycolazs-windwakerhd-android-plus",
+    "origin": {
+      "project_url": "https://github.com/Nycolazs/WindWakerHD-Android-Plus",
+      "repository": {
+        "host": "github.com",
+        "id": "1411941361"
+      }
+    },
+    "decisions": []
+  }
+}

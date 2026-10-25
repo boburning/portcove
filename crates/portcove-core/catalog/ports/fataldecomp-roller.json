@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "fataldecomp-roller",
+    "name": "Whiplash (ROLLER)",
+    "summary": "Upstream route: Upstream runtime package for ROLLER; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream aims to reproduce Whiplash/Fatal Racing. Daily dev builds and the matching DOS decompilation are separate; release existence is not completeness. Native modern-PC implementation; separate matching DOS decompilation is development source. Daily dev release assets Windows/Linux/macOS/Android exist, not stable certification. Upstream platforms: Modern Windows/Unix SDL source route, browser and multi-platform dev packages; CPU coverage follows selected docs. Original data: DOS Whiplash/Fatal Racing 1995 original game files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Whiplash",
+    "project_url": "https://github.com/FatalDecomp/ROLLER",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/FatalDecomp/ROLLER",
+    "issue_number": 2792
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "fataldecomp-roller",
+    "origin": {
+      "project_url": "https://github.com/FatalDecomp/ROLLER",
+      "repository": {
+        "host": "github.com",
+        "id": "883409588"
+      }
+    },
+    "decisions": []
+  }
+}

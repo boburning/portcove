@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-3-classic-dude-doom-3-unified-development-engine",
+    "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
+    "summary": "Upstream route: Published Linux x86_64 tar.gz and Windows x64 ZIP; optional baked-AO ZIP. Limits: Maintained Doom 3 fork with v0.9.6 path-tracing release; renderer hardware requirements differ. Classic edition only. Upstream platforms: Windows x86-64 ZIP and Linux x86-64 tar.gz; native GL/Vulkan renderer requirements differ by mode. Original data: Own original classic Doom3 base/*.pk4 files. Use the engine-required patched classic version. Doom3 BFG Edition files are unsupported. Portcove setup/gameplay not verified.",
+    "original_game_title": "Doom 3 (classic)",
+    "project_url": "https://github.com/Inkub0/dude",
+    "issue_number": 2565,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Inkub0/dude"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doom-3-classic-dude-doom-3-unified-development-engine",
+    "origin": {
+      "project_url": "https://github.com/Inkub0/dude",
+      "repository": {
+        "host": "github.com",
+        "id": "1339409147"
+      }
+    },
+    "decisions": []
+  }
+}

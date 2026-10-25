@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
+    "name": "Hogs of War / Frontschweine (PlayStation German PAL) (Frontschweine Recompiled)",
+    "summary": "Upstream route: Windows x64 setup ZIP with source; user supplies Python3.11+, then Generate & rebuild compiles privately. No prebuilt game code. Limits: Upstream start-to-finish claim with retained interpreter fallback when optional overlay toolchain fails; German edition only. Upstream platforms: Windows10/11 x86-64 setup pack, user Python3.11+ and downloaded toolchain; local PS1 code generation/build. No other established player package. Original data: User-owned German PAL SLES-02767 CUE plus three BIN tracks; exact data-track checksum checked; other regions unsupported. Portcove setup/gameplay not verified.",
+    "original_game_title": "Hogs of War / Frontschweine (PlayStation German PAL)",
+    "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Nero2611/FrontschweineRecomp",
+    "issue_number": 2680
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
+    "origin": {
+      "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1416787999"
+      }
+    },
+    "decisions": []
+  }
+}

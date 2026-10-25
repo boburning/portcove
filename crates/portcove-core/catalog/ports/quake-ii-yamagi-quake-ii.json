@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-ii-yamagi-quake-ii",
+    "name": "Quake II (Yamagi Quake II)",
+    "summary": "Upstream route: Official Yamagi Windows 8.70a binary archive, or upstream 8.70 source build; own original Quake II data and separately selected expansion data/code. Limits: Official README describes mature enhanced client and addon repositories. GitHub Releases empty; official distribution site and expansion package handling need follow-up. Upstream platforms: Official Windows8.70a binary download and Linux/BSD source builds; code is64-bit clean but selected Windows artifact CPU unknown in frozen web page. macOS is community-supported. Original data: Original-data contract remains Unknown in the retained Yamagi Quake II README: establish the classic Quake II retail installation/data set and accepted patch/revision before offering setup. The Reckoning and Ground Zero are separate add-on implementations/data, and Quake II Remaster assets use a separate Yamagi remaster project; do not assume they substitute for classic base-game files. Portcove setup/gameplay not verified.",
+    "original_game_title": "Quake II",
+    "project_url": "https://github.com/yquake2/yquake2",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/yquake2/yquake2",
+    "issue_number": 2700
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "quake-ii-yamagi-quake-ii",
+    "origin": {
+      "project_url": "https://github.com/yquake2/yquake2",
+      "repository": {
+        "host": "github.com",
+        "id": "4174342"
+      }
+    },
+    "decisions": []
+  }
+}

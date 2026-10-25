@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hayatog-iss-pc",
+    "name": "inFAMOUS Second Son (iss_pc)",
+    "summary": "Upstream route: Upstream runtime package for iss_pc; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports early chapters, 20-30 FPS typical on RTX2060 and graphics glitches. Complete campaign and broad GPU coverage unproven. Upstream early chapters, 20-30FPS RTX2060, known graphics errors; AMD RX580 experimental crashes and F16C adaptation. Linux/Windows packages not full campaign proof. Upstream platforms: Windows/Linux x86-64 PS4/Vulkan runtime. RX580 compatibility experimental; older CPU F16C workarounds documented. Original data: PS4 inFAMOUS Second Son CUSA00223 base1.00+update1.07 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "inFAMOUS Second Son",
+    "project_url": "https://github.com/HayatoG/iss_pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/HayatoG/iss_pc",
+    "issue_number": 2788
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hayatog-iss-pc",
+    "origin": {
+      "project_url": "https://github.com/HayatoG/iss_pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1418054191"
+      }
+    },
+    "decisions": []
+  }
+}

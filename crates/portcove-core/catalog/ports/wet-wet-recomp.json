@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wet-wet-recomp",
+    "name": "WET (WET Recomp)",
+    "summary": "Upstream route: Windows package/launcher; source-build instructions also present Limits: Own disc import; launcher self-update explicitly replaces port files while preserving game folder. Non-owning route may be simplest. Upstream platforms: Windows10/11 x86-64 package/launcher and Linux x86-64 Vulkan source-build preset. WPF launcher is Windows-only; Linux requires extracted-data build route. Original data: Own WET Xbox 360 ISO. The upstream Windows launcher imports it into game/; Linux source builds use extracted data in game/. ReXGlue preparation consumes the game executable and assets. Reviewed README does not identify the accepted region, media ID, executable revision or digest. Portcove setup/gameplay not verified.",
+    "original_game_title": "WET",
+    "project_url": "https://github.com/Supermedo/wet-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Supermedo/wet-recomp",
+    "issue_number": 2720
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wet-wet-recomp",
+    "origin": {
+      "project_url": "https://github.com/Supermedo/wet-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1380284466"
+      }
+    },
+    "decisions": []
+  }
+}

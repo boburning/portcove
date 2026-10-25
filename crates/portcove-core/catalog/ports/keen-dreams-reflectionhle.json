@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "keen-dreams-reflectionhle",
+    "name": "Keen Dreams (ReflectionHLE)",
+    "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Keen Dreams game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
+    "original_game_title": "Keen Dreams",
+    "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+    "artwork": {
+      "game_id": 2442,
+      "cover_id": 100802,
+      "image_id": "co25s2",
+      "image_sha256": "ecfb79ee13779a3c011101c87be8506da1c7f64eaa72e46f7eae109066a353fe",
+      "game_slug": "commander-keen-in-keen-dreams",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2683
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "keen-dreams-reflectionhle",
+    "origin": {
+      "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
+      "repository": {
+        "host": "github.com",
+        "id": "24228275"
+      }
+    },
+    "decisions": []
+  }
+}

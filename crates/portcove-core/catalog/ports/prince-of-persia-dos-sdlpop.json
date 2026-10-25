@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "prince-of-persia-dos-sdlpop",
+    "name": "Prince of Persia (DOS) (SDLPoP)",
+    "summary": "Research listing. Upstream route: Native disassembly-derived port; official README links desktop builds externally. Limits: Review complete package contents and lawful original-data handling before managed admission. Upstream platforms: Official external desktop builds and documented Windows/Unix/macOS source compilation. Selected package CPU architectures unknown in frozen research. Original data: Original-data/package contract remains Unknown for this SDLPoP route: establish whether the selected distribution already includes necessary Prince of Persia DOS data and which original v1.0/modified DAT set is accepted. Retained README supports original/mod DAT files and MIDISND*.DAT music, but does not establish a separate player-owned executable/ROM requirement. Do not impose one without evidence; asset permission review remains separate. Portcove setup/gameplay not verified.",
+    "original_game_title": "Prince of Persia (DOS)",
+    "project_url": "https://github.com/NagyD/SDLPoP",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/NagyD/SDLPoP",
+    "issue_number": 2892
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "prince-of-persia-dos-sdlpop",
+    "origin": {
+      "project_url": "https://github.com/NagyD/SDLPoP",
+      "repository": {
+        "host": "github.com",
+        "id": "34942109"
+      }
+    },
+    "decisions": []
+  }
+}

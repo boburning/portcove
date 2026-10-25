@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-perfect-dark-recomp",
+    "name": "Perfect Dark (Perfect Dark: Recompiled)",
+    "summary": "Upstream route: Upstream runtime package for Perfect Dark: Recompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports Defection mission and persistent saves. WSL GPU failures included a host freeze; Windows audio and long sessions remain incompletely tested. Upstream reports Defection mission; Linux WSL Dozen GPU hangs and host freeze, Windows audio only disk driver and short plays; no full-game or physical controller evidence. Upstream platforms: Windows/Linux x86-64 and browser. Windows uses D3D12. Linux WSL/Dozen hardware path has serious stability limits. Original data: N64 Perfect Dark USA revision 1, NPDE version 01, 32 MiB ROM, MD5 e03b088b6ac9e0080440efed07c1e40f. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Perfect Dark",
+    "project_url": "https://github.com/n64hub/perfect-dark-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/n64hub/perfect-dark-recomp",
+    "issue_number": 2776
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "n64hub-perfect-dark-recomp",
+    "origin": {
+      "project_url": "https://github.com/n64hub/perfect-dark-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1428793522"
+      }
+    },
+    "decisions": []
+  }
+}

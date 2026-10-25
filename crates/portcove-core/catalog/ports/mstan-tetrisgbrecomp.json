@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mstan-tetrisgbrecomp",
+    "name": "Tetris (TetrisGBRecomp)",
+    "summary": "Upstream route: Upstream runtime package for TetrisGBRecomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream believes all modes fully playable with zero fallback. v0.0.2 rejected correct ROMs; corrected v0.0.3 gate is required. Upstream believes all modes playable with zero fallback. v0.0.2 rejected all ROMs; use corrected v0.0.3 package and precise ROM gate. Upstream platforms: Native PC release/source route documented. Exact OS/CPU coverage beyond selected release documentation remains Unknown. Original data: Game Boy Tetris World v1.0, CRC32 63F9407D; not v1.1. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Tetris",
+    "project_url": "https://github.com/mstan/TetrisGBRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mstan/TetrisGBRecomp",
+    "issue_number": 2738
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mstan-tetrisgbrecomp",
+    "origin": {
+      "project_url": "https://github.com/mstan/TetrisGBRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1197865673"
+      }
+    },
+    "decisions": []
+  }
+}

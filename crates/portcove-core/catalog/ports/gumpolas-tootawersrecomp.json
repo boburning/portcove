@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gumpolas-tootawersrecomp",
+    "name": "The Lord of the Rings: The Two Towers — Original Xbox (Two Towers Recomp)",
+    "summary": "Upstream route: Upstream portableWindows/Linux/macOSpackages include runtime+own-disc setup; first start selectsISO oruses extractedgame_files. Source kit generate.py translates default.xbe thenCMakebuilds. Upstream owns preparation; separate fromAthelasTwoTowersimplementation. Limits: Upstream only: Upstream says fully playable WIP. Co-op/versus alpha, widescreen/unlocked FPS experimental; shadow, lighting and hero/UI issues remain. Windows/Linux/macOS x64 assets, experimental unlocked FPS. Separate from Athelas embedded Two Towers until ancestry/independent maintenance established. Upstream platforms: Windows 7SP1/8.1/10/11 x64, Linux x64 glibc 2.27+, macOS 10.15+ Intel/Rosetta2. Source-build tools separate. Original data: Own originalXbox TheLordOfTheRingsTwoTowers USA2002 ISO or extracted game with default.xbe. Gumpolas pipeline checks USA executable before local translation. Optional GameCube GLOS69 high-resolution texture pack is separate and not needed for basic play. Exact accepted hash/revision not established in reviewed README; no separate BIOS input described. Portcove setup/gameplay not verified.",
+    "original_game_title": "The Lord of the Rings: The Two Towers",
+    "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Gumpolas/TooTawersRecomp",
+    "issue_number": 2796
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gumpolas-tootawersrecomp",
+    "origin": {
+      "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1408079933"
+      }
+    },
+    "decisions": []
+  }
+}

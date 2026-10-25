@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "promethendev-wwe13-recomp",
+    "name": "WWE '13 (WWE '13 Recomp)",
+    "summary": "Upstream route: UpstreamWWE13ZIP includes Windowsgame+launcher and Linux-x86_64game+launcher. Launcher importsISO/folder andTU/DLC, first start prepares graphics. It owns optionalverified updates/rollback; source ReXGlue code generation is development route, not player prerequisite. Limits: Upstream only: Upstream v1.5runtime, graphics preparation and updater. Intro's latest-v1.1text stale; actual player layout/release overrides cache. Full campaign untested here. README latest-v1.1 stale versus actual v1.5 assets; compatible-release evidence overrides cached README. Windows/Linux claim must be mapped to actual ZIP contents before asset selector. Upstream platforms: README explicitly includes Windows x64 game/launcher and Linux-x86_64 game/launcher in one ZIP. Development build is separate. Original data: Xbox360 WWE13 own base ISO/folder, title update/DLC supplied separately. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "WWE '13",
+    "project_url": "https://github.com/PromethenDev/wwe13-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/PromethenDev/wwe13-recomp",
+    "artwork": {
+      "game_id": 5295,
+      "cover_id": 130303,
+      "image_id": "co2sjj",
+      "image_sha256": "90e95636b0a59e600122f6a105939cab21b1d5dde1cc6afe818904396a21556b",
+      "game_slug": "wwe-13",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2855
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "promethendev-wwe13-recomp",
+    "origin": {
+      "project_url": "https://github.com/PromethenDev/wwe13-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1401778355"
+      }
+    },
+    "decisions": []
+  }
+}

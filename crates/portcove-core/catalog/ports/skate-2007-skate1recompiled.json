@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "skate-2007-skate1recompiled",
+    "name": "skate (2007) (Skate1Recompiled)",
+    "summary": "Upstream route: Windows package; drag own ISO to Setup.bat Limits: Release setup documents a playable executable route; macOS ARM64 source build explicitly untested. Upstream platforms: Windows package/source route; selected Windows archive CPU unknown in frozen research. macOS ARM64 source instructions explicitly untested; Intel Mac unsupported. Original data: Own Xbox 360 skate (2007) disc image. Upstream release setup imports the ISO; source extraction examples use Skate. (USA).iso. Preserve all extracted game files, including default.xex. Exact accepted regional executable revision/hash remains unspecified in the reviewed README. Portcove setup/gameplay not verified.",
+    "original_game_title": "skate (2007)",
+    "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
+    "issue_number": 2607
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "skate-2007-skate1recompiled",
+    "origin": {
+      "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1411589933"
+      }
+    },
+    "decisions": []
+  }
+}

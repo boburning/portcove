@@ -32,6 +32,7 @@ function sourceFunction(value: unknown) {
 }
 import { errorCode, isRecord } from "./runtime-values.mts";
 import "../apps/desktop/scripts/desktop-completion-focus.native.test.mts";
+import { assertReviewFieldPresentation } from "../apps/desktop/scripts/desktop-review-presentation.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
@@ -96,22 +97,104 @@ void test("owned fixture CLI binds catalog, preferences, literal selection and r
     assert.throws(() => command(["status"]));
 });
 
+void test("review presentation executes its actual serialized browser observation", async () => {
+  const field = { role: "field" },
+    label = { role: "label" },
+    dialog = { role: "dialog" };
+  const fieldStyle = {
+    width: "200px",
+    paddingLeft: "10px",
+    borderStyle: "solid",
+    borderWidth: "1px",
+    backgroundColor: "rgb(1, 1, 1)",
+    color: "rgb(250, 250, 250)",
+  };
+  const labelStyle = { fontWeight: "700", color: "rgb(240, 240, 240)" };
+  const dialogStyle = { backgroundColor: "rgb(2, 2, 2)" };
+  let calls = 0;
+  const browser = {
+    executeScript: async (callback: unknown, ...elements: unknown[]) => {
+      calls++;
+      assert.equal(typeof callback, "function");
+      assert.deepEqual(elements, [field, label, dialog]);
+      // WebDriver serializes the actual callback. VM execution here models
+      // that browser boundary, rather than slicing declarations from a file.
+      return runInNewContext(`(${String(callback)})(...elements)`, {
+        elements,
+        getComputedStyle(element: unknown) {
+          if (element === field) return fieldStyle;
+          if (element === label) return labelStyle;
+          assert.equal(element, dialog);
+          return dialogStyle;
+        },
+      });
+    },
+  };
+  const result = await sourceFunction(assertReviewFieldPresentation)(browser, field, label, dialog);
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), {
+    ...fieldStyle,
+    dialogBackgroundColor: dialogStyle.backgroundColor,
+    labelColor: labelStyle.color,
+    labelFontWeight: labelStyle.fontWeight,
+  });
+  assert.equal(calls, 1);
+});
+
+void test(
+  "native review facade consumes the importable presentation helper without optional packages",
+  { timeout: 25_000 },
+  () => {
+    const entry = new URL("../apps/desktop/scripts/desktop-review-controls.mts", import.meta.url);
+    const seam = new URL(
+      "../apps/desktop/scripts/desktop-review-presentation.mts",
+      import.meta.url,
+    );
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import assert from 'node:assert/strict';
+        import { registerHooks } from 'node:module';
+        const entry = ${JSON.stringify(entry.href)};
+        const optional = {
+          'selenium-webdriver': 'export const By = {}, Key = {}, until = {};',
+          'axe-core': 'export default {};',
+        };
+        registerHooks({ resolve(specifier, context, next) {
+          if (context.parentURL === entry && Object.hasOwn(optional, specifier))
+            return { url: 'data:text/javascript,' + encodeURIComponent(optional[specifier]), shortCircuit: true };
+          return next(specifier, context);
+        }});
+        const facade = await import(entry);
+        const seam = await import(${JSON.stringify(seam.href)});
+        assert.equal(facade.assertReviewFieldPresentation, seam.assertReviewFieldPresentation);
+        const field = {}, label = {}, dialog = {};
+        const observation = { width: '200px', paddingLeft: '10px', borderStyle: 'solid',
+          borderWidth: '1px', backgroundColor: 'rgb(1, 1, 1)',
+          dialogBackgroundColor: 'rgb(2, 2, 2)', labelFontWeight: '700' };
+        let calls = 0;
+        const browser = { async executeScript(callback, ...elements) {
+          assert.equal(typeof callback, 'function');
+          assert.deepEqual(elements, [field, label, dialog]);
+          calls++;
+          return observation;
+        }};
+        assert.equal(await facade.assertReviewFieldPresentation(browser, field, label, dialog), observation);
+        assert.equal(calls, 1);
+        console.log('Review presentation wiring: complete');`,
+      ],
+      { encoding: "utf8", timeout: 15_000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), "Review presentation wiring: complete");
+  },
+);
+
 void test("shared review presentation preserves native visual acceptance thresholds", async () => {
-  // This contract runs without desktop packages installed. Execute the actual
-  // dependency-free helper body rather than loading the native-driver module.
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-review-controls.mts", import.meta.url),
-    "utf8",
-  );
-  const marker = "export async function assertReviewFieldPresentation(";
-  const start = source.indexOf(marker);
-  assert(start >= 0 && start === source.lastIndexOf(marker));
-  const assertReviewFieldPresentation = sourceFunction(
-    runInNewContext(
-      `${source.slice(start).replace("export ", "")}\nassertReviewFieldPresentation`,
-      { assert },
-    ),
-  );
+  const invokePresentation = sourceFunction(assertReviewFieldPresentation);
   const valid = {
     width: "200px",
     paddingLeft: "10px",
@@ -131,7 +214,7 @@ void test("shared review presentation preserves native visual acceptance thresho
       return observation;
     },
   };
-  assert.equal(await assertReviewFieldPresentation(browser, field, label, dialog), valid);
+  assert.equal(await invokePresentation(browser, field, label, dialog), valid);
   for (const [key, value] of [
     ["width", "199px"],
     ["paddingLeft", "9px"],
@@ -142,9 +225,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     ["labelFontWeight", "699"],
   ] as const) {
     observation = { ...valid, [key]: value };
-    await assert.rejects(
-      Promise.resolve(assertReviewFieldPresentation(browser, field, label, dialog)),
-    );
+    await assert.rejects(Promise.resolve(invokePresentation(browser, field, label, dialog)));
   }
 });
 

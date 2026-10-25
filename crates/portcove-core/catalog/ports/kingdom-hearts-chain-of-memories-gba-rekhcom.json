@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kingdom-hearts-chain-of-memories-gba-rekhcom",
+    "name": "Kingdom Hearts: Chain of Memories (GBA) (ReKHCoM)",
+    "summary": "Upstream route: Keep stable versus prerelease clear. x86 Linux dependencies and optional HD mod using separate owned PC assets are distinct. Limits: Stable1.9.14 distinct from2.0 prerelease; optional HD mod needs separate owned PC assets. Platform betas differ. Upstream platforms: Stable Windows x86 and Linux x86 packages (32-bit); Android and ARMHF handheld betas are separate. Preserve32-bit Linux runtime dependencies. Original data: Own USA/Europe/Japan cartridge dump; native port based on Pheenoh/khcom matching decompilation. Portcove setup/gameplay not verified.",
+    "original_game_title": "Kingdom Hearts: Chain of Memories (GBA)",
+    "project_url": "https://github.com/MatyMeatBoy/ReKHCoM",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/MatyMeatBoy/ReKHCoM",
+    "artwork": {
+      "game_id": 1220,
+      "cover_id": 135789,
+      "image_id": "co2wrx",
+      "image_sha256": "5fc8e137605c36f03d2ee60de51cfb3861b25e13bc6cf5b000a451ecbdaba39f",
+      "game_slug": "kingdom-hearts-chain-of-memories",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2586
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kingdom-hearts-chain-of-memories-gba-rekhcom",
+    "origin": {
+      "project_url": "https://github.com/MatyMeatBoy/ReKHCoM",
+      "repository": {
+        "host": "github.com",
+        "id": "1415350425"
+      }
+    },
+    "decisions": []
+  }
+}

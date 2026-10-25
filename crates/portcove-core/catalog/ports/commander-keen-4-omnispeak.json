@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "commander-keen-4-omnispeak",
+    "name": "Commander Keen 4 (Omnispeak)",
+    "summary": "Upstream route: Native reimplementation compatible with original saves; exact episode/version data contract documented. Limits: Use official homepage binaries rather than latest GitHub modding-preview package; separate episode identities. Keen4/5 need v1.4 EGA, Keen6 v1.4 or v1.5 EGA. Documented shareware route applies to Keen4 only; Keen6 has separate unavailable-retail acquisition caveat. Upstream platforms: Official v1.1 Windows x86 and x86-64 binaries, Linux x86/x86-64; later GitHub modding preview is a separate selection. Original data: Own Commander Keen4 v1.4 EGA data, or its documented shareware release; provide GAMEMAPS.CK4, EGAGRAPH.CK4, AUDIO.CK4 and matching Omnispeak episode support data. Portcove setup/gameplay not verified.",
+    "original_game_title": "Commander Keen 4",
+    "project_url": "https://github.com/sulix/omnispeak",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/sulix/omnispeak",
+    "issue_number": 2648
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "commander-keen-4-omnispeak",
+    "origin": {
+      "project_url": "https://github.com/sulix/omnispeak",
+      "repository": {
+        "host": "github.com",
+        "id": "7305085"
+      }
+    },
+    "decisions": []
+  }
+}

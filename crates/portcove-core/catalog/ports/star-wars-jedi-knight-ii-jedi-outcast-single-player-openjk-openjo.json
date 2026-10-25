@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+    "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
+    "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Original Jedi Outcast game-data contract remains partially Unknown: this is the Outcast single-player OpenJO target, not Jedi Academy or OpenJKDF2. The retained README documents Academy installation but does not establish Outcast required asset files, supported retail patch or exact setup layout; resolve those Outcast-specific inputs before offering setup. Portcove setup/gameplay not verified.",
+    "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
+    "project_url": "https://github.com/JACoders/OpenJK",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JACoders/OpenJK",
+    "issue_number": 2611
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+    "origin": {
+      "project_url": "https://github.com/JACoders/OpenJK",
+      "repository": {
+        "host": "github.com",
+        "id": "9214660"
+      }
+    },
+    "decisions": []
+  }
+}

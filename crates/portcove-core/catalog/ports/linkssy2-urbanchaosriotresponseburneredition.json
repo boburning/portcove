@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "linkssy2-urbanchaosriotresponseburneredition",
+    "name": "Urban Chaos: Riot Response (Urban Chaos Riot Response Burner Edition)",
+    "summary": "Upstream route: Upstream Windows ZIP supplies BurnerEditionSetup.exe to import/verify own Xbox ISO and prepare data/shaders; runtime then launches. Linuxcompatibility archive runs sameWindowsruntime viaProton. Upstream replacement guidance preserves GameData; no nativeLinuxroute inferred. Limits: Upstream only: Windows release and bounded Linux compatibility test. Spanish packaging/shader corrections documented; clean build and broader gameplay scope remain constrained. Windows0.07 package; newest0.07.5 Linux Proton compatibility-test patch, not native Linux runtime. Clean source/build status explicitly constrained upstream. Upstream platforms: Windows 10/11 x64 D3D12. Linux0.07.5 runs Windows runtime under Proton/Wine, not native Linux. Original data: Original Xbox UrbanChaos RiotResponse own supported disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Urban Chaos: Riot Response",
+    "project_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
+    "artwork": {
+      "game_id": 6223,
+      "cover_id": 185587,
+      "image_id": "co3z77",
+      "image_sha256": "fded01671037599ecdf67299a8804ca172b0b2727dfe0385b87b53710ce584ef",
+      "game_slug": "urban-chaos-riot-response",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2811
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "linkssy2-urbanchaosriotresponseburneredition",
+    "origin": {
+      "project_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
+      "repository": {
+        "host": "github.com",
+        "id": "1412766410"
+      }
+    },
+    "decisions": []
+  }
+}

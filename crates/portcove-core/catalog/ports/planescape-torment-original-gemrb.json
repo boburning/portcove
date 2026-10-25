@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "planescape-torment-original-gemrb",
+    "name": "Planescape: Torment (original) (GemRB)",
+    "summary": "Upstream route: Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate. Limits: Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported. Upstream platforms: Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen. Original data: Supply installed original Planescape: Torment (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data. Portcove setup/gameplay not verified.",
+    "original_game_title": "Planescape: Torment (original)",
+    "project_url": "https://github.com/gemrb/gemrb",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/gemrb/gemrb",
+    "artwork": {
+      "game_id": 832,
+      "cover_id": 161291,
+      "image_id": "co3ggb",
+      "image_sha256": "257a349551377c0af9c0055e2cfdfc339ace2206470318a67a711a726bb419d6",
+      "game_slug": "planescape-torment",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2632
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "planescape-torment-original-gemrb",
+    "origin": {
+      "project_url": "https://github.com/gemrb/gemrb",
+      "repository": {
+        "host": "github.com",
+        "id": "3297830"
+      }
+    },
+    "decisions": []
+  }
+}

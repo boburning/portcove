@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "james2doyle-ffta-recomp",
+    "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
+    "summary": "Upstream route: Upstream runtime package for FFTA Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Experimental preview; upstream claims strict static zero fallback and validated widescreen. Framework checks do not establish complete gameplay qualification. Experimental gbaretcompx preview, strict static execution claimed; Windows/Linux/Android assets, not full-mechanics qualification from framework tests. Upstream platforms: Windows10+ x86-64, Linux x86-64 OpenGL/X11, SteamOS3.x glibc2.35+/FUSE, Android9+ ARM64. Clean-room emibios bundled. Original data: Own FinalFantasyTacticsAdvance GBA USA ROM; release launch gate validates ROM hash, but exact revision/hash is not extracted in this review. Clean-room emibios is bundled; no Nintendo BIOS dump needed. Distinct from C017 Jorge262007/JRickey implementation and its Europe support claim. Portcove setup/gameplay not verified.",
+    "original_game_title": "Final Fantasy Tactics Advance",
+    "project_url": "https://github.com/james2doyle/ffta-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/james2doyle/ffta-recomp",
+    "artwork": {
+      "game_id": 414,
+      "cover_id": 524147,
+      "image_id": "cob8fn",
+      "image_sha256": "0f5ee5a926888d3a7adce4e37f40a14c8123e354844dbf0e3832e0aa048e1f00",
+      "game_slug": "final-fantasy-tactics-advance",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2824
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "james2doyle-ffta-recomp",
+    "origin": {
+      "project_url": "https://github.com/james2doyle/ffta-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1411079258"
+      }
+    },
+    "decisions": []
+  }
+}

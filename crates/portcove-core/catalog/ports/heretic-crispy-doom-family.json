@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "heretic-crispy-doom-family",
+    "name": "Heretic (Crispy Doom family)",
+    "summary": "Upstream route: Native source-port family with current executable packages. Limits: Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility. Upstream platforms: Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build. Original data: Source-data contract remains Unknown in the retained Crispy Doom root README for Heretic. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Heretic data set. Portcove setup/gameplay not verified.",
+    "original_game_title": "Heretic",
+    "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/fabiangreffrath/crispy-doom",
+    "artwork": {
+      "game_id": 6362,
+      "cover_id": 76355,
+      "image_id": "co1mwz",
+      "image_sha256": "2e4af7089e82b680fb16c4f894c8c3ac09ccb469d296fd7322c2b0d67921fc04",
+      "game_slug": "heretic",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2657
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "heretic-crispy-doom-family",
+    "origin": {
+      "project_url": "https://github.com/fabiangreffrath/crispy-doom",
+      "repository": {
+        "host": "github.com",
+        "id": "17395051"
+      }
+    },
+    "decisions": []
+  }
+}

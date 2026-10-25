@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jonathandc64-ffcceot-recomp",
+    "name": "Final Fantasy Crystal Chronicles: Echoes of Time — Nintendo DS (FFCCEOT Recomp)",
+    "summary": "Upstream route: Upstream runtime package for FFCCEOT Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Alpha with upstream boot/field/sound/save/online claims. Complete campaign/multiplayer unverified; USA/Europe inputs and saves separate. Alpha boots field/sound/save/online, not Wii edition; exact ROM/revision and campaign breadth must follow primary requirements, no whole-game assumption. Upstream platforms: Windows x64 ZIP and Linux x86-64 AppImage, own-ROM preparation. Nintendo DS edition, not Wii. Original data: Own FinalFantasyCrystalChroniclesEchoesOfTime NintendoDS USA orEurope ROM. Upstream checks per-region SHA1 and keeps separate saves; exact hashes/revision values not extracted here. This is the NintendoDS edition, not the Wii game. Separate firmware/BIOS input Unknown. Portcove setup/gameplay not verified.",
+    "original_game_title": "Final Fantasy Crystal Chronicles: Echoes of Time",
+    "project_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
+    "artwork": {
+      "game_id": 23016,
+      "cover_id": 101628,
+      "image_id": "co26f0",
+      "image_sha256": "0863f9b2cd24c55c9d80eecdcbcd9ac8aac7e7b53b68896002e922199034e286",
+      "game_slug": "final-fantasy-crystal-chronicles-echoes-of-time",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2844
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jonathandc64-ffcceot-recomp",
+    "origin": {
+      "project_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1412608358"
+      }
+    },
+    "decisions": []
+  }
+}

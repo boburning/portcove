@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blake-stone-aliens-of-gold-bstone",
+    "name": "Blake Stone: Aliens of Gold (Bstone)",
+    "summary": "Upstream route: Source port for both games with signed desktop release archives. Limits: Established two-game source-port route; each game has separate data-version requirements. Upstream platforms: Windows release archives and portable desktop source builds; exact archive CPU architectures remain unknown in frozen evidence. Original data: Own supported Aliens of Gold v1.0/v2.0/v2.1/v3.0 data: BS1 for shareware or BS6 for retail, as specified in Bstone file table. Planet Strike VSI data is a different game. Portcove setup/gameplay not verified.",
+    "original_game_title": "Blake Stone: Aliens of Gold",
+    "project_url": "https://github.com/bibendovsky/bstone",
+    "issue_number": 2555,
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/bibendovsky/bstone",
+    "artwork": {
+      "game_id": 8489,
+      "cover_id": 116133,
+      "image_id": "co2hlx",
+      "image_sha256": "6477f0c464c6d067b0583b3a2c6969bea5be49823e22a4b99a62ac317159a3bf",
+      "game_slug": "blake-stone-aliens-of-gold",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blake-stone-aliens-of-gold-bstone",
+    "origin": {
+      "project_url": "https://github.com/bibendovsky/bstone",
+      "repository": {
+        "host": "github.com",
+        "id": "11468258"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "awakenchan-lanternengine",
+    "name": "Bloodborne (Bloodborne PC)",
+    "summary": "Upstream route: Upstream runtime package for Bloodborne PC; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Performance-focused fork with slower one-author maintenance. Full-game/GPU breadth Unknown; parent/sibling owners retain separate scopes. LanternEngine built on bbport/shadPS4 plus launcher. Compare bbport existing ownership; do not create independent implementation based on launcher/name or version alone. Upstream platforms: Windows/Linux engine+launcher built on bbport/shadPS4/Vulkan. PS4 direct CPU path documented; other hosts not established. Original data: PS4 Bloodborne CUSA03173 update1.09 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Bloodborne",
+    "project_url": "https://github.com/Awakenchan/LanternEngine",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Awakenchan/LanternEngine",
+    "artwork": {
+      "game_id": 7334,
+      "cover_id": 525225,
+      "image_id": "cob99l",
+      "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
+      "game_slug": "bloodborne",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2829
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "awakenchan-lanternengine",
+    "origin": {
+      "project_url": "https://github.com/Awakenchan/LanternEngine",
+      "repository": {
+        "host": "github.com",
+        "id": "1414718338"
+      }
+    },
+    "decisions": []
+  }
+}

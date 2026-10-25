@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "syndicate-wars-syndicate-wars-fan-expansion",
+    "name": "Syndicate Wars (Syndicate Wars Fan Expansion)",
+    "summary": "Upstream route: Maintained native port with current Windows/Ubuntu packages. Limits: Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Upstream platforms: Windows/Ubuntu packages and source builds; Windows MinGW32 dependency path documented. Exact selected artifact CPUs unknown in frozen release evidence. Original data: Supply an owned Syndicate Wars CD or CD image (including a supported digital-store image) during SyndWarsFX installation. Upstream installer copies required original files, downloads its extra gfx/sfx/level resources and may convert music; the disc/image is not needed after installation. Match the selected language to the source release; exact pressing/patch digest is Unknown here. Portcove setup/gameplay not verified.",
+    "original_game_title": "Syndicate Wars",
+    "project_url": "https://github.com/swfans/syndwarsfx",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/swfans/syndwarsfx",
+    "issue_number": 2715
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "syndicate-wars-syndicate-wars-fan-expansion",
+    "origin": {
+      "project_url": "https://github.com/swfans/syndwarsfx",
+      "repository": {
+        "host": "github.com",
+        "id": "39679479"
+      }
+    },
+    "decisions": []
+  }
+}

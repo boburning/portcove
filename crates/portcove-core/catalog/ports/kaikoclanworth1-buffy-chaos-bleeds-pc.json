@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kaikoclanworth1-buffy-chaos-bleeds-pc",
+    "name": "Buffy the Vampire Slayer: Chaos Bleeds (Buffy Chaos Bleeds PC)",
+    "summary": "Upstream route: Upstream ZIP includes launcher+game program; Install imports own Xbox ISO and optionally converts movies withFFmpeg(downloadable). It is a data installer around an existing runtime, not documented first-launch game compilation. Launcher owns self-update. AndroidAPK imports PALdisc. Limits: Upstream only: Upstream describes runtime, data installer, controls/saves/updater. Android USA unsupported. No independent complete playthrough or device qualification. Windows package plus Android ARM64 APK. Android13/Vulkan1.3 PAL-only unlike desktop supported disc variants; preserve per-platform revision constraint. Upstream platforms: Windows x64 and Steam Deck via Proton; Android 13+ ARM64 Vulkan 1.3 accepts PAL only, unlike desktop disc variants. Original data: Original Xbox Buffy Chaos Bleeds own ISO; Android requires PAL Europe. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Buffy the Vampire Slayer: Chaos Bleeds",
+    "project_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
+    "artwork": {
+      "game_id": 3837,
+      "cover_id": 155297,
+      "image_id": "co3btt",
+      "image_sha256": "02eb4a8354d6363a77dd286a4fc3577f58c64a629aeae19835efd913b8338bf6",
+      "game_slug": "buffy-the-vampire-slayer-chaos-bleeds",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2784
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "kaikoclanworth1-buffy-chaos-bleeds-pc",
+    "origin": {
+      "project_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1388109056"
+      }
+    },
+    "decisions": []
+  }
+}

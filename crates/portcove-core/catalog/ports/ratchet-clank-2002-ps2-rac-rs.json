@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ratchet-clank-2002-ps2-rac-rs",
+    "name": "Ratchet & Clank (2002, PS2) (RAC-RS)",
+    "summary": "Upstream route: Source ZIP + Setup.cmd generates Rust code from owned disc and builds locally Limits: Upstream says full game through credits/New Game+; local Rust generation/build and updater ownership remain upstream. Upstream platforms: Windows10/11 x86-64 setup/source route; local Rust generation/compilation. No other OS player route established. Original data: PAL SCES-50916 v1.00 or USA SCUS-97199 v1.00 ISO Portcove setup/gameplay not verified.",
+    "original_game_title": "Ratchet & Clank (2002, PS2)",
+    "project_url": "https://github.com/AsobiCodes/rac-rs",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/AsobiCodes/rac-rs",
+    "issue_number": 2599
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ratchet-clank-2002-ps2-rac-rs",
+    "origin": {
+      "project_url": "https://github.com/AsobiCodes/rac-rs",
+      "repository": {
+        "host": "github.com",
+        "id": "1419933035"
+      }
+    },
+    "decisions": []
+  }
+}

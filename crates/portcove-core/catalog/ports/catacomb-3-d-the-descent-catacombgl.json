@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "catacomb-3-d-the-descent-catacombgl",
+    "name": "Catacomb 3-D: The Descent (CatacombGL)",
+    "summary": "Upstream route: Native Windows/Linux port with desktop beta archives and explicit retail/shareware setup. Limits: Separate supported game identities; original Catacombs data required except allowed shareware route. Only The Catacomb Abyss has the documented free shareware 1.13 route. Descent, Armageddon and Apocalypse need owned Catacombs Pack data; do not apply shareware to all four targets. Upstream platforms: Native Windows7/8/10/11 and Linux beta archives/source builds, including RaspberryPi build instructions. Exact release CPU architectures unknown in frozen evidence. Original data: Own Catacomb 3-D: The Descent data from the Catacombs Pack, as required by CatacombGL. Catacomb Abyss v1.13 shareware is a different game and does not provide this target. Portcove setup/gameplay not verified.",
+    "original_game_title": "Catacomb 3-D: The Descent",
+    "project_url": "https://github.com/ArnoAnsems/CatacombGL",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/ArnoAnsems/CatacombGL",
+    "issue_number": 2643
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "catacomb-3-d-the-descent-catacombgl",
+    "origin": {
+      "project_url": "https://github.com/ArnoAnsems/CatacombGL",
+      "repository": {
+        "host": "github.com",
+        "id": "148203956"
+      }
+    },
+    "decisions": []
+  }
+}

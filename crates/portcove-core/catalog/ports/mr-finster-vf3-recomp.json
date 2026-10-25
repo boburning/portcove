@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mr-finster-vf3-recomp",
+    "name": "Virtua Fighter 3 (Virtua Fighter 3 Recomp)",
+    "summary": "Research listing. Upstream route: Upstream runtime package for Virtua Fighter 3 Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports bounded interpreter comparisons and matches. Online-preview release conflicts with README's online-not-yet status; broader coverage Unknown. PowerPC translates at launch via SLJIT, not static-only pipeline. Latest tag is online-preview while README online says not yet. Windows Wine only and Intel Mac untried; resolve release/README mismatch. Upstream platforms: macOS Apple Silicon, Linux/Steam Deck and Windows packages. Windows tested under Wine; Intel Macs untried. Original data: Arcade Model 3 Virtua Fighter 3 MAME vf3.zip Revision D. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Virtua Fighter 3",
+    "project_url": "https://github.com/mr-finster/vf3-recomp",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/mr-finster/vf3-recomp",
+    "artwork": {
+      "game_id": 1551,
+      "cover_id": 166344,
+      "image_id": "co3kco",
+      "image_sha256": "b75c152a6438b4b011ab21ab2e6bf276db9676e760ea77ca2372b8b3efd51c4d",
+      "game_slug": "virtua-fighter-3",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2754
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mr-finster-vf3-recomp",
+    "origin": {
+      "project_url": "https://github.com/mr-finster/vf3-recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1424943417"
+      }
+    },
+    "decisions": []
+  }
+}

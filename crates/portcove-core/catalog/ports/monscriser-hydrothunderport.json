@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "monscriser-hydrothunderport",
+    "name": "Hydro Thunder Hurricane (HydroThunderPORT)",
+    "summary": "Upstream route: Upstream runtime package for HydroThunderPORT; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Experimental Revision9.1.0; frame generation still needs end-to-end testing. Packaging is not complete-game or broad GPU proof. Experimental preview Windows/Linux AppImage; lsfg-vk needed for Linux frame generation, end-to-end untested. No data distributed; full gameplay qualification separate. Upstream platforms: Windows and Linux Vulkan/AppImage routes. Linux frame generation additionally requires lsfg-vk; exact CPU follows selected docs. Original data: Xbox 360 Hydro Thunder Hurricane own game, optional DLC/title updates. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Hydro Thunder Hurricane",
+    "project_url": "https://github.com/monscriser/HydroThunderPORT",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/monscriser/HydroThunderPORT",
+    "artwork": {
+      "game_id": 3704,
+      "cover_id": 87987,
+      "image_id": "co1vw3",
+      "image_sha256": "67d13983cb12bd7f3c32e7a43972aff2fea915c892627491c45611c06c76dc49",
+      "game_slug": "hydro-thunder-hurricane",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2779
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "monscriser-hydrothunderport",
+    "origin": {
+      "project_url": "https://github.com/monscriser/HydroThunderPORT",
+      "repository": {
+        "host": "github.com",
+        "id": "1419954433"
+      }
+    },
+    "decisions": []
+  }
+}

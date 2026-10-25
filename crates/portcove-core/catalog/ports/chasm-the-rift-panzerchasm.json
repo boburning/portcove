@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "chasm-the-rift-panzerchasm",
+    "name": "Chasm: The Rift (PanzerChasm)",
+    "summary": "Research listing. Upstream route: Native recreation using original CSM.BIN; old Windows package and current source build steps. Limits: Latest release package dates to 2017; package freshness and upstream runtime behavior need checking. Upstream platforms: Historical2017 Windows package and current desktop source build; exact selected CPU architecture unknown in frozen research. Original data: Supply original Chasm: The Rift CSM.BIN data from the owned DOS game installation; the README also documents extracting/installing the GOG Original CD image to obtain it. Place CSM.BIN beside PanzerChasm and its shaders/ directory, or select the data with --csm. Optional add-on data is separately selected with --addon. Exact source revision remains Unknown. Portcove setup/gameplay not verified.",
+    "original_game_title": "Chasm: The Rift",
+    "project_url": "https://github.com/Panzerschrek/Chasm-Reverse",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Panzerschrek/Chasm-Reverse",
+    "artwork": {
+      "game_id": 12014,
+      "cover_id": 120699,
+      "image_id": "co2l4r",
+      "image_sha256": "d8114126730ef2698e6b84031071af7f52ca6aaa07278efa05a6fe8bd68f0a52",
+      "game_slug": "chasm-the-rift",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2878
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "chasm-the-rift-panzerchasm",
+    "origin": {
+      "project_url": "https://github.com/Panzerschrek/Chasm-Reverse",
+      "repository": {
+        "host": "github.com",
+        "id": "70153180"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "y0oshi-lain-psx-decompiled",
+    "name": "Serial Experiments Lain (lain-psx-decompiled)",
+    "summary": "Upstream route: Upstream runtime package for lain-psx-decompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports matching PS1 code and native SDK implementation with two-disc data. Complete content/language/gameplay coverage Unknown here. Matching decompilation plus native client, no emulator; Windows/Linux/macOS packages. Preserve two-disc serial/hash requirements and content/language edition scope. Upstream platforms: Windows/macOS/Linux native client from matching decompilation. Exact architecture matrix follows selected package docs. Original data: PS1 SerialExperimentsLain original two Japanese discs own data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Serial Experiments Lain",
+    "project_url": "https://github.com/Y0oshi/lain-psx-decompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Y0oshi/lain-psx-decompiled",
+    "artwork": {
+      "game_id": 76448,
+      "cover_id": 136333,
+      "image_id": "co2x71",
+      "image_sha256": "52ea88c5b0fa1b3f3aa70c252ee4d60d3d2c83754debf3b800a27bdb23041a55",
+      "game_slug": "serial-experiments-lain",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2833
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "y0oshi-lain-psx-decompiled",
+    "origin": {
+      "project_url": "https://github.com/Y0oshi/lain-psx-decompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1390964194"
+      }
+    },
+    "decisions": []
+  }
+}

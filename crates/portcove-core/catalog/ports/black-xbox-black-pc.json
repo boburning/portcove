@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "black-xbox-black-pc",
+    "name": "BLACK (Xbox) (black-pc)",
+    "summary": "Research listing. Upstream route: Windows x86 compatibility/native execution package Limits: Direct original Xbox x86 execution through compatibility services; upstream says fully playable, Linux uses Wine. Upstream platforms: Windows x86/32-bit compatibility runtime, runs on64-bit Windows. Linux route uses Wine with native DXVK libraries, not a native Linux game package. Original data: Own BLACK original Xbox NTSC-U or PAL Europe full extracted disc data in game/. Required default.xbe SHA-256: NTSC-U DF2739C372D254A90AEECCF5971D12097F22D89FBB90DB021FDA96DD4DEB68F6; PAL Europe 67F35121CCF622E7A293C402219596FE6456CA4C3D27E6F8139E449264DA30F0. Other builds are unsupported; original x86 code runs directly via compatibility services. Portcove setup/gameplay not verified.",
+    "original_game_title": "BLACK (Xbox)",
+    "project_url": "https://github.com/Spark198rus/black-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/Spark198rus/black-pc",
+    "issue_number": 2877
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "black-xbox-black-pc",
+    "origin": {
+      "project_url": "https://github.com/Spark198rus/black-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1418928046"
+      }
+    },
+    "decisions": []
+  }
+}

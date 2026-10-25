@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wootbeer-paxdino",
+    "name": "Turok: Rage Wars (PaxDino)",
+    "summary": "Upstream route: Upstream runtime package for PaxDino; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes Rage Wars modernization. Full-game/multiplayer qualification not performed here; other Turok games not included. Windows/Linux beta packages; not other Turok titles; uphold supported ROM hash from README extraction. Upstream platforms: Windows/Linux native PC beta archives; exact OS minimums and CPU architecture beyond player guide Unknown. Original data: N64 Turok Rage Wars USA own ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Turok: Rage Wars",
+    "project_url": "https://github.com/wootbeer/PaxDino",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/wootbeer/PaxDino",
+    "issue_number": 2790
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wootbeer-paxdino",
+    "origin": {
+      "project_url": "https://github.com/wootbeer/PaxDino",
+      "repository": {
+        "host": "github.com",
+        "id": "1414674062"
+      }
+    },
+    "decisions": []
+  }
+}

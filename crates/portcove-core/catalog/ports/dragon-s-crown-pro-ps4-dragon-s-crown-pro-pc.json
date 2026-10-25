@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragon-s-crown-pro-ps4-dragon-s-crown-pro-pc",
+    "name": "Dragon's Crown Pro (PS4) (Dragon's Crown Pro PC)",
+    "summary": "Research listing. Upstream route: Windows ZIP and experimental Linux AppImage with own PKG import Limits: Native x86-64 compatibility-layer execution rather than decompilation/recompiler; Linux experimental. Upstream platforms: Windows x86-64 package is primary route; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+/Vulkan1.3. Direct PS4 x86-64 execution with replacement services. Original data: Supply your own decrypted Dragon's Crown Pro PS4 PKG: US CUSA10454 base 1.00 or base plus 1.01 update; Japan CUSA07001 base 1.00 or base plus 1.02/1.03; Asia/Hong Kong CUSA10209 base 1.00 or base plus 1.02. Updates require their matching base. Launcher validates title/content IDs, package versions and the documented per-build eboot.bin SHA-256 before installation; encrypted console packages and other code versions are refused. Preserve each build's separate testing limitations. Portcove setup/gameplay not verified.",
+    "original_game_title": "Dragon's Crown Pro (PS4)",
+    "project_url": "https://github.com/saulob/dragons-crown-pro-pc",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/saulob/dragons-crown-pro-pc",
+    "artwork": {
+      "game_id": 68283,
+      "cover_id": 474444,
+      "image_id": "coa630",
+      "image_sha256": "6bf1a8fb16b3665f0e6ae6c329434da7ea528ea04bf3121dc5f6c080b40e4ab3",
+      "game_slug": "dragons-crown-pro",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2880
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-s-crown-pro-ps4-dragon-s-crown-pro-pc",
+    "origin": {
+      "project_url": "https://github.com/saulob/dragons-crown-pro-pc",
+      "repository": {
+        "host": "github.com",
+        "id": "1418803345"
+      }
+    },
+    "decisions": []
+  }
+}

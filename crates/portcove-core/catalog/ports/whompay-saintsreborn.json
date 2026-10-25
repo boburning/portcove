@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "whompay-saintsreborn",
+    "name": "Saints Row (Saints Reborn)",
+    "summary": "Upstream route: SaintsReborn-Setup.exe fetches compiler/tools, imports own game and builds locally, creating play/update shortcuts. Setup or UpdateSaintsReborn owns replacement; identity is rename ofSaintsRowPC, not a new port. Limits: Upstream only: Upstream claims start-to-finish story/side missions/free roam. Multiplayer issues remain. SaintsRowPC rename preserves identity and updates. Renamed SaintsRowPC to SaintsReborn with existing updates preserved, not a new implementation. Setup downloads toolchain/builds locally; upstream full-playable claim with multiplayer caveats. Upstream platforms: Windows x86-64 local compiler setup. Linux setup is explicitly coming soon; framework portability is not player coverage. Original data: Xbox 360 Saints Row 2006 own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "original_game_title": "Saints Row",
+    "project_url": "https://github.com/whompay/SaintsReborn",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/whompay/SaintsReborn",
+    "issue_number": 2778
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "whompay-saintsreborn",
+    "origin": {
+      "project_url": "https://github.com/whompay/SaintsReborn",
+      "repository": {
+        "host": "github.com",
+        "id": "1382791168"
+      }
+    },
+    "decisions": []
+  }
+}

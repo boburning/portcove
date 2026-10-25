@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "infamous-2009-ps3-infamousreborn",
+    "name": "inFamous (2009 PS3) (inFAMOUSreborn)",
+    "summary": "Upstream route: Windows Setup EXE checks/installs build tools, imports ISO/folder, generates and compiles locally Limits: Early native PS3 recompilation with setup1.1; launch announcement is not gameplay qualification. Upstream platforms: Windows10/11 x86-64 setup EXE, D3D12; local PS3 game translation/compilation and possible build-tool prerequisites. Original data: Own European BCES00220; encrypted ISO requires matching .dkey Portcove setup/gameplay not verified.",
+    "original_game_title": "inFamous (2009 PS3)",
+    "project_url": "https://github.com/whompay/inFAMOUSreborn",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/whompay/inFAMOUSreborn",
+    "artwork": {
+      "game_id": 523,
+      "cover_id": 236081,
+      "image_id": "co525t",
+      "image_sha256": "3bfdc437c3f1a24dc5ecb63cd3c44dbe53f64f6f687da5778b9f768fbd5a610b",
+      "game_slug": "infamous",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2681
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "infamous-2009-ps3-infamousreborn",
+    "origin": {
+      "project_url": "https://github.com/whompay/inFAMOUSreborn",
+      "repository": {
+        "host": "github.com",
+        "id": "1424797283"
+      }
+    },
+    "decisions": []
+  }
+}

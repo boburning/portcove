@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "might-and-magic-vii-openenroth",
+    "name": "Might and Magic VII (OpenEnroth)",
+    "summary": "Research listing. Upstream route: Official README says MM7 playable; desktop nightly packages available. Limits: MM7 playable upstream; MM6/MM8 planned. Nightly-only releases may contain bugs. Upstream platforms: Nightly Windows x86/x86-64 ZIPs, Linux x86-64 Flatpak, macOS ARM64/x86-64 DMGs and Android universal APK. MM7 current; other MM games remain planned. Original data: Supply original Might and Magic VII game data, from a GOG installation or another installed/extracted retail copy: at least ANIMS, DATA, MUSIC and SOUNDS directories. Point OPENENROTH_MM7_PATH at that data when needed. MM6/MM8 are planned targets, not substitutes for MM7 assets; exact accepted language/patch revision is not pinned in retained README. Portcove setup/gameplay not verified.",
+    "original_game_title": "Might and Magic VII",
+    "project_url": "https://github.com/OpenEnroth/OpenEnroth",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/OpenEnroth/OpenEnroth",
+    "issue_number": 2885
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "might-and-magic-vii-openenroth",
+    "origin": {
+      "project_url": "https://github.com/OpenEnroth/OpenEnroth",
+      "repository": {
+        "host": "github.com",
+        "id": "75572324"
+      }
+    },
+    "decisions": []
+  }
+}

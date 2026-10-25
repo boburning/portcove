@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
+    "name": "Dragon Ball Z: Burst Limit (DBZ Burst Limit Recompiled)",
+    "summary": "Upstream route: Windows native package; Linux ZIP uses Wine Limits: US Xbox 360 version only. Linux package is Wine/DXVK/vkd3d-proton, not a native Linux binary. Upstream platforms: Native Windows10/11 x86-64 package; Linux ZIP runs that Windows runtime through Wine/DXVK/vkd3d-proton, not a native Linux binary. Original data: Own Dragon Ball Z: Burst Limit Xbox 360 USA/NTSC-U disc and complete extracted data folder. default.xex SHA-1 must be aec598f88cf51181fc377b148e0b1ad30db4485c; it is also needed for source compilation. European/PAL and Japanese builds have incompatible addresses. Original disc data remains required at runtime. Portcove setup/gameplay not verified.",
+    "original_game_title": "Dragon Ball Z: Burst Limit",
+    "project_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
+    "artwork": {
+      "game_id": 2569,
+      "cover_id": 88497,
+      "image_id": "co1wa9",
+      "image_sha256": "8bac77dfe78ac5d25aab58fc17706dad30fbb79c5edfceb5ff656ecb5824d53c",
+      "game_slug": "dragon-ball-z-burst-limit",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 2664
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
+    "origin": {
+      "project_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
+      "repository": {
+        "host": "github.com",
+        "id": "1391559411"
+      }
+    },
+    "decisions": []
+  }
+}

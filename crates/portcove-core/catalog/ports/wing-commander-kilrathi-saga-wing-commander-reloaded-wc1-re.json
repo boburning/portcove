@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
+    "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
+    "summary": "Research listing. Upstream route: Native SDL2 Win/Linux/macOS packages and original-data setup. Limits: Native SDL2 port with Kilrathi Saga data and partial DOS compatibility; reference byte similarity does not measure gameplay completion. Upstream platforms: Native Windows/Linux/macOS SDL2 packages; selected CPU architectures unknown in frozen release evidence. Native port differs from incomplete reference reconstruction. Original data: Supply original Wing Commander I: The Kilrathi Saga data, including GAMEDAT and STREAMS/PREFLITE.STR, STREAMS/POSFLITE.STR and STREAMS/MISSION.STR. Original DOS data is only partially supported. No copyrighted game data is included. The native SDL2 port autodetects the selected data directory; contributor WC1.ORI.EXE/code-full requirements are not universal player inputs. Exact accepted Saga/DOS patch fingerprints remain Unknown. Portcove setup/gameplay not verified.",
+    "original_game_title": "Wing Commander (Kilrathi Saga)",
+    "project_url": "https://github.com/neuromancer/wc1-re",
+    "platforms": [],
+    "availability": "unknown",
+    "setup_url": "https://github.com/neuromancer/wc1-re",
+    "issue_number": 2909
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
+    "origin": {
+      "project_url": "https://github.com/neuromancer/wc1-re",
+      "repository": {
+        "host": "github.com",
+        "id": "1328043392"
+      }
+    },
+    "decisions": []
+  }
+}
