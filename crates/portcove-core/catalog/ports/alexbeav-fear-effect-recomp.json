@@ -3,12 +3,12 @@
   "listing": {
     "id": "alexbeav-fear-effect-recomp",
     "name": "Fear Effect / Alexbeav PSXRecomp",
-    "summary": "Explore Fear Effect / Alexbeav PSXRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp",
     "issue_number": 447,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp#readme",
     "artwork": {
       "game_id": 8600,
       "cover_id": 398165,
@@ -16,6 +16,30 @@
       "image_sha256": "ab4ef365d47d1c79def199cff02846100a7cbbfe2ee69a6253ed0d12c572130c",
       "game_slug": "fear-effect",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Download the upstream setup package",
+          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version\u2019s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+        },
+        {
+          "title": "Supply the matching original files",
+          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
+        },
+        {
+          "title": "Finish upstream setup, then add the player",
+          "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version\u2019s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp#readme"
+    },
+    "release_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["fear-effect-", "-windows-x64.zip"],
+      "linux-x86-64": ["fear-effect-", "-linux-x64.zip"]
+    },
+    "recommended_download_channel": "stable"
   }
 }

@@ -22,6 +22,31 @@ export const ecosystemSearchFamilies = [
   { id: "xbox-xbe-hyphen", terms: '"XboxXBE-Recomp" in:name,description,readme', clock: "pushed" },
   { id: "rexglue-topic", terms: "topic:rexglue", clock: "pushed" },
   { id: "xboxrecomp-topic", terms: "topic:xboxrecomp", clock: "pushed" },
+  // Append after the published ecosystem entries so persisted numeric cursors retain meaning.
+  {
+    id: "changed-switch-recomp",
+    terms: "switch recomp in:name,description",
+    clock: "pushed",
+    sort: "updated",
+  },
+  {
+    id: "changed-switch-native",
+    terms: '"Nintendo Switch" native in:name,description',
+    clock: "pushed",
+    sort: "updated",
+  },
+  {
+    id: "changed-switch-framework",
+    terms: "SwitchRecomp in:name,description,readme",
+    clock: "pushed",
+    sort: "updated",
+  },
+  {
+    id: "changed-switch-topics",
+    terms: "topic:nintendo-switch topic:static-recompilation",
+    clock: "pushed",
+    sort: "updated",
+  },
 ] as const;
 
 const words = (value: unknown): string[] => {

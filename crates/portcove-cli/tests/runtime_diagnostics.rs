@@ -960,7 +960,7 @@ fn runtime_diagnostics_redacts_bounded_message_span_and_error_inputs() {
     let records = text
         .lines()
         .map(|line| {
-            assert!(line.len() + 1 <= limits.max_record_bytes);
+            assert!(line.len() < limits.max_record_bytes);
             serde_json::from_str::<Value>(line).unwrap()
         })
         .collect::<Vec<_>>();

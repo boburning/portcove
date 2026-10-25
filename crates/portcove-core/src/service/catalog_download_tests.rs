@@ -1258,7 +1258,10 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
             )
             .is_err()
     );
-    assert_eq!(service.pending_setups().unwrap(), [pending.clone()]);
+    assert_eq!(
+        service.pending_setups().unwrap().as_slice(),
+        std::slice::from_ref(&pending)
+    );
     assert_eq!(
         serde_json::to_value(
             service
