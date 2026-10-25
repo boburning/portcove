@@ -57,6 +57,7 @@ type Retained = {
 };
 const receipts = new WeakMap<object, Retained>();
 const historicalReceipts = new WeakMap<object, Retained>();
+const continuityReceipts = new WeakMap<object, Retained>();
 const custodyReceipts = new WeakMap<object, { bytes: Buffer; receipts: readonly object[] }>();
 
 function association(prepared: Prepared, expected: HostedNativeQualificationExpectation) {
@@ -116,8 +117,14 @@ export function collectHistoricalHostedNativeQualification(...args: HostedNative
   return collectHostedNativeProof("historical", ...args);
 }
 
+/** Authenticated Server continuity only. This never mints a native admission
+ * or minimum-client receipt, including through the historical/custody routes. */
+export function collectHostedWindowsContinuity(...args: HostedNativeProofArguments) {
+  return collectHostedNativeProof("continuity", ...args);
+}
+
 async function collectHostedNativeProof(
-  purpose: "current" | "historical",
+  purpose: "current" | "historical" | "continuity",
   directory: string,
   rawAuthorities: unknown,
   rawExpected: HostedNativeQualificationExpectation,
@@ -133,6 +140,10 @@ async function collectHostedNativeProof(
   const expected = structuredClone(rawExpected);
   const prepared = inspectHostedNativeProofFiles(rawFiles, authorities, expected.producer);
   association(prepared, expected);
+  if ((prepared.qualification_scope === "continuity-only") !== (purpose === "continuity"))
+    throw new Error(
+      "Server continuity cannot supply native/client-minimum acceptance; separate Windows client qualification required",
+    );
   const injected = options.attestation !== undefined || options.api !== undefined;
   const attestation =
     options.attestation === undefined
@@ -289,13 +300,13 @@ async function collectHostedNativeProof(
       instant(isRecord(value) ? value.timestamp : null),
     );
     const observeJob = () =>
-      (purpose === "current" ? verifyHostedNativePhaseJob : verifyHistoricalHostedNativeJob)(
+      (purpose !== "historical" ? verifyHostedNativePhaseJob : verifyHistoricalHostedNativeJob)(
         prepared.report.platform_label,
         prepared.producer,
         Math.max(...times),
         { cwd: capture, deadline, api },
       );
-    phase = purpose === "current" ? "settled-phase-job" : "historical-job";
+    phase = purpose !== "historical" ? "settled-phase-job" : "historical-job";
     const job = observeJob();
     const start = instant(prepared.report.runtime.started_at),
       end = instant(prepared.report.runtime.teardown.completed_at);
@@ -313,9 +324,11 @@ async function collectHostedNativeProof(
     await readback();
     const receipt = Object.freeze({
       kind:
-        purpose === "current"
-          ? "verified-hosted-native-settled-phase"
-          : "verified-hosted-native-history",
+        purpose === "continuity"
+          ? "verified-hosted-windows-continuity"
+          : purpose === "current"
+            ? "verified-hosted-native-settled-phase"
+            : "verified-hosted-native-history",
       evidence_scope: injected ? "injected-provider" : "github.com",
       capture_directory: capture,
       authority: "none",
@@ -329,12 +342,19 @@ async function collectHostedNativeProof(
       verified_timestamps: times,
       job,
       evidence_scope: receipt.evidence_scope,
-      custody_scope: purpose === "current" ? "signed-stage-witness" : "completed-job-history",
+      custody_scope: purpose !== "historical" ? "signed-stage-witness" : "completed-job-history",
+      minimum_client_acceptance:
+        purpose === "continuity" ? "not-established" : "separate-native-stage",
       journey_completion: "not-established",
       authority: "none",
     });
     if (!injected)
-      (purpose === "current" ? receipts : historicalReceipts).set(receipt, {
+      (purpose === "continuity"
+        ? continuityReceipts
+        : purpose === "current"
+          ? receipts
+          : historicalReceipts
+      ).set(receipt, {
         prepared,
         authorities,
         expected,
@@ -364,6 +384,25 @@ export async function verifiedHostedNativeReleaseQualification(
   const bound = receipts.get(receipt);
   if (!bound) return undefined;
   return readBoundHostedNativeQualification(bound);
+}
+
+export async function verifiedHostedWindowsContinuity(receipt: object) {
+  const bound = continuityReceipts.get(receipt);
+  if (!bound) return undefined;
+  try {
+    const observation = await readBoundHostedNativeQualification(bound);
+    const result = Object.freeze({
+      observation,
+      minimum_client_acceptance: "not-established" as const,
+      journey_completion: "not-established" as const,
+      authority: "none" as const,
+    });
+    assertOriginalHostedNativeActive(bound);
+    return result;
+  } catch (error) {
+    bound.stopped = true;
+    throw error;
+  }
 }
 
 /** Separate historical receipt namespace. These data cannot be passed through
