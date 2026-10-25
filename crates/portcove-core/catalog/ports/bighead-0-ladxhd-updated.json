@@ -7,8 +7,8 @@
     "project_url": "https://gitlab.com/bighead.0/ladxhd_updated",
     "issue_number": 1838,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated",
+    "availability": "packages",
+    "setup_url": "https://gitlab.com/bighead.0/ladxhd_updated/-/blob/718195bf972cb3fd87ed73af88e44899197d7a0e/README.md",
     "artwork": {
       "game_id": 1027,
       "cover_id": 217879,
@@ -16,6 +16,27 @@
       "image_sha256": "270128e2277a26e22faa7bcb2e24550952e1d1a9719de9d858f51cf6ffef67ea",
       "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://gitlab.com/bighead.0/ladxhd_updated/-/releases",
+    "manual_setup": {
+      "help_url": "https://gitlab.com/bighead.0/ladxhd_updated/-/blob/718195bf972cb3fd87ed73af88e44899197d7a0e/README.md",
+      "warnings": [
+        "Upstream patching requires a permitted existing v1.0.0 (or compatible v1.1.4+) PC-port copy and its Content/Data assets. A Game Boy ROM is not a substitute, and Portcove does not supply missing original PC-port assets."
+      ],
+      "steps": [
+        {
+          "title": "Use upstream preparation for your existing copy",
+          "instruction": "Keep a backup of your permitted original PC-port copy. Follow upstream Patching to the Latest Version: place its platform-specific patcher in that copy’s root, select the target platform/graphics backend, and apply the patch yourself. Keep the complete resulting game, Content and Data folders together. Portcove does not run the patcher, migration tool, signing script or installer during discovery or registration."
+        },
+        {
+          "title": "Add the completed game executable",
+          "instruction": "For Windows, select Link's Awakening DX HD.exe from the finished game folder; for an already prepared native Linux copy, select Link's Awakening DX HD. Use that game folder as the working directory, review and save the launch details, then choose Play explicitly. The separate Launcher starts another player and exits; use upstream’s Launcher yourself for its configuration, mods and update features. macOS application-bundle preparation remains with upstream’s specific guide."
+        },
+        {
+          "title": "Preserve the actual game profile",
+          "instruction": "Upstream’s Launcher and patcher own runtime replacement. On Windows, normal saves/settings/achievements and launcher state use %LOCALAPPDATA%/Zelda_LA, with SaveFiles/ under that profile; existing portable.txt mode instead uses the game folder. Mods normally stay in the game folder’s Mods/; an AppImage uses its external Zelda_LA/Mods profile. Preserve the actual profile, mods and permitted original assets before updating and keep the old working copy until progress is checked. Registration grants no managed Update, Backup or Rollback; removing it preserves all external files."
+        }
+      ]
     }
   }
 }
