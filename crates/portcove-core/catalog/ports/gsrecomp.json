@@ -31,7 +31,7 @@
         },
         {
           "title": "Keep current data and rebuild after updates",
-          "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. The launcher keeps original imported saves and puts conflicts under Saves/Imported. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+          "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. External save imports leave their originals in place and preserve conflicts under Saves/Imported. Legacy progress already inside this collection’s ROMs folder can move into Saves after verified copy or conflict preservation. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
         }
       ]
     },

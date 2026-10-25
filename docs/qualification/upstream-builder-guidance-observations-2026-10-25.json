@@ -1,13 +1,14 @@
 {
   "format_version": 1,
   "source_commit": "bd2651e7b5c64efdb33009098a5bd29354038dbf",
-  "observation_cutoff": "2026-10-25T11:36:03.560Z",
+  "observation_cutoff": "2026-10-25T11:40:38.721Z",
   "scope": "Six existing upstream builder/component routes; partial #2510/#2926 delivery, no new managed ownership or stage promotion",
   "authored_identities": 880,
   "operational_definitions": 158,
   "operational_bytes_unchanged": true,
   "operational_sha256": "bd7c31c89948aa0b6c983cb6051913fc483de7457cae54cd44a497237641ea35",
-  "primary_blob_count": 48,
+  "primary_source_record_count": 48,
+  "distinct_primary_source_count": 47,
   "entries": [
     {
       "id": "burnout-2-timftw21",
@@ -497,12 +498,12 @@
       "canonical_issue": 1619,
       "path": "crates/portcove-core/catalog/ports/gsrecomp.json",
       "before_sha256": "eeff17543f7577405701497243c13ffdb6ac30b15ae5221890c4eaec04a52652",
-      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp-proposal.json",
-      "input_sha256": "6f2eca7c1448be95ee1581db0644462be953065fbc82ccdb42b9f7af1ff3df12",
-      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-gsrecomp\\gsrecomp-6f2eca7c1448be95ee1581db0644462be953065fbc82ccdb42b9f7af1ff3df12.json",
-      "prepared_sha256": "6f2eca7c1448be95ee1581db0644462be953065fbc82ccdb42b9f7af1ff3df12",
-      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-gsrecomp\\completion-482858d0de5b0090a662e46ee53dcf4b3905cbd05a9fb6efbc0f927907f3a244.json",
-      "receipt_sha256": "482858d0de5b0090a662e46ee53dcf4b3905cbd05a9fb6efbc0f927907f3a244",
+      "input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/upstream-builders-batch11/gsrecomp-proposal-v3.json",
+      "input_sha256": "4fe2122eb5f60dcc5070b479d9d75a00d58676a6999ea3e02a724beb8ef9f817",
+      "prepared_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-gsrecomp-v3\\gsrecomp-4fe2122eb5f60dcc5070b479d9d75a00d58676a6999ea3e02a724beb8ef9f817.json",
+      "prepared_sha256": "4fe2122eb5f60dcc5070b479d9d75a00d58676a6999ea3e02a724beb8ef9f817",
+      "receipt_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\upstream-builders-batch11\\prepare-gsrecomp-v3\\completion-022b79bed36cebb3bf8297fd1b13022069b9c565c97db454d9001d7f7a7b0df6.json",
+      "receipt_sha256": "022b79bed36cebb3bf8297fd1b13022069b9c565c97db454d9001d7f7a7b0df6",
       "source_commit": "c72ef00dad078f6a714258d3e157ee6ea3d4a4ab",
       "selected_release": "0.6",
       "platform_scope": ["windows-x86-64", "linux-x86-64"],
@@ -517,13 +518,14 @@
         },
         {
           "title": "Keep current data and rebuild after updates",
-          "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. The launcher keeps original imported saves and puts conflicts under Saves/Imported. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+          "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. External save imports leave their originals in place and preserve conflicts under Saves/Imported. Legacy progress already inside this collection’s ROMs folder can move into Saves after verified copy or conflict preservation. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
         }
       ],
       "update_owner": "player/upstream; external ownership retained",
       "fit_disposition": "The collection rebuilds game libraries from two ROM workflows after updates; generated output, shared data and games-specific settings must agree. Existing adapters do not own this regeneration. Root original-material license remains unselected; retain the canonical official personal noncommercial workflow without inferring a redistribution grant.",
       "status": "Actual maintained Core preparation passed; candidate review and delivery pending",
-      "authored_sha256": "c9135a3868727e26d2cfd8ba691d14a0514d63786f0361d944a3928086702029",
+      "repair": "Distinguish external import originals retained from verified in-collection legacy progress movement; previous immutable input and receipt retained.",
+      "authored_sha256": "ec2263c314769605eafde03e1f141e725e9207d59264a54da9123c6d502f4b81",
       "input_prepared_authored_binding": "Input and immutable prepared bytes are separate; authored hash binds formatted repository bytes. Semantic equality with the exact prepared record was verified.",
       "current_route": "Existing listing; no operational integration",
       "selected_route": "Upstream package/setup and non-owning completed-player registration",
@@ -533,7 +535,7 @@
         "specification": {
           "status": "observed",
           "facts_endpoint": "https://api.github.com/repos/boburning/portcove/issues/1619",
-          "observed_at": "2026-10-25T11:32:35.149Z",
+          "observed_at": "2026-10-25T11:39:50.169Z",
           "body_sha256": "cfdd994ed8fb003853437fd3d434493ed8f806e82a0008f4f04e2f1c2ae55cbf",
           "location": "files.upstream -> observations[facts_endpoint].body.body"
         },
