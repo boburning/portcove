@@ -2389,10 +2389,13 @@ does not execute nextest.
 
 The core property tests generate archive-path aliases and digest/scope combinations.
 Run `cargo test -p portcove-core --lib property_` through the storage wrapper.
-For diagnostic coverage, `cargo-llvm-cov` 0.9.1 and the pinned Rust toolchain's
-`llvm-tools-preview` component support `cargo llvm-cov test -p portcove-core --lib
---lcov --output-path outputs/property-coverage.lcov property_`. This intentionally
-scoped report is not a whole-project coverage score or a new acceptance threshold.
+For an opt-in Windows Core path investigation, `just rust-coverage` uses the
+optional coverage tool pin and a separate dated nightly compiler with matching
+LLVM tools. It records discovery, original test outcomes, actual branch counters
+and source/compiler/target/feature-selection provenance in a fresh packet. See
+[measured coverage](reference/test-coverage.md#rust-path-branch-investigation)
+for setup, boundaries and retained failure evidence. Ordinary checks do not install
+or execute this tool, and no coverage percentage becomes an acceptance threshold.
 
 Use the existing mutation tool on a disposable source snapshot with isolated
 build output. Windows source copying can fail on frontend dependency symlinks;

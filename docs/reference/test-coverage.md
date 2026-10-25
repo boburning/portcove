@@ -1,4 +1,4 @@
-# Opt-in measured JavaScript coverage
+# Opt-in measured coverage
 
 Coverage is an investigation of explicitly selected modules. It is separate from
 ordinary checks, and adds no percentage gate. Use the repository-pinned Node and
@@ -70,3 +70,42 @@ The implementation follows the pinned runtime and SDK, with the
 and [Vitest coverage guide](https://vitest.dev/guide/coverage.html) as upstream
 references. Coverage from Node/V8 or Chromium does not establish support for
 Firefox, another JavaScript engine, Rust paths or installed native operations.
+
+## Rust path branch investigation
+
+`just rust-coverage` investigates the Windows x64 Core path module with its existing
+`path::` library tests, default package features and two test threads. It uses
+the optional `cargo-llvm-cov` pin in `.github/quality-tools.json` and the dated
+nightly compiler/LLVM identities in `.config/rust-coverage.json`. The normal Rust
+toolchain stays separate. Branch instrumentation is experimental and does not
+establish complete path coverage or uninstrumented behavior/performance.
+
+Provision the optional tool through the existing deep-tool setup, and install the
+specific toolchain named in the preset with the minimal profile and
+`llvm-tools-preview`, using `rustup toolchain install <preset-toolchain> --profile
+minimal --component llvm-tools-preview --no-self-update`. Provision ordinary Cargo
+dependencies first. The recipe verifies tool/compiler/component versions and runs
+Cargo offline and locked; it downloads nothing. Other targets, Desktop/Tauri,
+packages and filesystem/operation paths outside the selected tests remain
+unqualified by this preset.
+
+Each call requires clean committed source and creates a fresh
+`work/rust-coverage/<uuid>/` packet. `request.json` records the Git head/tree,
+copied source/manifest/executor hashes, exact commands, requested feature selection,
+platform and compiler/LLVM/tool identities. Discovery must be nonempty and its
+case names reconcile with original libtest terminal outcomes. `coverage.json`
+retains the LLVM export; `receipt.json` binds its hash and the selected module's
+actual branch/line/function/region counts. The module report includes embedded
+test code and is not a whole-Core production score. Inspect uncovered regions
+against the copied source before choosing missing behavior tests.
+
+Compilation, discovery, tests and reporting retain raw output and finite resource
+admission/supervision. Failed tests preserve their original nonzero status even
+when report generation succeeds; incomplete outcomes, source drift, redirected
+packets or missing branch measurements refuse completeness. No retry or percentage
+gate is added. The fresh instrumented build directory isolates ordinary artifacts.
+The second invocation reuses only this packet's instrumented build; raw counters
+include its recorded discovery and test invocations. Stage wall times include
+queueing/setup and are not test execution or performance measurements.
+The cold instrumented build/discovery permits 30 minutes; warm tests and export
+permit five minutes each, with a separate 15-minute admission bound per stage.

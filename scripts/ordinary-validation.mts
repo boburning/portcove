@@ -373,6 +373,8 @@ const workflowFeatureTests = [
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/rust-coverage.mts", ["scripts/rust-coverage.test.mts"]],
+  [".config/rust-coverage.json", ["scripts/rust-coverage.test.mts"]],
   ["scripts/ci-workflow.test.mts", workflowContractTests],
   ["scripts/ci-workflow-fixture.mts", workflowContractTests],
   ...workflowFeatureTests.map((file): [string, string[]] => [
@@ -1645,6 +1647,19 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     ...coordinatorStateContractTests,
+  ]);
+}
+
+for (const file of [
+  "scripts/test-coverage-config.mts",
+  "scripts/quality-tools.mts",
+  "scripts/resource-command.mts",
+  "scripts/resource-capacity.mts",
+  "scripts/runtime-values.mts",
+]) {
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/rust-coverage.test.mts",
   ]);
 }
 
