@@ -74,6 +74,7 @@ export function rustCoverageCommands(pins: RustCoveragePins, directory: string) 
   const tests = [
     "test",
     "--branch",
+    "--no-rustc-wrapper",
     "--locked",
     "--offline",
     "--package",
@@ -88,7 +89,7 @@ export function rustCoverageCommands(pins: RustCoveragePins, directory: string) 
   return [
     {
       name: "discovery",
-      timeout_ms: 30 * 60000,
+      timeout_ms: 45 * 60000,
       args: [...prefix, ...tests, pins.test_filter, "--", "--list"],
     },
     {

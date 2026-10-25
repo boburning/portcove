@@ -112,5 +112,11 @@ most 64 characters for Windows linker paths. Failed builds remain retained there
 The second invocation reuses only this packet's instrumented build; raw counters
 include its recorded discovery and test invocations. Stage wall times include
 queueing/setup and are not test execution or performance measurements.
-The cold instrumented build/discovery permits 30 minutes; warm tests and export
+Coverage uses Cargo's instrumentation flags directly (`--no-rustc-wrapper`).
+The retained default-wrapper native attempt compiled and passed its three tests,
+but its Core executable had no coverage-mapping sections and LLVM export failed.
+That attempt remains failed; successful test execution is not coverage evidence.
+Direct flags also instrument applicable dependencies; the reported scope remains
+the selected Core path module. The cold build/discovery permits 45 minutes,
+allowing finite headroom over that attempt's 15m54s compilation; warm tests and export
 permit five minutes each, with a separate 15-minute admission bound per stage.
