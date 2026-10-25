@@ -842,3 +842,20 @@ exit. This prevents normal in-flight writes from masquerading as malformed
 completed claims; malformed completed records continue to refuse. The marker
 adds no acceptance or execution authority and stays inside the existing bounded
 lifecycle allocation.
+
+At repair source `3bfd37fa090a591d300293652d4264316315375e`, ordinary
+CI `40146200042/a1` retained one catalog-test failure: actual worker packaging
+still emitted the coordinator shared chunk. The other four required contexts
+passed. The real file/PID handoff, including partial-record publication, passed
+in 10.85 seconds; the isolated dynamic-cycle pack fixture also passed. Tool-build
+fixture `40146199965/a1` remained failed at fixed-node-bundles. Thus redundant
+output-option aliases did not resolve actual packaging and are removed.
+
+The worker's artifact interface is a fixed subprocess command, not an imported
+bundle API. Its one entry now disables preservation of unused exported entry
+signatures, avoiding an unnecessary facade; source-module exports and all other
+tool entries retain their contracts. Packaging additionally requires zero worker
+bundle exports and still rejects every nonbuiltin chunk import. The synthetic
+fixture includes separate acyclic and cyclic dynamic imports plus exported entry
+bindings. The actual worker build remains the decisive verification; these edits
+alone do not establish a passing build.

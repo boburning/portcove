@@ -577,11 +577,15 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
   await mkdir(path.join(source, "scripts"), { recursive: true });
   await writeFile(
     path.join(source, "scripts/imported.mts"),
-    'const label = "😀é"; export const location = import.meta.url; export {label}; export async function check(){return (await import("./dynamic.mts")).read()};\n',
+    'const label = "😀é"; export const location = import.meta.url; export {label}; export async function check(){return (await import("./cycle.mts")).echo((await import("./dynamic.mts")).read())};\n',
   );
   await writeFile(
     path.join(source, "scripts/dynamic.mts"),
-    'import {label} from "./imported.mts"; export function read(){return label};\n',
+    'export function read(){return globalThis.opaqueLabel ?? "😀é"};\n',
+  );
+  await writeFile(
+    path.join(source, "scripts/cycle.mts"),
+    'import {label} from "./imported.mts"; export function echo(value){return value===label?value:"bad"};\n',
   );
   for (const name of [
     ...controllerToolEntries,
@@ -590,7 +594,7 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
   ])
     await writeFile(
       path.join(source, "scripts", `${name}.mts`),
-      'import {location,check} from "./imported.mts"; console.log(JSON.stringify({location,label:await check(),entry:import.meta.url}));\n',
+      'import {location,check} from "./imported.mts"; export {location}; console.log(JSON.stringify({location,label:await check(),entry:import.meta.url}));\n',
     );
   await bundleControllerEntries(source, output);
   await rm(source, { recursive: true });
