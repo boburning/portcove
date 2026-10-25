@@ -197,7 +197,7 @@ export async function prepareActualHostedLinuxInstallation(
                 [child.stderr, stderr, 8192],
               ] as const) {
                 let retained = 0;
-                stream!.on("data", (bytes: Buffer) => {
+                stream.on("data", (bytes: Buffer) => {
                   try {
                     const available = Math.max(0, maximum - retained);
                     if (available) writeSync(descriptor, bytes.subarray(0, available));

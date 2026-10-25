@@ -1768,6 +1768,13 @@
       ]
     },
     {
+      "file": "scripts/release-hosted-native-installation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 15147],
+        ["release-check", 13447]
+      ]
+    },
+    {
       "file": "scripts/release-hosted-native-runner.test.mts",
       "memberships": [
         ["catalog-full-2", 15145],
