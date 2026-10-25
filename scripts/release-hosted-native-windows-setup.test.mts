@@ -326,3 +326,27 @@ if($actual.bytes -ne $size -or [Convert]::FromBase64String($actual.prefix_base64
 `);
   assert.match(result, /actual probe capture bounds passed/u);
 });
+
+void test("registry startup markers are opt-in and preserve the ordinary silent-stderr prefix", () => {
+  const registry = fileURLToPath(
+    new URL("./native-qualification-account-registry.ps1", import.meta.url),
+  );
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${registry.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'Registry source syntax differs'}
+$prefix=@($ast.EndBlock.Statements|Select-Object -First 3).Extent.Text -join [Environment]::NewLine
+$entry=[scriptblock]::Create($ast.ParamBlock.Extent.Text+[Environment]::NewLine+$prefix)
+$original=[Console]::Error;$capture=[IO.StringWriter]::new()
+try{
+[Console]::SetError($capture)
+& $entry -Invocation ('a'*64)
+if($capture.ToString().Length){throw 'Ordinary reader emitted diagnostic stderr'}
+& $entry -Invocation ('a'*64) -DiagnosticStages
+if($capture.ToString().Trim() -cne 'inert-registry:identity-begin'){throw 'Explicit fixture marker unavailable'}
+}finally{[Console]::SetError($original);$capture.Dispose()}
+'actual default and opt-in registry marker binding passed'
+`);
+  assert.match(result, /actual default and opt-in registry marker binding passed/u);
+});

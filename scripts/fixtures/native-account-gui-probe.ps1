@@ -7,7 +7,7 @@ param(
 # Fixed inert capability fixture, never a package/host acceptance producer.
 $ErrorActionPreference = 'Stop'
 [Console]::Error.WriteLine('inert-probe:started')
-$registry = & (Join-Path $PSScriptRoot '../native-qualification-account-registry.ps1') -Invocation $Invocation | ConvertFrom-Json
+$registry = & (Join-Path $PSScriptRoot '../native-qualification-account-registry.ps1') -Invocation $Invocation -DiagnosticStages | ConvertFrom-Json
 if ($registry.pid -ne $PID -or
     $registry.account_sid -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value -or
     -not [string]::Equals($registry.profile,
