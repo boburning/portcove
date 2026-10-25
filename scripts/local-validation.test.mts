@@ -67,7 +67,14 @@ void test("native input observation and its fixed oracle retain direct consumers
         oldMode: variant === "A" ? "000000" : "100644",
         newMode: variant === "D" ? "000000" : "100644",
       };
-      const plan = buildValidationPlan([change]);
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
       const local = classifyChanges([change], { fileExists: () => false });
       const hosted = baselineContractTests(plan, { fileExists: () => false });
       assert.equal(local.nodeTests.has(consumer), file !== sibling, JSON.stringify(change));
