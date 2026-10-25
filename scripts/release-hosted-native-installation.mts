@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { closeSync, openSync, writeSync } from "node:fs";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { performance } from "node:perf_hooks";
 import path from "node:path";
@@ -48,38 +48,8 @@ export async function prepareActualHostedLinuxInstallation(
   assert.equal(tools.identity.run_attempt, parent.producer.run_attempt);
   const selected = parent.configuration.hosted_native["linux-x86_64"].producer;
   const nativeSource = path.join(workspace, "native-source");
-  const sourceEnvironment = {
-    PATH: "/usr/bin:/bin",
-    HOME: "/home/runner",
-    LANG: "C.UTF-8",
-    GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: "/dev/null",
-    GIT_TERMINAL_PROMPT: "0",
-    GIT_NO_LAZY_FETCH: "1",
-    GIT_NO_REPLACE_OBJECTS: "1",
-    GIT_OPTIONAL_LOCKS: "0",
-  };
-  for (const [args, expected] of [
-    [["rev-parse", "HEAD"], selected.source_commit],
-    [["rev-parse", "HEAD^{tree}"], selected.source_tree],
-    [["status", "--porcelain", "--untracked-files=no"], ""],
-  ] as const) {
-    parent.recheck();
-    const result = spawnSync(
-      "/usr/bin/git",
-      ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-C", nativeSource, ...args],
-      { env: sourceEnvironment, encoding: "utf8", timeout: 15000, maxBuffer: 65536 },
-    );
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 0);
-    assert.equal(result.stdout.trim(), expected, "independent native source not prepared");
-    parent.recheck();
-  }
   const harness = path.join(nativeSource, selected.harness.path);
-  const sourceCustody = inspectNativeRuntimeCustody([harness]);
-  assert.equal(hash(await readControllerToolFile(harness, 1024 ** 2)), selected.harness.sha256);
-  recheckNativeRuntimeCustody([harness], sourceCustody);
-  parent.recheck();
+  let sourceCustody: ReturnType<typeof inspectNativeRuntimeCustody> | undefined;
   const files = [
     tools.node,
     tools.nativeDriver,
@@ -118,7 +88,7 @@ export async function prepareActualHostedLinuxInstallation(
   const active = () => {
     parent.recheck();
     recheckNativeRuntimeCustody(files, custody);
-    recheckNativeRuntimeCustody([harness], sourceCustody);
+    if (sourceCustody) recheckNativeRuntimeCustody([harness], sourceCustody);
     assert.ok(
       performance.now() < parent.deadline,
       "original installation issuer/job clock exhausted",
@@ -240,6 +210,64 @@ export async function prepareActualHostedLinuxInstallation(
     authority: "none",
   });
   active();
+  const identities = await Promise.all(
+    [tools.node, tools.nativeDriver].map(async (filename) => {
+      const bytes = await readControllerToolFile(filename);
+      active();
+      return { path: filename, bytes: bytes.length, sha256: hash(bytes) };
+    }),
+  );
+  const sourceLifetime = lifetime(90000);
+  const sourcePlan = {
+    schema_version: 1,
+    binding,
+    source_commit: selected.source_commit,
+    source_tree: selected.source_tree,
+    harness_sha256: selected.harness.sha256,
+    ...sourceLifetime,
+    tools: { node: identities[0], driver: identities[1] },
+    context,
+  };
+  const acquired = await run(
+    "hosted-source-acquisition",
+    "/usr/bin/python3",
+    [
+      "-I",
+      "-S",
+      "-B",
+      "-c",
+      "import json,runpy,sys; module=runpy.run_path(sys.argv[1]); print(json.dumps(module['acquire_source'](module['inspect_plan'](json.loads(sys.argv[2])))))",
+      files[3]!,
+      JSON.stringify(sourcePlan),
+    ],
+    sourceLifetime,
+  );
+  assert.equal(acquired.binding, binding);
+  assert.equal(acquired.source_commit, selected.source_commit);
+  assert.equal(acquired.source_tree, selected.source_tree);
+  assert.equal(acquired.acquired, true);
+  assert.equal(acquired.dependencies_prepared, false);
+  sourceCustody = inspectNativeRuntimeCustody([harness]);
+  assert.equal(hash(await readControllerToolFile(harness, 1024 ** 2)), selected.harness.sha256);
+  active();
+  const dependencyLifetime = lifetime(20000);
+  const dependencyReadback = await run(
+    "hosted-dependency-preflight",
+    "/usr/bin/python3",
+    [
+      "-I",
+      "-S",
+      "-B",
+      "-c",
+      "import json,runpy,sys; module=runpy.run_path(sys.argv[1]); print(json.dumps(module['read_source_dependencies'](module['inspect_plan'](json.loads(sys.argv[2])))))",
+      files[3]!,
+      JSON.stringify({ ...sourcePlan, ...dependencyLifetime }),
+    ],
+    dependencyLifetime,
+  );
+  assert.equal(dependencyReadback.binding, binding);
+  assert.equal(dependencyReadback.dependencies_prepared, true);
+  active();
   // The module is attested controller code. Native source is data, never root code.
   const setupLifetime = lifetime(150000);
   const setup = await run(
@@ -264,13 +292,6 @@ export async function prepareActualHostedLinuxInstallation(
   assert.ok(isRecord(setup.probe) && setup.probe.passed === true);
   assert.ok(isRecord(setup.setup) && setup.setup.completed === true);
   active();
-  const identities = await Promise.all(
-    [tools.node, tools.nativeDriver].map(async (filename) => {
-      const bytes = await readControllerToolFile(filename);
-      active();
-      return { path: filename, bytes: bytes.length, sha256: hash(bytes) };
-    }),
-  );
   const materializationLifetime = lifetime(120000);
   const plan = {
     schema_version: 1,
