@@ -226,6 +226,7 @@ namespace Portcove.NativeQualification {
             return result.ToArray();
         }
         public string LastWindowInspection { get; private set; }
+        public bool SawVisibleWindow { get; private set; }
         IntPtr FindWindow(uint target) {
             IntPtr found = IntPtr.Zero;
             var inspected = new List<string>();
@@ -234,7 +235,7 @@ namespace Portcove.NativeQualification {
                 if (owner == target) {
                     bool visible = Native.IsWindowVisible(window);
                     if (inspected.Count < 16) inspected.Add(window.ToString() + ":" + visible + ":" + Native.GetWindowLongW(window, -16).ToString("X8"));
-                    if (visible) { found = window; return false; }
+                    if (visible) { SawVisibleWindow = true; found = window; return false; }
                 }
                 return true;
             };
@@ -254,11 +255,15 @@ namespace Portcove.NativeQualification {
                 return title.ToString();
             }
         }
+        public string LastResponseInspection { get; private set; }
         public bool Responding {
             get {
                 IntPtr window = FindWindow(pid); if (window == IntPtr.Zero) return false;
                 UIntPtr result;
-                return Native.SendMessageTimeoutW(window, 0, UIntPtr.Zero, IntPtr.Zero, 3, 1000, out result) != IntPtr.Zero;
+                IntPtr response = Native.SendMessageTimeoutW(window, 0, UIntPtr.Zero, IntPtr.Zero, 3, 1000, out result);
+                int error = Marshal.GetLastWin32Error();
+                LastResponseInspection = window.ToString() + ":" + response.ToString() + ":" + error;
+                return response != IntPtr.Zero;
             }
         }
         public bool CloseMainWindow() {

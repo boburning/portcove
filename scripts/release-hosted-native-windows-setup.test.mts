@@ -360,6 +360,10 @@ $begin=$source.IndexOf('        IntPtr FindWindow(uint target) {')
 $end=$source.IndexOf('        public IntPtr MainWindowHandle', $begin)
 if($begin -lt 0 -or $end -le $begin){throw 'Actual lookup boundary differs'}
 $method=$source.Substring($begin,$end-$begin)
+$responseBegin=$source.IndexOf('        public bool Responding {')
+$responseEnd=$source.IndexOf('        public bool CloseMainWindow', $responseBegin)
+if($responseBegin -lt 0 -or $responseEnd -le $responseBegin){throw 'Actual response boundary differs'}
+$response=$source.Substring($responseBegin,$responseEnd-$responseBegin)
 $harness=@'
 using System;
 using System.Collections.Generic;
@@ -367,7 +371,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 public static class Native {
  public delegate bool DesktopWindowCallback(IntPtr window, IntPtr unused);
- public static bool Fails, HasWindow;
+ public static bool Fails, HasWindow, Responds;
  public static bool EnumDesktopWindows(IntPtr desktop, DesktopWindowCallback callback, IntPtr ignored) {
   if(HasWindow) return callback(new IntPtr(42), IntPtr.Zero);
   return !Fails;
@@ -375,23 +379,31 @@ public static class Native {
  public static void GetWindowThreadProcessId(IntPtr window, out uint owner) { owner=7; }
  public static bool IsWindowVisible(IntPtr window) {return true;}
  public static int GetWindowLongW(IntPtr window, int index) {return 268435456;}
+ public static IntPtr SendMessageTimeoutW(IntPtr window, uint message, UIntPtr wparam, IntPtr lparam, uint flags, uint timeout, out UIntPtr result) {result=UIntPtr.Zero;return Responds ? new IntPtr(1) : IntPtr.Zero;}
  public static Exception Error(string operation) {return new InvalidOperationException(operation);}
 }
 public class Lookup {
  IntPtr desktop=IntPtr.Zero;
  public string LastWindowInspection {get; private set;}
+ public string LastResponseInspection {get; private set;}
+ public bool SawVisibleWindow {get; private set;}
+ uint pid=7;
 __METHOD__
+__RESPONSE__
  public IntPtr Observe(){return FindWindow(7);}
 }
 '@
-Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method)
+Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method).Replace('__RESPONSE__',$response)
 $lookup=[Lookup]::new()
 if($lookup.Observe() -ne [IntPtr]::Zero){throw 'Empty desktop was not empty'}
 [Native]::Fails=$true
 $refused=$false;try{$lookup.Observe()|Out-Null}catch{if($_.Exception.ToString() -notmatch 'EnumDesktopWindows failed: win32='){throw};$refused=$true}
 if(-not $refused){throw 'Enumeration failure became an empty desktop'}
 [Native]::HasWindow=$true
-if($lookup.Observe().ToInt64() -ne 42 -or $lookup.LastWindowInspection -cne '42:True:10000000'){throw 'Found callback stop or bounded inspection was lost'}
+if($lookup.Observe().ToInt64() -ne 42 -or $lookup.LastWindowInspection -cne '42:True:10000000' -or -not $lookup.SawVisibleWindow){throw 'Found callback stop or bounded inspection was lost'}
+if($lookup.Responding -or $lookup.LastResponseInspection -notmatch '^42:0:'){throw 'Response refusal or its evidence was lost'}
+[Native]::Responds=$true
+if(-not $lookup.Responding -or $lookup.LastResponseInspection -notmatch '^42:1:'){throw 'Successful response or its evidence was lost'}
 'actual lookup error, empty and found-callback semantics passed'
 `);
   assert.match(result, /actual lookup error, empty and found-callback semantics passed/u);
