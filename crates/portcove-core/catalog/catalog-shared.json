@@ -952,6 +952,16 @@
         "claim": "The pinned DAT has SCUS-94426 and SCUS-94426CE serial aliases with identical 605698800-byte raw CTR USA BIN: SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772, CRC9a742438. Byte identity is separate from native player/source applicability; no original media acquisition.",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat%2Fredump%2FSony%20-%20PlayStation.dat",
         "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
+      },
+      {
+        "id": "goldeneye-007-source-sha1-5c43e69b",
+        "role": "upstream_support",
+        "authority": "jkdansereau/goldeneye-pc-port",
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "claim": "Pinned upstream README, ge007.u.sha1 and converter agree on the exact NTSC-U USA big-endian GoldenEye 007 SHA-1. No other byte order, region, modified image, size or gameplay observation is asserted.",
+        "immutable_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/ge007.u.sha1",
+        "live_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/ge007.u.sha1"
       }
     ],
     "identities": [
@@ -7147,6 +7157,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "goldeneye-007-ntsc-u-big-endian",
+        "label": "GoldenEye 007 NTSC-U USA big-endian original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "ntsc-u-usa",
+            "title": "GoldenEye 007",
+            "region": "USA",
+            "revision": "NTSC-U supported by pinned upstream",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "big-endian-z64",
+                "extensions": [
+                  "z64"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "abe01e4aeb033b6c0836819f549c791b26cfde83",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "goldeneye-007-source-sha1-5c43e69b"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "goldeneye-007-source-sha1-5c43e69b"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -10224,6 +10274,33 @@
         "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "goldeneye-007-n64-pc-port-game-source",
+        "port_id": "goldeneye-007-n64-pc-port",
+        "role": "game",
+        "profile_id": "goldeneye-007-ntsc-u-big-endian",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "ntsc-u-usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "goldeneye-007-source-sha1-5c43e69b"
+        ],
+        "authority_ref": "5c43e69b23f76d1ba30d1120dab427d09968a8c8",
+        "reviewed_at": "2026-10-25",
+        "immutable_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/5c43e69b23f76d1ba30d1120dab427d09968a8c8/README.md",
+        "live_review_url": "https://github.com/jkdansereau/goldeneye-pc-port/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.5.0",
+            "artifact_sha256": "b49bfb826566367a4d1af16466530f0fadd85e522b33859521d849c143a005ef"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }

@@ -10523,12 +10523,11 @@
     {
       "id": "goldeneye-007-n64-pc-port",
       "name": "GoldenEye 007 N64 PC Port",
-      "summary": "Explore GoldenEye 007 N64 PC Port and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native GoldenEye 007 player using your own matching NTSC-U original. The game prepares its assets on first Play.",
       "project_url": "https://github.com/jkdansereau/goldeneye-pc-port",
       "issue_number": 1129,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port",
+      "availability": "packages",
+      "setup_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
       "artwork": {
         "game_id": 1638,
         "cover_id": 576176,
@@ -10536,7 +10535,37 @@
         "image_sha256": "6937741f1cbcd1394211af3a808040fdff0c9fc02eab5f2f506f7ea700c5f779",
         "game_slug": "goldeneye-007",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "GoldenEye 007",
+      "release_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "goldeneye-pc-port-",
+          "-win64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/jkdansereau/goldeneye-pc-port#readme",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Supply your matching original",
+            "instruction": "For the managed Windows route, choose your own exact GoldenEye 007 NTSC-U USA big-endian .z64 original. Portcove verifies its declared identity and copies it to data/ge007.ntsc-final.z64 beside the player. PAL, Japanese, byte-swapped and modified images are not accepted by this contract. No BIOS or separate installer is required."
+          },
+          {
+            "title": "Choose Play for first-run preparation",
+            "instruction": "Keep the complete official Windows ZIP together. Play starts ge007.x86_64.exe, which invokes its bundled frozen converter when generated sidecars are missing. Portcove does not run a discovered helper during download or setup, and does not certify successful upstream conversion or gameplay. If conversion fails, follow the selected upstream troubleshooting instructions and keep your original and saves recoverable."
+          },
+          {
+            "title": "Keep an existing copy recoverable",
+            "instruction": "For an external copy, select ge007.x86_64.exe with its containing folder as working directory, save launch details, then choose Play. Preserve its data/ge007.ntsc-final.z64, data/ge007.eep, data/ge007.ini, emulator-import backup files and ppm screenshots, plus any custom locations you selected. You or upstream provide external updates; Portcove registration does not update, back up or delete those files. Generated sidecars and shader lists belong to their runtime version. Optional Python/source tools remain separate deliberate upstream actions; extra bytecode or arbitrary tool output can require preservation before managed replacement."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "goldeneye-007-xbla-recomp",
@@ -13016,12 +13045,40 @@
     {
       "id": "mstan-supermarioadvance4recomp",
       "name": "Super Mario Advance 4: Super Mario Bros. 3 / Super Mario Advance 4 Recomp (mstan)",
-      "summary": "Explore Super Mario Advance 4: Super Mario Bros. 3 / Super Mario Advance 4 Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native Windows player using your own matching original GBA game and retail GBA BIOS.",
       "project_url": "https://github.com/mstan/SuperMarioAdvance4Recomp",
       "issue_number": 1892,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/SuperMarioAdvance4Recomp"
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SuperMarioAdvance4Recomp-windows-x64-",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/SuperMarioAdvance4Recomp/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original game and BIOS in the player",
+            "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. After installation, choose Play to open the upstream launcher, then supply your own matching original GBA game and retail GBA BIOS as it requests. The launcher checks those inputs and remembers valid choices. Core does not run the compiler or discover and execute helpers during setup. This is first-Play setup; no separate installer is required."
+          },
+          {
+            "title": "Keep the saves you actually use",
+            "instruction": "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations. If Library identifies this copy as Portcove-managed, Portcove preserves declared installation-local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml and saves/ during compatible managed replacement and backup. External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves."
+          },
+          {
+            "title": "Keep current data when updating",
+            "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "mstan-tetrisgbrecomp",
@@ -13037,12 +13094,11 @@
     {
       "id": "mstan-wariowaretwistedrecomp",
       "name": "WarioWare: Twisted! / WarioWare: Twisted! Recomp (mstan)",
-      "summary": "Explore WarioWare: Twisted! / WarioWare: Twisted! Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native Windows player using your own matching original GBA game and retail GBA BIOS.",
       "project_url": "https://github.com/mstan/WarioWareTwistedRecomp",
       "issue_number": 1906,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme",
       "artwork": {
         "game_id": 1704,
         "cover_id": 89078,
@@ -13050,7 +13106,40 @@
         "image_sha256": "e9c8ce1e7dfaf5c3cc581dc38280bc00565b4c0e9152a2f0e26c968862ea4c34",
         "game_slug": "warioware-twisted",
         "match_kind": "underlying-game"
-      }
+      },
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "WarioWareTwistedRecomp-windows-x64-",
+          ".zip"
+        ]
+      },
+      "release_url": "https://github.com/mstan/WarioWareTwistedRecomp/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original game and BIOS in the player",
+            "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. After installation, choose Play to open the upstream launcher, then supply your own matching original GBA game and retail GBA BIOS as it requests. The launcher checks those inputs and remembers valid choices. Core does not run the compiler or discover and execute helpers during setup. This is first-Play setup; no separate installer is required."
+          },
+          {
+            "title": "Keep the saves you actually use",
+            "instruction": "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files. This package also includes variants/warioware_twisted/game.toml. Only when the runtime is actually launched with that configuration does its cartridge save use installation-local saves/warioware_twisted_usa.sav; state files still follow the original game unless you override their directory. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations. If Library identifies this copy as Portcove-managed, Portcove preserves declared installation-local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml and saves/ during compatible managed replacement and backup. External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves."
+          },
+          {
+            "title": "Keep current data when updating",
+            "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
+          },
+          {
+            "title": "Android uses its own app and storage",
+            "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "mstan-yoshinesrecomp",

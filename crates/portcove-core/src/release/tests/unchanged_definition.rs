@@ -184,6 +184,14 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "v0.1.2",
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
+        // v0.5.1 is a controlled successor, not a published-release claim.
+        (
+            "goldeneye-007-n64-pc-port",
+            "v0.5.0",
+            "goldeneye-pc-port-0.5.0-win64.zip",
+            "v0.5.1",
+            "goldeneye-pc-port-0.5.1-win64.zip",
+        ),
     ] {
         // Adopted portable and original-driven routes use their shipped rules.
         // Sonic3K stays a frozen proposal pending its separate data transition.
@@ -200,6 +208,7 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                 | "the-legend-of-zelda-a-link-to-the-past-snes-recomp"
                 | "sonic-the-hedgehog-2-recomp"
                 | "super-bomberman-recomp"
+                | "goldeneye-007-n64-pc-port"
         ) {
             catalog.port(id).unwrap()
         } else {
@@ -299,7 +308,7 @@ fn variant_port() -> PortDefinition {
 #[tokio::test]
 async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives() {
     let catalog = crate::Catalog::embedded().unwrap();
-    // Both successors are controlled fixtures, not published upstream releases.
+    // Successors are controlled fixtures, not published upstream releases.
     for (id, old_tag, old_name, new_tag, new_name) in [
         (
             "infinite-undiscovery-doc-haz",
@@ -314,6 +323,20 @@ async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_complianc
             "ctr-native-beta-7_1-windows-x86.zip",
             "beta-7.2",
             "ctr-native-beta-7_2-windows-x86.zip",
+        ),
+        (
+            "mstan-supermarioadvance4recomp",
+            "v0.0.3",
+            "SuperMarioAdvance4Recomp-windows-x64-v0.0.3.zip",
+            "v0.0.4",
+            "SuperMarioAdvance4Recomp-windows-x64-v0.0.4.zip",
+        ),
+        (
+            "mstan-wariowaretwistedrecomp",
+            "v0.0.2",
+            "WarioWareTwistedRecomp-windows-x64-v0.0.2.zip",
+            "v0.0.3",
+            "WarioWareTwistedRecomp-windows-x64-v0.0.3.zip",
         ),
     ] {
         let port = catalog.port(id).unwrap();
