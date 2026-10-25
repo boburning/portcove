@@ -7,6 +7,17 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI40164185374/a1 retained this complete authenticated staging/rollback case
+# at the Windows30.232s harness cutoff. Keep all durable operations/assertions,
+# phase diagnostics, cleanup, active worker slots and zero retries. Exact60s
+# headroom preserves finite hangs; this is not a product-deadline change or a
+# causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The historical byte-only backup round trip passed in the preceding batch,
 # then hit the Windows30.126s outer cap in run3be9ce8b. Preserve the complete
 # create/review/restore/assertion flow, two workers and zero retries. Exact60s
