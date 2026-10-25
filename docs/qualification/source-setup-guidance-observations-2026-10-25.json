@@ -1172,7 +1172,7 @@
       "canonical_issue": 1572,
       "path": "crates/portcove-core/catalog/ports/wave-race-blue-storm-recompiled.json",
       "before_sha256": "a0041e560daf3cc11db2268ee1676111eea3bf5592009b60a5da7ee388f280ee",
-      "proposal_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/wave-race-blue-storm-recompiled.json",
+      "proposal_input_path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/source-guidance-batch7/wave-launch-input-2.json",
       "proposal_input_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
       "prepared_record_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7\\prepare-wave-launch-repair\\wave-race-blue-storm-recompiled-3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9.json",
       "prepared_record_sha256": "3f2845e460e7e3f7c1ad4742dfe2bad6b0293532705c06a4a7136c11ec2ca2a9",
@@ -1233,7 +1233,9 @@
         "receipt_sha256": "3f6a707fcbd014454fdd6d30b68e7fa6de32271eb578fd1bf5a54e2ff3875e1c"
       },
       "delivery_status": "Authored, Core listing preparation passed; complete-candidate independent review and exact-head hosted checks remain required before guarded delivery",
-      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions."
+      "reconsideration": "A supported native player archive with attributable permission, reviewed executable/input/data/update facts fitting an existing capability; title-specific unresolved native outputs and experimental limits remain exact upstream questions.",
+      "supplied_input_path": "E:\\Codex-Evidence\\simpler-installation-rollout-20261023\\source-guidance-batch7/wave-race-blue-storm-recompiled.json",
+      "proposal_input_copy_scope": "Frozen byte-identical copy of the actual supplied input. The original changed-proposal output and receipt remain the exact preparation evidence; later unchanged-input preparation has no files.records output and is not substituted."
     }
   ],
   "evidence_scope": "PrimaryREADME/GitblobSHA1/contentSHA256 and complete release metadata plus Core listing inspection. No artifact/game/helper/compiler/installer/original acquisition or execution. No native/gameplay, managed-replacement, packagedDesktop or real-save claim. Source discovery and permitted-copy guidance grant no permission or ownership; exact Strikers and ThemeHospital component/toolchain limits retained.",
@@ -1250,7 +1252,13 @@
     {
       "source": "4559e2efb890c6063b783ca1773a8299338117ef",
       "finding": "Wave Race invented first-Play image picker; replaced with configured image/rom-folder/positional image-path argument before explicit Play.",
-      "scope": "Actual guide, regenerated listing, report and exact repaired Core listing preparation."
+      "scope": "Actual guide, regenerated listing, report and exact repaired Core listing preparation.",
+      "historical_input_preservation": {
+        "source": "4559e2efb890c6063b783ca1773a8299338117ef",
+        "path": "E:/Codex-Evidence/simpler-installation-rollout-20261023/source-guidance-batch7/wave-race-blue-storm-recompiled-4559.json",
+        "sha256": "f893bbfd8d14e6fd74879f9df93a5c06809e013ce31a55234ebaadff1984e9d9",
+        "scope": "Original proposal input preserved before correction; original source, prepared output and receipt unchanged."
+      }
     }
   ]
 }
