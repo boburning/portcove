@@ -497,7 +497,11 @@ void test("history fixture helpers import without installed desktop packages", a
 
 void test(
   "history installation and lost-window failures retain original and restoration evidence",
-  { skip: process.platform !== "linux" },
+  {
+    skip:
+      process.platform !== "linux" &&
+      "platform: linux; requires Linux process identity; route: ci.yml/frontend_full (frontend-full-4)",
+  },
   async (t) => {
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-restoration-"));
     t.after(() => rm(root, { recursive: true, force: true }));
@@ -548,7 +552,11 @@ void test(
 
 void test(
   "history ownership rejects an unrelated PID and changed creation identity without signaling",
-  { skip: process.platform !== "linux" },
+  {
+    skip:
+      process.platform !== "linux" &&
+      "platform: linux; requires Linux process identity; route: ci.yml/frontend_full (frontend-full-4)",
+  },
   async () => {
     const raw = await readFile(`/proc/${process.pid}/stat`, "utf8");
     const fields = raw.slice(raw.lastIndexOf(")") + 2).split(" ");
@@ -1015,7 +1023,11 @@ void test("external runtime journey retains a failed dispatcher picker phase bef
 
 void test(
   "picker observation refuses stale launch identities and directory input before UI enumeration",
-  { skip: process.platform !== "win32" },
+  {
+    skip:
+      process.platform !== "win32" &&
+      "platform: win32; requires Windows PowerShell picker guards; route: ci.yml/windows_storage (windows-storage-4)",
+  },
   async (t) => {
     const output = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-identity-"));
     t.after(() => rm(output, { recursive: true, force: true }));
@@ -1096,7 +1108,11 @@ try {
 
 void test(
   "prepared runtime picker refuses a different directory before obtaining a driver",
-  { skip: process.platform !== "win32" },
+  {
+    skip:
+      process.platform !== "win32" &&
+      "platform: win32; requires Windows PowerShell picker guards; route: ci.yml/windows_storage (windows-storage-4)",
+  },
   async (t) => {
     const output = await mkdtemp(path.join(os.tmpdir(), "portcove-prepared-input-"));
     t.after(() => rm(output, { recursive: true, force: true }));
