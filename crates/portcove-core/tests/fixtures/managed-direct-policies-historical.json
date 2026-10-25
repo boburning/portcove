@@ -1,0 +1,620 @@
+{
+  "format_version": 1,
+  "source_commit": "337d0a55690bfdbd5668d7bad0408fcd124413a7",
+  "scope": "Frozen managed direct-policy test inputs from before dynamic acquisition adoption. Not a catalog or qualification authority.",
+  "ports": [
+    {
+      "id": "the-force-engine-dark-forces",
+      "name": "The Force Engine: Dark Forces",
+      "summary": "Dark Forces with automatic Windows engine setup and checked original PC data. Gameplay remains unqualified.",
+      "project_url": "https://github.com/TheForceEngine/TheForceEngine",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "repository": "TheForceEngine/TheForceEngine",
+        "direct": {
+          "windows-x86-64": {
+            "version": "1.22.420",
+            "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
+            "size": 10561878,
+            "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
+          }
+        }
+      },
+      "source_profile": "dark-forces-pc-complete-installed-data",
+      "executable_hints": {
+        "windows-x86-64": [
+          "TheForceEngine.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dark-forces-pc-complete-installed-data",
+            "label": "Dark Forces PC installed data: complete folder or ZIP",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Star Wars: Dark Forces",
+        "variant_label": "PC",
+        "artwork": {
+          "game_id": 157,
+          "cover_id": 232486,
+          "image_id": "co4zdy",
+          "image_sha256": "ec562b66d9bbd3c705ce7d7925535727010203326179b1d73da2085cbad48ab9",
+          "game_slug": "star-wars-dark-forces",
+          "match_kind": "underlying-game"
+        }
+      },
+      "managed_initialization": "tfe-dark-forces-portable-v1",
+      "launch_from_install_root": true,
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "DARK.GOB"
+          ],
+          "destination": "GameData/DARK.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/1E.LFD"
+          ],
+          "destination": "GameData/LFD/1E.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AGENTMNU.LFD"
+          ],
+          "destination": "GameData/LFD/AGENTMNU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ARCEXT.LFD"
+          ],
+          "destination": "GameData/LFD/ARCEXT.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ARCFLY.LFD"
+          ],
+          "destination": "GameData/LFD/ARCFLY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD1.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD2.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD3.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD4.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD4.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BOBA.LFD"
+          ],
+          "destination": "GameData/LFD/BOBA.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BRIEF1.LFD"
+          ],
+          "destination": "GameData/LFD/BRIEF1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BRIEF2.LFD"
+          ],
+          "destination": "GameData/LFD/BRIEF2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/CARGO1.LFD"
+          ],
+          "destination": "GameData/LFD/CARGO1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/CARGO3.LFD"
+          ],
+          "destination": "GameData/LFD/CARGO3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/DARKLOGO.LFD"
+          ],
+          "destination": "GameData/LFD/DARKLOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/DFBRIEF.LFD"
+          ],
+          "destination": "GameData/LFD/DFBRIEF.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ENDFLY.LFD"
+          ],
+          "destination": "GameData/LFD/ENDFLY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXECCOMP.LFD"
+          ],
+          "destination": "GameData/LFD/EXECCOMP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXECX.LFD"
+          ],
+          "destination": "GameData/LFD/EXECX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXITNEB.LFD"
+          ],
+          "destination": "GameData/LFD/EXITNEB.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP1XX.LFD"
+          ],
+          "destination": "GameData/LFD/EXP1XX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP2X.LFD"
+          ],
+          "destination": "GameData/LFD/EXP2X.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP3XX.LFD"
+          ],
+          "destination": "GameData/LFD/EXP3XX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/FTEXTCRA.LFD"
+          ],
+          "destination": "GameData/LFD/FTEXTCRA.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/FULLCRED.LFD"
+          ],
+          "destination": "GameData/LFD/FULLCRED.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/GROMAS1.LFD"
+          ],
+          "destination": "GameData/LFD/GROMAS1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/GROMASX.LFD"
+          ],
+          "destination": "GameData/LFD/GROMASX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/HOLOCU.LFD"
+          ],
+          "destination": "GameData/LFD/HOLOCU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA1.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA2.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA3.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABESCP.LFD"
+          ],
+          "destination": "GameData/LFD/JABESCP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JEDISFX.LFD"
+          ],
+          "destination": "GameData/LFD/JEDISFX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/KFLYBY.LFD"
+          ],
+          "destination": "GameData/LFD/KFLYBY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/LOGO.LFD"
+          ],
+          "destination": "GameData/LFD/LOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/MADINE1.LFD"
+          ],
+          "destination": "GameData/LFD/MADINE1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/MENU.LFD"
+          ],
+          "destination": "GameData/LFD/MENU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/NEB1.LFD"
+          ],
+          "destination": "GameData/LFD/NEB1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/PIT.LFD"
+          ],
+          "destination": "GameData/LFD/PIT.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ROB1.LFD"
+          ],
+          "destination": "GameData/LFD/ROB1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ROBOTX.LFD"
+          ],
+          "destination": "GameData/LFD/ROBOTX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/STANDARD.LFD"
+          ],
+          "destination": "GameData/LFD/STANDARD.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/SUCCES.LFD"
+          ],
+          "destination": "GameData/LFD/SUCCES.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/SWLOGO.LFD"
+          ],
+          "destination": "GameData/LFD/SWLOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/TUBECOMP.LFD"
+          ],
+          "destination": "GameData/LFD/TUBECOMP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "SOUNDS.GOB"
+          ],
+          "destination": "GameData/SOUNDS.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "SPRITES.GOB"
+          ],
+          "destination": "GameData/SPRITES.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "TEXTURES.GOB"
+          ],
+          "destination": "GameData/TEXTURES.GOB",
+          "materialization": "copy"
+        }
+      ],
+      "runtime_source_hashes": {
+        "GameData/DARK.GOB": "3ff0efca4fb5ce82b2e02bbf1ef3fc4246f1ecce5625959f5e729f80a0576c1b",
+        "GameData/LFD/1E.LFD": "1f132ae57c788411abbd65f068347b8466c1b1268d4464aab966c9c926f1901b",
+        "GameData/LFD/AGENTMNU.LFD": "e59e1bdd7ecb9a08aa89a02dbc901fcbb7fe7823aaf303b469ecc321fb17b6cd",
+        "GameData/LFD/ARCEXT.LFD": "5b959d01147482ecbfa9e27099751480cbd171c561fc13659f3ef62768efb540",
+        "GameData/LFD/ARCFLY.LFD": "2ce1b6c03b26317d209170046b742b080c10ac370bb80c06c71db04610f8631a",
+        "GameData/LFD/AWARD1.LFD": "7b9a40f3bc88cc6f577aac47f260cbb1a7468409f95d8f414bf2634cbc5268b7",
+        "GameData/LFD/AWARD2.LFD": "7c6e0c8859bdf6e91745c3a2bf22dd13c402073a63edf3ab6d59a0374cdbebfc",
+        "GameData/LFD/AWARD3.LFD": "6668e2a0751902df74a079ec03c6140b6a74245bf140c860d5b792d82c0cd319",
+        "GameData/LFD/AWARD4.LFD": "9406d7ca508523bb2f49495d5221e8560935675e67f5743fcc3a2d08ce6f9867",
+        "GameData/LFD/BOBA.LFD": "d506439f6e1cb77c9eb6c306c7bdeb22e61bbbc19288d228b932e5ab026a6564",
+        "GameData/LFD/BRIEF1.LFD": "41562bfba6e130d82084908159866773059fde666546dd260a19a7fe938fbc51",
+        "GameData/LFD/BRIEF2.LFD": "2251a82a1be49ee3e57f04c99dbe9e8c4c7281b4e96a890bcd326a0e3ce4faa4",
+        "GameData/LFD/CARGO1.LFD": "cdcd7c0a5ffd7e79a6b00ead22427364329f4ad94221e99b7e62057717698fd5",
+        "GameData/LFD/CARGO3.LFD": "798301011299c824dc66cf9179ba94d7825d23c833d016bdd19183d7e023bad1",
+        "GameData/LFD/DARKLOGO.LFD": "d7552fc09f29160ca8629413d8c0abde0e486d932acf651c0b413306fda42ee5",
+        "GameData/LFD/DFBRIEF.LFD": "53d8b495607fa8a8ab138f354f6a2ce12e2f4e9b00524aaf8aa4e7b3c0320dd2",
+        "GameData/LFD/ENDFLY.LFD": "cba548394757245ddaf8d82211c2b97852f8403836462db6a658d1f70311cfa7",
+        "GameData/LFD/EXECCOMP.LFD": "63eb69be42ab9ab245133ce0442437722850a5b2b32b56e8a0ae9518d42559cc",
+        "GameData/LFD/EXECX.LFD": "6bac072bd974b743546f9ba52ebd27f07176e2c7e2583c8e0071b269503c59e9",
+        "GameData/LFD/EXITNEB.LFD": "83a49baf1ae13cb498c92cd0a2e17b718f3b86aa6e05c9346e97559432dfe881",
+        "GameData/LFD/EXP1XX.LFD": "0d0990750cb10b1aec59a0bc5511a1166d0c51e46377c239749984dffd8a85d5",
+        "GameData/LFD/EXP2X.LFD": "abe6026d2e16bdc382fef94eee025dd9743c5a5cde7d27dbe1009bee79bde648",
+        "GameData/LFD/EXP3XX.LFD": "3085c4ffe0b8e942da50f3d6eb6f8031b0bac76e4bc485edbcba29acb0ab6059",
+        "GameData/LFD/FTEXTCRA.LFD": "4055a34140f4e84bd3b29dfb499e040477c4c239d959ca22a40da249fab9804b",
+        "GameData/LFD/FULLCRED.LFD": "776a71b300a4ffae95984dd0411ba940ccdfb8537a6a41eb2b7359a0248fa57f",
+        "GameData/LFD/GROMAS1.LFD": "f2620271ad58554e3ff6dcb14fc349ac336b5dcb41dc9bc5abf8dd73cad923a1",
+        "GameData/LFD/GROMASX.LFD": "4b178b52c85e270fb3650c2ea644644b52246a97658c0e7ecf43c93945afca55",
+        "GameData/LFD/HOLOCU.LFD": "e80e0593ecc532ff5435a56bdd6a113967644831cbfa2b4cba01137057a91eb5",
+        "GameData/LFD/JABBA1.LFD": "4494a1cb51f285290d14379d3d70c5099b3b495d5048a509e3a5bee5878f2e6b",
+        "GameData/LFD/JABBA2.LFD": "550847b81ef3d6471f08a67ea90d1035f0c017c22e38759c18152c408101de7b",
+        "GameData/LFD/JABBA3.LFD": "ed7068d3d0e4fb8538bbb9a794197293ed2b5bf54002cfdb04bb0aaf6fe02ce0",
+        "GameData/LFD/JABESCP.LFD": "7defee44d1e2887834663eddc373d7b6c75eb3209f04f01d320e77c79183cc50",
+        "GameData/LFD/JEDISFX.LFD": "2877610360133fdce7ae783ea208bc73bc14c63f277ca23226cede64386a07c4",
+        "GameData/LFD/KFLYBY.LFD": "a4988bcfad93053cd302cbaaf1d250aadcb1d5908244fb1dd1a4ebb0290daa40",
+        "GameData/LFD/LOGO.LFD": "0a0c3a3d00ef26886dea01262796f75344d9c48f22ed91ac7d9f86da34293355",
+        "GameData/LFD/MADINE1.LFD": "7f4c09d1584d65bcf519423c04bbbffb4289cb05de23ae8eac7cd1dc44356896",
+        "GameData/LFD/MENU.LFD": "bbb0c99e9d1448883a5d26aead330ca8f0905af02fe9759c69b669a557ad134b",
+        "GameData/LFD/NEB1.LFD": "0c3e7812d2245ad789bf148429b43c1bbf31395e609ba935680f31ae28870b15",
+        "GameData/LFD/PIT.LFD": "2896586ef66af19aac0ba737b689beea32d9145535f8ba719f9c65ff0c3a07de",
+        "GameData/LFD/ROB1.LFD": "da02769732261ace923362272f1e52737d42deb39091b1c5334581a8c8a27217",
+        "GameData/LFD/ROBOTX.LFD": "a6dbcc3380d8d344cf90d8b2379866747478edfba0b61edc94d1376c54526efa",
+        "GameData/LFD/STANDARD.LFD": "d09b0e731de47ebeda259f9ffaded3412220d6d728e3eb6ed0d74829feffa939",
+        "GameData/LFD/SUCCES.LFD": "b6ebfd30779deafcc02512a61bca6739c5c6116701b9714e962150a0a47e889c",
+        "GameData/LFD/SWLOGO.LFD": "4a2de752430786bef3de237465f548f192637a0022087ededfe6536dd93ff487",
+        "GameData/LFD/TUBECOMP.LFD": "5f354a2a45cb8458eeeea1a1c7f0ff1892a408bd2f0599e928e0dcf90e0d4ef3",
+        "GameData/SOUNDS.GOB": "5cc43a1762341ba1ddeda6b3fa105f097fb59e4126d4b3d8e73cd5e7228c9d1c",
+        "GameData/SPRITES.GOB": "d7d5d7f8125c28b9917a470091ca1d37e26303e53b384d71f85bfe64579452ab",
+        "GameData/TEXTURES.GOB": "b36e507471ee2b64c18236503c34c58fc37233988424ce25f0767e412650ce42"
+      },
+      "persistent_paths": [
+        "settings.ini",
+        "settings_default.ini",
+        "tfe_input_remapping.bin",
+        "DARKPILO.CFG",
+        "imgui.ini",
+        "Screenshots",
+        "Saves"
+      ],
+      "runtime_mutable_paths": [
+        "GameData",
+        "the_force_engine_log.txt",
+        "the_force_engine_log.txt.1",
+        "the_force_engine_log.txt.2",
+        "the_force_engine_log.txt.3",
+        ".tfe-preparation"
+      ]
+    },
+    {
+      "id": "resident-evil-gaiden-recomp",
+      "name": "Resident Evil Gaiden Recompiled",
+      "summary": "Native Resident Evil Gaiden recompilation. Gameplay remains untested.",
+      "project_url": "https://github.com/sergiomanzur/regaiden-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.4.1",
+            "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
+            "size": 33085815,
+            "sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
+          }
+        }
+      },
+      "source_profile": "resident-evil-gaiden-gbc-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Resident_Evil_Gaiden__USA_.exe"
+        ]
+      },
+      "launch_arguments": [
+        "--rom",
+        "game.gbc",
+        "--save-dir",
+        "saves"
+      ],
+      "persistent_paths": [
+        "game.gbc",
+        "config.ini",
+        "runtime_prefs.ini",
+        "imgui.ini",
+        "saves",
+        "snapshots"
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "resident-evil-gaiden-gbc-usa",
+            "label": "Resident Evil Gaiden (USA) exact GBC original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose and check your own exact Resident Evil Gaiden (USA) original. Portcove installs the unchanged official Windows package, creates its local saves folder and manages local saves and settings. Review the resolved Windows account-wide preferences path before installation: the game may overwrite it and discard unknown entries, affecting other copies. Portcove never owns or backs up that shared file. A local runtime_prefs.ini fallback belongs to this managed installation. Existing external copies remain yours to manage. Use printable ASCII paths within Windows MAX_PATH bounds. Gameplay remains untested. MIT and clean-room claims are attributed upstream assertions, not blanket redistribution permission.",
+        "original_game_title": "Resident Evil Gaiden",
+        "artwork": {
+          "game_id": 969,
+          "cover_id": 136761,
+          "image_id": "co2xix",
+          "image_sha256": "0ef402ea9193d7e8f4a3883e661c8f396bdf57ef49e2f87088839551c0d1930b",
+          "game_slug": "resident-evil-gaiden",
+          "match_kind": "underlying-game"
+        }
+      },
+      "managed_shared_preferences": "gbrecompiled-windows-v1",
+      "managed_shared_preferences_save_id": "Resident_Evil_Gaiden__USA_",
+      "runtime_source_filename": "game.gbc",
+      "runtime_source_materialization": "regaiden-gbc",
+      "runtime_source_hashes": {
+        "game.gbc": "9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44"
+      },
+      "launch_from_install_root": true,
+      "windows_runtime_path_policy": "printable-ascii-max-path"
+    },
+    {
+      "id": "wave-race-64-racewave46",
+      "name": "RaceWave46",
+      "summary": "Native Wave Race 64 recompilation. Gameplay remains untested.",
+      "project_url": "https://github.com/DomazinUS/RaceWave46",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v1.0.0",
+            "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
+            "size": 35768574,
+            "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+          }
+        }
+      },
+      "source_profile": "wave-race-64",
+      "executable_hints": {
+        "windows-x86-64": [
+          "WaveRace64Recompiled.exe"
+        ]
+      },
+      "launch_arguments": [
+        "game.z64",
+        "--launch"
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "wave-race-64",
+            "label": "Wave Race 64 (USA Rev A) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose your own Wave Race 64 (USA Rev A) original. Portcove installs the unchanged official Windows package and manages saves and settings. RetroAchievements sign-in stays with each installed version, is excluded from backups and is deleted when that version is removed. Sign in again after installing another version. Existing external copies remain yours to manage. Windows gameplay remains untested.",
+        "original_game_title": "Wave Race 64",
+        "artwork": {
+          "game_id": 3629,
+          "cover_id": 478764,
+          "image_id": "coa9f0",
+          "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
+          "game_slug": "wave-race-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "persistent_paths": [
+        ".runtime"
+      ],
+      "runtime_data_policy": "version-local-retroachievements-v1",
+      "runtime_source_filename": "game.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "runtime_source_hashes": {
+        "game.z64": "f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999"
+      },
+      "launch_from_install_root": true,
+      "runtime_mutable_paths": [
+        "game.z64"
+      ]
+    }
+  ]
+}

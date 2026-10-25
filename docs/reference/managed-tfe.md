@@ -1,9 +1,11 @@
 # Managed Dark Forces setup
 
-The current reviewed Windows route selects the v1.22.420 engine artifact through
-typed retained direct-release facts and `tfe-dark-forces-portable-v1` (capability
-19). This record describes that actual package; future compatible facts require
-focused behavior checks and do not inherit its observations. The exact old
+The Windows route follows compatible official GitHub releases through stable
+package rules and `tfe-dark-forces-portable-v1` (capability 21 for GitHub discovery;
+19 for retained direct manifests). Core resolves and
+verifies each exact artifact without a per-release definition edit. The
+v1.22.420 observations retain their exact package scope; another version does not
+inherit them. Changed portable setup or data rules require review. The exact old
 initializer remains a retained-state reader under
 [the compatibility contract](upstream-first-compatibility.md).
 It accepts the complete reviewed PC installed-data

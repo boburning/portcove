@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { parseDocument } from "yaml";
+import { parseDocument, stringify } from "yaml";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { checkStagedNodeTestInventory, requireNodeTestInventory } from "./node-test-inventory.mts";
 import {
@@ -516,4 +516,134 @@ void test("the ownership parser and registry retain independent inventory and wo
       assert.ok(selected.nodeTests.has("scripts/ci-workflow.test.mts"), JSON.stringify(change));
     }
   }
+});
+
+void test("exclusive platform ownership requires a complete reachable producer despite other-platform coverage", () => {
+  const registry = {
+    format_version: 2,
+    suites: {
+      contracts: { arguments: ["--test", "--test-timeout=30000"] },
+      windows: { arguments: ["--test", "--test-timeout=30000"] },
+    },
+    tests: [
+      {
+        file: first,
+        memberships: [
+          ["contracts", 100],
+          ["windows", 100],
+        ],
+        qualification: { "linux-x86_64": "contracts" },
+      },
+    ],
+  };
+  const job = (runner: string, suite: string) => ({
+    if: "needs.classify.outputs.mode == 'qualification'",
+    "runs-on": runner,
+    steps: [{ run: `# node-suite: ${suite}\nnode --test ${first}` }],
+  });
+  const jobs = {
+    linux: job("ubuntu-22.04", "contracts"),
+    windows: job("windows-latest", "windows"),
+  };
+  const check = (candidate: unknown = jobs, value = registry) => {
+    const parsed = parseNodeTestSuites(JSON.stringify(value));
+    requireNodeTestInventory(
+      value.tests.map((entry) => entry.file),
+      generateNodeCommands(stringify({ jobs: candidate }, { lineWidth: 0 }), parsed),
+      generateNodeCommands(surfaces().local, parsed),
+      "",
+      JSON.stringify(value),
+    );
+  };
+  check();
+  const preflight =
+    "/usr/bin/unshare --user --map-current-user --mount --pid --fork --mount-proc /usr/bin/true";
+  check({
+    ...jobs,
+    linux: { ...jobs.linux, steps: [{ run: preflight + "\n" + jobs.linux.steps[0]!.run }] },
+  });
+  for (const changed of [
+    { ...jobs, linux: { ...jobs.linux, if: "false" } },
+    { ...jobs, linux: { ...jobs.linux, "continue-on-error": true } },
+    { ...jobs, linux: { ...jobs.linux, "runs-on": "macos-15" } },
+    {
+      ...jobs,
+      linux: { ...jobs.linux, defaults: { run: { "working-directory": "apps/desktop" } } },
+    },
+    { ...jobs, linux: { ...jobs.linux, steps: [{ ...jobs.linux.steps[0], if: "false" }] } },
+    { ...jobs, duplicate: job("ubuntu-latest", "contracts") },
+    { ...jobs, duplicate: { ...job("ubuntu-latest", "contracts"), "continue-on-error": true } },
+    {
+      ...jobs,
+      duplicate: { ...jobs.linux, steps: [{ ...jobs.linux.steps[0], "continue-on-error": true }] },
+    },
+    {
+      ...jobs,
+      duplicate: {
+        ...jobs.linux,
+        steps: [{ run: "if true; then\n" + jobs.linux.steps[0]!.run + "\nfi" }],
+      },
+    },
+    {
+      ...jobs,
+      duplicate: {
+        ...jobs.linux,
+        if: "needs.classify.outputs.mode == 'qualification' && always()",
+      },
+    },
+    { ...jobs, duplicate: { ...jobs.linux, "runs-on": "${{ matrix.runner }}" } },
+    {
+      ...jobs,
+      linux: {
+        ...jobs.linux,
+        steps: [{ run: preflight + "; exit 0\n" + jobs.linux.steps[0]!.run }],
+      },
+    },
+  ])
+    assert.throws(() => check(changed), /Expected one complete linux-x86_64 qualification owner/);
+  for (const flag of ["--test-name-pattern=one", "--test-skip-pattern=one"])
+    assert.throws(
+      () =>
+        check(jobs, {
+          ...registry,
+          suites: { ...registry.suites, contracts: { arguments: ["--test", flag] } },
+        }),
+      /Expected one complete linux-x86_64 qualification owner/,
+    );
+  // Rename one ownership record; every generated consumer follows it.
+  check(jobs, {
+    ...registry,
+    tests: [{ ...registry.tests[0]!, file: "scripts/renamed.test.mts" }],
+  });
+});
+
+void test("platform ownership rejects unknown scopes and owners outside the file's memberships", () => {
+  const registry = {
+    format_version: 2,
+    suites: { contracts: { arguments: ["--test"] }, other: { arguments: ["--test"] } },
+    tests: [
+      { file: first, memberships: [["contracts", 100]] },
+      { file: "scripts/other.test.mts", memberships: [["other", 100]] },
+    ],
+  };
+  for (const qualification of [
+    {},
+    [],
+    null,
+    "contracts",
+    { "linux-x86_64": "other" },
+    { "linux-x86_64": "missing" },
+    { "linux-x86_64": false },
+    { "macos-aarch64": "contracts" },
+  ])
+    assert.throws(
+      () =>
+        parseNodeTestSuites(
+          JSON.stringify({
+            ...registry,
+            tests: [{ ...registry.tests[0], qualification }, registry.tests[1]],
+          }),
+        ),
+      /Invalid qualification ownership/,
+    );
 });

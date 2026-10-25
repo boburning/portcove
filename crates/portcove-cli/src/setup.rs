@@ -44,9 +44,9 @@ pub(crate) enum SetupCommand {
         /// Inspect packages from this exact published release instead of selecting by channel.
         #[arg(long)]
         release_id: Option<u64>,
-        /// Stable or preview (beta); preview falls back to stable when absent.
-        #[arg(long, default_value = "stable")]
-        channel: portcove_core::ReleaseChannel,
+        /// Explicit stable or preview (beta); otherwise use the catalog recommendation.
+        #[arg(long)]
+        channel: Option<portcove_core::ReleaseChannel>,
     },
     /// Review the exact asset and a fresh destination before downloading.
     Preview {
@@ -113,7 +113,11 @@ pub(crate) async fn execute(
             mode,
             name,
             service
-                .catalog_download_options(&port_id, release_id, channel)
+                .catalog_download_options(
+                    &port_id,
+                    release_id,
+                    channel.unwrap_or(service.catalog_download_channel(&port_id)?),
+                )
                 .await?,
             |result| {
                 let mut lines = vec![format!("Upstream: {}", human::clean(&result.upstream_url))];

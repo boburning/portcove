@@ -1,11 +1,71 @@
 use crate::{
-    DesktopResult, DesktopState, blocking_worker, confirm_destructive, service_at_generation,
+    DesktopResult, DesktopState, blocking_async_service_at_generation, blocking_worker,
+    confirm_destructive, emit_operation, service_at_generation,
 };
 use portcove_core::{
     ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRelinkPreview,
-    ExternalRuntimeRemovalPreview, PortcoveError,
+    ExternalRuntimeRemovalPreview, ManagedRouteChangePreview, ManagedRouteChangeResult,
+    PortcoveError, ReleaseChannel,
 };
 use std::path::PathBuf;
+
+#[tauri::command]
+pub(crate) async fn preview_managed_route_change(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    channel: Option<ReleaseChannel>,
+    output_directory: Option<PathBuf>,
+    generation: u64,
+) -> DesktopResult<ManagedRouteChangePreview> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .preview_managed_route_change(&port_id, channel, output_directory.as_deref())
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn change_to_managed_runtime(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    channel: Option<ReleaseChannel>,
+    output_directory: Option<PathBuf>,
+    expected_preview: String,
+    generation: u64,
+) -> DesktopResult<ManagedRouteChangeResult> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let authorization = service
+                .authorize_managed_route_change(
+                    &port_id,
+                    channel,
+                    output_directory.as_deref(),
+                    &expected_preview,
+                )
+                .await?;
+            service
+                .change_to_managed_runtime(
+                    &port_id,
+                    channel,
+                    output_directory.as_deref(),
+                    &authorization.token,
+                    |event| emit_operation(&app, event),
+                )
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
 
 #[tauri::command]
 pub(crate) async fn preview_user_selected_runtime(
@@ -52,7 +112,7 @@ pub(crate) async fn register_user_selected_runtime(
         .into());
     }
     let description = format!(
-        "Run the executable you selected at {} with working directory {} and arguments {}? Portcove has not authenticated these bytes as an official package. You or the upstream launcher manage setup and updates. Portcove will launch it and can remove this registration; it will not replace, back up, restore, roll back or delete the external files.",
+        "Save launch details for the executable you selected at {} with working directory {} and arguments {}? This adds the game without starting it; choose Play separately to launch. Portcove has not authenticated these bytes as an official package. You or the upstream launcher manage setup and updates. Portcove can remove this registration; it will not replace, back up, restore, roll back or delete the external files.",
         review.executable.display(),
         review.path.display(),
         serde_json::to_string(&arguments).map_err(PortcoveError::from)?
@@ -144,7 +204,7 @@ pub(crate) async fn relink_user_selected_runtime(
         &app,
         "Change launch details",
         format!(
-            "Run {} with working directory {} and arguments {}? The old and new game files stay where they are. You or the upstream launcher remain responsible for setup and updates.",
+            "Save {} as the launch target with working directory {} and arguments {}? This changes the saved launch details without starting the game; choose Play separately to launch. The old and new game files stay where they are. Portcove has not authenticated these bytes as an official package. You or the upstream launcher remain responsible for setup and updates.",
             review.proposed.executable.display(),
             review.proposed.path.display(),
             serde_json::to_string(&arguments).map_err(PortcoveError::from)?,

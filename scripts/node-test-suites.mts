@@ -11,8 +11,12 @@ export interface NodeTestSuite {
 export interface NodeTestSuites {
   format_version: 1;
   suites: Record<string, NodeTestSuite>;
+  qualificationOwners?: Record<string, Record<string, string>>;
 }
-function expandNodeTestOwnership(value: Record<string, unknown>) {
+function expandNodeTestOwnership(
+  value: Record<string, unknown>,
+  qualificationOwners: Record<string, Record<string, string>>,
+) {
   if (
     Object.keys(value).some((key) => !["format_version", "suites", "tests"].includes(key)) ||
     !isRecord(value.suites) ||
@@ -37,7 +41,7 @@ function expandNodeTestOwnership(value: Record<string, unknown>) {
   for (const entry of value.tests) {
     if (
       !isRecord(entry) ||
-      Object.keys(entry).some((key) => !["file", "memberships"].includes(key)) ||
+      Object.keys(entry).some((key) => !["file", "memberships", "qualification"].includes(key)) ||
       typeof entry.file !== "string" ||
       !nodeTestPath.test(entry.file) ||
       seenFiles.has(entry.file) ||
@@ -65,6 +69,21 @@ function expandNodeTestOwnership(value: Record<string, unknown>) {
       seenSuites.add(id);
       suite.set(position, entry.file);
     }
+    if (entry.qualification !== undefined) {
+      if (!isRecord(entry.qualification) || !Object.keys(entry.qualification).length)
+        throw new Error("Invalid qualification ownership: " + entry.file);
+      const owners: Record<string, string> = {};
+      for (const [platform, id] of Object.entries(entry.qualification)) {
+        if (
+          !["linux-x86_64", "windows-x86_64"].includes(platform) ||
+          typeof id !== "string" ||
+          !seenSuites.has(id)
+        )
+          throw new Error("Invalid qualification ownership: " + entry.file);
+        owners[platform] = id;
+      }
+      qualificationOwners[entry.file] = owners;
+    }
   }
   for (const [id, members] of positions) {
     const suite = suites[id];
@@ -76,7 +95,9 @@ function expandNodeTestOwnership(value: Record<string, unknown>) {
 
 export function parseNodeTestSuites(text: string): NodeTestSuites {
   let value: unknown = JSON.parse(text);
-  if (isRecord(value) && value.format_version === 2) value = expandNodeTestOwnership(value);
+  const qualificationOwners: Record<string, Record<string, string>> = {};
+  if (isRecord(value) && value.format_version === 2)
+    value = expandNodeTestOwnership(value, qualificationOwners);
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.suites))
     throw new Error("Invalid Node test suite registry");
   const suites: Record<string, NodeTestSuite> = {};
@@ -112,7 +133,11 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
     suites[id] = { arguments: args, files };
   }
   if (!Object.keys(suites).length) throw new Error("Node suite registry must be nonempty");
-  return { format_version: 1, suites };
+  return {
+    format_version: 1,
+    suites,
+    ...(Object.keys(qualificationOwners).length ? { qualificationOwners } : {}),
+  };
 }
 
 /** Literal maintained shell syntax only. Never infer execution from arbitrary source text. */

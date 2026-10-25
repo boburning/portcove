@@ -19,10 +19,24 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { configureHooks } from "./hooks-install.mts";
-import { vitePlusCommand } from "./viteplus-cli.mts";
+import { stagedFileBatches, vitePlusCommand } from "./viteplus-cli.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+void test("staged batches preserve literal paths beyond Windows shell limits", () => {
+  const files = Array.from(
+    { length: 180 },
+    (_, index) => `catalog/long path with ' quotes & symbols/${index}-${"x".repeat(90)}.json`,
+  );
+  assert.ok(files.join(" ").length > 8192);
+  const batches = stagedFileBatches(files);
+  assert.ok(batches.length > 1);
+  assert.deepEqual(batches.flat(), files);
+  for (const batch of batches)
+    assert.ok(batch.reduce((size, file) => size + JSON.stringify(file).length + 1, 0) <= 6000);
+  assert.deepEqual(stagedFileBatches([]), []);
+  assert.throws(() => stagedFileBatches(["x".repeat(6000)]), /argument budget/);
+});
 const vp = vitePlusCommand(root);
 // The hook launches these programs separately; imports alone cannot discover them.
 const fixtureEntries = [
@@ -49,14 +63,20 @@ function trackWriter<T extends { error?: NodeJS.ErrnoException; signal: NodeJS.S
   if (result.error || result.signal) unprovenWriters.add(writerRoot(cwd));
   return result;
 }
-function run(cwd: string, executable: string, args: readonly string[], ok = true) {
+function run(
+  cwd: string,
+  executable: string,
+  args: readonly string[],
+  ok = true,
+  timeout = 30_000,
+) {
   const result = trackWriter(
     cwd,
     spawnSync(executable, args, {
       cwd,
       env,
       encoding: "utf8",
-      timeout: 30_000,
+      timeout,
       windowsHide: true,
     }),
   );
@@ -92,6 +112,10 @@ function fixture(context: FixtureContext, drain?: () => Promise<void>) {
   git(cwd, "config", "user.name", "Portcove hook fixture");
   git(cwd, "config", "user.email", "hook-fixture@example.invalid");
   writeFileSync(path.join(cwd, "package.json"), '{"private":true,"type":"module"}\n');
+  // Local validation places temporary repositories beneath the ignored work/
+  // tree. Own the workspace boundary so vp check uses this fixture config,
+  // rather than inheriting the containing repository's work/** exclusion.
+  writeFileSync(path.join(cwd, "pnpm-workspace.yaml"), "packages: []\n");
   writeFileSync(
     path.join(cwd, "vite.config.ts"),
     'export default { fmt: {}, staged: { "*.js": "vp fmt --config vite.config.ts --ignore-path .gitignore" } };\n',
@@ -219,6 +243,53 @@ void test("standard staged autofix preserves partial staging and unrelated work"
   assert.equal(readFileSync(path.join(cwd, "untracked.txt"), "utf8"), "unrelated work\n");
 });
 
+void test(
+  "function staged checks handle a large literal path set and restore a failed batch",
+  { timeout: 180_000 },
+  (context) => {
+    const cwd = fixture(context);
+    configureHooks(cwd, "enable", env);
+    writeFileSync(
+      path.join(cwd, "vite.config.ts"),
+      'import { checkStagedFiles } from "./scripts/viteplus-cli.mts"; export default { fmt: {}, staged: { "*.json": { title: "Check staged files", task: (files) => checkStagedFiles(files) } } };\n',
+    );
+    const directory = "catalog with ' quotes & symbols";
+    mkdirSync(path.join(cwd, directory));
+    const files = Array.from(
+      { length: 100 },
+      (_, index) => `${directory}/${index}-${"x".repeat(80)}.json`,
+    );
+    for (const file of files) writeFileSync(path.join(cwd, file), '{"value":1}\n');
+    git(cwd, "add", ".");
+    // The retained Windows run hit the 30s child cap while two real Vite+
+    // batches formatted 100 literal paths. Keep both batches and rollback proof;
+    // allow only these owned hook commits finite 60s on Windows.
+    const hookBudget = process.platform === "win32" ? 60_000 : 30_000;
+    const completed = run(cwd, "git", ["commit", "-qm", "large staged path set"], true, hookBudget);
+    const first = files[0];
+    assert.ok(first);
+    assert.equal(
+      git(cwd, "show", `HEAD:${first}`),
+      '{ "value": 1 }\n',
+      JSON.stringify({
+        stdout: completed.stdout,
+        stderr: completed.stderr,
+        working: readFileSync(path.join(cwd, first), "utf8"),
+        diff: git(cwd, "diff", "--", first),
+      }),
+    );
+    writeFileSync(path.join(cwd, first), "{ invalid JSON\n");
+    git(cwd, "add", first);
+    writeFileSync(path.join(cwd, first), "{ invalid JSON\n// unstaged work\n");
+    const before = git(cwd, "diff");
+    const index = git(cwd, "show", `:${first}`);
+    const refused = run(cwd, "git", ["commit", "-qm", "invalid staged batch"], false, hookBudget);
+    assert.notEqual(refused.status, 0);
+    assert.equal(git(cwd, "diff"), before);
+    assert.equal(git(cwd, "show", `:${first}`), index);
+  },
+);
+
 void test("a failed staged command restores the index and working changes", (context) => {
   const cwd = fixture(context);
   configureHooks(cwd, "enable", env);
@@ -303,7 +374,14 @@ void test(
           "-e",
           `import { configureHooks } from ${JSON.stringify(pathToFileURL(path.join(root, "scripts/hooks-install.mts")).href)}; configureHooks(${JSON.stringify(cwd)}, "enable");`,
         ],
-        { env, encoding: "utf8", timeout: 30_000, windowsHide: true },
+        // A retained Windows run reached the 30s fixture setup cap before
+        // any runtime/lean-PATH assertion. Keep the existing 180s outer limit.
+        {
+          env,
+          encoding: "utf8",
+          timeout: process.platform === "win32" ? 60_000 : 30_000,
+          windowsHide: true,
+        },
       ),
     );
     assert.equal(setup.status, 0, setup.stderr || setup.error?.message);

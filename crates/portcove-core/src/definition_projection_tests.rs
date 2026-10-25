@@ -80,13 +80,21 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed
+    let version = if crate::preparation::has_manual_marker(&typed) {
+        2
+    } else if typed.adapter == crate::AdapterKind::PsxRecompManaged {
+        2
+    } else if typed
         .release
         .user_prepared
         .values()
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
+    } else if crate::persistence::ready_staged_archive(&typed) {
+        23
+    } else if crate::managed_runtime_policy::requires_provider_resolution(&typed) {
+        21
     } else if typed.managed_initialization
         == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
         || typed.runtime_data_policy
@@ -194,14 +202,14 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
 }
 
 #[test]
-fn render96_and_retained_windows_paths_keep_distinct_capability_floors() {
+fn current_projection_routes_keep_distinct_capability_floors() {
     let document = projection();
     let contract = serde_json::to_vec(&document).unwrap();
     for (id, version) in [
-        ("resident-evil-gaiden-recomp", 19),
-        ("wave-race-64-racewave46", 19),
+        ("resident-evil-gaiden-recomp", 21),
+        ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
-        ("f-zero-snes-recomp", 11),
+        ("f-zero-snes-recomp", 23),
     ] {
         let position = document["catalog"]["ports"]
             .as_array()
@@ -238,23 +246,42 @@ fn windows_runtime_path_policy_cannot_omit_its_engine_capability() {
     let contract = serde_json::to_vec(&document).unwrap();
     let valid = entry(&document, &contract, position);
     inspect(&valid, &contract).unwrap();
-    let mut stale = valid;
-    stale["required_capabilities"][0]["minimum_version"] = json!(10);
-    stale["required_capabilities"][0]["maximum_version"] = json!(10);
+    let retained = |value: &Value| {
+        let bytes = serde_json::to_vec(value).unwrap();
+        index(&[(value, &bytes)], &contract).inspect_retained_catalog_projection(
+            value["namespace"].as_str().unwrap(),
+            value["stable_id"].as_str().unwrap(),
+            &bytes,
+            &contract,
+        )
+    };
+    let mut historical = valid.clone();
+    historical["required_capabilities"][0]["minimum_version"] = json!(11);
+    historical["required_capabilities"][0]["maximum_version"] = json!(11);
+    retained(&historical).unwrap();
     assert!(
-        inspect(&stale, &contract)
+        inspect(&historical, &contract)
             .unwrap_err()
             .message
-            .contains("capability version 11")
+            .contains("version 23")
     );
-    stale["required_capabilities"][0]["minimum_version"] = json!(1);
-    stale["required_capabilities"][0]["maximum_version"] = json!(10);
-    assert!(
-        inspect(&stale, &contract)
-            .unwrap_err()
-            .message
-            .contains("capability version 11")
-    );
+    for (minimum, maximum) in [(10, 10), (1, 10)] {
+        let mut stale = valid.clone();
+        stale["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        stale["required_capabilities"][0]["maximum_version"] = json!(maximum);
+        assert!(
+            retained(&stale)
+                .unwrap_err()
+                .message
+                .contains("capability version 11")
+        );
+        assert!(
+            inspect(&stale, &contract)
+                .unwrap_err()
+                .message
+                .contains("version 23")
+        );
+    }
 }
 
 #[test]
@@ -269,7 +296,7 @@ fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
     let contract = serde_json::to_vec(&document).unwrap();
     let valid = entry(&document, &contract, position);
     inspect(&valid, &contract).unwrap();
-    for (minimum, maximum) in [(1, 1), (11, 11), (1, 12)] {
+    for (minimum, maximum) in [(1, 1), (11, 11), (1, 12), (19, 19), (20, 20), (19, 21)] {
         let mut stale = valid.clone();
         stale["required_capabilities"][0]["minimum_version"] = json!(minimum);
         stale["required_capabilities"][0]["maximum_version"] = json!(maximum);
@@ -277,7 +304,7 @@ fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
             inspect(&stale, &contract)
                 .unwrap_err()
                 .message
-                .contains("capability version 19")
+                .contains("capability version 21")
         );
     }
 }

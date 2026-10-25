@@ -1,0 +1,2648 @@
+{
+  "source_commit": "9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+  "scope": "Frozen proposed rollout metadata used only as provider/presentation regression inputs. Not shipped catalog support, artifact verification or gameplay evidence. Follow-up #2926 retains adoption and fit decisions.",
+  "ports": [
+    {
+      "id": "revelations-persona-recompiled",
+      "name": "Revelations: Persona Recompiled",
+      "summary": "Native Revelations: Persona recompilation.",
+      "project_url": "https://github.com/NJH-1001/RevPRecompile",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "repository": "NJH-1001/RevPRecompile",
+        "asset_hints": {
+          "windows-x86-64": [
+            "windows-x86_64-owned-input"
+          ]
+        }
+      },
+      "source_profile": "revelations-persona-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Revelations__Persona_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "config",
+        "mods",
+        "settings.toml",
+        "game_options.json",
+        "graphics.json",
+        "input.json",
+        "sound.json",
+        "input.ini",
+        "keybinds.ini",
+        "disc.cfg",
+        "bios.cfg"
+      ],
+      "runtime_mutable_paths": [
+        "psx_last_run_report.json",
+        "psx_freeze_heartbeat.json"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "revelations-persona-psx",
+            "label": "Revelations: Persona (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Revelations: Persona",
+        "artwork": {
+          "game_id": 11452,
+          "cover_id": 85551,
+          "image_id": "co1u0f",
+          "image_sha256": "724b15c0cba66fdf05c553ae8330a99a1c6192142ea1ef0bb1561d454d1796ae",
+          "game_slug": "revelations-persona",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "f-zero-snes-recomp",
+      "name": "F-Zero SNES Recomp",
+      "summary": "Native F-Zero recompilation.",
+      "project_url": "https://github.com/mstan/FZeroSNESRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "mstan/FZeroSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "FZeroSNESRecomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "f-zero-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "FZeroSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "f-zero-snes-usa",
+            "label": "F-Zero (USA) headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Portcove installs the Windows port and manages its saves and settings separately from existing external copies. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location.",
+        "original_game_title": "F-Zero",
+        "variant_label": "SNES",
+        "artwork": {
+          "game_id": 3490,
+          "cover_id": 319391,
+          "image_id": "co6ufz",
+          "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
+          "game_slug": "f-zero",
+          "match_kind": "underlying-game"
+        }
+      },
+      "runtime_source_filename": "fzero.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "fzero.sfc": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"
+      },
+      "launch_arguments": [
+        "fzero.sfc"
+      ],
+      "persistent_paths": [
+        "fzero.sfc",
+        "config.ini",
+        "fzero-video.ini",
+        "fzero-video.ini.tmp",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves"
+      ],
+      "runtime_mutable_paths": [
+        "diagnostics",
+        "last_run_report.json",
+        ".snesrecomp_write_probe"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
+    },
+    {
+      "id": "dkc3-recomp",
+      "name": "DKC3Recomp",
+      "summary": "Native Donkey Kong Country 3 recompilation. This Windows build has a known game-logic failure during startup; gameplay remains unqualified.",
+      "project_url": "https://github.com/elliotttate/DKC3Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "elliotttate/DKC3Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DKC3Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "dkc3-na-en-fr",
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC3Recomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dkc3-na-en-fr",
+            "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
+        "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
+        "artwork": {
+          "game_id": 1094,
+          "cover_id": 94883,
+          "image_id": "co217n",
+          "image_sha256": "f4e13f77be3f1695208fb6de7e5ad3cc902e95e75505315bf183d1373d29648c",
+          "game_slug": "donkey-kong-country-3-dixie-kong-s-double-trouble",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
+      },
+      "runtime_source_filename": "dkc3.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "dkc3.sfc": "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"
+      },
+      "launch_arguments": [
+        "dkc3.sfc"
+      ],
+      "persistent_paths": [
+        "dkc3.sfc",
+        "saves",
+        "launcher.cfg",
+        "keybinds.ini",
+        "rom.cfg"
+      ],
+      "runtime_mutable_paths": [
+        "performance.log",
+        "diagnostics",
+        ".snesrecomp_write_probe"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
+    },
+    {
+      "id": "alexbeav-ape-escape-recomp",
+      "name": "Ape Escape / Alexbeav PSXRecomp",
+      "summary": "Native Ape Escape recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/Alexbeav/ape-escape-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Ape-Escape-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "ape-escape-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Ape_Escape_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ape-escape-psx",
+            "label": "Ape Escape (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+        "original_game_title": "Ape Escape",
+        "artwork": {
+          "game_id": 3762,
+          "cover_id": 115320,
+          "image_id": "co2gzc",
+          "image_sha256": "b689ac550b7807203e88a928ff42c5906ccdce2c4f2a38229f2a3204c878f906",
+          "game_slug": "ape-escape",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-alundra-recomp",
+      "name": "Alundra / Alexbeav PSXRecomp",
+      "summary": "Native Alundra recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/Alexbeav/alundra-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alundra-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Alundra-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alundra-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Alundra_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alundra-psx",
+            "label": "Alundra (Europe PAL) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+        "original_game_title": "Alundra",
+        "artwork": {
+          "game_id": 1175,
+          "cover_id": 178335,
+          "image_id": "co3tlr",
+          "image_sha256": "622d5b7bcf3e8364030bfef448c93a3e6c2f76ae5032605d40978ffc4e6d91a0",
+          "game_slug": "alundra",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-armored-core-recomp",
+      "name": "Armored Core / Alexbeav PSXRecomp",
+      "summary": "Native Armored Core recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/armored-core-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Armored-Core-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "armored-core-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Armored_Core_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "armored-core-psx",
+            "label": "Armored Core (Europe PAL) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Armored Core",
+        "artwork": {
+          "game_id": 4144,
+          "cover_id": 454572,
+          "image_id": "co9qr0",
+          "image_sha256": "d1ddebb5cd67d94c11bf471b292c2b54484b95e8c1446d5d20313dc51441631a",
+          "game_slug": "armored-core",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "name": "Blood Omen: Legacy of Kain / Alexbeav PSXRecomp",
+      "summary": "Native Blood Omen: Legacy of Kain recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Blood-Omen-Legacy-of-Kain-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "blood-omen-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Blood_Omen__Legacy_of_Kain_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "blood-omen-psx",
+            "label": "Blood Omen: Legacy of Kain (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Blood Omen: Legacy of Kain",
+        "artwork": {
+          "game_id": 7894,
+          "cover_id": 425045,
+          "image_id": "co93yt",
+          "image_sha256": "6320c9e27a39922ab6a09c3f4e888805376bce3515ecd297b6d379eb735ca872",
+          "game_slug": "blood-omen-legacy-of-kain",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-digimon-world-2003-recomp",
+      "name": "Digimon World 2003 / Alexbeav PSXRecomp",
+      "summary": "Native Digimon World 2003 recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Digimon-World-2003-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "digimon-world-2003-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Digimon_World_2003_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "digimon-world-2003-psx",
+            "label": "Digimon World 2003 (Europe PAL) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLES-03936. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Digimon World 2003",
+        "artwork": {
+          "game_id": 19678,
+          "cover_id": 372792,
+          "image_id": "co7znc",
+          "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
+          "game_slug": "digimon-world-3",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+      "name": "Duke Nukem: Land of the Babes / Alexbeav PSXRecomp",
+      "summary": "Native Duke Nukem: Land of the Babes recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Duke-Nukem-Land-of-the-Babes-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "duke-nukem-land-of-the-babes-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Duke_Nukem__Land_of_the_Babes_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "duke-nukem-land-of-the-babes-psx",
+            "label": "Duke Nukem: Land of the Babes (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-01002. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Duke Nukem: Land of the Babes",
+        "artwork": {
+          "game_id": 8504,
+          "cover_id": 441104,
+          "image_id": "co9gcw",
+          "image_sha256": "0824cbe0f5262d51f5a1f2d15f9295a42626d78e36da063627d177df7255904a",
+          "game_slug": "duke-nukem-land-of-the-babes",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-driver-recomp",
+      "name": "Driver / Alexbeav PSXRecomp",
+      "summary": "Native Driver recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/driver-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Driver-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "driver-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Driver_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "driver-psx",
+            "label": "Driver (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Driver",
+        "artwork": {
+          "game_id": 675,
+          "cover_id": 566481,
+          "image_id": "coc53l",
+          "image_sha256": "c51586bdfb4be818a6acd2b857693f235549fc77ea87d8e367246a3a947d9f47",
+          "game_slug": "driver",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-duke-nukem-time-to-kill-recomp",
+      "name": "Duke Nukem: Time to Kill / Alexbeav PSXRecomp",
+      "summary": "Native Duke Nukem: Time to Kill recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Duke-Nukem-Time-to-Kill-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "duke-nukem-time-to-kill-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Duke_Nukem__Time_to_Kill_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "duke-nukem-time-to-kill-psx",
+            "label": "Duke Nukem: Time to Kill (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Duke Nukem: Time to Kill",
+        "artwork": {
+          "game_id": 4130,
+          "cover_id": 153570,
+          "image_id": "co3ahu",
+          "image_sha256": "e72b4c28ca465819d972c6de8ae919cba2721ae99c503cedaa5cfc8a5fe5fe01",
+          "game_slug": "duke-nukem-time-to-kill--1",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-fade-to-black-recomp",
+      "name": "Fade to Black / Alexbeav PSXRecomp",
+      "summary": "Native Fade to Black recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/fade-to-black-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Fade-to-Black-Recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "fade-to-black-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Fade_to_Black_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "fade-to-black-psx",
+            "label": "Fade to Black (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Fade to Black",
+        "artwork": {
+          "game_id": 12427,
+          "cover_id": 118221,
+          "image_id": "co2j7x",
+          "image_sha256": "702ab387284896258c2bbded9858d89d9d1d05d8ed2ef17cd8b237c2dcc9a154",
+          "game_slug": "fade-to-black",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-diablo-recomp",
+      "name": "Diablo / Alexbeav PSXRecomp",
+      "summary": "Native Diablo PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/diablo-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "diablo-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "diablo-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "diablo-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Diablo_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Diablo_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "diablo-europe-psx",
+            "label": "Diablo (Europe) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "original_game_title": "Diablo",
+        "variant_label": "PlayStation",
+        "artwork": {
+          "game_id": 125,
+          "cover_id": 161304,
+          "image_id": "co3ggo",
+          "image_sha256": "514e501260b0929c26bc55653acff593099b98a5d4f83ad2c04a00f026778440",
+          "game_slug": "diablo",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
+      "id": "alexbeav-ace-combat-3-electrosphere-recomp",
+      "name": "Ace Combat 3: Electrosphere (Japan) / Alexbeav PSXRecomp",
+      "summary": "Native recompilation of the Japan two-disc edition of Ace Combat 3: Electrosphere.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Ace-Combat-3-Electrosphere-Japan-Recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "ace-combat-3-japan-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Ace_Combat_3__Electrosphere__Japan__Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Ace_Combat_3__Electrosphere__Japan__Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "bios.cfg",
+        "disc.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ace-combat-3-japan-psx",
+            "label": "Ace Combat 3: Electrosphere (Japan) two-disc set",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-1001 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred.",
+        "original_game_title": "Ace Combat 3: Electrosphere",
+        "variant_label": "Japan · two discs"
+      },
+      "bios_source_profile": "psx-scph-1001-bios",
+      "runtime_source_filename": "runtime-discs",
+      "runtime_source_materialization": "psx-raw-set"
+    },
+    {
+      "id": "alexbeav-dino-crisis-recomp",
+      "name": "Dino Crisis / Alexbeav PSXRecomp",
+      "summary": "Native Dino Crisis PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dino-crisis-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dino-crisis-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "dino-crisis-usa-rev1-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Dino_Crisis_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Dino_Crisis_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dino-crisis-usa-rev1-psx",
+            "label": "Dino Crisis (USA, Rev 1) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "original_game_title": "Dino Crisis",
+        "artwork": {
+          "game_id": 3027,
+          "cover_id": 237188,
+          "image_id": "co530k",
+          "image_sha256": "6d28f411058c9f890839bb7d62319b9c1ccd8223cc2bea2fe012cfdac46a01c6",
+          "game_slug": "dino-crisis",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
+      "id": "alexbeav-dino-crisis-2-recomp",
+      "name": "Dino Crisis 2 / Alexbeav PSXRecomp",
+      "summary": "Native Dino Crisis 2 PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dino-crisis-2-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dino-crisis-2-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "dino-crisis-2-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Dino_Crisis_2_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Dino_Crisis_2_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dino-crisis-2-usa-psx",
+            "label": "Dino Crisis 2 (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "original_game_title": "Dino Crisis 2",
+        "artwork": {
+          "game_id": 4132,
+          "cover_id": 407370,
+          "image_id": "co8qbu",
+          "image_sha256": "15daa02a91257ede23e9cb44d7c8feed83c4f125cd30cef60aafe5fff00800f7",
+          "game_slug": "dino-crisis-2",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
+      "id": "alexbeav-alien-resurrection-recomp",
+      "name": "Alien Resurrection / Alexbeav PSXRecomp",
+      "summary": "Native Alien Resurrection PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "alien-resurrection-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "alien-resurrection-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "alien-resurrection-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Alien_Resurrection_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Alien_Resurrection_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alien-resurrection-europe-psx",
+            "label": "Alien Resurrection (Europe) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "original_game_title": "Alien Resurrection",
+        "artwork": {
+          "game_id": 44995,
+          "cover_id": 504131,
+          "image_id": "coaszn",
+          "image_sha256": "4a5c0dbbfb4f7c8f6815e2c171d5eb9f0e2efb5a657c4ff5b5acd6726c39c704",
+          "game_slug": "alien-resurrection",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
+    },
+    {
+      "id": "alexbeav-brave-fencer-musashi-recomp",
+      "name": "Brave Fencer Musashi / Alexbeav PSXRecomp",
+      "summary": "Native Brave Fencer Musashi PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "github",
+        "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "brave-fencer-musashi-recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "brave-fencer-musashi-recomp-",
+            "-linux-x64.zip"
+          ]
+        }
+      },
+      "source_profile": "brave-fencer-musashi-usa-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Brave_Fencer_Musashi_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Brave_Fencer_Musashi_Recompiled"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "settings.toml.bad",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "brave-fencer-musashi-usa-psx",
+            "label": "Brave Fencer Musashi (USA) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-1001-bios",
+            "label": "PlayStation SCPH-1001 BIOS",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching four-track CHD for Brave Fencer Musashi SLUS-00726 (USA) and a legally obtained retail SCPH-1001 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "original_game_title": "Brave Fencer Musashi",
+        "artwork": {
+          "game_id": 1810,
+          "cover_id": 154795,
+          "image_id": "co3bfv",
+          "image_sha256": "bb71a22c939edcee852d6a1cb5889136074087a694340b2f70594d6af9d57195",
+          "game_slug": "brave-fencer-musashi",
+          "match_kind": "underlying-game"
+        }
+      },
+      "bios_source_profile": "psx-scph-1001-bios"
+    },
+    {
+      "id": "super-mario-world-recomp",
+      "name": "SuperMarioWorldRecomp",
+      "summary": "Native Super Mario World recompilation.",
+      "project_url": "https://github.com/mstan/SuperMarioWorldRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "mstan/SuperMarioWorldRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SuperMarioWorldRecomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "source_profile": "super-mario-world-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SuperMarioWorldSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-mario-world-snes-usa",
+            "label": "Super Mario World (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
+        "original_game_title": "Super Mario World",
+        "artwork": {
+          "game_id": 1070,
+          "cover_id": 401336,
+          "image_id": "co8lo8",
+          "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
+          "game_slug": "super-mario-world",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "smw.sfc"
+      ],
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
+      },
+      "runtime_source_filename": "smw.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "smw.sfc": "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "persistent_paths": [
+        "smw.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves",
+        "mods/state.toml",
+        "mods/state.toml.tmp"
+      ],
+      "runtime_mutable_paths": [
+        "last_run_report.json",
+        ".snesrecomp_write_probe"
+      ]
+    },
+    {
+      "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+      "name": "ZeldaALttPSNESRecomp",
+      "summary": "Native The Legend of Zelda: A Link to the Past recompilation.",
+      "project_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "mstan/ZeldaAlttPSNESRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ZeldaALttPSNESRecomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "source_profile": "a-link-to-the-past-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "ZeldaALttPSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "a-link-to-the-past-snes-usa",
+            "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.5 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms.",
+        "original_game_title": "The Legend of Zelda: A Link to the Past",
+        "artwork": {
+          "game_id": 1026,
+          "cover_id": 181427,
+          "image_id": "co3vzn",
+          "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
+          "game_slug": "the-legend-of-zelda-a-link-to-the-past",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "zelda.sfc"
+      ],
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
+      },
+      "runtime_source_filename": "zelda.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "zelda.sfc": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "persistent_paths": [
+        "zelda.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves",
+        "mods/state.toml",
+        "mods/state.toml.tmp"
+      ],
+      "runtime_mutable_paths": [
+        "last_run_report.json",
+        ".snesrecomp_write_probe",
+        "tier2_coverage.json"
+      ]
+    },
+    {
+      "id": "sonic-the-hedgehog-2-recomp",
+      "name": "SonicTheHedgehog2Recomp",
+      "summary": "Native Sonic the Hedgehog 2 recompilation.",
+      "project_url": "https://github.com/mstan/SonicTheHedgehog2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "mstan/SonicTheHedgehog2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SonicTheHedgehog2Recomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "source_profile": "sonic-the-hedgehog-2-genesis-world-reva",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SonicTheHedgehog2Recomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "sonic-the-hedgehog-2-genesis-world-reva",
+            "label": "Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups.",
+        "original_game_title": "Sonic the Hedgehog 2",
+        "artwork": {
+          "game_id": 4438,
+          "cover_id": 259939,
+          "image_id": "co5kkj",
+          "image_sha256": "ed88c95469e863e440f5edf598a957211bb6f28a3e7a78fe06fe79bbf84b656f",
+          "game_slug": "sonic-the-hedgehog-2",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "game.bin"
+      ],
+      "runtime_source_filename": "game.bin",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.bin": "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_file_patterns": [
+        {
+          "prefix": "sonic2-campaign.srm.",
+          "suffix": ".tmp"
+        },
+        {
+          "prefix": "sonic2-campaign.sav.",
+          "suffix": ".tmp"
+        }
+      ],
+      "persistent_paths": [
+        "game.bin",
+        "settings.ini",
+        "rom-Sonic2.cfg",
+        "sonic2-party.ini",
+        "sonic2-party.ini.tmp",
+        "native_save_1.bin",
+        "native_save_1.bin.thumb",
+        "native_save_2.bin",
+        "native_save_2.bin.thumb",
+        "native_save_3.bin",
+        "native_save_3.bin.thumb",
+        "native_save_4.bin",
+        "native_save_4.bin.thumb",
+        "native_save_5.bin",
+        "native_save_5.bin.thumb",
+        "native_save_6.bin",
+        "native_save_6.bin.thumb",
+        "native_save_7.bin",
+        "native_save_7.bin.thumb",
+        "native_save_8.bin",
+        "native_save_8.bin.thumb",
+        "native_save_9.bin",
+        "native_save_9.bin.thumb",
+        "sonic2-campaign.srm",
+        "sonic2-campaign.srm.bak",
+        "sonic2-campaign.sav",
+        "sonic2-campaign.sav.bak"
+      ],
+      "runtime_mutable_paths": [
+        "dispatch_misses.toml",
+        "dispatch_misses.toml.tmp",
+        "dispatch_misses.prev.toml",
+        "floor_coverage.toml",
+        "floor_coverage.toml.tmp",
+        "floor_coverage.prev.toml",
+        "interior_label_misses.toml",
+        "interior_label_misses.toml.tmp",
+        "interior_label_misses.prev.toml",
+        "floor_unsafe.toml",
+        "floor_unsafe.toml.tmp",
+        "floor_unsafe.prev.toml",
+        "ramdump_native.bin",
+        "last_error.log"
+      ]
+    },
+    {
+      "id": "sonic-3-and-knuckles-recomp",
+      "name": "Sonic3KRecomp",
+      "summary": "Native Sonic & Knuckles + Sonic the Hedgehog 3 recompilation.",
+      "project_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "mstan/Sonic3AndKnucklesRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Sonic3KRecomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Sonic3KRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+            "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. This managed route starts the combined base game directly and preserves declared local saves, settings and quickstate thumbnails. Quickstates require their creating build and configuration and can be refused after an update; retain that version when needed. For optional Sonic CD/campaign conversion, use the upstream launcher in a separate stable folder: its importer records paths to that folder. Imported packs and custom external paths are outside managed backups; unknown additions keep the current installation preserved and stop replacement rather than being silently adopted.",
+        "original_game_title": "Sonic 3 & Knuckles",
+        "variant_label": "Combined Sonic 3 + Sonic & Knuckles",
+        "manual_setup": {
+          "help_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Choose the managed base game or the upstream launcher",
+              "instruction": "The managed Windows route uses your matching Sonic 3 & Knuckles raw Genesis original and starts the combined base game directly. Portcove manages its declared local saves, settings and quickstate thumbnails. For the full launcher and optional imported campaigns, extract the complete official Sonic3KRecomp package into a separate folder you control, keep that folder stable across upstream updates, and select your own matching ROM there. Sonic3Recomp and SonicAndKnucklesRecomp are different game variants."
+            },
+            {
+              "title": "Keep optional campaign preparation with upstream",
+              "instruction": "The optional Sonic CD, Sonic 1/2 and Megamix campaigns and Mighty/Shadow are experimental and off by default. Follow the included upstream guides and supply the extra originals only if you choose those features. Sonic CD import needs Python 3.11+ and Pillow, and records absolute paths under sonic-cd-imports beside that copy’s settings. Use that importer in your stable external copy, not a managed version folder that will change after updates. Portcove never runs the converter during discovery. Register the external player or launcher deliberately, save launch details, then choose Play separately."
+            },
+            {
+              "title": "Keep current progress and the creating build for quickstates",
+              "instruction": "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs. Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility. Upstream or you update the external copy, which has no Portcove-managed Backup or Rollback. An older managed v0.5.3 installation keeps its retained definition; changed data coordinates remain held until a supported transition is available. Keep that working version and its data rather than deleting it to get the newer copy."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 11219,
+          "cover_id": 342176,
+          "image_id": "co7c0w",
+          "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
+          "game_slug": "sonic-the-hedgehog-3-and-knuckles",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "game.bin"
+      ],
+      "runtime_source_filename": "game.bin",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.bin": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "game.bin",
+        "settings.ini",
+        "rom-Sonic3K.cfg",
+        "game.srm",
+        "sonic3k-mods.ini",
+        "sonic3k-mods.ini.tmp",
+        "native_save_1.bin",
+        "native_save_2.bin",
+        "native_save_3.bin",
+        "native_save_4.bin",
+        "native_save_5.bin",
+        "native_save_6.bin",
+        "native_save_7.bin",
+        "native_save_8.bin",
+        "native_save_9.bin",
+        "native_save_1.bin.thumb",
+        "native_save_2.bin.thumb",
+        "native_save_3.bin.thumb",
+        "native_save_4.bin.thumb",
+        "native_save_5.bin.thumb",
+        "native_save_6.bin.thumb",
+        "native_save_7.bin.thumb",
+        "native_save_8.bin.thumb",
+        "native_save_9.bin.thumb",
+        "game.srm.tmp",
+        "sonic3k-stage-pack.ini",
+        "sonic3k-stage-pack.ini.tmp",
+        "game.srm.pre-campaign.bak",
+        "sonic3k-stage-pack.srm",
+        "sonic3k-megamix.srm",
+        "game.srm.campaign",
+        "game.srm.campaign.tmp",
+        "game.srm.campaign.bak",
+        "game.srm.campaign.bak.tmp",
+        "game.srm.campaign.pre-v2.bak",
+        "game.srm.campaign.pre-shadow.bak",
+        "game.srm.campaign.pre-v3-cap3.bak"
+      ],
+      "runtime_mutable_paths": [
+        "dispatch_misses.toml",
+        "floor_coverage.toml",
+        "yield_log_native.log",
+        "floor_unsafe.log",
+        "interior_label_misses.log",
+        "ramdump_native.bin",
+        "last_error.log",
+        "dispatch_misses.toml.tmp",
+        "dispatch_misses.prev.toml",
+        "floor_coverage.toml.tmp",
+        "floor_coverage.prev.toml",
+        "interior_label_misses.toml",
+        "interior_label_misses.toml.tmp",
+        "interior_label_misses.prev.toml",
+        "floor_unsafe.toml",
+        "floor_unsafe.toml.tmp",
+        "floor_unsafe.prev.toml"
+      ]
+    },
+    {
+      "id": "super-bomberman-recomp",
+      "name": "BombermanRecomp",
+      "summary": "Play Super Bomberman on your desktop.",
+      "project_url": "https://github.com/elliotttate/BombermanRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "elliotttate/BombermanRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BombermanRecomp-windows-x64-",
+            ".zip"
+          ]
+        }
+      },
+      "source_profile": "super-bomberman-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "BombermanRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-bomberman-snes-usa",
+            "label": "Super Bomberman (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own stock headerless Super Bomberman (USA) source. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Headered inputs, gameplay completion and in-game save/load remain outside this selected route.",
+        "original_game_title": "Super Bomberman",
+        "artwork": {
+          "game_id": 3450,
+          "cover_id": 292645,
+          "image_id": "co69t1",
+          "image_sha256": "ca7bb95b008bfa7dcfd4a2fe0da3af70abeeaa52b084f5a08504f0130a0a7669",
+          "game_slug": "super-bomberman",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "launch_environment": {},
+      "runtime_source_filename": "game.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.sfc": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "tier2_super_bomberman_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "tier2_super_bomberman_",
+          "suffix": ".jsonl"
+        }
+      ],
+      "persistent_paths": [
+        "game.sfc",
+        "saves"
+      ],
+      "runtime_mutable_paths": []
+    },
+    {
+      "id": "alistert-openjazz",
+      "name": "Jazz Jackrabbit / OpenJazz (AlisterT)",
+      "summary": "Explore Jazz Jackrabbit / OpenJazz (AlisterT) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/AlisterT/openjazz",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "AlisterT/openjazz",
+        "asset_hints": {
+          "windows-x86-64": [
+            "openjazz-windows-mingw-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "openjazz-linux-glibc2.35-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenJazz.exe"
+        ],
+        "linux-x86-64": [
+          "OpenJazz"
+        ]
+      },
+      "persistent_paths": [
+        "game-data",
+        "openjazz.cfg",
+        "openjazz.log",
+        "openjazz.tmp",
+        "ff-output.dat",
+        "cm-output.dat"
+      ],
+      "launch_arguments": [
+        "game-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The offered Linux ZIP is the upstream glibc2.35 x86-64 build and requires system SDL2/C++ libraries. It uses the same supported game-data argument and declared in-folder fallbacks; upstream user-profile storage, when used, remains external. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Jazz Jackrabbit",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the game",
+              "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+        },
+        "artwork": {
+          "game_id": 3167,
+          "cover_id": 104089,
+          "image_id": "co28bd",
+          "image_sha256": "8f3e4f12d81b064bf80128999fd6758c8b5404dc848c58064aea0175139e5f5a",
+          "game_slug": "jazz-jackrabbit",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "battletanx-global-assault-pc-port",
+      "name": "BattleTanx: Global Assault PC Port",
+      "summary": "Explore BattleTanx: Global Assault PC Port and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "TheGh0stShip/BattleTanx-Global-Assault-PC-Port",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BattleTanxGA-",
+            "-windows-x64-portable.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BattleTanxGA.exe"
+        ]
+      },
+      "persistent_paths": [
+        "userdata"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed. The official portable package includes portable.txt and keeps settings, Controller Pak data, logs and texture packs in userdata beside the player. That directory is declared for compatible updates and backups. Your selected original ROM stays in its own location and is outside Portcove backup. A deliberate BTGA_DATA_DIR override also remains outside that backup. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
+        "original_game_title": "BattleTanx: Global Assault",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own BattleTanx: Global Assault USA Rev 0 big-endian .z64 dump when the game asks. This portable player validates and remembers that file without copying it. No build tool or installer is needed."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
+        },
+        "artwork": {
+          "game_id": 47685,
+          "cover_id": 110864,
+          "image_id": "co2djk",
+          "image_sha256": "85a5c7bae259b9b6cb96c8b9e0caba168097c78c36470025995208cc1c645900",
+          "game_slug": "battletanx-global-assault",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "brawmario-infinite-mario-64-ever",
+      "name": "Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario)",
+      "summary": "Explore Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/Brawmario/infinite-mario-64-ever",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "Brawmario/infinite-mario-64-ever",
+        "asset_hints": {
+          "windows-x86-64": [
+            "infinite-mario-64-ever.",
+            ".windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Infinite Mario 64.exe"
+        ]
+      },
+      "persistent_paths": [
+        "project.godot"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions. The game writes saves and backup saves through Godot user storage, normally AppData/Godot/app_userdata/Infinite Mario 64 on Windows. This is outside the package and outside Portcove backup. The transparency option can write project.godot beside the player; that exact configuration file is declared for compatible replacement and backup. The user-profile saves remain outside it. Keep a separate copy of that user folder; a customized data location can use external registration. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed.",
+        "original_game_title": "Super Mario 64",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own Super Mario 64 USA .z64 dump in the game’s ROM picker. The player verifies the original before loading it; the published Windows archive already contains the Godot player and its required companions."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
+        }
+      }
+    },
+    {
+      "id": "citrongames-dora64",
+      "name": "Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames)",
+      "summary": "Explore Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/citrongames/Dora64",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "citrongames/Dora64",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dora64-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "dora64-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Dora64.exe"
+        ],
+        "linux-x86-64": [
+          "Dora64"
+        ]
+      },
+      "persistent_paths": [
+        "doraemon.n64.jp.z64",
+        "saves",
+        "doraemon_pc_settings.json",
+        "doraemon_input_settings.json",
+        "doraemon_touch_settings.json",
+        "doraemon_touch_settings.json.tmp",
+        "doraemon-draw-distance.log",
+        "android-trace.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside Dora64.exe and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained. The named original ROM, saves folder, input/game/touch settings and named diagnostics live beside Dora64.exe and are declared for compatible updates and backup. Keep the source original elsewhere too. A differently named ROM or custom profile can use external registration. Runtime rollback carries current declared data without rewinding saves. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux uses the same fixed original ROM name and declared executable-adjacent settings/saves. The selected build needs system SDL2/GTK3 and their runtime dependencies. Keep the shipped assets beside Dora64; the package requires no setup compiler. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "original_game_title": "Doraemon: Nobita to Mittsu no Seireiseki",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the game’s setup",
+              "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside the Dora64 player and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
+        },
+        "artwork": {
+          "game_id": 70797,
+          "cover_id": 304257,
+          "image_id": "co6irl",
+          "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
+          "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "colin-mcrae-rally-2-opencmr2",
+      "name": "Colin McRae Rally 2.0 / OpenCMR2",
+      "summary": "Explore Colin McRae Rally 2.0 / OpenCMR2 and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/pablocpas/OpenCMR2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "pablocpas/OpenCMR2",
+        "asset_hints": {
+          "windows-x86-64": [
+            "opencmr2-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "opencmr2-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "opencmr2.exe"
+        ],
+        "linux-x86-64": [
+          "opencmr2"
+        ]
+      },
+      "persistent_paths": [
+        "Data",
+        "opencmr2.ini",
+        "opencmr2.log",
+        "SaveGame"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay outside the managed runtime. An optional Data folder beside the executable is carried between compatible versions. OpenCMR2 normally keeps saves, settings and logs in AppData/OpenCMR2, outside Portcove backups. Declared Data and in-folder fallback opencmr2.ini/opencmr2.log are retained when present. The upstream game owns edition checks and its storage resolver; Portcove replaces the package only. Existing external installations keep their files and update ownership. Play has not been tested through Portcove. The declared SaveGame folder also preserves the upstream user-directory fallback. If preference storage fails or custom launch paths create other files in the runtime, keep the current copy and review those exact paths before replacement; use external registration for custom storage. Linux normally uses ~/.local/share/OpenCMR2. Keep the packaged libSDL3.so.0 beside opencmr2; the game needs that companion library. Play has not been tested through Portcove on Linux.",
+        "original_game_title": "Colin McRae Rally 2.0",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply your original game files on first launch",
+              "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay in their existing folder."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md"
+        },
+        "artwork": {
+          "game_id": 642,
+          "cover_id": 351921,
+          "image_id": "co7jjl",
+          "image_sha256": "f0017034b228e12a2d22522dc6510f8e546824db874cb70a968d8e283e0e312c",
+          "game_slug": "colin-mcrae-rally-2-0",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "dkc1-recomp",
+      "name": "DKC1Recomp",
+      "summary": "Explore DKC1Recomp and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/elliotttate/DKC1Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elliotttate/DKC1Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DKC1Recomp-",
+            "-Windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC1Recomp.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. The Windows player selects and remembers the original path, then switches its writable working directory to AppData/Flat2VR/DKC1Recomp. Most settings, saves and ordinary generated data stay there. The Dixie preference is stored separately in the Windows registry under HKCU/Software/DKC1Recomp/Mods. Both stores are outside Portcove backup; no in-folder persistence is declared for this default. Optional music packs and custom DKC1_USER_DIR locations are separately owned. Keep that user folder and your originals recoverable. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed. The upstream framework permits noncommercial personal use under its included PolyForm Noncommercial 1.0.0 terms; review and follow those terms. Commercial use and rights to original game or optional mod content are not granted by this route.",
+        "original_game_title": "Donkey Kong Country",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original in the game",
+              "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+        },
+        "artwork": {
+          "game_id": 1090,
+          "cover_id": 327551,
+          "image_id": "co70qn",
+          "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
+          "game_slug": "donkey-kong-country",
+          "match_kind": "underlying-game"
+        }
+      }
+    }
+  ],
+  "listings": [
+    {
+      "id": "alistert-openjazz",
+      "name": "Jazz Jackrabbit / OpenJazz (AlisterT)",
+      "summary": "Explore Jazz Jackrabbit / OpenJazz (AlisterT) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/AlisterT/openjazz",
+      "issue_number": 1853,
+      "availability": "packages",
+      "setup_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md",
+      "artwork": {
+        "game_id": 3167,
+        "cover_id": 104089,
+        "image_id": "co28bd",
+        "image_sha256": "8f3e4f12d81b064bf80128999fd6758c8b5404dc848c58064aea0175139e5f5a",
+        "game_slug": "jazz-jackrabbit",
+        "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/AlisterT/openjazz/releases/tag/20260301",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Start the game",
+            "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/AlisterT/openjazz/blob/20260301/README.md"
+      },
+      "original_game_title": "Jazz Jackrabbit",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
+    },
+    {
+      "id": "citrongames-dora64",
+      "name": "Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames)",
+      "summary": "Explore Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames) and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/citrongames/Dora64",
+      "issue_number": 1814,
+      "availability": "packages",
+      "setup_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md",
+      "artwork": {
+        "game_id": 70797,
+        "cover_id": 304257,
+        "image_id": "co6irl",
+        "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
+        "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
+        "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/citrongames/Dora64/releases/tag/v1.0.4",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish the game’s setup",
+            "instruction": "Before first Play, copy your own supported original Japanese Doraemon: Nobita to 3tsu no Seireiseki .z64 ROM beside the Dora64 player and name that copy doraemon.n64.jp.z64. The game validates its identity before starting. This reviewed v1.0.4 release page contains the Windows package labeled 1.0.5; those upstream labels are retained."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md"
+      },
+      "original_game_title": "Doraemon: Nobita to Mittsu no Seireiseki",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
+    },
+    {
+      "id": "colin-mcrae-rally-2-opencmr2",
+      "name": "Colin McRae Rally 2.0 / OpenCMR2",
+      "summary": "Explore Colin McRae Rally 2.0 / OpenCMR2 and follow the upstream project for requirements, downloads and setup.",
+      "project_url": "https://github.com/pablocpas/OpenCMR2",
+      "issue_number": 1949,
+      "availability": "packages",
+      "setup_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md",
+      "artwork": {
+        "game_id": 642,
+        "cover_id": 351921,
+        "image_id": "co7jjl",
+        "image_sha256": "f0017034b228e12a2d22522dc6510f8e546824db874cb70a968d8e283e0e312c",
+        "game_slug": "colin-mcrae-rally-2-0",
+        "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/pablocpas/OpenCMR2/releases/tag/v1.6.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply your original game files on first launch",
+            "instruction": "Select your installed original Colin McRae Rally 2.0 game folder when OpenCMR2 asks on first launch. The supported original files can stay in their existing folder."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/pablocpas/OpenCMR2/blob/v1.6.0/README.md"
+      },
+      "original_game_title": "Colin McRae Rally 2.0",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
+    }
+  ]
+}

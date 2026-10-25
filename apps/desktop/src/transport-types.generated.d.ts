@@ -703,6 +703,8 @@ export interface TransportOutputs {
   library_selection: LibrarySelection;
   listing_delivery_status: OutputListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
+  managed_route_change_preview: OutputManagedRouteChangePreview;
+  managed_route_change_result: OutputManagedRouteChangeResult;
   operation_event: OutputOperationEvent;
   output_destination_preview: OutputOutputDestinationPreview;
   output_relocation_plan: OutputOutputRelocationPlan;
@@ -774,6 +776,8 @@ export interface TransportOutputs {
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
   desktop_locale_preference: OutputDesktopLocalePreference;
+  desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
+  desktop_managed_route_change_result: OutputManagedRouteChangeResult;
   desktop_pending_setup_record: PendingSetupRecord;
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
@@ -1788,8 +1792,8 @@ export interface CatalogDownloadRequest {
   release_id: number;
 }
 /**
- * Independently versioned inert directory projection. The operational catalog
- * keeps its existing schema and strict PortDefinition interpretation.
+ * Independently versioned directory projection. Format 2 can restrict fresh
+ * self-service downloads; neither format grants managed operations.
  */
 export interface CatalogListingDocument {
   format_version: number;
@@ -1805,6 +1809,21 @@ export interface PortListing {
    * A dated discovery fact, not a managed support or artifact admission decision.
    */
   availability: "unknown" | "packages" | "source-only" | "unavailable";
+  /**
+   * Advisory literal filename hints for an upstream-owned download. They do
+   * not authenticate a package or grant installation/execution ownership.
+   */
+  download_asset_hints?: {
+    "linux-x86-64"?: string[];
+    "macos-aarch64"?: string[];
+    "macos-x86-64"?: string[];
+    "windows-x86-64"?: string[];
+  };
+  /**
+   * A reviewed restriction on fresh self-service downloads only. It grants
+   * no execution, management or permission over an existing copy.
+   */
+  download_block_reason?: string | null;
   id: string;
   issue_number?: number | null;
   manual_setup?: ManualSetupGuide | null;
@@ -1815,6 +1834,10 @@ export interface PortListing {
    */
   platforms: Platform[];
   project_url: string;
+  /**
+   * Initial self-service release choice only; never the installed update policy.
+   */
+  recommended_download_channel?: ReleaseChannel | null;
   release_url?: string | null;
   setup_url?: string | null;
   summary: string;
@@ -2577,6 +2600,24 @@ export interface ListingActionAssessment {
   action: ListingAction;
   allowed: boolean;
   reason?: string | null;
+  [k: string]: unknown;
+}
+export interface OutputManagedRouteChangePreview {
+  current_registration: ExternalRuntimeRecord;
+  external_data_will_be_copied: boolean;
+  external_files_will_be_preserved: boolean;
+  installation: InstallPlan;
+  permitted: boolean;
+  port_id: string;
+  preview_sha256: string;
+  reason: string | null;
+  update_policy: UpdatePolicy;
+  [k: string]: unknown;
+}
+export interface OutputManagedRouteChangeResult {
+  external_files_preserved: boolean;
+  installation: InstallRecord;
+  previous_registration: ExternalRuntimeRecord;
   [k: string]: unknown;
 }
 export interface OperationTarget {

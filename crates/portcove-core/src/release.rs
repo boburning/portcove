@@ -57,7 +57,9 @@ pub trait ReleaseProvider: Send + Sync {
         }
         self.resolve(port, channel, platform)
             .await
-            .map(crate::ScopedResolvedRelease::legacy)
+            .and_then(|release| {
+                crate::ScopedResolvedRelease::legacy(release).for_selection(port, platform, channel)
+            })
     }
 }
 
@@ -94,6 +96,7 @@ struct DeviceSession {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ReleaseSelectionCacheKey {
+    adapter: AdapterKind,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -105,6 +108,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
 impl ReleaseSelectionCacheKey {
     pub(crate) fn new(port: &PortDefinition, channel: ReleaseChannel, platform: Platform) -> Self {
         Self {
+            adapter: port.adapter,
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -1073,7 +1077,10 @@ impl ReleaseProvider for GithubReleaseProvider {
             return self
                 .resolve(port, channel, platform)
                 .await
-                .map(crate::ScopedResolvedRelease::legacy);
+                .and_then(|release| {
+                    crate::ScopedResolvedRelease::legacy(release)
+                        .for_selection(port, platform, channel)
+                });
         }
         let release = self
             .resolve_with_scope(port, channel, platform, scope)
@@ -1081,7 +1088,8 @@ impl ReleaseProvider for GithubReleaseProvider {
         match scope {
             Some(scope) => crate::ScopedResolvedRelease::managed(release, scope.clone()),
             None => Ok(crate::ScopedResolvedRelease::legacy(release)),
-        }
+        }?
+        .for_selection(port, platform, channel)
     }
 }
 
@@ -1496,13 +1504,6 @@ fn choose_asset<'a>(
         .get(&platform)
         .cloned()
         .unwrap_or_default();
-    // Managed PSX definitions may distinguish a preparation kit from a competing
-    // ordinary runtime package. That declared class cannot become optional when
-    // the kit is missing; unrelated platform hints remain scoring preferences.
-    let owned_input_hints: Vec<_> = hints
-        .iter()
-        .filter(|hint| hint.to_ascii_lowercase().contains("owned-input"))
-        .collect();
     let mut scored: Vec<(i32, &GithubAsset)> = assets
         .iter()
         .filter_map(|asset| {
@@ -1513,16 +1514,19 @@ fn choose_asset<'a>(
             {
                 return None;
             }
-            if port.adapter == AdapterKind::NativePortable
-                && ![".zip", ".tar.gz", ".tgz"]
-                    .iter()
-                    .any(|extension| name.ends_with(extension))
-            {
+            let can_extract = [".zip", ".tar.gz", ".tgz"]
+                .iter()
+                .any(|extension| name.ends_with(extension));
+            if port.adapter == AdapterKind::NativePortable && !can_extract {
                 return None;
             }
-            if port.adapter == AdapterKind::NativePortable {
-                // Managed replacement and the download recommendation share native
-                // suitability. Metadata hints cannot override a known mismatch.
+            if matches!(
+                port.adapter,
+                AdapterKind::NativePortable | AdapterKind::StagedSourcePortable
+            ) {
+                // Reusable portable rules and the download recommendation share
+                // native suitability. A selected variant cannot become optional
+                // when a successor publishes only another package class.
                 if !hints
                     .iter()
                     .all(|hint| name.contains(&hint.to_ascii_lowercase()))
@@ -1530,7 +1534,10 @@ fn choose_asset<'a>(
                     return None;
                 }
                 let (_, _, score) = crate::service::package_selection::assess_package_name(
-                    &name, true, platform, &hints,
+                    &name,
+                    can_extract,
+                    platform,
+                    &hints,
                 );
                 return score.map(|score| (score as i32, asset));
             }
@@ -1538,11 +1545,13 @@ fn choose_asset<'a>(
                 return None;
             }
             if port.adapter == AdapterKind::PsxRecompManaged
-                && !owned_input_hints.is_empty()
-                && !owned_input_hints
+                && !hints
                     .iter()
-                    .any(|hint| name.contains(&hint.to_ascii_lowercase()))
+                    .all(|hint| name.contains(&hint.to_ascii_lowercase()))
             {
+                // Preparation-kit and package-variant choices stay mandatory.
+                // PSX kits retain their own supported archive contract; source
+                // preparation is not a native-player package disqualifier.
                 return None;
             }
             let platform_score = platform
@@ -1690,7 +1699,10 @@ fn is_checksum_name(name: &str) -> bool {
 
 fn is_auxiliary_package(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
-    name.contains("symbols") || name.contains("-pdb-") || name.ends_with("-pdb.zip")
+    name.contains("symbols")
+        || name.contains("-pdb-")
+        || name.ends_with("-pdb.zip")
+        || crate::service::package_selection::is_license_compliance_archive(&name)
 }
 
 fn is_beta_release(release: &GithubRelease) -> bool {
@@ -1737,6 +1749,8 @@ mod tests {
     use crate::test_http::{
         DeadlineServer, observe_response, serve_deadline, serve_http, serve_routed_http,
     };
+
+    mod unchanged_definition;
 
     #[tokio::test]
     async fn pending_auth_status_http_observation_releases_library_lease() {
@@ -2265,6 +2279,7 @@ mod tests {
             },
         };
         let oldest_key = ReleaseSelectionCacheKey {
+            adapter: AdapterKind::NativePortable,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2286,6 +2301,7 @@ mod tests {
             provider
                 .store_release(
                     ReleaseSelectionCacheKey {
+                        adapter: AdapterKind::NativePortable,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

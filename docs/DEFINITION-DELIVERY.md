@@ -10,8 +10,9 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–20. Staged-source creation
+The public inventory additionally advertises native portable version 2,
+managed PS1 version 2, N64 portable versions 2 and 3 and
+staged-source portable versions 2–5, 8, 10–12 and 15–23. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -22,6 +23,61 @@ including the retired CVLoD recipe associated with the still-advertised N64
 portable version 3 and staged-source version 11 path capability. Advertising those
 versions does not restore CVLoD source creation or authorize compilers or scripts.
 Shared path capabilities remain available to their other consumers.
+
+Native portable version 2 observes an upstream-owned manual setup completion
+record beneath declared player data. New and retained indexed entries using
+this optional JSON marker require minimum version 2. Core checks bounded regular
+file structure at status and locked launch boundaries; it neither executes setup
+nor treats the record as a verified original-game receipt. Earlier retained
+definitions without a marker keep their meaning. A marker may be added for a new
+runtime only under unchanged already-owned data coordinates; changed markers
+remain held. Explicit rollback to an exact retained older contract keeps that
+contract's historical semantics and current declared data.
+
+Managed PS1 version 2 stages a replacement before activation and preserves complete
+declared `mods/packages/<id>/<version>` packages beside successor defaults. New
+indexed PS1 entries require minimum version 2. Retained version-1 entries stay
+readable and receive the current conservative restoration safety checks; their
+definitions are not rewritten. This admission floor does not fence older programs
+reading unscoped legacy manifests. A bounded, install/manifest-bound Core receipt
+records completed data restoration before first Play; it establishes no launch,
+game-file, mod, publisher or gameplay qualification. See the
+[PS1 data boundary](CATALOG.md#managed-ps1-package-and-player-data-restoration).
+
+Staged-source version 22 covers ready managed archives without a source, build,
+setup-helper, initialization or shared-account contract. New indexed entries of
+that shape now require version 23. They stage and restore declared data before
+activation, collect edits made before first Play, and retain current data during
+runtime rollback. Raw activation refuses; interrupted activation repeats retained
+contract compatibility and data preflight. The same bounded data-restoration
+receipt is reused, including its historical metadata filename. A retained copy
+without proof of initial restoration uses additive collection and refuses
+differing canonical/runtime data. Other staged-source contracts and older
+retained readers keep their existing interpretation; advertising version 22
+does not grant acquisition, publisher or external-data ownership.
+
+Version 23 also covers a ready archive with one explicit verified raw-file
+`copy` whose exact destination is declared persistent. BIOS, source sets,
+compilers, setup helpers and richer initialization/account policies remain outside
+this ready-archive boundary. Existing raw-copy installations receive conservative
+additive collection if initial restoration was not recorded; retained contracts
+are not rewritten. Source destination, materialization, identity-profile, expected
+runtime hashes and source-environment changes hold replacement before collection.
+
+Version 23 additionally preserves exact declared-file modification times through
+collection, synchronization, backup and restore. A destination that rounds a
+timestamp refuses before private replacement publication. New ready-archive
+installations also retain a format-6 installed contract wrapping their original
+embedded/indexed/admitted interpretation, so older programs refuse the unknown
+format even for an unscoped install. Existing retained contracts are not rewritten.
+New backup manifests bind timestamps with an additional metadata digest while
+retaining their byte digest. Restore verifies the consent-bound manifest before
+collecting current runtime data; later manifest changes cannot downgrade it to a
+historical snapshot. Old backups without that digest retain byte-only historical
+integrity: their original timestamps cannot be reconstructed or authenticated.
+Older backup readers ignore the optional digest; capability and retained-contract
+fences, rather than that optional field alone, protect new metadata-dependent
+managed installations.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
@@ -75,7 +131,7 @@ strict installed-contract envelope so older readers refuse lost semantics.
 Staged-source portable version 19 covers the constrained reusable TFE initializer,
 version-local RetroAchievements credential policy and GBRecompiled shared
 preferences policy. Indexed entries using these policies must require minimum
-version 19. Typed retained release facts select the reviewed behavior; artifact,
+version 19 for direct manifests. Typed retained release facts select the reviewed behavior; artifact,
 path, persistence, credential and consent invariants remain in Core. A compatible
 release can reuse the policy after focused validation without a new title-specific
 capability. A checksum or matching filename alone does not prove compatibility.
@@ -87,6 +143,15 @@ launch and registration-only removal; selected bytes are not authenticated
 official packages. This contract grants no update, deletion, migration, backup or
 rollback rights over external files. Older readers must refuse its unknown
 consequential semantics. See [installation ownership](CATALOG.md#integration-ownership).
+
+Staged-source portable version 21 adds configured GitHub provider resolution to
+those three reusable runtime policies. Indexed entries using this combination
+must require minimum version 21. Stable project/package rules resolve changing
+release facts without definition edits. Core binds the exact retained definition,
+platform, channel and resolved artifact before installation, and refreshes the
+provider result before applying a review. Older clients refuse this combination;
+direct manifests retain version 19. This capability does not authenticate a
+publisher, authorize publication or widen the policies' data and consent scope.
 
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`

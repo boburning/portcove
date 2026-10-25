@@ -13,7 +13,7 @@ import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
 import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
 import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import { SteamEntryControl } from "./SteamEntry";
-import { ExternalRuntimeControl } from "./ExternalRuntime";
+import { AuthoredPreparationGuidance, ExternalRuntimeControl } from "./ExternalRuntime";
 import {
   usesExternalRuntimeRoute,
   usesUserSelectedRuntime,
@@ -84,7 +84,10 @@ import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
-import { portActionPresentation } from "../features/port-actions/port-action-presentation";
+import {
+  hasPendingSetupAction,
+  portActionPresentation,
+} from "../features/port-actions/port-action-presentation";
 import {
   presentPortAction,
   useOperationPresentation,
@@ -100,6 +103,7 @@ export interface DetailActions {
   install: AsyncAction;
   launch: AsyncAction;
   openUserData: AsyncAction;
+  openSetupFolder?: AsyncAction;
   reviewInstall: AsyncAction;
   restoreBackup: ApplyBackupAction;
   rollback: AsyncAction;
@@ -687,7 +691,7 @@ function DetailBody({
               actions={actions}
               openLibraryStorage={openLibraryStorage}
             />
-            {!external && (
+            {(!external || port.adapter === "native-portable") && (
               <DetailGroup title="Installation folder">
                 <FutureSetupDisclosure
                   title="Folder for a future install"
@@ -868,6 +872,8 @@ function StatusActionsGroup({
     Boolean(
       selectedSourceRequirement(sources.source, sources.sourcePath, sources.bios, sources.biosPath),
     );
+  const manualSetup =
+    installed && port.adapter === "native-portable" && hasPendingSetupAction(status);
   if (usesExternalRuntimeRoute(port, status)) {
     return (
       <section
@@ -966,6 +972,30 @@ function StatusActionsGroup({
           {managedPreparation && pendingSetup ? "Next step: prepare game data" : "Next step"}
         </h2>
       )}
+      {manualSetup && (
+        <div className="grid gap-3">
+          <p>Finish the game-file setup in the installed folder. Return here when it completes.</p>
+          <div className="primary-actions flex flex-wrap gap-2">
+            <Button
+              data-focusable
+              variant="primary"
+              disabled={Boolean(busy) || !actions.openSetupFolder}
+              onClick={() => void actions.openSetupFolder?.()}
+            >
+              Finish setup
+            </Button>
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy) || !onChanged}
+              onClick={() => onChanged?.()}
+            >
+              Check setup again
+            </Button>
+          </div>
+          <AuthoredPreparationGuidance port={port} ownership="managed" />
+        </div>
+      )}
       {managedPreparation && pendingSetup && sources.sourceReady && sources.biosReady && (
         <>
           <PreparationControl
@@ -984,7 +1014,7 @@ function StatusActionsGroup({
           />
         </>
       )}
-      {!hidePlay && (
+      {!hidePlay && !manualSetup && (
         <PrimaryActions
           trial={trial}
           installCancellations={installCancellations}
@@ -1041,7 +1071,12 @@ function RequirementsGroup({
   useEffect(() => {
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
-  if (!port.source_profile && !port.bios_source_profile && !managedPreparation) return null;
+  const authoredSetup =
+    Boolean(port.presentation?.manual_setup || port.presentation?.manual_preparation) &&
+    (port.adapter === "native-portable" || (!port.source_profile && !port.bios_source_profile));
+  if (installed && port.adapter === "native-portable" && pendingSetup) return null;
+  if (!port.source_profile && !port.bios_source_profile && !managedPreparation && !authoredSetup)
+    return null;
   return (
     <DetailGroup title="Requirements">
       <details
@@ -1051,11 +1086,18 @@ function RequirementsGroup({
       >
         <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
           Game-file requirements and setup
-          <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
+          <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>
+            {authoredSetup && !port.source_profile && !port.bios_source_profile
+              ? "Game instructions"
+              : "File controls"}
+          </span>
           <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
         </summary>
         <div className={`requirements-body grid gap-4 ${disclosureBodyStyle}`}>
-          <RequirementsSummary port={port} />
+          {authoredSetup && <AuthoredPreparationGuidance port={port} ownership="managed" />}
+          {(!authoredSetup || Boolean(port.presentation?.source_requirements.length)) && (
+            <RequirementsSummary port={port} />
+          )}
           <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
         </div>
@@ -1458,7 +1500,7 @@ function SavesAndSettingsSummary({
           : port.presentation?.saves_and_settings === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
             : port.presentation?.saves_and_settings === "external-user-owned"
-              ? "Stored with your external runtime; Portcove does not back up or remove it"
+              ? "External saves and settings are outside Portcove backups; declared local data may still be covered"
               : "Unavailable in this catalog"}
       </span>
       <section aria-label="Saved-data coverage">
@@ -2040,6 +2082,13 @@ function PrimaryActions({
     ) : (
       <InstallAction
         gameName={gameIdentityLabel(sources.port)}
+        setupNote={
+          sources.port.presentation?.manual_setup?.steps[0]?.instruction ??
+          (!sources.port.source_profile && !sources.port.bios_source_profile
+            ? (sources.port.presentation?.manual_preparation ?? undefined)
+            : undefined)
+        }
+        externalData={sources.port.presentation?.saves_and_settings === "external-user-owned"}
         cancellations={installCancellations}
         ready={launchReady}
         sourceReady={sourceReady}
@@ -2184,6 +2233,8 @@ function StagedActivation({
 
 export function InstallAction({
   gameName,
+  setupNote,
+  externalData,
   cancellations,
   ready,
   sourceReady,
@@ -2201,6 +2252,8 @@ export function InstallAction({
   portaled = true,
 }: {
   gameName?: string | undefined;
+  setupNote?: string | undefined;
+  externalData?: boolean | undefined;
   cancellations?: ActivityRecord[] | undefined;
   ready: boolean;
   sourceReady: boolean;
@@ -2315,6 +2368,18 @@ export function InstallAction({
               Portcove manages these runtime files and their updates. Automatic updates follow your
               selected update policy. See the game instructions for setup and save locations.
             </DialogDescription>
+            {(setupNote || externalData) && (
+              <section className="mb-4 grid min-w-0 gap-2 wrap-anywhere" aria-label="Game setup">
+                <h3 className="font-semibold">Game setup</h3>
+                {setupNote && <p>{setupNote}</p>}
+                {externalData && (
+                  <p>
+                    Some game data stays outside Portcove backups. See Files for the locations and
+                    supported exceptions.
+                  </p>
+                )}
+              </section>
+            )}
             {action ? (
               <InstallPlanSummary plan={plan} />
             ) : (
@@ -2744,7 +2809,7 @@ function detailState({
     return {
       title: "Existing installation unavailable",
       description:
-        "Check the selected executable and working directory. Complete any upstream setup, or remove only this registration and choose the launch details again. Your external files stay in place.",
+        "Check the selected executable and working directory. Complete any upstream setup, or use Edit launch details to choose the working copy. Your external files stay in place.",
       tone: "setup",
       icon: AlertTriangle,
     };

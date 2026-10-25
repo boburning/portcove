@@ -133,6 +133,7 @@ async function click(label: string) {
 }
 async function chooseSingleDownload() {
   await click("Check upstream downloads");
+  await click("Change download options");
   await click("Change download folder…");
   await click("Review download");
 }
@@ -153,6 +154,21 @@ beforeEach(async () => {
     entries_checked: 1,
     explanation: "No native application found; choose the installed executable elsewhere.",
   });
+  vi.spyOn(desktopApi, "previewUserSelectedRuntime").mockImplementation(
+    async (id, executable, path, args) => ({
+      port_id: id,
+      executable,
+      path,
+      version: "user-managed",
+      archive_sha256: "",
+      immutable_tree_sha256: "",
+      immutable_file_count: 0,
+      user_selected: { arguments: args },
+      shared_preferences: null,
+      preview_sha256: "current-review",
+    }),
+  );
+  vi.spyOn(desktopApi, "registerUserSelectedRuntime").mockResolvedValue(null);
   vi.spyOn(desktopApi, "openPendingSetupFolder").mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "forgetPendingSetup").mockResolvedValue(undefined);
   root = await render(
@@ -165,12 +181,55 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+it("shows Core's acquisition restriction without offering a download mutation", async () => {
+  const reason =
+    "Download is unavailable until upstream establishes permission for the linked frontend.";
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    allowed: false,
+    reason,
+    candidates: [],
+    recommended_asset_id: null,
+    packages: [],
+  });
+  await click("Check upstream downloads");
+  await expect.element(page.getByText(reason, { exact: true })).toBeVisible();
+  await expect.element(page.getByRole("link", { name: "View upstream releases" })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Change download options", exact: true }))
+    .not.toBeInTheDocument();
+  expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
 it("accepts Core's recommended package and location together without a folder decision", async () => {
   await click("Check upstream downloads");
+  expect(document.querySelector('[role="combobox"]')).toBeNull();
+  await expect.element(page.getByRole("region", { name: "Recommended download" })).toBeVisible();
   await click("Review download");
   expect(pickInstallFolder).not.toHaveBeenCalled();
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selection, 9);
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("reviews a recommended upstream installer as a download without executing or extracting it", async () => {
+  const installer = { ...artifact, name: "game-windows-x64-setup.exe", can_extract: false };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    candidates: [installer],
+  });
+  await click("Check upstream downloads");
+  await expect.element(page.getByRole("region", { name: "Recommended download" })).toBeVisible();
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(
+    { ...selection, extract_archive: false },
+    9,
+  );
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
 });
 
 it("keeps a recommendation beyond eight packages and an explicitly selected alternative visible", async () => {
@@ -192,6 +251,7 @@ it("keeps a recommendation beyond eight packages and an explicitly selected alte
     ],
   });
   await click("Check upstream downloads");
+  await click("Change download options");
   await vi.waitFor(() =>
     expect(
       [...document.querySelectorAll('[role="combobox"]')].some(
@@ -242,6 +302,7 @@ it("retains a deliberate older release and package across refresh", async () => 
     })
     .mockResolvedValue(previous);
   await click("Check upstream downloads");
+  await click("Change download options");
   await page.getByRole("combobox", { name: /^Release v/ }).click();
   await page.getByRole("option", { name: /v1.1/ }).click();
   await click("Other and uncertain downloads");
@@ -270,6 +331,7 @@ it("requires a new choice when an explicitly selected package disappears", async
     candidates: [artifact, alternative],
   });
   await click("Check downloads again");
+  await click("Change download options");
   await click("Other and uncertain downloads");
   await page.getByRole("combobox", { name: /^Package/ }).click();
   await page.getByRole("option", { name: /variant.zip/ }).click();
@@ -308,13 +370,18 @@ it("suggests Core's native target and preserves a manual installation outside th
       onChanged={changed}
     />,
   );
-  await vi.waitFor(() => expect(document.body.textContent).toContain(`Executable: ${executable}`));
+  await expect
+    .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
+    .toBeVisible();
+  expect(document.querySelector('input[aria-label="Working directory"]')).toBeNull();
+  expect(document.body.textContent).not.toContain("Continue setup");
   expect(desktopApi.discoverSetupLaunchTargets).toHaveBeenCalledExactlyOnceWith(
     listing.id,
     saved.id,
     9,
   );
   vi.mocked(pickHostToolExecutable).mockResolvedValue("C:/Games/Harbor/Harbor.exe");
+  await click("Change launch details");
   await click("Choose game executable…");
   expect(document.body.textContent).toContain("Executable: C:/Games/Harbor/Harbor.exe");
   expect(
@@ -480,6 +547,7 @@ it.each(["loading", "loaded"] as const)(
         "stable",
       ),
     );
+    await click("Change download options");
     await click("Change download folder…");
     await page.getByRole("tab", { name: "Saved data", exact: true }).click();
     await expect
@@ -543,6 +611,7 @@ it("requires a package choice for ambiguous builds while retaining the default f
   await expect
     .element(page.getByRole("button", { name: "Review download", exact: true }))
     .toBeDisabled();
+  await click("Change download options");
   await click("Change download folder…");
   await expect
     .element(page.getByRole("button", { name: "Review download", exact: true }))
@@ -621,7 +690,7 @@ it("reviews the exact file and destination, then hands an unexecuted installer t
   expect(pickInstallFolder).toHaveBeenCalledExactlyOnceWith(candidates.default_destination_parent);
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(installerRequest, 9);
   expect(document.body.textContent).toContain(preview.destination_path);
-  expect(document.body.textContent).toContain("will not run an installer");
+  expect(document.body.textContent).toContain("will not run setup automatically");
   expect(document.body.textContent).toContain("Not supplied. Portcove will record a SHA-256");
   expect(document.querySelector('[role="checkbox"]')).toBeNull();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
@@ -649,6 +718,7 @@ it("reviews the exact file and destination, then hands an unexecuted installer t
 it("keeps folder cancellation and closing a review free of mutations", async () => {
   vi.mocked(pickInstallFolder).mockResolvedValueOnce(null);
   await click("Check upstream downloads");
+  await click("Change download options");
   await click("Change download folder…");
   await expect
     .element(page.getByRole("button", { name: "Review download", exact: true }))
@@ -683,6 +753,7 @@ it("discards lookup and native picker results from an earlier game or library", 
   await click("Check upstream downloads");
   const picker = deferred<string | null>();
   vi.mocked(pickInstallFolder).mockReturnValueOnce(picker.promise);
+  await click("Change download options");
   await click("Change download folder…");
   await root.rerender(
     <CatalogDownloadControl entry={entry} generation={12} busy={false} perform={perform} />,
@@ -708,7 +779,7 @@ it("resumes durable downloads and binds folder/reminder operations to the exact 
     />,
   );
   expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
-  await click("Continue setup");
+  expect(document.body.textContent).not.toContain("Continue setup");
   const directory = document.querySelector('input[value="/home/player/Games/new-project-v1.2"]');
   expect(directory).not.toBeNull();
   await click("Open download folder");
@@ -841,4 +912,294 @@ it("presents interrupted downloads as recovery and never as launchable or ready 
   );
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
   expect(desktopApi.forgetPendingSetup).not.toHaveBeenCalled();
+});
+
+it("restores deliberate download inputs after remount and isolates another library", async () => {
+  const older = {
+    ...artifact,
+    release_id: 41,
+    asset_id: 8,
+    release_tag: "v1.1",
+    name: "older.zip",
+  };
+  const previous = {
+    ...candidates,
+    selected_release_id: 41,
+    recommended_asset_id: 8,
+    releases: [{ id: 41, tag: "v1.1", preview: false, assets_complete: true }],
+    candidates: [older],
+    packages: [{ asset_id: 8, suitability: "suitable", reason: "Native archive" }],
+  };
+  const libraryRoot = "E:/remember-download-test";
+  for (const key of Object.keys(localStorage))
+    if (key.includes("remember-download-test")) localStorage.removeItem(key);
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    releases: [...candidates.releases, ...previous.releases],
+  });
+  await root.rerender(
+    <CatalogDownloadControl
+      entry={entry}
+      generation={9}
+      libraryRoot={libraryRoot}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Check upstream downloads");
+  await click("Change download options");
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(previous);
+  await page.getByRole("combobox", { name: /^Release v/ }).click();
+  await page.getByRole("option", { name: /v1.1/ }).click();
+  await page.getByRole("combobox", { name: /^Package/ }).click();
+  await page.getByRole("option", { name: /older.zip/ }).click();
+  vi.mocked(pickInstallFolder).mockResolvedValue("E:/Personal games");
+  await click("Change download folder…");
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={entry}
+      generation={10}
+      libraryRoot={libraryRoot}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await vi.waitFor(() =>
+    expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+      entry.id,
+      10,
+      41,
+      "stable",
+    ),
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .toBeEnabled();
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenLastCalledWith(
+    { ...selection, release_id: 41, asset_id: 8, destination_parent: "E:/Personal games" },
+    10,
+  );
+  await click("Cancel");
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(candidates);
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={entry}
+      generation={11}
+      libraryRoot="E:/another-download-test"
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await vi.waitFor(() =>
+    expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+      entry.id,
+      11,
+      undefined,
+      "stable",
+    ),
+  );
+  expect(document.body.textContent).not.toContain("E:/Personal games");
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("starts with the reviewed preview channel and retains an explicit stable choice", async () => {
+  const recommended = {
+    ...entry,
+    listing: { ...listing, recommended_download_channel: "beta" as const },
+  };
+  const libraryRoot = "E:/recommended-preview-choice";
+  for (const key of Object.keys(localStorage))
+    if (key.includes("recommended-preview-choice")) localStorage.removeItem(key);
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={recommended}
+      libraryRoot={libraryRoot}
+      generation={11}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+    listing.id,
+    11,
+    undefined,
+    "beta",
+  );
+  await click("Change download options");
+  await page.getByRole("combobox", { name: /^Release channel/ }).click();
+  await page.getByRole("option", { name: "Stable", exact: true }).click();
+  await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+    listing.id,
+    11,
+    undefined,
+    "stable",
+  );
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={recommended}
+      libraryRoot={libraryRoot}
+      generation={12}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
+    listing.id,
+    12,
+    undefined,
+    "stable",
+  );
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("persists an explicit package before any other option is changed", async () => {
+  const libraryRoot = "E:/immediate-package-choice";
+  for (const key of Object.keys(localStorage))
+    if (key.includes("immediate-package-choice")) localStorage.removeItem(key);
+  const alternative = { ...artifact, asset_id: 8, name: "alternative.zip" };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    candidates: [artifact, alternative],
+    packages: [
+      ...candidates.packages,
+      { asset_id: 8, suitability: "suitable", reason: "Alternative" },
+    ],
+  });
+  await root.rerender(
+    <CatalogDownloadControl
+      entry={entry}
+      libraryRoot={libraryRoot}
+      generation={9}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Check upstream downloads");
+  await click("Change download options");
+  await page.getByRole("combobox", { name: /^Package/ }).click();
+  await page.getByRole("option", { name: /alternative.zip/ }).click();
+  await root.rerender(
+    <CatalogDownloadControl
+      autoCheck
+      entry={entry}
+      libraryRoot={libraryRoot}
+      generation={10}
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await expect.element(page.getByText("alternative.zip · 2.0 KiB", { exact: true })).toBeVisible();
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenLastCalledWith(
+    { ...selection, asset_id: 8 },
+    10,
+  );
+  expect(pickInstallFolder).not.toHaveBeenCalled();
+});
+
+it("invalidates an automatic launch target when refreshed discovery becomes ambiguous", async () => {
+  const first = {
+    executable: `${saved.path}/game.exe`,
+    working_directory: saved.path,
+    supporting_program: false,
+    reason: "Native game",
+  };
+  const second = { ...first, executable: `${saved.path}/other-game.exe` };
+  vi.mocked(desktopApi.discoverSetupLaunchTargets)
+    .mockResolvedValueOnce({
+      port_id: entry.id,
+      pending_id: saved.id,
+      complete: true,
+      entries_checked: 1,
+      candidates: [first],
+      recommended_executable: first.executable,
+      explanation: "One game",
+    })
+    .mockResolvedValue({
+      port_id: entry.id,
+      pending_id: saved.id,
+      complete: true,
+      entries_checked: 2,
+      candidates: [first, second],
+      recommended_executable: null,
+      explanation: "Choose between two games",
+    });
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{ ...entry, pendingSetup: saved }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
+    .toBeEnabled();
+  await click("Refresh launch suggestions");
+  await expect
+    .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole("combobox", { name: /^Launch target/ }).click();
+  await expect
+    .element(page.getByRole("option", { name: "Choose a native application…", exact: true }))
+    .toBeVisible();
+  expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
+});
+
+it("retains a manually selected setup target and literal arguments across remount", async () => {
+  const libraryRoot = "E:/retained-setup-choice";
+  for (const key of Object.keys(localStorage))
+    if (key.includes("retained-setup-choice")) localStorage.removeItem(key);
+  const executable = "C:/Upstream installed/game.exe";
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(executable);
+  await root.rerender(
+    <SelfServiceSetup
+      libraryRoot={libraryRoot}
+      entry={{ ...entry, pendingSetup: saved }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await click("Choose game executable…");
+  await click("Change launch details");
+  await page
+    .getByRole("textbox", { name: "Working directory", exact: true })
+    .fill("C:/Upstream data");
+  await page.getByText("Advanced launch options", { exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Launch arguments", exact: true })
+    .fill("--data\nC:/Original files");
+  await root.rerender(
+    <SelfServiceSetup
+      libraryRoot={libraryRoot}
+      entry={{ ...entry, pendingSetup: saved }}
+      status={status}
+      generation={10}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
+    .toBeEnabled();
+  expect(desktopApi.previewUserSelectedRuntime).toHaveBeenLastCalledWith(
+    entry.id,
+    executable,
+    "C:/Upstream data",
+    ["--data", "C:/Original files"],
+    10,
+  );
+  expect(pickHostToolExecutable).toHaveBeenCalledOnce();
+  expect(document.body.textContent).toContain(executable);
 });

@@ -5,12 +5,44 @@ import type { PortStatus } from "../../types";
 import {
   catalogSetupPresentation,
   installedCardInputPresentation,
+  hasPendingSetupAction,
   definitionHoldReason,
   portActionPresentation,
   removalReviewPresentation,
 } from "./port-action-presentation";
 
 type Assessment = NonNullable<PortStatus["port_actions"]>[number];
+it("recognizes only an explicit sole setup hold and preserves unknown or stronger holds", () => {
+  const launch: Assessment = {
+    action: "launch",
+    availability: "waiting",
+    reason: "preparation_required",
+    definition: null,
+  };
+  const status: PortStatus = {
+    ...portStatus(),
+    readiness: { launchable: false, pending_setup: true, blockers: ["preparation_required"] },
+    port_actions: [launch],
+  };
+  expect(hasPendingSetupAction(status)).toBe(true);
+  expect(hasPendingSetupAction({ ...status, port_actions: [] })).toBe(true);
+  expect(hasPendingSetupAction({ ...status, port_actions: [launch, launch] })).toBe(false);
+  expect(
+    hasPendingSetupAction({
+      ...status,
+      readiness: {
+        ...status.readiness!,
+        blockers: ["preparation_required", "invalid_installation"],
+      },
+    }),
+  ).toBe(false);
+  expect(
+    hasPendingSetupAction({
+      ...status,
+      readiness: { ...status.readiness, launchable: undefined },
+    } as never),
+  ).toBe(false);
+});
 const withAssessment = (assessment: Assessment): PortStatus => ({
   ...portStatus(),
   port_actions: [assessment],

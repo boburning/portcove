@@ -932,6 +932,26 @@
         "claim": "Pinned Windows WinMain accepts a positional raw verified USA original. SNESRECOMP_NO_LAUNCHER bypasses the artwork launcher. Private player-prepared projection omits retail cover art, preserves all remaining published runtime bytes and notices, and grants no acquisition or redistribution authority. Actual operations remain separately qualified.",
         "immutable_url": "https://github.com/mstan/DKC2Recomp/blob/e181419f2f8ff7b12494453e74840a4828bdb723/runner/desktop_main.c",
         "live_url": "https://github.com/mstan/DKC2Recomp/blob/main/runner/desktop_main.c"
+      },
+      {
+        "id": "ctr-native-raw-disc-layout-2026-10-24",
+        "role": "upstream_support",
+        "authority": "CTR-tools/ctr-native",
+        "authority_ref": "9b574960fa8a4b897d373bab8a330ecb0626b474",
+        "reviewed_at": "2026-10-24",
+        "claim": "The selected beta7.1 native player directly reads own NTSC-U single-track raw MODE2/2352 disc with data starting at byte0, assets/ctr-u.bin. Cooked2048ISO and other editions are not this route. Static selected-binary build-prefix and path strings corroborate this later-than-bundled-README source; no game execution.",
+        "immutable_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+        "live_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md"
+      },
+      {
+        "id": "ctr-native-usa-raw-bin-identity-2026-10-24",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database maintained Redump mirror",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-24",
+        "claim": "The pinned DAT has SCUS-94426 and SCUS-94426CE serial aliases with identical 605698800-byte raw CTR USA BIN: SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772, CRC9a742438. Byte identity is separate from native player/source applicability; no original media acquisition.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat%2Fredump%2FSony%20-%20PlayStation.dat",
+        "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
       }
     ],
     "identities": [
@@ -7083,6 +7103,50 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "ctr-native-ntsc-u-raw-bin",
+        "label": "Your USA retail raw Crash Team Racing BIN",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-retail",
+            "title": "USA retail raw MODE2/2352 disc",
+            "region": "USA",
+            "revision": "retail",
+            "product_codes": [
+              "SCUS-94426",
+              "SCUS-94426CE"
+            ],
+            "representations": [
+              {
+                "id": "raw-bin",
+                "extensions": [
+                  "bin"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "normalized-content",
+                    "sha1": "1bb785082def3fe25f6b46be06d4eaf33c5bc772",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "ctr-native-usa-raw-bin-identity-2026-10-24"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "ctr-native-raw-disc-layout-2026-10-24",
+              "ctr-native-usa-raw-bin-identity-2026-10-24"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -10137,6 +10201,29 @@
             "artifact_sha256": "33e36ad0a83b47de4a723fbe2d45e17a30c3bbbb15f6998173684317dc1abb89"
           }
         ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "crash-team-racing-ctr-native-game-source",
+        "port_id": "crash-team-racing-ctr-native",
+        "role": "game",
+        "profile_id": "ctr-native-ntsc-u-raw-bin",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-retail"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "ctr-native-raw-disc-layout-2026-10-24",
+          "ctr-native-usa-raw-bin-identity-2026-10-24"
+        ],
+        "authority_ref": "9b574960fa8a4b897d373bab8a330ecb0626b474",
+        "reviewed_at": "2026-10-24",
+        "immutable_review_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+        "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
+        "evidence_gap": null,
+        "applicability": [],
         "aliases": [],
         "tombstones": []
       }

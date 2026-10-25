@@ -1,7 +1,9 @@
 # Managed ReGaiden Windows contract
 
-This route acquires the unchanged official v0.4.1 Windows ZIP after checking the
-player's exact Resident Evil Gaiden (USA) original. The package is 33,085,815 bytes,
+This route follows compatible official Windows ZIP releases after checking the
+player's exact Resident Evil Gaiden (USA) original. Stable package rules let Core
+resolve each new version and independent expected digest without a definition
+edit. The historically observed v0.4.1 package is 33,085,815 bytes,
 SHA-256 `d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6`.
 The GBC original is 2,097,152 bytes, SHA-256
 `9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44`.
@@ -9,11 +11,11 @@ This is user-side acquisition, not redistribution or a blanket license assertion
 Keep all package files and notices. Historical prepared registrations keep their
 original non-owning contract; no external folders or saves are adopted.
 
-The current definition uses `gbrecompiled-windows-v1` (capability 19), typed
-retained direct-release identity and the source-reviewed save-ID basename.
-The exact v0.4.1 facts and observations below remain package-scoped. Compatible
-future facts need focused checks of this parser, local/shared paths and save-ID
-behavior. The old `regaiden041-windows` interpretation remains for identified
+The current definition uses `gbrecompiled-windows-v1` (capability 21), provider
+resolution bound to its retained rules and the source-reviewed save-ID basename.
+The exact v0.4.1 facts and observations below remain package-scoped. Changed
+parser, local/shared paths or save-ID behavior requires a reviewed rule change.
+The old `regaiden041-windows` interpretation remains for identified
 [persisted consumers](upstream-first-compatibility.md).
 
 Core copies the admitted original to `game.gbc`, creates an owned local `saves`
@@ -21,7 +23,8 @@ directory in private installation staging, and launches the fixed executable fro
 the installation root with `--rom game.gbc --save-dir saves`. This reviewed
 behavior supports `regaiden-gbc` materialization. Older engines cannot parse it.
 Definition capability 16 and API77 describe its original exact-artifact contract;
-new reusable declarations require capability 19 and API80. A retired builder
+reusable direct declarations require capability 19 and API80; GitHub discovery
+requires capability 21. A retired builder
 capability cannot authorize shared preferences.
 Historical qualification retains its original engine identity;
 schema7 installation manifests retain the reviewed account/path binding. Earlier

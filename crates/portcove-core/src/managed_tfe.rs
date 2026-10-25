@@ -28,7 +28,7 @@ pub(crate) fn validate(port: &crate::PortDefinition) -> Result<()> {
     let reviewed_release = match port.managed_initialization {
         Some(crate::ManagedInitialization::TfeDarkForces122420) => exact_release,
         Some(crate::ManagedInitialization::TfeDarkForcesPortableV1) => {
-            crate::managed_runtime_policy::artifact(port)?;
+            crate::managed_runtime_policy::validate_release_rules(port)?;
             true
         }
         None => return Ok(()),
@@ -45,7 +45,8 @@ pub(crate) fn validate(port: &crate::PortDefinition) -> Result<()> {
         .collect::<std::collections::BTreeSet<_>>();
     if !reviewed_release
         || port.adapter != crate::AdapterKind::StagedSourcePortable
-        || port.release.provider != crate::ReleaseSource::DirectManifest
+        || (port.managed_initialization == Some(crate::ManagedInitialization::TfeDarkForces122420)
+            && port.release.provider != crate::ReleaseSource::DirectManifest)
         || port.platforms != [crate::Platform::WindowsX86_64]
         || !port.release.user_prepared.is_empty()
         || port.runtime_subdirectory.is_some()

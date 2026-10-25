@@ -39,6 +39,10 @@ export function requireNodeTestInventory(
       throw new Error(`Node registry names an absent indexed file: ${file}`);
   const requiredFiles = new Set<string>();
   const localFiles = new Set<string>();
+  const qualificationProducers = new Map<
+    string,
+    { suite: string; arguments: string[]; eligible: boolean }[]
+  >();
   let requiredWindows = false;
   let localWindows = false;
   const wrapper =
@@ -52,6 +56,12 @@ export function requireNodeTestInventory(
       let command = line.trim();
       if (!command || (command.startsWith("#") && !command.startsWith("#!"))) return true;
       if (wrapper.test(command)) return true;
+      // The maintained namespace preflight is one literal, fail-closed command.
+      if (
+        command ===
+        "/usr/bin/unshare --user --map-current-user --mount --pid --fork --mount-proc /usr/bin/true"
+      )
+        return true;
       // The maintained Just host refusal is a literal child program, not shell control flow.
       if (
         command ===
@@ -81,18 +91,46 @@ export function requireNodeTestInventory(
         defaults(job.defaults)["working-directory"] ??
         workflowDefaults["working-directory"];
       const shell = step.shell ?? defaults(job.defaults).shell ?? workflowDefaults.shell;
-      if (
-        !isQualificationOnlyCondition(job.if) ||
-        !enabled(step.if) ||
-        Boolean(job["continue-on-error"]) ||
-        Boolean(step["continue-on-error"]) ||
-        (directory !== undefined && directory !== "." && directory !== "./") ||
-        (shell !== undefined &&
-          (typeof shell !== "string" || !["bash", "pwsh", "sh"].includes(shell))) ||
-        !straightLine(step.run)
-      )
-        continue;
-      for (const command of commands) for (const file of command.files) requiredFiles.add(file);
+      const eligible =
+        isQualificationOnlyCondition(job.if) &&
+        enabled(step.if) &&
+        !job["continue-on-error"] &&
+        !step["continue-on-error"] &&
+        (directory === undefined || directory === "." || directory === "./") &&
+        (shell === undefined ||
+          (typeof shell === "string" && ["bash", "pwsh", "sh"].includes(shell))) &&
+        straightLine(step.run);
+      const disabled = (condition: unknown) => condition === false || condition === "false";
+      const otherMode =
+        typeof job.if === "string" &&
+        /^\s*(?:\$\{\{\s*)?needs\.classify\.outputs\.mode\s*==\s*'(?:fast|prose)'\s*(?:\}\})?\s*$/u.test(
+          job.if,
+        );
+      for (const command of commands)
+        for (const file of command.files) {
+          if (eligible) requiredFiles.add(file);
+          const runner = job["runs-on"];
+          const platform =
+            typeof runner === "string" && /^ubuntu-(?:latest|\d+\.\d+)$/u.test(runner)
+              ? "linux-x86_64"
+              : runner === "windows-latest"
+                ? "windows-x86_64"
+                : null;
+          // Count potential execution independently from required-owner eligibility.
+          // Unsupported conditions, shells or error handling cannot hide a duplicate.
+          if (!disabled(job.if) && !disabled(step.if) && !otherMode)
+            for (const candidate of platform
+              ? [platform]
+              : typeof runner === "string" && /^macos-/u.test(runner)
+                ? []
+                : Object.keys(registry.qualificationOwners?.[file] ?? {})) {
+              const key = `${candidate}:${file}`;
+              const producers = qualificationProducers.get(key) ?? [];
+              producers.push({ suite: command.id, arguments: command.arguments, eligible });
+              qualificationProducers.set(key, producers);
+            }
+        }
+      if (!eligible) continue;
       if (
         job["runs-on"] === "windows-latest" &&
         step.run.split(/\r?\n/u).some((line) => wrapper.test(line.trim()))
@@ -100,6 +138,19 @@ export function requireNodeTestInventory(
         requiredWindows = true;
     }
   }
+  // Only reviewed, explicitly exclusive platform owners opt into deduplication.
+  // Other images, prerequisites and complementary filters retain their own routes.
+  for (const [file, owners] of Object.entries(registry.qualificationOwners ?? {}))
+    for (const [platform, owner] of Object.entries(owners)) {
+      const producers = qualificationProducers.get(`${platform}:${file}`) ?? [];
+      if (
+        producers.length !== 1 ||
+        producers[0]?.suite !== owner ||
+        !producers[0].eligible ||
+        producers[0].arguments.some((arg) => /^--test-(?:name|skip)-pattern(?:=|$)/u.test(arg))
+      )
+        throw new Error(`Expected one complete ${platform} qualification owner ${owner}: ${file}`);
+    }
   // Only normal recipe command bodies are executable consumers. Comments, variables,
   // nested shell branches and documentation cannot register a suite.
   const localLines = local.split(/\r?\n/u);

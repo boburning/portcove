@@ -56,15 +56,26 @@ pub(crate) fn copy_reviewed_tree(
     }
     for file in &plan.files {
         let target = destination.join(&file.relative_path);
-        crate::runtime_data_policy::refuse_sensitive_entry(&source.join(&file.relative_path))?;
-        crate::runtime_data_policy::refuse_sensitive_entry(&target)?;
-        if fs::symlink_metadata(&target).is_ok() {
-            verify_file(&target, file.size, &file.sha256)?;
-            continue;
-        }
         let origin = source.join(&file.relative_path);
+        crate::runtime_data_policy::refuse_sensitive_entry(&origin)?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&target)?;
         regular_file(&origin)?;
         let mut input = crate::external_runtime::open_single_link_file(&origin)?;
+        let before = input.metadata()?;
+        if fs::symlink_metadata(&target).is_ok() {
+            let existing = crate::external_runtime::open_single_link_file(&target)?;
+            let target_before = existing.metadata()?;
+            verify_file(&origin, file.size, &file.sha256)?;
+            verify_file(&target, file.size, &file.sha256)?;
+            recheck_copy_file(&origin, &input, &before)?;
+            recheck_copy_file(&target, &existing, &target_before)?;
+            if target_before.modified()? != before.modified()? {
+                return Err(PortcoveError::verification(
+                    "an existing destination file has different modification time; both copies have been retained",
+                ).detail("path", target.display().to_string()));
+            }
+            continue;
+        }
         let mut output = tempfile::NamedTempFile::new_in(work)?;
         let mut digest = Sha256::new();
         let mut size = 0_u64;
@@ -88,10 +99,11 @@ pub(crate) fn copy_reviewed_tree(
                 "reviewed file changed while copying",
             ));
         }
-        output
-            .as_file()
-            .set_permissions(input.metadata()?.permissions())?;
+        recheck_copy_file(&origin, &input, &before)?;
+        crate::runtime_data_policy::preserve_modified_time(output.as_file(), &before)?;
+        output.as_file().set_permissions(before.permissions())?;
         output.as_file().sync_all()?;
+        recheck_copy_file(&origin, &input, &before)?;
         output
             .persist_noclobber(&target)
             .map_err(|error| PortcoveError::from(error.error))?;
@@ -100,6 +112,22 @@ pub(crate) fn copy_reviewed_tree(
                 .parent()
                 .ok_or_else(|| PortcoveError::state("copy target has no parent"))?,
         )?;
+    }
+    Ok(())
+}
+
+fn recheck_copy_file(path: &Path, file: &fs::File, before: &fs::Metadata) -> Result<()> {
+    let current = crate::external_runtime::open_single_link_file(path)?;
+    let after = file.metadata()?;
+    if after.len() != before.len()
+        || after.modified()? != before.modified()?
+        || same_file::Handle::from_file(file.try_clone()?)?
+            != same_file::Handle::from_file(current)?
+    {
+        return Err(PortcoveError::verification(
+            "reviewed file identity or metadata changed while copying",
+        )
+        .detail("path", path.display().to_string()));
     }
     Ok(())
 }
@@ -314,4 +342,59 @@ fn verify_file(path: &Path, expected_size: u64, expected_hash: &str) -> Result<(
         .detail("path", path.display().to_string()));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transfer_preserves_exact_times_and_refuses_changed_resume_without_overwrite() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let target = temporary.path().join("target");
+        let work = temporary.path().join("work");
+        fs::create_dir_all(&source).unwrap();
+        let original = source.join("save");
+        fs::write(&original, b"retained data").unwrap();
+        let stamp = std::time::UNIX_EPOCH + std::time::Duration::new(1_700_000_000, 123_456_700);
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&original)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(stamp))
+            .unwrap();
+        let plan = crate::library_transfer::reviewed_tree(&source).unwrap();
+        copy_reviewed_tree(&source, &target, &plan, &work).unwrap();
+        assert_eq!(
+            fs::metadata(target.join("save"))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            stamp
+        );
+        copy_reviewed_tree(&source, &target, &plan, &work).unwrap();
+        let changed = stamp + std::time::Duration::from_secs(1);
+        fs::OpenOptions::new()
+            .write(true)
+            .open(target.join("save"))
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(changed))
+            .unwrap();
+        let error = copy_reviewed_tree(&source, &target, &plan, &work).unwrap_err();
+        assert!(error.message.contains("different modification time"));
+        assert_eq!(fs::read(target.join("save")).unwrap(), b"retained data");
+        assert_eq!(
+            fs::metadata(target.join("save"))
+                .unwrap()
+                .modified()
+                .unwrap(),
+            changed
+        );
+        assert_eq!(fs::metadata(&original).unwrap().modified().unwrap(), stamp);
+        // Published verification remains destination-owned. A byte-only plan
+        // does not establish historical timestamp authenticity.
+        fs::remove_file(original).unwrap();
+        verify_reviewed_tree(&target, &plan).unwrap();
+    }
 }

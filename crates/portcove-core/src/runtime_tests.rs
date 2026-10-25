@@ -11,6 +11,10 @@ use std::{
 
 const PORT: &str = "severed-chains";
 
+#[path = "runtime_tests/psx_progression.rs"]
+#[cfg(any(windows, target_os = "linux"))]
+mod psx_progression;
+
 struct Archives {
     url: String,
     stop: Arc<AtomicBool>,
@@ -454,6 +458,13 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
     fs::write(staged.path.join("profile_extra.sav"), b"second slot").unwrap();
     fs::write(staged.path.join(LAUNCH_MARKER), b"1").unwrap();
     service.collect_user_data(PORT).unwrap();
+    // A canonical-only pattern match is deliberately removed by collection.
+    // It belongs to the reviewed canonical preimage, not runtime membership.
+    fs::write(
+        library.user_dir(PORT).join("profile_canonical_only.sav"),
+        b"canonical-only old slot",
+    )
+    .unwrap();
     eprintln!("named save restore: authorize restoration");
     let preview = service
         .preview_backup_action(PORT, &backup.id, BackupAction::Restore)

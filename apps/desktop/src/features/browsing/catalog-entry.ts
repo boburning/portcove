@@ -13,7 +13,13 @@ export type CatalogEntry = Pick<PortDefinition, "id" | "name" | "summary" | "pla
   Partial<
     Pick<
       PortDefinition,
-      "channels" | "release" | "source_profile" | "bios_source_profile" | "upstream_status"
+      | "channels"
+      | "release"
+      | "source_profile"
+      | "bios_source_profile"
+      | "upstream_status"
+      | "adapter"
+      | "project_url"
     >
   > & {
     presentation?: Partial<NonNullable<PortDefinition["presentation"]>> | null;

@@ -27,12 +27,20 @@ impl EngineTemplateCapability {
             })
             .collect();
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 2,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
         supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 3,
+        });
+        supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: 2,
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
@@ -89,6 +97,18 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 20,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 21,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 22,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 23,
         });
         supported
     }
@@ -261,6 +281,36 @@ mod tests {
     }
 
     #[test]
+    fn manual_native_progress_keeps_v1_and_excludes_older_readers() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version == 1
+            })
+            .collect();
+        assert!(
+            check_with_inventory(&request("native-portable", 1, 1), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            !check_with_inventory(&request("native-portable", 2, 2), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 1, 1))
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 2, 2))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn every_installed_template_negotiates_its_exact_version() {
         for installed in EngineTemplateCapability::current() {
             let template = serde_json::to_value(installed.template).unwrap();
@@ -295,6 +345,33 @@ mod tests {
             .map(|entry| (entry.template, entry.contract_version))
             .collect();
         assert_eq!(pairs.len(), EngineTemplateCapability::current().len());
+    }
+
+    #[test]
+    fn psx_preservation_v2_is_advertised_without_retiring_historical_v1() {
+        for (minimum, maximum, compatible, selected) in [
+            (1, 1, true, 1),
+            (2, 2, true, 2),
+            (1, 2, true, 2),
+            (3, 3, false, 2),
+        ] {
+            let report =
+                check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
+                    .unwrap();
+            assert_eq!(report.compatible, compatible);
+            assert_eq!(report.checks[0].installed_version, Some(selected));
+        }
+        let old: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::PsxRecompManaged || entry.contract_version == 1
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("psx-recomp-managed", 2, 2), &old)
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]
@@ -341,8 +418,80 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(3));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 21, 21)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 24, 24)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn provider_bound_runtime_policies_require_v21_and_preserve_direct_v19() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 20
+            })
+            .collect();
+        let required = request("staged-source-portable", 21, 21);
+        let refused = check_with_inventory(&required, &previous).unwrap();
+        assert!(!refused.compatible);
+        assert_eq!(refused.checks[0].installed_version, Some(20));
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        for version in [19, 20] {
+            assert!(
+                check_with_inventory(
+                    &request("staged-source-portable", version, version),
+                    &previous
+                )
+                .unwrap()
+                .compatible
+            );
+        }
+    }
+
+    #[test]
+    fn ready_staged_archives_exclude_readers_without_prelaunch_preservation() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 21
+            })
+            .collect();
+        let required = request("staged-source-portable", 22, 22);
+        assert!(
+            !check_with_inventory(&required, &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 21, 21), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn metadata_preserving_ready_archives_require_v23_without_retiring_v22() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 22
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("staged-source-portable", 23, 23), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 22, 22), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 23, 23))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

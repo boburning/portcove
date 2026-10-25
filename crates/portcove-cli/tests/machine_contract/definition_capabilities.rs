@@ -133,14 +133,18 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     }
     assert!(pairs.contains(&("n64-recomp-portable", 2)));
     assert!(pairs.contains(&("n64-recomp-portable", 3)));
-    let staged_versions = [2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20];
+    assert!(pairs.contains(&("psx-recomp-managed", 2)));
+    assert!(pairs.contains(&("native-portable", 2)));
+    let staged_versions = [
+        2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+    ];
     for version in staged_versions {
         assert!(pairs.contains(&("staged-source-portable", version)));
     }
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }
-    assert_eq!(templates.len(), adapters.len() + 2 + staged_versions.len());
+    assert_eq!(templates.len(), adapters.len() + 4 + staged_versions.len());
     let requirements = temporary.path().join("prepared-directory.json");
     std::fs::write(&requirements, serde_json::to_vec(&json!({
         "capability_contract_schema": 1,
@@ -176,12 +180,15 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         (18, true, 18),
         (19, true, 19),
         (20, true, 20),
-        (21, false, 20),
-        (6, false, 20),
-        (7, false, 20),
-        (9, false, 20),
-        (13, false, 20),
-        (14, false, 20),
+        (21, true, 21),
+        (22, true, 22),
+        (23, true, 23),
+        (24, false, 23),
+        (6, false, 23),
+        (7, false, 23),
+        (9, false, 23),
+        (13, false, 23),
+        (14, false, 23),
     ] {
         std::fs::write(&requirements, serde_json::to_vec(&json!({
             "capability_contract_schema": 1,
@@ -196,7 +203,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
                 requirements.to_str().unwrap(),
             ],
         ));
-        assert_eq!(negotiated["schema_version"], 80);
+        assert_eq!(negotiated["schema_version"], 81);
         assert_eq!(negotiated["data"]["compatible"], compatible);
         assert_eq!(
             negotiated["data"]["checks"][0]["installed_version"],

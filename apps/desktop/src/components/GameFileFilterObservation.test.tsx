@@ -42,7 +42,7 @@ it("explains the selected catalog observation with its exact route, target, chan
 it.each([
   ["files_missing", "no_connected_registration", "No game-file registration"],
   ["needs_checking", "storage_absence_unconfirmed", "files are not confirmed missing"],
-  ["no_files_required", "explicit_empty_requirements", "no game-file requirement"],
+  ["no_files_required", "explicit_empty_requirements", "No files to add in Portcove"],
   ["unavailable_context", "route_not_offered", "selected route is not offered"],
 ] as const)(
   "preserves the Core reason for %s without inventing a complete set",
@@ -55,6 +55,9 @@ it.each([
     );
     expect(html).toContain(text);
     expect(html).not.toContain("Complete set:");
+    expect(html.includes("The game may still ask for original files.")).toBe(
+      state === "no_files_required",
+    );
   },
 );
 

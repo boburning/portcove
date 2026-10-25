@@ -502,6 +502,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "managed_route_change_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ManagedRouteChangePreview,
+                >(contract)),
+            ),
+            (
+                "managed_route_change_result",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::ManagedRouteChangeResult>(contract)
+                ),
+            ),
+            (
                 "external_runtime_removal_preview",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::ExternalRuntimeRemovalPreview,

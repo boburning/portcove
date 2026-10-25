@@ -44,7 +44,8 @@
     "dark-forces-pc-complete-installed-data",
     "super-bomberman-snes-usa",
     "gundam-wing-endless-duel-snes-japan",
-    "donkey-kong-country-2-snes-usa"
+    "donkey-kong-country-2-snes-usa",
+    "ctr-native-ntsc-u-raw-bin"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -94,6 +95,10 @@
     "gundam-wing-endless-duel-recomp",
     "dkc2-recomp",
     "fragglet-sdl-sopwith",
-    "corsixth-corsixth"
+    "corsixth-corsixth",
+    "alariq-mc2",
+    "re-rac-rerac",
+    "infinite-undiscovery-doc-haz",
+    "crash-team-racing-ctr-native"
   ]
 }

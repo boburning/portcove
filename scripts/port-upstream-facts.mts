@@ -31,6 +31,11 @@ export interface PortFactsOptions {
   issue?: string | undefined;
   route?: "listing" | "download";
   releaseTag?: string | undefined;
+  releaseUrl?: string | undefined;
+  resolveReleaseUrl?: (identity: {
+    projectUrl: string;
+    issuePortId?: string;
+  }) => string | null | undefined;
   cacheDirectory: string;
   token?: string | undefined;
   now?: () => number;
@@ -75,6 +80,26 @@ export function githubRepository(projectUrl: string) {
   return `${match[1]}/${match[2]}`;
 }
 
+/** Match Core's repository locator without treating a release URL's tag as a pin. */
+export function githubReleaseRepository(value: string) {
+  const url = checkedPublicUrl(value);
+  const parts = url.pathname.slice(1).split("/");
+  const owner = parts[0];
+  const repository = parts[1];
+  if (
+    url.hostname !== "github.com" ||
+    url.port ||
+    !owner ||
+    !repository ||
+    [owner, repository].some(
+      (part) =>
+        part.length > 100 || part === "." || part === ".." || !/^[A-Za-z0-9_.-]+$/u.test(part),
+    )
+  )
+    throw new Error("Release provider requires a bounded public GitHub repository URL.");
+  return `${owner}/${repository.replace(/\.git$/u, "")}`;
+}
+
 function readCache(file: string, endpoint: string): CachedFact | undefined {
   let info;
   try {
@@ -105,6 +130,10 @@ function readCache(file: string, endpoint: string): CachedFact | undefined {
 
 /** Small route-specific reads. No release history, tag resolution, README or package execution. */
 export async function collectPortFacts(options: PortFactsOptions) {
+  if (options.releaseUrl !== undefined && options.resolveReleaseUrl)
+    throw new Error(
+      "Select either an explicit release provider or its canonical identity resolver.",
+    );
   const now = options.now ?? Date.now;
   const started = now();
   const budget = new DiscoveryBudget("ordinary", undefined, now);
@@ -282,18 +311,60 @@ export async function collectPortFacts(options: PortFactsOptions) {
   const project = repository ? await read(`repos/${repository}`, 24) : undefined;
   if (isRecord(project?.body) && project.body.private === true)
     throw new Error("Private repository metadata cannot establish a public catalog origin.");
+  const releaseUrl =
+    options.route === "download"
+      ? options.resolveReleaseUrl
+        ? options.resolveReleaseUrl({
+            projectUrl,
+            ...(issue?.id ? { issuePortId: issue.id } : {}),
+          })
+        : options.releaseUrl
+      : undefined;
+  const releaseRepository =
+    releaseUrl === undefined
+      ? repository
+      : releaseUrl === null
+        ? undefined
+        : githubReleaseRepository(releaseUrl);
+  const relatedProvider = Boolean(
+    releaseRepository && releaseRepository.toLowerCase() !== repository?.toLowerCase(),
+  );
+  const releaseProject = !releaseRepository
+    ? undefined
+    : relatedProvider
+      ? await read(`repos/${releaseRepository}`, 24)
+      : project;
+  if (
+    relatedProvider &&
+    (!isRecord(releaseProject?.body) ||
+      releaseProject.body.private !== false ||
+      !Number.isSafeInteger(releaseProject.body.id) ||
+      Number(releaseProject.body.id) < 1 ||
+      typeof releaseProject.body.full_name !== "string" ||
+      releaseProject.body.full_name.toLowerCase() !== releaseRepository?.toLowerCase())
+  )
+    throw new Error(
+      "Related release provider must have matching observed public repository metadata.",
+    );
   let release: FactResult | undefined;
   let candidates: FactResult | undefined;
   const assets: unknown[] = [];
   let assetsComplete = false;
-  if (options.route === "download" && repository) {
+  if (options.route === "download" && releaseRepository) {
     if (options.releaseTag) {
       if (options.releaseTag.length > 255 || hasControl(options.releaseTag))
         throw new Error("Release tag is not bounded text.");
       release = await read(
-        `repos/${repository}/releases/tags/${encodeURIComponent(options.releaseTag)}`,
+        `repos/${releaseRepository}/releases/tags/${encodeURIComponent(options.releaseTag)}`,
       );
       const value = release.body;
+      if (isRecord(value) && (relatedProvider || typeof value.html_url === "string")) {
+        if (
+          typeof value.html_url !== "string" ||
+          githubReleaseRepository(value.html_url).toLowerCase() !== releaseRepository.toLowerCase()
+        )
+          throw new Error("Selected release provenance conflicts with its reviewed provider.");
+      }
       if (
         isRecord(value) &&
         Number.isSafeInteger(value.id) &&
@@ -303,7 +374,7 @@ export async function collectPortFacts(options: PortFactsOptions) {
       ) {
         for (let page = 1; page <= 2; page++) {
           const fact = await read(
-            `repos/${repository}/releases/${Number(value.id)}/assets?per_page=100&page=${page}`,
+            `repos/${releaseRepository}/releases/${Number(value.id)}/assets?per_page=100&page=${page}`,
           );
           if (!Array.isArray(fact.body)) break;
           const pageAssets: unknown[] = fact.body;
@@ -314,13 +385,24 @@ export async function collectPortFacts(options: PortFactsOptions) {
               assets.length
           )
             break;
+          if (
+            relatedProvider &&
+            assets.some(
+              (asset) =>
+                isRecord(asset) &&
+                typeof asset.browser_download_url === "string" &&
+                githubReleaseRepository(asset.browser_download_url).toLowerCase() !==
+                  releaseRepository.toLowerCase(),
+            )
+          )
+            throw new Error("Selected asset provenance conflicts with its reviewed provider.");
           if (!fact.next_page) {
             assetsComplete = true;
             break;
           }
         }
       }
-    } else candidates = await read(`repos/${repository}/releases?per_page=20&page=1`);
+    } else candidates = await read(`repos/${releaseRepository}/releases?per_page=20&page=1`);
   }
   return {
     format_version: 1,
@@ -328,6 +410,12 @@ export async function collectPortFacts(options: PortFactsOptions) {
     repository: repository ?? null,
     issue,
     project,
+    release_repository: releaseRepository ?? null,
+    release_project: releaseProject,
+    release_provider_scope:
+      releaseUrl === null
+        ? "The retained operational release provider is outside this bounded GitHub metadata collector. No listing helper or canonical repository substitutes for it."
+        : "Bounded GitHub release metadata; canonical project identity remains separate.",
     release,
     release_candidates: candidates,
     assets,

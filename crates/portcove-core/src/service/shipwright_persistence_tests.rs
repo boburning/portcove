@@ -258,6 +258,12 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
     let preview = service
         .preview_backup_action(PORT, &wanted.id, BackupAction::Restore)
         .unwrap();
+    assert!(preview.safety_backup_will_be_created);
+    assert_eq!(
+        fs::read(service.library.user_dir(PORT).join("Save/file1.sav")).unwrap(),
+        b"wanted save",
+        "review must not collect the newer runtime save"
+    );
     let approval = service
         .authorize_backup_action(
             PORT,
@@ -266,17 +272,8 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
             &preview.preview_sha256,
         )
         .unwrap();
-    // Collection discovers the newer working save after the first review.
-    // Preserve the refusal: fresh consequences require fresh authorization.
-    let refused = service
-        .restore_backup(PORT, &wanted.id, &approval.token)
-        .unwrap_err();
-    assert_eq!(refused.code, crate::ErrorCode::Conflict);
-    assert!(refused.message.contains("state changed"));
-    eprintln!(
-        "Shipwright stale restore review refused: {:?}",
-        started.elapsed()
-    );
+    // Review binds the newer runtime save without collecting it. One consent
+    // collects it into the safety backup and restores the selected snapshot.
     assert_eq!(
         fs::read(active.path.join("Save/file1.sav")).unwrap(),
         b"newest save"
@@ -285,22 +282,6 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
         fs::read(wanted.path.join("data/Save/file1.sav")).unwrap(),
         b"wanted save"
     );
-    assert_eq!(
-        fs::read(service.library.user_dir(PORT).join("Save/file1.sav")).unwrap(),
-        b"newest save"
-    );
-    let preview = service
-        .preview_backup_action(PORT, &wanted.id, BackupAction::Restore)
-        .unwrap();
-    assert!(preview.safety_backup_will_be_created);
-    let approval = service
-        .authorize_backup_action(
-            PORT,
-            &wanted.id,
-            BackupAction::Restore,
-            &preview.preview_sha256,
-        )
-        .unwrap();
     let restored = service
         .restore_backup(PORT, &wanted.id, &approval.token)
         .unwrap();

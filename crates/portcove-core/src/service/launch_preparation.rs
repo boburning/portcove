@@ -65,6 +65,7 @@ impl PortcoveService {
         crate::runtime::require_ready(port, Platform::current()?, active)?;
         checkpoint()?;
         self.managed_install_root(&port.id, &active.path)?;
+        crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
         let executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
@@ -151,7 +152,9 @@ impl PortcoveService {
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
-        if active.path.join(LAUNCH_MARKER).is_file() {
+        if active.path.join(LAUNCH_MARKER).is_file()
+            || crate::persistence::collect_before_first_launch(port)
+        {
             self.collect_user_data_from(port, &active.path)?;
             checkpoint()?;
         }
@@ -194,6 +197,7 @@ impl PortcoveService {
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
+        crate::preparation::require_manual_setup(port, active)?;
         checkpoint()?;
         Ok(spec)
     }

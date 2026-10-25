@@ -6,7 +6,10 @@ import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import type { ActivityRecord, InstallPlan } from "../types";
 import { StatusLayer } from "./Chrome";
-import { InstallAction } from "./DetailPanel";
+import { DetailPanel, InstallAction } from "./DetailPanel";
+import { currentCatalogPort } from "../catalog-test-fixtures";
+import { portStatus } from "../test-fixtures";
+import { actions } from "./rendered-test-fixtures";
 
 const plan: InstallPlan = {
   bundled_runtime: null,
@@ -140,6 +143,8 @@ it.each([
         ready
         sourceReady
         biosReady
+        setupNote="Before first Play, add your own supported original-game-revision-with-a-long-distinguishing-filename.z64 beside the player. The game verifies it before starting."
+        externalData
         plan={{
           ...plan,
           temporary_space: {
@@ -211,6 +216,73 @@ it("shows preservation limits before installing the reviewed release", async () 
   expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain(notice);
   expect(install).not.toHaveBeenCalled();
   expect(button("Install ·").disabled).toBe(false);
+});
+
+it("shows upstream first-run requirements and external backup limits before installation", async () => {
+  const install = vi.fn();
+  const setup =
+    "On first Play, choose your own supported original game in the game’s setup window.";
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={plan}
+      setupNote={setup}
+      externalData
+      install={install}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog.getByRole("region", { name: "Game setup" })).toBeVisible();
+  await expect.element(dialog.getByText(setup, { exact: true })).toBeVisible();
+  expect(dialog.element().textContent).toContain("outside Portcove backups");
+  expect(install).not.toHaveBeenCalled();
+  await click("Install · 64.0 MiB");
+  expect(install).toHaveBeenCalledOnce();
+});
+
+it("discloses external saves and managed local settings for the staged MC2 route", async () => {
+  const port = currentCatalogPort("alariq-mc2");
+  const install = vi.fn();
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={{ ...actions, install }}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog.getByRole("region", { name: "Game setup" })).toBeVisible();
+  expect(dialog.element().textContent).toContain("outside Portcove backups");
+  expect(dialog.element().textContent).toContain("official Windows x64 ZIP");
+  expect(document.body.textContent).toContain("options.cfg");
+  expect(document.body.textContent).toContain(".mechcommander2/savegame");
+  expect(document.body.textContent).toContain("declared local data may still be covered");
+  expect(document.body.textContent).not.toContain("Managed by Portcove for backup and restore");
+  expect(install).not.toHaveBeenCalled();
+});
+
+it("keeps external-save disclosure visible without a catalog setup note", async () => {
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={plan}
+      externalData
+      install={vi.fn()}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  expect(dialog.element().textContent).toContain("outside Portcove backups");
 });
 
 async function pressEscape() {

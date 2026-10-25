@@ -2610,9 +2610,8 @@
       "summary": "Explore MechCommander 2 / mc2 (alariq) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/alariq/mc2",
       "issue_number": 1843,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/alariq/mc2",
+      "availability": "packages",
+      "setup_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
       "artwork": {
         "game_id": 19194,
         "cover_id": 162632,
@@ -2620,7 +2619,36 @@
         "image_sha256": "15382dda32aab4766cda493eaa9080dd4b155ae663289e59da0b8c8e994beac8",
         "game_slug": "mechcommander-2",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "MechCommander 2",
+      "release_url": "https://github.com/alariq/mc2/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "mc2-win64-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Use the complete Windows player",
+            "instruction": "The official Windows x64 ZIP includes mc2.exe, its libraries and game data. Keep the complete package together. For an existing copy, select mc2.exe in the extracted mc2-win64 folder and use that folder as the working directory. Save launch details, then choose Play separately. The selected release has no Linux player archive; upstream provides separate Linux source/data build instructions. Follow all included notices: project code and components have their own licenses, and Microsoft’s Art Assets grant limits their use and distribution to noncommercial purposes."
+          },
+          {
+            "title": "Back up the external saves",
+            "instruction": "Normal saves use .mechcommander2/savegame under your Windows user-profile folder. Linux uses that path under XDG_CONFIG_HOME when set, otherwise HOME. Close the game and back up that external user-data folder separately. Keep options.cfg, options.cfg.old, orgprefs.cfg, data/multiplayer and any custom data locations with the copy you use. External profiles and custom paths are outside Portcove backups."
+          },
+          {
+            "title": "Keep an existing copy recoverable",
+            "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
@@ -5328,16 +5356,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Install or keep your existing copy",
-            "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or use the upstream installer."
-          },
-          {
             "title": "Complete upstream setup",
             "instruction": "Select the data from your copy of Theme Hospital when CorsixTH asks for the original game files."
-          },
-          {
-            "title": "Launch and keep up to date",
-            "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy or upstream launcher instead, choose its executable and keep its current update workflow."
           }
         ],
         "warnings": [
@@ -5584,9 +5604,8 @@
       "summary": "Explore Crash Team Racing / CTR Native and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/CTR-tools/ctr-native",
       "issue_number": 318,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/CTR-tools/ctr-native",
+      "availability": "packages",
+      "setup_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
       "artwork": {
         "game_id": 1192,
         "cover_id": 361766,
@@ -5594,7 +5613,36 @@
         "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
         "game_slug": "crash-team-racing",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Crash Team Racing",
+      "release_url": "https://github.com/CTR-tools/ctr-native/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows-x86.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Use your own USA raw disc",
+            "instruction": "For an existing official beta7.1 Windows copy, choose ctr_native.exe inside its extracted wrapper, with that executable’s folder as the working directory. Place your own NTSC-U raw MODE2/2352 disc BIN at assets/ctr-u.bin beside it; the data track must start at byte 0. A cooked 2048 ISO, another edition or a CUE file is not this route. No compiler, BIOS or extraction helper is needed for the official player archive. Windows runs its x86 player through x64 compatibility; upstream also offers a separate 32-bit Linux package with its own dependency requirements."
+          },
+          {
+            "title": "Prefer in-game memory-card saves",
+            "instruction": "Normal saves and ghosts live under memcards. F12 captures SCREENSHOT.BMP and the VRAM debug capture uses VRAM.TGA. Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version."
+          },
+          {
+            "title": "Keep external ownership or preserve debug output before retrying",
+            "instruction": "You or upstream update an external copy. Keep its complete working folder and back up memcards and captures before extracting a new player separately. Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "crash-team-racing-ctr-recompiled",
@@ -6957,16 +7005,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Install or keep your existing copy",
-            "instruction": "Choose Install for a portable runtime maintained by Portcove. Installation options also let you keep an existing copy or download an upstream package to a folder you own."
-          },
-          {
-            "title": "Complete upstream setup",
-            "instruction": "Extract the game package and follow the included instructions. This upstream package does not require a separate commercial game installation."
-          },
-          {
-            "title": "Launch and keep up to date",
-            "instruction": "Launch explicitly after installation. Portcove updates its managed portable runtime. If you register an existing copy instead, choose its executable and keep its current update workflow."
+            "title": "Start playing",
+            "instruction": "The official package includes the game. Choose Play after installation; no separate commercial files, extraction step or installer is required."
           }
         ],
         "warnings": [
@@ -7640,9 +7680,8 @@
       "summary": "Explore Infinite Undiscovery Recomp (doc-haz) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
       "issue_number": 1670,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
       "artwork": {
         "game_id": 7019,
         "cover_id": 157311,
@@ -7650,7 +7689,37 @@
         "image_sha256": "3a2351226d066b1b6aea6f1a053216d0519f30b5301e9a623b3c27a39d72e2fa",
         "game_slug": "infinite-undiscovery",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Infinite Undiscovery",
+      "release_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "InfiniteUndiscoveryRecomp-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Import your own game on first Play",
+            "instruction": "The official Windows x64 ZIP is portable and has no installer. Choose InfiniteUndiscoveryRecomp.exe and keep its DLLs and notices together. On first Play, the game’s integrated wizard validates and imports your own Disc 1 from a supported XDVDFS ISO or extracted folder; Disc 2 and A/B Voucher DLC are optional. It identifies supported USA, USA-UNDUB, Europe, Japan and Asia editions from the media. Do not mix editions. Portcove does not run an extraction helper or developer compiler. Windows 10/11 x64 and Direct3D 12 are required; use Microsoft’s Visual C++ 2015–2022 x64 Redistributable if the documented runtime DLLs are missing."
+          },
+          {
+            "title": "Keep each content profile together",
+            "instruction": "The complete portable folder holds setup.json and separate USA, USA-UNDUB, EUROPE, JAPAN and ASIA profiles. Each configured profile owns its imported assets/DLC, saves and configuration. Keep cache/runtime.toml too: it contains runtime settings despite the cache folder name. Close the game before updates or copying data. Keep interrupted import/staging folders recoverable and consult upstream; do not merge different editions. Backups can include large original-game files and DLC, so keep them private. The separate IU Save Bridge companion is optional and is not run by Portcove."
+          },
+          {
+            "title": "Update an existing copy safely",
+            "instruction": "For a copy you register yourself, you or upstream provide updates. Extract a new official player into a separate folder, keep the working copy, and follow the selected release’s instructions for carrying its complete compatible content profiles and setup.json. Do not copy old runtime DLLs or shader caches over the replacement. Runtime rollback does not rewind saves or guarantee that older software can read them. The selected release-tag documentation had not tested the Disc 1 to Disc 2 transition. Later upstream documentation at 614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful transitions, while complete Disc 2 progression and a full playthrough remain unverified and a Vesplume Tower / Orb of Patience softlock remains under investigation. These are upstream reports; Portcove has not run the game."
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "initial-d-arcade-stage-3-native-sh-4-recompilation-wip",
@@ -11030,9 +11099,8 @@
       "summary": "Explore Ratchet & Clank (2002) / ReRAC (re-rac) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/re-rac/rerac",
       "issue_number": 1876,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/re-rac/rerac",
+      "availability": "packages",
+      "setup_url": "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha",
       "artwork": {
         "game_id": 1289,
         "cover_id": 79006,
@@ -11040,7 +11108,33 @@
         "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
         "game_slug": "ratchet-clank",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Ratchet & Clank",
+      "recommended_download_channel": "beta",
+      "release_url": "https://github.com/re-rac/rerac/releases/tag/v0.3.6-alpha",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own disc before Play",
+            "instruction": "Before Play, prepare game-data beside the new player from your own Ratchet & Clank (2002) NTSC-U SCUS-97199 version 1.00 disc. Use a 2048-byte-sector .iso; BIN, CHD and another region are not accepted by this extractor. Open the installed runtime folder and deliberately run its bundled rerac-extract.exe on Windows, or ./rerac-extract on Linux/macOS: identify --iso \"<your ISO>\", then extract --iso \"<your ISO>\" --out game-data, then verify --out game-data. Wait for successful completion and verification; allow about 4.5 GB for extracted disc data plus prepared caches. Keep the complete runtime folder and its assets/shaders together. After successful extraction and verification, return to Portcove to continue. A separately registered copy keeps its explicit Play action. Portcove never runs this extractor during discovery. The upstream runtime refuses missing, incomplete or incompatible extraction; wait for successful extraction and verification before Play."
+          },
+          {
+            "title": "Use the guided launcher when you prefer",
+            "instruction": "For guided ISO selection, progress, verification, re-extraction and version management, use the official ReRAC Launcher linked by Open setup guide. Its published Windows MSI, Linux AppImage and macOS disk images are separate from these game ZIPs. Follow its Version Management and Install via ISO flow, then register your prepared player with its real data directory, or register the launcher deliberately if you want its own interface. That copy’s runtime updates belong to the launcher. The project’s older README statement that nothing has been released does not describe the currently published launcher packages. Mod management is planned, not a delivered feature."
+          },
+          {
+            "title": "Keep a separate backup of your memory card",
+            "instruction": "Normal memory-card saves, settings and the crash log are outside the runtime: %APPDATA%/rerac on Windows, $XDG_CONFIG_HOME/rerac or ~/.config/rerac on Linux, and ~/Library/Application Support/rerac on macOS. Back up the profile you actually use separately. A custom RC_SAVE_DIR or RC_SETTINGS_FILE changes it. The launcher’s movable data/version/log folder can be different from the engine’s save/settings folder; preserve both when using it. Older versions may not read newer saves. Keep your original ISO and current working copy before re-extraction or changing versions."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/re-rac/rerac-launcher/releases/tag/v0.3.1-alpha"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "re-volt-rvgl",
