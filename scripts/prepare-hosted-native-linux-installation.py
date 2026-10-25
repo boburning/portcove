@@ -573,8 +573,11 @@ def prepare_runtime_packages(plan):
              *RUNTIME_PACKAGES], check, environment=environment, maximum_file_bytes=128 * 1024 ** 2)
     # Download into this retained private attempt; never install the profile package.
     retain("stage-3-profile-download.json", b'{"operation":"exact profile package download"}')
+    # RLIMIT_FSIZE covers APT's metadata scratch as well as the download.
+    # Keep the same scratch cap as update/install; the archive itself must
+    # independently pass the exact 39592-byte/hash guard before extraction.
     command(["/usr/bin/apt-get", *options, "-qq", "download", f"apparmor-profiles={PROFILE_VERSION}"],
-            check, environment=environment, cwd=directory, maximum_file_bytes=39592)
+            check, environment=environment, cwd=directory, maximum_file_bytes=128 * 1024 ** 2)
     archive = directory / PROFILE_DEB
     data = read_regular(archive, 39592, (0,), check)
     need(len(data) == 39592 and hashlib.sha256(data).hexdigest() == PROFILE_DEB_SHA256,

@@ -201,12 +201,26 @@ class RuntimePackages(unittest.TestCase):
                 self.assertIn("Dir::State::lists=" + temporary + "/work/hosted-linux-package-evidence/lists/", args)
             self.assertIn("--no-remove", calls[1][0])
             self.assertEqual(calls[1][0][-len(installation.RUNTIME_PACKAGES):], list(installation.RUNTIME_PACKAGES))
-            self.assertEqual(calls[2][1]["maximum_file_bytes"], 39592)
+            self.assertEqual(calls[2][1]["maximum_file_bytes"], 128 * 1024 ** 2)
             self.assertTrue(calls[3][1]["as_bytes"])
             before = len(calls)
             with self.assertRaisesRegex(RuntimeError, "retained runtime input"):
                 installation.prepare_runtime_packages(wanted)
             self.assertEqual(len(calls), before)
+
+    def test_oversize_profile_archive_refuses_before_extraction_despite_apt_scratch_cap(self):
+        with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary)) as (calls, _, _, wanted):
+            command = installation.command
+            def invoke(arguments, check, **options):
+                result = command(arguments, check, **options)
+                if "download" in arguments:
+                    (Path(temporary) / "work/hosted-linux-package-evidence" / installation.PROFILE_DEB).write_bytes(b"x" * 39593)
+                return result
+            with patch.object(installation, "command", side_effect=invoke), \
+                    self.assertRaisesRegex(RuntimeError, "input exceeds bound"):
+                installation.prepare_runtime_packages(wanted)
+            self.assertFalse(any(args[0] == "/bin/bash" for args, _ in calls))
+            self.assertFalse((Path(temporary) / "work/hosted-linux-package-evidence/runtime.json").exists())
 
     def test_provider_refusal_retains_actual_partial_effect_and_intent(self):
         with tempfile.TemporaryDirectory() as temporary, runtime_fixture(Path(temporary), True) as (calls, _, _, wanted):
