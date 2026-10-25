@@ -1,9 +1,12 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 
 export const nodeTestPath = /^scripts\/[^/]+\.test\.[cm]?[jt]s$/u;
+const nativeNodeTestPath = /^apps\/desktop\/scripts\/[a-z0-9-]+\.native\.test\.mts$/u;
+const registeredTestPath = (file: string) =>
+  nodeTestPath.test(file) || nativeNodeTestPath.test(file);
 export interface NodeTestSuite {
   arguments: string[];
   files: string[];
@@ -43,7 +46,7 @@ function expandNodeTestOwnership(
       !isRecord(entry) ||
       Object.keys(entry).some((key) => !["file", "memberships", "qualification"].includes(key)) ||
       typeof entry.file !== "string" ||
-      !nodeTestPath.test(entry.file) ||
+      !registeredTestPath(entry.file) ||
       seenFiles.has(entry.file) ||
       !Array.isArray(entry.memberships) ||
       !entry.memberships.length
@@ -110,7 +113,7 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
       entry.arguments[0] !== "--test" ||
       !Array.isArray(entry.files) ||
       !entry.files.length ||
-      !entry.files.every((file: unknown) => typeof file === "string" && nodeTestPath.test(file)) ||
+      !entry.files.every((file: unknown) => typeof file === "string" && registeredTestPath(file)) ||
       new Set(entry.files).size !== entry.files.length
     )
       throw new Error(`Invalid Node suite arguments or files: ${id}`);
@@ -206,6 +209,23 @@ function quoted(arg: string) {
   if (/["`$\r\n]/u.test(arg)) throw new Error("Cannot render nonliteral Node suite argument");
   return `"${arg}"`;
 }
+export function registeredNodeCommand(id: string) {
+  const registry = parseNodeTestSuites(
+    readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  const suite = registry.suites[id];
+  if (!suite) throw new Error(`Unknown Node suite: ${id}`);
+  return ["node", ...suite.arguments, ...suite.files].map(quoted).join(" ");
+}
+
+export function requireNativeNodeTestInventory(files: readonly string[], registry: NodeTestSuites) {
+  const suite = registry.suites["native-tools"];
+  if (!files.length || !suite || files.some((file) => !nativeNodeTestPath.test(file)))
+    throw new Error("Native Node test inventory must be nonempty and owned");
+  if (JSON.stringify([...files].sort()) !== JSON.stringify([...suite.files].sort()))
+    throw new Error("Native Node test ownership differs from discovered files");
+}
+
 export function generateNodeCommands(source: string, registry: NodeTestSuites) {
   const lines = source.split(/\r?\n/u);
   for (let i = 0; i < lines.length; i++) {
@@ -232,6 +252,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       throw new Error("usage: node-test-suites.mts --check|--write");
     const registry = parseNodeTestSuites(
       readFileSync(path.join(root, "scripts/node-test-suites.json"), "utf8"),
+    );
+    requireNativeNodeTestInventory(
+      readdirSync(path.join(root, "apps/desktop/scripts"))
+        .filter((name) => name.endsWith(".native.test.mts"))
+        .map((name) => "apps/desktop/scripts/" + name),
+      registry,
     );
     for (const file of [
       ".github/workflows/ci.yml",

@@ -7,6 +7,7 @@ import {
   windowsNativeToolsRequired,
 } from "./windows-helper-checks.mts";
 import { evaluateCiResults } from "./ci-result-gate.mts";
+import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 
 const sha = (character: string) => character.repeat(40);
 
@@ -839,10 +840,18 @@ void test("workflow runs bounded Windows controls and pinned lint under the exis
     job,
     /uses: \.\/\.github\/actions\/setup-rust\n\s+if: needs.classify.outputs.native_tools == 'true'/,
   );
-  assert.match(
-    job,
-    /node --test --test-timeout=30000 apps\/desktop\/scripts\/\*\.native\.test\.mts/,
+  const registry = parseNodeTestSuites(
+    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
+  const native = annotatedNodeCommands(job, registry).filter(
+    (command) => command.id === "native-tools",
+  );
+  assert.equal(native.length, 1);
+  assert.deepEqual(native[0]?.arguments, [
+    "--test",
+    "--test-timeout=30000",
+    "--test-reporter=./scripts/required-node-test-reporter.mts",
+  ]);
   const catalogSection = workflow.split("\n  catalog:\n")[1];
   assert.ok(catalogSection, "catalog aggregate must exist");
   const catalog = catalogSection.split("\n  fast_dependency_review:")[0];

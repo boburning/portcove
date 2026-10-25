@@ -2010,7 +2010,7 @@ checkpoint tests before frontend and application builds. The selected inventory
 must be nonempty, unique and fully executed without skips. This is scoped native
 feedback, not a new qualification requirement for ordinary changes.
 
-Root Node test commands are maintained in `scripts/node-test-suites.json`.
+Root Node and Desktop native-helper test commands are maintained in `scripts/node-test-suites.json`.
 Its format-2 registry gives each test file one ownership record with
 `[suite, position]` memberships; suites retain their existing runner arguments.
 Positions are unique nonnegative safe integers within a suite. Gaps allow new
@@ -2021,6 +2021,14 @@ existing callers and fixtures.
 Add, rename or remove the ownership record, then run `node scripts/node-test-suites.mts --write`
 to update its annotated direct commands in CI, Just recipes and the Windows
 qualification wrapper. `--check` verifies the generated commands without writing.
+The `native-tools` family owns every `apps/desktop/scripts/*.native.test.mts` file.
+Both direct Windows CI steps render its explicit files and required structured reporter;
+the actual Vite `native:tools` task resolves the same registry at configuration load.
+`--check` also reconciles native discovery. Required contract tests protect its local
+and CI consumers, and native-file additions, renames, deletions and consumer changes
+select that inventory contract. Root precommit inventory remains scoped to root tests.
+Existing aggregator imports and complementary invocation routes are retained.
+
 Flags, file order, storage wrappers, native prerequisites and platform ownership
 remain explicit in those actual consumers. Dynamic diff-selected `ci-baseline` routes retain their separate
 routing contracts; registry membership is not execution evidence.

@@ -33,7 +33,12 @@ export function requireNodeTestInventory(
 ) {
   if (!files.length) throw new Error("Node test inventory must be nonempty");
   const registry = parseNodeTestSuites(registryText);
-  const registered = new Set(Object.values(registry.suites).flatMap((suite) => suite.files));
+  // Native helper ownership is reconciled independently by node-test-suites --check.
+  const registered = new Set(
+    Object.values(registry.suites)
+      .flatMap((suite) => suite.files)
+      .filter((file) => nodeTest.test(file)),
+  );
   for (const file of registered)
     if (!files.includes(file))
       throw new Error(`Node registry names an absent indexed file: ${file}`);
