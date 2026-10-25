@@ -301,8 +301,9 @@ class RuntimePackages(unittest.TestCase):
 @unittest.skipUnless(sys.platform == "linux", "actual Linux file/link custody contracts")
 class DependencyGraph(unittest.TestCase):
     def test_frozen_install_controls_and_partial_refusal_retention(self):
-        for refused in (False, True):
-            with self.subTest(refused=refused), tempfile.TemporaryDirectory() as temporary:
+        for outcome in ("success", "refusal", "vanished-leaf"):
+            refused = outcome == "refusal"
+            with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 source = root / "native-source"
                 (source / "apps/desktop").mkdir(parents=True)
@@ -316,6 +317,23 @@ class DependencyGraph(unittest.TestCase):
                             "sha256": hashlib.sha256(executable.read_bytes()).hexdigest()},
                             "workspace_sha256": hashlib.sha256(workspace).hexdigest(), "patches": []}
                 calls = []
+                scan = os.scandir
+                vanished = []
+                @contextmanager
+                def changing_scan(directory):
+                    directory = Path(directory)
+                    if outcome == "vanished-leaf" and directory.name == "native-dependency-home" and not vanished:
+                        filename = directory / "package.json_pacquet-stage_inert"
+                        filename.write_bytes(b"transient dependency staging bytes")
+                        with scan(directory) as entries:
+                            removed = next(entry for entry in entries if entry.name == filename.name)
+                        filename.unlink()
+                        vanished.append(removed.path)
+                        with scan(directory) as entries:
+                            yield iter([removed, *entries])
+                    else:
+                        with scan(directory) as entries:
+                            yield entries
                 def invoke(arguments, check, maximum_file_bytes=None, maximum_output_bytes=65536,
                            environment=None, calls=calls, source=source, refused=refused):
                     check()
@@ -331,6 +349,7 @@ class DependencyGraph(unittest.TestCase):
                         patch.object(installation.os, "getuid", return_value=1001), \
                         patch.object(installation, "verify_installed_source"), \
                         patch.object(installation, "inspect_plan"), \
+                        patch.object(installation.os, "scandir", side_effect=changing_scan), \
                         patch.object(installation, "command", side_effect=invoke):
                     if refused:
                         with self.assertRaisesRegex(RuntimeError, "partial progress"):
@@ -351,6 +370,9 @@ class DependencyGraph(unittest.TestCase):
                 self.assertEqual(environment["HOME"], str(root / "native-dependency-home"))
                 self.assertEqual(environment["COREPACK_ENABLE_NETWORK"], "0")
                 self.assertFalse(any("TOKEN" in key or "AUTH" in key for key in environment))
+                if outcome == "vanished-leaf":
+                    self.assertEqual(len(vanished), 1)
+                    self.assertFalse(Path(vanished[0]).exists())
 
     def test_public_acquisition_exact_inputs_and_changed_input_refusals(self):
         original_command = installation.command

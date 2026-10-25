@@ -1068,6 +1068,21 @@ primary child error for diagnosis. Its timeout/output/request limits are unchang
 Any later pass establishes only that subsequent path, not a cause for the prior
 timeouts. The existing Linux controller-tool fixture40184775760/a1 passed at the
 original source and retains that scope.
+The same original run's Linux catalog leaf also failed the exact Windows-command
+assertion, which still listed only the three previous files. Its correction adds
+the custody test while preserving exact execution checks in both fast and full
+Windows plans. Source016094ee's actual Windows job121145276946 then passed all
+three custody cases (7733ms file duration) at unchanged limits, with no skipped
+cases; its original Node context records checkout e262eed3552b1f74616463e66baf44c368f7057e.
+This is actual hosted filesystem evidence, not native/client acceptance or a
+complete passing CI claim for that intermediate source.
+Its supplementary controller-tool fixture40185471511/a1 separately failed while
+the live dependency overrun scan observed a pnpm staging leaf that disappeared
+before stat. That original failure remains retained. The narrow repair counts
+the observed entry, skips only that missing live leaf without following another
+path, and preserves byte/count/deadline limits and strict settled graph readback.
+The inert regression removes a real staging entry between enumeration and stat;
+it does not substitute for a successful hosted tool build.
 Final exact-source test/review/CI identities belong to the owning delivery receipt.
 The new test is registered in ordinary Windows helper, full catalog and release
 checks, and selected by the existing release-security ownership rule.
