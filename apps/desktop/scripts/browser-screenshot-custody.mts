@@ -203,6 +203,7 @@ export function verifyScreenshotJobs(
     ids.add(row.id);
     names.add(row.name);
     assert.equal(String(row.run_id), context.run);
+    assert.equal(String(row.run_attempt), context.attempt);
     assert.equal(row.head_sha, context.source);
   }
   assert.deepEqual(
