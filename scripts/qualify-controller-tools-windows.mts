@@ -33,7 +33,7 @@ async function main() {
   await mkdir(directory);
   // Use the same private home ancestry already qualified by Windows custody
   // fixtures, rather than assuming that a shared temp ancestor is protected.
-  const buildParent = await mkdtemp(path.join(homedir(), ".portcove-controller-tools-"));
+  const buildParent = await mkdtemp(path.join(homedir(), ".pct-"));
   const record = async (name: string, value: unknown) => {
     const bytes = Buffer.from(JSON.stringify(value));
     assert.ok(bytes.length <= 65536);

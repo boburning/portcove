@@ -214,10 +214,14 @@ export async function buildControllerTools(
     throw new Error("fixed Linux or Windows x64 controller source required");
   const platform = process.platform === "linux" ? "linux-x86_64" : "windows-x86_64";
   const profile = controllerToolPlatformProfile(platform);
-  const directory = await mkdtemp(path.join(outputParent, "controller-tool-build-"));
-  const home = path.join(directory, "home");
+  // The Windows MSVC linker also emits the supervisor support product below
+  // this root. Keep its hash/attempt-qualified path below legacy tool limits.
+  const directory = await mkdtemp(
+    path.join(outputParent, platform === "linux-x86_64" ? "controller-tool-build-" : "ct-"),
+  );
+  const home = path.join(directory, platform === "linux-x86_64" ? "home" : "h");
   await mkdir(home, { mode: 0o700 });
-  const target = path.join(directory, "target");
+  const target = path.join(directory, platform === "linux-x86_64" ? "target" : "t");
   const env = controllerBootstrapEnvironment(home, target);
   const git = (args: string[]) => {
     const result = spawnSync("git", args, {

@@ -1136,6 +1136,13 @@ remain observations to obtain; Windows Server is not Windows11 client-minimum
 acceptance. The local focused suite retained20pass/1packing failure: the shared
 dependency tree cannot resolve the declared Sigstore packages. That foreign tree
 was not modified; fresh locked hosted installation supplies independent evidence.
+The first actual Windows fixture40188114615/a1, job121153125585, retained an
+MSVC LNK1104 failure while compiling the process-supervisor support helper before
+the Core build. The reported private hash/attempt-qualified output path was268
+characters. As a targeted repair, Windows-only private build directory prefixes are
+shortened; Linux paths, helper identity, cleanup and all limits remain unchanged.
+No host-wide long-path setting or administrator action is introduced. The later
+build must establish its own outcome rather than treating this diagnosis as a pass.
 
 This does not add a protected job or change its85/40/hard100 resource declaration.
 The future Windows build/runtime/attestation arrangement must fit the existing
