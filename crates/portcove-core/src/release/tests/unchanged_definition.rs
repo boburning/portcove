@@ -498,7 +498,8 @@ async fn cached_package_selection_cannot_cross_adapter_package_contracts() {
 // Actual reviewed package names paired with controlled version-only successors.
 // v999.123.456 is fixture data, not an observed upstream release or game test.
 #[tokio::test]
-async fn frozen_proposed_psx_rules_follow_successors_for_every_reviewed_platform_scope() {
+async fn adopted_psx_rules_follow_successors_for_every_reviewed_platform_scope() {
+    let catalog = crate::Catalog::embedded().unwrap();
     for (id, platform, old_tag, old_name, new_name) in [
         (
             "alexbeav-ace-combat-3-electrosphere-recomp",
@@ -648,8 +649,7 @@ async fn frozen_proposed_psx_rules_follow_successors_for_every_reviewed_platform
             "Fade-to-Black-Recomp-999.123.456-windows-x64.zip",
         ),
     ] {
-        let proposed = crate::test_fixture::proposed_rollout_port(id);
-        let port = &proposed;
+        let port = catalog.port(id).unwrap();
         assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
         assert_eq!(port.release.provider, crate::ReleaseSource::Github);
         let old = release(old_tag, vec![asset(old_name, Some('a'))]);

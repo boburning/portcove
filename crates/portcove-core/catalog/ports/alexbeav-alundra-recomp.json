@@ -25,15 +25,10 @@
     "manually_validated_platforms": [],
     "adapter": "psx-recomp-managed",
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.3.6",
-          "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
-          "size": 30152761,
-          "sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
-          "published_at": "2026-09-04T14:48:29Z"
-        }
+      "provider": "github",
+      "repository": "alexbeavs-ps1-ports/alundra-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["Alundra-Recomp-", "-windows-x64.zip"]
       }
     },
     "source_profile": "alundra-psx",

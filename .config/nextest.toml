@@ -71,9 +71,11 @@ success-output = "immediate"
 # Keep its decoder compilation, all real Core install/staging/refusal/data
 # assertions and both workers. Exact-case 90s room plus phase diagnostics
 # preserves finite hang detection, zero retries and product/child deadlines.
+# The retained-Direct transition exercises the same complete fixture in an
+# isolated child and uses the same budget, including current-data rollback.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::runtime_tests::psx_progression::unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs$/)'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::psx_progression::(unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs|retained_direct_psx_runtime_updates_through_current_provider_without_rewriting_contract)$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
