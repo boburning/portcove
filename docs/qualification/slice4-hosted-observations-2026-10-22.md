@@ -771,3 +771,129 @@ at its ten-second test-harness bound. The analyzer-acquisition contract keeps
 all eight pin/import/gate assertions and now allows thirty seconds per private
 PowerShell invocation. This is finite harness calibration, not a product or
 release deadline change; it does not relabel the original failure as passing.
+
+## Fixed same-job Linux upload handoff (October 24)
+
+The prepared `release-native-linux` composite runs fixed pre-sign and post-sign
+calls on one original native job. Its source helper claims a no-replace intent
+before starting the worker, records the actual PID and creation identity, and
+requires that same identity, source/configuration binding and original clock
+before each handoff. A missing or partial start cannot retry. The driver sends
+no signing or observer credential; it inherits only the fixed native job's
+environment. Worker output stays in the existing bounded stage records rather
+than an unbounded background log.
+
+Before another process receives that environment, the helper receives and
+authenticates the existing full tool artifact/attestation into a private no-reuse
+directory. The fixed inventory now includes the opaque worker bundle and fixed
+bootstrap child, with no external package imports left in either bundle. It
+rechecks the original tool receipt and complete executable custody immediately
+before spawning the authenticated private Node; the shared setup-node pathname
+is never selected for this child. This adds one bounded tool receiver (the
+existing320MiB archive/1MiB attestation limits and expanded inventory), plus two
+at-most8192-byte startup records. Its storage and transfer must enter the final
+whole-job fit; no current headroom or capacity reservation is inferred.
+
+The ordinary hosted fixture exercises real file/PID continuity and the existing
+public request/ACK readers with source, attestation and native-worker peers
+explicitly controlled. Tool-build qualification separately loads the actual
+opaque worker and bootstrap and checks their credential-free source/usage
+refusals. These observations do not execute the authenticated packaged two-stage
+native opportunity; that remains part of the held runnable graph's qualification.
+
+Readiness exposes only the existing four bounded public proof files. The pinned
+Actions upload retains seven days, no overwrite, zero compression and failure
+for absent files. Its response enters the fixed ACK operation only through
+environment data and binds the exact request digest. The original private
+producer alone performs provider readback. A failed or ambiguous Actions result
+does not receive a fabricated ACK or another upload attempt. The original worker
+retains effects and expires inside its existing clock; normal job cleanup does
+not supply positive native acceptance.
+
+Pre-sign settlement requires the original live supervisor and actual stage/tree
+settlement. Post-sign settlement additionally requires its original final row
+and observed original-process exit. Late refusal rows, changed source/clock/PID,
+missing final state or incomplete tree evidence hold for recovery. Routing and
+settlement remain public correlation data with no native acceptance authority.
+
+This composite is prepared but not installed in the held application workflow.
+The future same-job caller must establish actual signed/TUF prerequisites
+between its pre-sign and post-sign calls; the producer independently authenticates
+them again. The Windows counterpart, whole-graph resource fit, final reviewed
+runnable source/digest, actual authority/custody/protection/reservation and real
+protected/native/public observations remain required. No new job, spend,
+credential, privileged setup or manual step is introduced. Qualification and
+independent review belong to the owning receipt; all existing holds remain.
+
+The first candidate's ordinary CI retained two failures: the fixed-tool build
+rejected a coordinator shared chunk, and the inert Linux handoff fixture lost
+its event-loop reference while awaiting child teardown. Neither failure supplies
+native or production evidence. The repair explicitly fixes final bundler output
+inlining while retaining the external-chunk rejection; the fixture references
+its existing child during bounded teardown.
+
+The helper now waits for the producer's existing atomic public upload request
+before reading private clock/start records. After pre-sign stage settlement the
+original supervisor publishes an atomic sequencing-only handoff marker (at most
+4096 bytes, plus its retained hardlink alias; no additional content allocation).
+The helper still verifies the actual private settlement, source, custody and
+live original owner. Post-sign reads final records only after original-process
+exit. This prevents normal in-flight writes from masquerading as malformed
+completed claims; malformed completed records continue to refuse. The marker
+adds no acceptance or execution authority and stays inside the existing bounded
+lifecycle allocation.
+
+At repair source `3bfd37fa090a591d300293652d4264316315375e`, ordinary
+CI `40146200042/a1` retained one catalog-test failure: actual worker packaging
+still emitted the coordinator shared chunk. The other four required contexts
+passed. The real file/PID handoff, including partial-record publication, passed
+in 10.85 seconds; the isolated dynamic-cycle pack fixture also passed. Tool-build
+fixture `40146199965/a1` remained failed at fixed-node-bundles. Thus redundant
+output-option aliases did not resolve actual packaging and are removed.
+
+The worker's artifact interface is a fixed subprocess command, not an imported
+bundle API. Its one entry now disables preservation of unused exported entry
+signatures, avoiding an unnecessary facade; source-module exports and all other
+tool entries retain their contracts. Packaging additionally requires zero worker
+bundle exports and still rejects every nonbuiltin chunk import. The synthetic
+fixture includes separate acyclic and cyclic dynamic imports plus exported entry
+bindings. The actual worker build remains the decisive verification; these edits
+alone do not establish a passing build.
+
+Source `72ad4b428c7803c8560e253a24b2f6cec0ca8915` still failed actual packaging
+in tool fixture `40147102815/a1`; its observed combined checkout was
+`980c8f811cf424db3161f16a57bea9aab95db901`, tree
+`f54390dfa3698c28483c1a0bc36474425b243c3b`, with exact parents
+`20fe75c10a8ecc478bee21c144ed6f0801e8dd73` and that candidate. Ordinary CI
+`40147102798/a1` retained the worker facade refusal and a separate main-branch
+omission: the new upstream-health triage test lacked required suite membership.
+The real file/PID handoff passed again (10.73 seconds). Neither option experiment
+is credited as successful packaging.
+
+The graph repair makes recovery's four coordinator-state imports static. State
+initialization is inert and these exports are function declarations; existing
+operation deadline checks stay unchanged. Read-only tracing of the maintained
+bare launchers (tool launch, job bootstrap/output and diagnostics), admission CLI
+and native bootstrap found no recovery edge or external package dependency, so
+that source-only boundary remains intact. Actual isolated source-launcher and
+worker packaging verification is still required. The reviewed main changes are
+composed with both independent ordinary-validation mappings preserved; the
+missing health-triage test is registered in both required catalog and local
+repository-tool suites. No admission, spending, credential or execution authority
+changes with these repairs.
+
+The repaired actual tool build passed at component source `a134876c` in
+fixture `40147693369/a1`: 137944ms cold build, 249800661 expanded bytes,
+50 Node passes/one skip and three Python passes. After generated commands were
+updated, source `6eef4e9d` built successfully again in `40148125644/a1`
+(78563ms, 249817045 expanded bytes). That latter workflow still failed its
+subsequent controlled supervisor fixture: simulated owner loss was injected
+only after a visible post-start write, while the mock original claim continued
+to accept that owner until the caller observed refusal. The mock worker could
+therefore finish before the intended invalidation. The fixture now invalidates
+its owner before publishing that signal and requires the same identity in its
+original claim. The fixed-source scope stays independent from worker lease
+refusal, and the fixture additionally requires one spawn and incomplete post-sign
+state. The adversarial 25ms yield, failure/partial-marker assertions and
+all production deadlines remain. The failed workflow stays failed; successful
+build and fixture results retain their separate scopes.

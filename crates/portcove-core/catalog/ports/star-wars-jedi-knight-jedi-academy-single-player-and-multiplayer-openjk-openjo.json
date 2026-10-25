@@ -3,7 +3,7 @@
   "listing": {
     "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
     "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
-    "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Jedi Outcast SP only; Jedi Academy SP+MP. Different from already tracked Dark Forces II/OpenJKDF2 #725. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Official continuous Windows/Linux/macOS packages for both game executables. Limits: Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained. Upstream platforms: Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package. Original data: Own installed Jedi Academy game data (Steam/GOG/retail or the documented Mac App Store layout); extract OpenJK into its GameData directory. This target covers Academy SP and MP. Exact accepted patch/revision remains Unknown in the retained README. Portcove setup/gameplay not verified.",
     "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
     "project_url": "https://github.com/JACoders/OpenJK",
     "platforms": [],

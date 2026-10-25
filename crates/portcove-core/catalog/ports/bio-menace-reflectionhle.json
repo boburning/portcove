@@ -3,7 +3,7 @@
   "listing": {
     "id": "bio-menace-reflectionhle",
     "name": "Bio Menace (ReflectionHLE)",
-    "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Native family ports with current desktop release packages. Limits: Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Upstream platforms: Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence. Original data: Obtain the original DOS Bio Menace game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game. Portcove setup/gameplay not verified.",
     "original_game_title": "Bio Menace",
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "platforms": [],

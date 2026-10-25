@@ -3,7 +3,7 @@
   "listing": {
     "id": "cave-story-nxengine-evo",
     "name": "Cave Story (NXEngine-evo)",
-    "summary": "Upstream route: Upgraded native engine with Windows/Linux/macOS releases. Limits: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Upstream platforms: Windows/Linux/macOS runtime packages; exact selected package CPU architectures unknown in frozen research. Original data: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Upgraded native engine with Windows/Linux/macOS releases. Limits: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Upstream platforms: Windows/Linux/macOS runtime packages; exact selected package CPU architectures unknown in frozen research. Original data: Cave Story freeware data/preparation contract is Unknown in the retained NXEngine-evo README. Establish which original freeware release/localization and asset directory or separate data pack the chosen package needs, and whether those assets are already included. The README says its built-in data extractor was removed; do not infer that Cave Story+ data or another engine package is accepted. Portcove setup/gameplay not verified.",
     "original_game_title": "Cave Story",
     "project_url": "https://github.com/nxengine/nxengine-evo",
     "platforms": [],

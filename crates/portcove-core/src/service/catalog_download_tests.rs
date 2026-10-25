@@ -317,7 +317,10 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     let reopened = PortcoveService::new(service.library.clone()).unwrap();
     assert!(reopened.catalog.listing(&pending.port_id).is_err());
     let snapshot = reopened.workspace_snapshot(10).unwrap();
-    assert_eq!(snapshot.pending_setups, [pending.clone()]);
+    assert_eq!(
+        snapshot.pending_setups.as_slice(),
+        std::slice::from_ref(&pending)
+    );
     assert!(
         snapshot
             .listing_catalog

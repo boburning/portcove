@@ -3,7 +3,7 @@
   "listing": {
     "id": "freespace-2-freespace-open",
     "name": "FreeSpace 2 (FreeSpace Open)",
-    "summary": "Upstream route: Active source-port engine with current Win/Linux/macOS assets. Limits: Established engine with current release-candidate assets; select stable/RC channel deliberately and preserve launcher ownership. Upstream platforms: Current Windows/Linux/macOS FreeSpaceOpen engine assets; choose launcher/engine separately. Selected package CPU architectures unknown in frozen audit. Original data: Resolve engine vs launcher ownership and exact retail-data installation; observed top release is RC2 despite prerelease=false. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Active source-port engine with current Win/Linux/macOS assets. Limits: Established engine with current release-candidate assets; select stable/RC channel deliberately and preserve launcher ownership. Upstream platforms: Current Windows/Linux/macOS FreeSpaceOpen engine assets; choose launcher/engine separately. Selected package CPU architectures unknown in frozen audit. Original data: FreeSpace 2 original-data contract remains Unknown in the retained engine README. Establish whether the selected FS2 Open/launcher route needs an owned FreeSpace 2 retail installation or a separately licensed standalone campaign, and the exact accepted edition/patch and asset acquisition layout. Engine or launcher availability alone does not supply retail game assets. Portcove setup/gameplay not verified.",
     "original_game_title": "FreeSpace 2",
     "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
     "platforms": [],

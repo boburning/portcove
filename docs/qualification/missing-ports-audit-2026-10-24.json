@@ -11380,7 +11380,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature desktop port with explicit original-data directory and localization setup.",
       "upstream_platforms": "Desktop Windows/Linux/macOS source/package routes; exact selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Exact edition/localization; do not silently substitute another JA2 mod lineage.",
+      "original_data": "Use original Jagged Alliance 2 installation data and point the JA2 Data Directory/game_dir at that installation. Select its matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty, or Russian Gold. Exact accepted release/patch fingerprints are not specified in the retained README.",
       "remaining_condition": null,
       "limitations": "Established Jagged Alliance 2 source-port route; preserve exact edition/localization and mod lineage.",
       "artwork": {
@@ -11401,7 +11401,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Exact edition/localization; do not silently substitute another JA2 mod lineage.",
+        "primary_evidence": {
+          "url": "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/master/README.md",
+          "readme_blob_sha": "2447b1fcbe54598c6ceb2ea55f2adfe7e7921a80",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C025",
+          "basis": "README installation steps require original installation data and enumerate localization selection.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/24/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "killer-instinct-arcade-ultracombo": {
       "game": "Killer Instinct (arcade)",
@@ -12560,7 +12575,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official continuous Windows/Linux/macOS packages for both game executables.",
       "upstream_platforms": "Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package.",
-      "original_data": "Jedi Outcast SP only; Jedi Academy SP+MP. Different from already tracked Dark Forces II/OpenJKDF2 #725.",
+      "original_data": "Original Jedi Outcast game-data contract remains partially Unknown: this is the Outcast single-player OpenJO target, not Jedi Academy or OpenJKDF2. The retained README documents Academy installation but does not establish Outcast required asset files, supported retail patch or exact setup layout; resolve those Outcast-specific inputs before offering setup.",
       "remaining_condition": null,
       "limitations": "Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained.",
       "artwork": {
@@ -12586,7 +12601,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Jedi Outcast SP only; Jedi Academy SP+MP. Different from already tracked Dark Forces II/OpenJKDF2 #725.",
+        "primary_evidence": {
+          "url": "https://github.com/JACoders/OpenJK/blob/master/README.md",
+          "readme_blob_sha": "e100e95c8c3de8bafb2acea1d4e2888568c4d7fd",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C044",
+          "basis": "README player instructions explicitly require installed Academy and GameData; support table distinguishes Outcast SP, while its own setup contract is absent.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/43/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original Jedi Outcast files, retail patch/revision and install layout are required by OpenJO single player?"
+      }
     },
     "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo": {
       "game": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
@@ -12610,7 +12640,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official continuous Windows/Linux/macOS packages for both game executables.",
       "upstream_platforms": "Official continuous Windows/Linux/macOS builds. README names Windows x86, Linux i386/x86-64 and ARM/Apple-Silicon source support; selected asset CPU must be resolved per target/package.",
-      "original_data": "Jedi Outcast SP only; Jedi Academy SP+MP. Different from already tracked Dark Forces II/OpenJKDF2 #725.",
+      "original_data": "Own installed Jedi Academy game data (Steam/GOG/retail or the documented Mac App Store layout); extract OpenJK into its GameData directory. This target covers Academy SP and MP. Exact accepted patch/revision remains Unknown in the retained README.",
       "remaining_condition": null,
       "limitations": "Jedi Outcast SP works but needs attention; Outcast MP unsupported. Jedi Academy SP/MP maintained.",
       "artwork": {
@@ -12636,7 +12666,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Jedi Outcast SP only; Jedi Academy SP+MP. Different from already tracked Dark Forces II/OpenJKDF2 #725.",
+        "primary_evidence": {
+          "url": "https://github.com/JACoders/OpenJK/blob/master/README.md",
+          "readme_blob_sha": "e100e95c8c3de8bafb2acea1d4e2888568c4d7fd",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C044",
+          "basis": "README player instructions explicitly require installed Academy and GameData; support table distinguishes Outcast SP, while its own setup contract is absent.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/43/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "super-mario-galaxy-nebula": {
       "game": "Super Mario Galaxy",
@@ -13042,7 +13087,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official documentation says both games completable; established engine.",
       "upstream_platforms": "Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots.",
-      "original_data": "Per-game data and saves; use stable release selection, not blindly newest snapshot.",
+      "original_data": "Own original Ultima VII: The Black Gate game data for this Exult target. The corresponding add-on is optional, not required to run the base game. Retained README does not pin accepted localization/revision or a minimum file manifest.",
       "remaining_condition": null,
       "limitations": "Upstream says both UltimaVII games completable; stable release selection and independent game saves remain.",
       "artwork": {
@@ -13059,11 +13104,27 @@
       "primary_evidence": [
         "https://github.com/exult/exult",
         "https://github.com/exult/exult/blob/master/README",
-        "https://github.com/exult/exult/releases/tag/snapshot-v1.13.1.20261023"
+        "https://github.com/exult/exult/releases/tag/snapshot-v1.13.1.20261023",
+        "https://github.com/exult/exult/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Per-game data and saves; use stable release selection, not blindly newest snapshot.",
+        "primary_evidence": {
+          "url": "https://github.com/exult/exult/blob/master/README.md",
+          "readme_blob_sha": "f1034b5974249ad347adcfb5e244727c996b460d",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C052",
+          "basis": "README states ownership of Black Gate and/or Serpent Isle is required and add-ons are optional.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/51/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "ultima-vii-part-two-serpent-isle-exult": {
       "game": "Ultima VII Part Two: Serpent Isle",
@@ -13087,7 +13148,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official documentation says both games completable; established engine.",
       "upstream_platforms": "Windows/Linux/macOS official package/build routes. Selected artifact CPU architectures unknown in frozen evidence; stable releases differ from snapshots.",
-      "original_data": "Per-game data and saves; use stable release selection, not blindly newest snapshot.",
+      "original_data": "Own original Ultima VII Part Two: Serpent Isle game data for this Exult target. The corresponding add-on is optional, not required to run the base game. Retained README does not pin accepted localization/revision or a minimum file manifest.",
       "remaining_condition": null,
       "limitations": "Upstream says both UltimaVII games completable; stable release selection and independent game saves remain.",
       "artwork": {
@@ -13109,11 +13170,27 @@
       "primary_evidence": [
         "https://github.com/exult/exult",
         "https://github.com/exult/exult/blob/master/README",
-        "https://github.com/exult/exult/releases/tag/snapshot-v1.13.1.20261023"
+        "https://github.com/exult/exult/releases/tag/snapshot-v1.13.1.20261023",
+        "https://github.com/exult/exult/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Per-game data and saves; use stable release selection, not blindly newest snapshot.",
+        "primary_evidence": {
+          "url": "https://github.com/exult/exult/blob/master/README.md",
+          "readme_blob_sha": "f1034b5974249ad347adcfb5e244727c996b460d",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C052",
+          "basis": "README states ownership of Black Gate and/or Serpent Isle is required and add-ons are optional.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/51/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "vyruz-destruction-of-the-untel-empire-openvyruz": {
       "game": "Vyruz: Destruction of the Untel Empire",
@@ -13228,7 +13305,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "C# native rewrite with current Win/Linux/macOS packages.",
       "upstream_platforms": "Windows/Linux packages (CPU unknown in frozen evidence); separate macOS64-bit Intel x86-64 and Apple-Silicon ARM64 downloads.",
-      "original_data": "Review exact supported data and any bundled-asset rights separately from engine license.",
+      "original_data": "Retained Ambermoon.net 1.14.3 README says the distribution includes original Ambermoon version 1.22 and Ambermoon Advanced 1.33; it does not specify a separate player-supplied disk/ROM requirement. Exact selected package contents and permission for its bundled game assets remain unresolved; engine licensing alone does not establish asset redistribution rights.",
       "remaining_condition": null,
       "limitations": "Review exact supported data and any bundled-asset rights separately from engine license. C# native rewrite with current Win/Linux/macOS packages.",
       "artwork": {
@@ -13249,7 +13326,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Review exact supported data and any bundled-asset rights separately from engine license.",
+        "primary_evidence": {
+          "url": "https://github.com/Pyrdacor/Ambermoon.net/blob/master/README.md",
+          "readme_blob_sha": "3e9d1659afd852a952bd8ba9ec87459d07199101",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C055",
+          "basis": "README current-version paragraph names included original/Advanced versions and links original game files.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/54/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Does the selected distribution include the stated original/Advanced data, and what attributable game-asset redistribution permission covers those bundled files?"
+      }
     },
     "amped-2-amped2-recomp": {
       "game": "Amped 2",
@@ -13318,7 +13410,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate.",
       "upstream_platforms": "Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen.",
-      "original_data": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+      "original_data": "Supply installed original Baldur's Gate (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data.",
       "remaining_condition": null,
       "limitations": "Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported.",
       "artwork": {
@@ -13349,7 +13441,22 @@
       "related": [
         "Umbrella names omit independently catalogable Baldur's Gate II and Icewind Dale II. Official feature matrix supports five original games; BG2EE is separate experimental research only, other EEs not supported.",
         "Official source/build downloads are on SourceForge; GitHub empty assets do not mean no player route."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+        "primary_evidence": {
+          "url": "https://github.com/gemrb/gemrb/blob/master/README.md",
+          "readme_blob_sha": "21257cc8eaea2101566850603aab88b816395d06",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C057",
+          "basis": "README requires original installed game data beyond its trivial demo and gives extraction/install routes.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/56/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "baldur-s-gate-ii-original-gemrb": {
       "game": "Baldur's Gate II (original)",
@@ -13373,7 +13480,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate.",
       "upstream_platforms": "Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen.",
-      "original_data": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+      "original_data": "Supply installed original Baldur's Gate II (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data.",
       "remaining_condition": null,
       "limitations": "Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported.",
       "artwork": {
@@ -13404,7 +13511,22 @@
       "related": [
         "Umbrella names omit independently catalogable Baldur's Gate II and Icewind Dale II. Official feature matrix supports five original games; BG2EE is separate experimental research only, other EEs not supported.",
         "Official source/build downloads are on SourceForge; GitHub empty assets do not mean no player route."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+        "primary_evidence": {
+          "url": "https://github.com/gemrb/gemrb/blob/master/README.md",
+          "readme_blob_sha": "21257cc8eaea2101566850603aab88b816395d06",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C057",
+          "basis": "README requires original installed game data beyond its trivial demo and gives extraction/install routes.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/56/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "icewind-dale-original-gemrb": {
       "game": "Icewind Dale (original)",
@@ -13428,7 +13550,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate.",
       "upstream_platforms": "Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen.",
-      "original_data": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+      "original_data": "Supply installed original Icewind Dale (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data.",
       "remaining_condition": null,
       "limitations": "Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported.",
       "artwork": {
@@ -13454,7 +13576,22 @@
       "related": [
         "Umbrella names omit independently catalogable Baldur's Gate II and Icewind Dale II. Official feature matrix supports five original games; BG2EE is separate experimental research only, other EEs not supported.",
         "Official source/build downloads are on SourceForge; GitHub empty assets do not mean no player route."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+        "primary_evidence": {
+          "url": "https://github.com/gemrb/gemrb/blob/master/README.md",
+          "readme_blob_sha": "21257cc8eaea2101566850603aab88b816395d06",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C057",
+          "basis": "README requires original installed game data beyond its trivial demo and gives extraction/install routes.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/56/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "icewind-dale-ii-gemrb": {
       "game": "Icewind Dale II",
@@ -13478,7 +13615,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate.",
       "upstream_platforms": "Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen.",
-      "original_data": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+      "original_data": "Supply installed original Icewind Dale II game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data.",
       "remaining_condition": null,
       "limitations": "Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported.",
       "artwork": {
@@ -13504,7 +13641,22 @@
       "related": [
         "Umbrella names omit independently catalogable Baldur's Gate II and Icewind Dale II. Official feature matrix supports five original games; BG2EE is separate experimental research only, other EEs not supported.",
         "Official source/build downloads are on SourceForge; GitHub empty assets do not mean no player route."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+        "primary_evidence": {
+          "url": "https://github.com/gemrb/gemrb/blob/master/README.md",
+          "readme_blob_sha": "21257cc8eaea2101566850603aab88b816395d06",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C057",
+          "basis": "README requires original installed game data beyond its trivial demo and gives extraction/install routes.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/56/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "planescape-torment-original-gemrb": {
       "game": "Planescape: Torment (original)",
@@ -13528,7 +13680,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official GemRB SourceForge desktop archives, Flatpak, or documented source build; provide original supported Infinity Engine installation and configure GamePath or positional game directory. Enhanced Edition support kept separate.",
       "upstream_platforms": "Official SourceForge Windows/Linux/macOS downloads and Flatpak. README documents Linux x86/x86-64/PPC/MIPS historical/source targets; selected artifact CPU is unknown until chosen.",
-      "original_data": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+      "original_data": "Supply installed original Planescape: Torment (original) game data for this GemRB target; the included trivial demo is not the full game. Non-Windows users can copy a Windows installation, use a compatible installer/WINE, or extract CDs with unshield. Exact supported localization/patch and optional expansion combination remain Unknown here; do not substitute Enhanced Edition data.",
       "remaining_condition": null,
       "limitations": "Original supported games completable upstream; Planescape less polished, no multiplayer. Enhanced Edition support is separately experimental/unsupported.",
       "artwork": {
@@ -13554,7 +13706,22 @@
       "related": [
         "Umbrella names omit independently catalogable Baldur's Gate II and Icewind Dale II. Official feature matrix supports five original games; BG2EE is separate experimental research only, other EEs not supported.",
         "Official source/build downloads are on SourceForge; GitHub empty assets do not mean no player route."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Check exact per-game support and editions; last GitHub release has no assets, confirm official distribution routes.",
+        "primary_evidence": {
+          "url": "https://github.com/gemrb/gemrb/blob/master/README.md",
+          "readme_blob_sha": "21257cc8eaea2101566850603aab88b816395d06",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C057",
+          "basis": "README requires original installed game data beyond its trivial demo and gives extraction/install routes.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/56/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "baldur-s-gate-ii-enhanced-edition-gemrb": {
       "game": "Baldur's Gate II: Enhanced Edition",
@@ -13823,7 +13990,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native engine supports retail releases and Amiga demos; Windows installer available.",
       "upstream_platforms": "Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown.",
-      "original_data": "Confirm supported edition per game and clean source-data setup.",
+      "original_data": "Supply Cannon Fodder data from an upstream-supported Amiga, Amiga CD32 or DOS CD release. Included cover-disk/PC demos provide their limited demo content, not the full retail game. Exact language/revision requirements remain Unknown in the retained README.",
       "remaining_condition": null,
       "limitations": "Confirm supported edition per game and clean source-data setup. Native engine supports retail releases and Amiga demos; Windows installer available.",
       "artwork": {
@@ -13849,7 +14016,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Confirm supported edition per game and clean source-data setup.",
+        "primary_evidence": {
+          "url": "https://github.com/OpenFodder/openfodder/blob/master/README.md",
+          "readme_blob_sha": "d2ed288fbf49fd078115fda169a3da64bacccf81",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C062",
+          "basis": "README Supported Versions table distinguishes Cannon Fodder Amiga/CD32/DOS CD and Cannon Fodder 2 Amiga/DOS CD, and lists bundled demos.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/61/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "cannon-fodder-2-open-fodder": {
       "game": "Cannon Fodder 2",
@@ -13873,7 +14055,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native engine supports retail releases and Amiga demos; Windows installer available.",
       "upstream_platforms": "Windows installer/runtime plus explicitly named OpenFodder-x86-Release test archive. Linux/macOS source builds documented; selected non-Windows CPU unknown.",
-      "original_data": "Confirm supported edition per game and clean source-data setup.",
+      "original_data": "Supply Cannon Fodder 2 data from an upstream-supported Amiga or DOS CD release; Cannon Fodder 1/demo data does not provide this game. Exact language/revision requirements remain Unknown in the retained README.",
       "remaining_condition": null,
       "limitations": "Confirm supported edition per game and clean source-data setup. Native engine supports retail releases and Amiga demos; Windows installer available.",
       "artwork": {
@@ -13894,7 +14076,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Confirm supported edition per game and clean source-data setup.",
+        "primary_evidence": {
+          "url": "https://github.com/OpenFodder/openfodder/blob/master/README.md",
+          "readme_blob_sha": "d2ed288fbf49fd078115fda169a3da64bacccf81",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C062",
+          "basis": "README Supported Versions table distinguishes Cannon Fodder Amiga/CD32/DOS CD and Cannon Fodder 2 Amiga/DOS CD, and lists bundled demos.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/61/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "catacomb-3-d-the-descent-catacombgl": {
       "game": "Catacomb 3-D: The Descent",
@@ -14113,7 +14310,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Upgraded native engine with Windows/Linux/macOS releases.",
       "upstream_platforms": "Windows/Linux/macOS runtime packages; exact selected package CPU architectures unknown in frozen research.",
-      "original_data": "Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations.",
+      "original_data": "Cave Story freeware data/preparation contract is Unknown in the retained NXEngine-evo README. Establish which original freeware release/localization and asset directory or separate data pack the chosen package needs, and whether those assets are already included. The README says its built-in data extractor was removed; do not infer that Cave Story+ data or another engine package is accepted.",
       "remaining_condition": null,
       "limitations": "Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Upgraded native engine with Windows/Linux/macOS releases.",
       "artwork": {
@@ -14139,7 +14336,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations.",
+        "primary_evidence": {
+          "url": "https://github.com/nxengine/nxengine-evo/blob/master/README.md",
+          "readme_blob_sha": "dba168df106dd7a682e2c4c7ed928383435c18de",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C064",
+          "basis": "README lists running-package routes and removal of built-in data extractor but no actual data acquisition/install contract.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/63/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which Cave Story freeware release/localization and data pack/layout does the selected NXEngine-evo package need; does it already include those assets?"
+      }
     },
     "commander-keen-4-omnispeak": {
       "game": "Commander Keen 4",
@@ -14360,7 +14572,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official README states full compatibility with both games and expansions.",
       "upstream_platforms": "Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown.",
-      "original_data": "No binary assets on last GitHub release; resolve official current package source.",
+      "original_data": "Original-data contract remains Unknown in the retained DXX-Rebirth README for Descent. Establish the selected game's accepted retail/shareware/demo edition, patch/revision and required data location before offering setup. Descent and Descent II are distinct inputs; package availability is separate from supplying the corresponding game data.",
       "remaining_condition": null,
       "limitations": "No binary assets on last GitHub release; resolve official current package source. Official README states full compatibility with both games and expansions.",
       "artwork": {
@@ -14386,7 +14598,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "No binary assets on last GitHub release; resolve official current package source.",
+        "primary_evidence": {
+          "url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/master/README.md",
+          "readme_blob_sha": "e8cf35c9fd7b6d542af5d00cf681dda0847a23db",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C067",
+          "basis": "README identifies separate Descent 1/2 ports and DOS player/save/mission compatibility, but does not give a full required-data contract.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/66/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game retail/shareware/demo edition, revision and asset layout does the selected DXX-Rebirth target accept?"
+      }
     },
     "descent-ii-dxx-rebirth": {
       "game": "Descent II",
@@ -14410,7 +14637,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official README states full compatibility with both games and expansions.",
       "upstream_platforms": "Official Windows/Linux/macOS source-build/download routes; no binary assets on last GitHub release. Current selected package CPU unknown.",
-      "original_data": "No binary assets on last GitHub release; resolve official current package source.",
+      "original_data": "Original-data contract remains Unknown in the retained DXX-Rebirth README for Descent II. Establish the selected game's accepted retail/shareware/demo edition, patch/revision and required data location before offering setup. Descent and Descent II are distinct inputs; package availability is separate from supplying the corresponding game data.",
       "remaining_condition": null,
       "limitations": "No binary assets on last GitHub release; resolve official current package source. Official README states full compatibility with both games and expansions.",
       "artwork": {
@@ -14436,7 +14663,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "No binary assets on last GitHub release; resolve official current package source.",
+        "primary_evidence": {
+          "url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/master/README.md",
+          "readme_blob_sha": "e8cf35c9fd7b6d542af5d00cf681dda0847a23db",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C067",
+          "basis": "README identifies separate Descent 1/2 ports and DOS player/save/mission compatibility, but does not give a full required-data contract.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/66/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game retail/shareware/demo edition, revision and asset layout does the selected DXX-Rebirth target accept?"
+      }
     },
     "doom-the-ultimate-doom-crispy-doom-family": {
       "game": "Doom / The Ultimate Doom",
@@ -14460,7 +14702,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native source-port family with current executable packages.",
       "upstream_platforms": "Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build.",
-      "original_data": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+      "original_data": "Use the matching Doom/Ultimate Doom IWAD; the retained README explicitly allows Doom shareware DOOM1.WAD for limited shareware play and mentions BFG Doom Classic WAD support. Exact retail IWAD/revision for the selected full-game mode remains Unknown here; optional Freedoom is an alternative game-data route, not ownership of Doom.",
       "remaining_condition": null,
       "limitations": "Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility.",
       "artwork": {
@@ -14482,14 +14724,30 @@
       "primary_evidence": [
         "https://github.com/fabiangreffrath/crispy-doom",
         "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.Music.md",
-        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2"
+        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2",
+        "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand umbrella Doom to Doom/Ultimate Doom, Doom II and Final Doom identity/data targets. Heretic/Hexen/Strife are separate released package executables, not the Doom executable.",
         "Current latest Windows 7.2 packages are win64; old README description of x86/x64 compatibility must not substitute selected-asset architecture."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+        "primary_evidence": {
+          "url": "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md",
+          "readme_blob_sha": "05f9aa6611e0714198c1e1b16bf73e21215cfcda",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C068",
+          "basis": "README documents Doom shareware DOOM1.WAD, BFG Doom Classic data and Freedoom; exact other-game input contracts are not established there.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/67/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game IWAD(s), retail/shareware edition and revision does this specific Crispy family target accept?"
+      }
     },
     "doom-ii-crispy-doom-family": {
       "game": "Doom II",
@@ -14513,7 +14771,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native source-port family with current executable packages.",
       "upstream_platforms": "Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build.",
-      "original_data": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+      "original_data": "Source-data contract remains Unknown in the retained Crispy Doom root README for Doom II. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Doom II data set.",
       "remaining_condition": null,
       "limitations": "Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility.",
       "artwork": {
@@ -14535,14 +14793,30 @@
       "primary_evidence": [
         "https://github.com/fabiangreffrath/crispy-doom",
         "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.Music.md",
-        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2"
+        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2",
+        "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand umbrella Doom to Doom/Ultimate Doom, Doom II and Final Doom identity/data targets. Heretic/Hexen/Strife are separate released package executables, not the Doom executable.",
         "Current latest Windows 7.2 packages are win64; old README description of x86/x64 compatibility must not substitute selected-asset architecture."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+        "primary_evidence": {
+          "url": "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md",
+          "readme_blob_sha": "05f9aa6611e0714198c1e1b16bf73e21215cfcda",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C068",
+          "basis": "README documents Doom shareware DOOM1.WAD, BFG Doom Classic data and Freedoom; exact other-game input contracts are not established there.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/67/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game IWAD(s), retail/shareware edition and revision does this specific Crispy family target accept?"
+      }
     },
     "final-doom-crispy-doom-family": {
       "game": "Final Doom",
@@ -14566,7 +14840,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native source-port family with current executable packages.",
       "upstream_platforms": "Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build.",
-      "original_data": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+      "original_data": "Source-data contract remains Unknown in the retained Crispy Doom root README for Final Doom. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Final Doom data set.",
       "remaining_condition": null,
       "limitations": "Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility.",
       "artwork": {
@@ -14588,14 +14862,30 @@
       "primary_evidence": [
         "https://github.com/fabiangreffrath/crispy-doom",
         "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.Music.md",
-        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2"
+        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2",
+        "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand umbrella Doom to Doom/Ultimate Doom, Doom II and Final Doom identity/data targets. Heretic/Hexen/Strife are separate released package executables, not the Doom executable.",
         "Current latest Windows 7.2 packages are win64; old README description of x86/x64 compatibility must not substitute selected-asset architecture."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+        "primary_evidence": {
+          "url": "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md",
+          "readme_blob_sha": "05f9aa6611e0714198c1e1b16bf73e21215cfcda",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C068",
+          "basis": "README documents Doom shareware DOOM1.WAD, BFG Doom Classic data and Freedoom; exact other-game input contracts are not established there.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/67/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game IWAD(s), retail/shareware edition and revision does this specific Crispy family target accept?"
+      }
     },
     "heretic-crispy-doom-family": {
       "game": "Heretic",
@@ -14619,7 +14909,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native source-port family with current executable packages.",
       "upstream_platforms": "Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build.",
-      "original_data": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+      "original_data": "Source-data contract remains Unknown in the retained Crispy Doom root README for Heretic. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Heretic data set.",
       "remaining_condition": null,
       "limitations": "Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility.",
       "artwork": {
@@ -14636,14 +14926,30 @@
       "primary_evidence": [
         "https://github.com/fabiangreffrath/crispy-doom",
         "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.Music.md",
-        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2"
+        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2",
+        "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand umbrella Doom to Doom/Ultimate Doom, Doom II and Final Doom identity/data targets. Heretic/Hexen/Strife are separate released package executables, not the Doom executable.",
         "Current latest Windows 7.2 packages are win64; old README description of x86/x64 compatibility must not substitute selected-asset architecture."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+        "primary_evidence": {
+          "url": "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md",
+          "readme_blob_sha": "05f9aa6611e0714198c1e1b16bf73e21215cfcda",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C068",
+          "basis": "README documents Doom shareware DOOM1.WAD, BFG Doom Classic data and Freedoom; exact other-game input contracts are not established there.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/67/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game IWAD(s), retail/shareware edition and revision does this specific Crispy family target accept?"
+      }
     },
     "hexen-crispy-doom-family": {
       "game": "Hexen",
@@ -14667,7 +14973,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native source-port family with current executable packages.",
       "upstream_platforms": "Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build.",
-      "original_data": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+      "original_data": "Source-data contract remains Unknown in the retained Crispy Doom root README for Hexen. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Hexen data set.",
       "remaining_condition": null,
       "limitations": "Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility.",
       "artwork": {
@@ -14689,14 +14995,30 @@
       "primary_evidence": [
         "https://github.com/fabiangreffrath/crispy-doom",
         "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.Music.md",
-        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2"
+        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2",
+        "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand umbrella Doom to Doom/Ultimate Doom, Doom II and Final Doom identity/data targets. Heretic/Hexen/Strife are separate released package executables, not the Doom executable.",
         "Current latest Windows 7.2 packages are win64; old README description of x86/x64 compatibility must not substitute selected-asset architecture."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+        "primary_evidence": {
+          "url": "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md",
+          "readme_blob_sha": "05f9aa6611e0714198c1e1b16bf73e21215cfcda",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C068",
+          "basis": "README documents Doom shareware DOOM1.WAD, BFG Doom Classic data and Freedoom; exact other-game input contracts are not established there.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/67/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game IWAD(s), retail/shareware edition and revision does this specific Crispy family target accept?"
+      }
     },
     "strife-crispy-doom-family": {
       "game": "Strife",
@@ -14720,7 +15042,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native source-port family with current executable packages.",
       "upstream_platforms": "Latest frozen7.2 Windows release ZIPs explicitly win64/x86-64, separately for Doom/Heretic/Hexen/Strife. macOS Homebrew/MacPorts and Linux distro/source routes; CPU follows selected package/build.",
-      "original_data": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+      "original_data": "Source-data contract remains Unknown in the retained Crispy Doom root README for Strife. Establish the corresponding original game IWAD(s), accepted retail/shareware/demo edition and revision before offering setup. The Doom shareware DOOM1.WAD route documented there must not be treated as the full Strife data set.",
       "remaining_condition": null,
       "limitations": "Maintained Doom-family source ports; separate executables and IWAD contracts per game, not Boom/ZDoom compatibility.",
       "artwork": {
@@ -14737,14 +15059,30 @@
       "primary_evidence": [
         "https://github.com/fabiangreffrath/crispy-doom",
         "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.Music.md",
-        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2"
+        "https://github.com/fabiangreffrath/crispy-doom/releases/tag/crispy-doom-7.2",
+        "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand umbrella Doom to Doom/Ultimate Doom, Doom II and Final Doom identity/data targets. Heretic/Hexen/Strife are separate released package executables, not the Doom executable.",
         "Current latest Windows 7.2 packages are win64; old README description of x86/x64 compatibility must not substitute selected-asset architecture."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct from GZDoom #1824; split game data contracts and avoid counting engine binaries as new games.",
+        "primary_evidence": {
+          "url": "https://github.com/fabiangreffrath/crispy-doom/blob/master/README.md",
+          "readme_blob_sha": "05f9aa6611e0714198c1e1b16bf73e21215cfcda",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C068",
+          "basis": "README documents Doom shareware DOOM1.WAD, BFG Doom Classic data and Freedoom; exact other-game input contracts are not established there.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/67/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original game IWAD(s), retail/shareware edition and revision does this specific Crispy family target accept?"
+      }
     },
     "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled": {
       "game": "Dragon Ball Z: Burst Limit",
@@ -14813,7 +15151,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature Build-engine family port with Windows/macOS releases.",
       "upstream_platforms": "Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+      "original_data": "Source-data contract remains Unknown in the retained Raze root README for Duke Nukem 3D. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute.",
       "remaining_condition": null,
       "limitations": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Mature Build-engine family port with Windows/macOS releases.",
       "artwork": {
@@ -14841,7 +15179,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Raze primary README also explicitly supports NAM and World War II GI; include distinct game targets if expanding this supplied shared-engine row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+        "primary_evidence": {
+          "url": "https://github.com/ZDoom/Raze/blob/master/README.md",
+          "readme_blob_sha": "0fcf0a075d7da0469d00e485eb2b0f6ebc14bf20",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C070",
+          "basis": "README enumerates seven supported games and implementation modules but does not document each required original-data set.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/69/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original PC game data set, retail/shareware edition/expansion and revision/layout does this exact Raze game target accept?"
+      }
     },
     "blood-raze": {
       "game": "Blood",
@@ -14865,7 +15218,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature Build-engine family port with Windows/macOS releases.",
       "upstream_platforms": "Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+      "original_data": "Source-data contract remains Unknown in the retained Raze root README for Blood. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute.",
       "remaining_condition": null,
       "limitations": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Mature Build-engine family port with Windows/macOS releases.",
       "artwork": {
@@ -14893,7 +15246,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Raze primary README also explicitly supports NAM and World War II GI; include distinct game targets if expanding this supplied shared-engine row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+        "primary_evidence": {
+          "url": "https://github.com/ZDoom/Raze/blob/master/README.md",
+          "readme_blob_sha": "0fcf0a075d7da0469d00e485eb2b0f6ebc14bf20",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C070",
+          "basis": "README enumerates seven supported games and implementation modules but does not document each required original-data set.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/69/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original PC game data set, retail/shareware edition/expansion and revision/layout does this exact Raze game target accept?"
+      }
     },
     "shadow-warrior-raze": {
       "game": "Shadow Warrior",
@@ -14917,7 +15285,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature Build-engine family port with Windows/macOS releases.",
       "upstream_platforms": "Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+      "original_data": "Source-data contract remains Unknown in the retained Raze root README for Shadow Warrior. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute.",
       "remaining_condition": null,
       "limitations": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Mature Build-engine family port with Windows/macOS releases.",
       "artwork": {
@@ -14945,7 +15313,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Raze primary README also explicitly supports NAM and World War II GI; include distinct game targets if expanding this supplied shared-engine row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+        "primary_evidence": {
+          "url": "https://github.com/ZDoom/Raze/blob/master/README.md",
+          "readme_blob_sha": "0fcf0a075d7da0469d00e485eb2b0f6ebc14bf20",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C070",
+          "basis": "README enumerates seven supported games and implementation modules but does not document each required original-data set.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/69/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original PC game data set, retail/shareware edition/expansion and revision/layout does this exact Raze game target accept?"
+      }
     },
     "redneck-rampage-raze": {
       "game": "Redneck Rampage",
@@ -14969,7 +15352,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature Build-engine family port with Windows/macOS releases.",
       "upstream_platforms": "Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+      "original_data": "Source-data contract remains Unknown in the retained Raze root README for Redneck Rampage. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute.",
       "remaining_condition": null,
       "limitations": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Mature Build-engine family port with Windows/macOS releases.",
       "artwork": {
@@ -14992,7 +15375,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Raze primary README also explicitly supports NAM and World War II GI; include distinct game targets if expanding this supplied shared-engine row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+        "primary_evidence": {
+          "url": "https://github.com/ZDoom/Raze/blob/master/README.md",
+          "readme_blob_sha": "0fcf0a075d7da0469d00e485eb2b0f6ebc14bf20",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C070",
+          "basis": "README enumerates seven supported games and implementation modules but does not document each required original-data set.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/69/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original PC game data set, retail/shareware edition/expansion and revision/layout does this exact Raze game target accept?"
+      }
     },
     "powerslave-exhumed-dos-raze": {
       "game": "PowerSlave / Exhumed (DOS)",
@@ -15016,7 +15414,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature Build-engine family port with Windows/macOS releases.",
       "upstream_platforms": "Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+      "original_data": "Source-data contract remains Unknown in the retained Raze root README for PowerSlave / Exhumed (DOS). Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute.",
       "remaining_condition": null,
       "limitations": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Mature Build-engine family port with Windows/macOS releases.",
       "artwork": {
@@ -15044,7 +15442,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Raze primary README also explicitly supports NAM and World War II GI; include distinct game targets if expanding this supplied shared-engine row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+        "primary_evidence": {
+          "url": "https://github.com/ZDoom/Raze/blob/master/README.md",
+          "readme_blob_sha": "0fcf0a075d7da0469d00e485eb2b0f6ebc14bf20",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C070",
+          "basis": "README enumerates seven supported games and implementation modules but does not document each required original-data set.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/69/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original PC game data set, retail/shareware edition/expansion and revision/layout does this exact Raze game target accept?"
+      }
     },
     "nam-raze": {
       "game": "NAM",
@@ -15068,7 +15481,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature Build-engine family port with Windows/macOS releases.",
       "upstream_platforms": "Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+      "original_data": "Source-data contract remains Unknown in the retained Raze root README for NAM. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute.",
       "remaining_condition": null,
       "limitations": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Mature Build-engine family port with Windows/macOS releases.",
       "artwork": {
@@ -15096,7 +15509,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Raze primary README also explicitly supports NAM and World War II GI; include distinct game targets if expanding this supplied shared-engine row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+        "primary_evidence": {
+          "url": "https://github.com/ZDoom/Raze/blob/master/README.md",
+          "readme_blob_sha": "0fcf0a075d7da0469d00e485eb2b0f6ebc14bf20",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C070",
+          "basis": "README enumerates seven supported games and implementation modules but does not document each required original-data set.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/69/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original PC game data set, retail/shareware edition/expansion and revision/layout does this exact Raze game target accept?"
+      }
     },
     "world-war-ii-gi-raze": {
       "game": "World War II GI",
@@ -15120,7 +15548,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature Build-engine family port with Windows/macOS releases.",
       "upstream_platforms": "Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+      "original_data": "Source-data contract remains Unknown in the retained Raze root README for World War II GI. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute.",
       "remaining_condition": null,
       "limitations": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Mature Build-engine family port with Windows/macOS releases.",
       "artwork": {
@@ -15143,7 +15571,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Raze primary README also explicitly supports NAM and World War II GI; include distinct game targets if expanding this supplied shared-engine row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record.",
+        "primary_evidence": {
+          "url": "https://github.com/ZDoom/Raze/blob/master/README.md",
+          "readme_blob_sha": "0fcf0a075d7da0469d00e485eb2b0f6ebc14bf20",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C070",
+          "basis": "README enumerates seven supported games and implementation modules but does not document each required original-data set.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/69/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original PC game data set, retail/shareware edition/expansion and revision/layout does this exact Raze game target accept?"
+      }
     },
     "dune-ii-opendune": {
       "game": "Dune II",
@@ -15167,7 +15610,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native original-engine recreation with explicit v1.07 data and Windows/macOS archives.",
       "upstream_platforms": "Windows i686/x86-64 and macOS PowerPC/i686/x86-64 documented build targets; Linux source route. Selected historical archive CPUs require asset choice.",
-      "original_data": "Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases.",
+      "original_data": "Supply original Dune II version 1.07 data files, including dune2.exe, in OpenDUNE data/. Retained README accepts the eu, hs and us 1.07 data sets; French requires eu/hs, and German requires eu. Do not substitute Dune 2000 data.",
       "remaining_condition": null,
       "limitations": "Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases. Native original-engine recreation with explicit v1.07 data and Windows/macOS archives.",
       "artwork": {
@@ -15188,7 +15631,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct implementation from Dune Dynasty and from OpenRA Dune 2000; older releases.",
+        "primary_evidence": {
+          "url": "https://github.com/OpenDUNE/OpenDUNE/blob/master/README",
+          "readme_blob_sha": "e3ee5c74d0ccb445385219b42e4ca2fdbd28cd6e",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C071",
+          "basis": "README Installing section requires Dune2 1.07 files including dune2.exe and enumerates eu/hs/us language limitations.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/70/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "forza-motorsport-3-ultimate-collection-usa-xbox-360-forza-motorsport-3-native-recompilation": {
       "game": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360)",
@@ -15309,7 +15767,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Active source-port engine with current Win/Linux/macOS assets.",
       "upstream_platforms": "Current Windows/Linux/macOS FreeSpaceOpen engine assets; choose launcher/engine separately. Selected package CPU architectures unknown in frozen audit.",
-      "original_data": "Resolve engine vs launcher ownership and exact retail-data installation; observed top release is RC2 despite prerelease=false.",
+      "original_data": "FreeSpace 2 original-data contract remains Unknown in the retained engine README. Establish whether the selected FS2 Open/launcher route needs an owned FreeSpace 2 retail installation or a separately licensed standalone campaign, and the exact accepted edition/patch and asset acquisition layout. Engine or launcher availability alone does not supply retail game assets.",
       "remaining_condition": null,
       "limitations": "Established engine with current release-candidate assets; select stable/RC channel deliberately and preserve launcher ownership.",
       "artwork": {
@@ -15330,7 +15788,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Resolve engine vs launcher ownership and exact retail-data installation; observed top release is RC2 despite prerelease=false.",
+        "primary_evidence": {
+          "url": "https://github.com/scp-fs2open/fs2open.github.com/blob/master/Readme.md",
+          "readme_blob_sha": "5126987f2b4e9e97d8bdc29664d7f53b63767ce5",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C074",
+          "basis": "Retained engine Readme contains no player game-data installation contract; scope must remain an explicit precise Unknown.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/73/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Does the selected FreeSpace 2 route require original retail data or a separately licensed standalone data set, and which accepted edition/patch and layout?"
+      }
     },
     "half-life-xash3d-fwgs": {
       "game": "Half-Life",
@@ -15499,7 +15972,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native C++ reimplementation with detailed desktop original-data setup.",
       "upstream_platforms": "Official project-site Windows/Linux/macOS downloads with original-data setup. Selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Supports several original editions; downloads use project site/release channel outside this code repo.",
+      "original_data": "Supply the original Jazz Jackrabbit 2 installation directory contents in Jazz2 Resurrection Source/ (or its documented per-user Source directory for the selected package). README supports the Shareware Demo, Holiday Hare 98, The Secret Files and Christmas Chronicles, as well as the original game; each provides its own content. Exact accepted patch/localization remains Unknown here.",
       "remaining_condition": null,
       "limitations": "Supports several original editions; downloads use project site/release channel outside this code repo. Native C++ reimplementation with detailed desktop original-data setup.",
       "artwork": {
@@ -15519,7 +15992,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Supports several original editions; downloads use project site/release channel outside this code repo.",
+        "primary_evidence": {
+          "url": "https://github.com/deathkiller/jazz2-native/blob/master/README.md",
+          "readme_blob_sha": "55d3450b2826d41cb6c09a43a3f8ab95be7a75b9",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C078",
+          "basis": "README introduction names editions and platform setup instructs copying original directory contents into Source.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/77/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "keen-dreams-reflectionhle": {
       "game": "Keen Dreams",
@@ -15543,7 +16031,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS Keen Dreams game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15566,7 +16054,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "catacomb-3-d-the-descent-reflectionhle": {
       "game": "Catacomb 3-D: The Descent",
@@ -15590,7 +16093,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS Catacomb 3-D: The Descent game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15618,7 +16121,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "the-catacomb-abyss-reflectionhle": {
       "game": "The Catacomb Abyss",
@@ -15642,7 +16160,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS The Catacomb Abyss game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15665,7 +16183,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "the-catacomb-armageddon-reflectionhle": {
       "game": "The Catacomb Armageddon",
@@ -15689,7 +16222,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS The Catacomb Armageddon game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15717,7 +16250,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "the-catacomb-apocalypse-reflectionhle": {
       "game": "The Catacomb Apocalypse",
@@ -15741,7 +16289,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS The Catacomb Apocalypse game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15769,7 +16317,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "wolfenstein-3d-reflectionhle": {
       "game": "Wolfenstein 3D",
@@ -15793,7 +16356,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS Wolfenstein 3D game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15821,7 +16384,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "spear-of-destiny-reflectionhle": {
       "game": "Spear of Destiny",
@@ -15845,7 +16423,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS Spear of Destiny game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15873,7 +16451,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "super-3-d-noah-s-ark-dos-reflectionhle": {
       "game": "Super 3-D Noah's Ark (DOS)",
@@ -15897,7 +16490,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS Super 3-D Noah's Ark (DOS) game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15920,7 +16513,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "bio-menace-reflectionhle": {
       "game": "Bio Menace",
@@ -15944,7 +16552,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native family ports with current desktop release packages.",
       "upstream_platforms": "Desktop Windows/Linux/macOS family packages/source builds. Exact selected package CPU architectures unknown in frozen evidence.",
-      "original_data": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+      "original_data": "Obtain the original DOS Bio Menace game data separately and select its directory in the ReflectionHLE launcher. The launcher lists supported versions and required files; -listgamevers lists version keys and -gamever selects one. Exact accepted executable/data revision and its shareware/freeware/retail acquisition route are not extracted in the retained README and remain Unknown for this game.",
       "remaining_condition": null,
       "limitations": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts. Native family ports with current desktop release packages.",
       "artwork": {
@@ -15967,7 +16575,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Expand Catacomb series umbrella into four separate games, yielding nine game identities in the supplied family row."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Create per-game identities sharing runtime; verify supported executable/data versions and free/retail input contracts.",
+        "primary_evidence": {
+          "url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/master/README.md",
+          "readme_blob_sha": "8b3e930d43a931abd4ef04b004f3a3b21ca774b3",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C079",
+          "basis": "README explicitly excludes game data and describes version/file information in launcher and -listgamevers.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/78/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "midnight-club-los-angeles-complete-edition-mcla-recomp": {
       "game": "Midnight Club: Los Angeles Complete Edition",
@@ -16226,7 +16849,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native Quake implementation with desktop packages.",
       "upstream_platforms": "Windows/Linux native desktop packages/source builds, exact selected CPUs unknown in frozen evidence. macOS explicitly unsupported due to OpenGL4.3 requirements.",
-      "original_data": "Distinct alternative to vkQuake, not another game; preserve per-implementation identity.",
+      "original_data": "Use original Quake game data. Retained Ironwail README supports the 2021 rerelease and installed Steam Quake/add-ons through automatic discovery when no valid local Quake installation is present. Exact required classic/release PAK set and accepted data revision are not established by that README; mods/add-ons are separate data.",
       "remaining_condition": null,
       "limitations": "Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Native Quake implementation with desktop packages.",
       "artwork": {
@@ -16252,7 +16875,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Distinct alternative to vkQuake, not another game; preserve per-implementation identity.",
+        "primary_evidence": {
+          "url": "https://github.com/andrei-drexler/ironwail/blob/master/README.md",
+          "readme_blob_sha": "c13bae699fa565a1e3c5b6073518878a90ba11e9",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C085",
+          "basis": "README bonus features documents automatic use of owned installed Steam Quake 2021 content and downloaded add-ons.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/84/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp": {
       "game": "Quake 4 (Xbox 360 edition)",
@@ -16321,7 +16959,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official Yamagi Windows 8.70a binary archive, or upstream 8.70 source build; own original Quake II data and separately selected expansion data/code.",
       "upstream_platforms": "Official Windows8.70a binary download and Linux/BSD source builds; code is64-bit clean but selected Windows artifact CPU unknown in frozen web page. macOS is community-supported.",
-      "original_data": "GitHub Releases empty; official distribution site and expansion package handling need follow-up.",
+      "original_data": "Original-data contract remains Unknown in the retained Yamagi Quake II README: establish the classic Quake II retail installation/data set and accepted patch/revision before offering setup. The Reckoning and Ground Zero are separate add-on implementations/data, and Quake II Remaster assets use a separate Yamagi remaster project; do not assume they substitute for classic base-game files.",
       "remaining_condition": null,
       "limitations": "Official README describes mature enhanced client and addon repositories. GitHub Releases empty; official distribution site and expansion package handling need follow-up.",
       "artwork": {
@@ -16349,7 +16987,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Official download page resolves upstream Windows 8.70a binaries and source 8.70; macOS is community-supported, not a first-party equally supported package."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "GitHub Releases empty; official distribution site and expansion package handling need follow-up.",
+        "primary_evidence": {
+          "url": "https://github.com/yquake2/yquake2/blob/master/README.md",
+          "readme_blob_sha": "4be03d639e57cd1bc03547c4712e609076f8d058",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C087",
+          "basis": "README identifies Quake II 3.21 engine basis, separate expansion repositories and separate remaster-asset project, but lacks required installation data.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/86/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which classic Quake II data set and patch/revision does the selected base-game package accept, independently of expansion/remaster projects?"
+      }
     },
     "quake-iii-arena-ioquake3": {
       "game": "Quake III Arena",
@@ -16561,7 +17214,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Established source port with original-data copy instructions and desktop release archives.",
       "upstream_platforms": "Windows/Linux/macOS source-port archives. Mac universal-binary build instructions documented; exact selected archive CPUs unknown in frozen evidence.",
-      "original_data": "Latest published release is old; separate SP/MP and patch-data dependencies.",
+      "original_data": "Supply original Return to Castle Wolfenstein Main/ assets: SP needs pak0.pk3 and sp_pak1.pk3 through sp_pak3.pk3; MP needs the documented mp_bin/mp_pak/mp_pakmaps files from the owned installation. Merge upstream patch-data-141.zip (or the documented newer patch data); German/Spanish/French/Italian SP additionally use matching language patches. Keep SP/MP data separate.",
       "remaining_condition": null,
       "limitations": "Latest published release is old; separate SP/MP and patch-data dependencies. Established source port with original-data copy instructions and desktop release archives.",
       "artwork": {
@@ -16582,7 +17235,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Latest published release is old; separate SP/MP and patch-data dependencies.",
+        "primary_evidence": {
+          "url": "https://github.com/iortcw/iortcw/blob/master/README.md",
+          "readme_blob_sha": "dce291201bb7080dc410a462e2dd8b1569b7a093",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C091",
+          "basis": "README installation steps enumerate original Main assets, patch-data-141 and language packages.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/90/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "s-t-a-l-k-e-r-call-of-pripyat-openxray": {
       "game": "S.T.A.L.K.E.R.: Call of Pripyat",
@@ -16606,7 +17274,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages.",
       "upstream_platforms": "Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence.",
-      "original_data": "Shadow of Chernobyl and Enhanced Edition NOT supported. Mutable nightly tag needs asset identity handling.",
+      "original_data": "Use original S.T.A.L.K.E.R.: Call of Pripyat game resources at version 1.6.02 for this OpenXRay target. Shadow of Chernobyl and Enhanced Edition data are outside this recorded scope. Exact distribution/localization layout is not pinned in the retained README.",
       "remaining_condition": null,
       "limitations": "Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported.",
       "artwork": {
@@ -16627,7 +17295,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Shadow of Chernobyl and Enhanced Edition NOT supported. Mutable nightly tag needs asset identity handling.",
+        "primary_evidence": {
+          "url": "https://github.com/OpenXRay/xray-16/blob/dev/README.md",
+          "readme_blob_sha": "d6ee5064be61516b003e55382fbf5ccd8b46edc0",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C092",
+          "basis": "README Supported game platforms explicitly pins Call of Pripyat 1.6.02 and Clear Sky 1.5.10; compatibility section refers to original game resources.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/91/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "s-t-a-l-k-e-r-clear-sky-openxray": {
       "game": "S.T.A.L.K.E.R.: Clear Sky",
@@ -16651,7 +17334,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official support includes Call of Pripyat and finishable Clear Sky; Windows nightly packages.",
       "upstream_platforms": "Windows nightly packages; Linux/macOS/BSD source routes. README documents ARM/ARM64/PPC64LE/E2K portability but selected Windows artifact CPUs unknown in frozen evidence.",
-      "original_data": "Shadow of Chernobyl and Enhanced Edition NOT supported. Mutable nightly tag needs asset identity handling.",
+      "original_data": "Use original S.T.A.L.K.E.R.: Clear Sky game resources at version 1.5.10 for this OpenXRay target. Shadow of Chernobyl and Enhanced Edition data are outside this recorded scope. Exact distribution/localization layout is not pinned in the retained README.",
       "remaining_condition": null,
       "limitations": "Call of Pripyat and finishable Clear Sky current; Shadow of Chernobyl and Enhanced Edition unsupported.",
       "artwork": {
@@ -16672,7 +17355,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Shadow of Chernobyl and Enhanced Edition NOT supported. Mutable nightly tag needs asset identity handling.",
+        "primary_evidence": {
+          "url": "https://github.com/OpenXRay/xray-16/blob/dev/README.md",
+          "readme_blob_sha": "d6ee5064be61516b003e55382fbf5ccd8b46edc0",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C092",
+          "basis": "README Supported game platforms explicitly pins Call of Pripyat 1.6.02 and Clear Sky 1.5.10; compatibility section refers to original game resources.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/91/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "south-park-let-s-go-tower-defense-play-south-park-td-recompiled": {
       "game": "South Park: Let's Go Tower Defense Play!",
@@ -16988,7 +17686,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Maintained native port with current Windows/Ubuntu packages.",
       "upstream_platforms": "Windows/Ubuntu packages and source builds; Windows MinGW32 dependency path documented. Exact selected artifact CPUs unknown in frozen release evidence.",
-      "original_data": "Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract.",
+      "original_data": "Supply an owned Syndicate Wars CD or CD image (including a supported digital-store image) during SyndWarsFX installation. Upstream installer copies required original files, downloads its extra gfx/sfx/level resources and may convert music; the disc/image is not needed after installation. Match the selected language to the source release; exact pressing/patch digest is Unknown here.",
       "remaining_condition": null,
       "limitations": "Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Maintained native port with current Windows/Ubuntu packages.",
       "artwork": {
@@ -17014,7 +17712,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract.",
+        "primary_evidence": {
+          "url": "https://github.com/swfans/syndwarsfx/blob/master/README.md",
+          "readme_blob_sha": "265fc7491b42b66708f1e7c9af3e8232d277d625",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C099",
+          "basis": "README states only some necessary data are included and documents original CD/image input plus extra resources and post-install disc independence.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/98/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "transport-tycoon-deluxe-openttd-upstream": {
       "game": "Transport Tycoon Deluxe",
@@ -17038,7 +17751,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Mature native reimplementation with free replacement data or original retail data.",
       "upstream_platforms": "Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit.",
-      "original_data": "Already tracked JGR Patch Pack #1859 is a distinct fork; record upstream as an alternative, not duplicate alias.",
+      "original_data": "OpenTTD needs base graphics and sound data. Use the free OpenGFX/OpenSFX sets (OpenMSX supplies optional music), or copy original DOS/Windows Transport Tycoon Deluxe CD graphics/sound files into baseset/. Original commercial TTD assets are optional when using the free sets; original TTD music can be copied separately.",
       "remaining_condition": null,
       "limitations": "Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data.",
       "artwork": {
@@ -17059,7 +17772,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Already tracked JGR Patch Pack #1859 is a distinct fork; record upstream as an alternative, not duplicate alias.",
+        "primary_evidence": {
+          "url": "https://github.com/OpenTTD/OpenTTD/blob/master/README.md",
+          "readme_blob_sha": "a0e50bdef899db73b4fc8a8d6f29da13f1ac0d25",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C100",
+          "basis": "README Game data section documents free replacement sets and optional DOS/Windows TTD graphics, sounds and music.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/99/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "urban-reign-urban-reign-recomp": {
       "game": "Urban Reign",
@@ -17223,7 +17951,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official etlegacy.com stable 2.86.2 desktop installer/archive plus original freely released Wolfenstein: Enemy Territory data; package and original data are distinct.",
       "upstream_platforms": "Official stable2.86.2 Windows x86/x86-64, Linux i386/x86-64/AArch64 and macOS x86-64/AArch64 installer/archive downloads.64-bit mods must match64-bit client.",
-      "original_data": "GitHub Releases empty; resolve official package + original free data route.",
+      "original_data": "Use original free Wolfenstein: Enemy Territory game data under its original EULA; copy pak0.pk3 into etmain/. Third-party mods may also need pak1.pk3 and pak2.pk3. README links Splash Damage for the free release and targets compatibility with ET 2.60b; the GPL engine/mod source alone does not include game data.",
       "remaining_condition": null,
       "limitations": "Maintained native continuation; official download site linked in README. GitHub Releases empty; resolve official package + original free data route.",
       "artwork": {
@@ -17246,7 +17974,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "Official ET: Legacy download site establishes stable 2.86.2 desktop packages across Win32/Win64, Linux i386/x86_64/AArch64 and macOS x86_64/AArch64; original free ET assets remain separately required."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "GitHub Releases empty; resolve official package + original free data route.",
+        "primary_evidence": {
+          "url": "https://github.com/etlegacy/etlegacy/blob/master/README.md",
+          "readme_blob_sha": "056f66c67f044d28f4a3ee314c79438e3a23b018",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C104",
+          "basis": "README Game data section explicitly documents free original release, EULA, pak0.pk3 and conditional pak1/pak2.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/103/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "atlantis-the-lost-tales-atlantis-native": {
       "game": "Atlantis: The Lost Tales",
@@ -17270,7 +18013,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native Rust port, no game data included, current desktop release packages.",
       "upstream_platforms": "Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route.",
-      "original_data": "Newer project; verify end-to-end play and data extraction despite upstream completion claims.",
+      "original_data": "Supply owned Atlantis: The Lost Tales game files: a supported GOG installation or CD-derived folder with atlantis.exe and BIGCD1.BIG through BIGCD4.BIG (or the supported four disc images). Retained README accepts English 1997/2001, French May/August 1997, German August 1997, Dutch/Swedish June 1997, Spanish August 1997, Italian July 1997, patched 1.01/1999 and specified 1998 Traditional/1999 Simplified Chinese editions; preserve the selected release/language.",
       "remaining_condition": "Establish supported original CD/digital data variant and offered setup/launch evidence; do not require full-game human playthrough to create metadata intake.",
       "limitations": "New native implementation with broad original-edition data support; completion claims remain upstream-only.",
       "artwork": {
@@ -17291,7 +18034,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Newer project; verify end-to-end play and data extraction despite upstream completion claims.",
+        "primary_evidence": {
+          "url": "https://github.com/ripleyXLR8/atlantis-native/blob/main/README.md",
+          "readme_blob_sha": "ea999df7141db0c164641a7924cd8a719b358cb1",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C105",
+          "basis": "README supported-release table explicitly lists CD builds/languages, GOG versions and required executable/four archives.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/104/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "black-xbox-black-pc": {
       "game": "BLACK (Xbox)",
@@ -17365,7 +18123,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native recreation using original CSM.BIN; old Windows package and current source build steps.",
       "upstream_platforms": "Historical2017 Windows package and current desktop source build; exact selected CPU architecture unknown in frozen research.",
-      "original_data": "Latest release package dates to 2017; package freshness and upstream runtime behavior need checking.",
+      "original_data": "Supply original Chasm: The Rift CSM.BIN data from the owned DOS game installation; the README also documents extracting/installing the GOG Original CD image to obtain it. Place CSM.BIN beside PanzerChasm and its shaders/ directory, or select the data with --csm. Optional add-on data is separately selected with --addon. Exact source revision remains Unknown.",
       "remaining_condition": "Choose an official historical Windows package or documented current desktop source build and establish exact original CSM.BIN/data inputs.",
       "limitations": "Latest release package dates to 2017; package freshness and upstream runtime behavior need checking. Native recreation using original CSM.BIN; old Windows package and current source build steps.",
       "artwork": {
@@ -17386,7 +18144,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Latest release package dates to 2017; package freshness and upstream runtime behavior need checking.",
+        "primary_evidence": {
+          "url": "https://github.com/Panzerschrek/Chasm-Reverse/blob/master/README.md",
+          "readme_blob_sha": "15d7f4a68f4ac5c5e8f7c004e276c1e902fc2752",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C107",
+          "basis": "README About/Building/Installation/Running explicitly require original CSM.BIN and describe GOG data extraction.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/106/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "crash-team-racing-ctr-recompiled": {
       "game": "Crash Team Racing",
@@ -17461,7 +18234,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Windows ZIP and experimental Linux AppImage with own PKG import",
       "upstream_platforms": "Windows x86-64 package is primary route; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+/Vulkan1.3. Direct PS4 x86-64 execution with replacement services.",
-      "original_data": "Exact own decrypted PS4 PKG revisions; executable hashes documented",
+      "original_data": "Supply your own decrypted Dragon's Crown Pro PS4 PKG: US CUSA10454 base 1.00 or base plus 1.01 update; Japan CUSA07001 base 1.00 or base plus 1.02/1.03; Asia/Hong Kong CUSA10209 base 1.00 or base plus 1.02. Updates require their matching base. Launcher validates title/content IDs, package versions and the documented per-build eboot.bin SHA-256 before installation; encrypted console packages and other code versions are refused. Preserve each build's separate testing limitations.",
       "remaining_condition": "Decide native-compatibility-layer eligibility separately from source/recompilation scope; bind exact decrypted PS4 executable/package revision.",
       "limitations": "Native x86-64 compatibility-layer execution rather than decompilation/recompiler; Linux experimental.",
       "artwork": {
@@ -17478,11 +18251,27 @@
       "primary_evidence": [
         "https://github.com/saulob/dragons-crown-pro-pc",
         "https://github.com/saulob/dragons-crown-pro-pc/releases/tag/v0.7.1",
-        "https://www.reddit.com/r/recomps/comments/1x6arff/dragons_crown_pro_native_pc_port_released_ps4_pro/"
+        "https://www.reddit.com/r/recomps/comments/1x6arff/dragons_crown_pro_native_pc_port_released_ps4_pro/",
+        "https://github.com/saulob/dragons-crown-pro-pc/blob/main/README.md"
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Exact own decrypted PS4 PKG revisions; executable hashes documented",
+        "primary_evidence": {
+          "url": "https://github.com/saulob/dragons-crown-pro-pc/blob/main/README.md",
+          "readme_blob_sha": "d44ee9883cfc3a44269010e1c645f2b41076bba2",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C109",
+          "basis": "README Regions and exact package table enumerate seven accepted builds, base/update relationships and launcher checks.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/108/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "go-go-ackman-go-go-ackman-recompiled": {
       "game": "Go Go Ackman",
@@ -17556,7 +18345,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native engine rewrite with explicit original Windows data set and paths.",
       "upstream_platforms": "Desktop source-build route; observed release binaries are Switch/Vita only. No established desktop package or desktop CPU artifact in frozen research.",
-      "original_data": "Observed release assets only Switch/Vita; desktop build/package route needs follow-up.",
+      "original_data": "Supply original Heart of Darkness Windows release data, from the Demo or CD: hod.paf (or hod_demo.paf/hod_demo2.paf), setup.dat and matching *_hod.lvl, *_hod.sss and *_hod.mst files. Demo data provides demo content, not the full game. Exact localization/revision is not pinned in the retained README.",
       "remaining_condition": "Document current desktop build/preparation route; observed handheld release assets do not establish desktop packages.",
       "limitations": "Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Native engine rewrite with explicit original Windows data set and paths.",
       "artwork": {
@@ -17582,7 +18371,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Observed release assets only Switch/Vita; desktop build/package route needs follow-up.",
+        "primary_evidence": {
+          "url": "https://github.com/usineur/hode/blob/master/README.txt",
+          "readme_blob_sha": "dea8796f96df987e59c0459b5bebcfc0533adcad",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C111",
+          "basis": "README Datafiles lines17-23 require original Windows Demo/CD data and enumerate PAF, setup.dat, LVL, SSS and MST files.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/110/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "master-of-orion-1oom-vanilla-branch": {
       "game": "Master of Orion",
@@ -17606,7 +18410,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native recreation with original v1.3 LBX input and Windows RC package.",
       "upstream_platforms": "Windows release-candidate package on vanilla lineage; desktop source builds documented. Selected Windows CPU architecture unknown in frozen evidence; discontinued default branch differs.",
-      "original_data": "Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility.",
+      "original_data": "Legally own Master of Orion version 1.3 and supply its original LBX files. This 1oom target does not establish compatibility with a different original-game version; separately preserve its documented save-compatibility limitations.",
       "remaining_condition": "Select current vanilla lineage rather than discontinued default branch; establish release/branch and save-format compatibility.",
       "limitations": "Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Native recreation with original v1.3 LBX input and Windows RC package.",
       "artwork": {
@@ -17632,7 +18436,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility.",
+        "primary_evidence": {
+          "url": "https://github.com/1oom-fork/1oom/blob/master/README.md",
+          "readme_blob_sha": "cc27459226dc7622321db2559a9b2af34148f50a",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C112",
+          "basis": "README explicitly requires ownership of Master of Orion v1.3 and v1.3 LBX files.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/111/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "midtown-madness-sneak-preview-beta-build-1560-open1560": {
       "game": "Midtown Madness Sneak Preview Beta / Build 1560",
@@ -17656,7 +18475,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Partial native rewrite with OpenGL and downloadable build.",
       "upstream_platforms": "Desktop downloadable build/source route for preview1560; exact package OS/CPU matrix unknown in frozen evidence. Do not advertise retail Midtown Madness.",
-      "original_data": "Do not advertise general retail Midtown Madness compatibility; upstream explicitly targets preview build 1560.",
+      "original_data": "Original-data contract remains Unknown for Midtown Madness Sneak Preview Beta/build 1560. The retained Open1560 README identifies that exact target and partial assembly reuse, but does not establish which preview executable/data files are required, where they come from or their accepted digest. Do not substitute retail Midtown Madness assets without evidence.",
       "remaining_condition": "Bind original Midtown Madness preview build 1560; do not substitute retail game files.",
       "limitations": "Partial native rewrite targets preview build1560, not general retail Midtown Madness.",
       "artwork": {
@@ -17682,7 +18501,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Do not advertise general retail Midtown Madness compatibility; upstream explicitly targets preview build 1560.",
+        "primary_evidence": {
+          "url": "https://github.com/0x1F9F1/Open1560/blob/master/README.md",
+          "readme_blob_sha": "84d1c8291eeb44e7591307662d1726ef19ce0572",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C113",
+          "basis": "README identifies Sneak Preview Beta/build1560 but omits player source-data requirements.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/112/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which Midtown Madness Sneak Preview build1560 executable/data files and accepted digest are required, and what player acquisition/setup is documented?"
+      }
     },
     "might-and-magic-vii-openenroth": {
       "game": "Might and Magic VII",
@@ -17706,7 +18540,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Official README says MM7 playable; desktop nightly packages available.",
       "upstream_platforms": "Nightly Windows x86/x86-64 ZIPs, Linux x86-64 Flatpak, macOS ARM64/x86-64 DMGs and Android universal APK. MM7 current; other MM games remain planned.",
-      "original_data": "MM6 and MM8 only planned; do not list them as playable current targets.",
+      "original_data": "Supply original Might and Magic VII game data, from a GOG installation or another installed/extracted retail copy: at least ANIMS, DATA, MUSIC and SOUNDS directories. Point OPENENROTH_MM7_PATH at that data when needed. MM6/MM8 are planned targets, not substitutes for MM7 assets; exact accepted language/patch revision is not pinned in retained README.",
       "remaining_condition": "MM7 is currently playable upstream; MM6/MM8 are planned only. Bind original MM7 data and nightly-channel limits.",
       "limitations": "MM7 playable upstream; MM6/MM8 planned. Nightly-only releases may contain bugs.",
       "artwork": {
@@ -17732,7 +18566,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "MM6 and MM8 only planned; do not list them as playable current targets.",
+        "primary_evidence": {
+          "url": "https://github.com/OpenEnroth/OpenEnroth/blob/master/README.md",
+          "readme_blob_sha": "420edc09ec962068b0a2287221750ae4c0ee8afb",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C114",
+          "basis": "README Getting game data explicitly requires MM7 original files, GOG/retail routes and four directory names.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/113/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "need-for-speed-ii-special-edition-nfsiise": {
       "game": "Need for Speed II: Special Edition",
@@ -17756,7 +18605,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Cross-platform wrapper with Windows/Linux releases and original game support.",
       "upstream_platforms": "Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence.",
-      "original_data": "Scope review: wrapper rather than full source reconstruction; exact source binaries/assets and architecture mapping.",
+      "original_data": "Supply original Need for Speed II Special Edition game data, including fedata and gamedata directories placed in the port game directory as documented by upstream. This is the Special Edition data contract, not ordinary NFS II or NFS III. Exact supported disc language/patch and original binary fingerprint remain Unknown in the retained README.",
       "remaining_condition": "Establish exact original executable/data and x86 dependency contract; classify wrapper/native reconstruction honestly.",
       "limitations": "Scope review: wrapper rather than full source reconstruction; exact source binaries/assets and architecture mapping. Cross-platform wrapper with Windows/Linux releases and original game support.",
       "artwork": {
@@ -17777,7 +18626,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Scope review: wrapper rather than full source reconstruction; exact source binaries/assets and architecture mapping.",
+        "primary_evidence": {
+          "url": "https://github.com/zaps166/NFSIISE/blob/master/README.md",
+          "readme_blob_sha": "c35c898477299b6a9fd6fa7b3ec8909a6558b78a",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C115",
+          "basis": "README documented deployment instructions explicitly copy original fedata/gamedata directories.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/114/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "need-for-speed-ii-special-edition-nfs-recompiled": {
       "game": "Need for Speed II: Special Edition",
@@ -17801,7 +18665,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Static recompilation with release zip and original-data instructions.",
       "upstream_platforms": "Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential.",
-      "original_data": "Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects.",
+      "original_data": "Supply an original Need for Speed II Special Edition installation plus its CD Fedata/GameData content. Source generation requires nfs2sen.exe and eacsnd.dll in nfs2se/. Exact supported language/patch and binary hashes are not stated in the retained README.",
       "remaining_condition": "Bind separate NFS II SE and NFS III data/executables and Linux package/build routes; preserve toy-project maturity.",
       "limitations": "Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify.",
       "artwork": {
@@ -17822,7 +18686,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects.",
+        "primary_evidence": {
+          "url": "https://github.com/motor-dev/nfs-recompiled/blob/main/README.md",
+          "readme_blob_sha": "21fea1da61abec11b1c81216d76dd30c4480ad00",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C116",
+          "basis": "README Game Data and generation sections require original installed/CD files and enumerate per-game executables/DLLs.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/115/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "need-for-speed-iii-hot-pursuit-nfs-recompiled": {
       "game": "Need for Speed III: Hot Pursuit",
@@ -17846,7 +18725,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Static recompilation with release zip and original-data instructions.",
       "upstream_platforms": "Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential.",
-      "original_data": "Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects.",
+      "original_data": "Supply an original Need for Speed III: Hot Pursuit installation plus its CD Fedata/GameData content. Source generation requires nfs3.exe, eacsnd.dll, softtria.dll and voodoo2a.dll in nfs3hp/. Exact supported language/patch and binary hashes are not stated in the retained README.",
       "remaining_condition": "Bind separate NFS II SE and NFS III data/executables and Linux package/build routes; preserve toy-project maturity.",
       "limitations": "Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify.",
       "artwork": {
@@ -17867,7 +18746,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Maintainer explicitly calls it a toy project; verify exact runnable package/platform and game-specific defects.",
+        "primary_evidence": {
+          "url": "https://github.com/motor-dev/nfs-recompiled/blob/main/README.md",
+          "readme_blob_sha": "21fea1da61abec11b1c81216d76dd30c4480ad00",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C116",
+          "basis": "README Game Data and generation sections require original installed/CD files and enumerate per-game executables/DLLs.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/115/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "perimeter-perimeter-community-engine": {
       "game": "Perimeter",
@@ -17891,7 +18785,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Open-source engine supports both games and original data; current source development.",
       "upstream_platforms": "Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research.",
-      "original_data": "Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental.",
+      "original_data": "Supply purchased Perimeter game resources (models, textures, sounds, texts and configuration files) from the appropriate physical/digital release. Point the engine at that game content; do not assume the other Perimeter title supplies this target. Exact retail edition/patch/localization and any shared-base requirement remain Unknown in the retained README.",
       "remaining_condition": "Identify useful current official desktop build route independently of Steam retail distribution; keep macOS experimental.",
       "limitations": "Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Open-source engine supports both games and original data; current source development.",
       "artwork": {
@@ -17917,7 +18811,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental.",
+        "primary_evidence": {
+          "url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/main/README.md",
+          "readme_blob_sha": "eb638664babcce222fea1b7536d13f880c537c26",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C117",
+          "basis": "README Game assets section requires purchased physical/digital game resources and describes content-path search.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/116/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "perimeter-emperor-s-testament-perimeter-community-engine": {
       "game": "Perimeter: Emperor's Testament",
@@ -17941,7 +18850,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Open-source engine supports both games and original data; current source development.",
       "upstream_platforms": "Desktop source build for Windows/Linux, experimental macOS. Observed GitHub release lacks binaries; selected host CPU matrix unknown in frozen research.",
-      "original_data": "Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental.",
+      "original_data": "Supply purchased Perimeter: Emperor's Testament game resources (models, textures, sounds, texts and configuration files) from the appropriate physical/digital release. Point the engine at that game content; do not assume the other Perimeter title supplies this target. Exact retail edition/patch/localization and any shared-base requirement remain Unknown in the retained README.",
       "remaining_condition": "Identify useful current official desktop build route independently of Steam retail distribution; keep macOS experimental.",
       "limitations": "Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental. Open-source engine supports both games and original data; current source development.",
       "artwork": {
@@ -17962,7 +18871,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Observed GitHub release has no binaries; official Steam edition separate, macOS and some behavior experimental.",
+        "primary_evidence": {
+          "url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/main/README.md",
+          "readme_blob_sha": "eb638664babcce222fea1b7536d13f880c537c26",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C117",
+          "basis": "README Game assets section requires purchased physical/digital game resources and describes content-path search.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/116/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "pharaoh-akhenaten": {
       "game": "Pharaoh",
@@ -18038,7 +18962,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native disassembly-derived port; official README links desktop builds externally.",
       "upstream_platforms": "Official external desktop builds and documented Windows/Unix/macOS source compilation. Selected package CPU architectures unknown in frozen research.",
-      "original_data": "Review complete package contents and lawful original-data handling before managed admission.",
+      "original_data": "Original-data/package contract remains Unknown for this SDLPoP route: establish whether the selected distribution already includes necessary Prince of Persia DOS data and which original v1.0/modified DAT set is accepted. Retained README supports original/mod DAT files and MIDISND*.DAT music, but does not establish a separate player-owned executable/ROM requirement. Do not impose one without evidence; asset permission review remains separate.",
       "remaining_condition": "Review official complete package contents and original-data rights before managed-package admission; source/native identity is established.",
       "limitations": "Review complete package contents and lawful original-data handling before managed admission. Native disassembly-derived port; official README links desktop builds externally.",
       "artwork": {
@@ -18063,7 +18987,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Review complete package contents and lawful original-data handling before managed admission.",
+        "primary_evidence": {
+          "url": "https://github.com/NagyD/SDLPoP/blob/master/README.md",
+          "readme_blob_sha": "5bc50e61640ec58963c9b89e0036ec93686a5b22",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C119",
+          "basis": "README describes DOS-derived port, DAT/mod data support and MIDISND music but no clear separate-player-input contract.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/118/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Does the selected SDLPoP distribution include necessary game data, and which DOS v1.0/modified DAT set is accepted without imposing an unsupported external executable requirement?"
+      }
     },
     "puyo-puyo-box-puyopuyoboxrecomp": {
       "game": "Puyo Puyo Box",
@@ -18544,7 +19483,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Classic Tomb Raider engine with Windows/Linux/macOS standalone artifacts.",
       "upstream_platforms": "Windows/Linux/macOS standalone release artifacts/source builds. Exact selected artifact CPU architectures unknown in frozen research.",
-      "original_data": "Verify exact supported game content and complete data/setup path; not automatic merge with TRX.",
+      "original_data": "Original-data contract remains Unknown for this classic Tomb Raider OpenLara target: establish the accepted original platform/edition, required level/audio/video files and their layout for the selected standalone build. Retained README links a WebGL demo and standalone release but supplies no full-game input contract; demo content does not establish full retail-data compatibility.",
       "remaining_condition": "Establish exact currently supported Tomb Raider game/edition and data installation from primary docs; screenshots of later titles do not prove their complete support.",
       "limitations": "Verify exact supported game content and complete data/setup path; not automatic merge with TRX. Classic Tomb Raider engine with Windows/Linux/macOS standalone artifacts.",
       "artwork": {
@@ -18570,7 +19509,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Verify exact supported game content and complete data/setup path; not automatic merge with TRX.",
+        "primary_evidence": {
+          "url": "https://github.com/XProger/OpenLara/blob/master/README.md",
+          "readme_blob_sha": "87f74a3341e2f2f530533edb6c5ad6df4e531f31",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C130",
+          "basis": "README identifies classic Tomb Raider engine and demo/standalone links without required full-game source files.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/129/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": "Which original Tomb Raider platform/edition, level/audio/video files and layout does the chosen standalone OpenLara build require?"
+      }
     },
     "top-gear-snes-top-gear-for-windows": {
       "game": "Top Gear (SNES)",
@@ -18639,7 +19593,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Desktop native packages, owned-data setup and upstream end-to-end-play claim.",
       "upstream_platforms": "Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux SteamDeck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research.",
-      "original_data": "Newer modernization; retain raw upstream claim as unverified, not Portcove support status.",
+      "original_data": "Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported.",
       "remaining_condition": "Establish operation-scoped setup/data contract; start-to-finish completion remains upstream claim, not Portcove testing.",
       "limitations": "Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support.",
       "artwork": {
@@ -18660,7 +19614,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Newer modernization; retain raw upstream claim as unverified, not Portcove support status.",
+        "primary_evidence": {
+          "url": "https://github.com/UltimaBeaR/OpenChaos/blob/main/README.md",
+          "readme_blob_sha": "bb7266749761cff7c163d00c38826a267e24d455",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C132",
+          "basis": "README How to play and legal sections require installed original game files, identify storefront/disc sources and allow any localization.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/131/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "vagrant-story-playstation-rood-boi": {
       "game": "Vagrant Story (PlayStation)",
@@ -18773,7 +19742,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Native SDL2 Win/Linux/macOS packages and original-data setup.",
       "upstream_platforms": "Native Windows/Linux/macOS SDL2 packages; selected CPU architectures unknown in frozen release evidence. Native port differs from incomplete reference reconstruction.",
-      "original_data": "Reference reconstruction incomplete; DOS data only partially supported, preserve exact edition contract.",
+      "original_data": "Supply original Wing Commander I: The Kilrathi Saga data, including GAMEDAT and STREAMS/PREFLITE.STR, STREAMS/POSFLITE.STR and STREAMS/MISSION.STR. Original DOS data is only partially supported. No copyrighted game data is included. The native SDL2 port autodetects the selected data directory; contributor WC1.ORI.EXE/code-full requirements are not universal player inputs. Exact accepted Saga/DOS patch fingerprints remain Unknown.",
       "remaining_condition": "Select Kilrathi Saga data route; DOS support partial. Byte similarity does not establish gameplay completion.",
       "limitations": "Native SDL2 port with Kilrathi Saga data and partial DOS compatibility; reference byte similarity does not measure gameplay completion.",
       "artwork": {
@@ -18799,7 +19768,22 @@
       ],
       "review_date": "2026-10-24",
       "runtime_evidence": "Not run; upstream documentation/release observations only",
-      "related": []
+      "related": [],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Reference reconstruction incomplete; DOS data only partially supported, preserve exact edition contract.",
+        "primary_evidence": {
+          "url": "https://github.com/neuromancer/wc1-re/blob/main/README.md",
+          "readme_blob_sha": "7a161f5f5f7ed740c50515816842c3f55fe7b9fc",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C135",
+          "basis": "README native setup lines49-50 require GAMEDAT; lines71-72 require Saga streamed assets PREFLITE.STR, POSFLITE.STR and MISSION.STR. Opening text preserves partial DOS support and no included copyrighted data.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/134/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "zeus-master-of-olympus-ezeus": {
       "game": "Zeus: Master of Olympus",
@@ -18913,7 +19897,7 @@
       "listing": "authored-discovery-record",
       "acquisition": "Decompilation called fully playable upstream; original-data and BASS dependency documented.",
       "upstream_platforms": "Windows source-build scripts using legacy MSVC7 by default; optional64-bit build documented. No observed binary assets; output architecture must follow chosen toolchain/BASS library.",
-      "original_data": "Observed release has no binaries; version-specific data plus BASS redistribution/setup require review.",
+      "original_data": "Supply Zuma Deluxe data files from an owned original installation; assets and bass.dll are not included. For 32-bit builds use the original BASS 1.8 DLL; BASS 2.4 is required for 64-bit and optionally supported for 32-bit. The reconstruction reference is the official web/PopCap Ultimate Collection Zuma.exe SHA-256 51cf7bbc6df4a41ec137a52d4496c3149ba32c9ae2acc4653279d04c164809aa; exact Steam-data compatibility remains unestablished here.",
       "remaining_condition": "Use upstream source build with owned Zuma Deluxe v1.0 data and BASS; selected bootstrap downloads legacy MSVC tools, so establish acceptable acquisition.",
       "limitations": "Upstream says fully playable with expected bugs/inaccuracies; source build and separate BASS library remain required.",
       "artwork": {
@@ -18936,7 +19920,22 @@
       "runtime_evidence": "Not run; upstream documentation/release observations only",
       "related": [
         "No binary release is not no player route: upstream build.bat/build.sh automate a source build with downloaded MSVC7/CMake/Ninja; BASS is separately supplied."
-      ]
+      ],
+      "source_data_correction": {
+        "review_date": "2026-10-25",
+        "previous_scope_note": "Observed release has no binaries; version-specific data plus BASS redistribution/setup require review.",
+        "primary_evidence": {
+          "url": "https://github.com/kyle-sylvestre/CircleShootApp/blob/master/README.md",
+          "readme_blob_sha": "51dcd7ab94a07439e32411f3e55e18ef1755c357",
+          "retained_container": "candidate-primary-evidence.json",
+          "candidate_id": "C137",
+          "basis": "README requires owned assets, describes BASS variants, identifies exact reference executable and separately links Steam acquisition.",
+          "local_path": "E:\\Codex-Evidence\\missing-ports-audit-20261024\\candidate-primary-evidence.json",
+          "json_pointer": "/136/readme",
+          "decoded_content": "Base64 decode content at this exact retained readme object; blob SHA binds its text."
+        },
+        "remaining_input_question": null
+      }
     },
     "abuse-abuse-2025": {
       "game": "Abuse",
@@ -36725,5 +37724,16 @@
       "runtime_evidence": "Existing scope retained; no new runtime evidence claimed"
     }
   },
-  "validation_evidence_owner": "https://github.com/boburning/portcove/issues/2552"
+  "validation_evidence_owner": "https://github.com/boburning/portcove/issues/2552",
+  "source_data_completeness_correction": {
+    "review_date": "2026-10-25",
+    "owner_issue": "https://github.com/boburning/portcove/issues/2552",
+    "prior_ledger_sha256": "8235a160f6b68a829fcaa91dc49c6d66b2d5054d2085d62565ac840073135c1a",
+    "original_plan_sha256": "7c66d3671a446b522d91ba8e293eb61f02672eaa3fa5207318253d8693699364",
+    "semantic_audit_sha256": "7f40dd147a2af7b4c50cc1e7fd0effb066fdada279e017d75064e80835913b7e",
+    "owners_screened": 333,
+    "corrected_fields": 66,
+    "unaffected_fields": 267,
+    "scope": "Correct existing original-input metadata from retained primary observations. Identities, ownership, artwork, acquisition, holds and release commitments are preserved. Explicit unresolved inputs are questions, not source or runtime acceptance."
+  }
 }

@@ -3,7 +3,7 @@
   "listing": {
     "id": "transport-tycoon-deluxe-openttd-upstream",
     "name": "Transport Tycoon Deluxe (OpenTTD (upstream))",
-    "summary": "Upstream route: Mature native reimplementation with free replacement data or original retail data. Limits: Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data. Upstream platforms: Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit. Original data: Already tracked JGR Patch Pack #1859 is a distinct fork; record upstream as an alternative, not duplicate alias. Portcove setup/gameplay not verified.",
+    "summary": "Upstream route: Mature native reimplementation with free replacement data or original retail data. Limits: Established upstream OpenTTD engine; independent from JGR PatchPack and uses free replacement or owned original data. Upstream platforms: Official Windows/Linux/macOS package routes; macOS universal support documented. Selected Windows/Linux release artifact CPUs unknown in frozen audit. Original data: OpenTTD needs base graphics and sound data. Use the free OpenGFX/OpenSFX sets (OpenMSX supplies optional music), or copy original DOS/Windows Transport Tycoon Deluxe CD graphics/sound files into baseset/. Original commercial TTD assets are optional when using the free sets; original TTD music can be copied separately. Portcove setup/gameplay not verified.",
     "original_game_title": "Transport Tycoon Deluxe",
     "project_url": "https://github.com/OpenTTD/OpenTTD",
     "platforms": [],
