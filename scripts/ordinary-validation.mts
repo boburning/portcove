@@ -750,11 +750,19 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-hosted-native-runner.mts",
-    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    ],
   ],
   [
     "scripts/release-hosted-native-bootstrap.mts",
-    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    ],
   ],
   [
     "scripts/release-hosted-native-launcher.mts",
@@ -1096,6 +1104,7 @@ for (const [file, tests] of [
       "scripts/release-native-wsl-capture.test.mts",
       "scripts/release-hosted-native-job.test.mts",
       "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
       "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",

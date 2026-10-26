@@ -1644,3 +1644,16 @@ whole-job fit and final runnable source/resource-policy/grant reconciliation sta
 pending. D1/D2/D3, single-owner recovery, $0 stop, Unknown headroom/availability,
 no reservation/paid fallback, #254 Done, #315/#534/#246 acceptance pending,
 Chameleon protected acceptance unset, production hold and Slice 5 exclusion remain.
+
+### Windows original-parent runtime preparation — October 26
+
+The [Windows bootstrap/source/runtime join](slice4-hosted-observations-2026-10-22.md#windows-original-parent-runtime-preparation-october-26)
+prepares authenticated Windows tools, original parent and executing runtime in
+one bundle realm under the original provider deadline and actual Windows
+custody checks. Its report is preparation-only; no account, candidate, native
+settlement, signing, upload or runnable Windows job is added. Controlled peers
+cannot establish actual hosted or protected acceptance. Source/dependency and
+candidate joins, capture/report/proof/upload, actual producer/client-minimum/
+protected observations, whole-job fit and final source/digest/grant reconciliation
+remain unfinished. The inert fixture approval and disabled consumed account/audit
+grants retain their exact scope; no new manual setup is requested.

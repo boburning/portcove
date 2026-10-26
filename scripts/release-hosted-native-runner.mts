@@ -2,7 +2,7 @@
  * proof custody, execution, signing or admission authority. No automatic retry. */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { lstat, realpath, mkdir } from "node:fs/promises";
+import { lstat, realpath, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
@@ -10,7 +10,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { retainReleaseRoutingMarker } from "./release-routing-marker.mts";
-import { receiveControllerTools } from "./release-controller-tool-admission.mts";
+import {
+  receiveControllerTools,
+  verifiedControllerToolPaths,
+} from "./release-controller-tool-admission.mts";
+import {
+  inspectNativeRuntimeCustody,
+  recheckNativeRuntimeCustody,
+} from "./release-native-runtime-custody.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -327,6 +334,99 @@ async function runConfiguredJob(
   );
   assert.ok(performance.now() < deadline);
   return runNativeJob(root, deadline, stage, { tools, executing_entry: executingEntry });
+}
+
+/** Preparation stays in the authenticated bundle's realm. Serialized reports
+ * cannot reproduce the original tools/parent/runtime capabilities. */
+export async function prepareConfiguredHostedWindowsRuntime(
+  raw: unknown,
+  root: string,
+  deadline: number,
+  executingEntry: string,
+) {
+  assert.ok(process.platform === "win32" && process.arch === "x64");
+  const input: unknown = structuredClone(raw);
+  assert.ok(exact(input, "tools") && exact(input.tools, "artifact,bundle"));
+  assert.ok(isRecord(input.tools.artifact) && input.tools.artifact.platform === "windows-x86_64");
+  assert.ok(isRecord(input.tools.bundle));
+  assert.ok(
+    Number.isFinite(deadline) &&
+      deadline > performance.now() &&
+      deadline - performance.now() <= 570000,
+  );
+  const { assertControllerBootstrapEnvironment } =
+    await import("./release-controller-job-bootstrap.mts");
+  assertControllerBootstrapEnvironment();
+  await ownedRoot(root);
+  const intent = path.join(root, "windows-runtime-preparation-intent.json");
+  await writeFile(
+    intent,
+    JSON.stringify({
+      schema_version: 1,
+      platform: "windows-x86_64",
+      automatic_retry: false,
+      authority: "none",
+    }),
+    { flag: "wx", mode: 0o600, flush: true },
+  );
+  const initialCustody = inspectNativeRuntimeCustody([intent]);
+  const active = () => {
+    assertControllerBootstrapEnvironment();
+    recheckNativeRuntimeCustody([intent], initialCustody);
+    assert.ok(performance.now() < deadline, "original Windows preparation expired");
+  };
+  active();
+  const tools = await receiveControllerTools(
+    root,
+    input.tools.artifact as unknown as ControllerToolArtifactExpected,
+    input.tools.bundle as unknown as { artifact_id: number; sha256: string },
+    { deadline },
+  );
+  active();
+  const { createActualHostedNativeParentSource, requireActualHostedNativeParentSource } =
+    await import("./release-hosted-native-parent.mts");
+  const { prepareHostedNativeRuntime, requireHostedNativeRuntime } =
+    await import("./release-hosted-native-runtime.mts");
+  const parent = await createActualHostedNativeParentSource(
+    root,
+    "windows-x86_64",
+    "payload-signing",
+    deadline,
+  );
+  active();
+  const original = await requireActualHostedNativeParentSource(parent);
+  const evidenceFiles = ["source.json", "configuration.json", "identity.json"].map((name) =>
+    path.join(original.directory, name),
+  );
+  const evidenceCustody = inspectNativeRuntimeCustody(evidenceFiles);
+  const runtime = await prepareHostedNativeRuntime(tools, parent, executingEntry);
+  active();
+  const paths = await verifiedControllerToolPaths(tools);
+  assert.equal(paths.platform, "windows-x86_64");
+  await requireHostedNativeRuntime(runtime, parent);
+  const report = {
+    schema_version: 1,
+    platform: "windows-x86_64",
+    producer: original.producer,
+    manifest_sha256: hash(
+      await readControllerToolFile(path.join(paths.root, "manifest.json"), 65536),
+    ),
+    scope: "original source/tool/runtime preparation only",
+    candidate_isolation: "unproven",
+    native_acceptance: "not-established",
+    production_tool_acceptance: "not-established",
+    authority: "none",
+  };
+  active();
+  recheckNativeRuntimeCustody(evidenceFiles, evidenceCustody);
+  await retainReleaseRoutingMarker(path.join(root, "windows-runtime-prepared.json"), report);
+  await requireHostedNativeRuntime(runtime, parent);
+  await requireActualHostedNativeParentSource(parent);
+  active();
+  recheckNativeRuntimeCustody(evidenceFiles, evidenceCustody);
+  active();
+  original.recheck();
+  return Object.freeze({ tools, parent, runtime, deadline: Math.min(deadline, original.deadline) });
 }
 
 /** Fixed caller entry. The bootstrap must supply its original cross-process

@@ -1339,3 +1339,37 @@ acceptance. There is no environment or CLI option to renew that grant. The
 accepted inert primitive remains attributed to its original source/run; new
 candidate/source/runtime/capture/report/proof/upload and client-minimum/protected
 observations remain unfinished. Production stays held; no owner setup is requested.
+
+## Windows original-parent runtime preparation October 26
+
+The fixed bootstrap now has an explicit Windows source/runtime preparation route.
+It selects only the Windows producer artifact and the shared attester's Windows
+bundle outputs, binds the fixed platform/job into its source digest, and creates
+one exclusive short broker-home root. Actual Windows owner/ACL/file/ancestry
+custody is required before importing authenticated tools. The original provider
+job clock covers all receiving, issuer and runtime preparation; no retry or new
+stage allowance follows from a retained directory or report.
+
+Inside the authenticated runner bundle, tools are authenticated again and joined
+to the original Windows parent and executing runtime in the same module realm.
+The private single-link intent uses an exclusive flushed write; public routing
+markers retain their original hardlink semantics. The preparation report binds
+the original producer/configuration/grant/workflow tuple and complete attested
+manifest digest. Serialized reports cannot reproduce the original object
+capabilities. Source/role-credential and runtime/custody checks continue across
+awaits. Existing Linux execution, worker, launcher and upload routes remain.
+
+This route prepares only the pre-sign runtime. It creates no account, candidate
+process, capture, signature, upload or successful native settlement, and adds no
+runnable Windows workflow job. Controlled Windows peer tests establish selection,
+refusal, one-attempt and capability-forwarding behavior; they cannot establish
+actual hosted runtime, GUI, protected or production acceptance. The finite 89/40
+and future 99/hard 100 declarations remain unchanged; actual whole-job fit and
+final runnable source/resource-policy/grant reconciliation remain pending.
+
+Next engineering joins source/dependency preparation and the exact reserved
+candidate to this original parent/runtime, then implements Windows capture,
+report, proof and upload under their own provenance. The fixed inert WinSta0
+approval remains bounded to its original fixture; no arbitrary/protected grant
+is implied. Existing audit/account-qualification disables, historical failures,
+Unknown recovery states, no-spend/recovery boundaries and production hold remain.
