@@ -133,10 +133,10 @@
     {
       "id": "athelas-return-of-the-king-pc-fix",
       "canonical_issue": 2801,
-      "platform_scope": ["Windows x64 host, original 2003 PC game"],
+      "platform_scope": ["Windows x64 host, original US 2003 PC game"],
       "selected_route": "Upstream setup and non-owning Athelas registration",
       "runtime_update_owner": "Athelas/player; self-updating launcher",
-      "setup_data_boundary": "Own installed PC game; DLL enhancement and ROTKFix folder, PC copy protection retained. Launcher owns settings/installation/removal/update. External actual PC save/profile/settings remain outside Portcove backup.",
+      "setup_data_boundary": "Own installed US PC game; DLL enhancement and ROTKFix folder, PC copy protection retained. Launcher owns settings/installation/removal/update. External actual PC save/profile/settings remain outside Portcove backup.",
       "change_or_reason_unchanged": "New distinct PC enhancement entry; never merge with three Xbox games merely because they share the repository/launcher. Registration deliberately opens game-selection launcher, not a promised direct one-game launch.",
       "primary_evidence": [
         "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/README.md",
@@ -156,14 +156,15 @@
       ],
       "selected_route": "Preserve enhanced maintained fork; upstream-owned setup/replacement",
       "runtime_update_owner": "Upstream Windows/macOS updater; manual upstream Linux AppImage replacement",
-      "setup_data_boundary": "Own USA SCUS-94423 CUE/BIN; supplied OpenBIOS, retail BIOS optional. Windows native launcher and Linux AppImage registration supported; macOS shell/app entry seeds data/environment and remains an OS application/instructions handoff, not private-binary registration. Generated overlay caches and self-replacement do not fit generic managed replacement.",
+      "setup_data_boundary": "Own USA SCUS-94423 CUE/BIN; supplied OpenBIOS, retail BIOS optional. Windows native launcher and Linux AppImage registration supported; macOS shell/app entry seeds data/environment and remains an OS application/instructions handoff, not private-binary registration. Generated overlay caches and self-replacement do not fit generic managed replacement. Windows and Linux also have a separate launcher-preference/updater-metadata app-data root (NVDEMU/Ape Escape Recompiled - Enhanced Edition or explicit override), in addition to native player game data. Preserve both effective roots.",
       "change_or_reason_unchanged": "New non-owning fork entry after complete lineage comparison: current fork246 commits ahead/97 files vs parent; original tag source23 packaging commits/5 files. Keep parent #142 richer managed integration, existing support and closed scope unchanged. Publisher manifest-declared artifact build source is separate from tag/default source.",
       "primary_evidence": [
         "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md",
         "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/tools/package_macos.sh",
         "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/tools/package_release.ps1",
         "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/packaging/linux/AppRun",
-        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases/tag/macos-nightly"
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases/tag/macos-nightly",
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/tools/apply_recomp_ui_update_patch.py"
       ],
       "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
       "delivery_status": "authored-in-candidate"

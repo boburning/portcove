@@ -2,7 +2,7 @@
   "format_version": 1,
   "listing": {
     "id": "athelas-return-of-the-king-pc-fix",
-    "name": "The Return of the King (PC) — Athelas ROTK Fix",
+    "name": "The Return of the King (PC) \u2014 Athelas ROTK Fix",
     "summary": "Improve the 2003 Windows version of The Return of the King with Athelas and ROTK Fix.",
     "original_game_title": "The Lord of the Rings: The Return of the King",
     "project_url": "https://github.com/Shagg88/Athelas",
@@ -15,11 +15,11 @@
       "steps": [
         {
           "title": "Use Athelas with your own PC game",
-          "instruction": "Install your own 2003 Windows PC copy of The Lord of the Rings: The Return of the King. This enhancement is separate from Athelas's three original-Xbox ports; an Xbox disc does not replace this PC installation. Extract the official Athelas release into its own folder, open Athelas.exe deliberately, select the PC game and show it the game folder. The launcher installs ROTK Fix's DLLs and ROTKFix folder beside rotk.exe. Original game assets are not supplied, and the PC game's copy protection is not bypassed. Installing into a protected game folder may ask for Windows permission."
+          "instruction": "Install your own US 2003 Windows PC copy of The Lord of the Rings: The Return of the King. This enhancement is separate from Athelas's three original-Xbox ports; an Xbox disc does not replace this PC installation. Extract the official Athelas release into its own folder, open Athelas.exe deliberately, select the PC game and show it the game folder. The launcher installs ROTK Fix's DLLs and ROTKFix folder beside rotk.exe. Original game assets are not supplied, and the PC game's copy protection is not bypassed. Installing into a protected game folder may ask for Windows permission."
         },
         {
           "title": "Keep the launcher as the useful entry point",
-          "instruction": "Use Athelas for settings and Play; register Athelas.exe with its own folder as the working directory if you want it in Portcove. Registration opens the launcher, where you select this PC game; it does not promise a direct launch of one of the bundled games. Athelas writes ROTKFix.ini beside the PC game and updates its ROTK.ini in Documents with a backup copy. Preserve existing wrappers before changes and use About → Remove ROTK Fix for the upstream-supported removal that restores its replaced files."
+          "instruction": "Use Athelas for settings and Play; register Athelas.exe with its own folder as the working directory if you want it in Portcove. Registration opens the launcher, where you select this PC game; it does not promise a direct launch of one of the bundled games. Athelas writes ROTKFix.ini beside the PC game and updates its ROTK.ini in Documents with a backup copy. Preserve existing wrappers before changes and use About \u2192 Remove ROTK Fix for the upstream-supported removal that restores its replaced files."
         },
         {
           "title": "Let Athelas update and keep your own backups",
