@@ -27603,12 +27603,14 @@
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-exoddus",
       "name": "R.E.L.I.V.E. / Oddworld: Abe's Exoddus",
-      "summary": "Explore R.E.L.I.V.E. / Oddworld: Abe's Exoddus and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Exoddus; fresh package acquisition awaits upstream license and integrity evidence.",
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 122,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/AliveTeam/alive_reversing",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
       "artwork": {
         "game_id": 1000,
         "cover_id": 173511,
@@ -27616,17 +27618,35 @@
         "image_sha256": "b4ebd4e1951371f2eb6a016245ac3ae03cf0d740bea4267f6b8c3da23dae74f1",
         "game_slug": "oddworld-abe-s-exoddus",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/AliveTeam/alive_reversing/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your permitted working copy",
+            "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Exoddus, keep its corresponding original game files and any progress and settings with that copy."
+          },
+          {
+            "title": "Select that game’s player",
+            "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
+      },
+      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
     },
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-oddysee",
       "name": "R.E.L.I.V.E. / Oddworld: Abe's Oddysee",
-      "summary": "Explore R.E.L.I.V.E. / Oddworld: Abe's Oddysee and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee; fresh package acquisition awaits upstream license and integrity evidence.",
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 133,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/AliveTeam/alive_reversing",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
       "artwork": {
         "game_id": 999,
         "cover_id": 385472,
@@ -27634,7 +27654,23 @@
         "image_sha256": "1fdb0a42c9fe7d87464d610b83edcc3b69fad0f3fe7270542be97d8322303957",
         "game_slug": "oddworld-abe-s-oddysee",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/AliveTeam/alive_reversing/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your permitted working copy",
+            "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Oddysee, keep its corresponding original game files and any progress and settings with that copy."
+          },
+          {
+            "title": "Select that game’s player",
+            "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
+      },
+      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
     },
     {
       "id": "r4-douglasjv-r4-ridge-racer-type-4",
@@ -36179,35 +36215,36 @@
     {
       "id": "vcmi-vcmi",
       "name": "VCMI",
-      "summary": "VCMI offers upstream packages for Heroes of Might and Magic III. Follow upstream setup before registering your executable.",
+      "summary": "Play Heroes of Might and Magic III with VCMI’s mods and modern systems support using your own game data.",
       "project_url": "https://github.com/vcmi/vcmi",
       "issue_number": 1902,
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "packages",
-      "setup_url": "https://github.com/vcmi/vcmi/blob/1.7.5/docs/players/Installation_Windows.md",
+      "setup_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md",
       "original_game_title": "Heroes of Might and Magic III",
-      "release_url": "https://github.com/vcmi/vcmi/releases/tag/1.7.5",
+      "release_url": "https://github.com/vcmi/vcmi/releases",
       "manual_setup": {
         "steps": [
           {
-            "title": "Get the upstream package",
-            "instruction": "Choose the release and package for your computer. Download and extract a portable archive, or use the upstream installer yourself."
+            "title": "Use the Windows portable ZIP",
+            "instruction": "The Windows ZIP contains the client, launcher, map editor and server. Open the extracted folder and start VCMI_launcher.exe to complete upstream setup. The Windows installer remains an alternative."
           },
           {
-            "title": "Complete upstream setup",
-            "instruction": "Use your Heroes III Complete or Shadow of Death game data, or the GOG offline installer and its BIN files, as described in the linked instructions."
+            "title": "Import your Heroes III data",
+            "instruction": "In VCMI Launcher, import your GOG offline installer with its matching BIN file, or use your Heroes III Complete or Shadow of Death installation. The launcher handles data import and optional mods."
           },
           {
-            "title": "Select your executable",
-            "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+            "title": "Use the game client for Play",
+            "instruction": "After setup, finish Portcove registration with VCMI_client.exe and its folder. Keep VCMI Launcher available for mod management and setup. Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
           }
         ],
         "warnings": [
-          "This project has not been verified for play through Portcove."
+          "Heroes III Restoration of Erathia and the HD Edition are not supported; use Complete or Shadow of Death game data.",
+          "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions."
         ],
-        "help_url": "https://github.com/vcmi/vcmi/blob/1.7.5/docs/players/Installation_Windows.md"
+        "help_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md"
       },
       "artwork": {
         "game_id": 364,
@@ -36216,6 +36253,11 @@
         "image_sha256": "8140145877f727a95bf62cd94b9cb4b26a3148537c2225d90954256bd981b04c",
         "game_slug": "heroes-of-might-and-magic-iii-the-restoration-of-erathia",
         "match_kind": "underlying-game"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "VCMI-Windows.zip"
+        ]
       }
     },
     {
@@ -36803,12 +36845,14 @@
     {
       "id": "wargus-war1gus",
       "name": "Warcraft: Orcs & Humans / War1gus (Wargus)",
-      "summary": "Explore Warcraft: Orcs & Humans / War1gus (Wargus) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Warcraft: Orcs & Humans with War1gus and the Stratagus engine using your original DOS game files.",
       "project_url": "https://github.com/Wargus/war1gus",
       "issue_number": 1905,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Wargus/war1gus",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://wargus.github.io/war1gus.html",
       "artwork": {
         "game_id": 129,
         "cover_id": 90529,
@@ -36816,17 +36860,46 @@
         "image_sha256": "d40b5f879c0b748f887a59f5e1eac47426751de0f15d5223ea74967c27ebc0df",
         "game_slug": "warcraft-orcs-humans",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/Wargus/war1gus/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Run the upstream Windows setup",
+            "instruction": "Open the download folder and run the portable Windows EXE yourself. It is a setup program: choose a folder for the upstream War1gus copy."
+          },
+          {
+            "title": "Choose your original Warcraft files",
+            "instruction": "Start the installed War1gus player. When it asks, select the DOS game’s DATA.WAR file or your GOG offline installer. War1gus extracts the required data using its own setup tools."
+          },
+          {
+            "title": "Use the installed player",
+            "instruction": "Finish Portcove setup with the installed war1gus.exe and its folder. Keep your War1gus game data and user settings backed up when applying upstream updates."
+          }
+        ],
+        "warnings": [
+          "The current extractor does not fully support demo, shareware or Mac original-game data; upstream reports that those extracted data sets fail to launch."
+        ],
+        "help_url": "https://wargus.github.io/war1gus.html"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "War1gus-portable-",
+          ".exe"
+        ]
       }
     },
     {
       "id": "wargus-wargus",
       "name": "Warcraft II: Tides of Darkness / Wargus (Wargus)",
-      "summary": "Explore Warcraft II: Tides of Darkness / Wargus (Wargus) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Warcraft II with Wargus and the Stratagus engine using your original game files.",
       "project_url": "https://github.com/Wargus/wargus",
       "issue_number": 1904,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Wargus/wargus",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://wargus.github.io/",
       "artwork": {
         "game_id": 130,
         "cover_id": 182121,
@@ -36834,6 +36907,31 @@
         "image_sha256": "640dd464855ef96581c7a6a6644295425888fcfbb82cfd9fd4609c95defb41de",
         "game_slug": "warcraft-ii-tides-of-darkness",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/Wargus/wargus/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Run the upstream Windows setup",
+            "instruction": "Open the download folder and run the portable Windows EXE yourself. It is a setup program: choose a folder for the upstream Wargus copy."
+          },
+          {
+            "title": "Choose your Warcraft II files",
+            "instruction": "Start the installed Wargus player. When it asks, select your Warcraft II DOS or Battle.net game files, or GOG offline installer. Wargus extracts the required data using its own setup tools."
+          },
+          {
+            "title": "Use the installed player",
+            "instruction": "Finish Portcove setup with the installed wargus.exe and its folder. Keep your Wargus game data and user settings backed up when applying upstream updates."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://wargus.github.io/"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Wargus-portable-",
+          ".exe"
+        ]
       }
     },
     {
@@ -38440,12 +38538,39 @@
     {
       "id": "zdoom-gzdoom",
       "name": "Doom / GZDoom (ZDoom)",
-      "summary": "Explore Doom / GZDoom (ZDoom) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
       "project_url": "https://github.com/ZDoom/gzdoom",
       "issue_number": 1824,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/gzdoom"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/gzdoom#readme",
+      "release_url": "https://github.com/ZDoom/gzdoom/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the Windows player ZIP",
+            "instruction": "Choose the Windows runtime ZIP. Finish setup with gzdoom.exe in the extracted game folder. Keep your original game files and mods available."
+          },
+          {
+            "title": "Choose your original game",
+            "instruction": "On first Play, choose a compatible game IWAD detected by GZDoom. Follow upstream’s IWAD instructions if your game is not detected; the engine and original game files are separate."
+          },
+          {
+            "title": "Keep your profile and saved games",
+            "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable mode uses gzdoom_portable.ini and Save beside the player instead. Keep the locations you use, original files and mods backed up when updating the upstream runtime."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/gzdoom#readme"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "gzdoom-",
+          "-windows.zip"
+        ]
+      }
     },
     {
       "id": "zelda-link-s-awakening-dx-hd",

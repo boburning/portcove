@@ -3,12 +3,12 @@
   "listing": {
     "id": "r-e-l-i-v-e-oddworld-abe-s-oddysee",
     "name": "R.E.L.I.V.E. / Oddworld: Abe's Oddysee",
-    "summary": "Explore R.E.L.I.V.E. / Oddworld: Abe's Oddysee and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Oddysee; fresh package acquisition awaits upstream license and integrity evidence.",
     "project_url": "https://github.com/AliveTeam/alive_reversing",
     "issue_number": 133,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/AliveTeam/alive_reversing",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
     "artwork": {
       "game_id": 999,
       "cover_id": 385472,
@@ -16,6 +16,22 @@
       "image_sha256": "1fdb0a42c9fe7d87464d610b83edcc3b69fad0f3fe7270542be97d8322303957",
       "game_slug": "oddworld-abe-s-oddysee",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/AliveTeam/alive_reversing/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep your permitted working copy",
+          "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Oddysee, keep its corresponding original game files and any progress and settings with that copy."
+        },
+        {
+          "title": "Select that game’s player",
+          "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
+    },
+    "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
   }
 }

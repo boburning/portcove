@@ -1,0 +1,436 @@
+{
+  "format_version": 1,
+  "source_commit": "ac2769c81ad59631e7ee900ee5baa47ef760841e",
+  "observation_cutoff": "2026-10-26T04:10:46.010464+00:00",
+  "original_frozen_source": "62c4605f2da8121762fcd97a245f63e728644660",
+  "inventory_sources": [
+    "Existing six per-ID records byte-reconciled from frozen source to delivered main",
+    "Original 524-member installation-rollout inventory at9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+    "Six fresh canonical Roadmap contexts including existing blocked owners",
+    "Complete official release pagination, selected release assets and recursive tag-source trees",
+    "Pinned official Wargus website source7ce39585ae7961d9445f018965e26364e334b735"
+  ],
+  "coverage": {
+    "distinct_port_identities": 6,
+    "duplicate_identity_mappings_added": [],
+    "unresolved_identity_joins": [],
+    "two_oddworld_identities_preserved": true,
+    "initial_workset_reconciled": true,
+    "managed_fit_decisions_unfinished": [1824, 1902],
+    "existing_installer_only_operations": [1904, 1905],
+    "existing_owner_acquisition_holds": [133, 122]
+  },
+  "original_commitment": {
+    "parent": 2510,
+    "rollout_owner": 2926,
+    "original_identities": 524,
+    "affected_additions": 312,
+    "original_roadmap_joins": 22,
+    "full_acceptance_satisfied": false,
+    "historical_1422_cohort_expanded": false,
+    "separate_acceptance_owners": [2225, 47, 48],
+    "separate_publication_owners": [534, 246]
+  },
+  "evidence_boundary": "Generated dated coverage evidence, not a live backlog or support registry. Missing managed fit remains unfinished, not Unsupported or a new product deferral. Actual delivery belongs to canonical issue/PR readback.",
+  "ports": [
+    {
+      "id": "zdoom-gzdoom",
+      "canonical_issue": 1824,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "existing listing; no operational integration",
+      "selected_route": "Native Windows ZIP; first-Play upstream IWAD selection.",
+      "disposition": "improve-upstream-player-route",
+      "official_upstream": {
+        "repository": "ZDoom/gzdoom",
+        "node_id": "MDEwOlJlcG9zaXRvcnkxMDg3OTM3Ng==",
+        "source": "99aa489d09015a95bb78df2b30ede29f328cc874",
+        "tag": "g4.14.2",
+        "release_id": 216296130,
+        "observed_at": "2026-10-26T02:44:25.367Z",
+        "release_inventory_complete": true,
+        "releases_observed": 74,
+        "selected_assets_observed": 5,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "asset_id": 251530238,
+        "url": "https://github.com/ZDoom/gzdoom/releases/download/g4.14.2/gzdoom-4-14-2-windows.zip",
+        "bytes": 21879627,
+        "publisher_expected_digest": null,
+        "actual_sha256": "6d01c5bb48610cebfa9dfd0b7705a1e20bfd56032a74484ac256d8c4e3c51bee",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 15,
+          "central_directory_bytes": 1182,
+          "compressed_bytes": 21879627
+        },
+        "expanded_bytes": 34130971,
+        "executable_headers": [
+          {
+            "path": "gzdoom.exe",
+            "bytes": 11419136,
+            "machine": "0x8664"
+          }
+        ]
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Default Documents/My Games/GZDoom settings and Saved Games/GZDoom saves; optional portable INI and Save beside player. Original IWADs/mods remain player-owned.",
+      "managed_fit": "Unfinished: no independently expected publisher archive digest established by complete release assets/notes; full runtime-writer/portable-data contract remains to be established. A computed inspection hash is not authentication.",
+      "next_action": "Review an independently authenticated artifact identity and complete compatible runtime/persistence contract before managed admission.",
+      "download_asset_hints": {
+        "windows-x86-64": ["gzdoom-", "-windows.zip"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/zdoom-gzdoom.json",
+      "authored_preimage_sha256": "1726efeedb31f160bfa57eae4fd2289386b9dca6fb563ad938b4ffda0f6bbb13",
+      "authored_sha256": "246627fded3ec92df44b006b8443654da8b222cc9c03b2fa518008cdfcb792f3",
+      "authored_hash_scope": "SHA-256 of formatted authored per-ID bytes",
+      "preparation": {
+        "selected_tag": "g4.14.2",
+        "maintained_prepare_port": true,
+        "operational_changed": false,
+        "selected_asset_feedback": {
+          "assets_complete": true,
+          "maintenance": {
+            "observed_release_tag": "g4.14.2",
+            "potential_version_restrictions": [],
+            "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+            "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+          },
+          "platforms": [
+            {
+              "platform": "windows-x86-64",
+              "hint_matches": [
+                {
+                  "name": "gzdoom-4-14-2-windows.zip",
+                  "published_sha256": false
+                }
+              ],
+              "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+            }
+          ],
+          "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+        }
+      },
+      "validation_scope": "Maintained per-ID preparation; bounded official release/source and two read-only actual Windows ZIP inspections. No game, installer, helper or original execution. Final exact-head hosted checks and canonical delivery readback remain separate.",
+      "delivery_status": "candidate; canonical issue and PR own actual delivery",
+      "other_platforms": "Not qualified by this Windows operation assessment; no prior platform commitment removed."
+    },
+    {
+      "id": "vcmi-vcmi",
+      "canonical_issue": 1902,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "existing listing; no operational integration",
+      "selected_route": "Existing Windows route retained; discriminate native ZIP, import with VCMI_launcher.exe, register VCMI_client.exe for Play.",
+      "disposition": "improve-existing-upstream-setup-route",
+      "official_upstream": {
+        "repository": "vcmi/vcmi",
+        "node_id": "MDEwOlJlcG9zaXRvcnkxODQ5MDQyMQ==",
+        "source": "6901839ae9760dfcd1d5ff2c4aa4ef6968fee752",
+        "tag": "1.7.5",
+        "release_id": 370777167,
+        "observed_at": "2026-10-26T02:44:34.437Z",
+        "release_inventory_complete": true,
+        "releases_observed": 41,
+        "selected_assets_observed": 16,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "asset_id": 514813923,
+        "url": "https://github.com/vcmi/vcmi/releases/download/1.7.5/VCMI-Windows.zip",
+        "bytes": 48727777,
+        "publisher_expected_digest": "sha256:0a530799085c1a135f9686d49d859beab8741869dcd9fe0877ef428ca0830d88",
+        "actual_sha256": "0a530799085c1a135f9686d49d859beab8741869dcd9fe0877ef428ca0830d88",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 735,
+          "central_directory_bytes": 81704,
+          "compressed_bytes": 48727777
+        },
+        "expanded_bytes": 144072755,
+        "executable_headers": [
+          {
+            "path": "VCMI_client.exe",
+            "bytes": 13357056,
+            "machine": "0x8664"
+          },
+          {
+            "path": "VCMI_launcher.exe",
+            "bytes": 3795456,
+            "machine": "0x8664"
+          },
+          {
+            "path": "VCMI_mapeditor.exe",
+            "bytes": 4269056,
+            "machine": "0x8664"
+          },
+          {
+            "path": "VCMI_server.exe",
+            "bytes": 2018304,
+            "machine": "0x8664"
+          }
+        ]
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Complete/Shadow of Death or GOG offline EXE+BIN imported upstream. External Documents/My Games/vcmi includes game data/config/Saves/mods. Major-version save incompatibility stays visible.",
+      "managed_fit": "Unfinished fresh managed fit: authenticated ZIP exists, but Windows launcher detaches client and quits; direct client fatally exits without required data. External setup settings are not a valid atomic runtime-local completion marker.",
+      "next_action": "Establish a supported setup-completion/source contract and managed launch lifetime using existing capabilities where fitting; preserve the useful completed external-client route in the meantime.",
+      "download_asset_hints": {
+        "windows-x86-64": ["VCMI-Windows.zip"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/vcmi-vcmi.json",
+      "authored_preimage_sha256": "258003d17ee9212033214316e47a90608bb5d0013a8a5dc1fdc0eaf74b251b00",
+      "authored_sha256": "ff06714215a039e0e654adf8a5f846fcfeb9cc1cb5e5e59a253178f3c81e549a",
+      "authored_hash_scope": "SHA-256 of formatted authored per-ID bytes",
+      "preparation": {
+        "selected_tag": "1.7.5",
+        "maintained_prepare_port": true,
+        "operational_changed": false,
+        "selected_asset_feedback": {
+          "assets_complete": true,
+          "maintenance": {
+            "observed_release_tag": "1.7.5",
+            "potential_version_restrictions": [],
+            "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+            "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+          },
+          "platforms": [
+            {
+              "platform": "windows-x86-64",
+              "hint_matches": [
+                {
+                  "name": "VCMI-Windows.zip",
+                  "published_sha256": true
+                }
+              ],
+              "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+            }
+          ],
+          "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+        }
+      },
+      "validation_scope": "Maintained per-ID preparation; bounded official release/source and two read-only actual Windows ZIP inspections. No game, installer, helper or original execution. Final exact-head hosted checks and canonical delivery readback remain separate.",
+      "delivery_status": "candidate; canonical issue and PR own actual delivery",
+      "other_platforms": "Not qualified by this Windows operation assessment; no prior platform commitment removed."
+    },
+    {
+      "id": "wargus-wargus",
+      "canonical_issue": 1904,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "existing listing; no operational integration",
+      "selected_route": "Official portable EXE is NSIS setup; installed wargus.exe prompts for original Warcraft II extraction.",
+      "disposition": "add-upstream-installer-handoff",
+      "official_upstream": {
+        "repository": "Wargus/wargus",
+        "node_id": "MDEwOlJlcG9zaXRvcnk0NjUwMjU4Mg==",
+        "source": "420efb4256574ca2afb995ea3badfea542c416ac",
+        "tag": "v3.3.2",
+        "release_id": 74134587,
+        "observed_at": "2026-10-26T02:44:37.539Z",
+        "release_inventory_complete": true,
+        "releases_observed": 12,
+        "selected_assets_observed": 2,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": null,
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Upstream launcher/extractor handles DOS/Battle.net/GOG originals and versioned extracted data; retain user settings/data under upstream ownership. No managed persistence contract invented.",
+      "managed_fit": "Current Windows packages are NSIS EXEs, outside existing native-portable ZIP/tar.gz/tgz handling. Upstream setup is the fitting offered route.",
+      "next_action": "Reconsider managed archive adoption if upstream offers a compatible authenticated native archive and expressible generated-data/update contract.",
+      "download_asset_hints": {
+        "windows-x86-64": ["Wargus-portable-", ".exe"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/wargus-wargus.json",
+      "authored_preimage_sha256": "0abce4fe4f70ab729e41ac8a898c6b13bf2abc5424ea7ec33986ebdb41b61047",
+      "authored_sha256": "14b2f4eb47dda92e27bd9aa2aca12fcb85a9044a203c05354053bd7090a6abb2",
+      "authored_hash_scope": "SHA-256 of formatted authored per-ID bytes",
+      "preparation": {
+        "selected_tag": "v3.3.2",
+        "maintained_prepare_port": true,
+        "operational_changed": false,
+        "selected_asset_feedback": {
+          "assets_complete": true,
+          "maintenance": {
+            "observed_release_tag": "v3.3.2",
+            "potential_version_restrictions": [],
+            "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+            "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+          },
+          "platforms": [
+            {
+              "platform": "windows-x86-64",
+              "hint_matches": [
+                {
+                  "name": "Wargus-portable-3.3.2.exe",
+                  "published_sha256": false
+                }
+              ],
+              "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+            }
+          ],
+          "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+        }
+      },
+      "validation_scope": "Maintained per-ID preparation; bounded official release/source and two read-only actual Windows ZIP inspections. No game, installer, helper or original execution. Final exact-head hosted checks and canonical delivery readback remain separate.",
+      "delivery_status": "candidate; canonical issue and PR own actual delivery",
+      "other_platforms": "Not qualified by this Windows operation assessment; no prior platform commitment removed."
+    },
+    {
+      "id": "wargus-war1gus",
+      "canonical_issue": 1905,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "existing listing; no operational integration",
+      "selected_route": "Official portable EXE is NSIS setup; installed war1gus.exe prompts for original DOS Warcraft extraction.",
+      "disposition": "add-upstream-installer-handoff",
+      "official_upstream": {
+        "repository": "Wargus/war1gus",
+        "node_id": "MDEwOlJlcG9zaXRvcnk0NjUwMjU1OQ==",
+        "source": "c2a6013c879deb8a5dfd1e5202e9debb8fda047c",
+        "tag": "v3.3.2",
+        "release_id": 74136121,
+        "observed_at": "2026-10-26T02:44:40.893Z",
+        "release_inventory_complete": true,
+        "releases_observed": 12,
+        "selected_assets_observed": 2,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": null,
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Upstream DATA.WAR/GOG extraction and version checks; DOS CD/floppy supported upstream, demo/shareware/Mac data reported failing. User data remains externally owned.",
+      "managed_fit": "Current Windows packages are NSIS EXEs, outside existing native-portable archive handling. Upstream setup is the fitting offered route.",
+      "next_action": "Reconsider on compatible authenticated native archive and expressible generated-data/update contract.",
+      "download_asset_hints": {
+        "windows-x86-64": ["War1gus-portable-", ".exe"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/wargus-war1gus.json",
+      "authored_preimage_sha256": "b0c1ac8b8891bbce031fac7ab3bb55b2ba24fc7d46ca2bd30a34c07b0a8c88b0",
+      "authored_sha256": "7045a79d621da59ced66ae1e5c79957d87b5f3786f3df64dcc4965cac0fe1580",
+      "authored_hash_scope": "SHA-256 of formatted authored per-ID bytes",
+      "preparation": {
+        "selected_tag": "v3.3.2",
+        "maintained_prepare_port": true,
+        "operational_changed": false,
+        "selected_asset_feedback": {
+          "assets_complete": true,
+          "maintenance": {
+            "observed_release_tag": "v3.3.2",
+            "potential_version_restrictions": [],
+            "next": "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+            "scope": "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval."
+          },
+          "platforms": [
+            {
+              "platform": "windows-x86-64",
+              "hint_matches": [
+                {
+                  "name": "War1gus-portable-3.3.2.exe",
+                  "published_sha256": false
+                }
+              ],
+              "next": "Review native headers, launch location, setup, update ownership and data compatibility; a filename match does not establish fit. Bind an independently expected digest before managed acquisition."
+            }
+          ],
+          "scope": "Advisory self-service selection only; no package authentication, helper invocation or managed ownership is granted. An absent publisher hash remains explicitly unverified."
+        }
+      },
+      "validation_scope": "Maintained per-ID preparation; bounded official release/source and two read-only actual Windows ZIP inspections. No game, installer, helper or original execution. Final exact-head hosted checks and canonical delivery readback remain separate.",
+      "delivery_status": "candidate; canonical issue and PR own actual delivery",
+      "other_platforms": "Not qualified by this Windows operation assessment; no prior platform commitment removed."
+    },
+    {
+      "id": "r-e-l-i-v-e-oddworld-abe-s-oddysee",
+      "canonical_issue": 133,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "existing listing; no operational integration",
+      "selected_route": "Separate Oddysee identity; conditional permitted completed-copy registration. Fresh self-service acquisition held.",
+      "disposition": "retain-existing-acquisition-hold-and-existing-copy-route",
+      "official_upstream": {
+        "repository": "AliveTeam/alive_reversing",
+        "node_id": "MDEwOlJlcG9zaXRvcnkxMzYxODgwNTc=",
+        "source": "d797b618083d9a47d31220664d4a7180a77fefc8",
+        "tag": "github-v1.0.9",
+        "release_id": 207544004,
+        "observed_at": "2026-10-26T02:44:43.504Z",
+        "release_inventory_complete": true,
+        "releases_observed": 9,
+        "selected_assets_observed": 5,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": null,
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Oddysee original-data identity remains separate from Exoddus; executable/working directory explicitly selected from working copy. No arguments, save paths or permission invented.",
+      "managed_fit": "Existing owner-approved license, stable artifact integrity and exact original-source hold remains. Selected release offers debug packages with no advertised digest; complete source tree has no license file and README grant is unclear.",
+      "next_action": "Resume fresh acquisition when upstream supplies clear current redistribution license, authenticated stable package integrity and exact original-game source contract.",
+      "download_asset_hints": null,
+      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements.",
+      "authored_path": "crates/portcove-core/catalog/ports/r-e-l-i-v-e-oddworld-abe-s-oddysee.json",
+      "authored_preimage_sha256": "e604c74b1d4aad1ec1ef7422bdc0c83014f9e9bb24676eac6b7de29e2d16aa17",
+      "authored_sha256": "b2c508a2153c82672ac72860149d5ec0c53ebd973fc14dc1475c6cfeb73b3088",
+      "authored_hash_scope": "SHA-256 of formatted authored per-ID bytes",
+      "preparation": {
+        "selected_tag": "github-v1.0.9",
+        "maintained_prepare_port": true,
+        "operational_changed": false,
+        "selected_asset_feedback": null
+      },
+      "validation_scope": "Maintained per-ID preparation; bounded official release/source and two read-only actual Windows ZIP inspections. No game, installer, helper or original execution. Final exact-head hosted checks and canonical delivery readback remain separate.",
+      "delivery_status": "candidate; canonical issue and PR own actual delivery",
+      "other_platforms": "Not qualified by this Windows operation assessment; no prior platform commitment removed."
+    },
+    {
+      "id": "r-e-l-i-v-e-oddworld-abe-s-exoddus",
+      "canonical_issue": 122,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "existing listing; no operational integration",
+      "selected_route": "Separate Exoddus identity; conditional permitted completed-copy registration. Fresh self-service acquisition held.",
+      "disposition": "retain-existing-acquisition-hold-and-existing-copy-route",
+      "official_upstream": {
+        "repository": "AliveTeam/alive_reversing",
+        "node_id": "MDEwOlJlcG9zaXRvcnkxMzYxODgwNTc=",
+        "source": "d797b618083d9a47d31220664d4a7180a77fefc8",
+        "tag": "github-v1.0.9",
+        "release_id": 207544004,
+        "observed_at": "2026-10-26T02:44:45.851Z",
+        "release_inventory_complete": true,
+        "releases_observed": 9,
+        "selected_assets_observed": 5,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": null,
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Exoddus original-data identity remains separate from Oddysee; executable/working directory explicitly selected from working copy. No arguments, save paths or permission invented.",
+      "managed_fit": "Same upstream but distinct game and canonical owner; same bounded existing license/integrity/source hold reviewed without acquiring held payload.",
+      "next_action": "Resume on the existing owner-defined licensed stable package, authenticated integrity and exact original-game source condition.",
+      "download_asset_hints": null,
+      "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements.",
+      "authored_path": "crates/portcove-core/catalog/ports/r-e-l-i-v-e-oddworld-abe-s-exoddus.json",
+      "authored_preimage_sha256": "91ceffefb22e27d03d68777eda80ade2e9a78efd22b2138979e7594885595fc1",
+      "authored_sha256": "d56a84b8b453edf0e556ec002a2665a1dcc96b555c2dea6ce3c1e423de4065c0",
+      "authored_hash_scope": "SHA-256 of formatted authored per-ID bytes",
+      "preparation": {
+        "selected_tag": "github-v1.0.9",
+        "maintained_prepare_port": true,
+        "operational_changed": false,
+        "selected_asset_feedback": null
+      },
+      "validation_scope": "Maintained per-ID preparation; bounded official release/source and two read-only actual Windows ZIP inspections. No game, installer, helper or original execution. Final exact-head hosted checks and canonical delivery readback remain separate.",
+      "delivery_status": "candidate; canonical issue and PR own actual delivery",
+      "other_platforms": "Not qualified by this Windows operation assessment; no prior platform commitment removed."
+    }
+  ]
+}
