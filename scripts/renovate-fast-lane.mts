@@ -171,6 +171,71 @@ export function parseRenovateUpdates(body: string | null | undefined) {
   return updates;
 }
 
+export function diagnoseRenovateReleaseAge(
+  statuses: RenovateSnapshot["statuses"],
+  body: RenovatePull["body"],
+) {
+  const age = statuses.filter(({ context }) => context === "renovate/stability-days");
+  const markers = [
+    ...String(body ?? "").matchAll(/^<!--renovate-debug:([A-Za-z0-9+/=]{1,4096})-->$/gmu),
+  ];
+  let observedBotVersion: string | null = null;
+  if (markers.length === 1) {
+    try {
+      const debug: unknown = JSON.parse(Buffer.from(markers[0]?.[1] ?? "", "base64").toString());
+      if (
+        isRecord(debug) &&
+        typeof debug.updatedInVer === "string" &&
+        /^\d+\.\d+\.\d+$/u.test(debug.updatedInVer)
+      )
+        observedBotVersion = debug.updatedInVer;
+    } catch {
+      // A malformed optional debug marker supplies no deployment evidence.
+    }
+  }
+  const status = age.length === 1 ? age[0] : undefined;
+  const missingTimestamp =
+    /(?:missing|unavailable|unknown).*timestamp|timestamp.*(?:missing|unavailable|unknown)/iu.test(
+      status?.description ?? "",
+    );
+  const classification =
+    age.length > 1
+      ? "ambiguous"
+      : !status
+        ? "missing"
+        : status.state === "success"
+          ? "passed"
+          : status.state === "pending"
+            ? missingTimestamp
+              ? "timestamp-unavailable"
+              : "pending-unexplained"
+            : "failed";
+  const metadata = String(body ?? "").split(/^---$/mu)[0] ?? "";
+  const affectedUpdate =
+    parseRenovateUpdates(body).some(({ updateType }) =>
+      ["digest", "pindigest"].includes(updateType),
+    ) || /^\|\s*lockFileMaintenance\s*\|/mu.test(metadata);
+  const possibleUpstreamDefect = status?.state === "pending" && affectedUpdate;
+  return {
+    classification,
+    observed_bot_version: observedBotVersion,
+    bot_version_boundary: "PR debug marker only; current hosted deployment is not established",
+    timestamp_evidence: "Commit status does not expose lookup or branch timestamp inputs",
+    upstream_issue: possibleUpstreamDefect
+      ? "https://github.com/renovatebot/renovate/issues/45236"
+      : null,
+    upstream_match: possibleUpstreamDefect ? "possible, not a confirmed hosted root cause" : null,
+    next_action:
+      classification === "passed"
+        ? "Age status passed; continue the existing classifier, ownership, review and delivery gates."
+        : classification === "timestamp-unavailable"
+          ? "Inspect the exact candidate's hosted lookup/branch logs for the missing timestamp; preserve the required status and policy."
+          : classification === "pending-unexplained"
+            ? "Inspect the exact candidate's datasource timestamp and hosted lookup/branch inputs; pending alone does not prove a young release. Retry only after a supported correction or changed input."
+            : "Resolve missing, conflicting or failed age evidence with the bot owner; preserve the required status and policy.",
+  };
+}
+
 function packagePatternMatches(pattern: unknown, packageName: string) {
   if (typeof pattern !== "string" || !pattern) return true;
   if (pattern.startsWith("/") && pattern.lastIndexOf("/") > 0) {

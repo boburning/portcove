@@ -1592,3 +1592,21 @@ void test("inspection declaration schema and full CLI serialization include UTF-
   assert.equal(incompatible.status, 1);
   assert.match(incompatible.stderr, /mutually exclusive/);
 });
+
+void test("queue exposes age uncertainty without changing the pending-status gate", () => {
+  const statuses = [
+    {
+      context: "renovate/stability-days",
+      state: "pending",
+      description: "Updates have not met minimum release age requirement",
+    },
+  ];
+  const queue = inspectRenovateQueue(queueClient({ statuses }), queueConfig, required, queueBase);
+  const candidate = requiredFixture(queue.candidates[0]);
+  assert.equal(candidate.release_age_diagnosis.classification, "pending-unexplained");
+  assert.deepEqual(candidate.release_age, statuses);
+  assert.equal(candidate.actionable, false);
+  assert.equal(queue.selected, null);
+  assert.match(candidate.next_action, /hosted lookup\/branch inputs/);
+  assert.equal(inspectRenovateQueue(queueClient(), queueConfig, required, queueBase).selected, 7);
+});

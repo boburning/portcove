@@ -37,6 +37,10 @@ import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
 import { observeWindowsAccountCommand } from "./release-hosted-native-windows-observation.mts";
 
+// The single dedicated-account qualification was consumed in 40366111230/1.
+// Ordinary tool builds cannot renew that execution grant.
+export const hostedWindowsAccountQualificationEnabled = false;
+
 function hostedWindowsGit(source: string, args: string[]) {
   const result = spawnSync("git", args, {
     cwd: source,
@@ -253,138 +257,149 @@ async function main() {
       TMPDIR: directory,
     };
 
-    const broker = readProcessIdentity(process.pid);
-    assert.ok(broker && broker.startsWith(`win32:${process.pid}:`));
-    const context = {
-      schema_version: 1,
-      source_commit: expected.commit,
-      source_tree: expected.tree,
-      binding: randomBytes(32).toString("hex"),
-      broker_pid: process.pid,
-      broker_created_ticks: broker.split(":")[2],
-      run_id: process.env.GITHUB_RUN_ID,
-      run_attempt: 1,
-    };
-    assertHostedWindowsSource(source, expected);
-    recheckNativeRuntimeCustody(primitiveFiles, primitiveCustody);
-    const stdout = openSync(path.join(directory, "account.stdout.bin"), "wx");
-    const stderr = openSync(path.join(directory, "account.stderr.bin"), "wx");
-    let accountStatus: number | undefined;
-    let accountError: unknown;
-    try {
-      accountStatus = await runResourceCommand(
-        "analysis",
-        "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
-        [
-          "-NoLogo",
-          "-NoProfile",
-          "-NonInteractive",
-          "-File",
-          path.join(primitiveTools, "scripts/release-hosted-native-windows-setup.ps1"),
-          "-ContextBase64",
-          Buffer.from(JSON.stringify(context)).toString("base64"),
-        ],
-        {
-          cwd: source,
-          environment: {
-            ...primitiveEnvironment,
-            GITHUB_ACTIONS: "true",
-            GITHUB_REPOSITORY: "boburning/portcove",
-            RUNNER_ENVIRONMENT: "github-hosted",
-            GITHUB_EVENT_NAME: process.env.GITHUB_EVENT_NAME,
-            GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
-            GITHUB_RUN_ID: process.env.GITHUB_RUN_ID,
-            GITHUB_RUN_ATTEMPT: process.env.GITHUB_RUN_ATTEMPT,
-            SystemDrive: process.env.SystemDrive,
-          },
-          output: { stdout, stderr },
-          executionTimeoutMilliseconds: 145000,
-          supervise: (args, dependencies) =>
-            runRustTests(args, { ...dependencies, ...primitivePrepared, tempRoot: buildParent }),
-        },
-      );
-    } catch (error) {
-      accountError = error;
-    } finally {
-      closeSync(stdout);
-      closeSync(stderr);
-    }
-    const readbackFailures: string[] = [];
-    for (const name of [
-      "intent.json",
-      "account-created.json",
-      "result.json",
-      "capture/observed.json",
-      "capture/security-before-launch.json",
-      "capture/startup-token.json",
-      "capture/startup-threads.json",
-      "capture/startup-position.json",
-      "capture/access-audit.json",
-      "capture/audit-state.json",
-      ...Array.from({ length: 4 }, (_, index) =>
-        ["before", "proposed", "observed", "restored"].map(
-          (phase) => `capture/audit-${index}-${phase}.json`,
-        ),
-      ).flat(),
-      "capture/startup-popup.json",
-      "capture/station-recovery.json",
-    ]) {
-      const filename = path.join("C:\\ProgramData\\PortcoveHostedNativeQualification", name);
+    if (hostedWindowsAccountQualificationEnabled) {
+      const broker = readProcessIdentity(process.pid);
+      assert.ok(broker && broker.startsWith(`win32:${process.pid}:`));
+      const context = {
+        schema_version: 1,
+        source_commit: expected.commit,
+        source_tree: expected.tree,
+        binding: randomBytes(32).toString("hex"),
+        broker_pid: process.pid,
+        broker_created_ticks: broker.split(":")[2],
+        run_id: process.env.GITHUB_RUN_ID,
+        run_attempt: 1,
+      };
+      assertHostedWindowsSource(source, expected);
+      recheckNativeRuntimeCustody(primitiveFiles, primitiveCustody);
+      const stdout = openSync(path.join(directory, "account.stdout.bin"), "wx");
+      const stderr = openSync(path.join(directory, "account.stderr.bin"), "wx");
+      let accountStatus: number | undefined;
+      let accountError: unknown;
       try {
-        const bytes = await readControllerToolFile(filename, 65536);
-        const value: unknown = JSON.parse(bytes.toString("utf8"));
-        assert.ok(
-          isRecord(value) && isDeepStrictEqual(value.context, context),
-          "retained account evidence belongs to another attempt",
+        accountStatus = await runResourceCommand(
+          "analysis",
+          "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+          [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            path.join(primitiveTools, "scripts/release-hosted-native-windows-setup.ps1"),
+            "-ContextBase64",
+            Buffer.from(JSON.stringify(context)).toString("base64"),
+          ],
+          {
+            cwd: source,
+            environment: {
+              ...primitiveEnvironment,
+              GITHUB_ACTIONS: "true",
+              GITHUB_REPOSITORY: "boburning/portcove",
+              RUNNER_ENVIRONMENT: "github-hosted",
+              GITHUB_EVENT_NAME: process.env.GITHUB_EVENT_NAME,
+              GITHUB_WORKFLOW_REF: process.env.GITHUB_WORKFLOW_REF,
+              GITHUB_RUN_ID: process.env.GITHUB_RUN_ID,
+              GITHUB_RUN_ATTEMPT: process.env.GITHUB_RUN_ATTEMPT,
+              SystemDrive: process.env.SystemDrive,
+            },
+            output: { stdout, stderr },
+            executionTimeoutMilliseconds: 145000,
+            supervise: (args, dependencies) =>
+              runRustTests(args, { ...dependencies, ...primitivePrepared, tempRoot: buildParent }),
+          },
         );
-        await record(`account-${path.basename(name)}`, value);
       } catch (error) {
-        if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT"))
-          readbackFailures.push(
-            error instanceof Error ? error.message.slice(0, 1024) : "account evidence read refused",
-          );
+        accountError = error;
+      } finally {
+        closeSync(stdout);
+        closeSync(stderr);
       }
+      const readbackFailures: string[] = [];
+      for (const name of [
+        "intent.json",
+        "account-created.json",
+        "result.json",
+        "capture/observed.json",
+        "capture/security-before-launch.json",
+        "capture/startup-token.json",
+        "capture/startup-threads.json",
+        "capture/startup-position.json",
+        "capture/access-audit.json",
+        "capture/audit-state.json",
+        ...Array.from({ length: 4 }, (_, index) =>
+          ["before", "proposed", "observed", "restored"].map(
+            (phase) => `capture/audit-${index}-${phase}.json`,
+          ),
+        ).flat(),
+        "capture/startup-popup.json",
+        "capture/station-recovery.json",
+      ]) {
+        const filename = path.join("C:\\ProgramData\\PortcoveHostedNativeQualification", name);
+        try {
+          const bytes = await readControllerToolFile(filename, 65536);
+          const value: unknown = JSON.parse(bytes.toString("utf8"));
+          assert.ok(
+            isRecord(value) && isDeepStrictEqual(value.context, context),
+            "retained account evidence belongs to another attempt",
+          );
+          await record(`account-${path.basename(name)}`, value);
+        } catch (error) {
+          if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT"))
+            readbackFailures.push(
+              error instanceof Error
+                ? error.message.slice(0, 1024)
+                : "account evidence read refused",
+            );
+        }
+      }
+      const command = await observeWindowsAccountCommand(
+        directory,
+        accountStatus,
+        accountError,
+        readbackFailures,
+      );
+      await record("account-command.json", command);
+      if (accountError !== undefined) {
+        if (accountError instanceof Error) throw accountError;
+        throw new Error("hosted account resource operation refused", { cause: accountError });
+      }
+      assert.deepEqual(readbackFailures, []);
+      assert.equal(command.stderr.observation, "read");
+      assert.equal(
+        accountStatus,
+        0,
+        "hosted account command failed; inspect retained account-command.json",
+      );
+      const account: unknown = JSON.parse(
+        (await readControllerToolFile(path.join(directory, "account-result.json"), 65536)).toString(
+          "utf8",
+        ),
+      );
+      assert.ok(isRecord(account));
+      assert.deepEqual(account.context, context);
+      assert.equal(account.disabled, true);
+      assert.equal(account.initial_suspend_count, 1);
+      assert.equal(account.job_empty, true);
+      assert.equal(account.station_restored, true);
+      assert.equal(account.observer_drained, true);
+      assert.match(String(account.hosted_desktop), /^PortcoveHosted_[0-9a-f]{32}$/u);
+      assert.match(String(account.response_inspection), /^[1-9][0-9]*:[1-9][0-9]*:[0-9]+$/u);
+      assert.equal(account.root_exited, true);
+      assert.deepEqual(account.remaining_pids, []);
+      assert.deepEqual(account.cleanup_failures, []);
+      assert.ok(isRecord(account.root_identity) && isRecord(account.observed));
+      assert.equal(account.root_identity.pid, account.observed.pid);
+      assert.equal(account.failure, null);
+      assert.equal(account.authority, "none");
+      recheckNativeRuntimeCustody(primitiveFiles, primitiveCustody);
+    } else {
+      await record("account-execution.json", {
+        status: "not_requested",
+        reason: "single dedicated-account qualification consumed in 40366111230/1",
+        authority: "none",
+        native_acceptance: "not-established",
+      });
     }
-    const command = await observeWindowsAccountCommand(
-      directory,
-      accountStatus,
-      accountError,
-      readbackFailures,
-    );
-    await record("account-command.json", command);
-    if (accountError !== undefined) {
-      if (accountError instanceof Error) throw accountError;
-      throw new Error("hosted account resource operation refused", { cause: accountError });
-    }
-    assert.deepEqual(readbackFailures, []);
-    assert.equal(command.stderr.observation, "read");
-    assert.equal(
-      accountStatus,
-      0,
-      "hosted account command failed; inspect retained account-command.json",
-    );
-    const account: unknown = JSON.parse(
-      (await readControllerToolFile(path.join(directory, "account-result.json"), 65536)).toString(
-        "utf8",
-      ),
-    );
-    assert.ok(isRecord(account));
-    assert.deepEqual(account.context, context);
-    assert.equal(account.disabled, true);
-    assert.equal(account.initial_suspend_count, 1);
-    assert.equal(account.job_empty, true);
-    assert.equal(account.station_restored, true);
-    assert.equal(account.observer_drained, true);
-    assert.match(String(account.hosted_desktop), /^PortcoveHosted_[0-9a-f]{32}$/u);
-    assert.match(String(account.response_inspection), /^[1-9][0-9]*:[1-9][0-9]*:[0-9]+$/u);
-    assert.equal(account.root_exited, true);
-    assert.deepEqual(account.remaining_pids, []);
-    assert.deepEqual(account.cleanup_failures, []);
-    assert.ok(isRecord(account.root_identity) && isRecord(account.observed));
-    assert.equal(account.root_identity.pid, account.observed.pid);
-    assert.equal(account.failure, null);
-    assert.equal(account.authority, "none");
-    recheckNativeRuntimeCustody(primitiveFiles, primitiveCustody);
     phase = "actual-Windows-build";
     const built = await buildControllerTools(source, buildParent, expected);
     assert.equal(built.manifest.platform, "windows-x86_64");
@@ -406,8 +421,7 @@ async function main() {
       node: primitiveNodeIdentity,
       supervisor_source: primitiveSupportMetadata.source,
       matched_packaged_source: true,
-      scope:
-        "source-only inert GUI evidence joined by exact packaged bytes; no protected/native acceptance",
+      scope: "packaged source comparison only; dedicated-account execution not requested",
       authority: "none",
     });
     const files = [
@@ -583,6 +597,7 @@ async function main() {
         "tauri-addon.node",
       ],
       filesystem_custody: "actual-owner-ACL-and-identity-recheck",
+      account_execution: "not_requested",
       scope: "Windows controller-tool bootstrap only",
       native_acceptance: "not-established",
       production_tool_acceptance: "not-established",
