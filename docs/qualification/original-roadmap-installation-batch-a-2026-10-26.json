@@ -3,7 +3,7 @@
   "source_commit": "495381f6c3f2be94dfb2fa511813a7a11b039a6c",
   "initial_workset_source": "1bc820eb24e2cbe9c54daaedf85d5a14347c4cae",
   "initial_workset_cutoff": "2026-10-26T06:43:21.714598+00:00",
-  "observation_cutoff": "2026-10-26T07:43:39.926270+00:00",
+  "observation_cutoff": "2026-10-26T08:27:55.625149+00:00",
   "inventory_sources": [
     "First six sorted original19 remaining joins, frozen before source changes; scoped against delivered main3f98",
     "Complete repository1919 and active1918+archived1 Project traversal at2026-10-26T05:46:52.826Z; identity accounting only, not universal fit approval",
@@ -259,7 +259,7 @@
       ],
       "authored": {
         "path": "crates/portcove-core/catalog/ports/diegodedios-alienrerecomp.json",
-        "sha256": "8d814850773996e9743b93ef66e691fbada01e38a5c05f397a68cb1685edf1d3",
+        "sha256": "fec549c82aea281b197e0f74276c70b7762eb0f4cfc61df944a5697badf978a0",
         "preimage": "absent",
         "lineage": "legacy-unassessed",
         "operational_changed": true,

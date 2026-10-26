@@ -12648,7 +12648,7 @@
       "id": "diegodedios-alienrerecomp",
       "name": "Alien Resurrection / AlienReRecomp",
       "original_game_title": "Alien Resurrection",
-      "summary": "Play Alien Resurrection with your own USA PlayStation disc image and a separate managed save profile.",
+      "summary": "Play Alien Resurrection with your own USA PlayStation disc image.",
       "project_url": "https://github.com/DiegoDeDios/AlienReRecomp",
       "issue_number": 2746,
       "availability": "packages",

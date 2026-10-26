@@ -22274,7 +22274,7 @@
     {
       "id": "diegodedios-alienrerecomp",
       "name": "Alien Resurrection / AlienReRecomp",
-      "summary": "Play Alien Resurrection with your own USA PlayStation disc image and a separate managed save profile.",
+      "summary": "Play Alien Resurrection with your own USA PlayStation disc image.",
       "project_url": "https://github.com/DiegoDeDios/AlienReRecomp",
       "support_tier": "beta",
       "channels": [
