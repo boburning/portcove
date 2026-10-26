@@ -1,7 +1,5 @@
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, expect, it, vi } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
 import type { BackupProblem, SourceImportPlan, SourceImportResult } from "../types";
 import { BackupHistory } from "./BackupHistory";
 import {
@@ -9,45 +7,9 @@ import {
   sourceImportModePresentation,
   sourceImportNotice,
 } from "./SourceDiscovery";
+import { sourceImportFixtures } from "./rendered-test-fixtures";
 
-const source = {
-  profile_id: "owned",
-  path: "D:/Owned/game.iso",
-  sha256: "a".repeat(64),
-  size: 64,
-  storage_sha256: "a".repeat(64),
-  storage_size: 64,
-  updated_at: 1,
-};
-const plan = (mode: SourceImportPlan["mode"]): SourceImportPlan => ({
-  schema_version: 1,
-  profile_id: source.profile_id,
-  mode,
-  source,
-  admission_mode: "structural_checks",
-  destination: "D:/Library/source-inbox/owned/game.iso",
-  destination_exists: false,
-  existing_registration: null,
-  reuse_existing: false,
-  required_bytes: 64,
-  source_guard_sha256: "b".repeat(64),
-  plan_sha256: "c".repeat(64),
-});
-const result = (outcome: SourceImportResult["outcome"]): SourceImportResult => ({
-  import_id: "owned-import",
-  profile_id: source.profile_id,
-  mode: outcome === "moved" ? "move" : "copy",
-  outcome,
-  registered: source,
-  copied: true,
-  original_deleted: outcome === "moved",
-  original_retained: outcome !== "moved",
-  retained_original_path: outcome === "moved" ? null : source.path,
-  recovered: false,
-});
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+const { source, plan, result } = sourceImportFixtures();
 
 it.each(["future_mode", "constructor", "__proto__"])(
   "does not offer confirmation or imply preservation for %s",
@@ -87,36 +49,6 @@ it("distinguishes structural admission from an exact identity in the reviewed pl
   expect(structural).toContain("does not establish an exact edition");
   expect(exact).toContain("Exact identity");
 });
-
-it.each(["copy", "move", "use_current_location"] as const)(
-  "keeps the known %s review actionable",
-  async (mode) => {
-    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-    const host = document.createElement("div");
-    const root = createRoot(host);
-    const apply = vi.fn().mockResolvedValue(undefined);
-    try {
-      await act(async () =>
-        root.render(
-          <SourceImportReview plan={plan(mode)} busy={false} onApply={apply} onCancel={vi.fn()} />,
-        ),
-      );
-      expect(host.textContent).toContain(sourceImportModePresentation(mode).explanation);
-      expect(host.textContent).toContain(plan(mode).destination);
-      expect(host.textContent).toContain(
-        mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder",
-      );
-      const action = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-        (button) => button.textContent === sourceImportModePresentation(mode).label,
-      );
-      expect(action?.dataset.variant).toBe(mode === "move" ? "destructive" : "primary");
-      await act(async () => action!.click());
-      expect(apply).toHaveBeenCalledOnce();
-    } finally {
-      await act(async () => root.unmount());
-    }
-  },
-);
 
 it("describes a BIOS import without calling it a game file", () => {
   const biosPlan = {

@@ -129,6 +129,18 @@ void test("full checks, directories and option operands cannot masquerade as che
   assert.equal(vitePlusNeedsCapacity(["fmt", "--check"]), false);
 });
 
+void test("only standalone native help bypasses heavy admission", () => {
+  for (const action of ["test", "check", "lint"]) {
+    for (const flag of ["--help", "-h"]) {
+      assert.equal(vitePlusNeedsCapacity([action, flag]), false);
+      assert.equal(vitePlusNeedsCapacity([action, "--", flag]), true);
+    }
+    assert.equal(vitePlusNeedsCapacity([action, "--help=false"]), true);
+    assert.equal(vitePlusNeedsCapacity([action, "--config", "--help"]), true);
+    assert.equal(vitePlusNeedsCapacity([action, "--help", "--no-help"]), true);
+  }
+});
+
 void test("nested Rust cannot bypass output ownership and admitted Cargo jobs remain bounded", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-nested-rust-"));
   t.after(() => rm(root, { recursive: true, force: true }));

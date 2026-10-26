@@ -28,7 +28,19 @@ const browserProject = {
   root: fileURLToPath(new URL("../apps/desktop", import.meta.url)),
   server: { port: 0, strictPort: false },
   optimizeDeps: {
-    include: ["react-dom/client", "axe-core"],
+    // Late optimization reloads running testers and splits Vitest module state.
+    include: [
+      "react-dom/client",
+      "axe-core",
+      "@base-ui/react/*",
+      "@tauri-apps/api/*",
+      "@tauri-apps/plugin-dialog",
+      "class-variance-authority",
+      "cn",
+      "lucide-react",
+      "i18next",
+      "react-i18next",
+    ],
     exclude: ["vitest-browser-react", "vitest-browser-react/pure"],
   },
   test: {

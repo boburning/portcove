@@ -1,4 +1,3 @@
-import { resourceEntrypoint } from "./resource-command.mts";
 import { vitePlusCommand } from "./viteplus-cli.mts";
 import { spawnCommand } from "./dev-storage.mts";
 import { lstatSync } from "node:fs";
@@ -7,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 export function vitePlusNeedsCapacity(args: readonly string[], cwd = process.cwd()) {
   const action = args[0];
+  // Do not mistake another option's operand or a literal filename for native help.
+  if (args.length === 2 && (args[1] === "--help" || args[1] === "-h")) return false;
   if (action === "test" || action === "check") return true;
   if (action !== "lint") return false;
   const files = [];
@@ -43,7 +44,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (result.error) throw result.error;
     return result.status ?? 1;
   };
-  process.exitCode = vitePlusNeedsCapacity(args)
-    ? await resourceEntrypoint(args[0] === "test" ? "browser" : "analysis", run)
-    : run();
+  if (vitePlusNeedsCapacity(args)) {
+    const { resourceEntrypoint } = await import("./resource-command.mts");
+    process.exitCode = await resourceEntrypoint(args[0] === "test" ? "browser" : "analysis", run);
+  } else process.exitCode = run();
 }
