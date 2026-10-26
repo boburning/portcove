@@ -79,8 +79,8 @@ preview's digest authenticates that stable package. Keep the supported non-ownin
 setup route; reconsider managed replacement with both appropriate retained
 launch selection and independently expected artifact identity.
 
-Linux has game-specific AppImages; macOS packaging preserves separate Intel and
-Apple Silicon application bundles. These use upstream setup rather than the
+Linux has game-specific AppImages; macOS packaging preserves three game-specific
+application bundles, each with Intel and Apple Silicon assemblies. These use upstream setup rather than the
 managed ZIP/tar adapter. The [pinned profile resolver](https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/OpenRA.Game/Platform.cs)
 uses the Windows AppData, Linux XDG config or macOS Application Support profile;
 a local Support directory, legacy profile or explicit override can change it.
