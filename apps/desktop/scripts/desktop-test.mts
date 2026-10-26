@@ -26,10 +26,7 @@ import {
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
-import {
-  observeDesktopScenario,
-  retainDesktopScenarioFailure,
-} from "./desktop-scenario-outcomes.mts";
+import { observeDesktopScenario, recordDesktopCheck } from "./desktop-scenario-outcomes.mts";
 import { spawn } from "node:child_process";
 import {
   DesktopNativeAccountSession,
@@ -351,6 +348,9 @@ let connectedLaunches = 0;
 const library = path.join(runtimeRoot, "library");
 const profile = path.join(runtimeRoot, "webview");
 const checks: EvidenceCheck[] = [];
+function recordChecks(...records: EvidenceCheck[]) {
+  for (const record of records) recordDesktopCheck(checks, revision, record);
+}
 const setupChecks: EvidenceCheck[] = [];
 const artifacts: string[] = [];
 const scenarioOutcomes = new Map<string, EvidenceCheck["outcome"]>();
@@ -694,7 +694,7 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
   try {
     validateBackupFocusInventory(captured);
   } catch (error) {
-    checks.push({
+    recordChecks({
       scenario: "native-backup-process-inventory",
       outcome: "failed",
       message: errorMessage(error),
@@ -1035,7 +1035,7 @@ async function selectSettingsCategory(id: string) {
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(
   () => {
-    checks.push({
+    recordChecks({
       scenario: "native-harness-deadline",
       outcome: "failed",
       message: `Native harness exceeded its ${harnessDeadlineMs}ms allowance; stopping the owned driver.`,
@@ -1045,7 +1045,7 @@ const deadline = setTimeout(
       try {
         await stopDriver();
       } catch (error) {
-        checks.push({
+        recordChecks({
           scenario: "native-backup-watchdog-cleanup",
           outcome: "failed",
           message: errorMessage(error),
@@ -1186,9 +1186,8 @@ function recordScenario(
   outcome: EvidenceCheck["outcome"],
   details: Pick<EvidenceCheck, "message" | "reason" | "duration_ms" | "duration_scope"> = {},
 ) {
-  target.records.push({ scenario: name, outcome, ...details });
+  recordDesktopCheck(target.records, revision, { scenario: name, outcome, ...details });
   scenarioOutcomes.set(name, outcome);
-  if (outcome === "failed") retainDesktopScenarioFailure(revision, name, details);
 }
 
 async function captureScenarioDiagnostics(name: string, setup: boolean) {
@@ -1574,7 +1573,7 @@ async function connectObservedDriver() {
     if (finishObservation) {
       const observation = await finishObservation();
       artifacts.push(...observation.artifacts);
-      setupChecks.push({
+      recordDesktopCheck(setupChecks, revision, {
         scenario: "session-startup-observation",
         outcome: observation.successful ? "passed" : "failed",
       });
@@ -4556,7 +4555,7 @@ try {
               artifacts,
             }),
           recordKnownGap: (gap) =>
-            checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
+            recordChecks({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
         },
       },
       {
@@ -4602,7 +4601,7 @@ try {
       });
   }
 } catch (error) {
-  checks.push({
+  recordChecks({
     scenario: "harness",
     outcome: "failed",
     message: errorMessage(error),
@@ -4653,7 +4652,7 @@ try {
           { flag: "wx" },
         );
         artifacts.push(evidence);
-        checks.push({
+        recordChecks({
           scenario: "native-linux-owned-cleanup",
           outcome: "failed",
           message: errorMessage(failure),
@@ -4686,7 +4685,7 @@ try {
         );
         artifacts.push(report);
         if (quitFailure) {
-          checks.push({
+          recordChecks({
             scenario: "native-backup-session-quit",
             outcome: "failed",
             message: errorMessage(quitFailure.error),
@@ -4694,7 +4693,7 @@ try {
           process.exitCode = 1;
         }
       } catch (error) {
-        checks.push({
+        recordChecks({
           scenario: "native-backup-owned-cleanup",
           outcome: "failed",
           message: errorMessage(error),
@@ -4746,7 +4745,7 @@ try {
           "History session deletion failed; preserve its cleanup receipt",
         );
       } catch (error) {
-        checks.push({
+        recordChecks({
           scenario: "native-history-owned-cleanup",
           outcome: "failed",
           message: errorMessage(error),
@@ -4767,7 +4766,7 @@ try {
         "Executable changed during the run; discard its scenario claims.",
       );
     } catch (error) {
-      checks.push({
+      recordChecks({
         scenario: "executable-identity",
         outcome: "failed",
         message: errorMessage(error),
@@ -4779,7 +4778,7 @@ try {
     artifacts.push(log);
     for (const name of selection.selected_scenarios) {
       if (!checks.some((check) => check.scenario === name))
-        checks.push({
+        recordChecks({
           scenario: name,
           outcome: "not-run",
           reason: "The harness ended before this selected scenario ran",
@@ -4891,7 +4890,7 @@ async function cleanupFailedDriverLaunch() {
     try {
       await stopDriver();
     } catch (cleanupError) {
-      checks.push({
+      recordChecks({
         scenario: "native-driver-launch-cleanup",
         outcome: "failed",
         message: errorMessage(cleanupError),

@@ -1,3 +1,4 @@
+import type { EvidenceCheck } from "../../../scripts/development-evidence.mts";
 import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 
@@ -7,23 +8,25 @@ export interface ScenarioObservation {
   message?: string;
 }
 
-export function retainDesktopScenarioFailure(
+export function recordDesktopCheck(
+  records: EvidenceCheck[],
   revision: string,
-  scenario: string,
-  observation: { message?: string; duration_ms?: number | null },
+  check: EvidenceCheck,
 ) {
-  const message = observation.message ?? "Native scenario failed";
+  records.push(check);
+  if (check.outcome !== "failed") return;
+  const message = check.message ?? "Native harness failed";
   console.error(
-    `DESKTOP_SCENARIO_FAILURE ${JSON.stringify({
+    `DESKTOP_FAILURE ${JSON.stringify({
       format_version: 1,
       runner: "native-desktop",
       source: { kind: "declared-harness-revision", revision },
       platform: process.platform,
       architecture: process.arch,
-      scenario,
+      scenario: check.scenario,
       outcome: "failed",
-      duration_ms: observation.duration_ms ?? null,
-      duration_scope: "scenario-action",
+      duration_ms: check.duration_ms ?? null,
+      duration_scope: check.duration_scope ?? "harness",
       message: message.slice(0, 4096),
       message_truncated: message.length > 4096,
     })}`,

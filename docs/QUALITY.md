@@ -136,9 +136,10 @@ post-action diagnostics and terminal screenshot; captures inside the action
 remain included.
 An unmet prerequisite records `not-run` with a null duration. These observations
 retain the existing execution and acceptance boundaries.
-Failed actions also emit a bounded `DESKTOP_SCENARIO_FAILURE` record before
+Failed actions, setup and cleanup observations emit a bounded `DESKTOP_FAILURE` record before
 diagnostics or final artifact publication, retaining the original failure when
-later publication fails. Its declared harness revision does not replace the
+later publication fails. Untimed harness failures have a null duration and
+`harness` scope. Its declared harness revision does not replace the
 final packet's captured executable and input identities.
 
 Runner inventories describe different units. Keep their native identities and
