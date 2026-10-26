@@ -1,4 +1,4 @@
-import { portStatus } from "../src/test-fixtures";
+import { portStatus } from "../src/test-fixtures.js";
 import { errorCode } from "../../../scripts/runtime-values.mts";
 import type { SpawnSyncReturns, SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import assert from "node:assert/strict";
