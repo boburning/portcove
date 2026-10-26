@@ -423,6 +423,10 @@ export const rustPackagePrefixes = new Map([
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 
+function definitionImplementation(file: string) {
+  return file.startsWith("crates/portcove-core/src/definition_") && !file.endsWith("_tests.rs");
+}
+
 export function selectWorkspaceRustImpact(
   plan: ValidationPlan,
   map: RustImpactMap | null = readRustTestImpactMap(),
@@ -583,41 +587,30 @@ export function selectWorkspaceRustImpact(
       reason: "complete typed runtime diagnostics, frontend report and Core/CLI outcome fixture",
     });
   }
-  // Capability inventory and API schema changes retain their compiled CLI consumer.
+  // Offline publication and capability rendering have both unit and compiled CLI consumers.
   if (
     plan.changes.some((change) =>
-      [change.oldPath, change.newPath].some((file) =>
-        [
-          "crates/portcove-core/src/definition_capabilities.rs",
-          "crates/portcove-core/src/types.rs",
-          "crates/portcove-core/src/lib.rs",
-        ].includes(file),
+      [change.oldPath, change.newPath].some(
+        (file) =>
+          definitionImplementation(file) ||
+          ["crates/portcove-core/src/types.rs", "crates/portcove-core/src/lib.rs"].includes(file),
       ),
     ) &&
     !selected.some(
       (group) => group.packageName === "portcove-cli" && group.filter === "package(=portcove-cli)",
     )
-  ) {
-    const group = map?.packages?.["portcove-cli"]?.groups.find(
-      (entry) => entry.id === "definition-capability-fixtures",
-    );
-    const certain =
-      group &&
-      !selected.some((entry) => entry.filter === "package(=portcove-core)") &&
-      plan.changes.every(
-        (change) => change.oldPath === change.newPath && ["A", "M"].includes(change.status),
-      );
-    if (
-      !certain ||
-      !selected.some((entry) => entry.id === "portcove-cli:definition-capability-fixtures")
-    )
-      selected.push({
+  )
+    return [
+      ...selected.filter((group) => group.packageName !== "portcove-cli"),
+      {
         id: "portcove-cli:definition-capability-consumer",
         packageName: "portcove-cli",
-        filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
-        reason: "compiled CLI advertised capability inventory, negotiation and API schema consumer",
-      });
-  }
+        filter: "package(=portcove-cli)",
+        reason:
+          "complete compiled CLI capability and publication consumers, including unit renderers",
+      },
+    ];
+
   return selected;
 }
 
