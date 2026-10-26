@@ -1131,7 +1131,7 @@ async fn native_platform_cache_expiry_does_not_hide_a_new_same_os_refusal() {
     let old = preview("r1", vec![asset("Game-hd-r1-windows-x64.zip", Some('a'))]);
     let (root, _, server) = serve_http(vec![
         metadata(),
-        releases(&[old.clone()]),
+        releases(std::slice::from_ref(&old)),
         metadata(),
         releases(&[
             preview(

@@ -149,6 +149,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-staged-check.mts",
       "scripts/fallow-summary.mts",
       "scripts/nextest-outcomes.mts",
+      "scripts/nextest-skip-routes.mts",
       "scripts/node-test-inventory.mts",
       "scripts/node-test-suites.mts",
       "scripts/precommit.mts",

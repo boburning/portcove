@@ -474,6 +474,7 @@ void test("bootstrap binds actual clean Git inventories and refuses out-of-scope
     ["extracted-authority", "scripts/validation-evidence.mts"],
     ["standalone-reporter", "scripts/standalone-rust-tests.mts"],
     ["binary-identity", "scripts/development-evidence.mts"],
+    ["skip-route-contract", "scripts/nextest-skip-routes.mts"],
   ])
     await t.test("bootstrap preserves " + label, async () => {
       const originalBranch = git(source, ["branch", "--show-current"]);
@@ -701,6 +702,7 @@ void test("preflight and controller share the exact hosted script authority boun
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/workflow-provenance.mts"), false);
   for (const file of [
     "scripts/nextest-outcomes-cli.mts",
+    "scripts/nextest-skip-routes.mts",
     "scripts/standalone-rust-tests.mts",
     "scripts/development-evidence.mts",
     "scripts/bounded-summary.mts",
@@ -713,6 +715,16 @@ void test("preflight and controller share the exact hosted script authority boun
       isHostedLocalCheckScriptAuthority(file) && hostedLocalCheckAuthorityPaths.includes(file),
       file,
     );
+  assert.match(
+    runHostedValidation.toString(),
+    /["']scripts\/nextest-skip-routes\.mts["']/u,
+    "the protected bootstrap must preserve its actual skip-route input",
+  );
+  assert.match(
+    runHostedValidation.toString(),
+    /["']\.config\/rust-test-impact\.json["']/u,
+    "the protected bootstrap must preserve its actual skip-route configuration",
+  );
   assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/src/example.ts"), false);
   assert.ok(hostedLocalCheckAuthorityPaths.includes("scripts/workflow-provenance.mts") === false);
 });

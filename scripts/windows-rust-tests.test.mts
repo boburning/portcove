@@ -1,3 +1,14 @@
+import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
+import { isRecord } from "./runtime-values.mts";
+import { assertNoDuplicateRustSetup } from "./ci-workflow-fixture.mts";
+import { workflowJob } from "./ci-workflow-fixture.mts";
+import { workflowStep } from "./ci-workflow-fixture.mts";
+import { rustTests } from "./ci-workflow-fixture.mts";
+import { rustWorkspaceTests } from "./ci-workflow-fixture.mts";
+import { rustClippy } from "./ci-workflow-fixture.mts";
+import { windowsStorage } from "./ci-workflow-fixture.mts";
+import { rust } from "./ci-workflow-fixture.mts";
+import { rustQuality } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
 
 import { readFile, mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
@@ -464,4 +475,185 @@ void test("Windows Rust partition filters preserve original timeout and resource
       ]),
     /existing default filter/u,
   );
+});
+
+void test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () => {
+  assert.equal(
+    workflowStep("rust_workspace_tests", "Build and test the public Playnite reference consumer")
+      .run,
+    qualificationOracle.workspace_other.public_cli_source,
+  );
+  const workspace = workflowJob("rust_workspace_tests");
+  assert.ok(Array.isArray(workspace.steps));
+  assert.ok(
+    workspace.steps.some(
+      (step: unknown) =>
+        isRecord(step) && step.run === "node scripts/qualification-nextest.mts workspace-other",
+    ),
+  );
+  assert.match(rustTests, /^ {4}name: rust-test \(\$\{\{ matrix\.shard \}\}\)$/m);
+  assert.match(rustTests, /runs-on: windows-latest/);
+  assert.match(
+    rustTests,
+    /shard:\s*\[\s*core-service-1,\s*core-service-2,\s*core-recovery,\s*core-other-1,\s*core-other-2,?\s*\]/,
+  );
+  assert.match(rustTests, /needs: \[classify, qualification_core_archive\]/u);
+  assert.match(rustTests, /windows-rust-tests\.mts run-qualification \$\{\{ matrix\.shard \}\}/u);
+  assert.match(
+    rustTests,
+    /PORTCOVE_WINDOWS_MANIFEST_SHA256: \$\{\{ needs\.qualification_core_archive\.outputs\.manifest_sha256 \}\}/u,
+  );
+  assert.doesNotMatch(rustTests, /workspace-other|pnpm|cargo check|cargo fmt|cargo clippy/);
+
+  assert.match(rustWorkspaceTests, /^ {4}name: rust-test \(workspace-other\)$/m);
+  assert.match(rustWorkspaceTests, /runs-on: windows-latest/);
+  assert.match(rustWorkspaceTests, /node scripts\/qualification-nextest\.mts workspace-other/);
+  assert.doesNotMatch(rustWorkspaceTests, /matrix|cargo fmt|cargo clippy/);
+
+  assert.match(rustClippy, /^ {4}name: rust-clippy$/m);
+  assert.match(rustClippy, /runs-on: windows-latest/);
+  assert.match(rustClippy, /cargo fmt --all -- --check/);
+  assert.match(rustClippy, /cargo clippy --workspace --all-targets -- -D warnings/);
+  assert.doesNotMatch(rustClippy, /cargo test|matrix/);
+
+  assert.match(rustQuality, /runs-on: ubuntu-latest/);
+  assert.match(rustQuality, /cargo clippy --workspace --all-targets -- -D warnings/);
+
+  assert.match(windowsStorage, /^ {4}name: windows-storage$/m);
+  assert.match(windowsStorage, /runs-on: windows-latest/);
+  assert.match(windowsStorage, /scripts\/dev-storage\.test\.mts/);
+  assert.match(windowsStorage, /--test-skip-pattern "pnpm uses\|direct just recipes"/);
+  assert.match(windowsStorage, /scripts\/windows-qualification-session\.test\.mts/);
+  assert.match(windowsStorage, /\.\/scripts\/run-windows-qualification\.ps1/);
+  assert.match(
+    windowsStorage,
+    /--test-timeout=30000 --test-reporter=\.\/scripts\/required-node-test-reporter\.mts/,
+  );
+  assert.match(
+    windowsStorage,
+    /Install-PSResource -RequiredResourceFile \.config\/powershell-resources\.psd1 -Scope CurrentUser -TrustRepository/,
+  );
+  assert.match(windowsStorage, /run-powershell-lint\.mts/);
+  assert.match(windowsStorage, /lint-tools\.integration\.mts psscriptanalyzer/);
+  assertNoDuplicateRustSetup(workflowJob("windows_storage"));
+  assert.doesNotMatch(windowsStorage, /continue-on-error/);
+
+  assert.match(rust, /^ {4}if: always\(\)$/m);
+  for (const dependency of [
+    "classify",
+    "prose_checks",
+    "qualification_core_archive",
+    "rust_tests",
+    "rust_workspace_tests",
+    "rust_clippy",
+    "windows_storage",
+    "native_rust",
+    "intel_build",
+    "intel_tests",
+    "rust_docs",
+  ])
+    assert.match(rust, new RegExp(`^ {8}${dependency},?$`, "m"));
+  for (const dependency of [
+    "qualification_core_archive",
+    "rust_tests",
+    "rust_workspace_tests",
+    "rust_clippy",
+    "windows_storage",
+    "native_rust",
+    "intel_build",
+    "intel_tests",
+    "rust_docs",
+  ])
+    assert.ok(rust.includes(`"${dependency}":"` + "${{ needs." + dependency + '.result }}"'));
+  assert.doesNotMatch(rust, /continue-on-error/);
+});
+
+void test("ordinary Windows Rust compiles once and joins every execution and live transport producer", () => {
+  const build = workflowJob("fast_rust");
+  const execution = workflowJob("fast_rust_tests");
+  const transport = workflowJob("fast_rust_transport");
+  for (const producer of [build, execution, transport]) {
+    assert.equal(producer["runs-on"], "windows-latest");
+    assert.equal(
+      producer.if,
+      "needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
+    );
+    assert.equal(producer["continue-on-error"], undefined);
+  }
+  assert.deepEqual(execution.needs, ["classify", "fast_rust"]);
+  assert.equal(transport.needs, "classify");
+  assert.ok(isRecord(build.outputs));
+  assert.equal(build.outputs.manifest_sha256, "${{ steps.archive.outputs.manifest_sha256 }}");
+  assert.ok(isRecord(execution.strategy) && isRecord(execution.strategy.matrix));
+  assert.equal(execution.strategy["fail-fast"], false);
+  assert.equal(
+    execution.strategy.matrix.include,
+    "${{ fromJSON(needs.fast_rust.outputs.matrix) }}",
+  );
+  assert.ok(isRecord(execution.env));
+  assert.equal(
+    execution.env.PORTCOVE_WINDOWS_MANIFEST_SHA256,
+    "${{ needs.fast_rust.outputs.manifest_sha256 }}",
+  );
+  assert.equal(
+    workflowStep("fast_rust", "Compile workspace targets and archive balanced test partitions").run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build",
+  );
+  assert.match(
+    workflowStep("fast_rust_tests", "Execute the verified Windows test partition").run,
+    /run-rust-tests\.mts --guard-command node scripts\/windows-rust-tests\.mts run/u,
+  );
+  assert.equal(
+    workflowStep(
+      "fast_rust_transport",
+      "Compare live CLI and headless and native Desktop serialization",
+    ).run,
+    "node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts",
+  );
+  const aggregate = workflowJob("rust");
+  assert.ok(Array.isArray(aggregate.needs));
+  const gate: Record<string, unknown> = workflowStep("rust", "Require every Rust lane");
+  assert.ok(isRecord(gate.env) && typeof gate.env.PORTCOVE_FAST_RESULTS === "string");
+  const results: unknown = JSON.parse(gate.env.PORTCOVE_FAST_RESULTS);
+  assert.ok(isRecord(results));
+  assert.deepEqual(Object.keys(results).sort(), [
+    "fast_rust",
+    "fast_rust_tests",
+    "fast_rust_transport",
+  ]);
+  for (const id of Object.keys(results)) {
+    assert.ok(aggregate.needs.includes(id));
+    assert.equal(results[id], `\${{ needs.${id}.result }}`);
+  }
+  assert.ok(Array.isArray(build.steps) && Array.isArray(execution.steps));
+  const buildSteps: unknown[] = build.steps;
+  const executionSteps: unknown[] = execution.steps;
+  const uploaded = buildSteps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/upload-artifact@") &&
+      isRecord(step.with) &&
+      String(step.with.name).startsWith("windows-rust-tests-"),
+  );
+  const downloaded = executionSteps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/download-artifact@"),
+  );
+  assert.ok(
+    isRecord(uploaded) &&
+      isRecord(uploaded.with) &&
+      isRecord(downloaded) &&
+      isRecord(downloaded.with),
+  );
+  assert.equal(
+    uploaded.with.name,
+    "windows-rust-tests-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+  assert.equal(downloaded.with.name, uploaded.with.name);
+  assert.match(String(uploaded.with.path), /tests\.tar\.zst/u);
+  assert.match(String(uploaded.with.path), /manifest\.json/u);
+  assert.equal(uploaded.with["if-no-files-found"], "error");
 });
