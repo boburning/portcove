@@ -24,6 +24,17 @@ export interface NodeTestSuites {
   qualificationOwners?: Record<string, Record<string, string>>;
   platformSkips?: Record<string, NodePlatformSkipContract>;
 }
+function validPlatformCases(cases: unknown): cases is string[] {
+  return (
+    Array.isArray(cases) &&
+    cases.length > 0 &&
+    cases.length <= 128 &&
+    cases.every(
+      (name: unknown) => typeof name === "string" && name.trim() && name.length <= 2048,
+    ) &&
+    new Set(cases).size === cases.length
+  );
+}
 function registerPlatformSkips(
   entry: Record<string, unknown>,
   file: string,
@@ -47,16 +58,7 @@ function registerPlatformSkips(
     if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 1024)
       throw new Error("Platform skip prerequisite/reason missing: " + file);
   const cases = value.cases;
-  if (
-    !Array.isArray(cases) ||
-    !cases.length ||
-    cases.length > 128 ||
-    !cases.every(
-      (name: unknown) => typeof name === "string" && name.trim() && name.length <= 2048,
-    ) ||
-    new Set(cases).size !== cases.length
-  )
-    throw new Error("Invalid platform skip case inventory: " + file);
+  if (!validPlatformCases(cases)) throw new Error("Invalid platform skip case inventory: " + file);
   const platform = value.platform === "linux" ? "linux-x86_64" : "windows-x86_64";
   const existing = owners[file]?.[platform];
   if (existing !== undefined && existing !== owner)
@@ -67,7 +69,7 @@ function registerPlatformSkips(
     owner,
     prerequisite: value.prerequisite as string,
     reason: value.reason as string,
-    cases: cases as string[],
+    cases,
   };
 }
 function expandNodeTestOwnership(

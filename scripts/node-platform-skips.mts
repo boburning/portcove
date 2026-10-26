@@ -2,6 +2,18 @@ import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import type { NodePlatformSkipContract } from "./node-test-suites.mts";
 
+function terminalNodeEvent(event: unknown) {
+  if (
+    !isRecord(event) ||
+    (event.type !== "test:pass" && event.type !== "test:fail") ||
+    !isRecord(event.data) ||
+    !isRecord(event.data.details) ||
+    typeof event.data.entryFile !== "string"
+  )
+    return null;
+  return { data: event.data, details: event.data.details, entryFile: event.data.entryFile };
+}
+
 /** Declared platform ownership is separate from the runner's original skip reason. */
 export function createNodePlatformSkipInventory(
   requested: readonly string[],
@@ -32,18 +44,11 @@ export function createNodePlatformSkipInventory(
   return {
     capture(event: unknown) {
       // Filters cannot prove full family presence; the registry requires an unfiltered owner.
-      if (
-        filters.length ||
-        !isRecord(event) ||
-        (event.type !== "test:pass" && event.type !== "test:fail") ||
-        !isRecord(event.data) ||
-        !isRecord(event.data.details) ||
-        typeof event.data.entryFile !== "string"
-      )
-        return;
-      const details = event.data.details;
-      const data = event.data;
-      const owner = files.get(identity(data.entryFile as string));
+      if (filters.length) return;
+      const observed = terminalNodeEvent(event);
+      if (!observed) return;
+      const { data, details } = observed;
+      const owner = files.get(identity(observed.entryFile));
       if (!owner) return;
       const skipped = data.skip === true || typeof data.skip === "string";
       const deferred = data.todo === true || typeof data.todo === "string";

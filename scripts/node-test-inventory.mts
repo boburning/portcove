@@ -24,6 +24,12 @@ const inventoryInputs = [
   "scripts/node-test-suites.json",
 ];
 
+function qualificationPlatform(runner: unknown) {
+  if (typeof runner === "string" && /^ubuntu-(?:latest|\d+\.\d+)$/u.test(runner))
+    return "linux-x86_64";
+  return runner === "windows-latest" ? "windows-x86_64" : null;
+}
+
 export function requireNodeTestInventory(
   files: readonly string[],
   required: string,
@@ -115,12 +121,7 @@ export function requireNodeTestInventory(
         for (const file of command.files) {
           if (eligible) requiredFiles.add(file);
           const runner = job["runs-on"];
-          const platform =
-            typeof runner === "string" && /^ubuntu-(?:latest|\d+\.\d+)$/u.test(runner)
-              ? "linux-x86_64"
-              : runner === "windows-latest"
-                ? "windows-x86_64"
-                : null;
+          const platform = qualificationPlatform(runner);
           // Count potential execution independently from required-owner eligibility.
           // Unsupported conditions, shells or error handling cannot hide a duplicate.
           if (!disabled(job.if) && !disabled(step.if) && !otherMode)
