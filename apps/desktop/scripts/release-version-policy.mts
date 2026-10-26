@@ -5,14 +5,26 @@ import type { SemVer } from "semver";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import semver from "semver";
+// Control-plane imports need no version runtime; version calls retain its original load failure.
+let semverLoadFailure: unknown;
+const semver = await import("semver").then(
+  (module) => module.default,
+  (error: unknown) => {
+    semverLoadFailure = error;
+    return undefined;
+  },
+);
+function semverRuntime() {
+  if (!semver) throw semverLoadFailure;
+  return semver;
+}
 
 function diagnosticText(value: unknown): string {
   return String(value);
 }
 function exactVersion(value: unknown) {
   if (typeof value !== "string") throw new Error("application version must be a SemVer string");
-  const parsed = semver.parse(value);
+  const parsed = semverRuntime().parse(value);
   if (!parsed) throw new Error(`invalid application version: ${value}`);
   const canonical = `${parsed.major}.${parsed.minor}.${parsed.patch}${parsed.prerelease.length ? `-${parsed.prerelease.join(".")}` : ""}${parsed.build.length ? `+${parsed.build.join(".")}` : ""}`;
   if (value !== canonical) throw new Error(`application version must be canonical: ${value}`);
@@ -34,7 +46,7 @@ export function classifyApplicationVersion(version: unknown, productionEligible:
 }
 
 export function compareApplicationVersionPrecedence(left: unknown, right: unknown) {
-  return semver.compare(exactVersion(left), exactVersion(right));
+  return semverRuntime().compare(exactVersion(left), exactVersion(right));
 }
 
 function field(release: unknown, camel: string, snake: string) {
@@ -176,9 +188,9 @@ function selectionRequest(
 }
 
 function uniquePrecedence(versions: readonly string[]) {
-  const sorted = versions.toSorted(semver.compare);
+  const sorted = versions.toSorted(semverRuntime().compare);
   for (let index = 1; index < sorted.length; index += 1) {
-    if (semver.eq(sorted[index - 1] ?? "", sorted[index] ?? ""))
+    if (semverRuntime().eq(sorted[index - 1] ?? "", sorted[index] ?? ""))
       throw new Error(
         "ambiguous application releases contain duplicate version precedence (equal SemVer precedence)",
       );
@@ -210,12 +222,13 @@ export function selectApplicationRelease(
     .map(publishedRelease)
     .map((candidate) => eligibleCandidate(candidate, channel, options))
     .filter((candidate) => candidate !== null);
-  candidates.sort((left, right) => semver.rcompare(left.version, right.version));
+  candidates.sort((left, right) => semverRuntime().rcompare(left.version, right.version));
   uniquePrecedence(candidates.map((candidate) => candidate.version));
   const candidate = candidates[0];
   if (
     !candidate ||
-    (options.currentVersion !== undefined && !semver.gt(candidate.version, options.currentVersion))
+    (options.currentVersion !== undefined &&
+      !semverRuntime().gt(candidate.version, options.currentVersion))
   )
     return null;
   return candidate.release;
@@ -291,7 +304,7 @@ function publishedHistory(
   uniquePrecedence(versions);
   if (!publishedVersions.includes(classification.base_version))
     throw new Error("classification base is absent from published history");
-  if (versions.some((version) => semver.gt(version, classification.base_version)))
+  if (versions.some((version) => semverRuntime().gt(version, classification.base_version)))
     throw new Error("classification base is behind published history");
 }
 
@@ -314,7 +327,8 @@ function compatibilityChange(
     base.major > 0 &&
     change === "prerelease" &&
     publishedVersions.some(
-      (version) => !semver.prerelease(version) && semver.major(version) >= base.major,
+      (version) =>
+        !semverRuntime().prerelease(version) && semverRuntime().major(version) >= base.major,
     )
   ) {
     throw new Error("breaking prereleases must move beyond the published public major version");
@@ -329,16 +343,16 @@ function advanceVersion(base: SemVer, change: VersionChange, identifier: unknown
   if (change === "prerelease") {
     if (!base.prerelease.length)
       throw new Error("prerelease progression requires an existing prerelease train");
-    return semver.inc(base, "prerelease");
+    return semverRuntime().inc(base, "prerelease");
   }
   if (base.prerelease.length)
     throw new Error("explicitly finalize or progress the existing prerelease train");
   if (["prepatch", "preminor", "premajor"].includes(change)) {
     if (typeof identifier !== "string" || !/^[A-Za-z][A-Za-z0-9-]*$/.test(identifier))
       throw new Error("a new prerelease train requires an explicit identifier");
-    return semver.inc(base, change, identifier, "1");
+    return semverRuntime().inc(base, change, identifier, "1");
   }
-  return semver.inc(base, change);
+  return semverRuntime().inc(base, change);
 }
 
 /** Prepare a deterministic proposal from a reviewed classification. This does not
@@ -349,9 +363,9 @@ export function proposeApplicationVersion(value: unknown, publishedVersions: unk
   publishedHistory(classification, publishedVersions);
   compatibilityChange(classification, publishedVersions, base, change);
   const version = advanceVersion(base, change, classification.prerelease_identifier);
-  if (!version || !semver.gt(version, classification.base_version))
+  if (!version || !semverRuntime().gt(version, classification.base_version))
     throw new Error("prepared version must increase");
-  if (publishedVersions.some((published) => semver.eq(version, published)))
+  if (publishedVersions.some((published) => semverRuntime().eq(version, published)))
     throw new Error("published version precedence cannot be reused");
   const classificationResult = classifyApplicationVersion(version);
   return {

@@ -1564,6 +1564,15 @@ for (const file of nativeCompatibilitySourcePaths)
 explicitNodeTests.set("scripts/nextest-outcomes-cli.mts", [
   ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
 ]);
+explicitNodeTests.set("apps/desktop/scripts/release-version-policy.mts", [
+  ...(explicitNodeTests.get("apps/desktop/scripts/release-version-policy.mts") ?? []),
+  "scripts/production-aggregate-steps.test.mts",
+  "scripts/release-controller-tools.test.mts",
+]);
+explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
+  ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/production-aggregate-steps.test.mts",
+]);
 for (const file of [
   "scripts/report-summary.mts",
   "scripts/bounded-summary.mts",
