@@ -167,8 +167,16 @@ void test("actual pinned Node nested-suite deferrals reach the platform observer
     import {createNodePlatformSkipInventory} from ${JSON.stringify(new URL("./node-platform-skips.mts", import.meta.url).href)};
     const file=process.argv[2];
     const inventory=createNodePlatformSkipInventory([file],[],{'owned.test.mjs':${JSON.stringify(contract)}},{root:${JSON.stringify(root)},platform:'linux'});
-    for await(const event of run({files:[file]})) inventory.capture(event);
-    console.log(JSON.stringify(inventory.finish()));
+    const nativeMarkers=[];
+    for await(const event of run({files:[file]})) {
+      const data=event.data;
+      if((event.type==='test:pass'||event.type==='test:fail') && data?.details?.type==='suite') {
+        if(data.skip===true||typeof data.skip==='string') nativeMarkers.push('skip:'+data.name+':'+data.nesting);
+        if(data.todo===true||typeof data.todo==='string') nativeMarkers.push('todo:'+data.name+':'+data.nesting);
+      }
+      inventory.capture(event);
+    }
+    console.log(JSON.stringify({...inventory.finish(),nativeMarkers:nativeMarkers.sort()}));
   `,
   );
   const environment = { ...process.env };
@@ -188,8 +196,10 @@ void test("actual pinned Node nested-suite deferrals reach the platform observer
     typeof observed === "object" &&
       observed !== null &&
       "errors" in observed &&
-      "contracts" in observed,
+      "contracts" in observed &&
+      "nativeMarkers" in observed,
   );
+  assert.deepEqual(observed.nativeMarkers, ["skip:hidden skip:1", "todo:hidden todo:1"]);
   assert.deepEqual(observed.errors, ["Unregistered skipped or todo suite in owned.test.mjs"]);
   assert.ok(Array.isArray(observed.contracts) && observed.contracts.length === 1);
 });

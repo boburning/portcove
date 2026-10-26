@@ -453,7 +453,7 @@ void test("selected nextest outcome edits retain native execution and every outc
 });
 
 void test("disposable fixture helper changes retain every cleanup consumer across lifecycle and rename edits", async () => {
-  const { baselineRequiresDesktopDependencies, baselineFrontendPlan } =
+  const { baselineRequiresDesktopDependencies, baselineFrontendPlan, baselineContractTests } =
     await import("./ci-baseline.mts");
   const helper = "scripts/fixtures/disposable-directory.mts";
   const desktop = "apps/desktop/scripts/desktop-listener-lifetime.test.mts";
@@ -462,6 +462,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/catalog-proposal-costs.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
+    "scripts/node-platform-skips.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/python-test-results.test.mts",
     "scripts/release-catalog-review-request.test.mts",
@@ -527,6 +528,11 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
       base: "b".repeat(40),
       mergeBase: "b".repeat(40),
     });
+    const hosted = new Set(baselineContractTests(plan, { fileExists: allFilesExist }));
+    assert.deepEqual(
+      consumers.filter((file) => file !== desktop && !hosted.has(file)),
+      [],
+    );
     assert.ok(plan.groups.includes("frontend"));
     assert.ok(baselineRequiresDesktopDependencies(plan));
     assert.ok(

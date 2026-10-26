@@ -1083,6 +1083,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
+      "scripts/node-platform-skips.test.mts",
       "scripts/node-test-inventory.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/python-test-results.test.mts",
