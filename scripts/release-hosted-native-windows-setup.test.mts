@@ -362,7 +362,7 @@ if($capture.ToString().Trim() -cne 'inert-registry:identity-begin'){throw 'Expli
 
 void test(
   "real Windows observer waits for an owned visible responsive inert form",
-  { skip: process.platform !== "win32" || process.env.PORTCOVE_NATIVE_OBSERVER_TEST !== "1" },
+  { skip: process.platform !== "win32" },
   (t) => {
     const root = mkdtempSync(path.join(homedir(), ".portcove-observer-test-"));
     t.after(() => rmSync(root, { recursive: true, force: true }));

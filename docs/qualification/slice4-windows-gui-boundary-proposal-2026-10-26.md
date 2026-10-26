@@ -20,8 +20,9 @@ lookup and passes against the repair. It creates only an owned inert form and
 verifies root exit, an empty original job and independent observer drain.
 
 The repeatable local command is Windows Node with
-`PORTCOVE_NATIVE_OBSERVER_TEST=1` and `--test --test-name-pattern 'real Windows observer' scripts/release-hosted-native-windows-setup.test.mts`.
-This opt-in test does not run from hosted setup and does not replace dedicated-account acceptance.
+`--test --test-name-pattern 'real Windows observer' scripts/release-hosted-native-windows-setup.test.mts`.
+This regression runs on Windows in its owning suite; fixture-only edits select
+that suite. It does not run from hosted setup and does not replace dedicated-account acceptance.
 
 Station startup was then investigated without changing workstation WinSta0 ACLs,
 accounts, audit policy, privileges or services. A temporary

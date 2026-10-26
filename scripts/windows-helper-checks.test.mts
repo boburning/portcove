@@ -753,6 +753,7 @@ void test("Windows helper selection includes rename/delete sides and policy inpu
     "scripts/native-qualification-account-bridge.ps1",
     "scripts/native-qualification-account.cs.txt",
     "scripts/fixtures/native-account-gui-probe.ps1",
+    "scripts/fixtures/native-desktop-observer.cs.txt",
     "scripts/daily-discovery-session.mts",
     "scripts/daily-discovery.test.mts",
     "apps/desktop/scripts/native-window-discovery.ps1",

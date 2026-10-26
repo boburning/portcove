@@ -1722,6 +1722,7 @@ for (const file of [
   ]);
 }
 for (const file of [
+  "scripts/fixtures/native-desktop-observer.cs.txt",
   "scripts/release-hosted-native-windows-setup.ps1",
   "scripts/release-hosted-native-windows-setup.cs.txt",
   "scripts/release-hosted-native-windows-audit.cs.txt",

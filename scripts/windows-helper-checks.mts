@@ -67,6 +67,7 @@ const helperPaths = new Set([
   "scripts/native-qualification-account.cs.txt",
   "scripts/native-qualification-account-registry.ps1",
   "scripts/fixtures/native-account-gui-probe.ps1",
+  "scripts/fixtures/native-desktop-observer.cs.txt",
   "scripts/daily-discovery-session.mts",
   "scripts/daily-discovery.test.mts",
   ...nativeHelperSharedSources,
