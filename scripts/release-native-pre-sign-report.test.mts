@@ -151,15 +151,16 @@ void test("hosted Linux reconstruction uses the observed distro floor and keeps 
 void test("inert Linux report2 reconstructs initial or real distinct predecessor package lifecycle without public-updater credit", async () => {
   for (const initial of [true, false]) {
     const f = await linuxPostFixture(initial);
+    assert.deepEqual(f.base.source.cli_protocol, { min: 82, max: 82 });
     const result = reconstructNativeLinuxPostSignReport(f.prepared, f.input, f.base.source);
     // The original API80/library40 fixture at073ac7b9 reproduces its historical
-    // hashes exactly. These bind the same reconstruction with current API81/
+    // hashes exactly. These bind the same reconstruction with current API82/
     // library41 inputs, including their transitive request/stream digests.
     assert.equal(
       createHash("sha256").update(JSON.stringify(result)).digest("hex"),
       initial
-        ? "83fb3618165729248ea67910d28e3bbb34c6ac69ee2e6f673277b81178a8b8d5"
-        : "89dbfdaba749a062fd05921352a1458a0101cd14580ff68501300dd1643f21d8",
+        ? "7c9a5269737f96843da1a51045b0eb3b5efdd8c2cc0f4d4d3e27719dd4532f6c"
+        : "d267f1fb1d35a4c3aa31eea68f9d6cd09216115a6b3b4174dc273438a7ce4833",
     );
     assert.equal(result.report.schema_version, 2);
     assert.equal(result.report.runtime.started_at, "2026-10-20T12:00:00.500Z");
@@ -214,12 +215,13 @@ void test("inert Linux report2 reconstructs initial or real distinct predecessor
 
 void test("inert Linux reconstruction binds actual-shaped source/host/process/namespace proofs without importing capture authority", async () => {
   const { base, prepared, input, start } = await linuxFixture();
+  assert.deepEqual(base.source.cli_protocol, { min: 82, max: 82 });
   const result = reconstructNativeLinuxPreSignReport(prepared, input, base.source);
   assert.equal(
     createHash("sha256").update(JSON.stringify(result)).digest("hex"),
     // Same inert reconstruction as the historical API80/library40 fixture,
-    // now bound to the current API81/library41 request and stream identities.
-    "62c6db3da7e4edb52ba99771bee2505bec9c43a1a43663fd92f8db2d6492b17c",
+    // now bound to the current API82/library41 request and stream identities.
+    "89041e620d542ae26807c88f0b57d663ce7f09d8448091ca81193a6b428305af",
   );
   assert.equal(result.authority, "none");
   assert.equal(result.report.host.loaded_engine.version, "2.52.6");
