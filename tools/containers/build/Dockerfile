@@ -9,7 +9,7 @@ COPY --from=vite --chown=vp:vp /home/vp/.vite-plus /home/vp/.vite-plus
 COPY --from=rust --chown=vp:vp /usr/local/rustup /opt/rustup
 COPY --from=rust --chown=vp:vp /usr/local/cargo /home/vp/.cargo
 # PowerShell's published Linux archive, checked against the official release asset digest.
-ARG POWERSHELL_VERSION=7.6.7
+ARG POWERSHELL_VERSION=7.6.8
 ARG POWERSHELL_SHA256=6896f9e3a6b0a354bf470835a96da76d2f801cd50dcf047ad7c4563bf93bf431
 RUN curl --fail --location --max-time 300 -o /tmp/powershell.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v${POWERSHELL_VERSION}/powershell-${POWERSHELL_VERSION}-linux-x64.tar.gz && echo "${POWERSHELL_SHA256}  /tmp/powershell.tar.gz" | sha256sum --check - && mkdir -p /opt/microsoft/powershell/7 && tar -xzf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7 && chmod +x /opt/microsoft/powershell/7/pwsh && ln -s /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh && rm /tmp/powershell.tar.gz
 ENV CI=true PORTCOVE_CONTAINER_GUEST=1 VP_GIT_HOOKS=0 VP_HOME=/home/vp/.vite-plus RUSTUP_HOME=/opt/rustup CARGO_HOME=/home/vp/.cargo APPIMAGE_EXTRACT_AND_RUN=1
