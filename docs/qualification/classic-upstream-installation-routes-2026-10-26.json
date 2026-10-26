@@ -1,0 +1,258 @@
+{
+  "format_version": 1,
+  "kind": "dated source-bound evidence, not a live backlog or operational registry",
+  "owners": [2510, 2926],
+  "source_commit": "303861a08f0f803d0ae7e063e26478ac46da47e1",
+  "generated_at": "2026-10-26T21:07:46.767Z",
+  "scope": "Four preserved authored identities; all fitting operations assessed using existing capabilities. No wider fit-completion claim.",
+  "inventory_refresh": {
+    "source_commit": "303861a08f0f803d0ae7e063e26478ac46da47e1",
+    "observation_cutoff": "2026-10-26T20:51:12.867Z",
+    "repository_issues": 1922,
+    "active_project_records": 1921,
+    "archived_project_records": 1,
+    "canonical_port_records": 1512,
+    "distinct_known_identities": 1510,
+    "authored": 1424,
+    "operational": 167,
+    "roadmap_only_distinct": 86,
+    "original_cohorts": [524, 312, 22],
+    "original_roadmap_now_authored": 17,
+    "original_roadmap_unlisted": 5,
+    "duplicates": {
+      "554": 356,
+      "1786": 322
+    },
+    "same_issue_alias_rows": [281, 320],
+    "accepted_relocation": {
+      "issue": 1858,
+      "stable_id": "nicholas-ochoa-opensc2k",
+      "repository_id": 120053075,
+      "review": "https://github.com/boburning/portcove/issues/1858#issuecomment-6408463469"
+    },
+    "new_identity": {
+      "issue": 3706,
+      "stable_key": "smash4pc-super-smash-bros-for-wii-u",
+      "repository_id": 1433109248,
+      "scope": "Existing provenance/content-permission acquisition gate and Unscheduled/Watchlist owner retained; no beta obligation or catalog admission."
+    },
+    "unresolved_identity_conflicts": [],
+    "receipt_sha256": {
+      "roadmap-inventory.json": "8e6d507036b564ad380b9a9dce4a7ef0d42f4a7065579b66bcd417bc71f6942e",
+      "authored-records.json": "443099444f9b0b7202bb6e5253d9814386feed717554bc6cb3c9adee3040e902",
+      "canonical-port-identities.json": "93a8fb890c246a99dfcc8fec4d7fd7c18f9a16837dbba01220b262e740d2e18f",
+      "cohort-reconciliation.json": "28e4904ea9be06b6c76a95e2ab8eb50b9e9a6cdbf26e22b888e0f75fb3ab66c6"
+    },
+    "fit_assessment_complete": false,
+    "implementation_complete": false
+  },
+  "managed_definitions_unchanged": 167,
+  "managed_additions": 0,
+  "ports": [
+    {
+      "id": "arcanum-community-edition",
+      "canonical_issue": 828,
+      "repository": {
+        "id": 626222170,
+        "node_id": "R_kgDOJVNkWg",
+        "name": "alexbatalov/arcanum-ce"
+      },
+      "current_route": "listing only; generic upstream link",
+      "selected_route": "retain owner-approved upstream dependency; concrete conditional prepared-copy handoff",
+      "reviewed_source_commit": "a7ff41b300ef712f0e7d088183a3d08957110cdd",
+      "default_source_commit": "a7ff41b300ef712f0e7d088183a3d08957110cdd",
+      "complete_release_history": 0,
+      "complete_default_tree_entries": 481,
+      "platform_scope": "Windows/Linux prepared-copy instructions; macOS upstream bundle; no published player package or admitted managed platform",
+      "update_owner": "player/upstream; non-owning registration never adopts files",
+      "setup_data_boundary": "Own GOG/Steam copied Arcanum data, drop-in native player; preserve entire external copy and existing owner-approved deferral.",
+      "condition": "Existing #828/#1422 amendment remains: no downstream engine/codec/filesystem fork. Reconsider on suitable upstream interface or identified useful user-owned native build with established operation facts.",
+      "prior_archive_evidence": null,
+      "evidence": [
+        {
+          "url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md",
+          "blob": "02456631efb551f27e340d3e6335d16aa7007bce",
+          "sha256": "7714620d08ba90bbc6be5a55fa63a252853d82647cc8394ec7a970cff9da06b9"
+        },
+        {
+          "url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/LICENSE.md",
+          "blob": "2b66da9e6ee6b7f85abf2fcd1b2ea07a1a4da9bb",
+          "sha256": "3c260f537a0c7c3d140e5524551e5743c836cca8d819216a6934aa4669d9abec"
+        }
+      ],
+      "delivery_status": "candidate; independent review, exact-head checks, guarded merge/readback and canonical reconciliation pending",
+      "validation_scope": "Maintained preparation and Core declaration inspection; no native game, original inputs, real-save or packaged Desktop acceptance."
+    },
+    {
+      "id": "c7-game-openciv3",
+      "canonical_issue": 1850,
+      "repository": {
+        "id": 342119984,
+        "node_id": "MDEwOlJlcG9zaXRvcnkzNDIxMTk5ODQ=",
+        "name": "C7-Game/OpenCiv3"
+      },
+      "current_route": "listing only; generic upstream link",
+      "selected_route": "conditional permitted-copy setup and original-content choice; hold package acquisition",
+      "reviewed_source_commit": "5a2a868b3411db71528d7b0fd51d80cdbb37aac1",
+      "default_source_commit": "c1370e2f63a6042a3c4206f0043543d7da0d5cc5",
+      "complete_release_history": 8,
+      "complete_default_tree_entries": 642,
+      "platform_scope": "Windows existing-copy layout reviewed; Linux/macOS package metadata separately observed, native layout unqualified",
+      "update_owner": "player/upstream; non-owning registration never adopts files",
+      "setup_data_boundary": "Original Civ3 folder or permitted standalone assets chosen in player; C7.ini/Text/Assets and user-selected saves remain external.",
+      "condition": "Attributable compatible grants for separately credited packaged placeholder assets, or a package omitting them. Current Assets README and NOTICE do not settle individual grants.",
+      "prior_archive_evidence": {
+        "observed": "2026-10-24",
+        "release": "v0.3-dutch-preview-1",
+        "artifact": "https://github.com/C7-Game/OpenCiv3/releases/download/v0.3-dutch-preview-1/OpenCiv3_0.3-Dutch-Windows.zip",
+        "expected": "sha256:0f0748227061388ab958045952817945f152e5d17d308b5514f8c285c726376b",
+        "observed_sha256": "0f0748227061388ab958045952817945f152e5d17d308b5514f8c285c726376b",
+        "current_expected_digest_unchanged": true,
+        "scope": "Retained bounded static inspection; no reacquisition of held package and no executable/game/original input execution."
+      },
+      "evidence": [
+        {
+          "url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
+          "blob": "7fdbddee51829009d09e0b7c7dd87acca23b45f3",
+          "sha256": "39009f62466b4d3cba3ebfaa37fe65392175e17b340b71fe3f926eed4028274f"
+        },
+        {
+          "url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/LICENSE",
+          "blob": "6778205cf1abe96a64d84b0f59917a03962cb986",
+          "sha256": "4ec3d26ff57b5f21e0a9b85c676ba8d66b3abd6dbf93177095591c0577005f3e"
+        }
+      ],
+      "delivery_status": "candidate; independent review, exact-head checks, guarded merge/readback and canonical reconciliation pending",
+      "validation_scope": "Maintained preparation and Core declaration inspection; no native game, original inputs, real-save or packaged Desktop acceptance."
+    },
+    {
+      "id": "cannonball-dx-outrun",
+      "canonical_issue": 1132,
+      "repository": {
+        "id": 1338639045,
+        "node_id": "R_kgDOT8oCxQ",
+        "name": "Endprodukt/cannonball-dx"
+      },
+      "current_route": "listing only; generic upstream link",
+      "selected_route": "conditional permitted-copy Windows DX setup; hold ROM-bearing package acquisition",
+      "reviewed_source_commit": "afbe061c50ad1aa50795daa98e4ab689a4d3ca46",
+      "default_source_commit": "09edd625138d5b95bc41b184ee8bda0e0d7c4b8b",
+      "complete_release_history": 5,
+      "complete_default_tree_entries": 219,
+      "platform_scope": "Windows 10/11 x64 only; no inherited non-Windows DX support",
+      "update_owner": "player/upstream; non-owning registration never adopts files",
+      "setup_data_boundary": "Own compatible Revision B loose ROMs or merged ZIP checked by upstream CRC/size; working folder, scores, settings and music external.",
+      "condition": "Asset-free player package or attributable permission for included original OutRun ROM data; engine licenses do not settle that content.",
+      "prior_archive_evidence": {
+        "observed": "2026-10-24",
+        "release": "1.04",
+        "artifact": "https://github.com/Endprodukt/cannonball-dx/releases/download/1.04/CannonballDX_1.04.zip",
+        "expected": "sha256:d5104e1a886213994fdcdd5dc781753145f7e9ac33e87b4ae15cde485dc9a362",
+        "observed_sha256": "d5104e1a886213994fdcdd5dc781753145f7e9ac33e87b4ae15cde485dc9a362",
+        "current_expected_digest_unchanged": true,
+        "scope": "Retained bounded static inspection; no reacquisition of held package and no executable/game/original input execution."
+      },
+      "evidence": [
+        {
+          "url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md",
+          "blob": "b69d6d6d2fb77f02aa59068e9d413664d4875a90",
+          "sha256": "0079f6d1531060214b180cf59f845b939fcc8075564a51c6c1c105d9210cd4e8"
+        },
+        {
+          "url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.txt",
+          "blob": "6bec8c321b7da669ef0138dc81e5f0141199770b",
+          "sha256": "06f3315c9d520974b65883efb531073fba38483298511be82ed8a5abcded8a77"
+        },
+        {
+          "url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/docs/license.txt",
+          "blob": "094b8c703b6afa742710f9ad0de2f6597eed8183",
+          "sha256": "ce6ab2bc1ef0c7ba97574e9e28fb8019ab11827ec5181f34f930a0dbfc60c432"
+        },
+        {
+          "url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/docs/CannonBall-SE-license.txt",
+          "blob": "7685146c3347575223fec4b810c6d88561e4ab4a",
+          "sha256": "5158c36eebb080e36030b59b04fda393b81bade8e79f89eef49dcf2d89c3389e"
+        },
+        {
+          "url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/docs/THIRD-PARTY-NOTICES.md",
+          "blob": "3a045bb19b476feee4fca7b51e5ab930d8f4c618",
+          "sha256": "0d035c17edcfb926b5ea6bd8e48f70e38dfec245f313653c7ee1994343afd573"
+        }
+      ],
+      "delivery_status": "candidate; independent review, exact-head checks, guarded merge/readback and canonical reconciliation pending",
+      "validation_scope": "Maintained preparation and Core declaration inspection; no native game, original inputs, real-save or packaged Desktop acceptance."
+    },
+    {
+      "id": "openra-openra",
+      "canonical_issue": 1852,
+      "repository": {
+        "id": 959908,
+        "node_id": "MDEwOlJlcG9zaXRvcnk5NTk5MDg=",
+        "name": "OpenRA/OpenRA"
+      },
+      "current_route": "listing only; generic upstream link",
+      "selected_route": "upstream-owned stable Windows portable recommendation with explicit game choice; other native upstream launchers retained",
+      "reviewed_source_commit": "b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787",
+      "default_source_commit": "cd207614b55d53bd2897408386fcec8a1f48cce0",
+      "complete_release_history": 107,
+      "complete_default_tree_entries": 4571,
+      "platform_scope": "Windows x64 portable/installer; Linux x64 game-specific AppImages; Intel/Apple Silicon macOS upstream bundles, packaging/source evidence only",
+      "update_owner": "player/upstream; non-owning registration never adopts files",
+      "setup_data_boundary": "Explicit Play opens chosen game content setup; actual Support profile, settings, maps, mods, saves/content external; no Core backup/rollback promise.",
+      "condition": "Managed replacement additionally needs an independently expected artifact identity and a truthful retained launch-selection contract for three different games; no silent Red Alert default or duplicate identities.",
+      "prior_archive_evidence": null,
+      "evidence": [
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+          "blob": "a40d3d917e41e330517c8d3aba7b881708c36ebe",
+          "sha256": "a142aa7efba7ae79365f0682d164f9baf28957dd6b99fe944001d08c3ee17ce6"
+        },
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/COPYING",
+          "blob": "e60008693e017bec1b4eb49c84be3898e26fcf2a",
+          "sha256": "e79e9c8a0c85d735ff98185918ec94ed7d175efc377012787aebcf3b80f0d90b"
+        },
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/AUTHORS",
+          "blob": "ba1de28b2a2e5f1718752a90304c8bf11ca58ad1",
+          "sha256": "c12b0b0fd4c68e962bb842305041c2739b6069cbf023d51e1c9abae196eac23d"
+        },
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/INSTALL.md",
+          "blob": "aac1b179d70073000868f4302d6b0242e76e637e",
+          "sha256": "f97ad6e3049c1eb7d60e86ce7e814e5bf288e848a7eea5d38d3db27862608386"
+        },
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/packaging/windows/buildpackage.sh",
+          "blob": "caf2375410c87813dbc6eedec802f1e2a9353f80",
+          "sha256": "b0b38133b9ddfe38c16291b226ce7fa4a855ca939ca9441b66c04629d59236fb"
+        },
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/packaging/macos/buildpackage.sh",
+          "blob": "7d2847c7bb9aacad674e01cef93615d5e2754d8c",
+          "sha256": "536b9e14e7d37feffc978f5ce804afac7657a6b237e3f6f29b0851a7a3a8c33b"
+        },
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/OpenRA.Game/Platform.cs",
+          "blob": "7b8b1e39b651cdd4e71e1227524a510cb79c5933",
+          "sha256": "9bff79fa04cc151f2fcd1a26584a69b841fb5e028bc65b1a89183da9cd6721ba"
+        },
+        {
+          "url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/OpenRA.Game/Game.cs",
+          "blob": "db21002d68d6590867cc2c24c38a5ee4ff05365c",
+          "sha256": "e621cdbd633659973194ef6733862602609188d4141d929858ae76153d466c2d"
+        }
+      ],
+      "delivery_status": "candidate; independent review, exact-head checks, guarded merge/readback and canonical reconciliation pending",
+      "validation_scope": "Maintained preparation and Core declaration inspection; no native game, original inputs, real-save or packaged Desktop acceptance."
+    }
+  ],
+  "original_public_beta_acceptance": false,
+  "unfinished_direct_legacy_owners": [152, 164, 165, 113, 154, 1113],
+  "exclusions": [
+    "No original game inputs or upstream executable, installer or helper executed.",
+    "No native gameplay, real-save, other-platform runtime or packaged Desktop acceptance.",
+    "No scope transfer from #1422/#2225/#47/#48/#534/#246.",
+    "No new deferral, managed ownership, parallel port identity or lifecycle abstraction."
+  ]
+}
