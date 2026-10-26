@@ -1,3 +1,4 @@
+import { parseDocument } from "yaml";
 import assert from "node:assert/strict";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -274,11 +275,22 @@ void test(
       new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
       "utf8",
     );
-    const body = setup.match(
-      /- name: Read repository toolchain[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- uses:)/,
-    )?.[1];
-    assert.ok(body);
-    const script = body.replace(/^ {8}/gm, "");
+    const config: unknown = parseDocument(setup, { uniqueKeys: true }).toJS();
+    assert.ok(isRecord(config) && isRecord(config.runs) && Array.isArray(config.runs.steps));
+    const steps: unknown[] = config.runs.steps;
+    const readerIndex = steps.findIndex(
+      (step) => isRecord(step) && step.name === "Read repository toolchain",
+    );
+    const installerIndex = steps.findIndex(
+      (step) =>
+        isRecord(step) &&
+        typeof step.uses === "string" &&
+        step.uses.startsWith("dtolnay/rust-toolchain@"),
+    );
+    assert.ok(readerIndex >= 0 && installerIndex > readerIndex);
+    const reader = steps[readerIndex];
+    assert.ok(isRecord(reader) && typeof reader.run === "string");
+    const script = reader.run;
     assert.doesNotMatch(script, /\$portcoveReaderClock\b/);
     const phaseDiagnostic = (phase: string) =>
       `[Console]::Error.WriteLine("portcove-reader-phase:${phase};elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds)")`;
