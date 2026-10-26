@@ -118,13 +118,12 @@ export function baselineRequiresPython(plan: ValidationPlan, options: ClassifyOp
     selected.some((file) =>
       [
         "scripts/nextest-equivalence.test.mts",
-        "scripts/ci-rust-workflow.test.mts",
         ...pythonContractTests,
       ].includes(file),
     ) ||
     plan.changes.some(
       (change) =>
-        change.oldPath === "scripts/ci-rust-workflow.test.mts" &&
+        change.oldPath === "scripts/nextest-equivalence.test.mts" &&
         change.newPath !== change.oldPath &&
         selected.includes(change.newPath),
     )
