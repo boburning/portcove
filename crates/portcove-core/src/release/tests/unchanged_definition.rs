@@ -984,3 +984,185 @@ async fn psx_package_rules_refuse_variant_fallback_but_keep_owned_input_preparat
     server.join().unwrap();
     assert_eq!(error.code, crate::ErrorCode::Verification);
 }
+
+fn asymmetric_native_port() -> PortDefinition {
+    let mut port = variant_port();
+    port.channels = vec![ReleaseChannel::Stable, ReleaseChannel::Beta];
+    port.platforms.push(Platform::LinuxX86_64);
+    port.release.asset_hints.insert(
+        Platform::LinuxX86_64,
+        vec!["Game-hd-".into(), "-linux-x64.tar.gz".into()],
+    );
+    port
+}
+
+fn preview(tag: &str, assets: Vec<serde_json::Value>) -> serde_json::Value {
+    let mut value = release(tag, assets);
+    value["prerelease"] = serde_json::json!(true);
+    value
+}
+
+#[tokio::test]
+async fn native_platform_streams_resolve_asymmetric_previews_and_stable_fallback() {
+    let port = asymmetric_native_port();
+    let windows = preview("r48", vec![asset("Game-hd-r48-windows-x64.zip", Some('a'))]);
+    let linux = preview(
+        "r55",
+        vec![
+            asset("Game-hd-r55-linux-x64.tar.gz", Some('b')),
+            asset("openal_1.0.orig.tar.gz", None),
+            asset("openal_1.0-1.debian.tar.xz", None),
+            asset("openal_1.0-1.dsc", None),
+        ],
+    );
+    for (platform, expected) in [
+        (Platform::WindowsX86_64, "r48"),
+        (Platform::LinuxX86_64, "r55"),
+    ] {
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(&[linux.clone(), windows.clone()]),
+        ]);
+        let result = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(&port, ReleaseChannel::Beta, platform)
+            .await
+            .unwrap();
+        assert_eq!(result.version, expected);
+        server.join().unwrap();
+    }
+    let stable = release("r38", vec![asset("Game-hd-r38-windows-x64.zip", Some('c'))]);
+    let (root, _, server) = serve_http(vec![metadata(), releases(&[linux, stable])]);
+    let result = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(&port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(result.version, "r38");
+    assert_eq!(result.channel, ReleaseChannel::Beta);
+    server.join().unwrap();
+}
+
+#[tokio::test]
+async fn native_platform_streams_keep_uncertain_and_same_os_failures_authoritative() {
+    let port = asymmetric_native_port();
+    let old = preview("r1", vec![asset("Game-hd-r1-windows-x64.zip", Some('a'))]);
+    for name in [
+        "Game-hd-r2-windows-arm64.zip",
+        "Game-standard-r2-windows-x64.zip",
+        "Game-hd-r2-windows-x64.msi",
+        "Game-hd-r2-windows-x64.tar.zst",
+        "Game-hd-r2-windows-x64-debug.zip",
+        "Game-hd-r2-windows-linux-x64.zip",
+        "Game-hd-r2.zip",
+    ] {
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(&[
+                preview(
+                    "r2",
+                    vec![
+                        asset("Game-hd-r2-linux-x64.tar.gz", Some('b')),
+                        asset(name, Some('c')),
+                    ],
+                ),
+                old.clone(),
+            ]),
+        ]);
+        let failure = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(&port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        assert_eq!(failure.code, crate::ErrorCode::NotFound, "{name}");
+        server.join().unwrap();
+    }
+    for assets in [
+        vec![],
+        vec![asset("Game-hd-source-linux-x64.tar.gz", Some('b'))],
+    ] {
+        let (root, _, server) = serve_http(vec![
+            metadata(),
+            releases(&[preview("r2", assets), old.clone()]),
+        ]);
+        assert_eq!(
+            GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(&port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+                .await
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::NotFound
+        );
+        server.join().unwrap();
+    }
+    let reviewed = "Game-hd-r2-windows-x64-debug.zip";
+    let mut debug = port.clone();
+    debug
+        .release
+        .asset_hints
+        .insert(Platform::WindowsX86_64, vec![reviewed.into()]);
+    let (root, _, server) = serve_http(vec![
+        metadata(),
+        releases(&[
+            preview(
+                "r2",
+                vec![
+                    asset("Game-hd-r2-linux-x64.tar.gz", Some('b')),
+                    asset(reviewed, Some('c')),
+                ],
+            ),
+            old,
+        ]),
+    ]);
+    let result = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(&debug, ReleaseChannel::Beta, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(result.version, "r2");
+    assert_eq!(result.asset.name, reviewed);
+    server.join().unwrap();
+}
+
+#[tokio::test]
+async fn native_platform_cache_expiry_does_not_hide_a_new_same_os_refusal() {
+    let port = asymmetric_native_port();
+    let old = preview("r1", vec![asset("Game-hd-r1-windows-x64.zip", Some('a'))]);
+    let (root, _, server) = serve_http(vec![
+        metadata(),
+        releases(&[old.clone()]),
+        metadata(),
+        releases(&[
+            preview(
+                "r2",
+                vec![
+                    asset("Game-hd-r2-linux-x64.tar.gz", Some('b')),
+                    asset("Game-hd-r2-windows-arm64.zip", Some('c')),
+                ],
+            ),
+            old,
+        ]),
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+    assert_eq!(
+        provider
+            .resolve(&port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap()
+            .version,
+        "r1"
+    );
+    for entry in provider.cache.write().await.values_mut() {
+        entry.stored_at = Instant::now() - RELEASE_CACHE_TTL - Duration::from_secs(1);
+    }
+    assert_eq!(
+        provider
+            .resolve(&port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    server.join().unwrap();
+}

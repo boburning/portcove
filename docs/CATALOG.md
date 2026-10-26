@@ -48,6 +48,11 @@ builder that created them remains an active feature.
 
 The `native-portable` adapter offers the existing managed installation, update,
 retained-version, backup and recovery lifecycle to fitting upstream archives.
+For ordinary GitHub discovery, releases containing only explicit other-OS
+players are outside that platform's stream. Same-OS, unknown or mixed package
+names still use the normal variant, processor and integrity refusals; source-only
+releases never silently select an older runtime. Curated identities retain their
+existing exact selection.
 It does not need a game-specific adapter. Setup provider and runtime update owner
 are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
@@ -152,7 +157,12 @@ For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
 Optional `recommended_download_channel` selects `stable` or `beta` for the initial
 download lookup, for example when the reviewed player is published as a preview.
-A player's explicit saved channel or release takes precedence. This recommendation
+A player's explicit saved channel or release takes precedence. For a genuinely
+fresh `native-portable` installation, Core also uses this hint when the managed
+definition declares that channel. Settings, retained or staged installs, external
+registrations and pending downloaded setup keep their existing fallback and
+choices. Destination/policy changes and accepted install intent preserve the
+chosen channel durably; read-only discovery never creates settings. This hint
 does not change an installed channel, version pin or update policy.
 Core uses all fragments together to recommend the reviewed player package or
 upstream installer. Prefer stable discriminators instead of a version string;

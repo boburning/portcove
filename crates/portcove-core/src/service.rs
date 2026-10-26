@@ -882,10 +882,13 @@ impl PortcoveService {
         let status_catalog = self.catalog_for_installed_fallback(port_id)?;
         let catalog = status_catalog.as_ref();
         let port = catalog.port(port_id).ok();
-        let (mut statuses, metrics) = self.library.statuses_with_metrics(&[(
-            port_id.to_owned(),
-            port.map_or(ReleaseChannel::Stable, default_channel),
-        )])?;
+        let (mut statuses, metrics) = self.status_rows_with_recommendations(
+            catalog,
+            &[(
+                port_id.to_owned(),
+                port.map_or(ReleaseChannel::Stable, default_channel),
+            )],
+        )?;
         let status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
@@ -956,7 +959,7 @@ impl PortcoveService {
             .iter()
             .map(|port| (port.id.clone(), default_channel(port)))
             .collect::<Vec<_>>();
-        let (statuses, metrics) = self.library.statuses_with_metrics(&ports)?;
+        let (statuses, metrics) = self.status_rows_with_recommendations(&self.catalog, &ports)?;
         tracing::debug!(
             port_count = statuses.len(),
             sqlite_query_count = metrics.sqlite_query_count + 1,
@@ -967,6 +970,66 @@ impl PortcoveService {
             "loaded status read model"
         );
         self.hydrate_statuses(&self.catalog, statuses, sources)
+    }
+
+    fn apply_fresh_native_channel_recommendations(
+        catalog: &Catalog,
+        connection: &rusqlite::Connection,
+        statuses: &mut [PortStatus],
+    ) -> Result<usize> {
+        let recommendations = statuses
+            .iter()
+            .filter_map(|status| {
+                let port = catalog.port(&status.port_id).ok()?;
+                if port.adapter != AdapterKind::NativePortable {
+                    return None;
+                }
+                let channel = catalog
+                    .listing(&port.id)
+                    .ok()?
+                    .recommended_download_channel?;
+                (port.channels.contains(&channel) && channel != default_channel(port))
+                    .then_some((port.id.clone(), channel))
+            })
+            .collect::<HashMap<_, _>>();
+        let ids = recommendations.keys().cloned().collect::<Vec<_>>();
+        let (occupied, queries) = Library::port_state_footprints(connection, &ids)?;
+        for status in statuses {
+            if !occupied.contains(&status.port_id)
+                && let Some(channel) = recommendations.get(&status.port_id)
+            {
+                status.channel = *channel;
+            }
+        }
+        Ok(queries)
+    }
+
+    fn status_rows_with_recommendations(
+        &self,
+        catalog: &Catalog,
+        ports: &[(String, ReleaseChannel)],
+    ) -> Result<(Vec<PortStatus>, crate::library::StatusReadMetrics)> {
+        let mut connection = self.library.connection()?;
+        let transaction = connection.transaction()?;
+        let (mut statuses, mut metrics) = self
+            .library
+            .statuses_from_with_metrics(&transaction, ports)?;
+        metrics.sqlite_query_count +=
+            Self::apply_fresh_native_channel_recommendations(catalog, &transaction, &mut statuses)?;
+        transaction.commit()?;
+        Ok((statuses, metrics))
+    }
+
+    fn settings_channel(&self, port_id: &str) -> Result<ReleaseChannel> {
+        let port = self.catalog.port(port_id)?;
+        let (mut statuses, _) = self.status_rows_with_recommendations(
+            &self.catalog,
+            &[(port_id.into(), default_channel(port))],
+        )?;
+        statuses
+            .pop()
+            .map(|status| status.channel)
+            .ok_or_else(|| PortcoveError::state("status read model returned no row"))
     }
 
     fn hydrate_statuses(
@@ -1068,7 +1131,7 @@ impl PortcoveService {
                     .map(|listing| (listing.id.clone(), ReleaseChannel::Stable)),
             );
             let sources = Library::sources_from(&transaction)?;
-            let (statuses, metrics) = self.library.statuses_from_with_metrics_and_barrier(
+            let (mut statuses, mut metrics) = self.library.statuses_from_with_metrics_and_barrier(
                 &transaction,
                 &ports,
                 || {
@@ -1076,6 +1139,11 @@ impl PortcoveService {
                         after_status_settings();
                     }
                 },
+            )?;
+            metrics.sqlite_query_count += Self::apply_fresh_native_channel_recommendations(
+                &catalog,
+                &transaction,
+                &mut statuses,
             )?;
             let activities = Library::activity_feed_from(&transaction, activity_limit)?;
             let pending_setups = Self::pending_setups_from(&transaction)?;
@@ -1449,7 +1517,7 @@ impl PortcoveService {
         output_directory: Option<&Path>,
         authorization_token: &str,
     ) -> Result<PortOutputLocation> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         let _guard = self
             .library
             .try_lock_port(port_id, "set-output-directory")?;
@@ -1464,8 +1532,11 @@ impl PortcoveService {
                 Ok(preview.preview_sha256)
             },
         )?;
-        self.library
-            .set_output_directory(port_id, output_directory, default_channel(port))?;
+        self.library.set_output_directory(
+            port_id,
+            output_directory,
+            self.settings_channel(port_id)?,
+        )?;
         self.output_location(port_id, None)
     }
 
@@ -1496,20 +1567,20 @@ impl PortcoveService {
         port_id: &str,
         output_directory: &Path,
     ) -> Result<PortOutputLocation> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         self.library.set_output_directory(
             port_id,
             Some(output_directory),
-            default_channel(port),
+            self.settings_channel(port_id)?,
         )?;
         self.output_location(port_id, None)
     }
 
     #[cfg(test)]
     pub(crate) fn reset_output_directory(&self, port_id: &str) -> Result<PortOutputLocation> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         self.library
-            .set_output_directory(port_id, None, default_channel(port))?;
+            .set_output_directory(port_id, None, self.settings_channel(port_id)?)?;
         self.output_location(port_id, None)
     }
 
@@ -2610,10 +2681,10 @@ impl PortcoveService {
     }
 
     pub fn set_update_policy(&self, port_id: &str, policy: UpdatePolicy) -> Result<PortStatus> {
-        let port = self.catalog.port(port_id)?;
+        self.catalog.port(port_id)?;
         let _operation = self.library.try_lock_port(port_id, "set-policy")?;
         self.library
-            .set_update_policy(port_id, policy, default_channel(port))?;
+            .set_update_policy(port_id, policy, self.settings_channel(port_id)?)?;
         self.status(port_id)
     }
 
@@ -2678,6 +2749,7 @@ impl PortcoveService {
                     port.name
                 )));
             }
+            self.library.ensure_settings(port_id, selected_channel)?;
             let platform = Platform::current()?;
             let release = operation
                 .interruptible(self.resolve_release(port, selected_channel, platform))
@@ -6309,6 +6381,7 @@ fn remove_managed_entry(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     mod backups;
+    mod channel_recommendations;
     #[cfg(windows)]
     mod dynamic_policy;
 

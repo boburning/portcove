@@ -1177,7 +1177,7 @@ impl GithubReleaseProvider {
             &releases,
             channel,
             port.release.rolling_tag.as_deref(),
-            |release| !release.draft,
+            |release| !release.draft && native_release_applies_to_platform(port, platform, release),
             is_beta_release,
             |release| release.tag_name.as_str(),
         )
@@ -1272,6 +1272,47 @@ impl GithubReleaseProvider {
         self.store_release(cache_key, resolved.clone()).await;
         Ok(resolved)
     }
+}
+
+fn native_release_applies_to_platform(
+    port: &PortDefinition,
+    platform: Platform,
+    release: &GithubRelease,
+) -> bool {
+    if port.adapter != AdapterKind::NativePortable || port.release.curated.contains_key(&platform) {
+        return true;
+    }
+    let mut other_platform_player = false;
+    for asset in &release.assets {
+        let name = asset.name.to_ascii_lowercase();
+        let can_extract = [".zip", ".tar.gz", ".tgz"]
+            .iter()
+            .any(|ext| name.ends_with(ext));
+        let (suitability, _, _) = crate::service::package_selection::assess_package_name(
+            &name,
+            can_extract,
+            platform,
+            &[],
+        );
+        if suitability == "auxiliary" {
+            if name
+                .split(|character: char| !character.is_ascii_alphanumeric())
+                .any(|token| token == "debug")
+            {
+                return true;
+            }
+            continue;
+        }
+        if crate::service::package_selection::package_platform_match(&name, platform)
+            != crate::service::package_selection::PackagePlatformMatch::Other
+        {
+            return true;
+        }
+        other_platform_player |= crate::service::package_selection::is_package_filename(&name);
+    }
+    // Only explicit other-OS players are outside this platform's release stream.
+    // Same/unknown OS and source-only releases retain normal refusal semantics.
+    !other_platform_player
 }
 
 pub(crate) fn select_channel_candidate<'a, T>(
