@@ -1,0 +1,536 @@
+{
+  "format_version": 1,
+  "audit": 22,
+  "kind": "bounded-browser-bootstrap-cost",
+  "decision": "retain existing installer and readiness checks; do not add a hosted browser cache",
+  "local_request": {
+    "head": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+    "platform": "linux",
+    "arch": "x64",
+    "node": "v24.22.1",
+    "cache_absent_before": true,
+    "manifest_sha256": "313d23ce667d93962d3a1ab4be80908cefe840e4d9e48f1cd5863b91f65e8e39",
+    "playwright": "1.64.1",
+    "cache_scope": "checkout owned only; no shared cache removal"
+  },
+  "local_runs": [
+    {
+      "label": "cold-v1",
+      "wall_ms": 10244.589636,
+      "status": 0,
+      "signal": null,
+      "phases": [
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:cache",
+          "recorded_at": "2026-10-26T05:29:57.211Z",
+          "process_elapsed_ms": 1,
+          "cache_outcome": "executable-absent",
+          "fingerprint": "313d23ce667d93962d3a1ab4be80908cefe840e4d9e48f1cd5863b91f65e8e39",
+          "groups": [
+            "playwright=1.64.1",
+            "executable=chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+          ]
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:install",
+          "recorded_at": "2026-10-26T05:30:03.418Z",
+          "process_elapsed_ms": 6208,
+          "elapsed_ms": 6207,
+          "outcome": "completed"
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:launch",
+          "recorded_at": "2026-10-26T05:30:04.184Z",
+          "process_elapsed_ms": 6974,
+          "elapsed_ms": 765,
+          "outcome": "completed"
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:ready",
+          "recorded_at": "2026-10-26T05:30:04.184Z",
+          "process_elapsed_ms": 6974,
+          "groups": ["chromium=156.0.8078.4"]
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:close",
+          "recorded_at": "2026-10-26T05:30:04.252Z",
+          "process_elapsed_ms": 7042,
+          "elapsed_ms": 68,
+          "outcome": "completed"
+        }
+      ]
+    },
+    {
+      "label": "warm-v1",
+      "wall_ms": 1920.6313730000002,
+      "status": 0,
+      "signal": null,
+      "phases": [
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:cache",
+          "recorded_at": "2026-10-26T05:30:05.538Z",
+          "process_elapsed_ms": 1,
+          "cache_outcome": "executable-present",
+          "fingerprint": "313d23ce667d93962d3a1ab4be80908cefe840e4d9e48f1cd5863b91f65e8e39",
+          "groups": [
+            "playwright=1.64.1",
+            "executable=chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+          ]
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:install",
+          "recorded_at": "2026-10-26T05:30:05.952Z",
+          "process_elapsed_ms": 415,
+          "elapsed_ms": 414,
+          "outcome": "completed"
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:launch",
+          "recorded_at": "2026-10-26T05:30:05.995Z",
+          "process_elapsed_ms": 458,
+          "elapsed_ms": 42,
+          "outcome": "completed"
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:ready",
+          "recorded_at": "2026-10-26T05:30:05.995Z",
+          "process_elapsed_ms": 458,
+          "groups": ["chromium=156.0.8078.4"]
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:close",
+          "recorded_at": "2026-10-26T05:30:06.168Z",
+          "process_elapsed_ms": 632,
+          "elapsed_ms": 173,
+          "outcome": "completed"
+        }
+      ]
+    },
+    {
+      "label": "warm-v2",
+      "wall_ms": 2111.581904999999,
+      "status": 0,
+      "signal": null,
+      "phases": [
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:cache",
+          "recorded_at": "2026-10-26T05:30:07.437Z",
+          "process_elapsed_ms": 1,
+          "cache_outcome": "executable-present",
+          "fingerprint": "313d23ce667d93962d3a1ab4be80908cefe840e4d9e48f1cd5863b91f65e8e39",
+          "groups": [
+            "playwright=1.64.1",
+            "executable=chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+          ]
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:install",
+          "recorded_at": "2026-10-26T05:30:07.838Z",
+          "process_elapsed_ms": 402,
+          "elapsed_ms": 401,
+          "outcome": "completed"
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:ready",
+          "recorded_at": "2026-10-26T05:30:07.880Z",
+          "process_elapsed_ms": 444,
+          "groups": ["chromium=156.0.8078.4"]
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:launch",
+          "recorded_at": "2026-10-26T05:30:07.880Z",
+          "process_elapsed_ms": 444,
+          "elapsed_ms": 42,
+          "outcome": "completed"
+        },
+        {
+          "format": 1,
+          "kind": "ci-timing",
+          "context": {
+            "source": "78fc6ad84d3e54929c3849d0198c5d33cdf9776a",
+            "checkout": null,
+            "run": null,
+            "attempt": null,
+            "job": null,
+            "runner": "linux-x64",
+            "mode": null
+          },
+          "phase": "browser-bootstrap:close",
+          "recorded_at": "2026-10-26T05:30:08.284Z",
+          "process_elapsed_ms": 848,
+          "elapsed_ms": 404,
+          "outcome": "completed"
+        }
+      ]
+    }
+  ],
+  "pinned_executable": {
+    "playwright_core": "1.64.1",
+    "browsers_manifest_sha256": "2cfd419f71ac6475d81e1301fa86c34cf2a2a6bae2a0da4b5a2b18310216b6bf",
+    "descriptor": {
+      "name": "chromium-headless-shell",
+      "revision": "1248",
+      "installByDefault": true,
+      "browserVersion": "156.0.8078.4",
+      "title": "Chrome Headless Shell"
+    },
+    "executable": {
+      "relative": "work/browser-cache/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell",
+      "bytes": 207474000,
+      "sha256": "4fa61f0ba0b4f89b7bec242c32ca16d3bccf69dbfef0651924a9ba8fede5f9d6"
+    }
+  },
+  "hosted": {
+    "run": 40271163933,
+    "attempt": 1,
+    "job": "fast_frontend",
+    "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+    "provider": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+    "artifact_id": 12628686793,
+    "archive_sha256": "7886d41706314ca6cd6b09a55c03078aaf54ebaaefa6279e56d25eae766cd0fb",
+    "records": [
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "browser-bootstrap:install",
+        "recorded_at": "2026-10-26T04:51:51.135Z",
+        "process_elapsed_ms": 5131,
+        "elapsed_ms": 5128,
+        "outcome": "completed"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "browser-bootstrap:cache",
+        "recorded_at": "2026-10-26T04:51:46.006Z",
+        "process_elapsed_ms": 2,
+        "cache_outcome": "executable-absent",
+        "fingerprint": "313d23ce667d93962d3a1ab4be80908cefe840e4d9e48f1cd5863b91f65e8e39",
+        "groups": [
+          "playwright=1.64.1",
+          "executable=chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"
+        ]
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "browser-bootstrap:close",
+        "recorded_at": "2026-10-26T04:51:51.995Z",
+        "process_elapsed_ms": 5991,
+        "elapsed_ms": 46,
+        "outcome": "completed"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "ui-content",
+        "recorded_at": "2026-10-26T04:51:57.104Z",
+        "process_elapsed_ms": 4888,
+        "elapsed_ms": 4855,
+        "outcome": "completed"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "ui-tests",
+        "recorded_at": "2026-10-26T04:58:33.128Z",
+        "process_elapsed_ms": 400912,
+        "elapsed_ms": 393756,
+        "outcome": "completed"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "browser-bootstrap:ready",
+        "recorded_at": "2026-10-26T04:51:51.948Z",
+        "process_elapsed_ms": 5945,
+        "groups": ["chromium=156.0.8078.4"]
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "ui-build",
+        "recorded_at": "2026-10-26T04:51:59.371Z",
+        "process_elapsed_ms": 7155,
+        "elapsed_ms": 2267,
+        "outcome": "completed"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "cache:pnpm-store",
+        "recorded_at": "2026-10-26T04:58:37.432Z",
+        "process_elapsed_ms": 2,
+        "cache_outcome": "hit"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "e8929b7dcc392eb47887f75ddafa861104d2ce34",
+          "checkout": "8779dc6ab61d649c9bcdc77fd7c2517739ff8664",
+          "run": "40271163933",
+          "attempt": "1",
+          "job": "fast_frontend",
+          "runner": "Linux-X64",
+          "mode": "fast"
+        },
+        "phase": "browser-bootstrap:launch",
+        "recorded_at": "2026-10-26T04:51:51.948Z",
+        "process_elapsed_ms": 5944,
+        "elapsed_ms": 813,
+        "outcome": "completed"
+      }
+    ],
+    "installer_plus_ui_execution_share": 0.012855867871361098
+  },
+  "compatibility": {
+    "package_graph": "Coordinated Vite+1.3.0 / Vitest5.0.5 graph verified",
+    "bootstrap_contract_cases_passed": 9,
+    "bootstrap_contract_files_executed": 1,
+    "skipped_cases": 0,
+    "observation_source_fields": "local frontend reporter source/checkout remain null; root head and request are bound separately"
+  },
+  "cache_round_trip": {
+    "archive_ms": null,
+    "restore_ms": null,
+    "upload_ms": null,
+    "net_gain_ms": null,
+    "reason": "No hosted cache adopted: the complete installer is only1.286percent of the two observed sequential hosted stages; pure network download is bounded above by that installer."
+  },
+  "limits": [
+    "Installer timing includes package checks, two downloads and extraction; pure network timing is not isolated.",
+    "Presence labels do not establish usable cache; actual install/launch/version/close succeeded in all three local runs.",
+    "Local cold means absent checkout-owned browser directory, not cold OS/network/CDN caches.",
+    "Local warm command differences include page cache, process and supervisor variation; no portable end-to-end cache gain is claimed.",
+    "One hosted Linux cold observation and three local Linux runs do not establish other-platform costs or native Desktop acceptance.",
+    "Unknown restore/upload/archive costs remain null, not zero."
+  ],
+  "revisit": "Under #1104 if repeated equivalent hosted observations show browser installation materially dominates the critical path; measure full restore/upload costs before adopting a correctly keyed cache."
+}
