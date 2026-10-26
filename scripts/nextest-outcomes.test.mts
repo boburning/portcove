@@ -12,6 +12,8 @@ import {
   nextestOutcomeSelection,
   parseNextestOutcomes,
   runNextestWithOutcomes,
+  runDefaultNextest,
+  nextestRunListArguments,
   runnableNextestTests,
 } from "./nextest-outcomes.mts";
 
@@ -504,4 +506,90 @@ void test("bounded nextest failure details retain an explicit raw-output referen
   assert.equal(result.executed[0]!.failure_truncated, true);
   assert.equal(result.executed[0]!.failure!.length, 16_384);
   assert.equal(result.executed[0]!.failure_raw_source, "original nextest JSON stdout");
+});
+
+void test("default nextest inventory preserves selection while removing runtime knobs", () => {
+  assert.deepEqual(
+    nextestRunListArguments([
+      "--locked",
+      "--workspace",
+      "-E",
+      "test(one)",
+      "--retries=2",
+      "--test-threads",
+      "2",
+      "--profile",
+      "ci",
+      "--no-fail-fast",
+      "-j3",
+    ]),
+    ["--locked", "--workspace", "-E", "test(one)", "--profile", "ci"],
+  );
+  for (const args of [
+    ["--no-capture"],
+    ["--no-run"],
+    ["--run-ignored", "only"],
+    ["--message-format=json"],
+    ["--retries"],
+  ])
+    assert.equal(nextestRunListArguments(args), null);
+});
+
+void test("default guarded nextest uses actual listing identities and bounded existing outcomes", () => {
+  const input = inventory();
+  for (const suite of Object.values(input["rust-suites"]))
+    for (const [name, detail] of Object.entries(suite.testcases))
+      detail["filter-match"].status = name === "passed" ? "matches" : "mismatch";
+  const calls: string[][] = [],
+    output: string[] = [];
+  const status = runDefaultNextest(["--locked", "--workspace"], {
+    report: (line) => output.push(line),
+    spawnSync: (_command, args) => {
+      calls.push(args);
+      return args[1] === "list"
+        ? { status: 0, stdout: JSON.stringify(input) }
+        : { status: 0, stdout: fixture("passed.jsonl") };
+    },
+  });
+  assert.equal(status, 0);
+  assert.equal(calls[0]?.[1], "list");
+  assert.equal(calls[1]?.[1], "run");
+  assert.ok(output.some((line) => line.startsWith("Rust test case observation:")));
+});
+
+void test("default diagnostic and inventory refusal preserve native failures and reject accidental zero execution", () => {
+  const calls: string[][] = [];
+  for (const nativeStatus of [0, 100]) {
+    const output: string[] = [];
+    const status = runDefaultNextest(["--locked"], {
+      report: (line) => output.push(line),
+      spawnSync: (_command, args) => {
+        calls.push(args);
+        return { status: args[1] === "list" ? 1 : nativeStatus };
+      },
+    });
+    assert.equal(status, nativeStatus === 0 ? 1 : 100);
+    assert.ok(output.some((line) => line.includes("qualification refused")));
+  }
+  assert.equal(
+    runDefaultNextest(["--no-capture"], {
+      report: () => {
+        throw new Error("report sink");
+      },
+      spawnSync: (_command, args) => {
+        assert.equal(args[1], "run");
+        return { status: 100 };
+      },
+    }),
+    100,
+  );
+  const failure = new Error("native process failure");
+  assert.throws(
+    () =>
+      runDefaultNextest(["--no-run"], {
+        report: () => {},
+        spawnSync: () => ({ status: null, error: failure }),
+      }),
+    (error) => error === failure,
+  );
 });

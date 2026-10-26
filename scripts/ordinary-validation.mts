@@ -1219,6 +1219,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/nextest-outcomes.mts",
     [
+      "scripts/run-rust-tests.test.mts",
       "scripts/nextest-outcomes.test.mts",
       "scripts/qualification-nextest.test.mts",
       "scripts/windows-rust-tests.test.mts",
@@ -1558,6 +1559,24 @@ for (const file of nativeCompatibilitySourcePaths)
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-native-source-contract.test.mts",
   ]);
+
+for (const file of [
+  "scripts/report-summary.mts",
+  "scripts/bounded-summary.mts",
+  "scripts/fallow-summary.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/report-summary.test.mts",
+    "scripts/fallow-summary.test.mts",
+    "scripts/nextest-outcomes.test.mts",
+    "scripts/run-rust-tests.test.mts",
+  ]);
+explicitNodeTests.set("scripts/run-rust-tests.mts", [
+  ...(explicitNodeTests.get("scripts/run-rust-tests.mts") ?? []),
+  "scripts/run-rust-tests.test.mts",
+  "scripts/nextest-outcomes.test.mts",
+]);
 
 const workflowTests = new Map([
   [

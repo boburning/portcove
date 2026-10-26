@@ -291,3 +291,13 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
     fingerprintStage(stage, inventory("docs/README.md", "b".repeat(64)), runtime),
   );
 });
+
+void test("default nextest inventory retention dependencies invalidate Rust receipts", () => {
+  for (const file of [
+    "scripts/nextest-outcomes.mts",
+    "scripts/report-summary.mts",
+    "scripts/bounded-summary.mts",
+    "scripts/fallow-summary.mts",
+  ])
+    assert.ok(domainsForPath(file).domains.has("rust"), file);
+});

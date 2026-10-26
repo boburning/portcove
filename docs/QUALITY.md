@@ -319,3 +319,9 @@ Filtered runs explicitly report that full-family evaluation was not performed;
 they cannot replace the complete qualification owner. Metadata read failures are
 reported after consuming original runner failures. This opt-in platform contract
 does not classify undeclared families, other skip categories or native acceptance.
+
+### Default nextest outcome reporting
+
+The guarded default `run-rust-tests.mts` route lists its native selection before execution and reuses the bounded nextest outcome reporter. Raw listing stdout/stderr is retained under `work/nextest-default-outcomes`; missing, malformed and empty inventories cannot establish qualifying success. Original native failure status and human diagnostics remain primary.
+
+Explicit compile-only/help, native-format, no-capture and ignored-run overrides keep their original raw diagnostic behavior and emit a nonqualifying inventory annotation. They do not substitute for the maintained qualification routes. Guarded arbitrary commands keep their existing execution contract.

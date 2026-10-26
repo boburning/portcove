@@ -231,6 +231,8 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/native-build.mts",
 
   "scripts/report-summary.mts",
+  "scripts/bounded-summary.mts",
+  "scripts/fallow-summary.mts",
   "scripts/native-session-lock.mts",
   "scripts/process-lock.mts",
   "scripts/validation-plan.mts",

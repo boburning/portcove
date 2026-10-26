@@ -1,3 +1,5 @@
+import { retainCommandEvidence } from "./report-summary.mts";
+import path from "node:path";
 import type { SpawnSyncOptions } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -336,8 +338,10 @@ type OutcomeRunner = (
   options: SpawnSyncOptions,
 ) => {
   status?: number | null;
+  signal?: NodeJS.Signals | null;
   error?: Error;
   stdout?: string | Buffer | null;
+  stderr?: string | Buffer | null;
 };
 
 /** Run under the caller's existing process-tree reservation and original nextest profile. */
@@ -425,4 +429,133 @@ export function runNextestWithOutcomes(
   if (result.error) throw result.error;
   if (result.status !== 0) return result.status ?? 1;
   return observation.complete && reporting.failure === null ? 0 : 1;
+}
+
+const runValueFlags = new Set([
+  "-j",
+  "--test-threads",
+  "--retries",
+  "--max-fail",
+  "--no-tests",
+  "--failure-output",
+  "--success-output",
+  "--status-level",
+  "--final-status-level",
+]);
+const runSwitches = new Set([
+  "--fail-fast",
+  "--no-fail-fast",
+  "--hide-progress-bar",
+  "--no-output-indent",
+  "--no-input-handler",
+]);
+const diagnosticFlags = new Set([
+  "--no-run",
+  "--help",
+  "-h",
+  "--version",
+  "--no-capture",
+  "--nocapture",
+  "--message-format",
+  "--message-format-version",
+  "--run-ignored",
+]);
+
+/** Preserve native selection/build options; runtime-only knobs do not affect listing. */
+export function nextestRunListArguments(args: readonly string[]): string[] | null {
+  const result: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index]!;
+    if (argument === "--") {
+      if (args.slice(index + 1).some((arg) => diagnosticFlags.has(arg.split("=", 1)[0]!)))
+        return null;
+      result.push(...args.slice(index));
+      break;
+    }
+    const flag = argument.split("=", 1)[0]!;
+    if (diagnosticFlags.has(flag)) return null;
+    if (runSwitches.has(flag) || /^-j.+/u.test(argument)) continue;
+    if (runValueFlags.has(flag)) {
+      if (!argument.includes("=") && args[++index] === undefined) return null;
+      continue;
+    }
+    result.push(argument);
+  }
+  return result;
+}
+
+/** The default guarded route reports outcomes; explicit raw diagnostics stay nonqualifying. */
+export function runDefaultNextest(
+  args: string[],
+  dependencies: Parameters<typeof runNextestWithOutcomes>[2] & {
+    inventoryEvidenceDirectory?: string;
+  } = {},
+) {
+  const run = dependencies.spawnSync ?? spawnSync;
+  const listArgs = nextestRunListArguments(args);
+  const environment = dependencies.environment ?? process.env;
+  const cwd = dependencies.cwd ?? root;
+  let selection: ReturnType<typeof nextestOutcomeSelection> | undefined;
+  if (listArgs !== null) {
+    const listed = run(
+      "cargo-nextest",
+      ["nextest", "list", ...listArgs, "--message-format", "json"],
+      {
+        cwd,
+        env: environment,
+        encoding: "utf8",
+        maxBuffer: maximumBytes,
+        stdio: ["inherit", "pipe", "pipe"],
+      },
+    );
+    const evidence = retainCommandEvidence(
+      dependencies.inventoryEvidenceDirectory ??
+        path.join(root, "work", "nextest-default-outcomes"),
+      listed,
+    );
+    try {
+      if (listed.stderr) process.stderr.write(listed.stderr);
+      const message = "Nextest raw inventory evidence: " + JSON.stringify(evidence);
+      if (dependencies.report) dependencies.report(message);
+      else process.stderr.write(message + "\n");
+    } catch {
+      /* Diagnostic failure must not replace a native failure. */
+    }
+    if (!evidence.failure && !listed.error && listed.status === 0) {
+      try {
+        const inventory: unknown = JSON.parse(String(listed.stdout));
+        selection = nextestOutcomeSelection(
+          inventory,
+          runnableNextestTests(inventory, { allowSkipped: true, allowDefaultSkipped: true }),
+        );
+      } catch {
+        // Invalid/empty inventories cannot qualify. The original native run still owns failure status.
+      }
+    }
+  }
+  if (selection) return runNextestWithOutcomes(args, selection, dependencies);
+  const result = run("cargo-nextest", ["nextest", "run", ...args], {
+    cwd,
+    env: environment,
+    stdio: "inherit",
+  });
+  try {
+    const message = `Rust test execution inventory: ${JSON.stringify({ format_version: 1, runner: "nextest-native-diagnostic", platform: process.platform, arch: process.arch, complete: false, qualifying: listArgs !== null, reason: listArgs === null ? "explicit raw/compile-only/ignored diagnostic; per-test outcomes not evaluated" : "native inventory unavailable, malformed or empty; qualification refused", native_status: result.status ?? null, native_signal: result.signal ?? null })}`;
+    if (dependencies.report) dependencies.report(message);
+    else process.stderr.write(message + "\n");
+  } catch {
+    /* Reporting must not replace the original native failure. */
+  }
+  if (result.error) throw result.error;
+  if (result.status !== 0) return result.status ?? 1;
+  return listArgs === null ? 0 : 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] !== "--run")
+    throw new Error("Use the guarded Rust runner for default nextest outcomes");
+  const { resourceEntrypoint } = await import("./resource-command.mts");
+  process.exitCode = await resourceEntrypoint("rust", () =>
+    runDefaultNextest(process.argv.slice(3)),
+  );
 }

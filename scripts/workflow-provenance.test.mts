@@ -693,6 +693,8 @@ void test("preflight and controller share the exact hosted script authority boun
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/example.test.mjs"), false);
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/workflow-provenance.mts"), false);
   for (const file of [
+    "scripts/bounded-summary.mts",
+    "scripts/fallow-summary.mts",
     "scripts/node-platform-skips.mts",
     "scripts/node-test-suites.mts",
     "scripts/node-test-suites.json",
