@@ -453,7 +453,7 @@ void test("selected nextest outcome edits retain native execution and every outc
 });
 
 void test("disposable fixture helper changes retain every cleanup consumer across lifecycle and rename edits", async () => {
-  const { baselineRequiresDesktopDependencies, baselineFrontendPlan } =
+  const { baselineRequiresDesktopDependencies, baselineFrontendPlan, baselineContractTests } =
     await import("./ci-baseline.mts");
   const helper = "scripts/fixtures/disposable-directory.mts";
   const desktop = "apps/desktop/scripts/desktop-listener-lifetime.test.mts";
@@ -462,6 +462,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/catalog-proposal-costs.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/node-test-inventory.test.mts",
+    "scripts/node-platform-skips.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/python-test-results.test.mts",
     "scripts/release-catalog-review-request.test.mts",
@@ -527,6 +528,11 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
       base: "b".repeat(40),
       mergeBase: "b".repeat(40),
     });
+    const hosted = new Set(baselineContractTests(plan, { fileExists: allFilesExist }));
+    assert.deepEqual(
+      consumers.filter((file) => file !== desktop && !hosted.has(file)),
+      [],
+    );
     assert.ok(plan.groups.includes("frontend"));
     assert.ok(baselineRequiresDesktopDependencies(plan));
     assert.ok(
@@ -3448,6 +3454,74 @@ void test("controller decision modules retain their imported transport consumer 
       );
       assert.ok(
         hosted.includes("scripts/release-controller-transport.test.mts"),
+        file + "/" + variant + "/hosted",
+      );
+    }
+});
+
+void test("platform skip inputs retain their declared case and policy consumers across lifecycle changes", async () => {
+  const { baselineContractTests, baselineRequiresDesktopDependencies } =
+    await import("./ci-baseline.mts");
+  for (const file of [
+    "scripts/node-platform-skips.mts",
+    "scripts/node-test-suites.mts",
+    "scripts/node-test-suites.json",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = new Set(
+        baselineContractTests(
+          buildValidationPlan({
+            changes: [change],
+            eventName: "pull_request",
+            base: "a".repeat(40),
+            mergeBase: "a".repeat(40),
+            head: "b".repeat(40),
+            checkout: "b".repeat(40),
+          }),
+          { fileExists: () => false },
+        ),
+      );
+      const dependencyPlan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      assert.equal(
+        baselineRequiresDesktopDependencies(dependencyPlan),
+        true,
+        file + "/" + variant + "/desktop-dependencies",
+      );
+      const expected = [
+        "scripts/node-platform-skips.test.mts",
+        "scripts/required-node-test-reporter.test.mts",
+        "scripts/node-test-inventory.test.mts",
+        "scripts/release-checkpoint-store.test.mts",
+        "scripts/release-controller-transport.test.mts",
+        "scripts/ui-test-selection.test.mts",
+        "scripts/audit.test.mts",
+      ];
+      assert.deepEqual(
+        expected.filter((consumer) => !local.nodeTests.has(consumer)),
+        [],
+        file + "/" + variant + "/local",
+      );
+      assert.deepEqual(
+        expected.filter((consumer) => !hosted.has(consumer)),
+        [],
         file + "/" + variant + "/hosted",
       );
     }

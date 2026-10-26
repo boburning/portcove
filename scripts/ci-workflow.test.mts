@@ -1,3 +1,4 @@
+import { commandTokens } from "./node-test-suites.mts";
 import assert from "node:assert/strict";
 
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
@@ -173,12 +174,18 @@ void test("selected contracts install their desktop-owned dependencies before fa
 });
 
 void test("full repository contracts run the bounded release evidence collector controls", () => {
-  assert.deepEqual(
-    executableLines(workflowStep("catalog_full", "Test bounded release run evidence").run),
-    [
-      "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts",
-    ],
+  const commands = executableLines(
+    workflowStep("catalog_full", "Test bounded release run evidence").run,
   );
+  assert.equal(commands.length, 1);
+  const tokens = commandTokens(requiredFixture(commands[0]));
+  assert.equal(tokens[0], "node");
+  assert.deepEqual(tokens.filter((token) => token.startsWith("--")).sort(), [
+    "--test",
+    "--test-reporter=./scripts/required-node-test-reporter.mts",
+    "--test-timeout=30000",
+  ]);
+  assert.ok(tokens.includes("scripts/release-run-evidence.test.mts"));
 });
 
 void test("required CI keeps its cancellation and least-privilege contracts", () => {
