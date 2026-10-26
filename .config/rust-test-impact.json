@@ -114,7 +114,8 @@
             "crates/portcove-core/src/providers.rs",
             "crates/portcove-core/src/release.rs",
             "crates/portcove-core/src/release/observation.rs",
-            "crates/portcove-core/src/release/observation_tests.rs"
+            "crates/portcove-core/src/release/observation_tests.rs",
+            "crates/portcove-core/src/release/tests/unchanged_definition.rs"
           ],
           "filter": "test(/^gitlab::tests::/) | test(/^providers::tests::/) | test(/^release::tests::/) | test(/^release::observation::tests::/)"
         },

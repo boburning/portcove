@@ -89,6 +89,11 @@ restart. Choosing a game-data folder does not prove that the running process
 also changed its save folder; preserve every actual managed write coordinate
 before promising updates or backup. Keep a useful upstream-owned route when
 that coordinate requires upstream repair or supported preparation.
+For ordinary captures written beside the executable, reuse reviewed
+`persistent_file_patterns` with literal filename prefixes and suffixes. These
+files remain player data through collection, backup, replacement and rollback;
+do not exempt them as disposable runtime output or widen ownership to unrelated
+files. A save-directory argument alone does not prove that capture writers use it.
 
 For manual preparation that must finish before Play, `native-portable` may
 declare a `setup_marker` pointing to an upstream completion JSON record beneath
@@ -103,6 +108,21 @@ A reviewed marker may be added under unchanged existing player-data coordinates
 for a new runtime; it never rewrites an installed contract. Changing or removing
 an existing marker needs a supported transition. First-Play file pickers remain
 Play and need no artificial completion marker.
+
+Assess preparation separately on each platform. A Windows first-Play picker
+does not establish a Linux picker or a manual completion record. Keep a useful
+upstream setup/non-owning route for a platform whose preparation cannot be
+represented by the existing contract; never fabricate a marker. Managed-platform
+badges describe the definition's managed scope, so record separately supported
+external handoffs and their presentation limits explicitly. Application wrappers
+that seed data or set required environment values must retain their supported
+entry point; selecting a private native binary is not an equivalent handoff.
+
+For mutable release tags, keep the tag commit, current source head and any
+publisher-declared package build commit separate. A checksummed build manifest
+is a publisher source claim, not an independent reproducible-build attestation.
+Use Core's channel classification rather than a provider's prerelease flag alone;
+a nightly-named tag can be a Preview even when that flag is unset.
 
 Every package hint must match for managed replacement; the shared native
 suitability check still rejects known foreign processors, platforms, supporting

@@ -22272,6 +22272,86 @@
       }
     },
     {
+      "id": "diegodedios-alienrerecomp",
+      "name": "Alien Resurrection / AlienReRecomp",
+      "summary": "Play Alien Resurrection with your own USA PlayStation disc image.",
+      "project_url": "https://github.com/DiegoDeDios/AlienReRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "DiegoDeDios/AlienReRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "AlienResurrection-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "AlienResurrection-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "AlienResurrection.exe"
+        ],
+        "linux-x86-64": [
+          "AlienResurrection"
+        ]
+      },
+      "launch_arguments": [
+        "--save-dir",
+        "saves"
+      ],
+      "persistent_paths": [
+        "saves"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "shot_",
+          "suffix": ".png"
+        },
+        {
+          "prefix": "vram_",
+          "suffix": ".png"
+        }
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, choose your own USA PlayStation Alien Resurrection disc image (SLUS-00633). This separate managed copy uses its saves folder for settings, memory cards, quick save and logs. Portcove also preserves runtime-folder shot_*.png screenshots and vram_*.png captures. Original disc files, external-copy profiles, custom save paths and custom debug destinations stay external. Make a memory-card save in game BEFORE updating, switching runtime versions or rolling back. Quick saves are version-specific and have one slot; retain the old runtime if your latest progress exists only in its quick save. Runtime rollback carries current declared data, not earlier saves or guaranteed older-version compatibility. Linux needs glibc 2.35+ and a working Vulkan environment; other platforms need separate review.",
+        "original_game_title": "Alien Resurrection",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use your existing upstream player",
+              "instruction": "For an existing copy, select AlienResurrection.exe on Windows or AlienResurrection on Linux with its containing folder."
+            },
+            {
+              "title": "Choose your original disc on Play",
+              "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+            },
+            {
+              "title": "Preserve the profile before changing versions",
+              "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
+            }
+          ],
+          "warnings": [
+            "Existing external copies and their profiles stay upstream/player-owned. Runtime rollback does not rewind saves or guarantee older-version compatibility."
+          ],
+          "help_url": "https://github.com/DiegoDeDios/AlienReRecomp#quick-save"
+        }
+      }
+    },
+    {
       "id": "djultra64-blocksphere",
       "name": "Tetrisphere / Blocksphere (djultra64)",
       "summary": "Explore Tetrisphere / Blocksphere (djultra64) and follow the upstream project for requirements, downloads and setup.",
@@ -23160,6 +23240,74 @@
       }
     },
     {
+      "id": "leithsilver-mgsm",
+      "name": "Metal Gear Solid Mobile (MGSM)",
+      "summary": "Play Metal Gear Solid Mobile using your own N-Gage game package.",
+      "project_url": "https://github.com/LeithSilver/mgsm",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "LeithSilver/mgsm",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MGS_Mobile_",
+            "_Windows_x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mgs_mobile.exe"
+        ]
+      },
+      "persistent_paths": [
+        "ROM",
+        "game",
+        "game.setup",
+        "textures",
+        "screenshots",
+        "models",
+        "customModel",
+        "mgs_mobile.ini",
+        "mgs_mobile.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play, then select your own Metal Gear Solid Mobile N-Gage 2.0 package in the game's setup window. Browse to the file or drop it onto that window; the original is read without being changed. Setup writes game files and textures beside the player. No separate installer or BIOS is needed. The supported input is Metal.Gear.Solid.n-gage, 2,542,447 bytes, SHA-256 575afba9a431775edd30e20a54e23380d182560d7d51db90ae5edd5b810b2d81; the upstream setup also checks its required game components. Portcove replaces the separate managed Windows player. Original game files, interrupted setup data, saves and settings under game/game.setup, extracted or replacement textures, screenshots, exported models, customModel assets, mgs_mobile.ini, mgs_mobile.log and the optional ROM folder are declared for compatible updates and backups. A browsed original package outside that folder stays external. Logs may be replaced by the game at its next launch. Runtime rollback carries current declared files, not earlier saves or guaranteed older-version/mod compatibility. Custom positional data paths and debug output locations remain outside that contract. The game performs original-file preparation; it does not replace its own player runtime. Desktop game CPU instructions run through Unicorn with native engine services; this is not a static recompilation. Native execution, OS/GPU minimums, gameplay and populated real-save restoration remain unqualified. For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy.",
+        "original_game_title": "Metal Gear Solid Mobile",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own game package in the Windows player",
+              "instruction": "Choose Play, then select your own Metal Gear Solid Mobile N-Gage 2.0 package in the game's setup window. Browse to the file or drop it onto that window; the original is read without being changed. Setup writes game files and textures beside the player. No separate installer or BIOS is needed. The supported input is Metal.Gear.Solid.n-gage, 2,542,447 bytes, SHA-256 575afba9a431775edd30e20a54e23380d182560d7d51db90ae5edd5b810b2d81; the upstream setup also checks its required game components."
+            },
+            {
+              "title": "Use a prepared upstream Linux copy",
+              "instruction": "For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+        },
+        "artwork": {
+          "game_id": 41041,
+          "cover_id": 157631,
+          "image_id": "co3dmn",
+          "image_sha256": "4280169241e02c28231d327b6edd95b208e804235d166540fd28f574f9b5df4b",
+          "game_slug": "metal-gear-solid-mobile",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "mdk-sdl-nemo22",
       "name": "MDK / SDL engine (nemo22)",
       "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",
@@ -23219,6 +23367,74 @@
           "image_id": "co255x",
           "image_sha256": "1419a475923b58ac1c10e48944b6dff9744b2afb9825a095d42426113fbcd61b",
           "game_slug": "mdk",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "mr-finster-stunts-hd",
+      "name": "Stunts HD",
+      "summary": "Play Stunts 1.1 using your own original files in the desktop player.",
+      "project_url": "https://github.com/mr-finster/stunts-hd",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "mr-finster/stunts-hd",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Stunts-HD-win-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Stunts-HD-linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Stunts HD.exe"
+        ],
+        "linux-x86-64": [
+          "stunts-hd"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied. Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup. For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed. The desktop carrier is Electron 33.2.1; original x86 game code is translated to JavaScript on a modeled PC, not statically compiled to native game code. Reviewed ordinary writers do not alter package files, and no runtime self-updater was found. Compatible Portcove runtime replacement leaves the external profile in place. Native execution, Linux sandbox/GPU requirements, gameplay and real-save restoration remain unqualified.",
+        "original_game_title": "Stunts",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original files on Play",
+              "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied."
+            },
+            {
+              "title": "Keep a separate profile backup",
+              "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
+            },
+            {
+              "title": "Keep useful alternatives and recovery limits",
+              "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
+        },
+        "artwork": {
+          "game_id": 11630,
+          "cover_id": 100218,
+          "image_id": "co25bu",
+          "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
+          "game_slug": "stunts",
           "match_kind": "underlying-game"
         }
       }

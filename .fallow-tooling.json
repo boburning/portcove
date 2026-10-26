@@ -9,6 +9,8 @@
     "scripts/rust-test-tree-supervisor.{mjs,mts}",
     "scripts/rust-coverage.mts",
     "scripts/qualification-nextest.mts",
+    "apps/desktop/scripts/release-version-bundled-runtime.mts",
+    "scripts/nextest-outcomes-cli.mts",
     "scripts/qualification-rustdoc.mts",
     "scripts/viteplus-renovate-probe.{mjs,mts}",
     "scripts/generate-catalog.{mjs,mts}",

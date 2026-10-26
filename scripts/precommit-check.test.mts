@@ -144,8 +144,10 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
   assert.deepEqual(
     readFixtureModuleClosure(root, fixtureEntries).modules.map((module) => module.path),
     [
+      "scripts/bounded-summary.mts",
       "scripts/catalog-authoring.mts",
       "scripts/catalog-staged-check.mts",
+      "scripts/fallow-summary.mts",
       "scripts/nextest-outcomes.mts",
       "scripts/node-test-inventory.mts",
       "scripts/node-test-suites.mts",
@@ -153,6 +155,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/qualification-coverage.mts",
       "scripts/qualification-nextest.mts",
       "scripts/qualification-rustdoc.mts",
+      "scripts/report-summary.mts",
       "scripts/runtime-values.mts",
       "scripts/rustdoc-outcomes.mts",
       "scripts/upstream-lineage.mts",

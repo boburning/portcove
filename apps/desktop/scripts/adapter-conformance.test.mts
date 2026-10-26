@@ -40,8 +40,14 @@ test("each compiled consumer keeps its pre-publication identity", () => {
 
 const status = {
   port_id: "fixture",
+  channel: "stable",
+  update_policy: "notify",
   active: null,
-  readiness: { launchable: false, blockers: ["not_installed"] },
+  previous: null,
+  staged: null,
+  last_launched_at: null,
+  successful_launches: 0,
+  readiness: { launchable: false, pending_setup: false, blockers: [] },
   definition_operations: [
     {
       operation: "install",
@@ -66,6 +72,7 @@ test("parses a successful CLI status envelope", () => {
         data: [status],
         error: null,
       }),
+      48,
     ),
     [status],
   );
@@ -75,10 +82,34 @@ test("rejects the wrong CLI response contract", () => {
   assert.throws(
     () =>
       parseCliStatuses(
-        JSON.stringify({ schema_version: 48, ok: true, command: "catalog.list", data: [status] }),
+        JSON.stringify({
+          schema_version: 48,
+          ok: true,
+          command: "catalog.list",
+          data: [status],
+          error: null,
+        }),
+        48,
       ),
     /CLI must identify the status command/,
   );
+});
+
+const envelope = { schema_version: 48, ok: true, command: "status", data: [status], error: null };
+test.each([
+  ["wrong schema", { ...envelope, schema_version: 49 }],
+  ["missing schema", { ...envelope, schema_version: undefined }],
+  ["unsuccessful result", { ...envelope, ok: false }],
+  ["success carrying failure", { ...envelope, error: { message: "owned failure" } }],
+  ["missing error marker", { ...envelope, error: undefined }],
+  ["non-array statuses", { ...envelope, data: {} }],
+  ["missing port identity", { ...envelope, data: [{ ...status, port_id: undefined }] }],
+  [
+    "invalid readiness",
+    { ...envelope, data: [{ ...status, readiness: { launchable: "yes", blockers: [] } }] },
+  ],
+])("rejects serialized %s before comparing adapters", (_name, value) => {
+  assert.throws(() => parseCliStatuses(JSON.stringify(value), 48));
 });
 
 test("accepts exact status parity and reports adapter drift", () => {

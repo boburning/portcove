@@ -2724,6 +2724,47 @@
       "issue_number": 2813
     },
     {
+      "id": "abuse-abuse-2025",
+      "name": "Abuse 2025",
+      "original_game_title": "Abuse",
+      "summary": "Use a permitted existing Abuse player with its compatible game data.",
+      "project_url": "https://github.com/apancik/Abuse_2025",
+      "issue_number": 2913,
+      "availability": "packages",
+      "setup_url": "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the permitted working player and data together",
+            "instruction": "For an existing copy you are permitted to use, select abuse.exe on Windows or abuse on Linux with its game folder as the working directory. Keep its compatible data and libraries together; ABUSE_PATH overrides the asset root. The current release offers Windows and macOS packages; Linux here describes an already prepared native copy, not an offered Linux archive or a Portcove build. macOS uses the upstream application through the OS, not a private bundle binary."
+          },
+          {
+            "title": "Back up the actual save directory",
+            "instruction": "The reviewed SDL code normally uses SDL_GetPrefPath(\"abuse\", \"data\") for saves/settings: %APPDATA%/abuse/data on Windows, or $XDG_DATA_HOME/abuse/data (normally ~/.local/share/abuse/data) on Linux. ABUSE_SAVE_PATH overrides it; if preference-path creation fails upstream falls back to the current working directory. Preserve that actual location, custom levels/mods and the working data folder with the game closed. The local_save flag alone is not proof that saves are beside the executable."
+          },
+          {
+            "title": "Retain upstream replacement and data ownership",
+            "instruction": "Registration leaves the external files untouched. You and upstream own updates and backups; Portcove supplies no managed backup or rollback. Upstream mentions a public-domain data subset, but its exact clean subset and compatibility with this release still need acceptance. Do not automatically replace mixed bundled assets or claim that a root code license covers music and soundfonts."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",
+      "artwork": {
+        "game_id": 586,
+        "cover_id": 130164,
+        "image_id": "co2sfo",
+        "image_sha256": "e4ffa1a3537f7174634208e1084335e6cda41c597c80f08a4e23d92242a3c0e4",
+        "game_slug": "abuse",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "ac1recomp-neonlightning-armored-core",
       "name": "Armored Core — AC1Recomp (NeonLightning)",
       "original_game_title": "Armored Core",
@@ -8226,37 +8267,140 @@
       "issue_number": 3562
     },
     {
+      "id": "athelas-return-of-the-king-pc-fix",
+      "name": "The Return of the King (PC) — Athelas ROTK Fix",
+      "summary": "Improve the 2003 Windows version of The Return of the King with Athelas and ROTK Fix.",
+      "original_game_title": "The Lord of the Rings: The Return of the King",
+      "project_url": "https://github.com/Shagg88/Athelas",
+      "issue_number": 2801,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
+      "setup_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use Athelas with your own PC game",
+            "instruction": "Install your own US 2003 Windows PC copy of The Lord of the Rings: The Return of the King. This enhancement is separate from Athelas's three original-Xbox ports; an Xbox disc does not replace this PC installation. Extract the official Athelas release into its own folder, open Athelas.exe deliberately, select the PC game and show it the game folder. The launcher installs ROTK Fix's DLLs and ROTKFix folder beside rotk.exe. Original game assets are not supplied, and the PC game's copy protection is not bypassed. Installing into a protected game folder may ask for Windows permission."
+          },
+          {
+            "title": "Keep the launcher as the useful entry point",
+            "instruction": "Use Athelas for settings and Play; register Athelas.exe with its own folder as the working directory if you want it in Portcove. Registration opens the launcher, where you select this PC game; it does not promise a direct launch of one of the bundled games. Athelas writes ROTKFix.ini beside the PC game and updates its ROTK.ini in Documents with a backup copy. Preserve existing wrappers before changes and use About → Remove ROTK Fix for the upstream-supported removal that restores its replaced files."
+          },
+          {
+            "title": "Let Athelas update and keep your own backups",
+            "instruction": "The launcher offers Update now, verifies a replacement, installs it over its own folder and restarts. Keep it upstream-owned: Portcove registration preserves all external files and does not offer managed Update, Backup or Rollback. Back up the PC game's actual save/profile folder, its game-folder ROTKFix.ini/ROTKFix content and the launcher's configuration separately. The three Xbox components use different settings and saves; do not substitute those paths for the PC game. Upstream also describes Proton and CrossOver routes, which are not native Linux/macOS qualification. This release's contents, native execution, gameplay and real-save restoration have not been observed here."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      },
+      "artwork": {
+        "game_id": 2973,
+        "cover_id": 94191,
+        "image_id": "co20of",
+        "image_sha256": "6f9fb86207583d1e105e843e62b5230634e3746752c9532cceb7d83abcae18a6",
+        "game_slug": "the-lord-of-the-rings-the-return-of-the-king",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "athelas-the-fellowship-of-the-ring-xbox",
       "name": "The Lord of the Rings: The Fellowship of the Ring (Athelas ports/fellowship)",
-      "summary": "Upstream route: Athelas shared launcher/release ZIP contains FOTR-Xbox/FOTRXbox.exe. Imports own USAoriginalXboxISO/extractedfiles, launches this distinctcomponentruntime and owns settings/updates. Component source build recompile is separate. No managed Portcove operations inferred. Limits: Upstream only: Three distinct Xbox implementations share the launcher; PC ROTKFix is separate enhancement. Fellowship is a new first version; complete qualification not inherited. Not simply launcher alias: repository contains three Xbox native ports plus ROTK Fix mod. Expand per-game implementation; compare TwoTowers row56 ancestry, preserve original PC protection and launcher updates. Upstream platforms: Xbox components: Windows 10/11 x64 D3D12. Athelas uses Proton on Linux/Deck; CrossOver-like testing is not a physical Mac run. Original data: Own The Lord of the Rings: The Fellowship of the Ring originalXbox USA disc ISO or extracted default.xbe and matching files. Athelas contains its own ports/fellowship implementation; source build locally translates game code. Exact accepted executable revision/hash not stated in reviewed componentREADME; no separate XboxBIOS input described. Portcove setup/gameplay not verified.",
+      "summary": "Play the original Xbox version of The Fellowship of the Ring through Athelas.",
       "original_game_title": "The Lord of the Rings: The Fellowship of the Ring",
       "project_url": "https://github.com/Shagg88/Athelas",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Shagg88/Athelas",
-      "issue_number": 2800
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
+      "issue_number": 2800,
+      "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use Athelas with your own original Xbox game",
+            "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Fellowship of the Ring and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component FOTR-Xbox/FOTRXbox.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+          },
+          {
+            "title": "Keep upstream setup and updates together",
+            "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is FOTR-Xbox/FOTRXbox.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+          },
+          {
+            "title": "Preserve this component's data",
+            "instruction": "Back up the actual launcher folder and this game's FOTR-Xbox/saves directory before changing versions. This game has its own settings; FOTR-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. Exact accepted original executable revision/hash, native execution, gameplay and real-save restoration remain unqualified here. Existing historical lineage questions and canonical acceptance remain with this component's owner."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      }
     },
     {
       "id": "athelas-the-return-of-the-king-xbox",
       "name": "The Lord of the Rings: The Return of the King — Original Xbox (Athelas ports/rotk-xbox)",
-      "summary": "Upstream route: Athelas shared launcher/release ZIP contains ROTK-Xbox/ROTKXbox.exe. Imports own USAoriginalXboxISO/extractedfiles, launches this distinctcomponentruntime and owns settings/updates. Component source build recompile is separate. No managed Portcove operations inferred. Limits: Upstream only: Three distinct Xbox implementations share the launcher; PC ROTKFix is separate enhancement. Fellowship is a new first version; complete qualification not inherited. Not simply launcher alias: repository contains three Xbox native ports plus ROTK Fix mod. Expand per-game implementation; compare TwoTowers row56 ancestry, preserve original PC protection and launcher updates. Upstream platforms: Xbox components: Windows 10/11 x64 D3D12. Athelas uses Proton on Linux/Deck; CrossOver-like testing is not a physical Mac run. Original data: Own The Lord of the Rings: The Return of the King originalXbox USA disc ISO or extracted default.xbe and matching files. Athelas contains its own ports/rotk-xbox implementation; source build locally translates game code. Exact accepted executable revision/hash not stated in reviewed componentREADME; no separate XboxBIOS input described. Portcove setup/gameplay not verified.",
+      "summary": "Play the original Xbox version of The Return of the King through Athelas.",
       "original_game_title": "The Lord of the Rings: The Return of the King",
       "project_url": "https://github.com/Shagg88/Athelas",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Shagg88/Athelas",
-      "issue_number": 2799
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
+      "issue_number": 2799,
+      "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use Athelas with your own original Xbox game",
+            "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Return of the King and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component ROTK-Xbox/ROTKXbox.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+          },
+          {
+            "title": "Keep upstream setup and updates together",
+            "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is ROTK-Xbox/ROTKXbox.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+          },
+          {
+            "title": "Preserve this component's data",
+            "instruction": "Back up the actual launcher folder and this game's ROTK-Xbox/saves directory before changing versions. This game has its own settings; ROTK-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. Exact accepted original executable revision/hash, native execution, gameplay and real-save restoration remain unqualified here. Existing historical lineage questions and canonical acceptance remain with this component's owner."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      }
     },
     {
       "id": "athelas-the-two-towers-xbox",
       "name": "The Lord of the Rings: The Two Towers — Original Xbox (Athelas ports/two-towers)",
-      "summary": "Upstream route: Athelas shared launcher/release ZIP contains TT-Xbox/TwoTowers.exe. Imports own USAoriginalXboxISO/extractedfiles, launches this distinctcomponentruntime and owns settings/updates. Component source build recompile is separate. No managed Portcove operations inferred. Limits: Upstream only: Three distinct Xbox implementations share the launcher; PC ROTKFix is separate enhancement. Fellowship is a new first version; complete qualification not inherited. Not simply launcher alias: repository contains three Xbox native ports plus ROTK Fix mod. Expand per-game implementation; compare TwoTowers row56 ancestry, preserve original PC protection and launcher updates. Upstream platforms: Xbox components: Windows 10/11 x64 D3D12. Athelas uses Proton on Linux/Deck; CrossOver-like testing is not a physical Mac run. Original data: Own The Lord of the Rings: The Two Towers originalXbox USA disc ISO or extracted default.xbe and matching files. Athelas contains its own ports/two-towers implementation; source build locally translates game code. Exact accepted executable revision/hash not stated in reviewed componentREADME; no separate XboxBIOS input described. Portcove setup/gameplay not verified.",
+      "summary": "Play the original Xbox version of The Two Towers through Athelas.",
       "original_game_title": "The Lord of the Rings: The Two Towers",
       "project_url": "https://github.com/Shagg88/Athelas",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Shagg88/Athelas",
-      "issue_number": 2798
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
+      "issue_number": 2798,
+      "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use Athelas with your own original Xbox game",
+            "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Two Towers and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component TT-Xbox/TwoTowers.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+          },
+          {
+            "title": "Keep upstream setup and updates together",
+            "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is TT-Xbox/TwoTowers.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+          },
+          {
+            "title": "Preserve this component's data",
+            "instruction": "Back up the actual launcher folder and this game's TT-Xbox/saves directory before changing versions. This game has its own settings; TT-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. Exact accepted original executable revision/hash, native execution, gameplay and real-save restoration remain unqualified here. Existing historical lineage questions and canonical acceptance remain with this component's owner."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      }
     },
     {
       "id": "atlantis-the-lost-tales-atlantis-native",
@@ -9237,13 +9381,64 @@
     {
       "id": "blood-raze",
       "name": "Blood (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Blood. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Blood in Raze using your own original PC game files.",
       "original_game_title": "Blood",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2667
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2667,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC Blood data folder, including BLOOD.RFF, SOUNDS.RFF, BLOOD.INI and its accompanying art/data. Raze recognizes specific Blood 1.0, 1.1 and One Unit Whole Blood identities. Keep optional Cryptic Passage files with their required base data. A remaster player executable is not the original data archive. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your BLOOD.RFF archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 7644,
+        "cover_id": 126464,
+        "image_id": "co2pkw",
+        "image_sha256": "becd29ed4de2e60ca6c178769351e7c9a0847283473f9f029b636e331726e029",
+        "game_slug": "blood",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "bloodborne-mac-bloodborne-native-bloodborne",
@@ -9705,6 +9900,47 @@
         "image_id": "co3r52",
         "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
         "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "btfighter-super-mario-world-remastered-plus",
+      "name": "Super Mario World Remastered Plus",
+      "original_game_title": "Super Mario World",
+      "summary": "Use a permitted existing Remastered Plus player with your own recognized SNES ROM.",
+      "project_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus",
+      "issue_number": 2841,
+      "availability": "packages",
+      "setup_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the maintained fork distinct",
+            "instruction": "This is BTFighter’s Godot fork of JHDev2006 Super Mario World Remastered, not a native 65816 recompilation. Use an existing copy you are permitted to use and select its exported game executable, with that game folder as the working directory. Keep its companion data files together. Current releases are RAR archives; Portcove does not extract RAR. Older ZIP releases do not resolve the separate bundled-artwork question."
+          },
+          {
+            "title": "Use your own recognized Super Mario World ROM",
+            "instruction": "Place your own baserom.sfc in the SuperMarioWorldRemastered user-data folder shown by the game’s ROM screen. Its checker accepts specific USA, Japanese and European SNES hashes, including some headered variants; an additional accepted hash has no independently established edition here. This gate checks the ROM but does not extract or establish permission for the already bundled sprites/music. Use upstream’s exact recognized edition; no Core original-file receipt is claimed."
+          },
+          {
+            "title": "Preserve the shared profile before switching forks",
+            "instruction": "Both this fork and its archived parent configure the same SuperMarioWorldRemastered user-data directory. Back up that actual Godot profile with both games closed before switching, and keep each working runtime; save compatibility between forks is unqualified. The game normally uses %APPDATA%/SuperMarioWorldRemastered on Windows and $XDG_DATA_HOME/SuperMarioWorldRemastered or ~/.local/share/SuperMarioWorldRemastered on Linux. Updates and backups remain yours; registration neither migrates the parent nor provides managed rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+      "artwork": {
+        "game_id": 1070,
+        "cover_id": 401336,
+        "image_id": "co8lo8",
+        "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
+        "game_slug": "super-mario-world",
         "match_kind": "underlying-game"
       }
     },
@@ -12645,6 +12881,41 @@
       "issue_number": 2978
     },
     {
+      "id": "diegodedios-alienrerecomp",
+      "name": "Alien Resurrection / AlienReRecomp",
+      "original_game_title": "Alien Resurrection",
+      "summary": "Play Alien Resurrection with your own USA PlayStation disc image.",
+      "project_url": "https://github.com/DiegoDeDios/AlienReRecomp",
+      "issue_number": 2746,
+      "availability": "packages",
+      "release_url": "https://github.com/DiegoDeDios/AlienReRecomp/releases",
+      "setup_url": "https://github.com/DiegoDeDios/AlienReRecomp#plug-and-play",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your existing upstream player",
+            "instruction": "For an existing copy, select AlienResurrection.exe on Windows or AlienResurrection on Linux with its containing folder."
+          },
+          {
+            "title": "Choose your original disc on Play",
+            "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+          },
+          {
+            "title": "Preserve the profile before changing versions",
+            "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
+          }
+        ],
+        "warnings": [
+          "Existing external copies and their profiles stay upstream/player-owned. Runtime rollback does not rewind saves or guarantee older-version compatibility."
+        ],
+        "help_url": "https://github.com/DiegoDeDios/AlienReRecomp#quick-save"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
+    },
+    {
       "id": "digimon-world-psx-recomp-port",
       "name": "Digimon World / psx-recomp-port",
       "summary": "Explore Digimon World / psx-recomp-port and follow the upstream project for requirements, downloads and setup.",
@@ -13985,13 +14256,64 @@
     {
       "id": "duke-nukem-3d-raze",
       "name": "Duke Nukem 3D (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Duke Nukem 3D. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Duke Nukem 3D in Raze using your own original PC game files.",
       "original_game_title": "Duke Nukem 3D",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2666
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2666,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC Duke Nukem 3D data folder, anchored by DUKE3D.GRP. Raze recognizes retail 1.3/Atomic and specific World Tour data variants; the actual group-file identity selects the edition. Keep the accompanying original files. Console, mobile and other Raze games are not substitutes. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your DUKE3D.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 342,
+        "cover_id": 91005,
+        "image_id": "co1y7x",
+        "image_sha256": "8c04ef5da0d94761f148f784e5887ad8fe314a7dbea0a03320bd5d5cac971abb",
+        "game_slug": "duke-nukem-3d",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "dune-ii-dune-dynasty",
@@ -16712,7 +17034,8 @@
       "issue_number": 163,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/SunJaycy/GoldenEye-Recomp"
+      "setup_url": "https://github.com/SunJaycy/GoldenEye-Recomp",
+      "download_block_reason": "Fresh runtime acquisition is held: this targets the cancelled GoldenEye 007 XBLA remaster, and an authorized reproducible original-input route is not established. A retail N64 ROM is a different edition. Retained installations keep their existing contract. Reconsider after the canonical owner accepts a lawful exact-input contract."
     },
     {
       "id": "goldeneye007reloadedrecomp-nikolaygorb-goldeneye-007-reloaded",
@@ -17344,6 +17667,88 @@
         "help_url": "https://github.com/SamiulH25/gt2-recomp"
       },
       "issue_number": 3522
+    },
+    {
+      "id": "gta-iii-re3",
+      "name": "Grand Theft Auto III / re3",
+      "original_game_title": "Grand Theft Auto III",
+      "summary": "Use a permitted existing re3 player with your own original PC game data.",
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "issue_number": 2852,
+      "availability": "packages",
+      "setup_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your existing player for this game",
+            "instruction": "Use an existing re3 copy you are permitted to use with your own original PC Grand Theft Auto III assets. Select re3.exe on Windows or the native re3 executable on Linux and use that game’s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game’s executable, console originals and Definitive Edition are not substitutes."
+          },
+          {
+            "title": "Keep saves and settings with the working copy",
+            "instruction": "This game-specific re3_v1.0 README places user files (saves and settings) in the game root and uses re3.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback."
+          },
+          {
+            "title": "Preserve the archived implementation identity",
+            "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "artwork": {
+        "game_id": 730,
+        "cover_id": 120932,
+        "image_id": "co2lb8",
+        "image_sha256": "5f64f7a41034ea93cb44c3cd3c5b7167d680f647e9952967e167e452dd8e447c",
+        "game_slug": "grand-theft-auto-iii",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "gta-vice-city-revc",
+      "name": "Grand Theft Auto: Vice City / reVC",
+      "original_game_title": "Grand Theft Auto: Vice City",
+      "summary": "Use a permitted existing reVC player with your own original PC game data.",
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "issue_number": 2853,
+      "availability": "packages",
+      "setup_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your existing player for this game",
+            "instruction": "Use an existing reVC copy you are permitted to use with your own original PC Grand Theft Auto: Vice City assets. Select reVC.exe on Windows or the native reVC executable on Linux and use that game’s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game’s executable, console originals and Definitive Edition are not substitutes."
+          },
+          {
+            "title": "Keep saves and settings with the working copy",
+            "instruction": "This game-specific reVC_1.0 README places user files (saves and settings) in the game root and uses reVC.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback."
+          },
+          {
+            "title": "Preserve the archived implementation identity",
+            "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "artwork": {
+        "game_id": 733,
+        "cover_id": 120935,
+        "image_id": "co2lbb",
+        "image_sha256": "a3d322aebc6ce090b7b5053b2dc5fc4b2724ed5d00fb6ba9116ff6de78d0ae65",
+        "game_slug": "grand-theft-auto-vice-city",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "gtteancum-openjam",
@@ -18709,6 +19114,47 @@
         "game_slug": "initial-d-arcade-stage-3",
         "match_kind": "underlying-game"
       }
+    },
+    {
+      "id": "inliner495-bblit-remaster",
+      "name": "Bugs Bunny: Lost in Time / BBLIT Remaster",
+      "original_game_title": "Bugs Bunny: Lost in Time",
+      "summary": "Use the upstream renderer and control enhancement with your existing Bugs Bunny: Lost in Time PC game.",
+      "project_url": "https://github.com/InLineR495/BBLIT-Remaster",
+      "issue_number": 2751,
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "release_url": "https://github.com/InLineR495/BBLIT-Remaster/releases",
+      "setup_url": "https://github.com/InLineR495/BBLIT-Remaster#readme",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your original PC game recoverable",
+            "instruction": "Use your permitted original PC installation and an executable edition listed by upstream. Preserve the working game folder, saves, settings and any existing renderer wrapper before changing it. The download is an enhancement, not a standalone game."
+          },
+          {
+            "title": "Place the enhancement beside the player",
+            "instruction": "Copy the archive’s BIN/ddraw.dll and BIN/remaster.ini into the game’s BIN folder beside bugs.exe. Review any existing file before replacing it. Do not register the DLL or the BugsBunny.exe launcher."
+          },
+          {
+            "title": "Set the required launch details",
+            "instruction": "Select BIN/bugs.exe, set the working directory to BIN, and add five separate launch arguments: /opengl, /win, /b0, /x800, /y600. Then choose Play explicitly. Keep saves, settings and remaster.log in BIN backed up; updates remain with you and upstream."
+          }
+        ],
+        "warnings": [
+          "The enhancement checks specific original bugs.exe editions. Modified or other editions are outside this claim; use upstream’s exact requirements. Linux Proton observations do not establish a native Linux player or Portcove-managed compatibility layer."
+        ],
+        "help_url": "https://github.com/InLineR495/BBLIT-Remaster#readme"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "BBLIT-Remaster-",
+          ".zip"
+        ]
+      },
+      "recommended_download_channel": "beta"
     },
     {
       "id": "insanitybringer-piccuengine",
@@ -20493,6 +20939,43 @@
       }
     },
     {
+      "id": "leithsilver-mgsm",
+      "project_url": "https://github.com/LeithSilver/mgsm",
+      "name": "Metal Gear Solid Mobile (MGSM)",
+      "summary": "Play Metal Gear Solid Mobile using your own N-Gage game package.",
+      "issue_number": 2760,
+      "original_game_title": "Metal Gear Solid Mobile",
+      "availability": "packages",
+      "recommended_download_channel": "beta",
+      "setup_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+      "release_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your own game package in the Windows player",
+            "instruction": "Choose Play, then select your own Metal Gear Solid Mobile N-Gage 2.0 package in the game's setup window. Browse to the file or drop it onto that window; the original is read without being changed. Setup writes game files and textures beside the player. No separate installer or BIOS is needed. The supported input is Metal.Gear.Solid.n-gage, 2,542,447 bytes, SHA-256 575afba9a431775edd30e20a54e23380d182560d7d51db90ae5edd5b810b2d81; the upstream setup also checks its required game components."
+          },
+          {
+            "title": "Use a prepared upstream Linux copy",
+            "instruction": "For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+      },
+      "artwork": {
+        "game_id": 41041,
+        "cover_id": 157631,
+        "image_id": "co3dmn",
+        "image_sha256": "4280169241e02c28231d327b6edd95b208e804235d166540fd28f574f9b5df4b",
+        "game_slug": "metal-gear-solid-mobile",
+        "match_kind": "underlying-game"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
+    },
+    {
       "id": "lethal-guitar-rigelengine",
       "name": "Duke Nukem II / Rigel Engine (lethal-guitar)",
       "summary": "Play Duke Nukem II with widescreen, smooth scrolling and Rigel Engine’s mod support.",
@@ -20699,6 +21182,46 @@
         "help_url": "https://github.com/benjidotsh/LittleBigRecomp"
       },
       "issue_number": 3381
+    },
+    {
+      "id": "lodilorenzo-cybermage-darklight-re-awakening",
+      "name": "CyberMage: Darklight Re-Awakening",
+      "original_game_title": "CyberMage: Darklight Awakening",
+      "summary": "Use a permitted existing CyberMage player with your own DOS game files.",
+      "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening",
+      "issue_number": 2836,
+      "availability": "packages",
+      "setup_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use a permitted existing Windows player",
+            "instruction": "If you already have a permitted Windows copy, select cybermage.exe with its containing folder as the working directory. Choose Play explicitly. The player runs the original x86 code through an interpreter with native services; this does not prevent useful existing-copy registration."
+          },
+          {
+            "title": "Supply the original once in the game",
+            "instruction": "The game accepts your own CyberMage DOS v1.01F ISO 9660 .iso or CM_HI.EXE from its CYBERMAG folder. BIN/CUE and other executable versions are outside this input contract. Its first-Play picker verifies and copies required files to iso/CYBERMAG beside the player without changing the original. It does not import original DOS saves/settings or require optional SC-55 firmware."
+          },
+          {
+            "title": "Keep the working folder and its data",
+            "instruction": "The upstream player owns runtime replacement and setup. Keep iso/CYBERMAG, run and NATIVE.CNF backed up with the application closed; a custom --root uses that chosen data root instead. Existing imported destinations are not overwritten automatically; retain a working folder before following upstream repair instructions. Portcove registration leaves all files external and provides no managed update, backup or rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_block_reason": "Fresh acquisition remains held pending clarification or a clean official package for the embedded commercial Darklight icon. Upstream THIRD_PARTY_NOTICE.md explicitly excludes it from the MIT grant and supplies no redistribution permission. This does not classify the interpreted player as unsupported or transfer rights to an existing copy.",
+      "artwork": {
+        "game_id": 18998,
+        "cover_id": 137555,
+        "image_id": "co2y4z",
+        "image_sha256": "3bc779f0ac8a658c115ce6723605ae5d5a30172c2d61c495e42ae1cb2ea18dd4",
+        "game_slug": "cybermage-darklight-awakening",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "lollipop-chainsaw-re-cherry",
@@ -21916,6 +22439,42 @@
       }
     },
     {
+      "id": "meteo-dream-mf-community-edition",
+      "name": "Mario Forever: Community Edition",
+      "original_game_title": "Mario Forever",
+      "summary": "Use a permitted Mario Forever: Community Edition copy, the community remake of Mario Forever.",
+      "project_url": "https://github.com/meteo-dream/mf-community-edition",
+      "issue_number": 2729,
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "release_url": "https://github.com/meteo-dream/mf-community-edition/releases",
+      "setup_url": "https://github.com/meteo-dream/mf-community-edition#readme",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your permitted existing player",
+            "instruction": "Keep the complete existing Windows or Linux package together. Select its native Mario Forever Community Edition game executable and containing folder. This is a self-contained community remake of Mario Forever; it does not ask for a commercial Super Mario ROM."
+          },
+          {
+            "title": "Keep the existing profile",
+            "instruction": "Upstream places saves, settings and logs in the user-data folder MeteoDream/Mario Forever Community Edition. Preserve that actual profile, any custom location and your existing working package before changing versions."
+          },
+          {
+            "title": "Play and update deliberately",
+            "instruction": "Choose Play explicitly after registering the existing player. Runtime updates and external profiles remain with you and upstream; Portcove does not replace, back up or remove those files."
+          }
+        ],
+        "warnings": [
+          "The project’s original contributions and bundled third-party game assets have separate distribution terms. Existing-copy registration does not certify those assets or grant acquisition permission."
+        ],
+        "help_url": "https://github.com/meteo-dream/mf-community-edition#readme"
+      },
+      "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established."
+    },
+    {
       "id": "metroid-dread-metroid-dread-recomp",
       "name": "Metroid Dread (Metroid-Dread-Recomp)",
       "summary": "Experimental AArch64 to C ahead of time; native host runtime, Vulkan/OpenGL graphics. Upstream maturity: 0.x early previews, proper1.0 planned; crashes/setup/hardware rough edges. No Portcove test. Acquisition: Release launcher bundles GCC/Python and compiles game locally on first start. Upstream launcher owns update/undo. Platforms: Windows x64 release ZIP. Linux/Steam Deck scripts exist; exact native Linux CPU/build/testing scope not established by root README. Original data: Own Metroid Dread 2.1.0 ExeFS (main/main.npdm and companions) plus RomFS with update merged. RomFS alone is insufficient. Separate base/update dumps accepted. No separate keys/firmware input described for extracted route; exact region/executable digest Unknown. Portcove setup/gameplay untested; no operational integration offered.",
@@ -22613,6 +23172,48 @@
       "availability": "unknown",
       "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
       "issue_number": 2596
+    },
+    {
+      "id": "mr-finster-stunts-hd",
+      "name": "Stunts HD",
+      "original_game_title": "Stunts",
+      "summary": "Play Stunts 1.1 using your own original files in the desktop player.",
+      "project_url": "https://github.com/mr-finster/stunts-hd",
+      "issue_number": 2862,
+      "availability": "packages",
+      "setup_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original files on Play",
+            "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied."
+          },
+          {
+            "title": "Keep a separate profile backup",
+            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
+          },
+          {
+            "title": "Keep useful alternatives and recovery limits",
+            "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
+      },
+      "release_url": "https://github.com/mr-finster/stunts-hd/releases",
+      "recommended_download_channel": "stable",
+      "artwork": {
+        "game_id": 11630,
+        "cover_id": 100218,
+        "image_id": "co25bu",
+        "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
+        "game_slug": "stunts",
+        "match_kind": "underlying-game"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "mr-finster-vf1-recomp",
@@ -23345,13 +23946,64 @@
     {
       "id": "nam-raze",
       "name": "NAM (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for NAM. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play NAM in Raze using your own original PC game files.",
       "original_game_title": "NAM",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2672
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2672,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC NAM data folder, anchored by NAM.GRP. Keep its accompanying original files. Upstream also recognizes the distinct NAPALM.GRP edition; select the actual owned edition in Raze rather than renaming or substituting another game’s data. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your NAM.GRP archive (NAPALM.GRP for that owned edition). Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 2534,
+        "cover_id": 173650,
+        "image_id": "co3pzm",
+        "image_sha256": "0a934d6b1364dc322b01a1ede408ab9e4f9b63db7a62f53d94fbeba41b721f4f",
+        "game_slug": "nam",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "naruto-rise-of-a-ninja-naruto-rise-recomp",
@@ -24142,6 +24794,54 @@
         "image_id": "co21ts",
         "image_sha256": "d07a74ef95ec7c6e2531e728efb9d985f1915e0fd2c6335b31f37375a1135608",
         "game_slug": "new-super-mario-bros-u",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "nvdemu-apeescaperecomp-macwindowslinux",
+      "name": "Ape Escape (NVDEMU)",
+      "summary": "Revisit Ape Escape with the NVDEMU launcher, settings and optional mods.",
+      "original_game_title": "Ape Escape",
+      "project_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
+      "issue_number": 2806,
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "recommended_download_channel": "beta",
+      "release_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases/tag/macos-nightly",
+      "setup_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the fork's own launcher and game-file setup",
+            "instruction": "Use the official package for your platform from the shared macos-nightly release; that historical tag also contains Windows and Linux packages. On Windows, extract the complete ZIP and deliberately open ApeEscapeRecomp.exe to reach its launcher. On Linux, follow the AppImage instructions, enable execution when your desktop requires it and open the AppImage itself. Select your own North American Ape Escape disc, SCUS-94423; keep a CUE and its matching BIN together and choose the CUE. A cooked 2048-byte ISO discards needed sectors. OpenBIOS is supplied; a retail PlayStation BIOS is optional, not another required download. A dual-analog controller is recommended. Original discs and retail BIOS files are not supplied."
+          },
+          {
+            "title": "Keep the macOS application handoff intact",
+            "instruction": "On macOS, use the official DMG, drag Ape Escape Recompiled.app into Applications and deliberately open it through macOS, including its normal opening confirmation for this ad-hoc-signed preview. The app's shell entry seeds the player-data folder and sets required environment values before starting its native player. Use that supported app entry. Do not register the private Contents/MacOS/ApeEscapeRecomp.bin as a substitute or bypass the wrapper. Portcove's existing native-file registration does not supply this shell/app-bundle invocation; macOS remains an upstream application/instructions handoff."
+          },
+          {
+            "title": "Register supported existing players without changing their owner",
+            "instruction": "For Windows, register ApeEscapeRecomp.exe with the extracted package folder as its working directory. For Linux, register the prepared AppImage itself; do not select its internal AppRun or another extracted helper. Registration is separate from Play and preserves the external files. This enhanced maintained fork is distinct from mstan's original integration; it does not replace or migrate an existing parent installation."
+          },
+          {
+            "title": "Use upstream updates and back up the actual data folder",
+            "instruction": "Use the fork's Nightly update interface on supported Windows/macOS builds; older builds may need a new upstream package first. Linux AppImage replacement remains manual. Keep generated overlay caches, configuration and mods with their upstream-supported workflow; they are not a generic managed runtime/data replacement contract. Windows game saves/configuration remain beside the player; Linux game data uses $XDG_DATA_HOME/ApeEscapeRecomp or ~/.local/share/ApeEscapeRecomp unless APE_ESCAPE_RECOMP_DATA_DIR overrides it. On Windows and Linux, launcher preferences and updater rollback metadata also use a separate per-user NVDEMU/Ape Escape Recompiled - Enhanced Edition folder under the platform app-data root, or the same explicit override. Preserve both actual roots. The separate launcher-data defaults are %APPDATA%/NVDEMU/Ape Escape Recompiled - Enhanced Edition on Windows, and $XDG_DATA_HOME/NVDEMU/Ape Escape Recompiled - Enhanced Edition or ~/.local/share/NVDEMU/Ape Escape Recompiled - Enhanced Edition on Linux; preserve the explicit override instead when set. macOS uses ~/Library/Application Support/Ape Escape Recompiled through its app wrapper. Keep your original disc and optional BIOS separately. Portcove does not promise managed Update, Backup or Rollback for this copy. Upstream build/source claims and optional features do not establish Portcove native execution, gameplay or real-save qualification."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md"
+      },
+      "artwork": {
+        "game_id": 3762,
+        "cover_id": 115320,
+        "image_id": "co2gzc",
+        "image_sha256": "b689ac550b7807203e88a928ff42c5906ccdce2c4f2a38229f2a3204c878f906",
+        "game_slug": "ape-escape",
         "match_kind": "underlying-game"
       }
     },
@@ -26981,13 +27681,64 @@
     {
       "id": "powerslave-exhumed-dos-raze",
       "name": "PowerSlave / Exhumed (DOS) (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for PowerSlave / Exhumed (DOS). Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play PowerSlave / Exhumed (DOS) in Raze using your own original PC game files.",
       "original_game_title": "PowerSlave / Exhumed (DOS)",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2671
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2671,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own DOS PowerSlave or Exhumed data folder, anchored by STUFF.DAT. Raze recognizes the distinct supported PowerSlave and Exhumed data identities. Keep the complete accompanying original data. The Saturn/PlayStation games and the 2022 Exhumed remaster are different implementations/data contracts. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your STUFF.DAT archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 188071,
+        "cover_id": 205787,
+        "image_id": "co4esb",
+        "image_sha256": "5ec5d61d695d9cd2c0496457d697a33fb2644749ac721bbeb55182d1be346dfc",
+        "game_slug": "powerslave--1",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "presidentraptor-ace-combat-04-pc-port",
@@ -27939,6 +28690,46 @@
       }
     },
     {
+      "id": "rages4calm-earthbound-companion",
+      "name": "EarthBound Companion",
+      "original_game_title": "EarthBound",
+      "summary": "Use a permitted existing Companion launcher with your own clean USA EarthBound ROM.",
+      "project_url": "https://github.com/rages4calm/earthbound-companion",
+      "issue_number": 2861,
+      "availability": "packages",
+      "setup_url": "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the Companion launcher you are permitted to use",
+            "instruction": "Select EarthBound Companion.exe with its own folder as the working directory, then choose Play explicitly. Use its guided setup with your own clean USA EarthBound ROM. The launcher builds native game data and optional supported Redux content; Portcove does not run its helpers during discovery. This is a distinct implementation from nickclyde/EarthBoundRecomp and does not change that integration or retained contracts. If your existing launcher uses a custom data root, retain its --data-root argument and chosen directory when registering: enter --data-root and the directory as two separate argument lines. Otherwise it opens the default profile instead."
+          },
+          {
+            "title": "Keep each edition and seed’s data together",
+            "instruction": "The ordinary Windows build uses the launcher folder as its data root; portable/preview builds can use %LOCALAPPDATA%/EarthBoundCompanionPreview instead. Keep the complete actual Companion data root, including Game, Profiles, UserData, msu, settings, supported mods and generated content, backed up with the game closed. Original, Redux and generated seeds have separate save namespaces. Make a normal in-game phone save before changing versions: quick states are build-specific, and runtime rollback does not restore earlier saves or guarantee older compatibility. Use the launcher’s own supported backup/restore and migration controls; retain original ROMs and working runtimes separately."
+          },
+          {
+            "title": "Retain upstream ownership",
+            "instruction": "The launcher and its helpers own preparation, version-specific content generation and replacement. Registration leaves every external file untouched and does not promise Portcove-managed update, backup, restore or rollback. Fresh foundation redistribution/GPL qualification remains unresolved; a conditional existing-copy guide is not binary-distribution clearance."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_block_reason": "Fresh runtime acquisition remains held under upstream’s explicit native-foundation redistribution/GPL qualification boundary. Reconsider when exact foundation source, combined distribution terms and release artifacts are accepted. The launcher’s own-code license and original-ROM requirement do not alone resolve that boundary.",
+      "artwork": {
+        "game_id": 2899,
+        "cover_id": 320119,
+        "image_id": "co6v07",
+        "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
+        "game_slug": "earthbound",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "rallisport-challenge-2-rallisport-challenge-2-recomp",
       "name": "RalliSport Challenge 2 (RalliSport Challenge 2 Recomp)",
       "summary": "Upstream route: Linux v0.7.0 package; separate Windows v0.6.0-windows package Limits: Linux main route; Windows package is separately versioned and Wine-tested. Upstream runtime reports not Portcove testing. Upstream platforms: Linux x86-64 v0.7.0 and Windows x86-64 v0.6.0-windows package channels. Linux binary needs glibc2.43+ and documented graphics libraries; Windows testing was under Wine. Original data: Own RalliSport Challenge 2 NTSC original Xbox data, title 4D530039. Player packages expect all extracted files in game/ beside the program. Source builds use RalliSport2/ plus default.xbe copied to xboxrecomp/game_files/. Exact regional revision/XBE fingerprint beyond NTSC/title is unestablished in reviewed README. Portcove setup/gameplay not verified.",
@@ -28421,12 +29212,17 @@
     {
       "id": "redneck-rampage-raze",
       "name": "Redneck Rampage (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Redneck Rampage. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Redneck Rampage in Raze using your own original PC game files.",
       "original_game_title": "Redneck Rampage",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
       "artwork": {
         "game_id": 9002,
         "cover_id": 162523,
@@ -28435,7 +29231,45 @@
         "game_slug": "redneck-rampage",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2670
+      "issue_number": 2670,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC Redneck Rampage data folder, anchored by REDNECK.GRP. Keep its companion files. Rides Again is a separate standalone title and Route 66 is an add-on with its own dependencies. This base-game entry does not acquire either or merge their requirements. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your REDNECK.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      }
     },
     {
       "id": "regh2-jillsandwich1998-guitar-hero-ii-xbox-360",
@@ -29814,13 +30648,64 @@
     {
       "id": "shadow-warrior-raze",
       "name": "Shadow Warrior (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Shadow Warrior. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Shadow Warrior in Raze using your own original PC game files.",
       "original_game_title": "Shadow Warrior",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2668
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2668,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own 1997 PC Shadow Warrior data folder, anchored by SW.GRP. Keep its accompanying files and any separately owned expansion data. The 2013 reboot is a different game. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your SW.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 2947,
+        "cover_id": 160842,
+        "image_id": "co3g3u",
+        "image_sha256": "cdcb7c96f99239b1a1583900de4a63200ea89a0718acf746798d6ac35cd66529",
+        "game_slug": "shadow-warrior",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "shaneomac1337-wwe-allstars-recomp",
@@ -32904,6 +33789,47 @@
         "help_url": "https://github.com/R19988088/TaikoGreenRecomp"
       },
       "issue_number": 3445
+    },
+    {
+      "id": "tdrrmk2-uhexen2-tweaked",
+      "name": "Hexen II / uHexen2 Tweaked",
+      "original_game_title": "Hexen II",
+      "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
+      "project_url": "https://github.com/TDRRmk2/uhexen2-tweaked",
+      "issue_number": 2747,
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "release_url": "https://github.com/TDRRmk2/uhexen2-tweaked/releases",
+      "setup_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a separate working game copy",
+            "instruction": "Use your own documented Hexen II installation, normally retail 1.11 with data1/pak0.pak and data1/pak1.pak. Keep the original installation recoverable. The test ZIP contains the player and libraries, not original data or the patching tools described in the general Hammer of Thyrion instructions."
+          },
+          {
+            "title": "Select the OpenGL player",
+            "instruction": "Extract the complete Windows test ZIP into that prepared working copy. Select glh2.exe with the working game folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
+          },
+          {
+            "title": "Preserve the whole working copy",
+            "instruction": "Windows saves, configuration, demos and screenshots use the selected game directory, normally data1. Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+          }
+        ],
+        "warnings": [
+          "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility."
+        ],
+        "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "H2HoT-Tweaked-",
+          "-win32.zip"
+        ]
+      },
+      "recommended_download_channel": "beta"
     },
     {
       "id": "tekken-3-tekken3recomp",
@@ -37797,12 +38723,17 @@
     {
       "id": "world-war-ii-gi-raze",
       "name": "World War II GI (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for World War II GI. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play World War II GI in Raze using your own original PC game files.",
       "original_game_title": "World War II GI",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
       "artwork": {
         "game_id": 2533,
         "cover_id": 181103,
@@ -37811,7 +38742,45 @@
         "game_slug": "world-war-ii-gi",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2673
+      "issue_number": 2673,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC WWII GI data folder, anchored by WW2GI.GRP. Keep its accompanying files. Platoon Leader is an optional separately owned expansion that depends on the base game; it is not required for this base-game entry. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your WW2GI.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      }
     },
     {
       "id": "worlddriverchampionship-recomp-alondero-world-driver-championship",

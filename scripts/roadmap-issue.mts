@@ -73,7 +73,7 @@ export function normalizedPortTitle(value: unknown) {
   return normalizePortKey(diagnosticText(value ?? "").replace(portTitlePrefix, ""));
 }
 
-function normalizedUpstream(value: unknown) {
+export function normalizedUpstream(value: unknown) {
   try {
     const parsed = new URL(diagnosticText(value));
     const pathname = parsed.pathname.replace(/\/+$/g, "").replace(/\.git$/i, "");

@@ -1,0 +1,3115 @@
+{
+  "format_version": 1,
+  "audit": 55,
+  "decision": "retain current matrices; conditional investigation, no pairwise substitution",
+  "code_source": "69a1feb1cd1f67df8a08e8d3d98324c74e6b37b6",
+  "baseline_source": "e2cd3a91f0f832a78b7830583a5695ae0cbdda3e",
+  "browser_projects": ["browser", "browser-locale", "browser-forced-colors"],
+  "full_browser": {
+    "reported_files": 136,
+    "passed_files": 135,
+    "skipped_files": 1,
+    "runtime_registered_cases": 1477,
+    "passed": 1476,
+    "failed": 0,
+    "skipped": 1,
+    "elapsed_runner_seconds": 195.95,
+    "guard_total_ms": 200074,
+    "case_durations_are": "overlapping observed case intervals; sums are not elapsed runtime, CPU time or critical-path contribution"
+  },
+  "failed_baseline": {
+    "passed": 1475,
+    "failed": 1,
+    "skipped": 1,
+    "failure": "library-composition pointer-open menu End focus",
+    "guard_total_ms": 195974,
+    "status": "retained as failed; not overwritten by later success"
+  },
+  "skip": {
+    "file": "apps/desktop/src/browser/failure-probe.browser.test.tsx",
+    "name": "retains an intentional browser UI failure trace",
+    "original_skip_reason": null
+  },
+  "readiness_repair": "await expected initial pointer-menu focus before End; original assertions/deadlines unchanged",
+  "dimensional_review": [
+    {
+      "family": "detail-composition",
+      "dimensions": ["theme (2)", "viewport (3)"],
+      "decision": "six tab/contrast combinations are the complete two-factor pair set; retain all six"
+    },
+    {
+      "family": "adaptive-shell Settings",
+      "dimensions": ["theme (2)", "text override mode (2)"],
+      "decision": "retain all four narrow-window pairs; typography and layout are coupled"
+    },
+    {
+      "family": "display-recovery",
+      "dimensions": ["width", "enlargement", "diagnostic length"],
+      "decision": "already five selected profiles rather than the twelve-cell Cartesian product; retain known narrow/enlarged/long interactions"
+    },
+    {
+      "family": "bootstrap-reflow",
+      "dimensions": ["narrow viewport", "authored text enlargement"],
+      "decision": "two targeted historical profiles; no independent repetition established"
+    },
+    {
+      "family": "forced-colors",
+      "dimensions": ["theme (2)", "selection/focus/motion obligations"],
+      "decision": "theme pairs cover different normative obligations and actual media conditions; retain all six cases"
+    },
+    {
+      "family": "locale-input",
+      "dimensions": ["locale/timezone", "RTL/long labels", "input capabilities"],
+      "decision": "distinct behavior obligations, not interchangeable presentation rows; retain all four cases"
+    },
+    {
+      "family": "catalog-filters/library-filters/game-file-filters",
+      "dimensions": ["theme", "query state", "focus restoration", "filter result semantics"],
+      "decision": "state transitions and accessibility/focus obligations are coupled; no independent axis proven safe to remove"
+    },
+    {
+      "family": "portrait-cards/compact-navigation",
+      "dimensions": ["viewport", "content identity", "controller graph/navigation state"],
+      "decision": "geometry and reachable identity are coupled; preserve known layout/navigation profiles"
+    },
+    {
+      "family": "OperationProgress/interactive scenarios/launch-feedback/source-import-review",
+      "dimensions": ["operation state", "error/cancellation/late replies", "scroll/focus state"],
+      "decision": "behavioral flows rather than an independent cosmetic Cartesian matrix; no pairwise substitution"
+    }
+  ],
+  "all_reported_file_case_outcomes": [
+    {
+      "file": "apps/desktop/src/InterfaceSize.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3268.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/accessibility-states.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3940.7999999970198,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
+      "observed_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 10178.300000011921,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/adoption.browser.test.tsx",
+      "observed_cases": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5304.30000000447,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/app-enlargement.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 6846.0,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/artwork-refresh.browser.test.tsx",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 783.7000000029802,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/bootstrap-reflow.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 960.2999999970198,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/browser-fixture.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 891.6000000014901,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/card-input-reasons.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 13342.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/catalog-filters.browser.test.tsx",
+      "observed_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 29506.99999999255,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/catalog-setup-availability.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5073.60000000149,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/choice-select.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2216.4000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+      "observed_cases": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 8796.49999999255,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/command-palette.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1459.1000000014901,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+      "observed_cases": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 22901.89999999851,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/completion-focus.browser.test.ts",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3813.299999989569,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/composition-feedback.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3412.2000000029802,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/controlled-react-act.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1325.4000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/controller-review.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2380.8000000044703,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/css-architecture.browser.test.tsx",
+      "observed_cases": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 11214.69999999553,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+      "observed_cases": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 24651.0000000149,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/diagnostic-clipboard.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4433.0,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5326.69999999553,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/failure-probe.browser.test.tsx",
+      "observed_cases": 1,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "observed_duration_sum_ms": 0,
+      "unknown_duration_records": 1
+    },
+    {
+      "file": "apps/desktop/src/browser/favorites.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5772.199999988079,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/forced-colors.browser.test.tsx",
+      "observed_cases": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2498.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/foundations.browser.test.tsx",
+      "observed_cases": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3459.8999999910593,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/game-file-filters.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 15901.29999999702,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/heading-navigation.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 801.6000000014901,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/interactive-app.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 11656.300000011921,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/launch-feedback-scroll.browser.test.tsx",
+      "observed_cases": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 17613.99999999255,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/library-composition.browser.test.tsx",
+      "observed_cases": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 13239.800000011921,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/library-filters.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 23325.39999999851,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/locale-input.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2343.1999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/native-readiness-selection.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3274.2000000029802,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+      "observed_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 21800.09999999404,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/preparation-journey.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4184.399999991059,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/preview-channel.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1976.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/recovery-task-isolation.browser.test.tsx",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 7430.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/responsive-workspace.browser.test.tsx",
+      "observed_cases": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 9567.90000000596,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/select-readability.browser.test.tsx",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 13819.20000001043,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/source-import-review.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 15006.69999999553,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 6608.39999999851,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ActivityDiagnostic.browser.test.tsx",
+      "observed_cases": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3541.400000013411,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/AddGames.browser.test.tsx",
+      "observed_cases": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 6425.099999986589,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/AdoptionModal.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1702.3999999910593,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/Artwork.browser.test.tsx",
+      "observed_cases": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5414.600000008941,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/BackupReview.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1828.0,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/CatalogDownload.browser.test.tsx",
+      "observed_cases": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 9393.199999980628,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/CatalogUpdates.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2570.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ChoiceSelect.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2388.1999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "observed_cases": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4557.600000008941,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/CliContinuity.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2374.3999999910593,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/CommandPalette.browser.test.ts",
+      "observed_cases": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2880.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/DetailLayout.browser.test.tsx",
+      "observed_cases": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 12203.30000000447,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+      "observed_cases": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5253.9000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+      "observed_cases": 52,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 6182.1999999806285,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+      "observed_cases": 35,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2689.4000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+      "observed_cases": 62,
+      "passed": 62,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 8897.79999998957,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/GameFileQuery.browser.test.tsx",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4326.80000000447,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/GameFileSetupReviews.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1367.9000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/HostToolRow.browser.test.tsx",
+      "observed_cases": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5117.600000023842,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/InstallAction.browser.test.tsx",
+      "observed_cases": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4222.799999989569,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/LanguageSettings.browser.test.tsx",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 308.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/LibraryCopySummary.browser.test.tsx",
+      "observed_cases": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2955.8999999910593,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/LibraryImport.browser.test.tsx",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3130.60000000149,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/LibraryRecovery.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3261.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ManagedRouteChange.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3280.4999999925494,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+      "observed_cases": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 19005.39999999106,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/OutputLocation.browser.test.tsx",
+      "observed_cases": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3181.200000010431,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/PortBrowser.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1035.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/PreliminarySourceSelections.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1977.8999999985099,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/Preparation.browser.test.tsx",
+      "observed_cases": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3666.199999988079,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/PreparationFailureRecovery.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1004.7000000029802,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/RecoveryNavigation.browser.test.tsx",
+      "observed_cases": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 6834.399999991059,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1705.9000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ReleaseChannel.browser.test.tsx",
+      "observed_cases": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4395.9000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/RemovalReview.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2517.39999999851,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/SourceDiscovery.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2634.4000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/SourceIdentity.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2703.5000000074506,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+      "observed_cases": 26,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 6144.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/SourceIntake.browser.test.tsx",
+      "observed_cases": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3362.700000010431,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/SourceRemoval.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2135.9000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/SteamEntry.browser.test.tsx",
+      "observed_cases": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1928.7000000104308,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/StorageLocations.browser.test.tsx",
+      "observed_cases": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2115.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/SupportBundleExport.browser.test.tsx",
+      "observed_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3281.60000000149,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ThemeSelection.browser.test.tsx",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 831.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/UpdateNavigation.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1581.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/manual-setup.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2442.9999999925494,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ui/button.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1102.7000000029802,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ui/combobox.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2439.10000000149,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/components/ui/field.browser.test.tsx",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 417.40000000596046,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/dev-scenarios/interactive/scenarios.browser.test.tsx",
+      "observed_cases": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 18698.40000001341,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/dev-scenarios/interactive/transport.browser.test.ts",
+      "observed_cases": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3141.8999999910593,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/dev-scenarios/scenarios.browser.test.tsx",
+      "observed_cases": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3237.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/app-shell/focus-disc-tool.browser.test.ts",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 402,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/app-shell/focus-settings-target.browser.test.ts",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1508.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/app-shell/use-app-shell-state.browser.test.tsx",
+      "observed_cases": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1786.7000000104308,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/app-shell/use-detail-workspace-navigation.browser.test.tsx",
+      "observed_cases": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1875.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/app-shell/use-library-browsing-context.browser.test.tsx",
+      "observed_cases": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1925.8000000193715,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+      "observed_cases": 56,
+      "passed": 56,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 7036.0999999940395,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/application-update/application-update-notice.browser.test.tsx",
+      "observed_cases": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2211.7000000029802,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/application-update/focus-application-update-route.browser.test.ts",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 320.3999999985099,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/application-update/use-application-update-preferences.browser.test.tsx",
+      "observed_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2577.4000000208616,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/backups/BackupHistory.interactions.browser.test.tsx",
+      "observed_cases": 33,
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5272.899999968708,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/backups/use-port-backups.browser.test.tsx",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2344.89999999851,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/bootstrap/use-bootstrap-state.browser.test.tsx",
+      "observed_cases": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2974.300000026822,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/browsing/BrowsingMatchDetails.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1222.8999999985099,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/browsing/CatalogFilters.browser.test.tsx",
+      "observed_cases": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4215.200000010431,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/browsing/catalog-channel-controls.browser.test.tsx",
+      "observed_cases": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2771.39999999851,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/browsing/collection-layout.browser.test.tsx",
+      "observed_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 459.6000000014901,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/browsing/game-file-filter-lifecycle.browser.test.tsx",
+      "observed_cases": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1973.4999999925494,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/browsing/use-game-file-observation.browser.test.tsx",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2927.300000011921,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/browsing/use-observation-expiry.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 943.5,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/favorites/favorites-controls.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1437.3999999985099,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/favorites/use-favorites.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2309.0,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/github-auth/use-github-auth.browser.test.tsx",
+      "observed_cases": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2397.7999999970198,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/installation/use-installation-planning.browser.test.tsx",
+      "observed_cases": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3534.500000014901,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/operations/invocation-consumers.browser.test.tsx",
+      "observed_cases": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3280.199999973178,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/operations/use-operation-state.browser.test.tsx",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1925.8999999985099,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+      "observed_cases": 37,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 6581.0,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/port-updates/UpdateCenter.browser.test.tsx",
+      "observed_cases": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3003.0999999940395,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/port-updates/use-update-center.browser.test.tsx",
+      "observed_cases": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2028.3999999985099,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/preparation/use-preparation-completion-focus.browser.test.tsx",
+      "observed_cases": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3896.1999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/source-health/SourceInspectionReadback.browser.test.tsx",
+      "observed_cases": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4179.4000000059605,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/source-health/use-source-health.browser.test.tsx",
+      "observed_cases": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1991.6000000014901,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/source-intake/use-source-intake-state.browser.test.tsx",
+      "observed_cases": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1902.6999999955297,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/features/workspace/workspace-refresh.browser.test.tsx",
+      "observed_cases": 48,
+      "passed": 48,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 4387.499999992549,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/keyboard-shortcuts-continuity.browser.test.tsx",
+      "observed_cases": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2156.0000000074506,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+      "observed_cases": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3891.999999985099,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/localization.browser.test.tsx",
+      "observed_cases": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 5436.5999999940395,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/native-source-drop.browser.test.ts",
+      "observed_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 3483.8999999910593,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/navigation.browser.test.tsx",
+      "observed_cases": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2168.699999988079,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/port-identity.browser.test.tsx",
+      "observed_cases": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1323.0,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/use-command-surface.browser.test.tsx",
+      "observed_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 2453.7000000029802,
+      "unknown_duration_records": 0
+    },
+    {
+      "file": "apps/desktop/src/workspace-scroll-artwork.browser.test.tsx",
+      "observed_cases": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "observed_duration_sum_ms": 1362.4999999925494,
+      "unknown_duration_records": 0
+    }
+  ],
+  "lexical_declarations": {
+    "interpretation": "source review candidates only; includes item iteration, may miss indirect registration; not test discovery, execution count or an independence proof",
+    "rows": [
+      {
+        "file": "apps/desktop/src/InterfaceSize.browser.test.tsx",
+        "line": 16,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
+        "line": 24,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
+        "line": 49,
+        "excerpt": "for (const name of [\"System\", \"Dark\", \"Light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
+        "line": 91,
+        "excerpt": "for (const width of [1280, 320]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
+        "line": 117,
+        "excerpt": "for (const [width, height] of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
+        "line": 149,
+        "excerpt": "for (const width of [320, 240]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
+        "line": 159,
+        "excerpt": "for (const mode of [\"spacing overrides\", \"200% authored text\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/adoption.browser.test.tsx",
+        "line": 260,
+        "excerpt": "it.each([\"dark\", \"light\"])(\"dismisses actual nested portals in order in %s\", async (theme) => {"
+      },
+      {
+        "file": "apps/desktop/src/browser/app-enlargement.browser.test.tsx",
+        "line": 40,
+        "excerpt": "for (const control of [search, commands]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/bootstrap-reflow.browser.test.tsx",
+        "line": 19,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/browser/bootstrap-reflow.browser.test.tsx",
+        "line": 51,
+        "excerpt": "for (const action of actions) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/card-input-reasons.browser.test.tsx",
+        "line": 159,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/browser/card-input-reasons.browser.test.tsx",
+        "line": 170,
+        "excerpt": "for (const [name, label, , reason] of cases) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/card-input-reasons.browser.test.tsx",
+        "line": 198,
+        "excerpt": "for (const name of [\"Ready\", \"Staged ready\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/catalog-filters.browser.test.tsx",
+        "line": 283,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/catalog-filters.browser.test.tsx",
+        "line": 351,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/catalog-filters.browser.test.tsx",
+        "line": 397,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/catalog-filters.browser.test.tsx",
+        "line": 445,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/catalog-setup-availability.browser.test.tsx",
+        "line": 123,
+        "excerpt": "it.each([\"dark\", \"light\"])(\"keeps cached setup reasons and Details access in %s\", async (theme) => {"
+      },
+      {
+        "file": "apps/desktop/src/browser/catalog-setup-availability.browser.test.tsx",
+        "line": 127,
+        "excerpt": "for (const item of cases) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 41,
+        "excerpt": "it.each([\"Covers\", \"Compact rows\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 97,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 154,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 215,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 246,
+        "excerpt": "for (const entry of entries) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 252,
+        "excerpt": "for (const action of entry.querySelectorAll<HTMLButtonElement>("
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 266,
+        "excerpt": "for (const box of art) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 272,
+        "excerpt": "for (const image of document.querySelectorAll(\".collection-art img\"))"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 284,
+        "excerpt": "for (const entry of firstRow) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 322,
+        "excerpt": "for (const layout of [\"Covers\", \"Compact rows\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 324,
+        "excerpt": "for (const width of [320, 240]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/collection.browser.test.tsx",
+        "line": 329,
+        "excerpt": "for (const entry of document.querySelectorAll(\".collection-entry\")) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/command-palette.browser.test.tsx",
+        "line": 65,
+        "excerpt": "for (const key of [\"ArrowDown\", \"ArrowUp\", \"Enter\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+        "line": 21,
+        "excerpt": "for (const width of [320, 576]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+        "line": 22,
+        "excerpt": "for (const theme of [\"light\", \"dark\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+        "line": 88,
+        "excerpt": "it.each([320, 576])("
+      },
+      {
+        "file": "apps/desktop/src/browser/completion-focus.browser.test.ts",
+        "line": 39,
+        "excerpt": "for (const [focus, selector, expected, mutate] of cases) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/composition-feedback.browser.test.tsx",
+        "line": 18,
+        "excerpt": "it.each([320, 576, 1024])("
+      },
+      {
+        "file": "apps/desktop/src/browser/css-architecture.browser.test.tsx",
+        "line": 30,
+        "excerpt": "for (const animation of popup.getAnimations()) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/css-architecture.browser.test.tsx",
+        "line": 62,
+        "excerpt": "for (const animation of paused) animation.cancel();"
+      },
+      {
+        "file": "apps/desktop/src/browser/css-architecture.browser.test.tsx",
+        "line": 97,
+        "excerpt": "it.each([320, 196])("
+      },
+      {
+        "file": "apps/desktop/src/browser/css-architecture.browser.test.tsx",
+        "line": 237,
+        "excerpt": "for (const theme of [\"dark\", \"light\"] as const)"
+      },
+      {
+        "file": "apps/desktop/src/browser/css-architecture.browser.test.tsx",
+        "line": 238,
+        "excerpt": "for (const direction of [\"ltr\", \"rtl\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 61,
+        "excerpt": "for (const tab of document.querySelectorAll<HTMLElement>(\"[role=tab]\")) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 87,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 88,
+        "excerpt": "for (const [width, height] of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 102,
+        "excerpt": "for (const label of [\"Overview\", \"Files\", \"Saved data\", \"Versions\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 128,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 149,
+        "excerpt": "for (const label of [\"Overview\", \"Files\", \"Saved data\", \"Versions\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 160,
+        "excerpt": "for (const index of [0, 1, 2]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 179,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 269,
+        "excerpt": "it.each([\"dark\", \"light\"])(\"renders the production preparation owner in %s\", async (theme) => {"
+      },
+      {
+        "file": "apps/desktop/src/browser/detail-composition.browser.test.tsx",
+        "line": 289,
+        "excerpt": "it.each([\"dark\", \"light\"])(\"preserves transparent artwork against the %s frame\", async (theme) => {"
+      },
+      {
+        "file": "apps/desktop/src/browser/diagnostic-clipboard.browser.test.tsx",
+        "line": 116,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/diagnostic-clipboard.browser.test.tsx",
+        "line": 157,
+        "excerpt": "for (const label of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+        "line": 23,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/browser/favorites.browser.test.tsx",
+        "line": 76,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/forced-colors.browser.test.tsx",
+        "line": 12,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/forced-colors.browser.test.tsx",
+        "line": 57,
+        "excerpt": "for (const element of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/foundations.browser.test.tsx",
+        "line": 33,
+        "excerpt": "for (const ancestor of ancestors) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/foundations.browser.test.tsx",
+        "line": 78,
+        "excerpt": "for (const theme of [\"dark\", \"light\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/foundations.browser.test.tsx",
+        "line": 98,
+        "excerpt": "for (const property of [\"color\", \"background-color\", \"border-color\", \"box-shadow\", \"transform\"])"
+      },
+      {
+        "file": "apps/desktop/src/browser/foundations.browser.test.tsx",
+        "line": 100,
+        "excerpt": "for (const [name, token] of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/game-file-filters.browser.test.tsx",
+        "line": 220,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/game-file-filters.browser.test.tsx",
+        "line": 232,
+        "excerpt": "for (const label of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/game-file-filters.browser.test.tsx",
+        "line": 310,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/game-file-filters.browser.test.tsx",
+        "line": 340,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/heading-navigation.browser.test.tsx",
+        "line": 12,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/browser/interactive-app.browser.test.tsx",
+        "line": 49,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/launch-feedback-scroll.browser.test.tsx",
+        "line": 93,
+        "excerpt": "for (const layout of [\"Covers\", \"Compact rows\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/launch-feedback-scroll.browser.test.tsx",
+        "line": 94,
+        "excerpt": "for (const activation of [\"pointer\", \"Space\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/launch-feedback-scroll.browser.test.tsx",
+        "line": 95,
+        "excerpt": "for (const position of [\"bottom\", \"middle\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/launch-feedback-scroll.browser.test.tsx",
+        "line": 96,
+        "excerpt": "for (const withConflict of [false, true]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/library-composition.browser.test.tsx",
+        "line": 201,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/library-composition.browser.test.tsx",
+        "line": 217,
+        "excerpt": "for (const [width, height] of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/library-composition.browser.test.tsx",
+        "line": 299,
+        "excerpt": "for (const theme of [\"dark\", \"light\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/library-composition.browser.test.tsx",
+        "line": 322,
+        "excerpt": "for (const identity of [title, project]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/library-filters.browser.test.tsx",
+        "line": 70,
+        "excerpt": "for (const id of [\"windows\", \"linux\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/library-filters.browser.test.tsx",
+        "line": 256,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/locale-input.browser.test.tsx",
+        "line": 111,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/browser/native-readiness-selection.browser.test.tsx",
+        "line": 57,
+        "excerpt": "for (const width of [640, 1600]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 111,
+        "excerpt": "for (const [width, height] of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 143,
+        "excerpt": "for (const frame of document.querySelectorAll<HTMLElement>(\".card-art\")) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 218,
+        "excerpt": "for (const frame of frames) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 224,
+        "excerpt": "for (const text of frame.nextElementSibling!.querySelectorAll<HTMLElement>("
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 331,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 357,
+        "excerpt": "for (const origin of controls) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 359,
+        "excerpt": "for (const key of [\"ArrowUp\", \"ArrowDown\", \"ArrowLeft\", \"ArrowRight\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 395,
+        "excerpt": "for (const origin of reached) for (const target of edges.get(origin) ?? []) reached.add(target);"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 455,
+        "excerpt": "for (const frame of frames) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 466,
+        "excerpt": "for (const variant of variants) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 473,
+        "excerpt": "for (const row of projectRows) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 509,
+        "excerpt": "for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^=\"Favorite \"]')) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/portrait-cards.browser.test.tsx",
+        "line": 515,
+        "excerpt": "for (const action of card.querySelectorAll<HTMLElement>("
+      },
+      {
+        "file": "apps/desktop/src/browser/preparation-journey.browser.test.tsx",
+        "line": 23,
+        "excerpt": "it.each([\"orchard\", \"summit\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/preparation-journey.browser.test.tsx",
+        "line": 107,
+        "excerpt": "for (const fact of [title, install.path, plan.inputs.source.path, install.version])"
+      },
+      {
+        "file": "apps/desktop/src/browser/preparation-journey.browser.test.tsx",
+        "line": 112,
+        "excerpt": "for (const fact of [title, install.path, plan.inputs.source.path])"
+      },
+      {
+        "file": "apps/desktop/src/browser/preview-channel.browser.test.tsx",
+        "line": 62,
+        "excerpt": "it.each([\"light\", \"dark\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/recovery-task-isolation.browser.test.tsx",
+        "line": 132,
+        "excerpt": "for (const fact of facts) expect(account.element().textContent).toContain(fact);"
+      },
+      {
+        "file": "apps/desktop/src/browser/recovery-task-isolation.browser.test.tsx",
+        "line": 145,
+        "excerpt": "for (const fact of facts) expect(dialog.element().textContent).toContain(fact);"
+      },
+      {
+        "file": "apps/desktop/src/browser/recovery-task-isolation.browser.test.tsx",
+        "line": 187,
+        "excerpt": "for (const layout of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/responsive-workspace.browser.test.tsx",
+        "line": 71,
+        "excerpt": "for (const theme of [\"dark\", \"light\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/responsive-workspace.browser.test.tsx",
+        "line": 75,
+        "excerpt": "for (const view of [\"library\", \"catalog\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/responsive-workspace.browser.test.tsx",
+        "line": 93,
+        "excerpt": "for (const frame of document.querySelectorAll<HTMLElement>(\".card-art\")) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/responsive-workspace.browser.test.tsx",
+        "line": 118,
+        "excerpt": "for (const [width, height] of ["
+      },
+      {
+        "file": "apps/desktop/src/browser/select-readability.browser.test.tsx",
+        "line": 42,
+        "excerpt": "it.each(layouts)("
+      },
+      {
+        "file": "apps/desktop/src/browser/select-readability.browser.test.tsx",
+        "line": 59,
+        "excerpt": "for (const profile of profiles) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/source-import-review.browser.test.tsx",
+        "line": 98,
+        "excerpt": "it.each([\"light\", \"dark\"])("
+      },
+      {
+        "file": "apps/desktop/src/browser/source-import-review.browser.test.tsx",
+        "line": 103,
+        "excerpt": "for (const mode of [\"copy\", \"move\", \"use_current_location\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/source-import-review.browser.test.tsx",
+        "line": 138,
+        "excerpt": "for (const message of present)"
+      },
+      {
+        "file": "apps/desktop/src/browser/source-import-review.browser.test.tsx",
+        "line": 140,
+        "excerpt": "for (const message of absent)"
+      },
+      {
+        "file": "apps/desktop/src/browser/source-import-review.browser.test.tsx",
+        "line": 144,
+        "excerpt": "for (const code of element.querySelectorAll(\"code\")) {"
+      },
+      {
+        "file": "apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx",
+        "line": 145,
+        "excerpt": "for (const when of [\"pending\", \"notice visible\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/components/ActivityDiagnostic.browser.test.tsx",
+        "line": 327,
+        "excerpt": "it.each([\"success\", \"failure\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/ActivityDiagnostic.browser.test.tsx",
+        "line": 353,
+        "excerpt": "it.each([\"success\", \"failure\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/ActivityDiagnostic.browser.test.tsx",
+        "line": 392,
+        "excerpt": "it.each([\"success\", \"failure\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/AddGames.browser.test.tsx",
+        "line": 90,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/AddGames.browser.test.tsx",
+        "line": 107,
+        "excerpt": "it.each([320, 240])(\"returns to the actual document reading position at %spx\", async (width) => {"
+      },
+      {
+        "file": "apps/desktop/src/components/AdoptionModal.browser.test.tsx",
+        "line": 90,
+        "excerpt": "for (const control of dialog.querySelectorAll<HTMLInputElement | HTMLButtonElement>("
+      },
+      {
+        "file": "apps/desktop/src/components/AdoptionModal.browser.test.tsx",
+        "line": 196,
+        "excerpt": "for (const expected of ["
+      },
+      {
+        "file": "apps/desktop/src/components/Artwork.browser.test.tsx",
+        "line": 260,
+        "excerpt": "it.each([\"import\", \"reset\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/Artwork.browser.test.tsx",
+        "line": 391,
+        "excerpt": "it.each([\"select\", \"cancel\", \"reject\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/Artwork.browser.test.tsx",
+        "line": 439,
+        "excerpt": "it.each([\"import\", \"reset\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/Artwork.browser.test.tsx",
+        "line": 493,
+        "excerpt": "it.each([\"port\", \"library\", \"close\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/Artwork.browser.test.tsx",
+        "line": 583,
+        "excerpt": "it.each([640, 900])("
+      },
+      {
+        "file": "apps/desktop/src/components/Artwork.browser.test.tsx",
+        "line": 663,
+        "excerpt": "it.each([\"port\", \"library\", \"close\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogDownload.browser.test.tsx",
+        "line": 509,
+        "excerpt": "it.each([\"loading\", \"loaded\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogDownload.browser.test.tsx",
+        "line": 934,
+        "excerpt": "for (const key of Object.keys(localStorage))"
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogDownload.browser.test.tsx",
+        "line": 1014,
+        "excerpt": "for (const key of Object.keys(localStorage))"
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogDownload.browser.test.tsx",
+        "line": 1065,
+        "excerpt": "for (const key of Object.keys(localStorage))"
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogDownload.browser.test.tsx",
+        "line": 1160,
+        "excerpt": "for (const key of Object.keys(localStorage))"
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogUpdates.browser.test.tsx",
+        "line": 274,
+        "excerpt": "for (const [index, reason] of reasons.entries()) {"
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogUpdates.browser.test.tsx",
+        "line": 280,
+        "excerpt": "for (const disclosure of disclosures) disclosure.remove();"
+      },
+      {
+        "file": "apps/desktop/src/components/CatalogUpdates.browser.test.tsx",
+        "line": 281,
+        "excerpt": "for (const reason of reasons) expect(host.textContent).not.toContain(reason);"
+      },
+      {
+        "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+        "line": 15,
+        "excerpt": "for (const platform of [\"Win32\", \"MacIntel\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+        "line": 16,
+        "excerpt": "for (const width of [960, 1280]) {"
+      },
+      {
+        "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+        "line": 59,
+        "excerpt": "for (const label of [\"Library\", \"Find games\", \"Activity\", \"Settings\"])"
+      },
+      {
+        "file": "apps/desktop/src/components/CliContinuity.browser.test.tsx",
+        "line": 88,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/components/CommandPalette.browser.test.ts",
+        "line": 360,
+        "excerpt": "for (const value of [\"ArrowDown\", \"ArrowUp\", \"Enter\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/components/DetailLayout.browser.test.tsx",
+        "line": 57,
+        "excerpt": "for (const callback of frames.values()) callback(performance.now());"
+      },
+      {
+        "file": "apps/desktop/src/components/DetailLayout.browser.test.tsx",
+        "line": 151,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/DetailLayout.browser.test.tsx",
+        "line": 175,
+        "excerpt": "for (const tab of document.querySelectorAll<HTMLElement>(\"[role=tab]\")) {"
+      },
+      {
+        "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+        "line": 52,
+        "excerpt": "for (const id of [\"road-rash-64-recompiled\", \"sonic-3-and-knuckles-recomp\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+        "line": 53,
+        "excerpt": "for (const width of [480, 1100]) {"
+      },
+      {
+        "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+        "line": 77,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+        "line": 187,
+        "excerpt": "for (const width of [1200, 960]) {"
+      },
+      {
+        "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+        "line": 230,
+        "excerpt": "for (const details of document.querySelectorAll(\"details\")) details.open = true;"
+      },
+      {
+        "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+        "line": 238,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/DetailPanel.browser.test.tsx",
+        "line": 290,
+        "excerpt": "for (const details of document.querySelectorAll(\"details\")) details.open = true;"
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 231,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 674,
+        "excerpt": "it.each([\"native-portable\", \"staged-source-portable\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 717,
+        "excerpt": "it.each([\"colin-mcrae-rally-2-opencmr2\", \"alistert-openjazz\", \"citrongames-dora64\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 756,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 898,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 945,
+        "excerpt": "it.each([undefined, []] as const)(\"preserves the legacy %s projection\", async (actions) => {"
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 996,
+        "excerpt": "it.each([\"port\", \"library\", \"away-and-back\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 1055,
+        "excerpt": "it.each([\"library\", \"registration\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 1088,
+        "excerpt": "it.each([\"same context\", \"new context\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 1158,
+        "excerpt": "it.each("
+      },
+      {
+        "file": "apps/desktop/src/components/ExternalRuntime.browser.test.tsx",
+        "line": 1198,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 100,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 176,
+        "excerpt": "it.each([\"success\", \"failure\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 204,
+        "excerpt": "it.each([\"success\", \"failure\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 293,
+        "excerpt": "it.each([\"future_outcome\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 301,
+        "excerpt": "for (const view of ["
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 340,
+        "excerpt": "it.each([\"not_started\", \"committed\", \"recovery_required\", \"unknown\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 404,
+        "excerpt": "it.each([\"committed\", \"recovery_required\", \"unknown\", \"future_outcome\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 455,
+        "excerpt": "it.each([\"not_started\", \"no_changes\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 481,
+        "excerpt": "it.each([\"missing\", \"malformed\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/FailureDetails.browser.test.tsx",
+        "line": 633,
+        "excerpt": "for (const [operation, destination, target] of routes) {"
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 293,
+        "excerpt": "it.each([\"inputs_match\", \"inputs_changed\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 358,
+        "excerpt": "it.each([\"continued\", \"fresh\", \"stale\", \"restart\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 785,
+        "excerpt": "for (const [index, candidate] of completed.report.candidates.entries()) {"
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 1471,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 1563,
+        "excerpt": "it.each([\"success\", \"failure\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 1616,
+        "excerpt": "it.each([\"failure\", \"cancellation\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 1695,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileLibraries.browser.test.tsx",
+        "line": 1836,
+        "excerpt": "it.each([\"picker\", \"preflight\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileQuery.browser.test.tsx",
+        "line": 261,
+        "excerpt": "for (const invalid of ["
+      },
+      {
+        "file": "apps/desktop/src/components/GameFileQuery.browser.test.tsx",
+        "line": 362,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/HostToolRow.browser.test.tsx",
+        "line": 74,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/HostToolRow.browser.test.tsx",
+        "line": 96,
+        "excerpt": "it.each([\"success\", \"failure\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/InstallAction.browser.test.tsx",
+        "line": 126,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/InstallAction.browser.test.tsx",
+        "line": 454,
+        "excerpt": "it.each([\"library_default\", \"port_setting\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/InstallAction.browser.test.tsx",
+        "line": 708,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/InstallAction.browser.test.tsx",
+        "line": 762,
+        "excerpt": "it.each([\"future_action\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryCopySummary.browser.test.tsx",
+        "line": 94,
+        "excerpt": "it.each([0, 1, 40])("
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryCopySummary.browser.test.tsx",
+        "line": 111,
+        "excerpt": "for (const file of fixtureValue(plan.content[0], \"plan.content[0]\").copy.files)"
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryCopySummary.browser.test.tsx",
+        "line": 130,
+        "excerpt": "it.each([\"future_kind\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryCopySummary.browser.test.tsx",
+        "line": 149,
+        "excerpt": "for (const value of ["
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryImport.browser.test.tsx",
+        "line": 157,
+        "excerpt": "it.each([240, 320])("
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryImport.browser.test.tsx",
+        "line": 192,
+        "excerpt": "it.each([240, 320])("
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryImport.browser.test.tsx",
+        "line": 233,
+        "excerpt": "for (const details of document.querySelectorAll(\"[role=dialog] details\")) {"
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryImport.browser.test.tsx",
+        "line": 256,
+        "excerpt": "it.each([\"move\", \"import\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryImport.browser.test.tsx",
+        "line": 368,
+        "excerpt": "for (const label of ["
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryRecovery.browser.test.tsx",
+        "line": 46,
+        "excerpt": "for (const name of [\"versions\", \"user\", \"source-inbox\", \"backups\", \"toolchains\", \"artwork\"])"
+      },
+      {
+        "file": "apps/desktop/src/components/LibraryRecovery.browser.test.tsx",
+        "line": 105,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/ManagedRouteChange.browser.test.tsx",
+        "line": 170,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+        "line": 46,
+        "excerpt": "for (const completed of [1, 20, 99, 100]) await render(event(completed, 100));"
+      },
+      {
+        "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+        "line": 60,
+        "excerpt": "it.each([\"check_installed\", \"reconcile_installed\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+        "line": 75,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+        "line": 118,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+        "line": 166,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+        "line": 177,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/OperationProgress.browser.test.tsx",
+        "line": 201,
+        "excerpt": "it.each([\"future_internal_operation_code\", \"constructor\", \"__proto__\", \"toString\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/OutputLocation.browser.test.tsx",
+        "line": 134,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/OutputLocation.browser.test.tsx",
+        "line": 252,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/OutputLocation.browser.test.tsx",
+        "line": 343,
+        "excerpt": "it.each([\"future_ownership\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/PreliminarySourceSelections.browser.test.tsx",
+        "line": 54,
+        "excerpt": "it.each([3, 4] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/PreliminarySourceSelections.browser.test.tsx",
+        "line": 86,
+        "excerpt": "for (const invalid of ["
+      },
+      {
+        "file": "apps/desktop/src/components/Preparation.browser.test.tsx",
+        "line": 91,
+        "excerpt": "it.each([\"remove\", \"replace\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/Preparation.browser.test.tsx",
+        "line": 163,
+        "excerpt": "it.each([\"other:7\", \"sample:8\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/Preparation.browser.test.tsx",
+        "line": 208,
+        "excerpt": "it.each([\"disabled\", \"unavailable\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/Preparation.browser.test.tsx",
+        "line": 323,
+        "excerpt": "it.each([\"cancelled\", \"refused\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/PreparationFailureRecovery.browser.test.tsx",
+        "line": 44,
+        "excerpt": "for (const target of ["
+      },
+      {
+        "file": "apps/desktop/src/components/PreparationFailureRecovery.browser.test.tsx",
+        "line": 64,
+        "excerpt": "for (const [ports, statuses] of ["
+      },
+      {
+        "file": "apps/desktop/src/components/RecoveryNavigation.browser.test.tsx",
+        "line": 26,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/RecoveryNavigation.browser.test.tsx",
+        "line": 58,
+        "excerpt": "it.each([\"future_kind\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/RecoveryNavigation.browser.test.tsx",
+        "line": 73,
+        "excerpt": "for (const callback of Object.values(callbacks)) expect(callback).not.toHaveBeenCalled();"
+      },
+      {
+        "file": "apps/desktop/src/components/RecoveryNavigation.browser.test.tsx",
+        "line": 77,
+        "excerpt": "it.each([\"orphaned_final_directory\", \"missing_registered_path\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "line": 88,
+        "excerpt": "it.each([\"future_kind\", \"constructor\", \"__proto__\"])(\"uses a neutral label for %s\", (kind) => {"
+      },
+      {
+        "file": "apps/desktop/src/components/ReleaseChannel.browser.test.tsx",
+        "line": 38,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/components/ReleaseChannel.browser.test.tsx",
+        "line": 90,
+        "excerpt": "it.each([\"stable\", \"beta\", \"rolling\"] as ReleaseChannel[])("
+      },
+      {
+        "file": "apps/desktop/src/components/ReleaseChannel.browser.test.tsx",
+        "line": 157,
+        "excerpt": "it.each([\"rolling\", \"beta\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/ReleaseChannel.browser.test.tsx",
+        "line": 265,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/RemovalReview.browser.test.tsx",
+        "line": 79,
+        "excerpt": "it.each("
+      },
+      {
+        "file": "apps/desktop/src/components/RemovalReview.browser.test.tsx",
+        "line": 114,
+        "excerpt": "for (const path of [...review.managed_paths, review.persistent_data_path])"
+      },
+      {
+        "file": "apps/desktop/src/components/RemovalReview.browser.test.tsx",
+        "line": 116,
+        "excerpt": "for (const text of ["
+      },
+      {
+        "file": "apps/desktop/src/components/SourceIdentity.browser.test.tsx",
+        "line": 57,
+        "excerpt": "it.each([\"copied\", \"failed\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceIdentity.browser.test.tsx",
+        "line": 86,
+        "excerpt": "it.each([\"resolve\", \"reject\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 52,
+        "excerpt": "it.each([\"future_mode\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 91,
+        "excerpt": "it.each([\"copy\", \"move\", \"use_current_location\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 136,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 168,
+        "excerpt": "it.each([\"future_check\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 185,
+        "excerpt": "it.each([\"copy\", \"move\", \"use_current_location\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 217,
+        "excerpt": "for (const message of present) expect(html).toContain(message);"
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 218,
+        "excerpt": "for (const message of absent) expect(html).not.toContain(message);"
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 222,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/components/SourceImportPresentation.browser.test.tsx",
+        "line": 238,
+        "excerpt": "it.each([\"future_problem\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceIntake.browser.test.tsx",
+        "line": 395,
+        "excerpt": "it.each([\"future_mode\", \"constructor\", \"__proto__\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/SourceRemoval.browser.test.tsx",
+        "line": 119,
+        "excerpt": "for (const text of ["
+      },
+      {
+        "file": "apps/desktop/src/components/SteamEntry.browser.test.tsx",
+        "line": 97,
+        "excerpt": "for (const value of ["
+      },
+      {
+        "file": "apps/desktop/src/components/SupportBundleExport.browser.test.tsx",
+        "line": 178,
+        "excerpt": "for (const text of ["
+      },
+      {
+        "file": "apps/desktop/src/components/SupportBundleExport.browser.test.tsx",
+        "line": 254,
+        "excerpt": "it.each([\"unconfirmed\", \"unstructured failure\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/SupportBundleExport.browser.test.tsx",
+        "line": 272,
+        "excerpt": "it.each([\"success\", \"failure\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/manual-setup.browser.test.tsx",
+        "line": 60,
+        "excerpt": "it.each([null, \"game-data/extract-info.json\"])("
+      },
+      {
+        "file": "apps/desktop/src/components/ui/combobox.browser.test.tsx",
+        "line": 13,
+        "excerpt": "it.each([\"dark\", \"light\"])("
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/interactive/scenarios.browser.test.tsx",
+        "line": 69,
+        "excerpt": "for (const label of [\"Files\", \"Saved data\", \"Versions\", \"Overview\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/interactive/scenarios.browser.test.tsx",
+        "line": 173,
+        "excerpt": "for (const [width, height] of ["
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/interactive/scenarios.browser.test.tsx",
+        "line": 369,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/interactive/scenarios.browser.test.tsx",
+        "line": 381,
+        "excerpt": "for (const frame of frames) {"
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/interactive/scenarios.browser.test.tsx",
+        "line": 394,
+        "excerpt": "it.each([\"game\", \"bios\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/interactive/transport.browser.test.ts",
+        "line": 112,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/scenarios.browser.test.tsx",
+        "line": 14,
+        "excerpt": "for (const scenario of scenarios) {"
+      },
+      {
+        "file": "apps/desktop/src/dev-scenarios/scenarios.browser.test.tsx",
+        "line": 162,
+        "excerpt": "for (const button of preview.querySelectorAll(\"button\")) button.click();"
+      },
+      {
+        "file": "apps/desktop/src/features/app-shell/use-library-browsing-context.browser.test.tsx",
+        "line": 190,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/app-shell/use-library-browsing-context.browser.test.tsx",
+        "line": 226,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/app-shell/use-library-browsing-context.browser.test.tsx",
+        "line": 397,
+        "excerpt": "it.each([\"ready\", \"setup\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 146,
+        "excerpt": "it.each([true, false])("
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 364,
+        "excerpt": "for (const control of host.querySelectorAll<HTMLInputElement>('input[aria-hidden=\"true\"]')) {"
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 370,
+        "excerpt": "for (const control of controls) {"
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 373,
+        "excerpt": "for (const control of controls.filter("
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 412,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 468,
+        "excerpt": "for (const label of [\"Stable\", \"Preview\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 479,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 535,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 741,
+        "excerpt": "for (const control of host.querySelectorAll<HTMLButtonElement>("
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 854,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 935,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 961,
+        "excerpt": "it.each([\"failed\", \"installer-failed\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/ApplicationUpdates.browser.test.tsx",
+        "line": 981,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/application-update/use-application-update-preferences.browser.test.tsx",
+        "line": 131,
+        "excerpt": "it.each([1, 4])(\"accepts a fresh externally recovered revision %s\", async (revision) => {"
+      },
+      {
+        "file": "apps/desktop/src/features/backups/BackupHistory.interactions.browser.test.tsx",
+        "line": 141,
+        "excerpt": "it.each("
+      },
+      {
+        "file": "apps/desktop/src/features/backups/BackupHistory.interactions.browser.test.tsx",
+        "line": 425,
+        "excerpt": "for (const action of actions) {"
+      },
+      {
+        "file": "apps/desktop/src/features/backups/BackupHistory.interactions.browser.test.tsx",
+        "line": 634,
+        "excerpt": "it.each("
+      },
+      {
+        "file": "apps/desktop/src/features/backups/BackupHistory.interactions.browser.test.tsx",
+        "line": 851,
+        "excerpt": "for (const status of [\"pending\", \"failed\"] as const) {"
+      },
+      {
+        "file": "apps/desktop/src/features/bootstrap/use-bootstrap-state.browser.test.tsx",
+        "line": 56,
+        "excerpt": "for (const [id, callback] of [...frames.entries()]) {"
+      },
+      {
+        "file": "apps/desktop/src/features/bootstrap/use-bootstrap-state.browser.test.tsx",
+        "line": 312,
+        "excerpt": "it.each([\"snapshot\", \"error\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/bootstrap/use-bootstrap-state.browser.test.tsx",
+        "line": 355,
+        "excerpt": "it.each([\"snapshot\", \"error\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/BrowsingMatchDetails.browser.test.tsx",
+        "line": 11,
+        "excerpt": "it.each([true, false])("
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/BrowsingMatchDetails.browser.test.tsx",
+        "line": 45,
+        "excerpt": "it.each([\"first-workspace\", \"changed-workspace\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/CatalogFilters.browser.test.tsx",
+        "line": 44,
+        "excerpt": "for (const port of ports) {"
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/CatalogFilters.browser.test.tsx",
+        "line": 57,
+        "excerpt": "for (const platform of port.platforms)"
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/CatalogFilters.browser.test.tsx",
+        "line": 58,
+        "excerpt": "for (const channel of port.channels)"
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/CatalogFilters.browser.test.tsx",
+        "line": 202,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/CatalogFilters.browser.test.tsx",
+        "line": 217,
+        "excerpt": "for (const port of ports)"
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/CatalogFilters.browser.test.tsx",
+        "line": 389,
+        "excerpt": "for (const id of [\"windows\", \"both\"]) {"
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/catalog-channel-controls.browser.test.tsx",
+        "line": 255,
+        "excerpt": "for (const channel of [\"stable\", \"beta\", \"rolling\"])"
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/catalog-channel-controls.browser.test.tsx",
+        "line": 287,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/catalog-channel-controls.browser.test.tsx",
+        "line": 321,
+        "excerpt": "for (const [id, launchable] of ["
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/game-file-filter-lifecycle.browser.test.tsx",
+        "line": 148,
+        "excerpt": "for (const label of ["
+      },
+      {
+        "file": "apps/desktop/src/features/browsing/use-game-file-observation.browser.test.tsx",
+        "line": 135,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/installation/use-installation-planning.browser.test.tsx",
+        "line": 124,
+        "excerpt": "it.each([{ port: \"second\" }, { channel: \"beta\" as const }, { generation: 2 }])("
+      },
+      {
+        "file": "apps/desktop/src/features/installation/use-installation-planning.browser.test.tsx",
+        "line": 169,
+        "excerpt": "it.each([{ path: \"B\" }, { port: \"second\" }, { open: false }, { generation: 2 }])("
+      },
+      {
+        "file": "apps/desktop/src/features/installation/use-installation-planning.browser.test.tsx",
+        "line": 317,
+        "excerpt": "it.each([null, undefined])("
+      },
+      {
+        "file": "apps/desktop/src/features/operations/invocation-consumers.browser.test.tsx",
+        "line": 155,
+        "excerpt": "it.each([\"add\", \"relink\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/operations/invocation-consumers.browser.test.tsx",
+        "line": 202,
+        "excerpt": "it.each([\"saveToken\", \"logout\", \"beginDeviceLogin\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/operations/invocation-consumers.browser.test.tsx",
+        "line": 249,
+        "excerpt": "it.each([\"add\", \"relink\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/operations/invocation-consumers.browser.test.tsx",
+        "line": 350,
+        "excerpt": "for (const record of records) {"
+      },
+      {
+        "file": "apps/desktop/src/features/operations/invocation-consumers.browser.test.tsx",
+        "line": 379,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+        "line": 495,
+        "excerpt": "it.each([\"notify\", \"stage\", \"automatic\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+        "line": 642,
+        "excerpt": "it.each([\"future_action\", \"constructor\", \"__proto__\", \"toString\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+        "line": 684,
+        "excerpt": "it.each([\"already_active\", \"blocked_unverified\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+        "line": 714,
+        "excerpt": "it.each([\"missing_source\", \"missing_bios\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+        "line": 744,
+        "excerpt": "it.each([\"use_staged\", \"reuse_retained\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+        "line": 823,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/GameUpdates.browser.test.tsx",
+        "line": 937,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/UpdateCenter.browser.test.tsx",
+        "line": 184,
+        "excerpt": "for (const [policy, label] of ["
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/UpdateCenter.browser.test.tsx",
+        "line": 227,
+        "excerpt": "for (const [label, current, outcomes] of states)"
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/UpdateCenter.browser.test.tsx",
+        "line": 295,
+        "excerpt": "for (const attempted of ["
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/UpdateCenter.browser.test.tsx",
+        "line": 419,
+        "excerpt": "for (const label of ["
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/UpdateCenter.browser.test.tsx",
+        "line": 427,
+        "excerpt": "for (const internalLabel of ["
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/UpdateCenter.browser.test.tsx",
+        "line": 540,
+        "excerpt": "it.each([\"pending\", \"failed\", \"cancelled\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/port-updates/use-update-center.browser.test.tsx",
+        "line": 561,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/features/source-health/SourceInspectionReadback.browser.test.tsx",
+        "line": 72,
+        "excerpt": "it.each([\"failed\", \"cancelled\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/source-health/SourceInspectionReadback.browser.test.tsx",
+        "line": 167,
+        "excerpt": "it.each([\"unknown\", \"committed\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/source-health/SourceInspectionReadback.browser.test.tsx",
+        "line": 272,
+        "excerpt": "it.each([\"unknown\", \"committed\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/features/source-health/use-source-health.browser.test.tsx",
+        "line": 125,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/source-health/use-source-health.browser.test.tsx",
+        "line": 274,
+        "excerpt": "it.each([\"source\", \"catalog\", \"requested profiles\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/source-health/use-source-health.browser.test.tsx",
+        "line": 373,
+        "excerpt": "it.each([\"failed\", \"cancelled\"])("
+      },
+      {
+        "file": "apps/desktop/src/features/source-intake/use-source-intake-state.browser.test.tsx",
+        "line": 38,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/source-intake/use-source-intake-state.browser.test.tsx",
+        "line": 46,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/workspace/workspace-refresh.browser.test.tsx",
+        "line": 634,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/workspace/workspace-refresh.browser.test.tsx",
+        "line": 733,
+        "excerpt": "it.each([true, false])("
+      },
+      {
+        "file": "apps/desktop/src/features/workspace/workspace-refresh.browser.test.tsx",
+        "line": 773,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/features/workspace/workspace-refresh.browser.test.tsx",
+        "line": 1003,
+        "excerpt": "it.each([\"succeeded\", \"failed\", \"cancelled\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 52,
+        "excerpt": "it.each([false, true])("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 94,
+        "excerpt": "it.each([\"blocker\", \"action\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 134,
+        "excerpt": "it.each([undefined, portStatus(), { ...portStatus(), port_actions: [] }])("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 269,
+        "excerpt": "it.each([undefined, null])("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 286,
+        "excerpt": "it.each([{ blockers: [] }, { blockers: [\"future_blocker\" as ReadinessBlocker] }])("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 298,
+        "excerpt": "it.each([true, false])("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 322,
+        "excerpt": "it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [] }])("
+      },
+      {
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "line": 484,
+        "excerpt": "it.each([\"missing_source\", \"missing_bios\"] as const)("
+      },
+      {
+        "file": "apps/desktop/src/localization.browser.test.tsx",
+        "line": 294,
+        "excerpt": "it.each(["
+      },
+      {
+        "file": "apps/desktop/src/native-source-drop.browser.test.ts",
+        "line": 87,
+        "excerpt": "it.each([\"normal teardown\", \"late registration\"])("
+      },
+      {
+        "file": "apps/desktop/src/navigation.browser.test.tsx",
+        "line": 120,
+        "excerpt": "for (const [id, callback] of pending) {"
+      },
+      {
+        "file": "apps/desktop/src/port-identity.browser.test.tsx",
+        "line": 10,
+        "excerpt": "it.each([\"catalog\", \"library\"] as const)("
+      }
+    ]
+  },
+  "counterexamples": {
+    "source": "69a1feb1cd1f67df8a08e8d3d98324c74e6b37b6",
+    "original_css_sha256": "967b88ec8863a4533b8302ee3c1b45244b0c2ec96e9ed1465642e85370c385db",
+    "restored_exactly": true,
+    "variants": [
+      {
+        "id": "narrow",
+        "css": ".bootstrap-recovery-content { min-inline-size:900px!important; }",
+        "mutation_sha256": "1808c41e4bc3e46528c1a45b3bbfa0fb2832baad38f10e705cb63daa061d169b",
+        "exit": {
+          "code": 1,
+          "signal": null
+        },
+        "observed_tests": 5,
+        "expected_assertion_failed": true,
+        "failed_cases": [
+          "keeps recovery reachable at 576 pixels (enlarged false, long true)",
+          "keeps recovery reachable at 320 pixels (enlarged false, long true)",
+          "keeps recovery reachable at 320 pixels (enlarged true, long true)"
+        ]
+      },
+      {
+        "id": "enlarged",
+        "css": ".settings-section-index { position:sticky!important; }",
+        "mutation_sha256": "e6a8e33c54534fbe727c3c694afec327f1b7e21e48e597af7922bd3a2b63cb50",
+        "exit": {
+          "code": 1,
+          "signal": null
+        },
+        "observed_tests": 10,
+        "expected_assertion_failed": true,
+        "failed_cases": [
+          "keeps dark Settings usable at 320px with spacing overrides",
+          "keeps dark Settings usable at 320px with 200% authored text",
+          "keeps light Settings usable at 320px with spacing overrides",
+          "keeps light Settings usable at 320px with 200% authored text"
+        ]
+      },
+      {
+        "id": "forced-colors",
+        "css": "@media (forced-colors:active) { button:focus { outline:none!important; } }",
+        "mutation_sha256": "ff5661830348346efc698f6dc6a7a766ae75a04d87c5a01c704459198aa4b906",
+        "exit": {
+          "code": 1,
+          "signal": null
+        },
+        "observed_tests": 6,
+        "expected_assertion_failed": true,
+        "failed_cases": [
+          "distinguishes dark selection from focus in forced colors",
+          "keeps dark keyboard focus visible in actual forced colors",
+          "distinguishes light selection from focus in forced colors",
+          "keeps light keyboard focus visible in actual forced colors"
+        ]
+      },
+      {
+        "id": "rtl",
+        "css": "html[dir=rtl] .language-card { min-inline-size:900px!important; }",
+        "mutation_sha256": "3fd18c1366a74c61dc08ace7a9495c268f89299fdb404cc46e3018138cfcccfc",
+        "exit": {
+          "code": 1,
+          "signal": null
+        },
+        "observed_tests": 4,
+        "expected_assertion_failed": true,
+        "failed_cases": ["keeps long RTL engineering labels operable in a narrow settings state"]
+      },
+      {
+        "id": "long-content",
+        "css": ".bootstrap-recovery-details textarea { block-size:100000px!important;max-block-size:none!important; }",
+        "mutation_sha256": "0559aae4ae1ce90d375661364372b0b7504c94c2ac5f27fe62a0f30a8335668f",
+        "exit": {
+          "code": 1,
+          "signal": null
+        },
+        "observed_tests": 5,
+        "expected_assertion_failed": true,
+        "failed_cases": [
+          "keeps recovery reachable at 1280 pixels (enlarged false, long true)",
+          "keeps recovery reachable at 576 pixels (enlarged false, long true)",
+          "keeps recovery reachable at 320 pixels (enlarged false, long true)"
+        ]
+      }
+    ]
+  },
+  "limits": [
+    "No test or presentation combination removed.",
+    "No runtime savings or flake-rate reduction claimed; independent dimensions beyond the reviewed groups remain unproven.",
+    "Case source/checkout fields remain their original null values; source binding is separate.",
+    "A browser fixture is not native, installed-package, physical or human acceptance."
+  ],
+  "raw_evidence": [
+    {
+      "file": "presentation-full-browser-profile-v1.log",
+      "bytes": 1061061,
+      "sha256": "93cbc4987f388da7b6fb8cff869a0ef3f97494e1dd5c175d299674f0faf3a959"
+    },
+    {
+      "file": "presentation-full-browser-profile-v2.log",
+      "bytes": 1050833,
+      "sha256": "2e5ef2c2aa1187d3215547416ae2f1e317f485a80c4a3f11e02bb113d3a4d2e2"
+    },
+    {
+      "file": "presentation-matrix-profile-v2.log",
+      "bytes": 39862,
+      "sha256": "4eb866c87fcd1c75e148e555365302f0c4d44c845dbd2b442da62e017075c405"
+    },
+    {
+      "file": "presentation-css-mutants-v1.json",
+      "bytes": 13305,
+      "sha256": "489b08465260cd52d9f66bcff321f2d14c63c18c9054b59c3711ef4c7c232899"
+    }
+  ]
+}

@@ -415,6 +415,7 @@ void test("selected nextest outcome edits retain native execution and every outc
   ]) {
     const selection = classifyChanges([change], { fileExists: allFilesExist });
     for (const consumer of [
+      "scripts/run-rust-tests.test.mts",
       "scripts/nextest-outcomes.test.mts",
       "scripts/rust-test-impact.test.mts",
       "scripts/ci-workflow.test.mts",
@@ -550,6 +551,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/daily-discovery.test.mts",
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
+    "scripts/production-aggregate-steps.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = readdirSync(path.join(root, "scripts"))
@@ -3524,5 +3526,101 @@ void test("platform skip inputs retain their declared case and policy consumers 
         [],
         file + "/" + variant + "/hosted",
       );
+    }
+});
+
+void test("default nextest runtime inputs retain local and hosted consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    "scripts/nextest-outcomes.mts",
+    "scripts/nextest-outcomes-cli.mts",
+    "scripts/run-rust-tests.mts",
+    "scripts/report-summary.mts",
+    "scripts/bounded-summary.mts",
+    "scripts/fallow-summary.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: allFilesExist },
+      );
+      const hosted = baselineContractTests(
+        buildValidationPlan({
+          changes: [change],
+          eventName: "pull_request",
+          base: "a".repeat(40),
+          mergeBase: "a".repeat(40),
+          head: "b".repeat(40),
+          checkout: "b".repeat(40),
+        }),
+        { fileExists: allFilesExist },
+      );
+      for (const consumer of [
+        "scripts/nextest-outcomes.test.mts",
+        "scripts/run-rust-tests.test.mts",
+      ]) {
+        assert.ok(local.nodeTests.has(consumer), file + "/" + variant + "/local");
+        assert.ok(hosted.includes(consumer), file + "/" + variant + "/hosted");
+      }
+    }
+});
+
+void test("version runtime and relative fixture closure retain local and hosted consumers", async () => {
+  const { baselineContractTests, baselineRequiresDesktopDependencies } =
+    await import("./ci-baseline.mts");
+  for (const file of [
+    "apps/desktop/scripts/release-version-policy.mts",
+    "apps/desktop/scripts/release-version-runtime.mts",
+    "apps/desktop/scripts/release-version-bundled-runtime.mts",
+    "scripts/release-controller-tool-build.mts",
+    "scripts/fixtures/module-closure.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: allFilesExist },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const hosted = baselineContractTests(plan, { fileExists: allFilesExist });
+      if (file.startsWith("apps/desktop/scripts/release-version-")) {
+        const { validationOwnershipForPath } = await import("./validation-plan.mts");
+        assert.equal(
+          validationOwnershipForPath(file).qualificationRequired,
+          true,
+          file + "/" + variant + "/protected-route",
+        );
+      }
+      assert.ok(baselineRequiresDesktopDependencies(plan), file + "/" + variant + "/dependencies");
+      const expected = [
+        "scripts/production-aggregate-steps.test.mts",
+        ...(file !== "scripts/fixtures/module-closure.mts"
+          ? ["scripts/release-controller-tools.test.mts"]
+          : []),
+      ];
+      for (const consumer of expected) {
+        assert.ok(local.nodeTests.has(consumer), file + "/" + variant + "/local");
+        assert.ok(hosted.includes(consumer), file + "/" + variant + "/hosted");
+      }
     }
 });

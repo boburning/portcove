@@ -147,32 +147,84 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     fastRustTests,
     /- name: Retain runtime diagnostics acceptance and latency evidence\n\s+if: always\(\)/u,
   );
-  const linuxFixture = requiredFixture(
-    requiredFixture(
-      fastRustQuality.split(
-        "      - name: Test typed runtime diagnostics and frontend admission on Linux",
-      )[1],
-    ).split("      - name: Retain Linux runtime diagnostics acceptance evidence")[0],
+  const linuxFixture: Record<string, unknown> & { run: string } = workflowStep(
+    "fast_rust_quality",
+    "Test typed runtime diagnostics and frontend admission on Linux",
   );
-  assert.match(
-    linuxFixture,
-    /if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
+  assert.equal(
+    linuxFixture.if,
+    "contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'",
   );
-  assert.match(linuxFixture, /shell: bash/u); // Bash's pipefail preserves a failed test before tee.
-  assert.match(
-    linuxFixture,
-    /node scripts\/run-rust-tests\.mts --guard-command cargo test --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics -- --test-threads=1 --nocapture/u,
+  assert.equal(linuxFixture["continue-on-error"] ?? false, false);
+  assert.doesNotMatch(
+    linuxFixture.run,
+    /rustc --edition|--workspace|tauri build|continue-on-error/u,
   );
-  assert.match(linuxFixture, /--test-threads=1 --nocapture 2>&1 \| tee/u);
-  assert.doesNotMatch(linuxFixture, /rustc --edition|--workspace|tauri build|continue-on-error/u);
-  assert.match(linuxFixture, /\/runtime-tests\.txt/u);
-  assert.match(
-    linuxFixture,
-    /cargo test --locked -p portcove-diagnostics -- --test-threads=1 --nocapture/u,
+  assert.equal(linuxFixture.shell, "bash"); // Bash's pipefail preserves a failed test before tee.
+  const diagnosticCommands = executableLines(linuxFixture.run).filter((line) =>
+    line.startsWith("node scripts/run-rust-tests.mts "),
   );
-  assert.match(
-    linuxFixture,
-    /cargo test --locked -p portcove-core support_bundle_export -- --test-threads=1 --nocapture/u,
+  assert.equal(diagnosticCommands.length, 3);
+  for (const command of diagnosticCommands) {
+    assert.match(command, /--locked -p portcove-(?:diagnostics|cli|core)/u);
+    assert.match(
+      command,
+      /--test-threads=1 --success-output immediate --failure-output immediate 2>&1 \| tee/u,
+    );
+    assert.doesNotMatch(
+      command,
+      /--guard-command|cargo test|--workspace|--nocapture|continue-on-error/u,
+    );
+  }
+  assert.ok(
+    diagnosticCommands.some(
+      (line) =>
+        line.includes("-p portcove-diagnostics ") && line.endsWith('/shared-host-tests.txt"'),
+    ),
+  );
+  assert.ok(
+    diagnosticCommands.some(
+      (line) =>
+        line.includes(
+          "-p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics ",
+        ) && line.endsWith('/runtime-tests.txt"'),
+    ),
+  );
+  assert.ok(
+    diagnosticCommands.some(
+      (line) =>
+        line.includes("-p portcove-core -E 'test(support_bundle_export)' ") &&
+        line.endsWith('/support-export-tests.txt"'),
+    ),
+  );
+  const setup: Record<string, unknown> & { run: string } = workflowStep(
+    "fast_rust_quality",
+    "Read pinned Linux diagnostic test runner",
+  );
+  assert.equal(setup.if, linuxFixture.if);
+  assert.match(setup.run, /Get-Content \.github\/quality-tools\.json/u);
+  assert.match(setup.run, /Where-Object id -eq "cargo-nextest"/u);
+  const owner = workflowJob("fast_rust_quality");
+  assert.ok(Array.isArray(owner.steps));
+  const steps: unknown[] = owner.steps;
+  const installer = steps.find(
+    (step) => isRecord(step) && step.name === "Install pinned Linux diagnostic test runner",
+  );
+  assert.ok(isRecord(installer));
+  assert.equal(installer.if, linuxFixture.if);
+  assert.equal(installer.uses, "taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91");
+  assert.deepEqual(installer.with, {
+    tool: "${{ steps.linux-diagnostic-test-runner.outputs.spec }}",
+  });
+  const inventories = steps.find(
+    (step) => isRecord(step) && step.name === "Retain Linux diagnostic nextest inventories",
+  );
+  assert.ok(isRecord(inventories) && isRecord(inventories.with));
+  assert.equal(inventories.if, "always() && " + linuxFixture.if);
+  assert.equal(inventories.with.path, "work/nextest-default-outcomes/");
+  assert.equal(
+    inventories.with.name,
+    "runtime-diagnostics-nextest-linux-${{ github.run_id }}-${{ github.run_attempt }}",
   );
   for (const lane of [fastRustTests, fastRustQuality]) {
     assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
@@ -201,10 +253,13 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     assert.match(lane, /name: runtime-diagnostics-(?:windows|linux)-/u);
     assert.match(lane, /path:\s*(?:\|\s*)?work\/runtime-diagnostics\/(?:windows|linux)\//u);
   }
-  assert.match(
-    fastRustQuality,
-    /- name: Retain Linux runtime diagnostics acceptance evidence\n\s+if: always\(\) && contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
+  const retained = steps.find(
+    (step) =>
+      isRecord(step) && step.name === "Retain Linux runtime diagnostics acceptance evidence",
   );
+  assert.ok(isRecord(retained) && isRecord(retained.with));
+  assert.equal(retained.if, "always() && " + linuxFixture.if);
+  assert.equal(retained.with.path, "work/runtime-diagnostics/linux/");
   const outputs = workflowJob("classify").outputs;
   assert.ok(isRecord(outputs));
   assert.equal(outputs.linux_diagnostics, "${{ steps.plan.outputs.linux_diagnostics }}");
@@ -290,7 +345,16 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   const invocation =
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
 
-  assert.equal((workflow.match(invocation) ?? []).length, 3);
+  assert.equal((workflow.match(invocation) ?? []).length, 2);
+  const schemaInstall: Record<string, unknown> & { run: string } = workflowStep(
+    "rust_quality_full",
+    "Install Linux desktop schema-export prerequisites",
+  );
+  assert.equal(schemaInstall["timeout-minutes"], 30);
+  assert.equal(
+    schemaInstall.run,
+    "./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600",
+  );
   assert.equal((deepQuality.match(invocation) ?? []).length, 1);
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(
@@ -1206,6 +1270,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   // inventory also rejects duplicates without a separately maintained count.
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
+  const intelRecoveryFilter =
+    "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/))";
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
@@ -1214,6 +1280,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       { filter: sourcePreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
+      { platform: "x86_64-apple-darwin", filter: intelRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
@@ -1227,6 +1294,12 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   assert.deepEqual(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: curatedInstalledWithdrawalFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.deepEqual(overrideFor(intelRecoveryFilter, "x86_64-apple-darwin"), {
+    platform: "x86_64-apple-darwin",
+    filter: intelRecoveryFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
