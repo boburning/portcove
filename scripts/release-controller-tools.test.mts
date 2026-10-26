@@ -165,6 +165,8 @@ void test("actual fixed pack keeps the marked preparation verifier after raw sou
     }
   };
   await copy("scripts/linux-beta-risk-706-preparation.mts");
+  // The compiler selects this authenticated adapter instead of the source runtime.
+  await copy("apps/desktop/scripts/release-version-bundled-runtime.mts");
   assert.ok(copied.has("apps/desktop/scripts/prepare-release-version.mts"));
   const desktop = createRequire(new URL("../apps/desktop/package.json", import.meta.url));
   await cp(
