@@ -217,7 +217,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
-    "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
+    "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
     "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
     "package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))",
     "package(portcove-core) & test(/^service::psx_mod_data::tests::lifecycle::explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts$/)",
