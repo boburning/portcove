@@ -1504,6 +1504,22 @@ void test("Core capability inputs retain their actual CLI consumer with shared a
     newPath,
   });
   for (const [changes, focused] of [
+    ...[
+      "definition_index.rs",
+      "definition_repository.rs",
+      "definition_publication.rs",
+      "definition_repository/publisher_policy/launch_assessment.rs",
+    ].flatMap((name) => {
+      const file = "crates/portcove-core/src/" + name;
+      return [
+        [[single("A", file)], false],
+        [[single("M", file)], false],
+        [[single("D", file)], false],
+        [[single("R100", file, "crates/portcove-core/src/renamed.rs")], false],
+        [[single("R100", "crates/portcove-core/src/renamed.rs", file)], false],
+        [[single("M", file), single("M", cliFixture)], false],
+      ] as const;
+    }),
     [[single("A", capability)], true],
     [[single("M", capability)], true],
     [[single("D", capability)], false],
@@ -1556,6 +1572,13 @@ void test("Core capability inputs retain their actual CLI consumer with shared a
         JSON.stringify(changes),
       );
   }
+  assert.equal(
+    selectWorkspaceRustImpact(
+      workspacePlan(["crates/portcove-core/src/definition_index_tests.rs"]),
+      map,
+    ).some((entry) => entry.packageName === "portcove-cli"),
+    false,
+  );
   const missingGroup = structuredClone(requiredFixture(map));
   const cliPackage = requiredFixture(missingGroup.packages["portcove-cli"]);
   cliPackage.groups = cliPackage.groups.filter(

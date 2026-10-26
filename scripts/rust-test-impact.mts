@@ -423,6 +423,10 @@ export const rustPackagePrefixes = new Map([
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
 
+function definitionImplementation(file: string) {
+  return file.startsWith("crates/portcove-core/src/definition_") && !file.endsWith("_tests.rs");
+}
+
 export function selectWorkspaceRustImpact(
   plan: ValidationPlan,
   map: RustImpactMap | null = readRustTestImpactMap(),
@@ -583,15 +587,14 @@ export function selectWorkspaceRustImpact(
       reason: "complete typed runtime diagnostics, frontend report and Core/CLI outcome fixture",
     });
   }
-  // Capability inventory and API schema changes retain their compiled CLI consumer.
+  // Definition publication consumes the index and repository policy through Core;
+  // retain the complete CLI package for production definition changes beyond capabilities.
   if (
     plan.changes.some((change) =>
-      [change.oldPath, change.newPath].some((file) =>
-        [
-          "crates/portcove-core/src/definition_capabilities.rs",
-          "crates/portcove-core/src/types.rs",
-          "crates/portcove-core/src/lib.rs",
-        ].includes(file),
+      [change.oldPath, change.newPath].some(
+        (file) =>
+          definitionImplementation(file) ||
+          ["crates/portcove-core/src/types.rs", "crates/portcove-core/src/lib.rs"].includes(file),
       ),
     ) &&
     !selected.some(
@@ -606,6 +609,13 @@ export function selectWorkspaceRustImpact(
       !selected.some((entry) => entry.filter === "package(=portcove-core)") &&
       plan.changes.every(
         (change) => change.oldPath === change.newPath && ["A", "M"].includes(change.status),
+      ) &&
+      !plan.changes.some((change) =>
+        [change.oldPath, change.newPath].some(
+          (file) =>
+            definitionImplementation(file) &&
+            file !== "crates/portcove-core/src/definition_capabilities.rs",
+        ),
       );
     if (
       !certain ||
@@ -615,7 +625,8 @@ export function selectWorkspaceRustImpact(
         id: "portcove-cli:definition-capability-consumer",
         packageName: "portcove-cli",
         filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
-        reason: "compiled CLI advertised capability inventory, negotiation and API schema consumer",
+        reason:
+          "compiled CLI capability and offline publication consumers, including Core index and policy",
       });
   }
   return selected;
