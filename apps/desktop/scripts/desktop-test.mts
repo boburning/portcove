@@ -26,7 +26,10 @@ import {
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
-import { observeDesktopScenario } from "./desktop-scenario-outcomes.mts";
+import {
+  observeDesktopScenario,
+  retainDesktopScenarioFailure,
+} from "./desktop-scenario-outcomes.mts";
 import { spawn } from "node:child_process";
 import {
   DesktopNativeAccountSession,
@@ -1185,6 +1188,7 @@ function recordScenario(
 ) {
   target.records.push({ scenario: name, outcome, ...details });
   scenarioOutcomes.set(name, outcome);
+  if (outcome === "failed") retainDesktopScenarioFailure(revision, name, details);
 }
 
 async function captureScenarioDiagnostics(name: string, setup: boolean) {

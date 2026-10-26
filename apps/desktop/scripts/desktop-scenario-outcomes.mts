@@ -7,6 +7,29 @@ export interface ScenarioObservation {
   message?: string;
 }
 
+export function retainDesktopScenarioFailure(
+  revision: string,
+  scenario: string,
+  observation: { message?: string; duration_ms?: number | null },
+) {
+  const message = observation.message ?? "Native scenario failed";
+  console.error(
+    `DESKTOP_SCENARIO_FAILURE ${JSON.stringify({
+      format_version: 1,
+      runner: "native-desktop",
+      source: { kind: "declared-harness-revision", revision },
+      platform: process.platform,
+      architecture: process.arch,
+      scenario,
+      outcome: "failed",
+      duration_ms: observation.duration_ms ?? null,
+      duration_scope: "scenario-action",
+      message: message.slice(0, 4096),
+      message_truncated: message.length > 4096,
+    })}`,
+  );
+}
+
 export async function observeDesktopScenario(
   action: () => unknown,
   effects: {

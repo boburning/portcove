@@ -136,6 +136,28 @@ post-action diagnostics and terminal screenshot; captures inside the action
 remain included.
 An unmet prerequisite records `not-run` with a null duration. These observations
 retain the existing execution and acceptance boundaries.
+Failed actions also emit a bounded `DESKTOP_SCENARIO_FAILURE` record before
+diagnostics or final artifact publication, retaining the original failure when
+later publication fails. Its declared harness revision does not replace the
+final packet's captured executable and input identities.
+
+Runner inventories describe different units. Keep their native identities and
+unknown states when comparing results; source files, routes and lines are static
+inventory metrics, never executed test totals.
+
+| Maintained runner             | Case and count interpretation                                                                                                                                                                                                                                                                |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node                          | Expanded native test events and file observations; parameterized/subtest outcomes remain distinct from test-bearing files and declared command routes.                                                                                                                                       |
+| Vite+/Vitest unit and browser | Native case results retain full test names, status and timing; browser replay remains separate from native application execution.                                                                                                                                                            |
+| Nextest                       | Native discovery/selection lists and terminal case events distinguish executed, ignored and failed cases; explicit diagnostic overrides remain nonqualifying.                                                                                                                                |
+| Rustdoc                       | Document-qualified native cases and observed suites; incomplete Cargo recipes leave whole-recipe discovery/selection unknown. Compilation phases are separate from case durations.                                                                                                           |
+| Standalone libtest            | One unfiltered binary-bound suite; discovered/selected, executed, ignored and failed counts come from native protocol events. Empty selection cannot qualify.                                                                                                                                |
+| Python unittest               | Expanded selected test IDs and inner outcomes, including skip/error reasons; the timed child and original aggregate status remain separate from reporting success.                                                                                                                           |
+| C# contract runner            | Ordered discovered/selected scenarios for the active mode, executed actions, skips, native failures and reported records. Assertion `checks` are separate; complete case records can still describe failure or skip-only execution.                                                          |
+| Native Desktop                | Registry discovery and selected/setup/excluded/known-gap IDs remain distinct from observations. `checks` can contain diagnostics as well as scenarios; its length is not a test count. Missing actions remain unobserved or `not-run`, with unknown duration rather than invented execution. |
+
+These inventories do not confer native, package, installed-client or release
+acceptance. The owning receipt and acceptance contracts still decide that scope.
 
 The extra Linux diagnostics replay stays broad for diagnostics, Core, CLI,
 Desktop, shared, dependency and uncertain inputs. Only ordinary added or modified
