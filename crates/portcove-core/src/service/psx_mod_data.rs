@@ -727,17 +727,7 @@ impl PortcoveService {
         user_root: &Path,
     ) -> Result<BTreeMap<PathBuf, ModRestore>> {
         let mut plans = BTreeMap::new();
-        let fallback = self.catalog.port(port_id)?;
-        for path in self.library.port_install_paths(port_id)? {
-            refuse_symlink_ancestors(&path)?;
-            match fs::symlink_metadata(&path) {
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                result => {
-                    result?;
-                }
-            }
-            let install_root = self.managed_install_root(port_id, &path)?;
-            let contract = self.persistence_contract(fallback, &install_root)?;
+        for (install_root, contract) in self.retained_persistence_contracts(port_id)? {
             if !contract.writes_directly
                 && (contract.port.adapter == AdapterKind::PsxRecompManaged
                     || contract.port.mod_package_policy.is_some())
@@ -770,15 +760,21 @@ impl PortcoveService {
     pub(crate) fn prepare_recovered_psx_activation(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
-        if let Some(active) = self
+        let active = self
             .library
             .status(&install.port_id, install.channel)?
-            .active
-        {
-            self.require_portable_transition(&active, &port)?;
+            .active;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
         }
         self.collect_active_user_data_if_launched(&install.port_id)?;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
+        }
         self.restore_user_data_to(&port, &install.path)?;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
+        }
         Installer::new(self.library.clone())?.verify_critical(install, &qualification)?;
         Ok(())
     }

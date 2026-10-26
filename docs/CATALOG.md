@@ -1456,16 +1456,39 @@ New named persistent-path declarations also permit newly created preference
 files in existing installations. Verification still checks every file recorded
 as immutable in the original manifest; a later declaration cannot hide changes
 to those bytes or rewrite that recorded identity during library import.
-For an installed version with a retained definition, the service admits newly
-declared exact persistent and runtime-mutable paths only when the current port
-definition otherwise matches that retained definition and keeps all of its old
-mutable paths. An addition overlapping a recorded immutable file or naming an
-executable companion is rejected. The retained definition still owns source and
-launch behavior, while newly admitted persistent files participate in collection,
-restore, activation, interrupted-activation recovery, rollback and game-output
-relocation. Other catalog changes do not silently expand an old installation's
-mutable surface. Whole-library export and import retain their separately reviewed
-historical contract and can still reject an older install with new sidecars.
+For an installed version with a retained definition, runtime verification may
+recognize new exact persistent and runtime-mutable paths only when the current
+port definition otherwise matches that retained definition and keeps all old
+mutable paths. Recorded immutable members and executable companions cannot gain
+mutability. This verification allowance does not prove that player data was
+restored under a wider scope. Receipt-governed installations refuse collection or
+restoration when historical scope evidence is absent or interpreted persistence
+paths/patterns differ from their retained scope; the same persistence-authority
+preflight covers inactive versions in read-only Restore review and again before
+canonical publication. Actual restore also checks mod conflicts at its existing
+mutation boundary.
+The original receipt, manifest and diagnostic-mutability
+behavior remain unchanged. Other existing integration interpretations, including
+the separately qualified Shipwright exception, retain their own boundaries.
+
+A ready staged archive may move forward to a fresh, strictly larger persistence
+contract only when the old authenticated contract and its current data
+interpretation agree, all source/launch coordinates and patterns remain compatible,
+and every added path is absent from the active runtime, canonical data and actual
+destination. Missing immutable package files do not make their names adoptable;
+links, case aliases, overlapping paths and uncertain inspection refuse. Recheck
+under the port lock after preparation, synchronization and before activation or
+pending recovery. The new installation retains its full new scope; old copies keep
+their original scope. Shrinking a contract, populated additions and unproven scope
+expansion remain refused. Runtime rollback still carries current data and does not
+rewind saves.
+
+If fresh acquisition publishes a staged copy before its final data-compatibility
+check refuses, the error includes `staged_install_id`: that copy and its files stay
+registered, the active copy stays active, and activation and stage-only retries
+repeat the actual-destination check. This is an ordinary retained staged copy,
+not a new durable held-status type. Whole-library export/import continue using
+historical retained authority, with no current-catalog-only ownership grant.
 
 Managed PS1 launches regenerate `.portcove-psx-runtime.toml` from the verified
 `game.toml` template and current verified disc paths for both source modes.
