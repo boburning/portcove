@@ -1,4 +1,4 @@
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";

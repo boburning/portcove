@@ -105,8 +105,7 @@ operations actually offered through core/CLI: source validation, installation,
 registration, launch preflight, update, rollback and persistence only where
 applicable. Prefer catalog data or a bounded shared adapter; small isolated
 title-specific core behavior may use existing trust and lifecycle owners when
-needed. Run `just test-rust -p portcove-core embedded_catalog_is_valid_and_contains_lighthouse`
-immediately after the first definition edit. Catalog admission follows
+needed. Catalog admission follows
 [continuous admission](../../../../docs/CATALOG.md#continuous-admission): a useful
 entry may retain honest Unknown gameplay or optional evidence, while every
 offered operation, platform and qualification claim needs matching scoped

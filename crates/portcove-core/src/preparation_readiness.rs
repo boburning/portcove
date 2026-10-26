@@ -13,10 +13,23 @@ pub(crate) fn managed(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn managed_install(port: &PortDefinition, install: &InstallRecord) -> bool {
-    managed(port)
-        || (port.id == "ghostship"
-            && install.version == "2.0.0"
-            && matches!(Platform::current(), Ok(Platform::WindowsX86_64)))
+    managed_mode(port, install).is_some()
+}
+
+pub(crate) fn managed_mode(
+    port: &PortDefinition,
+    install: &InstallRecord,
+) -> Option<super::PreparationMode> {
+    if super::source::eligible(port) {
+        Some(super::PreparationMode::SourceOnly)
+    } else if port.id == "ghostship"
+        && install.version == "2.0.0"
+        && matches!(Platform::current(), Ok(Platform::WindowsX86_64))
+    {
+        Some(super::PreparationMode::Ghostship200Legacy)
+    } else {
+        managed(port).then_some(super::PreparationMode::Default)
+    }
 }
 
 impl PortcoveService {
@@ -30,6 +43,9 @@ impl PortcoveService {
             return Ok(());
         }
         let catalog = self.installed_catalog(install)?;
+        if super::source::eligible(port) {
+            return super::source::validate(self.library(), &catalog, port, install, source, None);
+        }
         self.validate_preparation_receipt_in_retained_catalog(&catalog, install, source, None)
     }
 
@@ -43,6 +59,16 @@ impl PortcoveService {
         expected_plan: Option<&super::PreparationPlan>,
     ) -> Result<()> {
         let port = catalog.port(&install.port_id)?;
+        if super::source::eligible(port) {
+            return super::source::validate(
+                self.library(),
+                catalog,
+                port,
+                install,
+                source,
+                expected_plan,
+            );
+        }
         let legacy = port.id == "ghostship"
             && install.version == "2.0.0"
             && matches!(Platform::current(), Ok(Platform::WindowsX86_64));
@@ -121,6 +147,7 @@ impl PortcoveService {
                 && source.storage_size == inputs.source.storage_size
         });
         if receipt.format_version != if legacy { 2 } else { 1 }
+            || inputs.setup_tool.is_none()
             || inputs.definition_sha256 != definition
             || inputs.install.artifact != install.artifact
             || inputs.install.runtime != install.runtime
@@ -152,9 +179,9 @@ impl PortcoveService {
             }
             super::ghostship::execution_contract(port, &inputs.install, inputs.host)?;
             super::ghostship::require_source(&inputs.source)?;
-            if inputs.setup_tool.sha256 != super::ghostship::EXECUTABLE_SHA256
-                || inputs.setup_tool.size != 11_533_312
-                || inputs.conversion_tool.is_some()
+            if inputs.setup_tool.as_ref().is_none_or(|tool| {
+                tool.sha256 != super::ghostship::EXECUTABLE_SHA256 || tool.size != 11_533_312
+            }) || inputs.conversion_tool.is_some()
             {
                 return Err(PortcoveError::verification(
                     "legacy preparation receipt has an unreviewed setup tool",

@@ -382,6 +382,17 @@ owns application plugins, dev-server and production-build behavior. The exact
 release is in the pnpm catalog. Inspect the resolved bundle with `pnpm exec vp
 toolchain`; upgrade the release as a unit using the documented migrator.
 
+Full frontend selection and `frontend:runtime` use `frontend:tests` to execute
+the existing fresh unit task followed by the fresh browser task. A unit failure
+skips browser execution; successful execution retains every maintained project.
+Browser concurrency is bounded at four workers, with two unit workers. Focused unit/browser and
+literal/related commands retain their existing scopes. Ordinary native TypeScript
+syntax checks share bounded batches; receipt fingerprints include every selected
+file's domains. Roadmap issue identity lives in `scripts/roadmap-issue.mts`, so
+discovery can consume it without initializing live API and mutation tooling.
+The [automation architecture record](reference/automation-architecture-modernization.md)
+documents framework decisions, measurements and retained boundaries.
+
 Use the [global Vite+ CLI](https://viteplus.dev/guide/global-cli) with environment
 management enabled for development and agent setup. Its `node` and `pnpm` shims
 select the exact versions declared by `.node-version` and `package.json` in each
@@ -2769,7 +2780,7 @@ share `~/.portcove/resources`, independent of worktree, branch, tool version,
 units: Rust, browser and analysis phases use one each; container preparation and
 execution use both. These are conservative admission weights, not CPU/RAM
 reservations. Cargo compilation uses at most two jobs; existing nextest limits
-remain; unit and browser projects use two workers each. Git bundle preparation
+remain; unit projects use two workers and browser projects use four. Git bundle preparation
 uses two pack threads. Preserve headroom for unrelated programs.
 
 `config.json` in that domain accepts `slots` (1..8, default 2), `waitMs`

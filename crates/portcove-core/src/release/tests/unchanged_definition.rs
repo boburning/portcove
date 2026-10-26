@@ -99,7 +99,7 @@ async fn unchanged_closed_policy_rules_resolve_successors_with_exact_provider_bi
 }
 
 #[tokio::test]
-async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_after_cache_expiry_and_on_fresh_install()
+async fn unchanged_authored_rules_follow_versioned_packages_after_cache_expiry_and_on_fresh_install()
  {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, old_tag, old_name, new_tag, new_name) in [
@@ -131,6 +131,14 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "DKC1Recomp-v0.0.16-Windows-x64.zip",
             "v0.0.17",
             "DKC1Recomp-v0.0.17-Windows-x64.zip",
+        ),
+        // v1.4.9 is controlled; the current v1.4.8 Windows package is observed.
+        (
+            "road-rash-64-recompiled",
+            "v1.4.8",
+            "RoadRash64Recompiled-v1.4.8-Win64.zip",
+            "v1.4.9",
+            "RoadRash64Recompiled-v1.4.9-Win64.zip",
         ),
         // Controlled successors exercise stable rules; they do not assert that
         // F-Zero1.8.4, DKC3.0.0.7 or Bomberman.0.1.2 have been published.
@@ -185,27 +193,8 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
             "BombermanRecomp-windows-x64-v0.1.2.zip",
         ),
     ] {
-        // Adopted portable and original-driven routes use their shipped rules.
-        // Sonic3K stays a frozen proposal pending its separate data transition.
-        let proposed;
-        let port = if matches!(
-            id,
-            "alariq-mc2"
-                | "battletanx-global-assault-pc-port"
-                | "brawmario-infinite-mario-64-ever"
-                | "dkc1-recomp"
-                | "f-zero-snes-recomp"
-                | "dkc3-recomp"
-                | "super-mario-world-recomp"
-                | "the-legend-of-zelda-a-link-to-the-past-snes-recomp"
-                | "sonic-the-hedgehog-2-recomp"
-                | "super-bomberman-recomp"
-        ) {
-            catalog.port(id).unwrap()
-        } else {
-            proposed = crate::test_fixture::proposed_rollout_port(id);
-            &proposed
-        };
+        // Use each adopted route’s actual shipped rules unchanged.
+        let port = catalog.port(id).unwrap();
         let old = release(old_tag, vec![asset(old_name, Some('a'))]);
         let new = release(
             new_tag,
@@ -215,6 +204,7 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                     &new_name
                         .replace("windows", "linux")
                         .replace("Windows", "Linux")
+                        .replace("Win64", "Linux64")
                         .replace("win64", "linux64"),
                     Some('c'),
                 ),
@@ -222,6 +212,7 @@ async fn unchanged_live_and_frozen_proposed_rules_follow_versioned_packages_afte
                     &new_name
                         .replace("x64", "arm64")
                         .replace("win64", "win-arm64")
+                        .replace("Win64", "Win-arm64")
                         .replace(".windows.zip", ".windows-arm64.zip"),
                     Some('d'),
                 ),

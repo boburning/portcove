@@ -1250,7 +1250,7 @@ void test("routine and exhaustive Rust gates preserve incremental reuse without 
   );
   assert.match(
     recipes,
-    /^rust-test:\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mts --locked --workspace\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mts --guard-command cargo test --locked --workspace --exclude portcove-desktop --doc\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mts --guard-command cargo test --locked -p portcove-desktop --doc$/m,
+    /^rust-test:\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mts --locked --workspace\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mts --guard-command node scripts\/qualification-rustdoc\.mts workspace\r?\n\s+\{\{storage\}\} node scripts\/run-rust-tests\.mts --guard-command node scripts\/qualification-rustdoc\.mts desktop$/m,
   );
 });
 

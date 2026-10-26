@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
 import { RoadmapClient, executeSetMany, validateConfig } from "./roadmap.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import { InventoryError, retryableInventoryRead } from "./repository-issue-inventory.mts";
@@ -576,6 +577,28 @@ void test("issue events and explicit requests select scoped checks; substantial 
     selectRoadmapHealth("push", event, () => {
       throw new Error("Missing base");
     }),
+    { mode: "global" },
+  );
+});
+
+void test("extracted Roadmap issue policy still triggers and selects a global health check", () => {
+  const leaf = "scripts/roadmap-issue.mts";
+  const workflow: unknown = parseDocument(
+    readFileSync(new URL("../.github/workflows/roadmap-health.yml", import.meta.url), "utf8"),
+    { uniqueKeys: true },
+  ).toJS();
+  assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.on.push));
+  assert.ok(Array.isArray(workflow.on.push.paths) && workflow.on.push.paths.includes(leaf));
+  assert.deepEqual(
+    selectRoadmapHealth(
+      "push",
+      {
+        before: "a".repeat(40),
+        after: "b".repeat(40),
+      },
+      (revision, file) =>
+        file === leaf ? revision : file.endsWith("catalog.json") ? '{"ports":[]}' : "same",
+    ),
     { mode: "global" },
   );
 });

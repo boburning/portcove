@@ -4,7 +4,8 @@ import {
 } from "./repository-issue-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
-import type { RoadmapClient, RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapClient } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 
 export interface InventoryCache {
   format: 1;

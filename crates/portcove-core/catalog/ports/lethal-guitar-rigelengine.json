@@ -3,12 +3,12 @@
   "listing": {
     "id": "lethal-guitar-rigelengine",
     "name": "Duke Nukem II / Rigel Engine (lethal-guitar)",
-    "summary": "Explore Duke Nukem II / Rigel Engine (lethal-guitar) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Duke Nukem II with widescreen, smooth scrolling and Rigel Engine’s mod support.",
     "project_url": "https://github.com/lethal-guitar/RigelEngine",
     "issue_number": 1877,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/lethal-guitar/RigelEngine",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
     "artwork": {
       "game_id": 956,
       "cover_id": 77410,
@@ -16,6 +16,26 @@
       "image_sha256": "94e15ee0f73d092b7eabfe3ff6c6fee778b47631799c3fe8f35fed5c89443904",
       "game_slug": "duke-nukem-ii",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/lethal-guitar/RigelEngine/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["rigelengine_win_x64.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the Rigel Engine player",
+          "instruction": "Use the native package for your system. The Windows runtime ZIP contains RigelEngine.exe; upstream’s platform instructions cover Debian packages and the macOS application. Keep your original game files in their own folder."
+        },
+        {
+          "title": "Select your Duke Nukem II files",
+          "instruction": "On first Play, choose your Duke Nukem II folder containing NUKEM2.CMP. Shareware and registered editions work. Keep the optional NUKEM2.F1–F5 intro movies with it for movie playback; Rigel Engine remembers your choice."
+        }
+      ],
+      "warnings": [
+        "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation."
+      ],
+      "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine"
     }
   }
 }

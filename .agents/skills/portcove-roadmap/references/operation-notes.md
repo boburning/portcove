@@ -46,6 +46,11 @@ Search existing issues by upstream and stable game/target identity before intake
 
 Use `next`, `readiness --release <stage>`, and `doctor` for read-only assessment. Before classifying doctor drift under concurrent delivery, verify the local catalog/governance revision is current for the intended authority. Compare live issue/Project fields, current main's catalog, and active unmerged catalog work; coordinate with the owner instead of resetting another task's state from a stale checkout.
 
+Run doctor against stable checkout inputs: wait for it to finish before switching
+branches, pulling or editing its catalog/configuration inputs. If those inputs
+change during the check, retain the inconclusive result and rerun after the
+checkout stabilizes, preserving the selected scoped or full audit.
+
 `capture-feature`, `promote`, `set`, `move`, and `bootstrap` mutate live state: use only within authorized scope and inspect flags. Before updating several items, reserve quota for direct target lookup, exact readback and the applicable scoped or substantial-change doctor. Prefer a repository-supported batch mechanism when available; do not loop a whole-project `set` command blindly. Use REST for independent issue/body/comment work when appropriate, never as proof of Project fields.
 
 For every remote mutation, keep attempted action, transport result, targeted readback, and final doctor acceptance separate. After an ambiguous response, read the requested field before retrying and describe it as verified after the attempt rather than client-applied when causality is unknowable. In machine-readable output, use `unknown` for unavailable or contradictory readback and `partial` for known incomplete acceptance, keep diagnostics off structured stdout, and exit nonzero for either state.

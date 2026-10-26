@@ -13,6 +13,7 @@ const substantialPaths = [
   ".github/roadmap.json",
   ".github/linux-beta-risk-706.json",
   "scripts/roadmap.mts",
+  "scripts/roadmap-issue.mts",
   "scripts/roadmap-scoped.mts",
   "scripts/roadmap-health.mts",
   "scripts/repository-issue-inventory.mts",

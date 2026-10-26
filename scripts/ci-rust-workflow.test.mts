@@ -1166,6 +1166,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
   const intelPreparationFilter =
     "package(portcove-cli) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/)";
+  const curatedInstalledWithdrawalFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
@@ -1178,7 +1180,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & (test(/^service::tests::tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent$/) | test(/^service::tests::tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal$/))",
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
     "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
-    "package(portcove-core) & (test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/) | test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/))",
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)",
   ];
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
@@ -1186,6 +1188,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & test(/^service::runtime_tests::psx_progression::(unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs|retained_direct_psx_runtime_updates_through_current_provider_without_rewriting_contract)$/)";
   const namedSaveRestoreFilter =
     "package(portcove-core) & test(/^service::runtime_tests::named_save_restore_updates_every_version_and_preserves_import_policy$/)";
+  const sourcePreparationFilter =
+    "package(portcove-core) & (test(/^preparation::source::tests::source_only_fresh_install_rechecks_original_before_rename$/) | test(/^preparation::source::tests::source_only_fresh_install_rechecks_original_before_registration$/) | test(/^preparation::source::tests::source_only_gamecube_install_seals_the_nested_iso$/) | test(/^preparation::source::tests::source_only_directory_install_survives_two_launches_and_full_verify$/) | test(/^preparation::source::tests::source_only_zip_install_survives_two_launches_and_full_verify$/) | test(/^preparation::source::tests::source_only_review_repairs_historical_extras_but_refuses_unrelated_changes$/) | test(/^preparation::source::tests::source_only_recovery_refuses_original_changes_before_publication$/))";
   const publicationFilters = [
     {
       filter:
@@ -1207,10 +1211,12 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
+      { filter: sourcePreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
@@ -1218,6 +1224,21 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       .map(outputIdentity)
       .sort(),
   );
+  assert.deepEqual(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: curatedInstalledWithdrawalFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const sourcePreparation = overrideFor(sourcePreparationFilter);
+  assert.deepEqual(sourcePreparation["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 18,
+    "grace-period": "0s",
+  });
+  assert.equal(sourcePreparation["success-output"], "immediate");
+  for (const field of ["platform", "retries", "threads-required", "priority", "default-filter"])
+    assert.equal(sourcePreparation[field], undefined);
   const linuxLifecycle = overrideFor(linuxLifecycleFilter, "x86_64-unknown-linux-gnu");
   assert.deepEqual(linuxLifecycle["slow-timeout"], {
     period: "5s",
@@ -1312,8 +1333,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   }
   assert.match(rustTests, /windows-rust-tests\.mts run-qualification/u);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
-  assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
-  assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
+  assert.match(rustDocs, /node scripts\/qualification-rustdoc\.mts workspace/u);
+  assert.match(rustDocs, /node scripts\/qualification-rustdoc\.mts desktop/u);
   assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);
   assert.match(
     rustDocs,

@@ -1,5 +1,5 @@
-import { sourceProvenancePortIdentity } from "./roadmap.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import { sourceProvenancePortIdentity } from "./roadmap-issue.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import { reconcileDiscoveryIdentity } from "./discovery-reconciliation.mts";

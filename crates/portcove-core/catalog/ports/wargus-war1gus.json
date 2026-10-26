@@ -3,12 +3,12 @@
   "listing": {
     "id": "wargus-war1gus",
     "name": "Warcraft: Orcs & Humans / War1gus (Wargus)",
-    "summary": "Explore Warcraft: Orcs & Humans / War1gus (Wargus) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Warcraft: Orcs & Humans with War1gus and the Stratagus engine using your original DOS game files.",
     "project_url": "https://github.com/Wargus/war1gus",
     "issue_number": 1905,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Wargus/war1gus",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://wargus.github.io/war1gus.html",
     "artwork": {
       "game_id": 129,
       "cover_id": 90529,
@@ -16,6 +16,30 @@
       "image_sha256": "d40b5f879c0b748f887a59f5e1eac47426751de0f15d5223ea74967c27ebc0df",
       "game_slug": "warcraft-orcs-humans",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/Wargus/war1gus/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Run the upstream Windows setup",
+          "instruction": "Open the download folder and run the portable Windows EXE yourself. It is a setup program: choose a folder for the upstream War1gus copy."
+        },
+        {
+          "title": "Choose your original Warcraft files",
+          "instruction": "Start the installed War1gus player. When it asks, select the DOS game’s DATA.WAR file or your GOG offline installer. War1gus extracts the required data using its own setup tools."
+        },
+        {
+          "title": "Use the installed player",
+          "instruction": "Finish Portcove setup with the installed war1gus.exe and its folder. Keep your War1gus game data and user settings backed up when applying upstream updates."
+        }
+      ],
+      "warnings": [
+        "The current extractor does not fully support demo, shareware or Mac original-game data; upstream reports that those extracted data sets fail to launch."
+      ],
+      "help_url": "https://wargus.github.io/war1gus.html"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["War1gus-portable-", ".exe"]
     }
   }
 }

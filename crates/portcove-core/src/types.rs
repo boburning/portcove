@@ -1614,6 +1614,9 @@ pub struct LaunchReadiness {
     pub launchable: bool,
     pub blockers: Vec<LaunchBlocker>,
     pub pending_setup: bool,
+    /// Core-owned managed preparation route for the retained active installation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preparation_mode: Option<crate::PreparationMode>,
     /// Original file representation required by the effective runtime contract.
     /// This is independent of source identity health and uses the retained
     /// definition when an external runtime is registered.

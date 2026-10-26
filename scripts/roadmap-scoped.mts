@@ -9,12 +9,8 @@ import {
   validatePortIssueCoverage,
   validatePortStageSemantics,
 } from "./roadmap.mts";
-import type {
-  RoadmapClient,
-  RoadmapConfig,
-  RoadmapIssueItem,
-  QualificationCatalogObservation,
-} from "./roadmap.mts";
+import type { RoadmapClient, RoadmapConfig, QualificationCatalogObservation } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { requireRoadmapInventory } from "./roadmap-inventory.mts";
 import type { RoadmapInventory } from "./roadmap-inventory.mts";
 import {

@@ -276,7 +276,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -284,7 +284,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -301,7 +301,7 @@ internal static class ContractTests
         var stream73 = new ProtocolStream("status");
         stream73.Line(Json.Print(result73));
         Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
-        foreach (var privateSchema in new[] { 58, 59, 64, 82 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 83 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -494,7 +494,7 @@ internal static class ContractTests
         bad["schema_version"] = 80;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "explicit user-selected execution keeps launch decisions in Core");
-        bad["schema_version"] = 82;
+        bad["schema_version"] = 83;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond the supported execution contract rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -589,7 +589,7 @@ internal static class ContractTests
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
             var capabilities = await real.Read("capabilities", "capabilities");
-            Check(real.ApiSchemaVersion == 81 && Json.Array(Json.Field(capabilities, "engine_templates"))
+            Check(real.ApiSchemaVersion == 82 && Json.Array(Json.Field(capabilities, "engine_templates"))
                 .Any(template => Json.Text(template, "template") == "staged-source-portable"
                     && Json.Number(template, "contract_version") == 18),
                 "compiled API81 producer advertises the prepared directory contract through the actual client");
@@ -847,12 +847,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 82 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 83 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -892,7 +892,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 82 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 83 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);

@@ -10,6 +10,7 @@ on:
       - .github/linux-beta-risk-706.json
       - crates/portcove-core/catalog/catalog.json
       - scripts/roadmap.mts
+      - scripts/roadmap-issue.mts
       - scripts/roadmap-scoped.mts
       - scripts/roadmap-health.mts
       - scripts/roadmap-authoring.mts

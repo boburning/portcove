@@ -43,6 +43,10 @@ struct AssetAcquisition<'a> {
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     strict_staged_source: bool,
+    source_preparation: Option<(
+        crate::Catalog,
+        crate::preparation::source::SourcePreparation,
+    )>,
     runtime_data_policy: Option<crate::RuntimeDataPolicy>,
     managed_shared_preferences: Option<crate::PreparedSharedPreferencesContract>,
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
@@ -82,6 +86,29 @@ impl InstallQualification {
         self.shared_preferences = accepted;
         Ok(self)
     }
+    pub(crate) fn with_runtime_source(
+        mut self,
+        source: Option<&crate::SourceRecord>,
+    ) -> Result<Self> {
+        let Some(contract) = &self.retained_contract else {
+            return Ok(self);
+        };
+        let catalog = contract.catalog(contract.port_id())?;
+        let port = catalog.port(contract.port_id())?;
+        if !crate::preparation::source::eligible(port) {
+            return Ok(self);
+        }
+        let Some(source) = source else {
+            return Ok(self);
+        };
+        let inputs = crate::preparation::source::plan(&catalog, port, source, self.platform)?;
+        self.critical_paths
+            .extend(crate::preparation::source::outputs(port));
+        self.retained_contract = Some(contract.for_source_only_preparation()?);
+        self.source_preparation = Some((catalog, inputs));
+        Ok(self)
+    }
+
     fn require_runtime_creation(&self) -> Result<()> {
         if self.native_build_recipe.is_some() {
             return Err(crate::cartridge_build::retired_creation());
@@ -158,6 +185,7 @@ impl InstallQualification {
             )));
         }
         Ok(Self {
+            source_preparation: None,
             strict_staged_source: matches!(
                 port.adapter,
                 AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
@@ -614,6 +642,17 @@ impl Installer {
                 .as_ref()
                 .map_or(0, |runtime| runtime.asset.size),
         );
+        let required_bytes = match &request.qualification.source_preparation {
+            Some((catalog, inputs)) => required_bytes
+                .checked_add(crate::preparation::source::capacity(
+                    inputs,
+                    catalog.port(&request.port_id)?,
+                )?)
+                .ok_or_else(|| {
+                    PortcoveError::state("installation preparation capacity overflowed")
+                })?,
+            None => required_bytes,
+        };
         let prepared_root = crate::output_root::prepare_for_install(
             &self.library,
             &request.port_id,
@@ -1037,6 +1076,32 @@ impl Installer {
             .await?;
             operation.checkpoint()?;
         }
+        if let Some((catalog, inputs)) = request.qualification.source_preparation.clone() {
+            let source_root = payload_root.clone();
+            let port = catalog.port(&request.port_id)?.clone();
+            let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+            let working = crate::adapter::launch_working_directory(
+                port.adapter,
+                &port,
+                &payload_root,
+                &selected,
+            )?;
+            emit(operation.message("info", "Sealing the reviewed runtime originals"));
+            run_managed_install_worker(lifecycle, operation, move |operation| {
+                let quiesced = std::cell::Cell::new(true);
+                let result = crate::preparation::source::materialize(
+                    &catalog,
+                    &port,
+                    &inputs,
+                    &source_root,
+                    &working,
+                    &|| operation.checkpoint(),
+                    &quiesced,
+                );
+                (result, quiesced.get())
+            })
+            .await?;
+        }
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             &operation_id,
             &request.port_id,
@@ -1067,6 +1132,14 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
         self.require_acquisition(&request)?;
+        if request.qualification.source_preparation.is_some() {
+            let staged = InstallRecord {
+                path: payload_root.clone(),
+                ..install.clone()
+            };
+            crate::preparation::source::require_publication(&self.library, &staged, None)?;
+        }
+
         fs::create_dir_all(
             lifecycle
                 .destination
@@ -1085,6 +1158,10 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.require_acquisition(&request)?;
+        if request.qualification.source_preparation.is_some() {
+            crate::preparation::source::require_publication(&self.library, &install, None)?;
+        }
+
         if let Some(replacement) = replacement {
             (replacement.prepare_activation)(&install)?;
             self.verify_critical(&install, &request.qualification)?;
@@ -1400,6 +1477,47 @@ impl Installer {
             &qualification.current_mutable_paths(install)?,
             qualification.strict_staged_source,
         )
+    }
+
+    pub(crate) fn verify_source_only_repair(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+        port: &PortDefinition,
+    ) -> Result<VerificationReport> {
+        if !crate::preparation::source::eligible(port) {
+            return self.verify_managed(install, qualification);
+        }
+        self.require_curated_operation(
+            install,
+            crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
+        )?;
+        let working = qualification.runtime_root(
+            &install.path,
+            &install.path.join(&install.selected_executable),
+        );
+        let roots = crate::preparation::source::outputs(port)
+            .into_iter()
+            .map(|relative| working.join(relative))
+            .collect::<Vec<_>>();
+        let mut metadata = qualification.generated_metadata_paths(install)?;
+        for path in staged_install_files(&install.path)? {
+            if roots
+                .iter()
+                .any(|root| path == *root || path.starts_with(root))
+            {
+                metadata.push(manifest_relative(&install.path, &path)?);
+            }
+        }
+        // The verifier still hashes every recorded member. Only declared
+        // historical source extras are allowed before the reviewed private copy.
+        let report = self.verify_with_metadata(
+            install,
+            &metadata,
+            &qualification.current_mutable_paths(install)?,
+            qualification.strict_staged_source,
+        )?;
+        Ok(report)
     }
 
     pub(crate) fn permits_additive_mutability(
@@ -1922,6 +2040,13 @@ impl Installer {
                         "prepared-game-data/sm64.o2r".into(),
                     ]);
                 }
+                if contract.preparation_mode() == Some(crate::PreparationMode::SourceOnly) {
+                    retained
+                        .critical_paths
+                        .extend(crate::preparation::source::outputs(
+                            catalog.port(&install.port_id)?,
+                        ));
+                }
                 retained.retained_contract = Some(contract);
                 retained
             }
@@ -1981,6 +2106,18 @@ impl Installer {
         qualification
             .critical_paths
             .push(crate::preparation::RECEIPT_FILE.into());
+        if mode == crate::PreparationMode::SourceOnly {
+            let contract = qualification.retained_contract.as_ref().ok_or_else(|| {
+                PortcoveError::verification("source preparation requires its retained definition")
+            })?;
+            let catalog = contract.catalog(&original.port_id)?;
+            qualification
+                .critical_paths
+                .extend(crate::preparation::source::outputs(
+                    catalog.port(&original.port_id)?,
+                ));
+            qualification.retained_contract = Some(contract.for_source_only_preparation()?);
+        }
         if mode == crate::PreparationMode::Ghostship200Legacy {
             crate::preparation::legacy_execution_contract(
                 &self
@@ -2658,8 +2795,20 @@ fn manifest_files(
             continue;
         }
         let (sha256, size) = hash_file(&path)?;
+        let source_metadata = qualification
+            .retained_contract
+            .as_ref()
+            .is_some_and(|contract| {
+                contract.preparation_mode() == Some(crate::PreparationMode::SourceOnly)
+            })
+            && [
+                crate::preparation::source::RECEIPT,
+                crate::preparation::RECEIPT_FILE,
+            ]
+            .contains(&relative.as_str());
         files.push(ManifestFile {
-            critical: qualification.runtime.is_some()
+            critical: source_metadata
+                || qualification.runtime.is_some()
                 || path == selected
                 || is_critical_companion(&path, selected, qualification.platform)?
                 || critical_roots
@@ -2867,6 +3016,41 @@ fn verified_manifest_with_budget(
             &install.artifact,
             manifest.platform,
         )?;
+        if contract.preparation_mode() == Some(crate::PreparationMode::SourceOnly) {
+            let port = catalog.port(&install.port_id)?;
+            if !manifest.files.iter().any(|file| {
+                file.path == crate::preparation::source::RECEIPT
+                    && file.critical
+                    && file.size > 0
+                    && file.size <= 1024 * 1024
+            }) {
+                return Err(PortcoveError::verification(
+                    "sealed runtime originals have no authenticated input receipt",
+                ));
+            }
+            if manifest.platform.is_none() {
+                return Err(PortcoveError::verification(
+                    "sealed originals have no recorded host",
+                ));
+            }
+            let working = crate::adapter::launch_working_directory(
+                port.adapter,
+                port,
+                &install.path,
+                &install.path.join(&manifest.selected_executable),
+            )?;
+            for output in crate::preparation::source::outputs(port) {
+                let relative = manifest_relative(&install.path, &working.join(output))?;
+                if !manifest.files.iter().any(|file| {
+                    file.critical
+                        && (file.path == relative || file.path.starts_with(&format!("{relative}/")))
+                }) {
+                    return Err(PortcoveError::verification(
+                        "sealed runtime original is absent from the critical manifest",
+                    ));
+                }
+            }
+        }
         if contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy) {
             if manifest.platform != Some(Platform::WindowsX86_64) {
                 return Err(PortcoveError::verification(

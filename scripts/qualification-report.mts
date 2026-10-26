@@ -100,7 +100,7 @@ export async function qualifyPreparation(
     !isRecord(expected.inputs.install) ||
     !isRecord(expected.inputs.source) ||
     !isRecord(expected.inputs.options) ||
-    !isRecord(expected.inputs.setup_tool) ||
+    !preparationFormatMatches(expected) ||
     !isRecord(expected.copy)
   )
     throw new Error("Preparation case has incomplete operation inputs");
@@ -203,6 +203,8 @@ export async function qualifyPreparation(
       !isRecord(current) ||
       !isRecord(current.inputs) ||
       !isRecord(current.inputs.install) ||
+      !preparationFormatMatches(current) ||
+      current.format_version !== expected.format_version ||
       current.inputs.install.id !== prepared.id ||
       !isRecord(current.copy)
     )
@@ -566,4 +568,17 @@ if (import.meta.main) {
     ? await qualifyPreparation({ ...options, caseFile: values["preparation-case"] })
     : await captureQualificationReport(options);
   process.stdout.write(`${JSON.stringify(result)}\n`);
+}
+
+function preparationFormatMatches(plan: Record<string, unknown>) {
+  if (!isRecord(plan.inputs) || !isRecord(plan.inputs.options)) return false;
+  const { inputs } = plan;
+  const mode = plan.inputs.options.mode;
+  if (plan.format_version === 3 && mode === "source_only")
+    return !Object.hasOwn(inputs, "setup_tool");
+  return (
+    ((plan.format_version === 1 && mode === "default") ||
+      (plan.format_version === 2 && mode === "ghostship200_legacy")) &&
+    isRecord(inputs.setup_tool)
+  );
 }

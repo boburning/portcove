@@ -3,6 +3,7 @@ import { globSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
+import { vitePlusCommand } from "./viteplus-cli.mts";
 import { createBrowserTraceRun } from "./browser-traces.ts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -631,6 +632,23 @@ void test("frontend tools resolve through the pinned Vite+ bundle", async () => 
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mts");
 });
 
+void test("full frontend tests retain fresh unit and browser stages", async () => {
+  const { default: configuration } = await import("../vite.config.ts");
+  const tasks = requiredFixture(configuration.run?.tasks);
+  assert.deepEqual(tasks["frontend:tests"], {
+    command: ["vp run frontend:unit", "vp run frontend:browser"],
+    cache: false,
+  });
+  const runtime = tasks["frontend:runtime"];
+  assert.ok(isRecord(runtime));
+  assert.deepEqual(runtime.command, [
+    "vp run frontend:content",
+    "vp run frontend:tests",
+    "vp run frontend:build",
+  ]);
+  assert.equal(runtime.cache, false);
+});
+
 void test("routine checks retain architecture enforcement but make cycles optional", async () => {
   assert.doesNotMatch(rustQuality, /cargo modules/);
   assert.match(rustQuality, /node scripts\/check-rust-architecture\.mts/);
@@ -640,4 +658,50 @@ void test("routine checks retain architecture enforcement but make cycles option
     /^audit \*args:\r?\n\s+\{\{storage\}\} node scripts\/audit\.mts \{\{args\}\}$/m,
   );
   assert.match(recipes, /^cycles:\r?\n.*cargo modules/m);
+});
+
+void test("full frontend tasks stop after a failed unit stage and propagate browser failures", async (t) => {
+  const { default: configuration } = await import("../vite.config.ts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
+  await writeFile(
+    path.join(root, "leaf.mjs"),
+    `
+    import { appendFileSync, readFileSync } from "node:fs";
+    const stage = process.argv[2];
+    appendFileSync("events.txt", stage + "\\n");
+    process.exit(readFileSync("failure.txt", "utf8") === stage ? 17 : 0);
+  `,
+  );
+  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
+  await writeFile(
+    path.join(root, "vite.config.ts"),
+    `export default ${JSON.stringify({
+      run: {
+        tasks: {
+          "frontend:tests": requiredFixture(configuration.run?.tasks)["frontend:tests"],
+          "frontend:unit": { command: `${executable} leaf.mjs unit`, cache: false },
+          "frontend:browser": { command: `${executable} leaf.mjs browser`, cache: false },
+        },
+      },
+    })}`,
+  );
+  const cli = vitePlusCommand(fileURLToPath(new URL("../", import.meta.url)));
+  for (const failure of ["none", "unit", "browser"]) {
+    await writeFile(path.join(root, "failure.txt"), failure);
+    await writeFile(path.join(root, "events.txt"), "");
+    const result = spawnSync(cli.command, [...cli.args, "-C", root, "run", "frontend:tests"], {
+      encoding: "utf8",
+      timeout: 15_000,
+      windowsHide: true,
+    });
+    assert.ifError(result.error);
+    assert.equal(result.signal, null, result.stderr);
+    assert.equal(result.status === 0, failure === "none", result.stdout + result.stderr);
+    assert.equal(
+      await readFile(path.join(root, "events.txt"), "utf8"),
+      failure === "unit" ? "unit\n" : "unit\nbrowser\n",
+    );
+  }
 });

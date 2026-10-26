@@ -319,6 +319,7 @@ async function main() {
       "capture/startup-token.json",
       "capture/startup-threads.json",
       "capture/startup-position.json",
+      "capture/startup-popup.json",
       "capture/station-recovery.json",
     ]) {
       const filename = path.join("C:\\ProgramData\\PortcoveHostedNativeQualification", name);

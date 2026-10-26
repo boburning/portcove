@@ -294,7 +294,7 @@ export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
   );
 }
 
-function UserSelectedRuntimeEditor({
+function useUserSelectedRuntimeEditor({
   port,
   status,
   generation,
@@ -310,17 +310,11 @@ function UserSelectedRuntimeEditor({
   const finishingDownload = port.pendingSetup?.state === "downloaded";
   const [restored] = useState(() => readSetupChoice(libraryRoot, port.id, port.pendingSetup?.id));
   const [choiceWarning, setChoiceWarning] = useState(restored.warning);
-  const [executable, setExecutable] = useState(
-    restored.choice?.executable ?? (finishingDownload ? "" : (registered?.executable ?? "")),
-  );
-  const [workingDirectory, setWorkingDirectory] = useState(
-    restored.choice?.workingDirectory ??
-      (finishingDownload ? (initialDirectory ?? "") : (registered?.path ?? initialDirectory ?? "")),
-  );
-  const [argumentLines, setArgumentLines] = useState(
-    restored.choice?.argumentLines ?? registered?.user_selected?.arguments.join("\n") ?? "",
-  );
-  const [argumentsEdited, setArgumentsEdited] = useState(restored.choice?.argumentsEdited ?? false);
+  const defaults = initialRuntimeValues(restored, registered, finishingDownload, initialDirectory);
+  const [executable, setExecutable] = useState(defaults.executable);
+  const [workingDirectory, setWorkingDirectory] = useState(defaults.workingDirectory);
+  const [argumentLines, setArgumentLines] = useState(defaults.argumentLines);
+  const [argumentsEdited, setArgumentsEdited] = useState(defaults.argumentsEdited);
   const savedArguments = registered?.user_selected?.arguments ?? [];
   const preserveStructuredArguments =
     !argumentsEdited && savedArguments.some((argument) => !argument || /[\r\n]/u.test(argument));
@@ -329,11 +323,10 @@ function UserSelectedRuntimeEditor({
   const [selected, setSelected] = useState<SelectedLaunch>();
   const [removing, setRemoving] = useState(false);
   const [pickerError, setPickerError] = useState<unknown>();
-  const [suggestions, setSuggestions] = useState<import("../types").SetupLaunchTargets>();
-  const [scanning, setScanning] = useState(Boolean(port.pendingSetup?.state === "downloaded"));
-  const discoveryRequests = useRef(new LatestRequestGeneration());
   const targetEdited = useRef(restored.choice?.targetEdited ?? false);
-  const discoveryInFlight = useRef<Promise<void> | undefined>(undefined);
+  const markTargetEdited = () => {
+    targetEdited.current = true;
+  };
   const pendingId = port.pendingSetup?.id;
   const pendingState = port.pendingSetup?.state;
   const hasRegistered = Boolean(registered && !finishingDownload);
@@ -349,63 +342,18 @@ function UserSelectedRuntimeEditor({
       }),
     );
   };
-  const loadTargets = useCallback(() => {
-    if (!pendingId || hasRegistered || pendingState !== "downloaded") return Promise.resolve();
-    if (discoveryInFlight.current) return discoveryInFlight.current;
-    const request = discoveryRequests.current.begin();
-    setScanning(true);
-    const task = Promise.resolve()
-      .then(() => desktopApi.discoverSetupLaunchTargets(port.id, pendingId, generation))
-      .then((next) => {
-        if (!discoveryRequests.current.isCurrent(request)) return;
-        if (next.port_id !== port.id || next.pending_id !== pendingId)
-          throw new Error("Setup changed. Refresh this game before continuing.");
-        setSuggestions(next);
-        setPickerError(undefined);
-        const recommended = next.candidates.find(
-          (candidate) => candidate.executable === next.recommended_executable,
-        );
-        if (!targetEdited.current) {
-          setExecutable(recommended?.executable ?? "");
-          setWorkingDirectory(recommended?.working_directory ?? initialDirectory ?? "");
-        }
-      })
-      .catch((failure: unknown) => {
-        if (discoveryRequests.current.isCurrent(request)) {
-          setPickerError(failure);
-          if (!targetEdited.current) {
-            setExecutable("");
-            setWorkingDirectory(initialDirectory ?? "");
-          }
-        }
-      })
-      .finally(() => {
-        if (discoveryInFlight.current === task) discoveryInFlight.current = undefined;
-        if (discoveryRequests.current.isCurrent(request)) setScanning(false);
-      });
-    discoveryInFlight.current = task;
-    return task;
-  }, [generation, hasRegistered, initialDirectory, pendingId, pendingState, port.id]);
-  const refreshTargets = () => {
-    setScanning(true);
-    setPickerError(undefined);
-    return loadTargets();
-  };
-  useEffect(() => {
-    void loadTargets();
-    const refreshOnReturn = () => {
-      if (document.visibilityState === "visible") void loadTargets();
-    };
-    window.addEventListener("focus", refreshOnReturn);
-    document.addEventListener("visibilitychange", refreshOnReturn);
-    const requests = discoveryRequests.current;
-    return () => {
-      requests.begin();
-      discoveryInFlight.current = undefined;
-      window.removeEventListener("focus", refreshOnReturn);
-      document.removeEventListener("visibilitychange", refreshOnReturn);
-    };
-  }, [loadTargets]);
+  const { suggestions, scanning, refreshTargets } = useRuntimeLaunchTargets({
+    portId: port.id,
+    pendingId,
+    pendingState,
+    hasRegistered,
+    initialDirectory,
+    generation,
+    targetEdited,
+    setExecutable,
+    setWorkingDirectory,
+    setPickerError,
+  });
   const pickerRequests = useRef(new LatestRequestGeneration());
   useLayoutEffect(() => {
     const requests = pickerRequests.current;
@@ -413,18 +361,15 @@ function UserSelectedRuntimeEditor({
       requests.begin();
     };
   }, []);
-  const removal = removalReviewPresentation(status, "remove_external");
-  const { registration, canRegister } = externalRegistration(status);
-  const requestedAction = registered ? "relink-existing" : "attach-existing";
-  const assessment = listingActionAssessment(listingStatus, requestedAction);
-  const requiresListingAssessment = Boolean(listingStatus || !port.release);
-  const canEdit = requiresListingAssessment
-    ? assessment.allowed
-    : registered
-      ? Boolean(registered.user_selected)
-      : canRegister;
-  const removeAssessment = listingActionAssessment(listingStatus, "remove-registration");
-  const canRemove = requiresListingAssessment ? removeAssessment.allowed : !removal.blocked;
+  const {
+    removal,
+    registration,
+    assessment,
+    requiresListingAssessment,
+    canEdit,
+    removeAssessment,
+    canRemove,
+  } = runtimeEditPermissions(port, status, listingStatus);
   const chooseExecutable = async () => {
     targetEdited.current = true;
     const request = pickerRequests.current.begin();
@@ -455,303 +400,85 @@ function UserSelectedRuntimeEditor({
       if (pickerRequests.current.isCurrent(request)) setPickerError(value);
     }
   };
+  return {
+    port,
+    generation,
+    busy,
+    onChanged,
+    workingDirectoryId,
+    launchDetailsId,
+    registered,
+    finishingDownload,
+    choiceWarning,
+    executable,
+    setExecutable,
+    workingDirectory,
+    setWorkingDirectory,
+    argumentLines,
+    setArgumentLines,
+    argumentsEdited,
+    setArgumentsEdited,
+    savedArguments,
+    preserveStructuredArguments,
+    editing,
+    setEditing,
+    launchDetailsOpen,
+    setLaunchDetailsOpen,
+    selected,
+    setSelected,
+    removing,
+    setRemoving,
+    pickerError,
+    suggestions,
+    scanning,
+    markTargetEdited,
+    pendingId,
+    pendingState,
+    rememberSetup,
+    refreshTargets,
+    pickerRequests,
+    removal,
+    registration,
+    assessment,
+    requiresListingAssessment,
+    canEdit,
+    removeAssessment,
+    canRemove,
+    chooseExecutable,
+    chooseDirectory,
+  };
+}
+
+function UserSelectedRuntimeEditor(props: Parameters<typeof useUserSelectedRuntimeEditor>[0]) {
+  return <UserSelectedRuntimeEditorView {...useUserSelectedRuntimeEditor(props)} />;
+}
+
+function UserSelectedRuntimeEditorView(model: ReturnType<typeof useUserSelectedRuntimeEditor>) {
   return (
     <section className="grid gap-3" aria-label="Your existing installation">
-      <ActionReviewFailure error={pickerError} />
-      {choiceWarning && (
+      <ActionReviewFailure error={model.pickerError} />
+      {model.choiceWarning && (
         <p role="status" className="text-sm">
-          {choiceWarning}
+          {model.choiceWarning}
         </p>
       )}
-      {registered && !editing ? (
-        <>
-          <p>
-            You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
-            <code>{registered.executable}</code> using <code>{registered.path}</code> as its working
-            directory. It does not manage its files, settings or saves.
-            {registered.user_selected && " It does not authenticate it as an official package."}
-          </p>
-          <Button
-            variant="outline"
-            data-focusable
-            disabled={busy || !canEdit}
-            onClick={() => setEditing(true)}
-          >
-            Edit launch details…
-          </Button>
-          <Button
-            variant="outline"
-            data-focusable
-            disabled={busy || !canRemove}
-            onClick={() => setRemoving(true)}
-          >
-            Remove registration
-          </Button>
-          {!canEdit && <p role="status">{assessment.reason}</p>}
-          {!canRemove &&
-            (canEdit ||
-              (requiresListingAssessment ? removeAssessment.reason : removal.reason) !==
-                assessment.reason) && (
-              <p role="status">
-                {requiresListingAssessment ? removeAssessment.reason : removal.reason}
-              </p>
-            )}
-        </>
-      ) : (
-        <>
-          <h3 className="font-semibold">
-            {pendingId
-              ? "Finish downloaded setup"
-              : registered
-                ? "Edit launch details"
-                : "Use your existing installation"}
-          </h3>
-          <p>
-            Confirm the game executable or its supported native launcher. You or upstream provide
-            runtime updates. Adding it saves launch details; Play remains a separate action.
-          </p>
-          <AuthoredPreparationGuidance port={port} />
-          {pendingState === "downloaded" && (
-            <div className="grid min-w-0 gap-2" aria-label="Launch target suggestions">
-              <Button
-                variant="outline"
-                disabled={busy || scanning || !canEdit}
-                onClick={() => void refreshTargets()}
-              >
-                {scanning ? "Looking for launch targets…" : "Refresh launch suggestions"}
-              </Button>
-              {suggestions && (
-                <>
-                  <p role="status">{suggestions.explanation}</p>
-                  {suggestions.candidates.length > 0 &&
-                    (!suggestions.recommended_executable || launchDetailsOpen) && (
-                      <ChoiceSelect
-                        label="Launch target"
-                        value={executable}
-                        disabled={busy || !canEdit}
-                        options={[
-                          { value: "", label: "Choose a native application…" },
-                          ...suggestions.candidates.map((candidate) => ({
-                            value: candidate.executable,
-                            label: `${candidate.executable}${candidate.supporting_program ? " · Supporting program" : ""}`,
-                          })),
-                        ]}
-                        onChange={(value) => {
-                          const candidate = suggestions.candidates.find(
-                            (item) => item.executable === value,
-                          );
-                          targetEdited.current = true;
-                          setExecutable(value);
-                          if (candidate) setWorkingDirectory(candidate.working_directory);
-                          rememberSetup({
-                            executable: value,
-                            workingDirectory: candidate?.working_directory ?? workingDirectory,
-                          });
-                        }}
-                      />
-                    )}
-                  {executable === suggestions.recommended_executable && (
-                    <p className="[overflow-wrap:anywhere]">
-                      Game or launcher: <code>{executable}</code>
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-          {executable && executable !== suggestions?.recommended_executable && (
-            <p className="[overflow-wrap:anywhere]">
-              Game or launcher: <code>{executable}</code>
-            </p>
-          )}
-          <Button
-            data-focusable
-            variant="outline"
-            aria-expanded={launchDetailsOpen || !executable}
-            aria-controls={launchDetailsId}
-            onClick={() => setLaunchDetailsOpen((value) => !value)}
-          >
-            Change launch details
-          </Button>
-          {(launchDetailsOpen || !executable) && (
-            <div id={launchDetailsId} className="grid gap-3 pt-2">
-              <Button
-                variant="outline"
-                data-focusable
-                disabled={busy || !canEdit}
-                onClick={() => void chooseExecutable()}
-              >
-                Choose game executable…
-              </Button>
-              {executable && (
-                <p className="[overflow-wrap:anywhere]">
-                  Executable: <code>{executable}</code>
-                </p>
-              )}
-              <label className="grid gap-1" htmlFor={workingDirectoryId}>
-                Working directory
-                <Input
-                  id={workingDirectoryId}
-                  aria-label="Working directory"
-                  value={workingDirectory}
-                  disabled={busy}
-                  onValueChange={(value) => {
-                    targetEdited.current = true;
-                    setWorkingDirectory(value);
-                    rememberSetup({ workingDirectory: value });
-                  }}
-                />
-              </label>
-              <p className="text-sm text-pc-muted-foreground">
-                This is the folder the game starts in. Use the folder named in the upstream setup
-                instructions, or keep the executable's folder when no other folder is required.
-              </p>
-              <Button
-                variant="outline"
-                data-focusable
-                disabled={busy}
-                onClick={() => void chooseDirectory()}
-              >
-                Choose working directory…
-              </Button>
-              <details>
-                <summary data-focusable className="cursor-pointer py-2 font-medium">
-                  Advanced launch options
-                </summary>
-                {preserveStructuredArguments ? (
-                  <>
-                    <p className="text-sm">
-                      Your saved arguments include empty values or line breaks. They will be kept
-                      exactly when you change the executable or working directory. This editor can
-                      replace the list with one argument per line.
-                    </p>
-                    <pre className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
-                      {JSON.stringify(savedArguments, null, 2)}
-                    </pre>
-                    <Button
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => {
-                        setArgumentLines("");
-                        setArgumentsEdited(true);
-                        rememberSetup({ argumentLines: "", argumentsEdited: true });
-                      }}
-                    >
-                      Replace saved arguments…
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <label className="grid gap-1">
-                      Arguments (one per line, optional)
-                      <textarea
-                        className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
-                        aria-label="Launch arguments"
-                        value={argumentLines}
-                        disabled={busy}
-                        onChange={(event) => {
-                          setArgumentLines(event.target.value);
-                          setArgumentsEdited(true);
-                          rememberSetup({
-                            argumentLines: event.target.value,
-                            argumentsEdited: true,
-                          });
-                        }}
-                        rows={3}
-                      />
-                    </label>
-                    <p className="text-sm text-pc-muted-foreground">
-                      Enter each argument on a separate line. Spaces stay within one argument, and
-                      blank lines are empty arguments. Leave the entire field empty when no
-                      arguments are required.
-                    </p>
-                  </>
-                )}
-              </details>
-            </div>
-          )}
-          <p>
-            Only choose an executable you trust. Portcove has not authenticated your selected files
-            as an official package. Removing this registration preserves every external file.
-          </p>
-          {!canEdit && (
-            <p role="status">
-              {requiresListingAssessment ? assessment.reason : registration?.reason}
-            </p>
-          )}
-          {finishingDownload && executable && workingDirectory && canEdit && !launchDetailsOpen ? (
-            <SelectedRuntimeDialog
-              key={JSON.stringify([executable, workingDirectory, argumentLines, argumentsEdited])}
-              inline
-              busy={busy || scanning}
-              port={port}
-              generation={generation}
-              selected={{
-                executable,
-                workingDirectory,
-                arguments: argumentsEdited
-                  ? argumentLines
-                    ? argumentLines.split(/\r?\n/u)
-                    : []
-                  : [...savedArguments],
-              }}
-              relink={Boolean(registered)}
-              close={() => undefined}
-              onChanged={onChanged}
-            />
-          ) : (
-            <Button
-              data-focusable
-              disabled={busy || !canEdit || !executable || !workingDirectory}
-              onClick={() =>
-                setSelected({
-                  executable,
-                  workingDirectory,
-                  arguments: argumentsEdited
-                    ? argumentLines
-                      ? argumentLines.split(/\r?\n/u)
-                      : []
-                    : [...savedArguments],
-                })
-              }
-            >
-              Review launch details
-            </Button>
-          )}
-          {registered && (
-            <Button
-              data-focusable
-              variant="ghost"
-              onClick={() => {
-                pickerRequests.current.begin();
-                setExecutable(registered.executable);
-                setWorkingDirectory(registered.path);
-                setArgumentLines(registered.user_selected?.arguments.join("\n") ?? "");
-                setArgumentsEdited(false);
-                setEditing(false);
-              }}
-            >
-              Cancel editing
-            </Button>
-          )}
-        </>
-      )}
-      {selected && (
+      {<RuntimeRegistrationForm {...model} />}
+      {model.selected && (
         <SelectedRuntimeDialog
-          port={port}
-          generation={generation}
-          selected={selected}
-          relink={Boolean(registered)}
-          close={() => setSelected(undefined)}
-          onChanged={onChanged}
+          port={model.port}
+          generation={model.generation}
+          selected={model.selected}
+          relink={Boolean(model.registered)}
+          close={() => model.setSelected(undefined)}
+          onChanged={model.onChanged}
         />
       )}
-      {removing && (
+      {model.removing && (
         <RemoveExternalDialog
-          port={port}
-          generation={generation}
-          close={() => setRemoving(false)}
-          onChanged={onChanged}
+          port={model.port}
+          generation={model.generation}
+          close={() => model.setRemoving(false)}
+          onChanged={model.onChanged}
         />
       )}
     </section>
@@ -1143,4 +870,586 @@ function externalRegistration(status: PortStatus | undefined) {
       (Array.isArray(status.port_actions) && status.port_actions.length === 0));
   const canRegister = legacyStatus || registration?.availability === "waiting";
   return { registration, canRegister };
+}
+
+function RuntimeArgumentEditor(
+  model: Pick<
+    ReturnType<typeof useUserSelectedRuntimeEditor>,
+    | "busy"
+    | "argumentLines"
+    | "setArgumentLines"
+    | "setArgumentsEdited"
+    | "savedArguments"
+    | "preserveStructuredArguments"
+    | "rememberSetup"
+  >,
+) {
+  return (
+    <details>
+      <summary data-focusable className="cursor-pointer py-2 font-medium">
+        Advanced launch options
+      </summary>
+      {model.preserveStructuredArguments ? (
+        <>
+          <p className="text-sm">
+            Your saved arguments include empty values or line breaks. They will be kept exactly when
+            you change the executable or working directory. This editor can replace the list with
+            one argument per line.
+          </p>
+          <pre className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
+            {JSON.stringify(model.savedArguments, null, 2)}
+          </pre>
+          <Button
+            variant="outline"
+            disabled={model.busy}
+            onClick={() => {
+              model.setArgumentLines("");
+              model.setArgumentsEdited(true);
+              model.rememberSetup({ argumentLines: "", argumentsEdited: true });
+            }}
+          >
+            Replace saved arguments…
+          </Button>
+        </>
+      ) : (
+        <>
+          <label className="grid gap-1">
+            Arguments (one per line, optional)
+            <textarea
+              className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
+              aria-label="Launch arguments"
+              value={model.argumentLines}
+              disabled={model.busy}
+              onChange={(event) => {
+                model.setArgumentLines(event.target.value);
+                model.setArgumentsEdited(true);
+                model.rememberSetup({
+                  argumentLines: event.target.value,
+                  argumentsEdited: true,
+                });
+              }}
+              rows={3}
+            />
+          </label>
+          <p className="text-sm text-pc-muted-foreground">
+            Enter each argument on a separate line. Spaces stay within one argument, and blank lines
+            are empty arguments. Leave the entire field empty when no arguments are required.
+          </p>
+        </>
+      )}
+    </details>
+  );
+}
+
+function RuntimeLaunchSuggestions({
+  suggestions,
+  ...model
+}: Pick<
+  ReturnType<typeof useUserSelectedRuntimeEditor>,
+  | "busy"
+  | "executable"
+  | "setExecutable"
+  | "workingDirectory"
+  | "setWorkingDirectory"
+  | "launchDetailsOpen"
+  | "suggestions"
+  | "scanning"
+  | "markTargetEdited"
+  | "pendingState"
+  | "rememberSetup"
+  | "refreshTargets"
+  | "canEdit"
+>) {
+  return (
+    model.pendingState === "downloaded" && (
+      <div className="grid min-w-0 gap-2" aria-label="Launch target suggestions">
+        <Button
+          variant="outline"
+          disabled={model.busy || model.scanning || !model.canEdit}
+          onClick={() => void model.refreshTargets()}
+        >
+          {model.scanning ? "Looking for launch targets…" : "Refresh launch suggestions"}
+        </Button>
+        {suggestions && (
+          <>
+            <p role="status">{suggestions.explanation}</p>
+            {suggestions.candidates.length > 0 &&
+              (!suggestions.recommended_executable || model.launchDetailsOpen) && (
+                <ChoiceSelect
+                  label="Launch target"
+                  value={model.executable}
+                  disabled={model.busy || !model.canEdit}
+                  options={[
+                    { value: "", label: "Choose a native application…" },
+                    ...suggestions.candidates.map((candidate) => ({
+                      value: candidate.executable,
+                      label: `${candidate.executable}${candidate.supporting_program ? " · Supporting program" : ""}`,
+                    })),
+                  ]}
+                  onChange={(value) => {
+                    const candidate = suggestions.candidates.find(
+                      (item) => item.executable === value,
+                    );
+                    model.markTargetEdited();
+                    model.setExecutable(value);
+                    if (candidate) model.setWorkingDirectory(candidate.working_directory);
+                    model.rememberSetup({
+                      executable: value,
+                      workingDirectory: candidate?.working_directory ?? model.workingDirectory,
+                    });
+                  }}
+                />
+              )}
+            {model.executable === suggestions.recommended_executable && (
+              <p className="[overflow-wrap:anywhere]">
+                Game or launcher: <code>{model.executable}</code>
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    )
+  );
+}
+
+function RuntimeRegistrationForm({
+  registered,
+  ...model
+}: Pick<
+  ReturnType<typeof useUserSelectedRuntimeEditor>,
+  | "port"
+  | "generation"
+  | "busy"
+  | "onChanged"
+  | "workingDirectoryId"
+  | "launchDetailsId"
+  | "registered"
+  | "finishingDownload"
+  | "executable"
+  | "setExecutable"
+  | "workingDirectory"
+  | "setWorkingDirectory"
+  | "argumentLines"
+  | "setArgumentLines"
+  | "argumentsEdited"
+  | "setArgumentsEdited"
+  | "savedArguments"
+  | "preserveStructuredArguments"
+  | "editing"
+  | "setEditing"
+  | "launchDetailsOpen"
+  | "setLaunchDetailsOpen"
+  | "setSelected"
+  | "setRemoving"
+  | "suggestions"
+  | "scanning"
+  | "markTargetEdited"
+  | "pendingId"
+  | "pendingState"
+  | "rememberSetup"
+  | "refreshTargets"
+  | "pickerRequests"
+  | "removal"
+  | "registration"
+  | "assessment"
+  | "requiresListingAssessment"
+  | "canEdit"
+  | "removeAssessment"
+  | "canRemove"
+  | "chooseExecutable"
+  | "chooseDirectory"
+>) {
+  return registered && !model.editing ? (
+    <ExistingRuntimeActions {...{ registered, model }} />
+  ) : (
+    <>
+      <h3 className="font-semibold">
+        {model.pendingId
+          ? "Finish downloaded setup"
+          : registered
+            ? "Edit launch details"
+            : "Use your existing installation"}
+      </h3>
+      <p>
+        Confirm the game executable or its supported native launcher. You or upstream provide
+        runtime updates. Adding it saves launch details; Play remains a separate action.
+      </p>
+      <AuthoredPreparationGuidance port={model.port} />
+      {<RuntimeLaunchSuggestions {...model} />}
+      {model.executable && model.executable !== model.suggestions?.recommended_executable && (
+        <p className="[overflow-wrap:anywhere]">
+          Game or launcher: <code>{model.executable}</code>
+        </p>
+      )}
+      <Button
+        data-focusable
+        variant="outline"
+        aria-expanded={model.launchDetailsOpen || !model.executable}
+        aria-controls={model.launchDetailsId}
+        onClick={() => model.setLaunchDetailsOpen((value) => !value)}
+      >
+        Change launch details
+      </Button>
+      {<RuntimeLaunchDetails {...model} />}
+      <p>
+        Only choose an executable you trust. Portcove has not authenticated your selected files as
+        an official package. Removing this registration preserves every external file.
+      </p>
+      {!model.canEdit && (
+        <p role="status">
+          {model.requiresListingAssessment ? model.assessment.reason : model.registration?.reason}
+        </p>
+      )}
+      {<RuntimeReviewActions {...model} registered={registered} />}
+      {registered && (
+        <Button
+          data-focusable
+          variant="ghost"
+          onClick={() => {
+            model.pickerRequests.current.begin();
+            model.setExecutable(registered.executable);
+            model.setWorkingDirectory(registered.path);
+            model.setArgumentLines(registered.user_selected?.arguments.join("\n") ?? "");
+            model.setArgumentsEdited(false);
+            model.setEditing(false);
+          }}
+        >
+          Cancel editing
+        </Button>
+      )}
+    </>
+  );
+}
+
+function RuntimeLaunchDetails(
+  model: Pick<
+    ReturnType<typeof useUserSelectedRuntimeEditor>,
+    | "busy"
+    | "workingDirectoryId"
+    | "launchDetailsId"
+    | "executable"
+    | "workingDirectory"
+    | "setWorkingDirectory"
+    | "argumentLines"
+    | "setArgumentLines"
+    | "setArgumentsEdited"
+    | "savedArguments"
+    | "preserveStructuredArguments"
+    | "launchDetailsOpen"
+    | "markTargetEdited"
+    | "rememberSetup"
+    | "canEdit"
+    | "chooseExecutable"
+    | "chooseDirectory"
+  >,
+) {
+  return (
+    (model.launchDetailsOpen || !model.executable) && (
+      <div id={model.launchDetailsId} className="grid gap-3 pt-2">
+        <Button
+          variant="outline"
+          data-focusable
+          disabled={model.busy || !model.canEdit}
+          onClick={() => void model.chooseExecutable()}
+        >
+          Choose game executable…
+        </Button>
+        {model.executable && (
+          <p className="[overflow-wrap:anywhere]">
+            Executable: <code>{model.executable}</code>
+          </p>
+        )}
+        <label className="grid gap-1" htmlFor={model.workingDirectoryId}>
+          Working directory
+          <Input
+            id={model.workingDirectoryId}
+            aria-label="Working directory"
+            value={model.workingDirectory}
+            disabled={model.busy}
+            onValueChange={(value) => {
+              model.markTargetEdited();
+              model.setWorkingDirectory(value);
+              model.rememberSetup({ workingDirectory: value });
+            }}
+          />
+        </label>
+        <p className="text-sm text-pc-muted-foreground">
+          This is the folder the game starts in. Use the folder named in the upstream setup
+          instructions, or keep the executable's folder when no other folder is required.
+        </p>
+        <Button
+          variant="outline"
+          data-focusable
+          disabled={model.busy}
+          onClick={() => void model.chooseDirectory()}
+        >
+          Choose working directory…
+        </Button>
+        <RuntimeArgumentEditor {...model} />
+      </div>
+    )
+  );
+}
+
+function RuntimeReviewActions(
+  model: Pick<
+    ReturnType<typeof useUserSelectedRuntimeEditor>,
+    | "port"
+    | "generation"
+    | "busy"
+    | "onChanged"
+    | "registered"
+    | "finishingDownload"
+    | "executable"
+    | "workingDirectory"
+    | "argumentLines"
+    | "argumentsEdited"
+    | "savedArguments"
+    | "launchDetailsOpen"
+    | "setSelected"
+    | "scanning"
+    | "canEdit"
+  >,
+) {
+  return model.finishingDownload &&
+    model.executable &&
+    model.workingDirectory &&
+    model.canEdit &&
+    !model.launchDetailsOpen ? (
+    <SelectedRuntimeDialog
+      key={JSON.stringify([
+        model.executable,
+        model.workingDirectory,
+        model.argumentLines,
+        model.argumentsEdited,
+      ])}
+      inline
+      busy={model.busy || model.scanning}
+      port={model.port}
+      generation={model.generation}
+      selected={{
+        executable: model.executable,
+        workingDirectory: model.workingDirectory,
+        arguments: model.argumentsEdited
+          ? model.argumentLines
+            ? model.argumentLines.split(/\r?\n/u)
+            : []
+          : [...model.savedArguments],
+      }}
+      relink={Boolean(model.registered)}
+      close={() => undefined}
+      onChanged={model.onChanged}
+    />
+  ) : (
+    <Button
+      data-focusable
+      disabled={model.busy || !model.canEdit || !model.executable || !model.workingDirectory}
+      onClick={() =>
+        model.setSelected({
+          executable: model.executable,
+          workingDirectory: model.workingDirectory,
+          arguments: model.argumentsEdited
+            ? model.argumentLines
+              ? model.argumentLines.split(/\r?\n/u)
+              : []
+            : [...model.savedArguments],
+        })
+      }
+    >
+      Review launch details
+    </Button>
+  );
+}
+
+function useRuntimeLaunchTargets({
+  portId,
+  pendingId,
+  pendingState,
+  hasRegistered,
+  initialDirectory,
+  generation,
+  targetEdited,
+  setExecutable,
+  setWorkingDirectory,
+  setPickerError,
+}: {
+  portId: string;
+  pendingId: string | undefined;
+  pendingState: string | undefined;
+  hasRegistered: boolean;
+  initialDirectory: string | undefined;
+  generation: number;
+  targetEdited: import("react").RefObject<boolean>;
+  setExecutable: import("react").Dispatch<import("react").SetStateAction<string>>;
+  setWorkingDirectory: import("react").Dispatch<import("react").SetStateAction<string>>;
+  setPickerError: import("react").Dispatch<import("react").SetStateAction<unknown>>;
+}) {
+  const [suggestions, setSuggestions] = useState<import("../types").SetupLaunchTargets>();
+  const [scanning, setScanning] = useState(pendingState === "downloaded");
+  const discoveryRequests = useRef(new LatestRequestGeneration());
+  const discoveryInFlight = useRef<Promise<void> | undefined>(undefined);
+  const loadTargets = useCallback(() => {
+    if (!pendingId || hasRegistered || pendingState !== "downloaded") return Promise.resolve();
+    if (discoveryInFlight.current) return discoveryInFlight.current;
+    const request = discoveryRequests.current.begin();
+    setScanning(true);
+    const task = Promise.resolve()
+      .then(() => desktopApi.discoverSetupLaunchTargets(portId, pendingId, generation))
+      .then((next) => {
+        if (!discoveryRequests.current.isCurrent(request)) return;
+        if (next.port_id !== portId || next.pending_id !== pendingId)
+          throw new Error("Setup changed. Refresh this game before continuing.");
+        setSuggestions(next);
+        setPickerError(undefined);
+        const recommended = next.candidates.find(
+          (candidate) => candidate.executable === next.recommended_executable,
+        );
+        if (!targetEdited.current) {
+          setExecutable(recommended?.executable ?? "");
+          setWorkingDirectory(recommended?.working_directory ?? initialDirectory ?? "");
+        }
+      })
+      .catch((failure: unknown) => {
+        if (discoveryRequests.current.isCurrent(request)) {
+          setPickerError(failure);
+          if (!targetEdited.current) {
+            setExecutable("");
+            setWorkingDirectory(initialDirectory ?? "");
+          }
+        }
+      })
+      .finally(() => {
+        if (discoveryInFlight.current === task) discoveryInFlight.current = undefined;
+        if (discoveryRequests.current.isCurrent(request)) setScanning(false);
+      });
+    discoveryInFlight.current = task;
+    return task;
+  }, [
+    generation,
+    hasRegistered,
+    initialDirectory,
+    pendingId,
+    pendingState,
+    portId,
+    targetEdited,
+    setExecutable,
+    setWorkingDirectory,
+    setPickerError,
+  ]);
+  const refreshTargets = () => {
+    setScanning(true);
+    setPickerError(undefined);
+    return loadTargets();
+  };
+  useEffect(() => {
+    void loadTargets();
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") void loadTargets();
+    };
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    const requests = discoveryRequests.current;
+    return () => {
+      requests.begin();
+      discoveryInFlight.current = undefined;
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, [loadTargets]);
+  return { suggestions, scanning, refreshTargets };
+}
+
+function runtimeEditPermissions(
+  port: UserSelectedRuntimeProps["port"],
+  status: UserSelectedRuntimeProps["status"],
+  listingStatus: UserSelectedRuntimeProps["listingStatus"],
+) {
+  const registered = status?.external_runtime;
+  const removal = removalReviewPresentation(status, "remove_external");
+  const { registration, canRegister } = externalRegistration(status);
+  const requestedAction = registered ? "relink-existing" : "attach-existing";
+  const assessment = listingActionAssessment(listingStatus, requestedAction);
+  const requiresListingAssessment = Boolean(listingStatus || !port.release);
+  const canEdit = requiresListingAssessment
+    ? assessment.allowed
+    : registered
+      ? Boolean(registered.user_selected)
+      : canRegister;
+  const removeAssessment = listingActionAssessment(listingStatus, "remove-registration");
+  const canRemove = requiresListingAssessment ? removeAssessment.allowed : !removal.blocked;
+  return {
+    removal,
+    registration,
+    assessment,
+    requiresListingAssessment,
+    canEdit,
+    removeAssessment,
+    canRemove,
+  };
+}
+
+function ExistingRuntimeActions({
+  registered,
+  model,
+}: Pick<
+  {
+    model: Omit<Parameters<typeof RuntimeRegistrationForm>[0], "registered">;
+    registered: NonNullable<Parameters<typeof RuntimeRegistrationForm>[0]["registered"]>;
+  },
+  "registered" | "model"
+>) {
+  return (
+    <>
+      <p>
+        You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
+        <code>{registered.executable}</code> using <code>{registered.path}</code> as its working
+        directory. It does not manage its files, settings or saves.
+        {registered.user_selected && " It does not authenticate it as an official package."}
+      </p>
+      <Button
+        variant="outline"
+        data-focusable
+        disabled={model.busy || !model.canEdit}
+        onClick={() => model.setEditing(true)}
+      >
+        Edit launch details…
+      </Button>
+      <Button
+        variant="outline"
+        data-focusable
+        disabled={model.busy || !model.canRemove}
+        onClick={() => model.setRemoving(true)}
+      >
+        Remove registration
+      </Button>
+      {!model.canEdit && <p role="status">{model.assessment.reason}</p>}
+      {!model.canRemove &&
+        (model.canEdit ||
+          (model.requiresListingAssessment
+            ? model.removeAssessment.reason
+            : model.removal.reason) !== model.assessment.reason) && (
+          <p role="status">
+            {model.requiresListingAssessment ? model.removeAssessment.reason : model.removal.reason}
+          </p>
+        )}
+    </>
+  );
+}
+
+function initialRuntimeValues(
+  restored: ReturnType<typeof readSetupChoice>,
+  registered: NonNullable<UserSelectedRuntimeProps["status"]>["external_runtime"] | undefined,
+  finishingDownload: boolean,
+  initialDirectory: string | undefined,
+) {
+  return {
+    executable:
+      restored.choice?.executable ?? (finishingDownload ? "" : (registered?.executable ?? "")),
+    workingDirectory:
+      restored.choice?.workingDirectory ??
+      (finishingDownload ? (initialDirectory ?? "") : (registered?.path ?? initialDirectory ?? "")),
+    argumentLines:
+      restored.choice?.argumentLines ?? registered?.user_selected?.arguments.join("\n") ?? "",
+    argumentsEdited: restored.choice?.argumentsEdited ?? false,
+  };
 }

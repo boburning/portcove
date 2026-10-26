@@ -30,6 +30,25 @@ function Read-HostedStartupThreads($Startup) {
     $Startup.RequireAliveGeneration()
     return @($threads|ForEach-Object {[ordered]@{thread_id=$_.Handle;state=$_.ThreadState;wait_reason=$_.ThreadWaitReason;kernel_time=$_.KernelModeTime;user_time=$_.UserModeTime;start_address=$_.StartAddress}})
 }
+function Read-HostedStartupPopup($Startup) {
+    $Startup.RequireAliveGeneration()
+    $since=[DateTime]::FromFileTimeUtc($Startup.CreatedFileTime).AddSeconds(-1)
+    $until=[DateTime]::UtcNow.AddSeconds(1)
+    $stamp=$since.ToString('yyyyMMddHHmmss.ffffff',[Globalization.CultureInfo]::InvariantCulture)+'+000'
+    $endStamp=$until.ToString('yyyyMMddHHmmss.ffffff',[Globalization.CultureInfo]::InvariantCulture)+'+000'
+    $filter="Logfile = 'System' AND SourceName = 'Application Popup' AND EventCode = 26 AND TimeGenerated >= '"+$stamp+"' AND TimeGenerated <= '"+$endStamp+"' AND Message LIKE '%whoami.exe%'"
+    $events=@(Get-CimInstance Win32_NTLogEvent -Filter $filter -Property Logfile,RecordNumber,TimeGenerated,EventCode,SourceName,Message -OperationTimeoutSec 5 -ErrorAction Stop|Select-Object -First 9)
+    if($events.Count -gt 8 -or @($events|Where-Object {$_.Logfile -ine 'System' -or $_.EventCode -ne 26 -or $_.SourceName -ine 'Application Popup' -or $_.Message -notmatch '(?i)(?<![A-Za-z0-9_.-])whoami[.]exe(?![A-Za-z0-9_.-])' -or $_.TimeGenerated.ToUniversalTime() -lt $since -or $_.TimeGenerated.ToUniversalTime() -gt $until}).Count){throw 'Startup popup records exceed bound or correlation scope'}
+    $Startup.RequireAliveGeneration()
+    $observed=@($events|ForEach-Object {
+        $text=$_.Message.Substring(0,[Math]::Min(1024,$_.Message.Length))
+        while([Text.Encoding]::UTF8.GetByteCount((ConvertTo-Json -InputObject $text -Compress)) -gt 4096){$text=$text.Substring(0,[int]($text.Length/2))}
+        [ordered]@{record_number=$_.RecordNumber;time_generated=$_.TimeGenerated.ToUniversalTime().ToString('o');message=$text;message_truncated=($text.Length -lt $_.Message.Length)}
+    })
+    $result=[ordered]@{status=$(if($events.Count){'read'}else{'queried_none'});since=$since.ToString('o');until=$until.ToString('o');correlation='same executable/time only; not exact PID attribution';events=$observed}
+    if([Text.Encoding]::UTF8.GetByteCount(($result|ConvertTo-Json -Depth 6 -Compress)) -gt 49152){throw 'Startup popup exported JSON exceeds bound'}
+    return $result
+}
 function Assert-HostedNativeAccount($Expected,[bool]$Enabled) {
     $actual=Get-LocalUser -SID $Expected.SID -ErrorAction Stop
     if($actual.Name -cne 'PortcoveNativeQual' -or $actual.SID.Value -cne $Expected.SID.Value -or
@@ -198,6 +217,9 @@ try {
     }
     if($startup -and -not $child){
         try{$position=[Portcove.HostedNative.HostedStartupContext]::Observe($startup.Handle,$startup.HostedInitialThreadHandle,$startup.Pid,$startup.CreatedFileTime);Write-HostedNativeSetupRecord (Join-Path $capture 'startup-position.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();position=$position;scope='temporary owned-thread suspension; mapped instruction/export hints only, not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup position retention failed: '+$_.Exception.Message)}
+        $popup=$null
+        try{$popup=Read-HostedStartupPopup $startup}catch{$popup=[ordered]@{status='unknown';query_failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}}
+        try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-popup.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();popup=$popup;scope='bounded System Application Popup26 executable/time correlation only; no GUI acceptance';authority='none'})}catch{$cleanupFailures.Add('Startup popup retention failed: '+$_.Exception.Message)}
         $threadDiagnostic=$null;$threadFailure=$null
         try{$threadDiagnostic=@(Read-HostedStartupThreads $startup)}catch{$threadFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-threads.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();threads=$threadDiagnostic;query_failure=$threadFailure;scope='bounded exact-generation thread states; not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup diagnostic retention failed: '+$_.Exception.Message)}

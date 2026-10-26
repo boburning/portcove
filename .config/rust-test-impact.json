@@ -26,7 +26,7 @@
           "id": "artwork-resolution",
           "reason": "artwork resolution, choice publication and owned-original reads require the complete artwork, import, move and transfer consumer families",
           "paths": ["crates/portcove-core/src/artwork.rs"],
-          "filter": "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::tests::/) | test(/^library_transfer::tests::/)"
+          "filter": "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::/) | test(/^library_transfer::tests::/)"
         },
         {
           "id": "artwork-fixtures",
@@ -117,6 +117,12 @@
             "crates/portcove-core/src/release/observation_tests.rs"
           ],
           "filter": "test(/^gitlab::tests::/) | test(/^providers::tests::/) | test(/^release::tests::/) | test(/^release::observation::tests::/)"
+        },
+        {
+          "id": "library-move-fixtures",
+          "reason": "the test-only sequence companion requires the complete move family; shared implementation changes remain broad",
+          "paths": ["crates/portcove-core/src/library_move_sequence_tests.rs"],
+          "filter": "test(/^library_move::/)"
         }
       ]
     },

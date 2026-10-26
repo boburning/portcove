@@ -516,16 +516,8 @@ function ErrorNotice({
   invocation?: InvocationRecord | undefined;
   openActivity?: ((id?: string) => void) | undefined;
 }) {
-  const presentation = failurePresentation(error);
-  const committed = presentation?.mutation_state === "committed";
-  const neutral =
-    presentation?.tone === "neutral" &&
-    (presentation.mutation_state === "not_started" || presentation.mutation_state === "no_changes");
-  const summary = errorText(error);
-  const code =
-    typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
-  const cancelled = code === "cancelled";
-  const readbackOnly = invocation?.outcome === "succeeded" && invocation.failure === undefined;
+  const { presentation, committed, neutral, summary, code, cancelled, readbackOnly } =
+    noticePresentation(error, invocation);
   const renderFailureDetails = () => (
     <div>
       {invocation && (
@@ -624,7 +616,7 @@ function ErrorNotice({
   );
 }
 
-export interface GithubSettingsActions {
+interface GithubSettingsActions {
   status?: GithubAuthStatus | undefined;
   token: string;
   setToken: Dispatch<SetStateAction<string>>;
@@ -1201,11 +1193,13 @@ function SourceInspectionState({
   if (!props.profileAvailable || !read || read.status === "current")
     return <SourceState {...props} />;
   const label =
-    read.status === "pending"
-      ? "Checking"
-      : read.status === "cancelled"
-        ? "Check cancelled"
-        : "Check unavailable";
+    read.status === "idle"
+      ? "Not checked"
+      : read.status === "pending"
+        ? "Checking"
+        : read.status === "cancelled"
+          ? "Check cancelled"
+          : "Check unavailable";
   return (
     <span className="source-state inline-flex items-center gap-1 text-xs text-pc-muted-foreground">
       {label}
@@ -1229,12 +1223,7 @@ function SourceInspectionPresentation({
   openEvidence?: ((evidenceId: string) => void) | undefined;
 }) {
   const currentReport = !read || read.status === "current" ? report : undefined;
-  const message =
-    read?.status === "pending"
-      ? "Checking file…"
-      : read?.status === "cancelled"
-        ? "File check cancelled."
-        : (read?.failure?.summary ?? "File check is unavailable. Try checking it again.");
+  const message = sourceInspectionMessage(read);
   return (
     <div className="col-span-full min-w-0">
       <div>
@@ -1268,9 +1257,11 @@ function SourceInspectionPresentation({
           disabled={disabled || read.status === "pending"}
           onClick={() => void retry(profileId)}
         >
-          {read.status === "failed" || read.status === "cancelled"
-            ? "Retry file check"
-            : "Check file again"}
+          {read.status === "idle"
+            ? "Check file"
+            : read.status === "failed" || read.status === "cancelled"
+              ? "Retry file check"
+              : "Check file again"}
         </Button>
       )}
     </div>
@@ -1492,51 +1483,7 @@ function ThemeOption({ option }: { option: ThemePreference }) {
   );
 }
 
-export function SettingsView({
-  category,
-  onCategoryChange,
-  generation = 0,
-  ports = [],
-  statuses = new Map(),
-  libraryRoot = "",
-  librarySelection,
-  chooseLibrary,
-  switchLibrary,
-  resetLibrary,
-  doctor,
-  storage,
-  github,
-  busy,
-  sources = [],
-  workspaceRefreshFailed = false,
-  sourceNeeds = [],
-  sourceRequirementsState = "loading",
-  installedCount = 0,
-  sourceOutcomes = [],
-  sourceInspections = new Map(),
-  verifySources,
-  replaceSource,
-  addSource,
-  appearance,
-  createSupportBundle,
-  exportMetadata,
-  sourceProfiles = [],
-  onSourceAdded,
-  onOpenPort,
-  setupSource,
-  setSetupSource,
-  onCatalogChanged,
-  onOpenGameUpdates,
-  onOpenActivity,
-  onReviewSaves,
-  hostToolActions,
-  openSourceEvidence,
-  applicationUpdates,
-  diagnosticsRefreshing,
-  diagnosticsStale,
-  diagnosticFailure,
-  refreshDiagnostics,
-}: {
+type SettingsViewProps = {
   category?: SettingsCategory | undefined;
   onCategoryChange?: ((category: SettingsCategory) => void) | undefined;
   generation?: number;
@@ -1580,7 +1527,55 @@ export function SettingsView({
   diagnosticsStale?: boolean;
   diagnosticFailure?: unknown;
   refreshDiagnostics?: () => Promise<unknown>;
-}) {
+};
+
+export function SettingsView(props: SettingsViewProps) {
+  const {
+    category,
+    onCategoryChange,
+    generation = 0,
+    ports = [],
+    statuses = new Map(),
+    libraryRoot = "",
+    librarySelection,
+    chooseLibrary,
+    switchLibrary,
+    resetLibrary,
+    doctor,
+    storage,
+    github,
+    busy,
+    sources = [],
+    workspaceRefreshFailed = false,
+    sourceNeeds = [],
+    sourceRequirementsState = "loading",
+    installedCount = 0,
+    sourceOutcomes = [],
+    sourceInspections = new Map(),
+    verifySources,
+    replaceSource,
+    addSource,
+    appearance,
+    createSupportBundle,
+    exportMetadata,
+    sourceProfiles = [],
+    onSourceAdded,
+    onOpenPort,
+    setupSource,
+    setSetupSource,
+    onCatalogChanged,
+    onOpenGameUpdates,
+    onOpenActivity,
+    onReviewSaves,
+    hostToolActions,
+    openSourceEvidence,
+    applicationUpdates,
+    diagnosticsRefreshing,
+    diagnosticsStale,
+    diagnosticFailure,
+    refreshDiagnostics,
+  } = props;
+
   const [localCategory, setLocalCategory] = useState<SettingsCategory>("appearance");
   const selectedCategory = category ?? localCategory;
 
@@ -2344,4 +2339,28 @@ function jumpToSettingsSection(id: string) {
     heading.focus({ preventScroll: true });
     heading.scrollIntoView({ block: "start" });
   });
+}
+
+function sourceInspectionMessage(read: SourceInspectionReadState | undefined) {
+  return read?.status === "idle"
+    ? "Check this file to see its current identity and compatibility."
+    : read?.status === "pending"
+      ? "Checking file…"
+      : read?.status === "cancelled"
+        ? "File check cancelled."
+        : (read?.failure?.summary ?? "File check is unavailable. Try checking it again.");
+}
+
+function noticePresentation(error: unknown, invocation: InvocationRecord | undefined) {
+  const presentation = failurePresentation(error);
+  const committed = presentation?.mutation_state === "committed";
+  const neutral =
+    presentation?.tone === "neutral" &&
+    (presentation.mutation_state === "not_started" || presentation.mutation_state === "no_changes");
+  const summary = errorText(error);
+  const code =
+    typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
+  const cancelled = code === "cancelled";
+  const readbackOnly = invocation?.outcome === "succeeded" && invocation.failure === undefined;
+  return { presentation, committed, neutral, summary, code, cancelled, readbackOnly };
 }

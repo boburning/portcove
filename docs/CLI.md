@@ -1093,6 +1093,20 @@ The plan reports the resolved release and asset size, current platform and chann
 
 ### Review and recover preparation
 
+API schema 82 adds source-only preparation format 3 and the optional retained
+`LaunchReadiness.preparation_mode` route. For staged originals that
+have no existing mutable-data or setup owner, new installs materialize registered
+sources before sealing the immutable manifest. Previously launched generations
+with only declared source outputs added can be reviewed and prepared into a new
+derivative; unrelated additions or changed recorded bytes are refused. These
+plans omit `inputs.setup_tool`, use `source_only` mode and preserve the released
+format-1/2 JSON and fingerprints. Installed interpretation 9 fences older readers.
+The authenticated source receipt binds the retained definition, source, host and
+conversion tool. Changed registration requires a new review; launch verifies
+sealed originals without rewriting them. An install made before registering its
+originals remains unprepared until this review completes. No ROM path becomes
+mutable as part of this repair.
+
 `portcove --library <path> --json preparation plan <port-id>` inspects the
 upstream-managed setup family's already installed artifact and registered source
 using the current host, install-root working layout and reviewed default options.

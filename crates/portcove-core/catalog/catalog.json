@@ -17948,15 +17948,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v1.4.3",
-            "url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
-            "size": 47276827,
-            "sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
-            "published_at": "2026-10-02T05:47:21Z"
-          }
+        "provider": "github",
+        "repository": "linkssy2/RoadRash64Recompiled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "RoadRash64Recompiled-",
+            "-Win64.zip"
+          ]
         }
       },
       "source_profile": "road-rash-64",
@@ -17966,43 +17964,43 @@
         ]
       },
       "persistent_paths": [
-        "RoadRash64Recompiled-v1.4.3-Win64/general.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/general.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/general.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/controls.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/sound.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.temp",
-        "RoadRash64Recompiled-v1.4.3-Win64/mods",
-        "RoadRash64Recompiled-v1.4.3-Win64/mod_config",
-        "RoadRash64Recompiled-v1.4.3-Win64/saves",
-        "RoadRash64Recompiled-v1.4.3-Win64/achievements.txt",
-        "RoadRash64Recompiled-v1.4.3-Win64/local-race-options.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/thrash-race-options.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/mk64-item-options.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg.tmp",
-        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg",
-        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg.tmp",
-        "RoadRash64Recompiled-v1.4.3-Win64/imgui.ini",
-        "RoadRash64Recompiled-v1.4.3-Win64/music",
-        "RoadRash64Recompiled-v1.4.3-Win64/race-packs",
-        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json",
-        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json.bak",
-        "RoadRash64Recompiled-v1.4.3-Win64/rr64.n64.us.1.0.z64"
+        "general.json",
+        "general.json.bak",
+        "general.json.temp",
+        "graphics.json",
+        "graphics.json.bak",
+        "graphics.json.temp",
+        "controls.json",
+        "controls.json.bak",
+        "controls.json.temp",
+        "sound.json",
+        "sound.json.bak",
+        "sound.json.temp",
+        "mods.json",
+        "mods.json.bak",
+        "mods.json.temp",
+        "cheats.json",
+        "cheats.json.bak",
+        "cheats.json.temp",
+        "mods",
+        "mod_config",
+        "saves",
+        "achievements.txt",
+        "local-race-options.cfg",
+        "thrash-race-options.cfg",
+        "mk64-item-options.cfg",
+        "character-preferences.cfg",
+        "character-preferences.cfg.tmp",
+        "rider-skin-preferences.cfg",
+        "rider-skin-preferences.cfg.tmp",
+        "imgui.ini",
+        "music",
+        "race-packs",
+        "race_packs.json",
+        "race_packs.json.bak",
+        "rr64.n64.us.1.0.z64",
+        "cpu-weapon-options.cfg"
       ],
-      "runtime_subdirectory": "RoadRash64Recompiled-v1.4.3-Win64",
       "runtime_source_filename": "rr64.n64.us.1.0.z64",
       "runtime_source_materialization": "n64-big-endian",
       "runtime_source_hashes": {
@@ -18028,8 +18026,26 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy.",
+        "manual_preparation": "Supply your own matching Road Rash 64 USA v1.0 original. Core verifies it and prepares the canonical ROM beside the Windows portable player. This route preserves declared settings, saves, mods, custom music and local imported race packs, including importer logs and previous-pack backups beneath race-packs. Close the game and any importer before updates or backups. Custom external pack paths, including RR64_PRIVATE_COURSE_PACK, remain outside managed backups. Runtime rollback carries current declared data; it does not rewind progress or establish old-reader compatibility. Historical v1.4.3 installations retain their wrapper-prefixed contract: a changed data-coordinate transition remains held until supported, so keep the working copy and its data.",
         "original_game_title": "Road Rash 64",
+        "manual_setup": {
+          "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Use the complete Windows package",
+              "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core. Linux experimental AppImage packages have different storage and upstream installation instructions; the Windows contract does not establish their managed support or native qualification."
+            },
+            {
+              "title": "Keep optional setup with the game",
+              "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically. Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+            },
+            {
+              "title": "Keep your current copy while changing routes",
+              "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable. For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately. Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3589,
           "cover_id": 77133,
@@ -18038,7 +18054,9 @@
           "game_slug": "road-rash-64",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "n64_runtime_at_executable_parent": true,
+      "portable_marker": true
     },
     {
       "id": "dkc3-recomp",
@@ -20409,15 +20427,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.5.3",
-            "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
-            "size": 16694619,
-            "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
-            "published_at": "2026-10-18T14:30:37Z"
-          }
+        "provider": "github",
+        "repository": "mstan/Sonic3AndKnucklesRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Sonic3KRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
@@ -20437,9 +20453,27 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted.",
+        "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. This managed route starts the combined base game directly and preserves declared local saves, settings and quickstate thumbnails. Quickstates require their creating build and configuration and can be refused after an update; retain that version when needed. For optional Sonic CD/campaign conversion, use the upstream launcher in a separate stable folder: its importer records paths to that folder. Imported packs and custom external paths are outside managed backups; unknown additions keep the current installation preserved and stop replacement rather than being silently adopted.",
         "original_game_title": "Sonic 3 & Knuckles",
         "variant_label": "Combined Sonic 3 + Sonic & Knuckles",
+        "manual_setup": {
+          "help_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
+          "warnings": [],
+          "steps": [
+            {
+              "title": "Choose the managed base game or the upstream launcher",
+              "instruction": "The managed Windows route uses your matching Sonic 3 & Knuckles raw Genesis original and starts the combined base game directly. Portcove manages its declared local saves, settings and quickstate thumbnails. For the full launcher and optional imported campaigns, extract the complete official Sonic3KRecomp package into a separate folder you control, keep that folder stable across upstream updates, and select your own matching ROM there. Sonic3Recomp and SonicAndKnucklesRecomp are different game variants."
+            },
+            {
+              "title": "Keep optional campaign preparation with upstream",
+              "instruction": "The optional Sonic CD, Sonic 1/2 and Megamix campaigns and Mighty/Shadow are experimental and off by default. Follow the included upstream guides and supply the extra originals only if you choose those features. Sonic CD import needs Python 3.11+ and Pillow, and records absolute paths under sonic-cd-imports beside that copy’s settings. Use that importer in your stable external copy, not a managed version folder that will change after updates. Portcove never runs the converter during discovery. Register the external player or launcher deliberately, save launch details, then choose Play separately."
+            },
+            {
+              "title": "Keep current progress and the creating build for quickstates",
+              "instruction": "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs. Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility. Upstream or you update the external copy, which has no Portcove-managed Backup or Rollback. An older managed v0.5.3 installation keeps its retained definition; changed data coordinates remain held until a supported transition is available. Keep that working version and its data rather than deleting it to get the newer copy."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 11219,
           "cover_id": 342176,
@@ -20474,7 +20508,29 @@
         "native_save_6.bin",
         "native_save_7.bin",
         "native_save_8.bin",
-        "native_save_9.bin"
+        "native_save_9.bin",
+        "native_save_1.bin.thumb",
+        "native_save_2.bin.thumb",
+        "native_save_3.bin.thumb",
+        "native_save_4.bin.thumb",
+        "native_save_5.bin.thumb",
+        "native_save_6.bin.thumb",
+        "native_save_7.bin.thumb",
+        "native_save_8.bin.thumb",
+        "native_save_9.bin.thumb",
+        "game.srm.tmp",
+        "sonic3k-stage-pack.ini",
+        "sonic3k-stage-pack.ini.tmp",
+        "game.srm.pre-campaign.bak",
+        "sonic3k-stage-pack.srm",
+        "sonic3k-megamix.srm",
+        "game.srm.campaign",
+        "game.srm.campaign.tmp",
+        "game.srm.campaign.bak",
+        "game.srm.campaign.bak.tmp",
+        "game.srm.campaign.pre-v2.bak",
+        "game.srm.campaign.pre-shadow.bak",
+        "game.srm.campaign.pre-v3-cap3.bak"
       ],
       "runtime_mutable_paths": [
         "dispatch_misses.toml",
@@ -20483,7 +20539,17 @@
         "floor_unsafe.log",
         "interior_label_misses.log",
         "ramdump_native.bin",
-        "last_error.log"
+        "last_error.log",
+        "dispatch_misses.toml.tmp",
+        "dispatch_misses.prev.toml",
+        "floor_coverage.toml.tmp",
+        "floor_coverage.prev.toml",
+        "interior_label_misses.toml",
+        "interior_label_misses.toml.tmp",
+        "interior_label_misses.prev.toml",
+        "floor_unsafe.toml",
+        "floor_unsafe.toml.tmp",
+        "floor_unsafe.prev.toml"
       ]
     },
     {

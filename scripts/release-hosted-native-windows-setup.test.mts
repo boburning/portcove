@@ -878,3 +878,35 @@ if([Portcove.HostedNative.HostedStartupContext]::Closes -ne 2 -or [Portcove.Host
 `);
   assert.match(result, /compensation and timed worker ownership passed/u);
 });
+
+void test("startup popup diagnostics constrain source/time/executable and bounded UTF8 without PID attribution", () => {
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$function=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Read-HostedStartupPopup'},$true)
+. ([scriptblock]::Create($function.Extent.Text))
+$startup=[pscustomobject]@{CreatedFileTime=[DateTime]::UtcNow.AddSeconds(-10).ToFileTimeUtc()}
+$startup|Add-Member ScriptMethod RequireAliveGeneration {$script:guards++;if($case -ceq 'generation'){throw 'controlled native generation refusal'}}
+foreach($case in @('success','empty','source','log','foreign','oversized','unavailable','generation','time','unicode','prefix','suffix')){
+ $script:guards=0;$script:queries=0
+ function Get-CimInstance {
+  param($ClassName,$Filter,$Property,$OperationTimeoutSec,$ErrorAction)
+  $script:queries++
+  if($ClassName -cne 'Win32_NTLogEvent' -or $OperationTimeoutSec -ne 5 -or $Filter -notlike "Logfile = 'System' AND SourceName = 'Application Popup' AND EventCode = 26 AND TimeGenerated >= '*' AND TimeGenerated <= '*' AND Message LIKE '%whoami.exe%'"){throw 'Popup query scope differs'}
+  if($case -ceq 'unavailable'){throw 'controlled event service unavailable'}
+  if($case -ceq 'empty'){return}
+  1..$(if($case -ceq 'oversized'){9}else{1})|ForEach-Object {[pscustomobject]@{Logfile=$(if($case -ceq 'log'){'Security'}else{'System'});RecordNumber=$_;TimeGenerated=$(if($case -ceq 'time'){[DateTime]::UtcNow.AddMinutes(-5)}else{[DateTime]::FromFileTimeUtc($startup.CreatedFileTime).AddSeconds(5)});EventCode=26;SourceName=$(if($case -ceq 'source'){'other'}else{'Application Popup'});Message=$(if($case -ceq 'foreign'){'other.exe failure'}elseif($case -ceq 'prefix'){'notwhoami.exe failure'}elseif($case -ceq 'suffix'){'whoami.exe.other failure'}elseif($case -ceq 'unicode'){'whoami.exe '+(('重'+[char]1)*2000)}else{'whoami.exe controlled diagnostic error; no acceptance'})}}
+ }
+ $refused=$false;try{$observed=Read-HostedStartupPopup $startup}catch{$refused=$true}
+ $accepted=$case -in @('success','empty','unicode')
+ if($refused -eq $accepted -or ($case -ceq 'generation' -and $script:queries -ne 0)){throw ('Popup diagnostic guard differs: '+$case)}
+ if($accepted){
+  if($script:guards -ne 2 -or $observed.correlation -notmatch 'not exact PID' -or [Text.Encoding]::UTF8.GetByteCount(($observed|ConvertTo-Json -Depth 6 -Compress)) -gt 49152){throw 'Popup scope/byte evidence differs'}
+  if($case -ceq 'empty' -and ($observed.status -cne 'queried_none' -or $observed.events.Count -ne 0)){throw 'Empty query was credited or relabeled unknown'}
+  if($case -ceq 'unicode' -and (-not $observed.events[0].message_truncated -or [Text.Encoding]::UTF8.GetByteCount((ConvertTo-Json -InputObject $observed.events[0].message -Compress)) -gt 4096)){throw 'NonASCII/control message export exceeds bound'}
+ }
+}
+'actual popup query guards passed twelve controlled cases; no system events or GUI acceptance'
+`);
+  assert.match(result, /guards passed twelve controlled cases/u);
+});

@@ -217,3 +217,115 @@ void test("cancelling an in-flight owned exchange latches refusal until the whol
     agent.destroy();
   }
 });
+
+void test(
+  "raw private HTTP request fragmentation preserves one bounded exchange",
+  { timeout: 5000 },
+  async () => {
+    const seen: unknown[] = [];
+    const agent = privateNativeDriverAgent(async (input) => {
+      seen.push(input);
+      return { status: 200, body_base64: Buffer.from('{"value":null}').toString("base64") };
+    }, performance.now() + 4000);
+    const stream = agent.createConnection({ host: "127.0.0.1", port: 9 });
+    assert.ok(stream);
+    const response = new Promise<string>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+      stream.once("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      stream.once("error", reject);
+    });
+    const write = (value: string) =>
+      new Promise<void>((resolve, reject) => {
+        stream.write(Buffer.from(value), (error) => (error ? reject(error) : resolve()));
+      });
+    try {
+      await write("");
+      await write("POST /session HTTP/1.1\r\nContent-Length: 7\r\n\r");
+      assert.equal(seen.length, 0);
+      await write('\n{"x":');
+      assert.equal(seen.length, 0);
+      await write("1}");
+      assert.match(
+        await response,
+        /Content-Length: 14\r\nConnection: close\r\n\r\n\{"value":null\}$/u,
+      );
+      assert.deepEqual(seen, [
+        {
+          method: "POST",
+          path: "/session",
+          body_base64: Buffer.from('{"x":1}').toString("base64"),
+        },
+      ]);
+      assert.equal(privateNativeDriverAgentState(agent).requests, 1);
+      assert.equal(privateNativeDriverAgentState(agent).body_bytes, 21);
+      assert.equal(privateNativeDriverAgentState(agent).refused, false);
+    } finally {
+      stream.destroy();
+      agent.destroy();
+    }
+  },
+);
+
+void test(
+  "raw private HTTP framing refuses ambiguity and smuggling before any exchange",
+  { timeout: 5000 },
+  async () => {
+    for (const [name, frame, reason] of [
+      [
+        "duplicate headers",
+        "GET /status HTTP/1.1\r\nContent-Length: 0\r\ncontent-length: 0\r\n\r\n",
+        /headers are ambiguous/u,
+      ],
+      [
+        "streaming",
+        "POST /session HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n",
+        /streaming\/upgrade/u,
+      ],
+      ["upgrade", "GET /status HTTP/1.1\r\nUpgrade: websocket\r\n\r\n", /streaming\/upgrade/u],
+      [
+        "noncanonical length",
+        "POST /session HTTP/1.1\r\nContent-Length: 00\r\n\r\n",
+        /content length/u,
+      ],
+      [
+        "oversized body",
+        `POST /session HTTP/1.1\r\nContent-Length: ${2 * 1024 * 1024 + 1}\r\n\r\n`,
+        /content length/u,
+      ],
+      ["trailing bytes", "POST /session HTTP/1.1\r\nContent-Length: 0\r\n\r\nx", /trailing bytes/u],
+      ["unsupported method", "PATCH /session HTTP/1.1\r\n\r\n", /request line/u],
+      ["incomplete oversized header", "a".repeat(16385), /headers exceed bound/u],
+      [
+        "complete oversized header",
+        `GET /status HTTP/1.1\r\nX-Fill: ${"a".repeat(16384)}\r\n\r\n`,
+        /headers exceed bound/u,
+      ],
+    ] as const) {
+      let calls = 0;
+      const agent = privateNativeDriverAgent(async () => {
+        calls++;
+        return { status: 200, body_base64: "" };
+      }, performance.now() + 4000);
+      const stream = agent.createConnection({ host: "127.0.0.1", port: 9 });
+      assert.ok(stream);
+      const failure = new Promise<Error>((resolve) =>
+        stream.once("error", (error: Error) => resolve(error)),
+      );
+      try {
+        stream.write(Buffer.from(frame), () => {});
+        assert.match((await failure).message, reason, name);
+        assert.equal(calls, 0, name);
+        assert.equal(privateNativeDriverAgentState(agent).refused, true, name);
+        assert.throws(
+          () => agent.createConnection({ host: "127.0.0.1", port: 9 }),
+          /attempt is refused/u,
+          name,
+        );
+      } finally {
+        stream.destroy();
+        agent.destroy();
+      }
+    }
+  },
+);

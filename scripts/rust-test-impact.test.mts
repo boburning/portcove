@@ -196,7 +196,7 @@ void test("workspace impact preserves package qualification and broad fallback b
     selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/types.rs"])).map(
       (g) => g.filter,
     ),
-    ["package(=portcove-core)"],
+    ["package(=portcove-core)", "package(=portcove-cli)"],
   );
   for (const file of [
     "Cargo.lock",
@@ -1129,7 +1129,7 @@ void test("private backup assertions own their complete module without narrowing
 void test("artwork resolution owns all direct and transfer consumers with conservative shared fallback", () => {
   const path = "crates/portcove-core/src/artwork.rs";
   const filter =
-    "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::tests::/) | test(/^library_transfer::tests::/)";
+    "test(/^artwork_tests::/) | test(/^import_execution::tests::/) | test(/^library_move::/) | test(/^library_transfer::tests::/)";
   for (const status of ["A", "M"]) {
     const selected = selectRustTestImpact(map, "portcove-core", [{ status, path }]);
     assert.equal(selected.mode, "focused");
@@ -1343,4 +1343,205 @@ void test("a successful native process with missing outcomes refuses before live
   });
   assert.equal(status, 1);
   assert.equal(transportCalls, 0);
+});
+
+void test("library move sequence fixtures own the complete move namespace with broad shared and rename fallback", () => {
+  const file = "crates/portcove-core/src/library_move_sequence_tests.rs";
+  for (const status of ["A", "M"]) {
+    const selected = selectRustTestImpact(map, "portcove-core", [{ status, path: file }]);
+    assert.equal(selected.mode, "focused");
+    assert.deepEqual(
+      selected.groups.map((group) => group.id),
+      ["library-move-fixtures"],
+    );
+    assert.equal(requiredFixture(selected.groups[0]).filter, "test(/^library_move::/)");
+  }
+  for (const shared of [
+    "library_move.rs",
+    "library_transfer.rs",
+    "transfer_copy.rs",
+    "database.rs",
+    "service.rs",
+    "lib.rs",
+    "test_fixture.rs",
+    "unknown.rs",
+  ]) {
+    assert.equal(
+      selectRustTestImpact(map, "portcove-core", [
+        modified(file),
+        modified("crates/portcove-core/src/" + shared),
+      ]).mode,
+      "broad",
+      shared,
+    );
+  }
+  for (const change of [
+    { status: "D", path: file },
+    { status: "R100", path: file, previousPath: "crates/portcove-core/src/old_sequence_tests.rs" },
+    {
+      status: "R100",
+      previousPath: file,
+      path: "crates/portcove-core/src/moved_sequence_tests.rs",
+    },
+  ])
+    assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+  const mixed = selectRustTestImpact(map, "portcove-core", [
+    modified(file),
+    modified("crates/portcove-core/src/artwork.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["artwork-resolution", "library-move-fixtures"],
+  );
+  assert.match(requiredFixture(mixed.groups[0]).filter, /test\(\/\^library_move::\/\)/u);
+});
+
+void test("local Rust planning and shared Windows/CI selection retain workspace compilation for move fixtures", async () => {
+  const { classifyChanges, buildPlan } = await import("./ordinary-validation.mts");
+  const file = "crates/portcove-core/src/library_move_sequence_tests.rs";
+  const plan = workspacePlan([file]);
+  const groups = selectWorkspaceRustImpact(plan, map);
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    ["portcove-core:library-move-fixtures"],
+  );
+  assert.equal(
+    requiredFixture(groups[0]).filter,
+    "package(=portcove-core) & (test(/^library_move::/))",
+  );
+  const commands = buildPlan(classifyChanges([modified(file)], { fileExists: () => true }), {
+    validationPlan: plan,
+  });
+  const rust = requiredFixture(commands.find((command) => command.id === "rust-workspace-tests"));
+  assert.deepEqual(
+    rust.rustCoverage,
+    groups.map((group) => group.filter),
+  );
+  assert.deepEqual(rust.args.slice(0, 4), [
+    "scripts/run-rust-tests.mts",
+    "--guard-command",
+    process.execPath,
+    "scripts/rust-test-impact.mts",
+  ]);
+  for (const input of [
+    ".config/rust-test-impact.json",
+    "Cargo.toml",
+    "crates/portcove-core/src/library_move.rs",
+  ])
+    assert.ok(
+      selectWorkspaceRustImpact(workspacePlan([file, input]), map).every(
+        (group) => !group.id.includes("library-move-fixtures"),
+      ),
+      input,
+    );
+});
+
+void test("Core capability inputs retain their actual CLI consumer with shared and rename fallback", () => {
+  const capability = "crates/portcove-core/src/definition_capabilities.rs";
+  const cliFixture = "crates/portcove-cli/tests/machine_contract/definition_capabilities.rs";
+  const single = (status: string, oldPath: string, newPath = oldPath) => ({
+    status,
+    oldPath,
+    newPath,
+  });
+  for (const [changes, focused] of [
+    [[single("A", capability)], true],
+    [[single("M", capability)], true],
+    [[single("D", capability)], false],
+    [[single("R100", capability, "crates/portcove-core/src/old_capabilities.rs")], false],
+    [[single("R100", "crates/portcove-core/src/old_capabilities.rs", capability)], false],
+    ...["types.rs", "lib.rs", "unknown.rs"].map(
+      (file) =>
+        [
+          [single("M", capability), single("M", `crates/portcove-core/src/${file}`)],
+          false,
+        ] as const,
+    ),
+    ...["types.rs", "lib.rs"].map(
+      (file) => [[single("M", `crates/portcove-core/src/${file}`)], false] as const,
+    ),
+    [[single("M", capability), single("M", cliFixture)], true],
+    [
+      [
+        single("M", capability),
+        single("M", cliFixture),
+        single("M", "crates/portcove-core/src/types.rs"),
+      ],
+      false,
+    ],
+  ] as const) {
+    const plan = buildValidationPlan({
+      changes: changes.map((change) => ({
+        ...change,
+        oldMode: change.status === "A" ? "000000" : "100644",
+        newMode: change.status === "D" ? "000000" : "100644",
+      })),
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    const cli = selectWorkspaceRustImpact(plan, map).filter(
+      (entry) => entry.packageName === "portcove-cli",
+    );
+    if (focused) {
+      assert.equal(cli.length, 1);
+      assert.equal(
+        requiredFixture(cli[0]).filter,
+        "package(=portcove-cli) & (binary(=machine_contract) & test(/^definition_capability_contract::/))",
+      );
+    } else
+      assert.ok(
+        cli.some((entry) => entry.filter === "package(=portcove-cli)"),
+        JSON.stringify(changes),
+      );
+  }
+  const missingGroup = structuredClone(requiredFixture(map));
+  const cliPackage = requiredFixture(missingGroup.packages["portcove-cli"]);
+  cliPackage.groups = cliPackage.groups.filter(
+    (group) => group.id !== "definition-capability-fixtures",
+  );
+  for (const incomplete of [null, missingGroup])
+    assert.ok(
+      selectWorkspaceRustImpact(workspacePlan([capability]), incomplete).some(
+        (entry) => entry.filter === "package(=portcove-cli)",
+      ),
+    );
+  for (const shared of ["Cargo.toml", ".config/rust-test-impact.json"])
+    assert.deepEqual(
+      selectWorkspaceRustImpact(workspacePlan([capability, shared]), map).map(
+        (entry) => entry.filter,
+      ),
+      ["all()"],
+    );
+});
+
+void test("unrelated CLI fixtures cannot suppress artwork or advertised capability consumers", () => {
+  const capability = "crates/portcove-core/src/definition_capabilities.rs";
+  const artwork = "crates/portcove-core/src/artwork.rs";
+  const retained = "crates/portcove-cli/tests/machine_contract/retained_builds.rs";
+  const groups = selectWorkspaceRustImpact(workspacePlan([capability, artwork, retained]), map);
+  assert.deepEqual(
+    groups.filter((entry) => entry.packageName === "portcove-cli").map((entry) => entry.id),
+    [
+      "portcove-cli:retained-build-fixtures",
+      "portcove-cli:artwork-consumer",
+      "portcove-cli:definition-capability-consumer",
+    ],
+  );
+  const ownArtwork = selectWorkspaceRustImpact(
+    workspacePlan([artwork, "crates/portcove-cli/tests/machine_contract/artwork.rs"]),
+    map,
+  );
+  assert.deepEqual(
+    ownArtwork.filter((entry) => entry.packageName === "portcove-cli").map((entry) => entry.id),
+    ["portcove-cli:artwork-fixtures"],
+  );
+  assert.ok(
+    selectWorkspaceRustImpact(
+      workspacePlan([artwork, "crates/portcove-core/src/unknown.rs"]),
+      map,
+    ).some((entry) => entry.filter === "package(=portcove-cli)"),
+  );
 });

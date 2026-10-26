@@ -712,30 +712,43 @@ describe("desktop components", () => {
       expect(ready).toContain("First-time setup required");
       expect(ready).not.toContain(">Play</button>");
 
+      const metadataOnly = renderToStaticMarkup(
+        <DetailPanel
+          {...props}
+          status={{
+            ...status,
+            readiness: {
+              ...status.readiness!,
+              source: "not_checked",
+              source_assessment: null,
+            },
+          }}
+        />,
+      );
+      const metadataReview = metadataOnly.match(
+        /<button\b[^>]*>Review game preparation<\/button>/,
+      )?.[0];
+      expect(metadataReview).toBeDefined();
+      expect(metadataReview).not.toMatch(/\sdisabled(?:\s|=|>)/);
+      expect(props.prepare).not.toHaveBeenCalled();
+
       const blocked = [
         { ...props, busy: "prepare" },
         { ...props, prepare: undefined },
-        ...(
-          [
-            "unregistered",
-            "missing",
-            "unreadable",
-            "changed",
-            "not_checked",
-            "not_baselined",
-          ] as const
-        ).flatMap((health) => [
-          {
-            ...props,
-            status: { ...status, readiness: { ...status.readiness!, source: health } },
-          },
-          {
-            ...props,
-            // These explicit refusal fixtures add a BIOS contract; the embedded ports do not.
-            port: { ...definition, bios_source_profile: "required-test-bios" },
-            status: { ...status, readiness: { ...status.readiness!, bios: health } },
-          },
-        ]),
+        ...(["unregistered", "missing", "unreadable", "changed", "not_baselined"] as const).flatMap(
+          (health) => [
+            {
+              ...props,
+              status: { ...status, readiness: { ...status.readiness!, source: health } },
+            },
+            {
+              ...props,
+              // These explicit refusal fixtures add a BIOS contract; the embedded ports do not.
+              port: { ...definition, bios_source_profile: "required-test-bios" },
+              status: { ...status, readiness: { ...status.readiness!, bios: health } },
+            },
+          ],
+        ),
       ];
       for (const refusal of blocked.slice(0, 2)) {
         const html = renderToStaticMarkup(<DetailPanel {...refusal} />);
@@ -2009,4 +2022,68 @@ describe("desktop components", () => {
     expect(html).not.toContain("Latest version at last check");
     expect(html).not.toContain("9.9-stale");
   });
+});
+
+it.each(["g-diffuser", "animal-crossing-pc-port", "openpete"])(
+  "offers Core-owned source-only repair for metadata-observed %s originals",
+  (id) => {
+    const definition = currentCatalogPort(id);
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: id,
+      active: installRecord({ port_id: id }),
+      readiness: {
+        launchable: false,
+        blockers: ["preparation_required"],
+        pending_setup: true,
+        preparation_mode: "source_only",
+        source: "not_checked",
+      },
+    };
+    const prepare = vi.fn();
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={definition}
+        status={status}
+        sourcePath="registered-original"
+        setSourcePath={vi.fn()}
+        prepare={prepare}
+        actions={actions}
+      />,
+    );
+    const review = html.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+    expect(review).toBeDefined();
+    expect(review).not.toMatch(/\sdisabled(?:\s|=|>)/);
+    expect(html).not.toContain(">Start setup</button>");
+    expect(prepare).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps Core-permitted launch available while original bytes await an explicit check", () => {
+  const definition = currentCatalogPort("g-diffuser");
+  const html = renderToStaticMarkup(
+    <DetailPanel
+      port={definition}
+      status={{
+        ...portStatus(),
+        port_id: definition.id,
+        active: installRecord({ port_id: definition.id }),
+        readiness: {
+          launchable: true,
+          blockers: [],
+          pending_setup: false,
+          preparation_mode: "source_only",
+          source: "not_checked",
+        },
+      }}
+      sourceProfile={{ ...sourceProfile(), id: definition.source_profile! }}
+      sourcePath="registered-original"
+      setSourcePath={vi.fn()}
+      prepare={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(html).toContain(">Try launch</button>");
+  expect(html).not.toContain("Locate game files");
+  expect(html).not.toContain("Review game preparation");
 });

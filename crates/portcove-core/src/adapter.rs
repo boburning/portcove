@@ -430,9 +430,11 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::N64RecompPortable || port.portable_marker {
             std::fs::write(working_directory.join("portable.txt"), b"")?;
         }
+        let sealed_source = crate::preparation::source::sealed(library, port, install_root)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
+            && !sealed_source
             && !retained_setup_is_current
             && !crate::preparation::managed(port)
             && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
@@ -516,7 +518,7 @@ impl Adapter for StandardAdapter {
                 ));
             }
             crate::relative_file_set::materialize(port, record, &working_directory, checkpoint)?;
-        } else if let Some(source) = source {
+        } else if !sealed_source && let Some(source) = source {
             for target in &port.runtime_source_set {
                 let destination = working_directory.join(&target.destination);
                 if let Some(parent) = destination.parent() {
@@ -792,7 +794,7 @@ fn prepare_runtime_source_input(
         _ => destination.is_file(),
     };
     let reusable = destination_ready
-        && std::fs::read(&marker_path)
+        && crate::path::read_bounded_regular(&marker_path, 16 * 1024)
             .ok()
             .and_then(|value| serde_json::from_slice::<RuntimeSourceMarker>(&value).ok())
             .as_ref()
@@ -971,7 +973,7 @@ fn runtime_source_marker(
     })
 }
 
-fn prepare_runtime_source_set_member(
+pub(crate) fn prepare_runtime_source_set_member(
     source_root: &Path,
     accepted_filenames: &[String],
     destination: &Path,
@@ -990,14 +992,16 @@ fn prepare_runtime_source_set_member(
     }
     if !matches!(
         materialization,
-        RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc
+        RuntimeSourceMaterialization::Copy
+            | RuntimeSourceMaterialization::RegaidenGbc
+            | RuntimeSourceMaterialization::N64BigEndian
     ) || source_root
         .extension()
         .and_then(|value| value.to_str())
         .is_none_or(|extension| !extension.eq_ignore_ascii_case("zip"))
     {
         return Err(PortcoveError::source(format!(
-            "file-set archives only support copied ZIP members: {}",
+            "file-set archives require a supported ZIP member materialization: {}",
             source_root.display()
         )));
     }
@@ -1018,7 +1022,7 @@ fn prepare_runtime_source_set_member(
     let expected =
         runtime_source_marker(source_root, Some(member_name), materialization, checkpoint)?;
     let reusable = destination.is_file()
-        && std::fs::read(&marker_path)
+        && crate::path::read_bounded_regular(&marker_path, 16 * 1024)
             .ok()
             .and_then(|value| serde_json::from_slice::<RuntimeSourceMarker>(&value).ok())
             .as_ref()
@@ -1038,7 +1042,12 @@ fn prepare_runtime_source_set_member(
         )));
     }
     let size = entry.size();
-    copy_runtime_reader(entry, destination, size, checkpoint)?;
+    if materialization == RuntimeSourceMaterialization::N64BigEndian {
+        let rom = read_runtime_bytes(entry, 512 * 1024 * 1024, checkpoint)?;
+        write_n64_big_endian(rom, destination, checkpoint)?;
+    } else {
+        copy_runtime_reader(entry, destination, size, checkpoint)?;
+    }
     atomic_write_json(&marker_path, &expected)
 }
 
@@ -1558,7 +1567,7 @@ fn run_upstream_setup(
     let (source_sha256, source_size) = hash_file_with_checkpoint(source, checkpoint)?;
     let metadata_path = working_directory.join(UPSTREAM_SETUP_METADATA);
     if marker_path.is_file()
-        && std::fs::read(&metadata_path)
+        && crate::path::read_bounded_regular(&metadata_path, 16 * 1024)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<UpstreamSetupMetadata>(&bytes).ok())
             .is_some_and(|metadata| {
@@ -1741,7 +1750,7 @@ fn materialize_psx_bin_cue(
     destination: &Path,
     pinned_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
-    observer: crate::tool_process::ToolProcessObserver<'_>,
+    mut observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<()> {
     if source
         .extension()
@@ -1758,10 +1767,34 @@ fn materialize_psx_bin_cue(
         .ok_or_else(|| PortcoveError::state("PS1 runtime destination has no parent directory"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-psx-{}", Uuid::new_v4()));
-    if let Err(error) =
-        materialize_psx_chd_with_tool(source, &temporary, pinned_tool, checkpoint, observer)
-    {
-        let _ = std::fs::remove_dir_all(&temporary);
+    let mut command_quiesced = false;
+    let materialized = materialize_psx_chd_with_tool(
+        source,
+        &temporary,
+        pinned_tool,
+        checkpoint,
+        crate::tool_process::ToolProcessObserver {
+            diagnostics: observer.diagnostics.as_mut().map(|sink| {
+                crate::tool_process::ToolDiagnosticSink {
+                    activity_id: sink.activity_id,
+                    phase: sink.phase,
+                    record: &mut *sink.record,
+                }
+            }),
+            quiesced: Some(&mut || {
+                command_quiesced = true;
+                Ok(())
+            }),
+        },
+    );
+    if command_quiesced && let Some(confirm) = observer.quiesced.as_mut() {
+        confirm()?;
+    }
+    if let Err(error) = materialized {
+        // An uncertain tool owner may still be writing into private staging.
+        if command_quiesced {
+            let _ = std::fs::remove_dir_all(&temporary);
+        }
         return Err(error);
     }
     replace_directory_transactional(&temporary, destination)
@@ -2801,6 +2834,7 @@ pub(crate) fn verify_source_storage_identity(source: &SourceRecord, role: &str) 
     Ok(())
 }
 
+#[cfg(test)]
 pub(crate) fn inspect_source_health(
     profile: &SourceProfile,
     source: &SourceRecord,
@@ -4005,7 +4039,7 @@ mod tests {
         let file = File::create(&source).unwrap();
         let mut archive = zip::ZipWriter::new(file);
         archive
-            .start_file("nested/game.z64", zip::write::SimpleFileOptions::default())
+            .start_file("game.z64", zip::write::SimpleFileOptions::default())
             .unwrap();
         archive.write_all(&rom).unwrap();
         archive.finish().unwrap();
@@ -4953,6 +4987,184 @@ mod tests {
     }
 
     #[test]
+    fn oversized_runtime_source_marker_is_not_reused() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source.gba");
+        let destination = temporary.path().join("runtime/game.gba");
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::write(&source, b"original source").unwrap();
+        let prepare = || {
+            prepare_runtime_source(
+                &source,
+                &destination,
+                RuntimeSourceMaterialization::Copy,
+                &BTreeMap::new(),
+                &|| Ok(()),
+            )
+        };
+        prepare().unwrap();
+        let marker = runtime_source_marker_path(&destination).unwrap();
+        let mut bytes = std::fs::read(&marker).unwrap();
+        bytes.resize(16 * 1024 + 1, b' ');
+        std::fs::write(&marker, bytes).unwrap();
+        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
+        filetime::set_file_mtime(&destination, sentinel).unwrap();
+
+        prepare().unwrap();
+
+        assert_ne!(
+            filetime::FileTime::from_last_modification_time(
+                &std::fs::metadata(&destination).unwrap()
+            ),
+            sentinel
+        );
+        assert!(std::fs::metadata(marker).unwrap().len() < 16 * 1024);
+        assert_eq!(std::fs::read(destination).unwrap(), b"original source");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn linked_runtime_source_marker_is_not_reused() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source.gba");
+        let destination = temporary.path().join("runtime/game.gba");
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::write(&source, b"original source").unwrap();
+        let prepare = || {
+            prepare_runtime_source(
+                &source,
+                &destination,
+                RuntimeSourceMaterialization::Copy,
+                &BTreeMap::new(),
+                &|| Ok(()),
+            )
+        };
+        prepare().unwrap();
+        let marker = runtime_source_marker_path(&destination).unwrap();
+        let external_marker = temporary.path().join("external-marker.json");
+        std::fs::rename(&marker, &external_marker).unwrap();
+        let original = std::fs::read(&external_marker).unwrap();
+        std::os::unix::fs::symlink(&external_marker, &marker).unwrap();
+        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
+        filetime::set_file_mtime(&destination, sentinel).unwrap();
+
+        prepare().unwrap();
+
+        assert_ne!(
+            filetime::FileTime::from_last_modification_time(
+                &std::fs::metadata(&destination).unwrap()
+            ),
+            sentinel
+        );
+        assert_eq!(std::fs::read(external_marker).unwrap(), original);
+        assert!(
+            !std::fs::symlink_metadata(marker)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+    }
+
+    #[test]
+    fn psx_bin_cue_failed_spawn_cleans_staging_after_quiescence() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source.chd");
+        let destination = temporary.path().join("runtime");
+        let tool = temporary.path().join("missing-chdman");
+        std::fs::write(&source, b"original source").unwrap();
+        let mut quiesced = false;
+        let result = materialize_psx_bin_cue(
+            &source,
+            &destination,
+            Some(&tool),
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        );
+        assert!(result.is_err());
+        assert!(quiesced);
+        assert!(!destination.exists());
+        assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn psx_bin_cue_failed_quiescence_persistence_retains_staging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source.chd");
+        let destination = temporary.path().join("runtime");
+        let tool = temporary.path().join("missing-chdman");
+        std::fs::create_dir(&destination).unwrap();
+        std::fs::write(destination.join("previous.bin"), b"keep runtime").unwrap();
+        std::fs::write(&source, b"original source").unwrap();
+        let error = materialize_psx_bin_cue(
+            &source,
+            &destination,
+            Some(&tool),
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || Err(PortcoveError::state("proof persistence failed"))),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.message, "proof persistence failed");
+        assert!(std::fs::read_dir(temporary.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-psx-")
+        }));
+        assert_eq!(
+            std::fs::read(destination.join("previous.bin")).unwrap(),
+            b"keep runtime"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn psx_bin_cue_uncertain_tool_failure_retains_staging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source.chd");
+        let destination = temporary.path().join("runtime");
+        std::fs::create_dir(&destination).unwrap();
+        std::fs::write(destination.join("previous.bin"), b"keep runtime").unwrap();
+        std::fs::write(&source, b"original source").unwrap();
+        let mut quiesced = false;
+        let result = materialize_psx_bin_cue(
+            &source,
+            &destination,
+            Some(Path::new("/usr/bin/false")),
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        );
+        assert!(result.is_err());
+        assert!(!quiesced);
+        assert!(std::fs::read_dir(temporary.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".portcove-psx-")
+        }));
+        assert_eq!(
+            std::fs::read(destination.join("previous.bin")).unwrap(),
+            b"keep runtime"
+        );
+    }
+
+    #[test]
     fn persistent_single_file_source_is_rematerialized_when_destination_bytes_drift() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("game.z64");
@@ -5131,6 +5343,59 @@ mod tests {
             std::fs::read(install.join("data/audio.rom")).unwrap(),
             b"audio"
         );
+    }
+
+    #[test]
+    fn file_set_zip_normalizes_only_the_uniquely_selected_n64_member() {
+        let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        for order in ["big", "swapped", "little"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let source = temporary.path().join("set.zip");
+            let destination = temporary.path().join("runtime/game.z64");
+            std::fs::create_dir(destination.parent().unwrap()).unwrap();
+            let mut rom = canonical;
+            if order == "swapped" {
+                for pair in rom.chunks_exact_mut(2) {
+                    pair.swap(0, 1);
+                }
+            }
+            if order == "little" {
+                for word in rom.chunks_exact_mut(4) {
+                    word.reverse();
+                }
+            }
+            let mut writer = zip::ZipWriter::new(File::create(&source).unwrap());
+            writer
+                .start_file("game.z64", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(&rom).unwrap();
+            writer
+                .start_file("another.z64", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(b"unselected member").unwrap();
+            writer.finish().unwrap();
+
+            prepare_runtime_source_set_member(
+                &source,
+                &["game.z64".into()],
+                &destination,
+                RuntimeSourceMaterialization::N64BigEndian,
+                &|| Ok(()),
+            )
+            .unwrap();
+            assert_eq!(std::fs::read(&destination).unwrap(), canonical, "{order}");
+            assert!(
+                prepare_runtime_source_set_member(
+                    &source,
+                    &["game.z64".into(), "another.z64".into()],
+                    &destination,
+                    RuntimeSourceMaterialization::N64BigEndian,
+                    &|| Ok(())
+                )
+                .is_err()
+            );
+            assert_eq!(std::fs::read(destination).unwrap(), canonical);
+        }
     }
 
     #[test]

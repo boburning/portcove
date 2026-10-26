@@ -440,7 +440,7 @@ void test("Windows archive helper and timing edits retain Rust execution and the
       assert.ok(plan.areas.includes("policy"), label);
       const local = classifyChanges([change], { fileExists: () => false });
       assert.equal(local.unknown.size, 0, label);
-      assert.ok(local.workspaceRust && local.workspaceRustTests, label);
+      assert.ok(local.workspaceRust, label);
       assert.ok(
         buildPlan(local, { validationPlan: plan }).some(
           (entry) => entry.id === "rust-workspace-tests",
@@ -875,7 +875,7 @@ void test("measured coverage helpers retain their controls and shared frontend c
           label,
         );
         assert.ok(
-          entries.some((entry) => entry.id === "ui-browser-tests"),
+          entries.some((entry) => entry.id === "ui-tests" && entry.args.includes("frontend:tests")),
           label,
         );
       }

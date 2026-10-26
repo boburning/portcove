@@ -3,12 +3,12 @@
   "listing": {
     "id": "elasota-aerofoil",
     "name": "Glider PRO / Aerofoil (elasota)",
-    "summary": "Explore Glider PRO / Aerofoil (elasota) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Fly through Glider PRO’s houses with Aerofoil’s gamepad support and built-in house editor.",
     "project_url": "https://github.com/elasota/Aerofoil",
     "issue_number": 1790,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/elasota/Aerofoil",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/elasota/Aerofoil#about-aerofoil",
     "artwork": {
       "game_id": 92749,
       "cover_id": 89898,
@@ -16,6 +16,24 @@
       "image_sha256": "121ef536a98931c57917b7d97cf78f5679d55d5a714879ac2a43feb22df2082a",
       "game_slug": "glider-pro",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/elasota/Aerofoil/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["Aerofoil-", "-win64.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the complete Windows game ZIP",
+          "instruction": "Choose the package ending in -win64.zip. Finish setup with Aerofoil.exe inside its Aerofoil folder; the packaged houses are included."
+        },
+        {
+          "title": "Keep custom houses and saved games",
+          "instruction": "Aerofoil stores your houses, saved games, scores and preferences in the Aerofoil folder in your Windows Documents location. Keep that folder when updating. The separate tools ZIP is available for importing additional original-format content."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/elasota/Aerofoil#about-aerofoil"
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
 import type { SourceInspectionReport, SourceRecord, SourceVerificationOutcome } from "../../types";
@@ -7,11 +7,11 @@ import { failurePresentation, isCancellation, type FailureDisplay } from "../../
 type SourceHealthOperation = <T>(name: string, task: () => Promise<T>) => Promise<T | undefined>;
 
 export type SourceInspectionReadState = {
-  status: "pending" | "current" | "failed" | "cancelled";
+  status: "idle" | "pending" | "current" | "failed" | "cancelled";
   failure?: FailureDisplay;
   code?: string;
 };
-type InspectionFlight = { baseline: string; pending: boolean; promise: Promise<void> };
+type InspectionFlight = { baseline: symbol; pending: boolean; promise: Promise<void> };
 
 export function useSourceHealth(
   perform: SourceHealthOperation,
@@ -20,11 +20,11 @@ export function useSourceHealth(
   catalogIdentity = "",
 ) {
   const [verified, setVerified] = useState<{
-    baseline: string;
+    baseline: symbol;
     outcomes: SourceVerificationOutcome[];
   }>();
   const [inspected, setInspected] = useState<{
-    baseline: string;
+    baseline: symbol;
     inspections: ReadonlyMap<string, SourceInspectionReport>;
     reads: ReadonlyMap<string, SourceInspectionReadState>;
   }>();
@@ -33,7 +33,8 @@ export function useSourceHealth(
   const mounted = useRef(false);
   const requested = new Set(requestedProfileIds);
   const inspectionSources = sources.filter((source) => requested.has(source.profile_id));
-  const baseline = `${catalogIdentity}|${JSON.stringify(inspectionSources)}`;
+  const baselineKey = `${catalogIdentity}|${JSON.stringify(inspectionSources)}`;
+  const baseline = useMemo(() => Symbol(baselineKey), [baselineKey]);
   const inspectionInput = useRef({ baseline, sources: inspectionSources });
   useLayoutEffect(() => {
     inspectionInput.current = { baseline, sources: inspectionSources };
@@ -110,10 +111,6 @@ export function useSourceHealth(
       () => undefined,
     );
   }, [inspectSource]);
-  useEffect(() => {
-    verificationRequests.current.begin();
-    void inspectAll();
-  }, [baseline, inspectAll]);
   const verifyAll = useCallback(async () => {
     if (!mounted.current || inspectionInput.current.baseline !== baseline) return;
     const request = verificationRequests.current.begin();
@@ -134,7 +131,7 @@ export function useSourceHealth(
   const inspectionReads = new Map(
     inspectionSources.map((source) => [
       source.profile_id,
-      current?.reads.get(source.profile_id) ?? { status: "pending" as const },
+      current?.reads.get(source.profile_id) ?? { status: "idle" as const },
     ]),
   );
   return { outcomes, inspections, inspectionReads, inspectSource, inspectAll, verifyAll };

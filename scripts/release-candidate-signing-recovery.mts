@@ -352,25 +352,6 @@ export async function readSigningOperationsForPendingRelease(
   );
   return readOriginalSigningOperations(repository, input, active, api, pending);
 }
-/** Named GET-only allowance for the exact retained result upload. All original
- * signing outputs must already be settled; it cannot authorize another upload. */
-export async function readSigningOperationsForPendingResult(
-  repository: string,
-  input: unknown,
-  active: Record<string, unknown>,
-  api?: GitHubRestReader,
-) {
-  assert.ok(
-    isRecord(input) && isRecord(input.controller) && isRecord(input.controller.capacity_attempt),
-  );
-  const current = inspectCapacityOperation(input.controller.capacity_attempt.operation);
-  const pending =
-    current && settled(current)
-      ? inspectRetainedResultOperation(current, active)
-      : inspectPendingResultOperation(current, active);
-  return readOriginalSigningOperations(repository, input, active, api, pending);
-}
-
 async function readOriginalPublishedOperation(
   repository: string,
   input: Record<string, unknown>,

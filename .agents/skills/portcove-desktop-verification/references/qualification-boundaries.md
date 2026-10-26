@@ -26,9 +26,28 @@ and verify their hashes against the receipt. Record compiled application identit
 separately from the executed harness revision. Later checkout edits or
 reconstructed bytes cannot replace missing capture; preserve failed evidence.
 
+## Windows observation
+
+If a native observer can continue after its deadline, retain its desktop/station
+handles until bounded drain proves the observer has exited. Preserve the original
+timeout and any incomplete drain as failed evidence. When changing observer
+lifetime handling, exercise timeout and drain with a controlled slow observer.
+
+When an owned window fails visibility checks, capture its style bits,
+parent/desktop ancestry and observer context before further show attempts.
+The window's own WS_VISIBLE flag alone does not establish IsWindowVisible success.
+If an ancestor is hidden, preserve that diagnostic instead of repeating show
+calls. Keep visibility, responsiveness and cleanup as separate outcomes; review
+any station/desktop isolation change under the existing authority before execution.
+
 ## Harness coverage and consumers
 
 When adding native regressions, inspect the required hosted Windows test owner and inventory before pushing. Prefer the cohesive existing suite that owns the behavior; otherwise wire the new suite explicitly and prove it executes on Windows rather than merely skips elsewhere.
+
+When refactoring source-sliced harness tests, test actual host exports where
+feasible and execute serialized browser callbacks in isolation. Retain the
+original behavioral cases; an exported helper with a different responsibility
+does not preserve that coverage.
 
 If repository Node contracts consume a native fixture helper, inspect that consumer's actual dependency setup. Exercise its real import and pure helper behavior without native-driver packages, using an owned isolated child outside installed dependency ancestry and proving the package cannot resolve. Keep native-only imports at the existing dispatcher boundary, then qualify affected real native calls separately; preserve shared dependency state.
 

@@ -8,7 +8,8 @@ import {
   requireRepositoryIssueInventory,
 } from "./repository-issue-inventory.mts";
 import { RestPortIntakeClient } from "./roadmap-rest-intake.mts";
-import { renderPortIssueBody, validateConfig } from "./roadmap.mts";
+import { validateConfig } from "./roadmap.mts";
+import { renderPortIssueBody } from "./roadmap-issue.mts";
 
 function response(body: unknown, headers: Record<string, string> = {}, status = 200) {
   return `HTTP/2.0 ${status}\r\n${Object.entries(headers)

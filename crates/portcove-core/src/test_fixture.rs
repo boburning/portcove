@@ -77,10 +77,20 @@ pub(crate) fn proposed_rollout_port(id: &str) -> crate::PortDefinition {
 /// The reviewed fixture is source-bound to the catalog before GitHub adoption;
 /// current dynamic/provider tests must keep using the current embedded catalog.
 pub(crate) fn historical_managed_policy_catalog() -> crate::Catalog {
-    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+    historical_port_catalog(include_str!(
         "../tests/fixtures/managed-direct-policies-historical.json"
     ))
-    .unwrap();
+}
+
+/// Keep captured pre-adoption data coordinates independent of today's catalog.
+pub(crate) fn historical_runtime_maintenance_catalog() -> crate::Catalog {
+    historical_port_catalog(include_str!(
+        "../tests/fixtures/direct-runtime-maintenance-historical.json"
+    ))
+}
+
+fn historical_port_catalog(snapshot: &str) -> crate::Catalog {
+    let fixture: serde_json::Value = serde_json::from_str(snapshot).unwrap();
     let ports: Vec<crate::PortDefinition> =
         serde_json::from_value(fixture["ports"].clone()).unwrap();
     let mut document = crate::Catalog::embedded().unwrap().authoritative_document();

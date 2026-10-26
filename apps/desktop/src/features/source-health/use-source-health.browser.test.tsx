@@ -65,8 +65,11 @@ function Fixture({
   state = useSourceHealth(perform, [source(path)], requested ? ["game"] : [], catalog);
   return null;
 }
-async function render(path: string, catalog: string) {
+async function renderAndRequestCheck(path: string, catalog: string) {
   await act(async () => root.render(createElement(Fixture, { path, catalog })));
+  await act(async () => {
+    void state.inspectAll();
+  });
 }
 
 beforeEach(() => {
@@ -80,6 +83,30 @@ afterEach(async () => {
 });
 
 describe("source inspection intent", () => {
+  it("leaves selected registrations idle until an explicit check, including after baseline changes", async () => {
+    const inspect = vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report("D:/Game.z64"));
+    await act(async () =>
+      root.render(createElement(Fixture, { path: "D:/Game.z64", catalog: "library-one|catalog" })),
+    );
+    expect(inspect).not.toHaveBeenCalled();
+    expect(state.inspectionReads.get("game")?.status).toBe("idle");
+    await act(async () => state.inspectSource("game"));
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(state.inspections.size).toBe(1);
+    await act(async () =>
+      root.render(createElement(Fixture, { path: "D:/Game.z64", catalog: "library-two|catalog" })),
+    );
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(state.inspectionReads.get("game")?.status).toBe("idle");
+    expect(state.inspections.size).toBe(0);
+    await act(async () =>
+      root.render(createElement(Fixture, { path: "D:/Game.z64", catalog: "library-one|catalog" })),
+    );
+    expect(inspect).toHaveBeenCalledTimes(1);
+    expect(state.inspectionReads.get("game")?.status).toBe("idle");
+    expect(state.inspections.size).toBe(0);
+  });
+
   it("does not hash a registration during ordinary browsing", async () => {
     const inspect = vi.spyOn(desktopApi, "inspectSource");
     await act(async () =>
@@ -106,8 +133,8 @@ describe("source inspection intent", () => {
       vi.spyOn(desktopApi, "inspectSource")
         .mockReturnValueOnce(old.promise)
         .mockReturnValueOnce(current.promise);
-      await render(oldPath, oldCatalog);
-      await render(currentPath, currentCatalog);
+      await renderAndRequestCheck(oldPath, oldCatalog);
+      await renderAndRequestCheck(currentPath, currentCatalog);
       await act(async () => {
         current.resolve(report(currentPath));
         await current.promise;
@@ -134,7 +161,7 @@ describe("source inspection intent", () => {
     vi.spyOn(desktopApi, "verifySources")
       .mockReturnValueOnce(old.promise)
       .mockReturnValueOnce(current.promise);
-    await render("D:/Game.z64", "catalog");
+    await renderAndRequestCheck("D:/Game.z64", "catalog");
 
     let oldRequest!: Promise<void>;
     let currentRequest!: Promise<void>;
@@ -166,12 +193,15 @@ function HealthFixture({
   state = useSourceHealth(perform, sources, profiles, catalog);
   return null;
 }
-async function renderHealth(
+async function renderAndRequestHealthChecks(
   sources = [source("current/game.z64")],
   profiles = sources.map((item) => item.profile_id),
   catalog = "catalog",
 ) {
   await act(async () => root.render(createElement(HealthFixture, { sources, profiles, catalog })));
+  await act(async () => {
+    void state.inspectAll();
+  });
 }
 it("records a settled failure separately from source verification and coalesces its pending retry", async () => {
   const next = deferred<SourceInspectionReport>();
@@ -181,7 +211,7 @@ it("records a settled failure separately from source verification and coalesces 
     .mockRejectedValueOnce(failure)
     .mockReturnValueOnce(next.promise);
   const verify = vi.spyOn(desktopApi, "verifySources");
-  await renderHealth();
+  await renderAndRequestHealthChecks();
   expect(state.inspectionReads.get("game")?.status).toBe("failed");
   expect(state.inspectionReads.get("game")?.code).toBe("state");
   expect(state.inspections.size).toBe(0);
@@ -212,7 +242,7 @@ it("retries only a failed profile and preserves a healthy sibling", async () => 
     if (++gameReads === 1) return Promise.reject({ code: "state" });
     return Promise.resolve(report("current/game.z64"));
   });
-  await renderHealth([source("current/game.z64"), sibling]);
+  await renderAndRequestHealthChecks([source("current/game.z64"), sibling]);
   expect(state.inspectionReads.get("bios")?.status).toBe("current");
   expect(state.inspectionReads.get("game")?.status).toBe("failed");
   await act(async () => {
@@ -228,7 +258,7 @@ it("keeps independent profile retries when another profile is still pending", as
   vi.spyOn(desktopApi, "inspectSource").mockImplementation((id) =>
     id === "game" ? game.promise : bios.promise,
   );
-  await renderHealth([source("current/game.z64"), sibling]);
+  await renderAndRequestHealthChecks([source("current/game.z64"), sibling]);
   await act(async () => {
     bios.resolve({ ...report(sibling.path), profile_id: "bios", registered: sibling });
     await bios.promise;
@@ -248,8 +278,8 @@ it.each(["source", "catalog", "requested profiles"])(
     vi.spyOn(desktopApi, "inspectSource")
       .mockReturnValueOnce(old.promise)
       .mockResolvedValue(report("current/game.z64"));
-    await renderHealth([source("old/game.z64")]);
-    await renderHealth(
+    await renderAndRequestHealthChecks([source("old/game.z64")]);
+    await renderAndRequestHealthChecks(
       [source(kind === "source" ? "current/game.z64" : "old/game.z64")],
       kind === "requested profiles" ? [] : ["game"],
       kind === "catalog" ? "new-catalog" : "catalog",
@@ -268,9 +298,9 @@ it("refuses a stale profile retry after selection and a retry after disposal", a
   const inspect = vi
     .spyOn(desktopApi, "inspectSource")
     .mockResolvedValue(report("current/game.z64"));
-  await renderHealth();
+  await renderAndRequestHealthChecks();
   const retry = state.inspectSource;
-  await renderHealth([], []);
+  await renderAndRequestHealthChecks([], []);
   await act(async () => {
     await retry("game");
   });
@@ -282,7 +312,7 @@ it("refuses a stale profile retry after selection and a retry after disposal", a
 it("ignores an in-flight response after unmount", async () => {
   const pending = deferred<SourceInspectionReport>();
   vi.spyOn(desktopApi, "inspectSource").mockReturnValueOnce(pending.promise);
-  await renderHealth();
+  await renderAndRequestHealthChecks();
   const before = state;
   await act(async () => root.unmount());
   await act(async () => {
@@ -296,7 +326,7 @@ it("keeps cancellation neutral and permits a later explicit retry", async () => 
   vi.spyOn(desktopApi, "inspectSource")
     .mockRejectedValueOnce({ code: "cancelled" })
     .mockResolvedValue(report("current/game.z64"));
-  await renderHealth();
+  await renderAndRequestHealthChecks();
   expect(state.inspectionReads.get("game")?.status).toBe("cancelled");
   expect(state.inspections.size).toBe(0);
   await act(async () => {
@@ -309,7 +339,7 @@ it("rejects a mismatched profile report without inventing source identity", asyn
     ...report("current/game.z64"),
     profile_id: "other",
   });
-  await renderHealth();
+  await renderAndRequestHealthChecks();
   expect(state.inspectionReads.get("game")?.status).toBe("failed");
   expect(state.inspections.size).toBe(0);
 });
@@ -317,7 +347,7 @@ it("settles a synchronous inspection throw as a safe failure", async () => {
   vi.spyOn(desktopApi, "inspectSource").mockImplementation(() => {
     throw new Error("private debug input");
   });
-  await renderHealth();
+  await renderAndRequestHealthChecks();
   expect(state.inspectionReads.get("game")?.status).toBe("failed");
   expect(state.inspectionReads.get("game")?.failure).toBeUndefined();
 });
@@ -328,9 +358,9 @@ it("rejects an old failure even when the same registration is selected again", a
     .spyOn(desktopApi, "inspectSource")
     .mockReturnValueOnce(old.promise)
     .mockResolvedValue(report("first/game.z64"));
-  await renderHealth([source("first/game.z64")]);
-  await renderHealth([source("other/game.z64")]);
-  await renderHealth([source("first/game.z64")]);
+  await renderAndRequestHealthChecks([source("first/game.z64")]);
+  await renderAndRequestHealthChecks([source("other/game.z64")]);
+  await renderAndRequestHealthChecks([source("first/game.z64")]);
   await act(async () => {
     old.reject({ code: "state" });
     await old.promise.catch(() => undefined);

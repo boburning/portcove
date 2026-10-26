@@ -228,7 +228,10 @@ fn planning_is_stable_and_preserves_preliminary_source_and_unprepared_state() {
         .unwrap();
     assert_eq!(first.plan_sha256, second.plan_sha256);
     assert_eq!(first.inputs.install.id, fixture.install.id);
-    assert_eq!(first.inputs.setup_tool.path, fixture.setup);
+    assert_eq!(
+        first.inputs.setup_tool.as_ref().unwrap().path,
+        fixture.setup
+    );
     assert!(first.inputs.conversion_tool.is_none());
     assert_eq!(first.copy, before);
     assert_eq!(

@@ -3,31 +3,34 @@
   "listing": {
     "id": "vcmi-vcmi",
     "name": "VCMI",
-    "summary": "VCMI offers upstream packages for Heroes of Might and Magic III. Follow upstream setup before registering your executable.",
+    "summary": "Play Heroes of Might and Magic III with VCMI’s mods and modern systems support using your own game data.",
     "project_url": "https://github.com/vcmi/vcmi",
     "issue_number": 1902,
     "platforms": ["windows-x86-64"],
     "availability": "packages",
-    "setup_url": "https://github.com/vcmi/vcmi/blob/1.7.5/docs/players/Installation_Windows.md",
+    "setup_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md",
     "original_game_title": "Heroes of Might and Magic III",
-    "release_url": "https://github.com/vcmi/vcmi/releases/tag/1.7.5",
+    "release_url": "https://github.com/vcmi/vcmi/releases",
     "manual_setup": {
       "steps": [
         {
-          "title": "Get the upstream package",
-          "instruction": "Choose the release and package for your computer. Download and extract a portable archive, or use the upstream installer yourself."
+          "title": "Use the Windows portable ZIP",
+          "instruction": "The Windows ZIP contains the client, launcher, map editor and server. Open the extracted folder and start VCMI_launcher.exe to complete upstream setup. The Windows installer remains an alternative."
         },
         {
-          "title": "Complete upstream setup",
-          "instruction": "Use your Heroes III Complete or Shadow of Death game data, or the GOG offline installer and its BIN files, as described in the linked instructions."
+          "title": "Import your Heroes III data",
+          "instruction": "In VCMI Launcher, import your GOG offline installer with its matching BIN file, or use your Heroes III Complete or Shadow of Death installation. The launcher handles data import and optional mods."
         },
         {
-          "title": "Select your executable",
-          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+          "title": "Use the game client for Play",
+          "instruction": "After setup, finish Portcove registration with VCMI_client.exe and its folder. Keep VCMI Launcher available for mod management and setup. Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
         }
       ],
-      "warnings": ["This project has not been verified for play through Portcove."],
-      "help_url": "https://github.com/vcmi/vcmi/blob/1.7.5/docs/players/Installation_Windows.md"
+      "warnings": [
+        "Heroes III Restoration of Erathia and the HD Edition are not supported; use Complete or Shadow of Death game data.",
+        "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions."
+      ],
+      "help_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md"
     },
     "artwork": {
       "game_id": 364,
@@ -36,6 +39,9 @@
       "image_sha256": "8140145877f727a95bf62cd94b9cb4b26a3148537c2225d90954256bd981b04c",
       "game_slug": "heroes-of-might-and-magic-iii-the-restoration-of-erathia",
       "match_kind": "underlying-game"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["VCMI-Windows.zip"]
     }
   }
 }

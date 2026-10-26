@@ -1,13 +1,6 @@
 import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts";
-import type {
-  SpawnSyncOptionsWithStringEncoding,
-  SpawnSyncOptions,
-  SpawnSyncReturns,
-} from "node:child_process";
+import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
 import type { ValidationChangeInput, ValidationPlan } from "./validation-plan.mts";
-import { isRecord } from "./runtime-values.mts";
-import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +14,7 @@ import {
 } from "./native-helper-dependencies.mts";
 import { ordinaryOwnershipForPath } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
+import { stagedFileBatches } from "./viteplus-cli.mts";
 export interface LocalChange extends ValidationChangeInput {
   path: string;
 }
@@ -31,14 +25,11 @@ export interface ValidationSelection {
   nodeSyntax: Set<string>;
   oxfmtFiles: Set<string>;
   uiRelatedFiles: Set<string>;
-  lintToolFixtures: Set<string>;
   unknown: Set<string>;
   shellFiles: Set<string>;
   pythonFiles: Set<string>;
-  rustChanges: (LocalChange & { packageName: string })[];
   rustfmt: boolean;
   workspaceRust: boolean;
-  workspaceRustTests: boolean;
   ui: boolean;
   browser: boolean;
   uiFullTests: boolean;
@@ -79,33 +70,12 @@ interface CommandOptions {
 interface PlanningContext {
   validationPlan?: ValidationPlan;
   mergeBase?: string;
-  doctestPackages?: ReadonlySet<string>;
 }
 type CommandRunner = (
   command: string,
   args: string[],
   options: SpawnSyncOptions,
 ) => Pick<SpawnSyncReturns<Buffer>, "error" | "status">;
-type MetadataRunner = (
-  command: string,
-  args: string[],
-  options: SpawnSyncOptionsWithStringEncoding,
-) => Partial<Pick<SpawnSyncReturns<string>, "error" | "status" | "signal" | "stdout" | "stderr">>;
-interface MetadataObservation {
-  reason: string;
-  code: string | null;
-  status: number | null;
-  signal: string | null;
-  elapsed_ms: number;
-  observe_only: true;
-  offline: true;
-  locked: true;
-  timeout_ms: number;
-  capture_complete: boolean;
-  stdout: { bytes: number; sha256: string } | null;
-  stderr: { bytes: number; sha256: string } | null;
-}
-
 export function isRepositoryLintInput(file: string) {
   return (
     /^(?:scripts|integrations\/playnite|apps\/desktop\/(?:scripts|src|test|public))\/.*\.(?:[cm]?[jt]sx?)$/u.test(
@@ -139,116 +109,6 @@ const packagePrefixes = new Map([
   ["crates/portcove-release-tools/", "portcove-release-tools"],
   ["apps/desktop/src-tauri/", "portcove-desktop"],
 ]);
-
-export function packagesWithDoctests(metadata: unknown): Set<string> {
-  if (!isRecord(metadata) || !Array.isArray(metadata.packages))
-    throw new Error("cargo metadata did not return a package inventory");
-  const packages: unknown[] = metadata.packages;
-  const names = new Set<string>();
-  for (const pkg of packages) {
-    if (!isRecord(pkg) || typeof pkg.name !== "string" || !Array.isArray(pkg.targets)) continue;
-    const targets: unknown[] = pkg.targets;
-    if (targets.some((target) => isRecord(target) && target.doctest === true)) names.add(pkg.name);
-  }
-  return names;
-}
-
-const metadataObservations = new WeakMap<object, MetadataObservation>();
-const metadataErrorCode = (error: unknown): string | null => {
-  try {
-    const code = isRecord(error) ? error.code : undefined;
-    return ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].some(
-      (known) => known === code,
-    )
-      ? String(code)
-      : code === undefined
-        ? null
-        : "UNKNOWN";
-  } catch {
-    return "UNKNOWN";
-  }
-};
-export function readDoctestPackages(
-  options: { spawn?: MetadataRunner; observeOnly?: boolean } = {},
-): Set<string> {
-  const started = performance.now();
-  const result = (options.spawn ?? spawnSync)(
-    "cargo",
-    [
-      "metadata",
-      "--format-version",
-      "1",
-      "--no-deps",
-      ...(options.observeOnly ? ["--offline", "--locked"] : []),
-    ],
-    {
-      cwd: projectRoot,
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: options.observeOnly ? 15_000 : undefined,
-      env: options.observeOnly
-        ? { ...process.env, RUSTUP_AUTO_INSTALL: "0", CARGO_NET_OFFLINE: "true" }
-        : process.env,
-    },
-  );
-  const refuse = (reason: string, error: unknown): never => {
-    try {
-      if (
-        options.observeOnly &&
-        ((typeof error === "object" && error !== null) || typeof error === "function")
-      ) {
-        const fingerprint = (value: unknown) =>
-          typeof value === "string"
-            ? {
-                bytes: Buffer.byteLength(value),
-                sha256: createHash("sha256").update(value).digest("hex"),
-              }
-            : null;
-        metadataObservations.set(error, {
-          reason,
-          code: metadataErrorCode(error),
-          status:
-            typeof result.status === "number" && Number.isInteger(result.status)
-              ? result.status
-              : null,
-          signal: ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"].some(
-            (signal) => signal === result.signal,
-          )
-            ? String(result.signal)
-            : result.signal == null
-              ? null
-              : "UNKNOWN",
-          elapsed_ms: Math.max(0, Math.round(performance.now() - started)),
-          observe_only: true,
-          offline: true,
-          locked: true,
-          timeout_ms: 15_000,
-          capture_complete:
-            !result.error && Number.isInteger(result.status) && result.signal == null,
-          stdout: fingerprint(result.stdout),
-          stderr: fingerprint(result.stderr),
-        });
-      }
-    } catch {
-      /* Diagnostic failure must preserve the original planning error. */
-    }
-    throw error;
-  };
-  if (result.error) refuse("spawn-error", result.error);
-  if (result.status !== 0)
-    refuse("cargo-exit", new Error(`cargo metadata failed: ${String(result.stderr ?? "").trim()}`));
-  let metadata: unknown;
-  try {
-    metadata = JSON.parse(String(result.stdout));
-  } catch (error) {
-    refuse("metadata-json", error);
-  }
-  try {
-    return packagesWithDoctests(metadata);
-  } catch (error) {
-    return refuse("package-inventory", error);
-  }
-}
 
 const oxfmtExtensions = new Set([
   ".cjs",
@@ -1311,6 +1171,26 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/precommit-check.test.mts",
     ],
   ],
+  [".config/nextest.toml", ["scripts/ci-rust-workflow.test.mts"]],
+  ...["scripts/qualification-rustdoc.mts", "scripts/rustdoc-outcomes.mts"].map(
+    (file): [string, string[]] => [
+      file,
+      [
+        "scripts/qualification-rustdoc.test.mts",
+        "scripts/qualification-coverage.test.mts",
+        "scripts/ci-rust-workflow.test.mts",
+        "scripts/dev-storage.test.mts",
+        "scripts/audit.test.mts",
+        "scripts/precommit-check.test.mts",
+        "scripts/local-validation.test.mts",
+        "scripts/node-test-inventory.test.mts",
+      ],
+    ],
+  ),
+  ...["merged", "failed"].map((name): [string, string[]] => [
+    "scripts/fixtures/rustdoc-outcomes/" + name + ".jsonl",
+    ["scripts/qualification-rustdoc.test.mts"],
+  ]),
   [
     "scripts/fixtures/nextest-inventory-baseline.json",
     ["scripts/nextest-outcomes.test.mts", "scripts/qualification-nextest.test.mts"],
@@ -1527,10 +1407,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/dependency-automation.test.mts",
       "scripts/ci-baseline-execution.test.mts",
       "scripts/qualification-nextest.test.mts",
+      "scripts/qualification-rustdoc.test.mts",
     ],
   ],
   ["Cargo.toml", ["scripts/dependency-automation.test.mts"]],
-  ["rust-toolchain.toml", ["scripts/dependency-automation.test.mts"]],
+  [
+    "rust-toolchain.toml",
+    ["scripts/dependency-automation.test.mts", "scripts/qualification-rustdoc.test.mts"],
+  ],
   [
     "package.json",
     [
@@ -1555,6 +1439,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/tool-cache.test.mts",
       "scripts/quality-tools.test.mts",
       "scripts/dev-doctor.test.mts",
+    ],
+  ],
+  [
+    "scripts/roadmap-issue.mts",
+    [
+      ...roadmapContractTests,
+      "scripts/roadmap-scoped.test.mts",
+      "scripts/source-provenance-audit.test.mts",
+      "scripts/discovery-reconciliation.test.mts",
+      "scripts/discovery-intake.test.mts",
+      "scripts/roadmap-authoring.test.mts",
     ],
   ],
   [".github/roadmap.json", roadmapContractTests],
@@ -1773,6 +1668,7 @@ for (const file of [
 explicitNodeTests.set("scripts/runtime-values.mts", [
   ...(explicitNodeTests.get("scripts/runtime-values.mts") ?? []),
   "scripts/qualification-nextest.test.mts",
+  "scripts/qualification-rustdoc.test.mts",
   "scripts/nextest-outcomes.test.mts",
   "scripts/qualification-coverage.test.mts",
   "scripts/audit.test.mts",
@@ -2097,7 +1993,6 @@ function classifyOnePath(
     (file === ".config/nextest.toml" && !options.nextestUnchanged)
   ) {
     selection.workspaceRust = true;
-    if (file !== "Cargo.lock" || options.isDeletion) selection.workspaceRustTests = true;
     selection.rustfmt = true;
     selection.scopes.add("rust-workspace");
     recognized = true;
@@ -2181,18 +2076,6 @@ function classifyOnePath(
     if (extension === ".sh") selection.shellLint = true;
     if (containmentInputs.has(file))
       for (const testFile of containmentContractTests) addNodeTest(selection, testFile);
-    if (file === "scripts/lint-tools.integration.mts") {
-      for (const fixture of [
-        "actionlint",
-        "oxfmt",
-        "oxlint",
-        "psscriptanalyzer",
-        "ruff",
-        "shellcheck",
-        "stylelint",
-      ])
-        selection.lintToolFixtures.add(fixture);
-    }
     if (validationOwnershipForPath(file).areas.includes("release-security")) {
       selection.scopes.add("release-tooling");
       for (const testFile of releaseContractTestsForPath(file)) addNodeTest(selection, testFile);
@@ -2333,7 +2216,6 @@ function classifyOnePath(
   if (file === ".oxlintrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
-    selection.lintToolFixtures.add("oxlint");
     selection.scopes.add("ui");
     addNodeTest(selection, "scripts/ci-workflow.test.mts");
     recognized = true;
@@ -2342,7 +2224,6 @@ function classifyOnePath(
   if (file === ".oxfmtrc.json") {
     selection.ui = true;
     selection.uiFullTests = true;
-    selection.lintToolFixtures.add("oxfmt");
     selection.scopes.add("ui");
     recognized = true;
   }
@@ -2405,13 +2286,6 @@ function classifyOnePath(
   if (!recognized) selection.unknown.add(file);
 }
 
-function packageForPath(input: string) {
-  const file = normalizePath(input);
-  for (const [prefix, packageName] of packagePrefixes)
-    if (file.startsWith(prefix)) return packageName;
-  return null;
-}
-
 export function classifyChanges(
   changes: readonly LocalChange[],
   options: ClassifyOptions = {},
@@ -2424,11 +2298,9 @@ export function classifyChanges(
     nodeSyntax: new Set(),
     oxfmtFiles: new Set(),
     uiRelatedFiles: new Set(),
-    lintToolFixtures: new Set(),
     unknown: new Set(),
     rustfmt: false,
     workspaceRust: false,
-    workspaceRustTests: false,
     ui: false,
     browser: false,
     uiFullTests: false,
@@ -2443,7 +2315,6 @@ export function classifyChanges(
     transport: false,
     shellFiles: new Set(),
     pythonFiles: new Set(),
-    rustChanges: [],
   };
   for (const change of changes) {
     classifyOnePath(selection, change.path, fileExists, {
@@ -2459,16 +2330,6 @@ export function classifyChanges(
       classifyOnePath(selection, change.previousPath, fileExists, {
         includeFileChecks: false,
         isDeletion: true,
-      });
-    const currentPackage = packageForPath(change.path);
-    if (currentPackage) selection.rustChanges.push({ ...change, packageName: currentPackage });
-    const previousPackage = change.previousPath ? packageForPath(change.previousPath) : null;
-    if (change.previousPath && previousPackage && previousPackage !== currentPackage)
-      selection.rustChanges.push({
-        status: change.status,
-        path: change.previousPath,
-        previousPath: change.path,
-        packageName: previousPackage,
       });
   }
   for (const change of changes) {
@@ -2607,15 +2468,23 @@ export function buildPlan(
     commands.push(
       command("rustfmt", "Rust formatting", "cargo", ["fmt", "--all", "--", "--check"]),
     );
-  for (const file of sorted(selection.nodeSyntax))
-    if (existsSync(path.join(projectRoot, file)))
-      commands.push(
-        command(`node-syntax:${file}`, "changed script syntax", process.execPath, [
-          ...(/\.[cm]?ts$/u.test(file)
-            ? ["scripts/check-node-source.mts", file]
-            : ["--check", file]),
-        ]),
-      );
+  const syntaxFiles = sorted(selection.nodeSyntax).filter((file) =>
+    existsSync(path.join(projectRoot, file)),
+  );
+  const typescript = syntaxFiles.filter((file) => /\.[cm]?ts$/u.test(file));
+  for (const [index, batch] of stagedFileBatches(typescript).entries())
+    commands.push(
+      command(
+        `node-syntax:${typescript.length === 1 ? typescript[0] : `typescript:${index + 1}`}`,
+        "changed native TypeScript syntax",
+        process.execPath,
+        ["scripts/check-node-source.mts", ...batch],
+      ),
+    );
+  for (const file of syntaxFiles.filter((file) => !/\.[cm]?ts$/u.test(file)))
+    commands.push(
+      command(`node-syntax:${file}`, "changed script syntax", process.execPath, ["--check", file]),
+    );
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
   if (
     selection.packages.size ||
@@ -2650,10 +2519,7 @@ export function buildPlan(
       frontendTask("ui-build", "frontend production build", "frontend:build"),
     );
     if (selection.uiFullTests || broad || !selection.uiRelatedFiles.size)
-      commands.push(
-        frontendTask("ui-tests", "complete frontend Node project", "frontend:unit"),
-        frontendTask("ui-browser-tests", "complete real DOM project", "frontend:browser"),
-      );
+      commands.push(frontendTask("ui-tests", "complete frontend test projects", "frontend:tests"));
     else commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)));
   }
   return deduplicateCommands(commands);

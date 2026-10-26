@@ -1635,6 +1635,7 @@ impl PortcoveService {
                     launchable: false,
                     blockers: vec![LaunchBlocker::InvalidInstallation],
                     pending_setup: false,
+                    preparation_mode: None,
                     required_source_extension: None,
                     source: None,
                     bios: None,
@@ -1697,8 +1698,10 @@ impl PortcoveService {
                     .get(&platform)
                     .is_some_and(|runtime| runtime.source_directory_environment)
             });
-        if source == Some(SourceHealth::Current)
-            && requires_source_directory
+        if matches!(
+            source,
+            Some(SourceHealth::Current | SourceHealth::NotChecked)
+        ) && requires_source_directory
             && port
                 .source_profile
                 .as_ref()
@@ -1707,15 +1710,17 @@ impl PortcoveService {
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
-        if source == Some(SourceHealth::Current)
-            && required_source_extension
-                .as_deref()
-                .is_some_and(|extension| {
-                    port.source_profile
-                        .as_ref()
-                        .and_then(|profile| registered_sources.get(profile))
-                        .is_some_and(|record| !source_path_has_extension(&record.path, extension))
-                })
+        if matches!(
+            source,
+            Some(SourceHealth::Current | SourceHealth::NotChecked)
+        ) && required_source_extension
+            .as_deref()
+            .is_some_and(|extension| {
+                port.source_profile
+                    .as_ref()
+                    .and_then(|profile| registered_sources.get(profile))
+                    .is_some_and(|record| !source_path_has_extension(&record.path, extension))
+            })
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
@@ -1788,7 +1793,7 @@ impl PortcoveService {
             blockers.push(LaunchBlocker::PreparationRequired);
         }
         if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_install_data_compatibility(active, None)
+            self.inspect_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             blockers.push(LaunchBlocker::InvalidInstallation);
@@ -1849,6 +1854,10 @@ impl PortcoveService {
             launchable: installed && blockers.is_empty(),
             blockers,
             pending_setup,
+            preparation_mode: status
+                .active
+                .as_ref()
+                .and_then(|active| crate::preparation::managed_mode(port, active)),
             required_source_extension,
             source,
             bios,
@@ -2208,7 +2217,7 @@ impl PortcoveService {
                 Some(ineligible),
             )
         } else if status.active.as_ref().is_some_and(|active| {
-            self.require_ghostship_install_data_compatibility(active, None)
+            self.inspect_ghostship_install_data_compatibility(active, None)
                 .is_err()
         }) {
             assessed(Action::Launch, Availability::Held, Reason::UnsafeData, None)
@@ -2343,7 +2352,8 @@ impl PortcoveService {
                 None,
             ),
             Some(previous) => {
-                match self.rollback_target(&status.port_id, previous, status.active.as_ref()) {
+                match self.rollback_target(&status.port_id, previous, status.active.as_ref(), false)
+                {
                     Ok(_) => (
                         PortActionAvailability::Allowed,
                         PortActionReason::Available,
@@ -2473,7 +2483,20 @@ impl PortcoveService {
         if let Some(health) = checked_sources.get(&contract) {
             return Ok(*health);
         }
-        let health = crate::adapter::inspect_source_health(profile, source);
+        let health = match std::fs::metadata(&source.path) {
+            Ok(metadata) if metadata.is_file() && std::fs::File::open(&source.path).is_err() => {
+                SourceHealth::Unreadable
+            }
+            Ok(metadata) if metadata.is_file() && metadata.len() != source.storage_size => {
+                SourceHealth::Changed
+            }
+            Ok(metadata) if metadata.is_dir() && std::fs::read_dir(&source.path).is_err() => {
+                SourceHealth::Unreadable
+            }
+            Ok(_) => SourceHealth::NotChecked,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => SourceHealth::Missing,
+            Err(_) => SourceHealth::Unreadable,
+        };
         checked_sources.insert(contract, health);
         Ok(health)
     }
@@ -3010,7 +3033,9 @@ impl PortcoveService {
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
-        let qualification = qualification.with_cartridge_build_source(source.as_ref())?;
+        let qualification = qualification
+            .with_cartridge_build_source(source.as_ref())?
+            .with_runtime_source(source.as_ref())?;
         let managed = self
             .managed_preparation(
                 port,
@@ -3396,7 +3421,7 @@ impl PortcoveService {
                 PortcoveError::not_found(format!("{port_id} has no rollback version"))
             })?;
             let (port, qualification) = self
-                .rollback_target(port_id, &previous, status.active.as_ref())
+                .rollback_target(port_id, &previous, status.active.as_ref(), true)
                 .map_err(|failure| failure.error)?;
             if let Some(active) = &status.active {
                 self.require_portable_rollback_transition(active, &previous)?;
@@ -3417,6 +3442,7 @@ impl PortcoveService {
         port_id: &str,
         previous: &InstallRecord,
         active: Option<&InstallRecord>,
+        verify_original: bool,
     ) -> std::result::Result<(PortDefinition, InstallQualification), RollbackTargetFailure> {
         // Preview must preserve execution's current-catalog route gate. A
         // retained contract proves the target's identity, not a newly offered
@@ -3428,11 +3454,13 @@ impl PortcoveService {
                 error,
                 definition: None,
             })?;
-        self.require_ghostship_install_data_compatibility(
-            previous,
-            active.map(|install| install.version.as_str()),
-        )
-        .map_err(|error| RollbackTargetFailure {
+        let active_version = active.map(|install| install.version.as_str());
+        let compatibility = if verify_original {
+            self.require_ghostship_install_data_compatibility(previous, active_version)
+        } else {
+            self.inspect_ghostship_install_data_compatibility(previous, active_version)
+        };
+        compatibility.map_err(|error| RollbackTargetFailure {
             reason: PortActionReason::UnsafeData,
             error,
             definition: None,
@@ -5045,12 +5073,6 @@ impl PortcoveService {
             .detail("launch_session_id", session_id)
             .detail("recovery_action", "manual_review"));
         }
-        self.library.update_launch_session(
-            session_id,
-            None,
-            None,
-            LaunchSessionPhase::Recovering,
-        )?;
         if matches!(
             session.phase,
             LaunchSessionPhase::Running | LaunchSessionPhase::Recovering
@@ -5069,6 +5091,12 @@ impl PortcoveService {
                 .detail("recovery_action", "manual_review")
             })?;
             crate::launch::wait_for_process_exit(child_pid, child_identity)?;
+            self.library.update_launch_session(
+                session_id,
+                None,
+                None,
+                LaunchSessionPhase::Collecting,
+            )?;
         }
         if session.owner_kind == crate::LaunchOwnerKind::Managed {
             self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
@@ -12676,7 +12704,7 @@ fn main() {
                 .unwrap(),
         ] {
             let readiness = status.readiness.unwrap();
-            assert_eq!(readiness.source, Some(SourceHealth::Current));
+            assert_eq!(readiness.source, Some(SourceHealth::NotChecked));
             assert_eq!(readiness.required_source_extension.as_deref(), Some("z64"));
             assert_eq!(readiness.blockers, [LaunchBlocker::IncompatibleSource]);
             assert!(!readiness.launchable);
@@ -12698,7 +12726,7 @@ fn main() {
             .readiness
             .unwrap();
         assert!(sibling_readiness.launchable);
-        assert_eq!(sibling_readiness.source, Some(SourceHealth::Current));
+        assert_eq!(sibling_readiness.source, Some(SourceHealth::NotChecked));
         assert!(sibling_readiness.required_source_extension.is_none());
         assert_eq!(
             service
@@ -14399,10 +14427,10 @@ fn main() {
         let pending = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!pending.launchable);
         assert_eq!(pending.blockers, [LaunchBlocker::PreparationRequired]);
-        assert_eq!(pending.source, Some(SourceHealth::Current));
+        assert_eq!(pending.source, Some(SourceHealth::NotChecked));
         assert!(pending.pending_setup);
 
-        fs::write(&source_path, b"registered sourcf").unwrap();
+        fs::write(&source_path, b"registered sourcf longer").unwrap();
         let changed = service.status("opengoal-jak1").unwrap().readiness.unwrap();
         assert!(!changed.launchable);
         assert_eq!(
@@ -14595,7 +14623,58 @@ fn main() {
     }
 
     #[test]
-    fn status_keeps_shared_source_health_bound_to_each_installed_contract() {
+    fn status_source_metadata_never_hashes_same_size_originals() {
+        let temporary = tempfile::tempdir().unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let profile_id = catalog
+            .port("zelda64-recomp")
+            .unwrap()
+            .source_profile
+            .as_ref()
+            .unwrap();
+        let path = temporary.path().join("game.z64");
+        fs::write(&path, b"original bytes").unwrap();
+        let (sha256, size) = crate::adapter::hash_file(&path).unwrap();
+        let source = SourceRecord {
+            profile_id: profile_id.clone(),
+            path: path.clone(),
+            sha256: sha256.clone(),
+            size,
+            storage_sha256: sha256,
+            storage_size: size,
+            updated_at: Library::now(),
+            observed_identity: None,
+        };
+        let sources = HashMap::from([(profile_id.clone(), source.clone())]);
+        fs::write(&path, b"tampered bytes").unwrap();
+        let reads = std::rc::Rc::new(std::cell::Cell::new(0));
+        let observed = reads.clone();
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| {
+            *observer.borrow_mut() = Some(Box::new(move |_| observed.set(observed.get() + 1)));
+        });
+        let health = PortcoveService::source_health(
+            &catalog,
+            profile_id,
+            true,
+            &sources,
+            &mut HashMap::new(),
+        )
+        .unwrap();
+        let automatic_reads = reads.get();
+        let explicit = crate::adapter::inspect_source_health(
+            catalog.source_profile(profile_id).unwrap(),
+            &source,
+        );
+        let verified = crate::source_inspection::verify_registered(&catalog, &source);
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| observer.borrow_mut().take());
+        assert_eq!(health, SourceHealth::NotChecked);
+        assert_eq!(automatic_reads, 0);
+        assert_eq!(explicit, SourceHealth::Changed);
+        assert!(verified.is_err());
+    }
+
+    #[test]
+    fn status_observes_shared_source_metadata_without_rechecking_installed_contracts() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source_root = temporary.path().join("owned-source-set");
@@ -14717,6 +14796,11 @@ fn main() {
                 .unwrap();
         }
         service.catalog = changed;
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| {
+            *observer.borrow_mut() = Some(Box::new(|_| {
+                panic!("automatic status hashed source content")
+            }));
+        });
         for reverse in [false, true] {
             if reverse {
                 document.ports.reverse();
@@ -14725,8 +14809,8 @@ fn main() {
             }
             let statuses = service.statuses().unwrap();
             for (id, expected) in [
-                ("g-diffuser", SourceHealth::Current),
-                ("g-diffuser-fixture", SourceHealth::Changed),
+                ("g-diffuser", SourceHealth::NotChecked),
+                ("g-diffuser-fixture", SourceHealth::NotChecked),
             ] {
                 let single = service.status(id).unwrap().readiness.unwrap();
                 let batched = statuses
@@ -14743,13 +14827,24 @@ fn main() {
                     "batch {id}; reversed={reverse}"
                 );
                 assert_eq!(single.blockers, batched.blockers);
-                assert_eq!(single.launchable, expected == SourceHealth::Current);
+                assert!(!single.launchable);
+                assert!(single.pending_setup);
+                assert_eq!(
+                    single.preparation_mode,
+                    Some(crate::PreparationMode::SourceOnly)
+                );
+                assert!(
+                    single
+                        .blockers
+                        .contains(&LaunchBlocker::PreparationRequired)
+                );
             }
         }
         assert_eq!(
             serde_json::to_value(library.source(&registered.profile_id).unwrap()).unwrap(),
             serde_json::to_value(&registered).unwrap()
         );
+        crate::source_file::HASH_READ_OBSERVER.with(|observer| observer.borrow_mut().take());
         fs::remove_dir_all(&source_root).unwrap();
         for id in ["g-diffuser", "g-diffuser-fixture"] {
             assert_eq!(
@@ -15093,8 +15188,8 @@ fn main() {
         assert_eq!(install_action.reason, PortActionReason::MissingSource);
         assert_eq!(
             status.readiness.unwrap().source,
-            Some(SourceHealth::Current),
-            "launch still uses the retained source contract"
+            Some(SourceHealth::NotChecked),
+            "status retains the source contract without claiming current contents"
         );
         let mut current_record = registered.clone();
         current_record.profile_id = "majoras-mask".into();
@@ -16772,6 +16867,81 @@ fn main() {
     fn recovers_launch_collecting() {
         assert_supervisor_crashes_after_spawn_or_during_collection_never_become_success(
             LifecycleFaultPoint::LaunchCollecting,
+        );
+    }
+
+    #[test]
+    fn recovery_collection_failure_preserves_retry_without_child_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_launch_probe(&library, "v1", true);
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: install.id,
+                install_root: install.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: None,
+                child_identity: None,
+                phase: LaunchSessionPhase::Collecting,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+        fs::write(install.path.join("general.json"), b"recovered save").unwrap();
+        let user = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(user.parent().unwrap()).unwrap();
+        fs::write(&user, b"block creation of the save destination").unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+
+        assert!(service.recover_launch_session(&activity.id).is_err());
+        let retained = library
+            .active_launch_session(&activity.id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.phase, LaunchSessionPhase::Collecting);
+        assert!(retained.child_identity.is_none());
+        assert!(library.try_lock_port("zelda64-recomp", "update").is_err());
+        fs::remove_file(&user).unwrap();
+        drop(service);
+
+        PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&activity.id)
+            .unwrap();
+
+        assert!(
+            library
+                .active_launch_session(&activity.id)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            fs::read(user.join("general.json")).unwrap(),
+            b"recovered save"
+        );
+        assert_eq!(
+            library
+                .launch_request(&activity.id)
+                .unwrap()
+                .unwrap()
+                .outcome,
+            Some(LaunchSessionOutcome::Failed)
         );
     }
 

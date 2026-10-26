@@ -114,6 +114,24 @@ scope; they do not certify later builds.
 
 ## Subsystem contracts
 
+Source-only preparation belongs to Core's existing private derivative publisher.
+It applies only to declared immutable staged-source outputs with no other setup,
+mutable-data, shared-preference or initialization owner. Registered originals are
+materialized before new-install manifest sealing. Older affected generations use
+the reviewed copy/journal/activation flow; every recorded immutable member must
+still verify, and only declared source extras are admitted for repair. Format-3
+plans have no setup executable; released format-1/2 serialization remains stable.
+Installed interpretation 9 authenticates a separate source-input receipt and marks
+source outputs critical. Launch checks those sealed bytes and skips rematerializing
+them. Publication and registration revalidate source/definition/host/plan identity;
+uncertain tool failure retains private output. Existing mutable-source routes and
+their historical readers keep their original ownership.
+
+Core exposes the retained active installation's `LaunchReadiness.preparation_mode`
+so Desktop can offer source-only repair without inferring runtime ownership from
+adapter names. `not_checked` source metadata permits review or a Core-guarded trial;
+it does not establish original-byte identity or compatibility.
+
 ## Discovery listings and user-owned setup
 
 `catalog/ports/<id>.json` is the authored authority for one stable project
@@ -965,6 +983,10 @@ recorded supervisor has exited. The CLI delegates to the same core recovery used
 by Desktop startup: live supervisors, spawning ambiguity, missing process-start
 identity and changed installs still fail closed, while a recoverable request waits
 only its exact child identity, collects from its exact install and finishes failed.
+After child exit is verified, recovery persists `Collecting` before copying saves.
+A failed copy retains that phase for retry, including sessions whose child exited
+before its process-start identity could be recorded. Ambiguous running sessions
+still require manual review.
 No daemon, adapter job store or machine output inside raw game streams is added.
 
 API schema 50 exposes core's independent operation-event schema version in the
@@ -3173,12 +3195,17 @@ without a re-export. None of this shell state is persisted or authoritative for
 domain behavior.
 
 The `features/source-health` read owner records each requested saved-file
-inspection as pending, current, failed or cancelled. Settings presents a settled
+inspection as idle, pending, current, failed or cancelled. Mounting, selection
+and automatic workspace refresh leave content inspection idle; the user starts a
+file check explicitly. Core status observes source metadata and reports
+`NotChecked` for an existing original of the recorded size, rather than hashing
+its contents. Missing, unreadable and size-changed originals remain visible.
+Explicit inspection, verification and launch still verify original bytes. Settings presents a settled
 inspection failure separately from verified file identity and offers an explicit
 read-only retry for that profile. Healthy sibling inspections and existing source
 verification outcomes retain their own meaning. Concurrent reads for one current
-profile share the pending request; registration/catalog/selection changes and
-disposal invalidate older responses. Failed inspections provide no current report
+profile share the pending request; registration/catalog/selection/library changes
+and disposal invalidate older responses and prior reports. Failed inspections provide no current report
 and cannot grant registration, setup or mutation authority. Core remains the
 owner of source matching, verification and typed diagnostic/recovery facts.
 

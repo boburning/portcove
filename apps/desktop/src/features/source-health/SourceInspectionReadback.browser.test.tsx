@@ -85,7 +85,7 @@ it.each(["failed", "cancelled"])(
       .mockResolvedValueOnce([
         { error: null, ok: true, profile_id: source.profile_id, result: null },
       ]);
-    await root.rerender(createElement(Fixture));
+    await renderAndRequestCheck();
     await act(async () => state.verifyAll());
     expect(row().textContent).toContain("Saved-file check did not pass.");
     expect(row().textContent).toContain(failure.presentation.technical_message);
@@ -133,6 +133,27 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+async function renderAndRequestCheck() {
+  await root.rerender(createElement(Fixture));
+  await act(async () => {
+    void state.inspectAll();
+  });
+}
+
+it("offers an explicit file check without inspecting on mount", async () => {
+  const inspect = vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report);
+  await root.rerender(createElement(Fixture));
+  expect(inspect).not.toHaveBeenCalled();
+  expect(row().textContent).toContain("Not checked");
+  const button = [...row().querySelectorAll("button")].find(
+    (item) => item.textContent === "Check file",
+  );
+  expect(button).toBeDefined();
+  await act(async () => button!.click());
+  expect(inspect).toHaveBeenCalledTimes(1);
+  expect(row().textContent).toContain(report.summary);
+});
+
 function row() {
   return container.querySelector<HTMLElement>('[data-source-profile="sample-rom"]')!;
 }
@@ -149,7 +170,7 @@ it.each(["unknown", "committed"] as const)(
     const typedFailure = structuredClone(failure);
     typedFailure.presentation.mutation_state = mutationState;
     const inspect = vi.spyOn(desktopApi, "inspectSource").mockRejectedValue(typedFailure);
-    await root.rerender(createElement(Fixture));
+    await renderAndRequestCheck();
     expect(inspect).toHaveBeenCalledTimes(1);
     expect(row().textContent).not.toContain("Checking file…");
     expect(row().textContent).toContain(failure.presentation.summary);
@@ -183,7 +204,7 @@ it("coalesces same-turn read-only retry and shows the later successful inspectio
   const verify = vi.spyOn(desktopApi, "verifySources");
   const remove = vi.spyOn(desktopApi, "removeSource");
   const add = vi.spyOn(desktopApi, "addSource");
-  await root.rerender(createElement(Fixture));
+  await renderAndRequestCheck();
   await act(async () => {
     retry().click();
     retry().click();
@@ -205,15 +226,15 @@ it("uses a safe unavailable message for an unstructured rejection", async () => 
   vi.spyOn(desktopApi, "inspectSource").mockRejectedValue(
     new Error("private/source.z64 secret-debug-input"),
   );
-  await root.rerender(createElement(Fixture));
+  await renderAndRequestCheck();
   expect(row().textContent).not.toContain("Checking file…");
   expect(row().textContent).toContain("File check is unavailable");
   expect(row().textContent).not.toContain("secret-debug-input");
 });
 
-it("shows a successful initial inspection without a pending or failure notice", async () => {
+it("shows a successful explicit inspection without a pending or failure notice", async () => {
   const inspect = vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report);
-  await root.rerender(createElement(Fixture));
+  await renderAndRequestCheck();
   expect(inspect).toHaveBeenCalledTimes(1);
   expect(row().textContent).toContain(report.summary);
   expect(row().textContent).not.toContain("Checking file…");
@@ -221,7 +242,7 @@ it("shows a successful initial inspection without a pending or failure notice", 
 });
 it("presents cancellation neutrally without a changed-file claim", async () => {
   vi.spyOn(desktopApi, "inspectSource").mockRejectedValue({ code: "cancelled" });
-  await root.rerender(createElement(Fixture));
+  await renderAndRequestCheck();
   expect(row().textContent).toContain("File check cancelled.");
   expect(row().textContent).not.toContain("Checking file…");
   expect(row().textContent).not.toContain("Check unavailable");
@@ -240,6 +261,7 @@ it("keeps a healthy sibling visible when another current inspection fails", asyn
     id === "bios" ? Promise.resolve(biosReport) : Promise.reject(failure),
   );
   await root.rerender(createElement(Fixture, { sources: [source, bios] }));
+  await act(async () => state.inspectAll());
   expect(row().textContent).toContain(failure.presentation.summary);
   const healthy = container.querySelector('[data-source-profile="bios"]')!;
   expect(healthy.textContent).toContain(biosReport.summary);
@@ -265,7 +287,7 @@ it.each(["unknown", "committed"] as const)(
     vi.spyOn(desktopApi, "verifySources").mockResolvedValue([
       { error: typedFailure, ok: false, profile_id: source.profile_id, result: null },
     ]);
-    await root.rerender(createElement(Fixture));
+    await renderAndRequestCheck();
     await act(async () => state.verifyAll());
     expect(state.outcomes).toMatchObject([{ ok: false }]);
     const primary = row().cloneNode(true) as HTMLElement;

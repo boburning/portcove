@@ -9,6 +9,12 @@ use super::PortcoveService;
 #[path = "ghostship_legacy_save.rs"]
 mod legacy_save;
 
+enum DataCheck<'a> {
+    Observation,
+    Operation,
+    Snapshot(&'a std::path::Path),
+}
+
 impl PortcoveService {
     pub(crate) fn require_ghostship_legacy_runtime_archive(
         &self,
@@ -101,7 +107,7 @@ impl PortcoveService {
             active_version,
             None,
             None,
-            None,
+            DataCheck::Operation,
         )
     }
 
@@ -116,7 +122,22 @@ impl PortcoveService {
             active_version,
             Some(target),
             None,
+            DataCheck::Operation,
+        )
+    }
+
+    pub(crate) fn inspect_ghostship_install_data_compatibility(
+        &self,
+        target: &crate::InstallRecord,
+        active_version: Option<&str>,
+    ) -> Result<()> {
+        self.require_ghostship_data_compatibility_for_target(
+            &target.port_id,
+            &target.version,
+            active_version,
+            Some(target),
             None,
+            DataCheck::Observation,
         )
     }
 
@@ -192,7 +213,7 @@ impl PortcoveService {
             active_version,
             Some(target),
             Some(&catalog),
-            None,
+            DataCheck::Operation,
         )
     }
 
@@ -233,7 +254,7 @@ impl PortcoveService {
             None,
             Some(target),
             Some(&catalog),
-            Some(data_root),
+            DataCheck::Snapshot(data_root),
         )
     }
 
@@ -244,7 +265,7 @@ impl PortcoveService {
         active_version: Option<&str>,
         target: Option<&crate::InstallRecord>,
         staged_catalog: Option<&crate::Catalog>,
-        data_root: Option<&std::path::Path>,
+        check: DataCheck<'_>,
     ) -> Result<()> {
         if port_id != "ghostship" || target_version != "2.0.0" {
             return Ok(());
@@ -265,10 +286,10 @@ impl PortcoveService {
         }
         // Installation history can disappear after removal. Inspect the shared
         // SHIP_HOME data as well, before any mutation or old-reader execution.
-        let user = data_root.map_or_else(
-            || self.library.user_dir(port_id),
-            std::path::Path::to_path_buf,
-        );
+        let user = match check {
+            DataCheck::Snapshot(root) => root.to_path_buf(),
+            _ => self.library.user_dir(port_id),
+        };
         let legacy_binary = user.join("default.sav");
         refuse_symlink_ancestors(&legacy_binary)
             .map_err(|_| held("legacy binary save data contains an unsafe path"))?;
@@ -317,7 +338,9 @@ impl PortcoveService {
                 let source = self.library.source("ghostship-source")?.ok_or_else(|| {
                     held("the prepared archive's exact original is not registered")
                 })?;
-                crate::source_inspection::verify_registered(&catalog, &source)?;
+                if !matches!(check, DataCheck::Observation) {
+                    crate::source_inspection::verify_registered(&catalog, &source)?;
+                }
                 self.validate_preparation_receipt_in_retained_catalog(
                     &catalog,
                     target,

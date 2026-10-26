@@ -7,6 +7,32 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI 40263836082/a1 reached this Windows case's 30.044s cap after verified
+# withdrawal and fresh-acquisition refusal at 28.68s, before cache refusal ended.
+# Preserve the full signed transition, assertions, two workers and zero retries;
+# give only this exact harness 60s. Product and nested socket deadlines stay fixed.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# The October 25 source-status regression completed in 24.690s, then hit
+# the 30s harness cutoff under shared-host load. Keep this exact Linux case
+# bounded at 60s; retain assertions, two slots, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# Source-only install/repair fixtures include exact package, source, launch and
+# recovery checks. Initial 30s runs were incomplete; retain phase diagnostics
+# and finite 90s headroom, assertions, cleanup and zero retries.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & (test(/^preparation::source::tests::source_only_fresh_install_rechecks_original_before_rename$/) | test(/^preparation::source::tests::source_only_fresh_install_rechecks_original_before_registration$/) | test(/^preparation::source::tests::source_only_gamecube_install_seals_the_nested_iso$/) | test(/^preparation::source::tests::source_only_directory_install_survives_two_launches_and_full_verify$/) | test(/^preparation::source::tests::source_only_zip_install_survives_two_launches_and_full_verify$/) | test(/^preparation::source::tests::source_only_review_repairs_historical_extras_but_refuses_unrelated_changes$/) | test(/^preparation::source::tests::source_only_recovery_refuses_original_changes_before_publication$/))'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # Qualification40182282476/a1 cut this exact Intel lifecycle off at30.016s.
 # Preserve the real CLI operations, phase output, cleanup, slots and zero retries
 # with finite90s harness headroom; product and child deadlines are unchanged.
@@ -41,11 +67,14 @@ success-output = "immediate"
 # CI 40165157806/a1 cut off the eight-scenario relocation recovery fixture at
 # 30.133s; its source-import sibling finished at 29.424s. Preserve all install
 # and adoption phases, assertions, cleanup, worker slots and zero retries.
+# CI40245072630/a1 also cut OriginalPaths off at30.114s after seven of eight
+# phases; preceding same-code Windows observations were29.805s (OriginalPaths)
+# and28.928s (Quarantine). All four share the same eight-scenario helper.
 # Exact Windows cases get finite 60s room plus per-scenario timing output;
 # product and child deadlines remain unchanged. This is harness calibration.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/) | test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/))'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
