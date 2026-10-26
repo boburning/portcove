@@ -669,13 +669,18 @@ void test("capture-port creates one Project-backed issue without depending on pa
   );
   assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 1);
 });
-for (const parentNumber of [null, 16, 777]) {
-  for (const adoption of ["unlisted", "exact", "other-key", "other-upstream", "missing-upstream"]) {
-    void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} with ${adoption} catalog adoption idempotently`, () => {
-      const calls: RunnerCall[] = [];
-      const mockedConfig = structuredClone(config);
-      mockedConfig.project.number = 7;
-      let body = `### Direct upstream URL
+const normalizationCases = [null, 16, 777].flatMap((parentNumber) =>
+  ["unlisted", "exact", "other-key", "other-upstream", "missing-upstream"].map((adoption) => ({
+    parentNumber,
+    adoption,
+  })),
+);
+for (const { parentNumber, adoption } of normalizationCases) {
+  void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} with ${adoption} catalog adoption idempotently`, () => {
+    const calls: RunnerCall[] = [];
+    const mockedConfig = structuredClone(config);
+    mockedConfig.project.number = 7;
+    let body = `### Direct upstream URL
 
 https://github.com/example/form-port
 
@@ -686,188 +691,187 @@ form-port
 ### User outcome and why this port matters
 
 Preserve this contributor text.`;
-      const initialBody = body;
-      let workType = "Research";
-      const issue = () => ({
-        node_id: "I_form",
-        html_url: "https://github.com/boburning/portcove/issues/42",
-        number: 42,
-        title: "[Port] Form Port",
-        body,
-        state: "OPEN",
-        parent: parentNumber === null ? null : { number: parentNumber },
-      });
-      const fieldValues = () =>
-        [
-          ["Status", "Ready"],
-          ["Priority", "High"],
-          ["Horizon", "Next"],
-          ["Target release", "Alpha 2"],
-          ["Work type", workType],
-          ["Workstream", "Sources and ROM validation"],
-          ["Platform", "Windows"],
-          ["Port stage", "Researching"],
-          ["Effort", "M"],
-        ].map(([name, value]) => ({ name: value, field: { name } }));
-      const runner: GitHubRunner = (args, input) => {
-        calls.push({ args, input });
-        if (
-          args[0] === "api" &&
-          args[2] === "repos/boburning/portcove/issues/42" &&
-          args.includes("PATCH")
-        ) {
-          const payload = fixtureJsonObject(input);
-          assert.ok(typeof payload.body === "string");
-          body = payload.body;
-          return JSON.stringify(issue());
-        }
-        if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues/42")
-          return JSON.stringify(issue());
-        const project = fixtureProjectDetails(args, input, "PVT_project", 7);
-        if (project !== undefined) return project;
-        if (args[0] === "project" && args[1] === "field-list")
+    const initialBody = body;
+    let workType = "Research";
+    const issue = () => ({
+      node_id: "I_form",
+      html_url: "https://github.com/boburning/portcove/issues/42",
+      number: 42,
+      title: "[Port] Form Port",
+      body,
+      state: "OPEN",
+      parent: parentNumber === null ? null : { number: parentNumber },
+    });
+    const fieldValues = () =>
+      [
+        ["Status", "Ready"],
+        ["Priority", "High"],
+        ["Horizon", "Next"],
+        ["Target release", "Alpha 2"],
+        ["Work type", workType],
+        ["Workstream", "Sources and ROM validation"],
+        ["Platform", "Windows"],
+        ["Port stage", "Researching"],
+        ["Effort", "M"],
+      ].map(([name, value]) => ({ name: value, field: { name } }));
+    const runner: GitHubRunner = (args, input) => {
+      calls.push({ args, input });
+      if (
+        args[0] === "api" &&
+        args[2] === "repos/boburning/portcove/issues/42" &&
+        args.includes("PATCH")
+      ) {
+        const payload = fixtureJsonObject(input);
+        assert.ok(typeof payload.body === "string");
+        body = payload.body;
+        return JSON.stringify(issue());
+      }
+      if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues/42")
+        return JSON.stringify(issue());
+      const project = fixtureProjectDetails(args, input, "PVT_project", 7);
+      if (project !== undefined) return project;
+      if (args[0] === "project" && args[1] === "field-list")
+        return JSON.stringify({
+          fields: [
+            {
+              id: "F_work_type",
+              name: "Work type",
+              options: [{ id: "O_port", name: "Port" }],
+            },
+          ],
+        });
+      if (args[0] === "api" && args[1] === "graphql") {
+        assert.doesNotMatch(
+          fixtureValue(input),
+          /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
+        );
+        if (fixtureValue(input).includes("issues(first: 100"))
           return JSON.stringify({
-            fields: [
+            data: {
+              repository: {
+                issues: {
+                  totalCount: 1,
+                  nodes: [{ ...issue(), __typename: "Issue", url: issue().html_url }],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            },
+          });
+        if (fixtureValue(input).includes("items(first: 50"))
+          return JSON.stringify({
+            data: {
+              node: {
+                items: {
+                  totalCount: 1,
+                  nodes: [
+                    {
+                      id: "PVTI_form",
+                      content: {
+                        __typename: "Issue",
+                        id: "I_42",
+                        updatedAt: "2026-10-17T00:00:00Z",
+                        number: 42,
+                        title: issue().title,
+                        body,
+                        url: issue().html_url,
+                        state: "OPEN",
+                      },
+                      fieldValues: {
+                        totalCount: fieldValues().length,
+                        nodes: fieldValues().map((value) => ({
+                          ...value,
+                          field: {
+                            __typename: "ProjectV2SingleSelectField",
+                            ...value.field,
+                          },
+                        })),
+                        pageInfo: { hasNextPage: false, endCursor: null },
+                      },
+                    },
+                  ],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            },
+          });
+        if (fixtureValue(input).includes("updateProjectV2ItemFieldValue")) {
+          workType = "Port";
+          return JSON.stringify({
+            data: { f0: { projectV2Item: { id: "PVTI_form" } } },
+          });
+        }
+      }
+      return "";
+    };
+    const client = new RoadmapClient(mockedConfig, runner);
+    client.repositoryIssues = () =>
+      fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
+    const catalog = {
+      ports:
+        adoption === "unlisted"
+          ? []
+          : [
               {
-                id: "F_work_type",
-                name: "Work type",
-                options: [{ id: "O_port", name: "Port" }],
+                id: adoption === "other-key" ? "different-port" : "form-port",
+                ...(adoption === "missing-upstream"
+                  ? {}
+                  : {
+                      project_url:
+                        adoption === "other-upstream"
+                          ? "https://github.com/example/different-project"
+                          : "https://github.com/EXAMPLE/Form-Port.git/",
+                    }),
               },
             ],
-          });
-        if (args[0] === "api" && args[1] === "graphql") {
-          assert.doesNotMatch(
-            fixtureValue(input),
-            /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
-          );
-          if (fixtureValue(input).includes("issues(first: 100"))
-            return JSON.stringify({
-              data: {
-                repository: {
-                  issues: {
-                    totalCount: 1,
-                    nodes: [{ ...issue(), __typename: "Issue", url: issue().html_url }],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
-                },
-              },
-            });
-          if (fixtureValue(input).includes("items(first: 50"))
-            return JSON.stringify({
-              data: {
-                node: {
-                  items: {
-                    totalCount: 1,
-                    nodes: [
-                      {
-                        id: "PVTI_form",
-                        content: {
-                          __typename: "Issue",
-                          id: "I_42",
-                          updatedAt: "2026-10-17T00:00:00Z",
-                          number: 42,
-                          title: issue().title,
-                          body,
-                          url: issue().html_url,
-                          state: "OPEN",
-                        },
-                        fieldValues: {
-                          totalCount: fieldValues().length,
-                          nodes: fieldValues().map((value) => ({
-                            ...value,
-                            field: {
-                              __typename: "ProjectV2SingleSelectField",
-                              ...value.field,
-                            },
-                          })),
-                          pageInfo: { hasNextPage: false, endCursor: null },
-                        },
-                      },
-                    ],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
-                },
-              },
-            });
-          if (fixtureValue(input).includes("updateProjectV2ItemFieldValue")) {
-            workType = "Port";
-            return JSON.stringify({
-              data: { f0: { projectV2Item: { id: "PVTI_form" } } },
-            });
-          }
-        }
-        return "";
-      };
-      const client = new RoadmapClient(mockedConfig, runner);
-      client.repositoryIssues = () =>
-        fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
-      const catalog = {
-        ports:
-          adoption === "unlisted"
-            ? []
-            : [
-                {
-                  id: adoption === "other-key" ? "different-port" : "form-port",
-                  ...(adoption === "missing-upstream"
-                    ? {}
-                    : {
-                        project_url:
-                          adoption === "other-upstream"
-                            ? "https://github.com/example/different-project"
-                            : "https://github.com/EXAMPLE/Form-Port.git/",
-                      }),
-                },
-              ],
-      };
-      const readInventory = client.readInventory.bind(client);
-      client.readInventory = (query, variables, select, identity) =>
-        query.includes("projectItems(")
-          ? [{ id: "PVTI_form", isArchived: false, project: { id: "PVT_project" } }]
-          : readInventory(query, variables, select, identity);
-      client.directProjectItem = () => ({
-        id: "PVTI_form",
-        content: { ...issue(), type: "Issue", url: issue().html_url },
-        fieldValues: fieldValues(),
-      });
-      const first = client.normalizePortIssue({ number: 42, catalog });
-      assert.equal(first.bodyChanged, true);
-      assert.equal(first.projectItemAdded, false);
-      assert.deepEqual(first.fieldsChanged, ["Work type"]);
-      assert.match(body, /Preserve this contributor text/);
-      if (adoption === "exact") {
-        assert.match(body, /<!-- portcove-catalog-id: form-port -->/);
-        assert.doesNotMatch(body, /<!-- portcove-port-key:|<!-- portcove-research:/);
-      } else {
-        assert.match(body, /<!-- portcove-port-key: form-port -->/);
-        assert.doesNotMatch(body, /<!-- portcove-catalog-id:/);
-      }
-      const second = client.normalizePortIssue({ number: 42, catalog });
-      assert.equal(second.bodyChanged, false);
-      assert.deepEqual(second.fieldsChanged, []);
-      assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 0);
-      assert.equal(calls.filter((call) => call.input?.includes("addSubIssue")).length, 0);
-      body = initialBody;
-      const readIssue = client.repositoryIssue.bind(client);
-      let reads = 0;
-      client.repositoryIssue = (number) => {
-        if (++reads === 2) body += "\nConcurrent contributor change.";
-        return readIssue(number);
-      };
-      const before = calls.length;
-      assert.throws(
-        () => client.normalizePortIssue({ number: 42, catalog }),
-        /changed during normalization/,
-      );
-      assert.match(body, /Concurrent contributor change/);
-      assert.equal(
-        calls
-          .slice(before)
-          .filter(
-            (call) =>
-              call.args.includes("PATCH") || call.input?.includes("updateProjectV2ItemFieldValue"),
-          ).length,
-        0,
-      );
+    };
+    const readInventory = client.readInventory.bind(client);
+    client.readInventory = (query, variables, select, identity) =>
+      query.includes("projectItems(")
+        ? [{ id: "PVTI_form", isArchived: false, project: { id: "PVT_project" } }]
+        : readInventory(query, variables, select, identity);
+    client.directProjectItem = () => ({
+      id: "PVTI_form",
+      content: { ...issue(), type: "Issue", url: issue().html_url },
+      fieldValues: fieldValues(),
     });
-  }
+    const first = client.normalizePortIssue({ number: 42, catalog });
+    assert.equal(first.bodyChanged, true);
+    assert.equal(first.projectItemAdded, false);
+    assert.deepEqual(first.fieldsChanged, ["Work type"]);
+    assert.match(body, /Preserve this contributor text/);
+    if (adoption === "exact") {
+      assert.match(body, /<!-- portcove-catalog-id: form-port -->/);
+      assert.doesNotMatch(body, /<!-- portcove-port-key:|<!-- portcove-research:/);
+    } else {
+      assert.match(body, /<!-- portcove-port-key: form-port -->/);
+      assert.doesNotMatch(body, /<!-- portcove-catalog-id:/);
+    }
+    const second = client.normalizePortIssue({ number: 42, catalog });
+    assert.equal(second.bodyChanged, false);
+    assert.deepEqual(second.fieldsChanged, []);
+    assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 0);
+    assert.equal(calls.filter((call) => call.input?.includes("addSubIssue")).length, 0);
+    body = initialBody;
+    const readIssue = client.repositoryIssue.bind(client);
+    let reads = 0;
+    client.repositoryIssue = (number) => {
+      if (++reads === 2) body += "\nConcurrent contributor change.";
+      return readIssue(number);
+    };
+    const before = calls.length;
+    assert.throws(
+      () => client.normalizePortIssue({ number: 42, catalog }),
+      /changed during normalization/,
+    );
+    assert.match(body, /Concurrent contributor change/);
+    assert.equal(
+      calls
+        .slice(before)
+        .filter(
+          (call) =>
+            call.args.includes("PATCH") || call.input?.includes("updateProjectV2ItemFieldValue"),
+        ).length,
+      0,
+    );
+  });
 }
