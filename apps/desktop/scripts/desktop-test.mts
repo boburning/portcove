@@ -4630,6 +4630,12 @@ try {
         if (browser)
           await browser.quit().catch((error) => {
             quitFailure = { error };
+            recordChecks({
+              scenario: "native-linux-session-quit",
+              outcome: "failed",
+              message: errorMessage(error),
+            });
+            process.exitCode = 1;
           });
         browser = undefined;
         await stopDriver();
@@ -4641,6 +4647,12 @@ try {
       } catch (error) {
         cleanupError = error;
         cleanupFailed = true;
+        recordChecks({
+          scenario: "native-linux-owned-cleanup",
+          outcome: "failed",
+          message: errorMessage(error),
+        });
+        process.exitCode = 1;
       }
       if (cleanupFailed || quitFailure) {
         const failure = cleanupFailed ? cleanupError : required(quitFailure).error;
@@ -4652,12 +4664,6 @@ try {
           { flag: "wx" },
         );
         artifacts.push(evidence);
-        recordChecks({
-          scenario: "native-linux-owned-cleanup",
-          outcome: "failed",
-          message: errorMessage(failure),
-        });
-        process.exitCode = 1;
       }
     } else if (identityBoundSession) {
       try {
@@ -4666,6 +4672,12 @@ try {
         if (browser)
           await browser.quit().catch((error) => {
             quitFailure = { error };
+            recordChecks({
+              scenario: "native-backup-session-quit",
+              outcome: "failed",
+              message: errorMessage(error),
+            });
+            process.exitCode = 1;
           });
         browser = undefined;
         await stopDriver();
@@ -4684,14 +4696,6 @@ try {
           { flag: "wx" },
         );
         artifacts.push(report);
-        if (quitFailure) {
-          recordChecks({
-            scenario: "native-backup-session-quit",
-            outcome: "failed",
-            message: errorMessage(quitFailure.error),
-          });
-          process.exitCode = 1;
-        }
       } catch (error) {
         recordChecks({
           scenario: "native-backup-owned-cleanup",
@@ -4724,6 +4728,12 @@ try {
         if (browser)
           await browser.quit().catch((error) => {
             quitFailure = { error };
+            recordChecks({
+              scenario: "native-history-session-quit",
+              outcome: "failed",
+              message: errorMessage(error),
+            });
+            process.exitCode = 1;
           });
         browser = undefined;
         await stopDriver();
@@ -4739,11 +4749,6 @@ try {
           { flag: "wx" },
         );
         artifacts.push(report);
-        assert.equal(
-          quitFailure,
-          undefined,
-          "History session deletion failed; preserve its cleanup receipt",
-        );
       } catch (error) {
         recordChecks({
           scenario: "native-history-owned-cleanup",
