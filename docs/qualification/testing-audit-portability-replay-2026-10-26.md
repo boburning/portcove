@@ -12,16 +12,16 @@ The [structured packet](testing-audit-portability-replay-2026-10-26.json) binds 
 
 ## Setup, behavior and remaining work
 
-| Observation | Elapsed |
-| --- | ---: |
-| Frozen dependency installation step | 12s |
-| Browser bootstrap step | 10s |
-| Browser installer, inside bootstrap | 8.045s |
-| Browser launch, inside bootstrap | 0.777s |
-| Complete frontend verification step | 573s |
-| Unit runner, inside verification | 34.61s |
-| Browser runner, inside verification | 498.98s |
-| Reported production build, inside verification | 1.64s |
+| Observation                                    | Elapsed |
+| ---------------------------------------------- | ------: |
+| Frozen dependency installation step            |     12s |
+| Browser bootstrap step                         |     10s |
+| Browser installer, inside bootstrap            |  8.045s |
+| Browser launch, inside bootstrap               |  0.777s |
+| Complete frontend verification step            |    573s |
+| Unit runner, inside verification               |  34.61s |
+| Browser runner, inside verification            | 498.98s |
+| Reported production build, inside verification |   1.64s |
 
 These are nested measurements, not additive stages. GitHub step timestamps have whole-second precision. The approximate 39.41s difference between complete verification and its two runners includes static checks, content generation, orchestration, waits and other unisolated work. It is neither measured static cost nor an attributable saving. CPU, disk and network-only costs are not isolated.
 
