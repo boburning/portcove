@@ -3,12 +3,12 @@
   "listing": {
     "id": "keriew-augustus",
     "name": "Caesar III / Augustus (Keriew)",
-    "summary": "Explore Caesar III / Augustus (Keriew) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Caesar III with Augustus’s roadblocks, city improvements and expanded building tools.",
     "project_url": "https://github.com/Keriew/augustus",
     "issue_number": 1793,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Keriew/augustus",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Keriew/augustus#running-the-game",
     "artwork": {
       "game_id": 6332,
       "cover_id": 561798,
@@ -16,6 +16,26 @@
       "image_sha256": "56d8d709fe76b92d75c0cd522724afcc2a9d8e9ca2ca924631fe0bd074452e5c",
       "game_slug": "caesar-iii",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/Keriew/augustus/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["augustus-", "-windows.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use a separate Augustus copy",
+          "instruction": "Use the native package for your system in a separate folder; the Windows player is augustus.exe. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0."
+        },
+        {
+          "title": "Keep your game folder and saves",
+          "instruction": "Augustus keeps saves in the selected Caesar III data folder and remembers its location in its own profile. Keep both when replacing the upstream runtime."
+        }
+      ],
+      "warnings": [
+        "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate."
+      ],
+      "help_url": "https://github.com/Keriew/augustus#running-the-game"
     }
   }
 }
