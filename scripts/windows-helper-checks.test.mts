@@ -7,7 +7,7 @@ import {
   windowsNativeToolsRequired,
 } from "./windows-helper-checks.mts";
 import { evaluateCiResults } from "./ci-result-gate.mts";
-import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
+import { executableNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 
 const sha = (character: string) => character.repeat(40);
 
@@ -843,7 +843,7 @@ void test("workflow runs bounded Windows controls and pinned lint under the exis
   const registry = parseNodeTestSuites(
     await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
-  const native = annotatedNodeCommands(job, registry).filter(
+  const native = executableNodeCommands(job, registry).filter(
     (command) => command.id === "native-tools",
   );
   assert.equal(native.length, 1);
