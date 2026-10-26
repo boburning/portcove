@@ -10432,7 +10432,7 @@
         "steps": [
           {
             "title": "Keep a permitted player and its companions",
-            "instruction": "For an existing permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep OpenCiv3.pck, data_C7_windows_x86_64, Assets and Text together. Linux and macOS packages are published separately; follow their upstream preparation instructions rather than reusing Windows launch details."
+            "instruction": "For an existing permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep the complete extracted player folder, including OpenCiv3.pck, data_C7_windows_x86_64, Assets, Text and Lua. Linux and macOS packages are published separately; follow their upstream preparation instructions rather than reusing Windows launch details."
           },
           {
             "title": "Choose game content on first Play",
@@ -10440,7 +10440,7 @@
           },
           {
             "title": "Preserve your working copy and saves",
-            "instruction": "You or upstream provide runtime updates. Keep the current copy, C7.ini, Text, Assets and your chosen save locations before replacing it; the save dialog can write to your original Civ3 folder. Portcove saves launch details without adopting or deleting external files and offers no managed backup or runtime rollback for this copy."
+            "instruction": "You or upstream provide runtime updates. Preserve the complete working copy and your chosen save locations before replacing it, including C7.ini and custom Text, Assets or Lua content. The save dialog can write to your original Civ3 folder. Portcove saves launch details without adopting or deleting external files and offers no managed backup or runtime rollback for this copy."
           }
         ],
         "warnings": [],
