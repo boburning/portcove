@@ -64,6 +64,8 @@ import type { GameFileFilterContext } from "../features/browsing/game-file-query
 import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
 import {
+  BIOS_BLOCKERS,
+  SOURCE_BLOCKERS,
   currentUpdateSnapshot,
   defaultReleaseChannel,
   formatBytes,
@@ -1564,22 +1566,25 @@ function detailReadiness(
   biosPath: string | undefined,
 ) {
   const installed = Boolean(status?.active || status?.external_runtime);
+  const coreAllowsLaunch = installed && status?.readiness?.launchable === true;
   const sourceReady =
-    !status?.readiness?.blockers.includes("incompatible_source") &&
-    sourceRequirementReady(
-      Boolean(port.source_profile),
-      installed,
-      status?.readiness?.source,
-      Boolean(source || sourcePath.trim()),
-    );
+    !status?.readiness?.blockers.some((blocker) => SOURCE_BLOCKERS.includes(blocker)) &&
+    (coreAllowsLaunch ||
+      sourceRequirementReady(
+        Boolean(port.source_profile),
+        installed,
+        status?.readiness?.source,
+        Boolean(source || sourcePath.trim()),
+      ));
   const biosReady =
-    !status?.readiness?.blockers.includes("incompatible_bios") &&
-    sourceRequirementReady(
-      Boolean(port.bios_source_profile),
-      installed,
-      status?.readiness?.bios,
-      Boolean(bios || biosPath?.trim()),
-    );
+    !status?.readiness?.blockers.some((blocker) => BIOS_BLOCKERS.includes(blocker)) &&
+    (coreAllowsLaunch ||
+      sourceRequirementReady(
+        Boolean(port.bios_source_profile),
+        installed,
+        status?.readiness?.bios,
+        Boolean(bios || biosPath?.trim()),
+      ));
   return {
     sourceReady,
     biosReady,
@@ -1597,7 +1602,8 @@ function sourceRequirementReady(
 ) {
   if (!required) return true;
   if (!installed || health == null) return selected;
-  return health === "current";
+  // Registered inputs are verified by Core during explicit Play, not browsing.
+  return health === "current" || (health === "not_checked" && selected);
 }
 
 type SourceControls = Pick<

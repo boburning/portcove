@@ -204,3 +204,30 @@ historical. Profile admission and canonical source-byte verification still gover
 recognized-original reuse and runtime preparation; an unreviewed release is
 distinct from a known incompatible original. No exact v1.4.8 source-release
 qualification or positive optional `files_available` observation is claimed.
+
+## Concurrent metadata-only source status
+
+The repaired source `5752b490` passed all five required contexts in CI
+`40247262685/a1` on the reviewed recovery/source-verification target `c7cf6df5`.
+Main then gained #3655's metadata-only automatic source status. Target review
+found that Details still required `current` byte health for its source controls,
+so registered originals reported `not_checked` could substitute Locate game
+files for an allowed explicit launch. Metadata-only observation is not a new
+reason to ask the player for the same original.
+
+The batch therefore includes the smallest necessary presentation repair: use
+Core's allowed readiness for the installed action and keep registered,
+metadata-only inputs available for deliberate preparation/launch. Existing
+source/BIOS blocker sets still win; Core verifies bytes and compatibility during
+the explicit operation. No automatic scan, execution, trust promotion or new
+wire/installation authority is introduced. The existing Play versus Try launch
+distinction for unconfirmed compatibility remains intact.
+
+All 135 selected local UI cases across five suites pass, including both actual
+authored ports at ordinary/narrow widths, keyboard invocation, no automatic
+inspection/launch, missing/changed/unreadable/incompatible input refusals, the
+missing-BIOS-only action and pending source-record readback. Earlier local
+browser setup/import failures and obsolete preparation expectations are retained;
+the repository-pinned browser runtime was bootstrapped into its private cache.
+The earlier successful hosted run does not qualify these subsequent changes:
+final complete-head hosted checks and independent repair review remain required.
