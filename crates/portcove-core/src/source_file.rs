@@ -9,8 +9,11 @@ use std::{
 };
 
 #[cfg(test)]
+type HashReadObserver = Box<dyn Fn(u64)>;
+
+#[cfg(test)]
 thread_local! {
-    pub(crate) static HASH_READ_OBSERVER: std::cell::RefCell<Option<Box<dyn Fn(u64)>>> = const { std::cell::RefCell::new(None) };
+    pub(crate) static HASH_READ_OBSERVER: std::cell::RefCell<Option<HashReadObserver>> = const { std::cell::RefCell::new(None) };
 }
 
 pub(crate) struct HashBudget<'a> {

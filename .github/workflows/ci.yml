@@ -1183,8 +1183,8 @@ jobs:
           node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/check-rust-architecture.test.mts
       - run: node scripts/check-rust-architecture.mts
       - name: Install Linux desktop schema-export prerequisites
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
+        timeout-minutes: 30
+        run: ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
       - name: Run all-target Clippy on Linux
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check child-process policy and live transport contracts

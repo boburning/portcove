@@ -62,6 +62,10 @@ class GitPolicy(unittest.TestCase):
             source.main()
         return calls
 
+    def test_digest_does_not_require_python311_file_digest(self):
+        with patch.object(hashlib, "file_digest", None, create=True):
+            self.assertEqual(self.run_request()[-1][0], "exec")
+
     def test_fixed_route_scrubs_credentials_and_applies_all_limits_before_git(self):
         calls = self.run_request()
         self.assertEqual([name for name, _ in calls], ["limit"] * 4 + ["alarm", "exec"])

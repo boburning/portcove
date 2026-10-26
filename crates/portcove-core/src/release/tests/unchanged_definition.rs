@@ -625,7 +625,7 @@ async fn cached_package_selection_cannot_cross_n64_root_package_contracts() {
     );
     let (api_root, requests, server) = serve_http(vec![
         metadata(),
-        releases(&[current.clone()]),
+        releases(std::slice::from_ref(&current)),
         metadata(),
         releases(&[current]),
     ]);

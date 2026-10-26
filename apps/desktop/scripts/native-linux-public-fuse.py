@@ -312,7 +312,7 @@ def bounded_deadline(raw_policy, monotonic_deadline):
         "FUSE inherited deadline differs",
     )
     policy = inspect_policy(raw_policy)
-    parsed = datetime.datetime.strptime(policy["deadline_utc"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.UTC)
+    parsed = datetime.datetime.strptime(policy["deadline_utc"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc)
     require(
         parsed.isoformat(timespec="milliseconds").replace("+00:00", "Z") == policy["deadline_utc"],
         "FUSE original deadline is not canonical",
