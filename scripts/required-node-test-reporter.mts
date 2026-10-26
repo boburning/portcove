@@ -19,8 +19,11 @@ export function createNodeExecutionInventory(
   requestedFiles: readonly string[],
   filters: readonly string[] = [],
   options: {
-    platformSkips?: Record<string, NodePlatformSkipContract> | undefined;
+    platformSkips?:
+      | Record<string, NodePlatformSkipContract | NodePlatformSkipContract[]>
+      | undefined;
     registryError?: string | undefined;
+    registeredFiles?: readonly string[] | undefined;
     root?: string | undefined;
     platform?: NodeJS.Platform | undefined;
   } = {},
@@ -29,7 +32,11 @@ export function createNodeExecutionInventory(
     requestedFiles,
     filters,
     options.platformSkips ?? {},
-    { root: options.root ?? process.cwd(), platform: options.platform ?? process.platform },
+    {
+      root: options.root ?? process.cwd(),
+      platform: options.platform ?? process.platform,
+      ...(options.registeredFiles ? { registered: options.registeredFiles } : {}),
+    },
   );
   const errors = new Set<string>();
   const requested = new Map<string, string>();
@@ -192,17 +199,23 @@ export default async function* requiredReport(source: AsyncIterable<TestEvent>) 
     filters.push(value);
     if (!value.includes("=")) filters.push(process.execArgv[++index] ?? "");
   }
-  let platformSkips: Record<string, NodePlatformSkipContract> | undefined;
+  let platformSkips:
+    | Record<string, NodePlatformSkipContract | NodePlatformSkipContract[]>
+    | undefined;
   let registryError: string | undefined;
+  let registeredFiles: string[] | undefined;
   try {
-    platformSkips = parseNodeTestSuites(
+    const registry = parseNodeTestSuites(
       readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
-    ).platformSkips;
+    );
+    platformSkips = registry.platformSkips;
+    registeredFiles = [...new Set(Object.values(registry.suites).flatMap((suite) => suite.files))];
   } catch (error) {
     registryError = "Platform skip ownership unavailable: " + errorMessage(error);
   }
   const inventory = createNodeExecutionInventory(process.argv.slice(1), filters, {
     platformSkips,
+    registeredFiles,
     registryError,
     root: fileURLToPath(new URL("../", import.meta.url)),
   });

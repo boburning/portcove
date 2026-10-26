@@ -132,7 +132,10 @@ async function prepareCandidate(root: string) {
 void test(
   "connected disposable packages, payload signatures, nonempty Tough feed, immutable provider and renewal preserve exact bytes",
   {
-    skip: !tool && process.env.PORTCOVE_REQUIRE_CONNECTED_RELEASE_FIXTURE !== "1",
+    skip:
+      !tool && process.env.PORTCOVE_REQUIRE_CONNECTED_RELEASE_FIXTURE !== "1"
+        ? "actual connected release tool is not appointed"
+        : false,
     timeout: 120000,
   },
   async (t) => {

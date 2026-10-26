@@ -21,6 +21,76 @@ const observe = (name = contract.cases[0], skipped = false, nesting = 0) => ({
   type: "test:pass",
   data: { name, entryFile: path.resolve(file), nesting, skip: skipped, details: { type: "test" } },
 });
+void test("one file retains distinct platform routes and detects disappearance on its intended host", () => {
+  const routes = [
+    contract,
+    { ...contract, platform: "win32" as const, cases: ["owned Windows case"] },
+  ];
+  for (const platform of ["linux", "win32"] as const) {
+    const inventory = createNodePlatformSkipInventory([file], [], { [file]: routes }, { platform });
+    inventory.capture(observe(contract.cases[0], platform !== "linux"));
+    inventory.capture(observe("owned Windows case", platform !== "win32"));
+    assert.deepEqual(inventory.finish().errors, []);
+    const missing = createNodePlatformSkipInventory([file], [], { [file]: routes }, { platform });
+    missing.capture(observe(contract.cases[0], platform !== "linux"));
+    assert.match(missing.finish().errors.join("\n"), /missing or ambiguous/u);
+  }
+  const mac = { ...contract, platform: "darwin" as const };
+  const disappeared = createNodePlatformSkipInventory(
+    [file],
+    [],
+    { [file]: mac },
+    { platform: "darwin" },
+  );
+  disappeared.capture(observe(undefined, true));
+  assert.match(disappeared.finish().errors.join("\n"), /differs from intended/u);
+});
+void test("explicit acceptance stays missing until its declared environment exists and then must execute", () => {
+  const route = {
+    ...contract,
+    platform: "any" as const,
+    category: "explicit-acceptance" as const,
+    required_environment: ["PORTCOVE_FIXTURE_TOOL"],
+    intended_route: "Run the reviewed actual-tool acceptance with its verified tool",
+  };
+  for (const available of [false, true]) {
+    const environment = available ? { PORTCOVE_FIXTURE_TOOL: "selected" } : {};
+    const inventory = createNodePlatformSkipInventory(
+      [file],
+      [],
+      { [file]: route },
+      { environment },
+    );
+    inventory.capture(observe(undefined, !available));
+    assert.deepEqual(inventory.finish().errors, []);
+    const wrong = createNodePlatformSkipInventory([file], [], { [file]: route }, { environment });
+    wrong.capture(observe(undefined, available));
+    assert.match(wrong.finish().errors.join("\n"), /differs from intended/u);
+  }
+});
+void test("prerequisite skips require the original specific reason instead of accepting arbitrary new skips", () => {
+  const route = {
+    ...contract,
+    platform: "any" as const,
+    category: "prerequisite" as const,
+    skip_reason_prefix: "Symlink prerequisite: ",
+    intended_route: "Execute the complete owner with symlink privilege",
+  };
+  for (const reason of [false, "Symlink prerequisite: EPERM", "unrelated new skip"] as const) {
+    const inventory = createNodePlatformSkipInventory([file], [], { [file]: route });
+    const event = observe();
+    inventory.capture({ ...event, data: { ...event.data, skip: reason } });
+    assert.equal(inventory.finish().errors.length === 0, reason !== "unrelated new skip");
+  }
+});
+void test("registered files cannot introduce a skip without a declaration while isolated reporter fixtures remain separate", () => {
+  const inventory = createNodePlatformSkipInventory([file], [], {}, { registered: [file] });
+  inventory.capture(observe(undefined, true));
+  assert.match(inventory.finish().errors.join("\n"), /Unregistered skipped/u);
+  const fixture = createNodePlatformSkipInventory([file], [], {}, { registered: [] });
+  fixture.capture(observe(undefined, true));
+  assert.deepEqual(fixture.finish().errors, []);
+});
 void test("platform skip observations preserve their declared reason and actual intended route", () => {
   for (const platform of ["linux", "win32"] as const) {
     const inventory = createNodePlatformSkipInventory(
@@ -41,6 +111,9 @@ void test("platform skip observations preserve their declared reason and actual 
         prerequisite: contract.prerequisite,
         reason: contract.reason,
         qualification_owner: "contracts",
+        intended_route: "contracts",
+        required_environment: [],
+        original_skip_reason: null,
         observations: 1,
       },
     ]);
@@ -212,7 +285,7 @@ function registry(override: unknown = contract) {
 }
 void test("the single ownership record resolves skip metadata and qualification ownership", () => {
   const parsed = parseNodeTestSuites(registry());
-  assert.deepEqual(parsed.platformSkips, { [file]: contract });
+  assert.deepEqual(parsed.platformSkips, { [file]: [contract] });
   assert.deepEqual(parsed.qualificationOwners, { [file]: { "linux-x86_64": "contracts" } });
   for (const malformed of [
     { ...contract, owner: "absent" },
