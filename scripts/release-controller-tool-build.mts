@@ -58,7 +58,10 @@ export async function bundleControllerEntries(
   ];
   for (const definition of entries) {
     const entry = path.join(sourceRoot, definition.source);
-    const commandOnly = definition.source === "scripts/release-hosted-native-worker.mts";
+    const commandOnly = [
+      "scripts/release-hosted-native-worker.mts",
+      "scripts/release-hosted-native-windows-source.mts",
+    ].includes(definition.source);
     await pack.build({
       config: false,
       cwd: sourceRoot,
@@ -74,7 +77,7 @@ export async function bundleControllerEntries(
       env: {},
       envPrefix: [],
       deps: { alwaysBundle: [/.*/] },
-      // The worker is a subprocess CLI, never an imported bundle API. Do not
+      // These workers are subprocess CLIs, never imported bundle APIs. Do not
       // preserve an unused entry export facade across its dynamic dependencies.
       inputOptions: commandOnly ? { preserveEntrySignatures: false } : {},
       outputOptions: { entryFileNames: definition.output, codeSplitting: false },

@@ -7,9 +7,10 @@ import test from "node:test";
 
 function fixture(t: test.TestContext, code: string) {
   const root = disposableDirectory(t, path.join(os.tmpdir(), "windows-native-bootstrap-"));
+  const started = performance.now();
   const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
     encoding: "utf8",
-    timeout: 15000,
+    timeout: 45000,
     maxBuffer: 65536,
     env: {
       PATH: process.env.PATH,
@@ -20,15 +21,29 @@ function fixture(t: test.TestContext, code: string) {
       TMP: process.env.TMP,
     },
   });
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.equal(
+    result.status,
+    0,
+    JSON.stringify({
+      error_code: result.error && "code" in result.error ? result.error.code : null,
+      error: result.error?.message,
+      signal: result.signal,
+      elapsed_milliseconds: Math.round(performance.now() - started),
+      stdout: result.stdout,
+      stderr: result.stderr,
+    }),
+  );
   assert.match(result.stdout, /controlled Windows preparation passed/u);
 }
 
-void test("Windows bootstrap selects only its platform outputs and refuses drift before bundle import", (t) => {
-  const entry = new URL("./release-hosted-native-bootstrap.mts", import.meta.url).href;
-  fixture(
-    t,
-    String.raw`
+void test(
+  "Windows bootstrap selects only its platform outputs and refuses drift before bundle import",
+  { timeout: 60000 },
+  (t) => {
+    const entry = new URL("./release-hosted-native-bootstrap.mts", import.meta.url).href;
+    fixture(
+      t,
+      String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
 import {mkdir,writeFile,readFile,stat} from 'node:fs/promises';import path from 'node:path';
 const root=process.argv[1], token={}, caps=Object.freeze({kind:'original controlled capabilities',deadline:10000});
@@ -80,14 +95,18 @@ for(const name of ['','source','windows-missing','windows-failed','bundle-missin
 }
 console.log('controlled Windows preparation passed');
 `,
-  );
-});
+    );
+  },
+);
 
-void test("Windows bundle joins original source/runtime capabilities without account, proof or settlement effects", (t) => {
-  const entry = new URL("./release-hosted-native-runner.mts", import.meta.url).href;
-  fixture(
-    t,
-    String.raw`
+void test(
+  "Windows bundle joins original source/runtime capabilities without account, proof or settlement effects",
+  { timeout: 60000 },
+  (t) => {
+    const entry = new URL("./release-hosted-native-runner.mts", import.meta.url).href;
+    fixture(
+      t,
+      String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import path from 'node:path';
 import {mkdir,writeFile,readFile,stat} from 'node:fs/promises';import {statSync,existsSync} from 'node:fs';
 const root=process.argv[1], tools={},parent={},runtime={}, producer={controller_revision:'a'.repeat(40),configuration_sha256:'b'.repeat(64),grant_sha256:'c'.repeat(64),workflow_sha256:'d'.repeat(64)};
@@ -126,5 +145,6 @@ for(const name of ['','missing-platform','linux-platform','role-entry','custody'
 }
 console.log('controlled Windows preparation passed');
 `,
-  );
-});
+    );
+  },
+);

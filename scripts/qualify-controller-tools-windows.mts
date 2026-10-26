@@ -35,6 +35,11 @@ import { runRustTests } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
+import { performance } from "node:perf_hooks";
+import {
+  inspectWindowsNativeSourceTree,
+  verifyWindowsNativeSourceFiles,
+} from "./release-hosted-native-windows-source.mts";
 import { observeWindowsAccountCommand } from "./release-hosted-native-windows-observation.mts";
 
 // The single dedicated-account qualification was consumed in 40366111230/1.
@@ -581,6 +586,117 @@ async function main() {
       scope: "inert resource-admitted child only; no candidate/native acceptance",
       authority: "none",
     });
+    phase = "credential-free-Windows-source-preparation";
+    const sourceRoot = path.join(buildParent, "windows-source"),
+      sourcePlan = path.join(buildParent, "windows-source-intent.json");
+    const sourceDeadline = performance.now() + 90000;
+    const harnessHash = createHash("sha256")
+      .update(
+        await readControllerToolFile(
+          path.join(source, "apps/desktop/scripts/desktop-test.mts"),
+          1024 ** 2,
+        ),
+      )
+      .digest("hex");
+    const binding = createHash("sha256").update(JSON.stringify(expected)).digest("hex");
+    await writeFile(
+      sourcePlan,
+      JSON.stringify({
+        schema_version: 1,
+        binding,
+        source_commit: expected.commit,
+        source_tree: expected.tree,
+        harness_sha256: harnessHash,
+        root: sourceRoot,
+        setup: path.join(built.tools, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        expires_at: Date.now() + Math.floor(sourceDeadline - performance.now()),
+      }),
+      { flag: "wx", flush: true },
+    );
+    const osGit = "C:\\Program Files\\Git\\cmd\\git.exe",
+      sourceFiles = [sourcePlan, osGit, "C:\\Program Files\\PowerShell\\7\\pwsh.exe"],
+      sourceCustody = inspectNativeRuntimeCustody(sourceFiles);
+    const observedGit = createHash("sha256")
+      .update(await readControllerToolFile(osGit))
+      .digest("hex");
+    const sourceOut = openSync(path.join(directory, "windows-source.stdout.json"), "wx");
+    let sourceErr: number;
+    try {
+      sourceErr = openSync(path.join(directory, "windows-source.stderr.bin"), "wx");
+    } catch (error) {
+      closeSync(sourceOut);
+      throw error;
+    }
+    try {
+      assert.equal(
+        await runResourceCommand(
+          "analysis",
+          path.join(built.tools, "bin/node.exe"),
+          [
+            path.join(built.tools, "scripts/release-hosted-native-windows-source.bundle.mjs"),
+            "acquire-source",
+            sourcePlan,
+          ],
+          {
+            cwd: buildParent,
+            environment: { ...environment, GITHUB_ACTIONS: "true" },
+            output: { stdout: sourceOut, stderr: sourceErr },
+            queueDeadline: sourceDeadline,
+            executionTimeoutMilliseconds: Math.floor(sourceDeadline - performance.now()),
+            supervise: (args, dependencies) =>
+              runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+          },
+        ),
+        0,
+        "ordinary Windows source helper refused; retain evidence",
+      );
+    } finally {
+      closeSync(sourceOut);
+      closeSync(sourceErr);
+    }
+    const sourceReadback: unknown = JSON.parse(
+      (
+        await readControllerToolFile(path.join(directory, "windows-source.stdout.json"), 65536)
+      ).toString("utf8"),
+    );
+    assert.ok(
+      isRecord(sourceReadback) &&
+        sourceReadback.binding === binding &&
+        sourceReadback.source_commit === expected.commit &&
+        sourceReadback.source_tree === expected.tree &&
+        sourceReadback.acquired === true &&
+        sourceReadback.dependencies_prepared === false &&
+        sourceReadback.native_acceptance === "not-established" &&
+        sourceReadback.authority === "none",
+    );
+    const tree = await readControllerToolFile(path.join(sourceRoot, "tree.bin"), 4 * 1024 ** 2);
+    assert.equal(
+      createHash("sha256").update(tree).digest("hex"),
+      sourceReadback.tree_inventory_sha256,
+    );
+    verifyWindowsNativeSourceFiles(
+      path.join(sourceRoot, "source"),
+      inspectWindowsNativeSourceTree(tree),
+      harnessHash,
+      () => assert.ok(performance.now() < sourceDeadline),
+    );
+    recheckNativeRuntimeCustody(sourceFiles, sourceCustody);
+    assert.equal(
+      createHash("sha256")
+        .update(await readControllerToolFile(osGit))
+        .digest("hex"),
+      observedGit,
+    );
+    assert.ok(performance.now() < sourceDeadline && !stopped);
+    await record("windows-source-preparation.json", {
+      ...sourceReadback,
+      observed_git_sha256: observedGit,
+      elapsed_milliseconds: 90000 - Math.floor(sourceDeadline - performance.now()),
+      original_parent_runtime_acceptance: "not-established",
+      account_execution: "not_requested",
+      scope:
+        "credential-free Git/source/directory observation only; no original protected capability",
+    });
     recheckNativeRuntimeCustody(files, custody);
     await record("result.json", {
       status: "pass",
@@ -598,7 +714,7 @@ async function main() {
       ],
       filesystem_custody: "actual-owner-ACL-and-identity-recheck",
       account_execution: "not_requested",
-      scope: "Windows controller-tool bootstrap only",
+      scope: "Windows controller-tool bootstrap and credential-free source preparation only",
       native_acceptance: "not-established",
       production_tool_acceptance: "not-established",
       authority: "none",
