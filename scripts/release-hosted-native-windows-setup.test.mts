@@ -233,7 +233,7 @@ $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value
 $group=[pscustomobject]@{};$group|Add-Member ScriptMethod StopAndObserve {param($timeout)throw 'controlled group teardown failure'}
 $group|Add-Member ScriptMethod Dispose {}
 $child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123};$child|Add-Member ScriptMethod Dispose {}; $child|Add-Member ScriptMethod DrainHostedObserver {param($milliseconds)return $true}
-$startup=$null;$startupCapture=$null;$startupRootExited=$null;$guiControl=$null;$guiControlObservation=$null;$guiControlRootExited=$null;$guiControlObserverDrained=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
+$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
 function Get-LocalUser {param($SID)if($SID.Value -cne $account.SID.Value){throw 'Wrong cleanup SID'};return $account}
@@ -757,33 +757,6 @@ foreach($change in @('purpose','extra','schema','source')){
   assert.match(result, /actual source-only purpose\/schema\/hash controls passed/u);
 });
 
-void test("native startup control refuses timeout, capture, exit, oversized bytes and wrong exact SID", () => {
-  const result = powershell(String.raw`
-$ErrorActionPreference='Stop'
-$text=[IO.File]::ReadAllText('${script.replaceAll("'", "''")}')
-$begin=$text.IndexOf('    if(-not $startup.WaitForExit(10000))',[StringComparison]::Ordinal)
-$end=$text.IndexOf('    Write-HostedNativeSetupRecord (Join-Path $capture ''startup.json'')',[StringComparison]::Ordinal)
-if($begin -lt 0 -or $end -le $begin){throw 'Actual native startup validation boundary differs'}
-$checks=[scriptblock]::Create($text.Substring($begin,$end-$begin))
-$account=[pscustomobject]@{SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'}}
-$valid='"host\PortcoveNativeQual","'+$account.SID.Value+'"'+[Environment]::NewLine
-foreach($case in @('success','timeout','stdout-pending','stderr-pending','capture-fault','exit','wrong-sid','sid-suffix','oversized')){
-  $output=[pscustomobject]@{Ready=($case -ne 'stdout-pending');Fault=($case -eq 'capture-fault');Result=$valid}
-  $errorOutput=[pscustomobject]@{Ready=($case -ne 'stderr-pending');Fault=$false;Result=''}
-  foreach($stream in @($output,$errorOutput)){$stream|Add-Member ScriptMethod Wait {param($milliseconds)if($milliseconds -ne 5000){throw 'Capture budget differs'};if($this.Fault){throw 'controlled capture fault'};return $this.Ready}}
-  if($case -eq 'wrong-sid'){$output.Result=$valid.Replace('1001','1002')}
-  if($case -eq 'sid-suffix'){$output.Result=$valid.Replace('1001','10010')}
-  if($case -eq 'oversized'){$output.Result=('重'*22000)+$valid}
-  $startup=[pscustomobject]@{Ready=($case -ne 'timeout');Output=$output;ErrorOutput=$errorOutput;ExitCode=$(if($case -eq 'exit'){1}else{0})}
-  $startup|Add-Member ScriptMethod WaitForExit {param($milliseconds)if($milliseconds -ne 10000){throw 'Startup budget differs'};return $this.Ready}
-  $refused=$false;try{. $checks}catch{$refused=$true}
-  if($refused -ne ($case -ne 'success')){throw ('Actual startup validation result differs: '+$case)}
-}
-'actual native startup validation passed nine controlled cases; no account or GUI acceptance'
-`);
-  assert.match(result, /passed nine controlled cases/u);
-});
-
 void test(
   "mandatory label reads use existing READ_CONTROL and retain raw label-only descriptor",
   { skip: process.platform !== "win32" },
@@ -899,10 +872,10 @@ foreach($case in @('success','empty','source','log','foreign','oversized','unava
  function Get-CimInstance {
   param($ClassName,$Filter,$Property,$OperationTimeoutSec,$ErrorAction)
   $script:queries++
-  if($ClassName -cne 'Win32_NTLogEvent' -or $OperationTimeoutSec -ne 5 -or $Filter -notlike "Logfile = 'System' AND SourceName = 'Application Popup' AND EventCode = 26 AND TimeGenerated >= '*' AND TimeGenerated <= '*' AND Message LIKE '%whoami.exe%'"){throw 'Popup query scope differs'}
+  if($ClassName -cne 'Win32_NTLogEvent' -or $OperationTimeoutSec -ne 5 -or $Filter -notlike "Logfile = 'System' AND SourceName = 'Application Popup' AND EventCode = 26 AND TimeGenerated >= '*' AND TimeGenerated <= '*' AND Message LIKE '%powershell.exe%'"){throw 'Popup query scope differs'}
   if($case -ceq 'unavailable'){throw 'controlled event service unavailable'}
   if($case -ceq 'empty'){return}
-  1..$(if($case -ceq 'oversized'){9}else{1})|ForEach-Object {[pscustomobject]@{Logfile=$(if($case -ceq 'log'){'Security'}else{'System'});RecordNumber=$_;TimeGenerated=$(if($case -ceq 'time'){[DateTime]::UtcNow.AddMinutes(-5)}else{[DateTime]::FromFileTimeUtc($startup.CreatedFileTime).AddSeconds(5)});EventCode=26;SourceName=$(if($case -ceq 'source'){'other'}else{'Application Popup'});Message=$(if($case -ceq 'foreign'){'other.exe failure'}elseif($case -ceq 'prefix'){'notwhoami.exe failure'}elseif($case -ceq 'suffix'){'whoami.exe.other failure'}elseif($case -ceq 'unicode'){'whoami.exe '+(('重'+[char]1)*2000)}else{'whoami.exe controlled diagnostic error; no acceptance'})}}
+  1..$(if($case -ceq 'oversized'){9}else{1})|ForEach-Object {[pscustomobject]@{Logfile=$(if($case -ceq 'log'){'Security'}else{'System'});RecordNumber=$_;TimeGenerated=$(if($case -ceq 'time'){[DateTime]::UtcNow.AddMinutes(-5)}else{[DateTime]::FromFileTimeUtc($startup.CreatedFileTime).AddSeconds(5)});EventCode=26;SourceName=$(if($case -ceq 'source'){'other'}else{'Application Popup'});Message=$(if($case -ceq 'foreign'){'other.exe failure'}elseif($case -ceq 'prefix'){'notpowershell.exe failure'}elseif($case -ceq 'suffix'){'powershell.exe.other failure'}elseif($case -ceq 'unicode'){'powershell.exe '+(('重'+[char]1)*2000)}else{'powershell.exe controlled diagnostic error; no acceptance'})}}
  }
  $refused=$false;try{$observed=Read-HostedStartupPopup $startup}catch{$refused=$true}
  $accepted=$case -in @('success','empty','unicode')
@@ -916,66 +889,6 @@ foreach($case in @('success','empty','source','log','foreign','oversized','unava
 'actual popup query guards passed twelve controlled cases; no system events or GUI acceptance'
 `);
   assert.match(result, /guards passed twelve controlled cases/u);
-});
-
-void test("fixed GUI image validation refuses nonnative, console, malformed and oversized PE inputs", (t) => {
-  const root = mkdtempSync(path.join(homedir(), ".portcove-gui-pe-control-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const result = powershell(String.raw`
-$ErrorActionPreference='Stop'
-Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
-$path=Join-Path '${root.replaceAll("'", "''")}' 'inert-image.bin'
-foreach($case in @('valid','dos','signature','machine','magic','console','offset','optional','outside','oversized')){
- $bytes=[byte[]]::new($(if($case -ceq 'oversized'){4194305}else{256}))
- [BitConverter]::GetBytes([uint16]0x5a4d).CopyTo($bytes,0);[BitConverter]::GetBytes([int]64).CopyTo($bytes,60)
- [BitConverter]::GetBytes([uint32]0x4550).CopyTo($bytes,64);[BitConverter]::GetBytes([uint16]0x8664).CopyTo($bytes,68)
- [BitConverter]::GetBytes([uint16]128).CopyTo($bytes,84);[BitConverter]::GetBytes([uint16]0x20b).CopyTo($bytes,88);[BitConverter]::GetBytes([uint16]2).CopyTo($bytes,156)
- switch($case){dos{$bytes[0]=0}signature{$bytes[64]=0}machine{$bytes[68]=0}magic{$bytes[88]=0}console{$bytes[156]=3}offset{[BitConverter]::GetBytes([int]2147483647).CopyTo($bytes,60)}optional{$bytes[84]=0}outside{[BitConverter]::GetBytes([uint16]4096).CopyTo($bytes,84)}}
- [IO.File]::WriteAllBytes($path,$bytes);$refused=$false
- try{[Portcove.HostedNative.HostedStartupContext]::RequireGuiImage($path)}catch{$refused=$true}
- if($refused -ne ($case -cne 'valid')){throw ('Actual GUI image guard differs: '+$case)}
-}
-'actual GUI PE guards passed ten source-file cases; no executable launched'
-`);
-  assert.match(result, /PE guards passed ten source-file cases/u);
-});
-
-void test("GUI countercontrol teardown and observer failures cannot skip disabling or replace original failure", (t) => {
-  const root = mkdtempSync(path.join(homedir(), ".portcove-gui-cleanup-control-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const result = powershell(String.raw`
-$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
-$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
-$write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
-$main=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]})
-$base='${root.replaceAll("'", "''")}';$nativeProfile='inert';$context=@{fixture='controlled GUI cleanup'}
-foreach($case in @('settled','stop','root','observer','unreturned-settled','unreturned-timeout','unreturned-unknown')){
- $root=Join-Path $base $case;[IO.Directory]::CreateDirectory($root)|Out-Null
- $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'};Description='owned';Enabled=$true}
- $script:stops=0;$script:drains=0
- $group=[pscustomobject]@{};$group|Add-Member ScriptMethod StopAndObserve {param($timeout)$script:stops++;if($case -ceq 'stop'){throw 'controlled original-group stop failure'};return @()};$group|Add-Member ScriptMethod Dispose {}
- $guiControl=[pscustomobject]@{};$guiControl|Add-Member ScriptMethod WaitForExit {param($timeout)return $case -cne 'root'};$guiControl|Add-Member ScriptMethod DrainHostedObserver {param($timeout)$script:drains++;return $case -cne 'observer'};$guiControl|Add-Member ScriptMethod Dispose {}
- if($case -like 'unreturned-*'){
-  $guiControl=$null;$launch=[Collections.Generic.Dictionary[string,string]]::new();$launch['root_pid']='7';$launch['root_created_filetime']='123';$launch['handle_returned']='False'
-  if($case -cne 'unreturned-unknown'){$launch['failed_root_wait_after']=$(if($case -ceq 'unreturned-settled'){'0'}else{'258'})}
-  $group|Add-Member NoteProperty LastLaunchInspection $launch
- }
-
- $child=$null;$startup=$null;$password=$null;$hostedDesktop=$null;$actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null;$probeCapture=$null;$startupCapture=$null;$startupRootExited=$null;$stationRestored=$null;$observerDrained=$null
- $guiControlObservation=@{scope='diagnostic only'};$guiControlRootExited=$null;$guiControlObserverDrained=$null;$failure='original startup refusal';$observation=$null;$disabled=$false;$settled=$false;$cleanupFailures=[Collections.Generic.List[string]]::new()
- function Get-LocalUser {param($SID)return $account};function Disable-LocalUser {param($SID)$account.Enabled=$false}
- . ([scriptblock]::Create(($main[0].Finally.Statements.Extent.Text -join [Environment]::NewLine)))
- $record=Get-Content -LiteralPath (Join-Path $root 'result.json') -Raw|ConvertFrom-Json
- if(-not $record.disabled -or $record.failure -cne 'original startup refusal' -or $script:stops -ne 1 -or $script:drains -ne $(if($case -like 'unreturned-*'){0}else{1}) -or $record.job_empty -ne ($case -in @('settled','observer','unreturned-settled','unreturned-timeout','unreturned-unknown')) -or $record.gui_counter_observer_drained -ne $(if($case -like 'unreturned-*'){$null}else{$case -cne 'observer'})){throw ('Counter cleanup independence differs: '+$case)}
- if($case -ceq 'settled' -and ($record.gui_counter_root_exited -ne $true -or @($record.cleanup_failures).Count)){throw 'Settled counter root was not positively read back'}
- if($case -like 'unreturned-*'){
-  if($record.last_launch.root_pid -cne '7' -or @($record.cleanup_failures).Count -ne $(if($case -ceq 'unreturned-settled'){0}else{1})){throw 'Unreturned root settlement lost or silently credited'}
- }
-
-}
-'actual GUI counter cleanup passed seven controlled outcomes; no account effects'
-`);
-  assert.match(result, /cleanup passed seven controlled outcomes/u);
 });
 
 void test("original job admission accepts only exact membership and preserves failed root cleanup", () => {
@@ -1031,46 +944,6 @@ Add-Type -TypeDefinition $harness.Replace('__GROUP__',$group)
   assert.match(result, /passed six controlled modes/u);
 });
 
-void test("GUI counter serialization requires exact startup settlement and empty original job without stop retries", (t) => {
-  const root = mkdtempSync(path.join(homedir(), ".portcove-serial-counter-control-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const result = powershell(String.raw`
-$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
-$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
-$function=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Read-HostedRootSettlement'},$true)
-. ([scriptblock]::Create($function.Extent.Text))
-$write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
-$initialize=$ast.Find({param($n)$n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -ceq '$guiRuntime'},$true)
-$receipt=$ast.Find({param($n)$n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -ceq 'Write-HostedNativeSetupRecord' -and $n.Extent.Text.Contains("'gui-counter.json'")},$true)
-if(-not $env:SystemRoot){$env:SystemRoot='${root.replaceAll("'", "''")}'} # Synthetic platform input for the nonexecuting source initializer.
-Set-StrictMode -Version Latest
-foreach($case in @('settled','faulted','prior-stop','stop','pid','created','root','members','empty-flag','original','query')){
- $script:stops=0;$script:queries=0
- $startup=[pscustomobject]@{Pid=42;CreatedFileTime=[long]134374669087322706;Output=[pscustomobject]@{IsFaulted=$case -ceq 'faulted'};ErrorOutput=[pscustomobject]@{IsFaulted=$false};LastTeardown=$(if($case -ceq 'prior-stop'){@{prior=$true}}else{$null})}
- $startup|Add-Member ScriptMethod StopAndObserve {param($ms)
-  $script:stops++;if($ms -ne 5000){throw 'Budget differs'};if($case -ceq 'stop'){throw 'controlled stop refusal'}
-  return [pscustomobject]@{RootPid=$(if($case -ceq 'pid'){43}else{42});RootCreatedFileTime=$(if($case -ceq 'created'){[long]134374669087322707}else{[long]134374669087322706});ExitCode=125;ObservedAt='controlled';RootExited=$case -cne 'root';JobEmpty=$case -cne 'empty-flag';RemainingPids=$(if($case -ceq 'members'){@(43)}else{@()})}
- }
- $group=[pscustomobject]@{};$group|Add-Member ScriptMethod RemainingPids {$script:queries++;if($case -ceq 'query'){throw 'controlled group query refusal'};if($case -ceq 'original'){return @(43)};return @()}
- $result=Read-HostedRootSettlement $startup $group
- if(($result.status -ceq 'settled') -ne ($case -ceq 'settled') -or $script:stops -ne $(if($case -in @('faulted','prior-stop')){0}else{1})){throw ('Serialization or stop retry differs: '+$case)}
- if($case -notin @('settled','faulted','prior-stop','stop') -and $null -eq $result.teardown){throw 'Failed validation lost settlement receipt'}
- if($case -ne 'settled' -and -not $result.failure){throw 'Unknown settlement lost cause'}
- if($result.teardown -and $case -cne 'created' -and $result.teardown.RootCreatedFileTime -cne '134374669087322706'){throw 'Native creation identity was rounded before retention'}
- $context=@{};$capture=Join-Path '${root.replaceAll("'", "''")}' $case;[IO.Directory]::CreateDirectory($capture)|Out-Null;$guiControl=$null;$guiControlObservation=@{status='unknown'};$guiRootSettlement=$result
- $group|Add-Member NoteProperty LastLaunchInspection (@{runtime_path='whoami.exe'})
- . ([scriptblock]::Create($initialize.Extent.Text))
- . ([scriptblock]::Create($receipt.Extent.Text))
- $retained=Get-Content -LiteralPath (Join-Path $capture 'gui-counter.json') -Raw|ConvertFrom-Json
- if($result.teardown -and ($retained.root_settlement.teardown.RootCreatedFileTime -isnot [string] -or $retained.root_settlement.teardown.RootCreatedFileTime -cne $result.teardown.RootCreatedFileTime)){throw '64bit identity did not survive actual JSON receipt'}
- if($retained.root_settlement.status -cne $result.status -or $retained.root_settlement.failure -cne $result.failure -or $null -ne $retained.last_launch){throw 'Actual counter receipt lost unknown settlement under strict mode'}
-
-}
-'actual GUI serialization passed eleven controlled cases; no account effects or GUI acceptance'
-`);
-  assert.match(result, /serialization passed eleven controlled cases/u);
-});
-
 void test("native teardown waits for root signal and empty membership in either order within its original budget", () => {
   const launcher = fileURLToPath(new URL("./native-qualification-account.cs.txt", import.meta.url));
   const result = powershell(String.raw`
@@ -1109,24 +982,39 @@ Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method).Replace('__OBSER
   assert.match(result, /teardown passed six controlled/u);
 });
 
-void test("first GUI diagnostic refuses a later root after unknown unreturned-root settlement", () => {
+void test("required-root cleanup keeps account disabling independent of job, observer and unreturned-root failures", (t) => {
+  const root = mkdtempSync(path.join(homedir(), ".portcove-required-root-cleanup-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   const result = powershell(String.raw`
 $ErrorActionPreference='Stop';$tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
-$guard=$ast.Find({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text.StartsWith('-not $guiControl -and $group.LastLaunchInspection')},$true)
-if(-not $guard){throw 'Actual first-root settlement guard unavailable'}
-Set-StrictMode -Version Latest
-foreach($case in @('precreation','not-created','settled','missing-wait','timeout','wait-failure','missing-identity','returned')){
- $data=[Collections.Generic.Dictionary[string,string]]::new()
- if($case -notin @('precreation','not-created')){
-  $data['root_pid']='7';if($case -cne 'missing-identity'){$data['root_created_filetime']='123'}
-  if($case -cne 'missing-wait'){$data['failed_root_wait_after']=$(switch($case){'timeout'{'258'}'wait-failure'{'4294967295'}default{'0'}})}
+if($errors.Count){throw 'Required-root setup parse failed'}
+$write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
+$main=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]})
+$base='${root.replaceAll("'", "''")}';$nativeProfile='inert';$context=@{fixture='controlled required-root cleanup'}
+foreach($case in @('settled','stop','root','observer','unreturned-settled','unreturned-timeout','unreturned-unknown','unreturned-noidentity')){
+ $root=Join-Path $base $case;[IO.Directory]::CreateDirectory($root)|Out-Null
+ $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'};Description='owned';Enabled=$true}
+ $script:stops=0;$script:drains=0
+ $group=[pscustomobject]@{LastLaunchInspection=$null};$group|Add-Member ScriptMethod StopAndObserve {param($ms)$script:stops++;if($case -ceq 'stop'){throw 'controlled group stop refusal'};return @()};$group|Add-Member ScriptMethod Dispose {}
+ $child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123};$child|Add-Member ScriptMethod WaitForExit {param($ms)return $case -cne 'root'};$child|Add-Member ScriptMethod DrainHostedObserver {param($ms)$script:drains++;return $case -cne 'observer'};$child|Add-Member ScriptMethod Dispose {}
+ if($case -like 'unreturned-*'){
+  $child=$null;$launch=[Collections.Generic.Dictionary[string,string]]::new();$launch['root_pid']='7';$launch['handle_returned']='False'
+  if($case -cne 'unreturned-noidentity'){$launch['root_created_filetime']='123'}
+  if($case -cne 'unreturned-unknown'){$launch['failed_root_wait_after']=$(if($case -ceq 'unreturned-timeout'){'258'}else{'0'})}
+  $group.LastLaunchInspection=$launch
  }
- $group=[pscustomobject]@{LastLaunchInspection=$(if($case -ceq 'precreation'){$null}else{$data})};$guiControl=$(if($case -ceq 'returned'){@{returned=$true}}else{$null})
- $refused=$false;try{. ([scriptblock]::Create($guard.Extent.Text))}catch{$refused=$true}
- if($refused -ne ($case -in @('missing-wait','timeout','wait-failure','missing-identity'))){throw ('First-root admission guard differs: '+$case)}
+ $password=$null;$hostedDesktop=$null;$actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null;$probeCapture=$null;$stationRestored=$null;$observerDrained=$null
+ $failure='original required form failed';$observation=$null;$disabled=$false;$settled=$false;$cleanupFailures=[Collections.Generic.List[string]]::new()
+ function Get-LocalUser {param($SID)return $account};function Disable-LocalUser {param($SID)$account.Enabled=$false}
+ . ([scriptblock]::Create(($main[0].Finally.Statements.Extent.Text -join [Environment]::NewLine)))
+ $record=Get-Content -LiteralPath (Join-Path $root 'result.json') -Raw|ConvertFrom-Json
+ $expectedFailures=$(if($case -in @('settled','unreturned-settled')){0}else{1})
+ if(-not $record.disabled -or $record.failure -cne $failure -or $script:stops -ne 1 -or @($record.cleanup_failures).Count -ne $expectedFailures){throw ('Cleanup lost independence or failure: '+$case)}
+ if($case -like 'unreturned-*' -and $record.last_launch.root_pid -cne '7'){throw 'Unreturned launch identity lost'}
+ if($case -ceq 'settled' -and (-not $record.root_exited -or -not $record.job_empty -or -not $record.observer_drained)){throw 'Settled required root not positively read back'}
 }
-'actual first-root settlement guard passed eight controlled cases; no launch or acceptance'
+'actual required-root cleanup passed eight controlled outcomes; no account or GUI effects'
 `);
-  assert.match(result, /guard passed eight controlled cases/u);
+  assert.match(result, /cleanup passed eight controlled outcomes/u);
 });
