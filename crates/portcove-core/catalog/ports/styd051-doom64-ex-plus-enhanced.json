@@ -3,12 +3,12 @@
   "listing": {
     "id": "styd051-doom64-ex-plus-enhanced",
     "name": "Doom 64 / DOOM64 EX+ Enhanced (Styd051)",
-    "summary": "Explore Doom 64 / DOOM64 EX+ Enhanced (Styd051) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a permitted DOOM 64 EX+ Enhanced copy with your PC remaster files and preserved user profile.",
     "project_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced",
     "issue_number": 1812,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced",
+    "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme",
     "artwork": {
       "game_id": 224522,
       "cover_id": 267803,
@@ -16,6 +16,26 @@
       "image_sha256": "c753dc03a5efe6667836d1700435d133cc3f5b6f1b747e039cb3c15116decfff",
       "game_slug": "doom-64--1",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a permitted working copy",
+          "instruction": "Use an existing permitted Windows installation with DOOM64EX+ENHANCED.exe and its accompanying Enhanced WAD and libraries. Keep your current working copy recoverable."
+        },
+        {
+          "title": "Provide the PC remaster assets before Play",
+          "instruction": "The engine searches supported GOG and Steam DOOM 64 remaster installations. It requires DOOM64.WAD, Doom64.kpf and normally DOOMSND.DLS; legacy ROM-derived WADs do not substitute. Missing files cause an error rather than an original-file picker."
+        },
+        {
+          "title": "Preserve both current and older profiles",
+          "instruction": "Choose that player and its folder, then Play explicitly. Current Windows saves, config.cfg and screenshots normally use AppData/Roaming/doom64ex-plus. Older copies may keep them beside the executable, and the game can move those files on startup. Back up both locations before changing versions. Upstream updates and any shared profile remain outside Portcove management."
+        }
+      ],
+      "warnings": [
+        "Use your permitted upstream copy under its applicable conditions. Keep both the older working folder and current user profile backed up before first Play."
+      ],
+      "help_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme"
     }
   }
 }

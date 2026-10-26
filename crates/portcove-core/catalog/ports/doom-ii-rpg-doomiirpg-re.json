@@ -3,12 +3,12 @@
   "listing": {
     "id": "doom-ii-rpg-doomiirpg-re",
     "name": "Doom II RPG / DoomIIRPG-RE",
-    "summary": "Explore Doom II RPG / DoomIIRPG-RE and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Doom II RPG with the upstream Windows player and your original iOS game package.",
     "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
     "issue_number": 370,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Erick194/DoomIIRPG-RE",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Erick194/DoomIIRPG-RE#readme",
     "artwork": {
       "game_id": 101031,
       "cover_id": 139770,
@@ -16,6 +16,29 @@
       "image_sha256": "cba5f5ca6ebf630c36205d21c20d2d58c4def25c69503ab268ecfb83abdfc107",
       "game_slug": "doom-ii-rpg",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Supply the original iOS package",
+          "instruction": "Keep your permitted original Doom 2 RPG.ipa beside DoomIIRPG.exe, using that exact filename. This player reads the iOS package; BREW/J2ME rendering or cheat descriptions do not establish alternate game-data support."
+        },
+        {
+          "title": "Complete the Windows prerequisites",
+          "instruction": "Extract the complete Windows ZIP into a separate working folder. Upstream requires OpenAL 1.1 on Windows; use its documented runtime installation if it is missing."
+        },
+        {
+          "title": "Select the player and keep your saves",
+          "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme"
+    },
+    "release_url": "https://github.com/Erick194/DoomIIRPG-RE/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["DoomIIRPG.", ".zip"]
+    },
+    "original_game_title": "Doom II RPG"
   }
 }

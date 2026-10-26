@@ -3,12 +3,12 @@
   "listing": {
     "id": "doom-rpg-doomrpg-re",
     "name": "Doom RPG / DoomRPG-RE",
-    "summary": "Explore Doom RPG / DoomRPG-RE and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
     "project_url": "https://github.com/Erick194/DoomRPG-RE",
     "issue_number": 369,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Erick194/DoomRPG-RE",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Erick194/DoomRPG-RE#readme",
     "artwork": {
       "game_id": 101029,
       "cover_id": 419952,
@@ -16,6 +16,31 @@
       "image_sha256": "cc08e314298f0cb0e877d0f6483b3d4b830feace20b3b36258c2300b82c068d2",
       "game_slug": "doom-rpg",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your original game data",
+          "instruction": "The player requires a prepared DoomRPG.zip beside DoomRPG.exe. Follow upstream’s supported preparation for your permitted original Doom RPG data. The included BarToZip.exe converts compatible BREW data; it is a manual preparation tool, not the game player."
+        },
+        {
+          "title": "Select the game player",
+          "instruction": "Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player."
+        },
+        {
+          "title": "Keep progress when updating",
+          "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+        }
+      ],
+      "warnings": [
+        "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both."
+      ],
+      "help_url": "https://github.com/Erick194/DoomRPG-RE#readme"
+    },
+    "release_url": "https://github.com/Erick194/DoomRPG-RE/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["DoomRPG_Port.", ".zip"]
+    },
+    "original_game_title": "Doom RPG"
   }
 }
