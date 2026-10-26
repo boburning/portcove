@@ -259,7 +259,7 @@
       ],
       "authored": {
         "path": "crates/portcove-core/catalog/ports/diegodedios-alienrerecomp.json",
-        "sha256": "fec549c82aea281b197e0f74276c70b7762eb0f4cfc61df944a5697badf978a0",
+        "sha256": "70bf339a2301a52aa504a0c963732ac2a44a3141d216dd267e28956d03e91e4f",
         "preimage": "absent",
         "lineage": "legacy-unassessed",
         "operational_changed": true,
