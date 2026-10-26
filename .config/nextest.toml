@@ -581,3 +581,11 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 [profile.hosted-windows]
 test-threads = 4
 junit.path = "junit.xml"
+
+# Qualification40401498189/a1 reached the final curated repin at28.208s
+# before the Intel30.024s harness cutoff. Keep the complete two-install and
+# mutable-identity lifecycle, phase output, assertions, workers and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
