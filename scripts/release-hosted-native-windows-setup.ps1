@@ -87,7 +87,7 @@ Write-HostedNativeSetupRecord (Join-Path $root 'intent.json') ([ordered]@{schema
 $account=$null;$password=$null;$group=$null;$child=$null;$disabled=$false;$settled=$false;$failure=$null;$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
-$probeCapture=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null
+$probeCapture=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$startup=$null;$startupCapture=$null;$startupRootExited=$null
 try {
     Assert-OriginalHostedSetup
     $password=[Portcove.HostedNative.Setup]::Password()
@@ -133,6 +133,20 @@ try {
     Assert-HostedNativeAccount $account $true
     $hostedDesktop=[Portcove.HostedNative.HostedDesktop]::Prepare($owner.User.Value,$account.SID.Value,$capture)
     $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($configuration)
+    $startupRuntime=Join-Path $env:SystemRoot 'System32\whoami.exe'
+    $startupSignature=Get-AuthenticodeSignature -LiteralPath $startupRuntime
+    if($startupSignature.Status -ne 'Valid' -or $startupSignature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)'){throw 'Fixed native startup probe lacks valid Microsoft signature'}
+    $startupSha=(Get-FileHash -LiteralPath $startupRuntime -Algorithm SHA256).Hash.ToLowerInvariant()
+    Assert-OriginalHostedSetup
+    $startup=[Portcove.NativeQualification.AccountLauncher]::StartHostedVerifiedInGroup($group,$configuration,$password,$startupRuntime,$startupSha,@('/user','/fo','csv','/nh'),$attemptWork,$environment,$hostedDesktop.Name)
+    if(-not $startup.WaitForExit(10000)){throw 'Native account startup probe timed out before GUI launch'}
+    if(-not $startup.Output.Wait(5000) -or -not $startup.ErrorOutput.Wait(5000)){throw 'Native account startup capture did not drain'}
+    $startupText=$startup.Output.Result
+    if([Text.Encoding]::UTF8.GetByteCount($startupText) -gt 65536 -or $startup.ExitCode -ne 0){throw 'Native account startup identity output differs'}
+    $startupRows=@($startupText|ConvertFrom-Csv -Header name,sid)
+    if($startupRows.Count -ne 1 -or $startupRows[0].sid -cne $account.SID.Value){throw 'Native account startup identity output differs'}
+    Write-HostedNativeSetupRecord (Join-Path $capture 'startup.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();initial_suspend_count=$startup.InitialSuspendCount;exit_code=$startup.ExitCode;stdout=$startupText;runtime_sha256=$startupSha;scope='fixed signed native startup/pipe control only; no GUI acceptance';authority='none'})
+    Assert-OriginalHostedSetup
     $arguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $source 'scripts\fixtures\native-account-gui-probe.ps1'),'-Invocation',$context.binding)
     $child=[Portcove.NativeQualification.AccountLauncher]::StartHostedVerifiedInGroup($group,$configuration,$password,$runtime,$runtimeSha,$arguments,$attemptWork,$environment,$hostedDesktop.Name)
     $gui=$false
@@ -168,6 +182,7 @@ finally {
         if($group){
             $remaining=@($group.StopAndObserve(5000))
             if($child){$rootExited=$child.WaitForExit(5000)}
+            if($startup){$startupRootExited=$startup.WaitForExit(5000);if(-not $startupRootExited){throw 'Native startup root teardown incomplete'}}
             if($remaining.Count -ne 0 -or ($child -and -not $rootExited)){throw 'Original hosted native job teardown incomplete'}
             $settled=$true
         }
@@ -201,9 +216,13 @@ finally {
             }
             if($recovery.original_base64 -or $recovery.proposed_base64){Write-HostedNativeSetupRecord (Join-Path (Join-Path $root 'capture') 'station-recovery.json') $recovery}
         } catch {$cleanupFailures.Add($_.Exception.Message)}
+        if($startup){
+            try {$startupCapture=@{root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();initial_suspend_count=$startup.InitialSuspendCount;root_exited=$startupRootExited;stdout=(Read-HostedNativeProbeStream $startup.OutputCapture);stderr=(Read-HostedNativeProbeStream $startup.ErrorCapture);exit_code=$(if($startupRootExited){$startup.ExitCode}else{$null})}} catch {$startupCapture=@{error=$_.Exception.Message}}
+            $startup.Dispose()
+        }
         if($child){$child.Dispose()};if($group){$group.Dispose()};if($password){$password.Dispose()}
         if(-not $failure -and $cleanupFailures.Count){$failure='Hosted cleanup refused; retained details require recovery'}
-        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;initial_suspend_count=$(if($child){$child.InitialSuspendCount}else{$null});remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});hosted_observer_failure=$(if($child){$child.LastHostedObserverFailure}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
+        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;initial_suspend_count=$(if($child){$child.InitialSuspendCount}else{$null});remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;startup_capture=$startupCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});hosted_observer_failure=$(if($child){$child.LastHostedObserverFailure}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
     }
 }
 if(-not $disabled -or -not $settled -or $failure){throw 'Hosted inert account setup did not complete'}

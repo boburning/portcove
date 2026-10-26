@@ -229,7 +229,7 @@ $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value
 $group=[pscustomobject]@{};$group|Add-Member ScriptMethod StopAndObserve {param($timeout)throw 'controlled group teardown failure'}
 $group|Add-Member ScriptMethod Dispose {}
 $child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123};$child|Add-Member ScriptMethod Dispose {}; $child|Add-Member ScriptMethod DrainHostedObserver {param($milliseconds)return $true}
-$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
+$startup=$null;$startupCapture=$null;$startupRootExited=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
 function Get-LocalUser {param($SID)if($SID.Value -cne $account.SID.Value){throw 'Wrong cleanup SID'};return $account}
@@ -743,4 +743,31 @@ foreach($change in @('purpose','extra','schema','source')){
 'actual source-only purpose/schema/hash controls passed; no account effects'
 `);
   assert.match(result, /actual source-only purpose\/schema\/hash controls passed/u);
+});
+
+void test("native startup control refuses timeout, capture, exit, oversized bytes and wrong exact SID", () => {
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$text=[IO.File]::ReadAllText('${script.replaceAll("'", "''")}')
+$begin=$text.IndexOf('    if(-not $startup.WaitForExit(10000))',[StringComparison]::Ordinal)
+$end=$text.IndexOf('    Write-HostedNativeSetupRecord (Join-Path $capture ''startup.json'')',[StringComparison]::Ordinal)
+if($begin -lt 0 -or $end -le $begin){throw 'Actual native startup validation boundary differs'}
+$checks=[scriptblock]::Create($text.Substring($begin,$end-$begin))
+$account=[pscustomobject]@{SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'}}
+$valid='"host\PortcoveNativeQual","'+$account.SID.Value+'"'+[Environment]::NewLine
+foreach($case in @('success','timeout','stdout-pending','stderr-pending','capture-fault','exit','wrong-sid','sid-suffix','oversized')){
+  $output=[pscustomobject]@{Ready=($case -ne 'stdout-pending');Fault=($case -eq 'capture-fault');Result=$valid}
+  $errorOutput=[pscustomobject]@{Ready=($case -ne 'stderr-pending');Fault=$false;Result=''}
+  foreach($stream in @($output,$errorOutput)){$stream|Add-Member ScriptMethod Wait {param($milliseconds)if($milliseconds -ne 5000){throw 'Capture budget differs'};if($this.Fault){throw 'controlled capture fault'};return $this.Ready}}
+  if($case -eq 'wrong-sid'){$output.Result=$valid.Replace('1001','1002')}
+  if($case -eq 'sid-suffix'){$output.Result=$valid.Replace('1001','10010')}
+  if($case -eq 'oversized'){$output.Result=('重'*22000)+$valid}
+  $startup=[pscustomobject]@{Ready=($case -ne 'timeout');Output=$output;ErrorOutput=$errorOutput;ExitCode=$(if($case -eq 'exit'){1}else{0})}
+  $startup|Add-Member ScriptMethod WaitForExit {param($milliseconds)if($milliseconds -ne 10000){throw 'Startup budget differs'};return $this.Ready}
+  $refused=$false;try{. $checks}catch{$refused=$true}
+  if($refused -ne ($case -ne 'success')){throw ('Actual startup validation result differs: '+$case)}
+}
+'actual native startup validation passed nine controlled cases; no account or GUI acceptance'
+`);
+  assert.match(result, /passed nine controlled cases/u);
 });
