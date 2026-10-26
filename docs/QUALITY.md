@@ -197,7 +197,7 @@ the child's readiness stderr and verifies process exit before the outer runner
 completes. Other nested subprocess families require their own calibration.
 The Windows suspended-storage preflight fixture allows 60 seconds for its
 PowerShell child and 90 seconds for the enclosing case. Its hosted 20-second
-spawn timeout is preserved; all 26 inert cases and assertions remain unchanged.
+spawn timeout failure is preserved; all 26 inert cases and assertions remain unchanged.
 This calibrates the test harness, not storage access or application deadlines.
 The Python reporter also exercises its actual timed-out Python child with
 5/10/15/20-second child, Node case, command supervisor and enclosing-case budgets.
