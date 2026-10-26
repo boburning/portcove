@@ -373,15 +373,7 @@ function startupDetailLabel(key: string) {
   return Object.hasOwn(labels, key) ? labels[key] : undefined;
 }
 
-function Workspace({
-  bootstrap,
-  initialBrowsingContext,
-  rememberBrowsingContext,
-  switchLibrary,
-  resetLibrary,
-  returnToSelection,
-  consumeLibrarySelectionReturn,
-}: {
+type WorkspaceProps = {
   bootstrap: BootstrapStatus;
   initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
@@ -389,22 +381,19 @@ function Workspace({
   resetLibrary: () => Promise<void>;
   returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
-}) {
-  const data = usePortcoveData(bootstrap.generation);
-  const collection = useCollectionLayout(bootstrap.library_root);
-  const favorites = useFavorites(bootstrap.generation);
-  const [setupSource, setSetupSource] = useSetupSource(data.sources);
-  const operations = useOperationState({
-    libraryGeneration: bootstrap.generation,
-    libraryLabel: bootstrap.library_root ?? "Current library",
-    refresh: data.retryRefresh,
-    refreshActivities: data.refreshActivities,
-    invalidateDiagnostics: data.invalidateDiagnostics,
-    activities: data.activities,
-  });
-  const github = useGithubAuth(operations.perform, operations.setError, bootstrap.generation);
-  const updates = useUpdateCenter(operations.perform, data.statuses);
+};
+
+function useWorkspace(props: WorkspaceProps) {
+  const { bootstrap, returnToSelection, consumeLibrarySelectionReturn } = props;
   const {
+    data,
+    collection,
+    favorites,
+    setupSource,
+    setSetupSource,
+    operations,
+    github,
+    updates,
     ui,
     switchView,
     workspace,
@@ -412,41 +401,7 @@ function Workspace({
     resetLibraryWithContext,
     preferenceFailure,
     saveBrowsingPreferences,
-  } = useLibraryBrowsingContext({
-    root: bootstrap.library_root,
-    initial: initialBrowsingContext,
-    returnToSelection,
-    remember: rememberBrowsingContext,
-    switchLibrary,
-    resetLibrary,
-    ready: Boolean(data.catalog),
-    installedCount: data.catalog
-      ? new Set([
-          ...data.statuses
-            .filter((status) => status.active || status.external_runtime)
-            .map((status) => status.port_id),
-          ...data.listingStatuses
-            .filter(({ status }) => status.active || status.external_runtime)
-            .map(({ port_id }) => port_id),
-          ...data.pendingSetups.map(({ port_id }) => port_id),
-        ]).size
-      : undefined,
-    catalogCount: data.catalog
-      ? new Set([
-          ...data.catalog.ports.map(({ id }) => id),
-          ...(data.listingCatalog?.listings.map(({ id }) => id) ?? []),
-        ]).size
-      : undefined,
-  });
-  const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
-  useEffect(() => {
-    if (
-      catalog &&
-      (ui.view === "settings" || ui.view === "updates") &&
-      (diagnosticsStale || !doctor)
-    )
-      void refreshDiagnostics();
-  }, [catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics, ui.view]);
+  } = useWorkspaceLibrary(props);
   const { applicationUpdate, applicationUpdateChoice, applicationUpdateProductionTransition } =
     useWorkspaceApplicationUpdates(operations.setError);
   const {
@@ -501,32 +456,14 @@ function Workspace({
       : undefined,
   );
   const setupReviews = useSetupReviewSelection();
-  const { pendingReview, takeReview } = setupReviews;
-  const { review: reviewInstallation } = installPlanning;
-  useEffect(() => {
-    const request = pendingReview;
-    if (!request) return;
-    // Consume once, including StrictMode replay, and never plan a different detail.
-    const matches =
-      ui.selectedId === request.portId &&
-      model.port?.id === request.portId &&
-      model.status?.channel === request.channel &&
-      !data.refreshFailure &&
-      !model.status.active &&
-      !model.status.external_runtime &&
-      model.status.port_actions?.some(
-        (action) => action.action === "install" && action.availability === "allowed",
-      );
-    if (takeReview(request) && matches) void reviewInstallation();
-  }, [
-    pendingReview,
-    takeReview,
+  usePendingSetupReview(
+    setupReviews,
     ui.selectedId,
     model.port?.id,
     model.status,
     data.refreshFailure,
-    reviewInstallation,
-  ]);
+    installPlanning.review,
+  );
   const backups = usePortBackups(model.port?.id);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
@@ -837,140 +774,182 @@ function Workspace({
         hostToolActions={hostToolActions}
       />
     );
+  return {
+    bootstrap,
+    data,
+    setupSource,
+    setSetupSource,
+    operations,
+    ui,
+    workspace,
+    applicationUpdate,
+    applicationUpdateChoice,
+    applicationUpdateProductionTransition,
+    openSourceIntake,
+    model,
+    openPortDetails,
+    addGamesOpen,
+    addGamesStarted,
+    setPrimaryView,
+    closeAddGames,
+    commandSurface,
+    controller,
+    reviewApplicationUpdate,
+    dismissApplicationUpdateChoice,
+    completeApplicationUpdateProductionTransition,
+    dismissApplicationUpdateProductionTransition,
+    renderPageHeader,
+    renderPreferenceFailure,
+    renderWorkspaceView,
+    renderSourceIntake,
+  };
+}
+
+function Workspace(props: Parameters<typeof useWorkspace>[0]) {
+  return <WorkspaceView {...useWorkspace(props)} />;
+}
+
+function WorkspaceView({ workspace, ...model }: ReturnType<typeof useWorkspace>) {
   return (
     <OperationPresentationProvider
-      generation={bootstrap.generation}
-      pending={operations.pendingOperations}
+      generation={model.bootstrap.generation}
+      pending={model.operations.pendingOperations}
     >
       <ArtworkProvider
-        generation={bootstrap.generation}
-        catalog={data.catalog}
-        listings={data.listingCatalog}
+        generation={model.bootstrap.generation}
+        catalog={model.data.catalog}
+        listings={model.data.listingCatalog}
       >
         <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
           <Sidebar
-            view={ui.view}
-            setView={setPrimaryView}
-            controller={controller}
-            installedCount={model.overview.installed}
+            view={model.ui.view}
+            setView={model.setPrimaryView}
+            controller={model.controller}
+            installedCount={model.model.overview.installed}
             updateCount={
-              data.statuses.filter(
+              model.data.statuses.filter(
                 (status) => currentUpdateSnapshot(status)?.check.update_available,
               ).length
             }
-            activities={data.activities}
+            activities={model.data.activities}
           />
           <main
             className="min-h-0 w-full min-w-0 overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
             ref={workspace}
             data-focus-region="workspace"
             data-workspace-continuity-scope={JSON.stringify([
-              bootstrap.generation,
-              ui.view,
-              model.entry?.id ?? null,
-              addGamesOpen,
+              model.bootstrap.generation,
+              model.ui.view,
+              model.model.entry?.id ?? null,
+              model.addGamesOpen,
             ])}
             tabIndex={-1}
           >
             <div
               className={
-                !model.entry && (ui.view === "catalog" || (ui.view === "library" && !addGamesOpen))
+                !model.model.entry &&
+                (model.ui.view === "catalog" ||
+                  (model.ui.view === "library" && !model.addGamesOpen))
                   ? "w-full min-w-0"
                   : "w-full max-w-(--layout-content-max) min-w-0"
               }
             >
-              {renderPageHeader()}
+              {model.renderPageHeader()}
               <div className="flow-root min-w-0" data-workspace-feedback>
                 <StatusLayer
-                  invocations={operations.invocations}
-                  operationEvents={operations.operationEvents}
-                  dismissInvocation={operations.dismissInvocation}
+                  invocations={model.operations.invocations}
+                  operationEvents={model.operations.operationEvents}
+                  dismissInvocation={model.operations.dismissInvocation}
                   openActivity={(id) => {
-                    ui.setReviewedActivityId(id);
-                    setPrimaryView("updates");
+                    model.ui.setReviewedActivityId(id);
+                    model.setPrimaryView("updates");
                   }}
-                  error={operations.error}
-                  clearError={() => operations.setError(undefined)}
-                  reviewCurrentState={data.retryRefresh}
+                  error={model.operations.error}
+                  clearError={() => model.operations.setError(undefined)}
+                  reviewCurrentState={model.data.retryRefresh}
                   preparationRecovery={(record) => {
                     const id = preparationRecoveryPort(
                       record.failure,
-                      data.catalog?.ports ?? [],
-                      data.statuses,
+                      model.data.catalog?.ports ?? [],
+                      model.data.statuses,
                     );
-                    return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
+                    return id
+                      ? () => model.openPortDetails(id, "error:preparation-review")
+                      : undefined;
                   }}
-                  operation={operations.operation}
-                  busy={operations.busy}
+                  operation={model.operations.operation}
+                  busy={model.operations.busy}
                   featureNotices={
                     <ApplicationUpdateNotices
-                      updateNotice={applicationUpdate.notice}
-                      updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+                      updateNotice={model.applicationUpdate.notice}
+                      updateChoiceRequired={model.applicationUpdateChoice.choiceRequired}
                       productionTransitionRequired={
-                        applicationUpdateProductionTransition.offerRequired
+                        model.applicationUpdateProductionTransition.offerRequired
                       }
-                      productionTransitionBusy={applicationUpdateProductionTransition.busy}
-                      reviewUpdate={reviewApplicationUpdate}
-                      dismissUpdate={applicationUpdate.dismiss}
-                      dismissUpdateChoice={dismissApplicationUpdateChoice}
+                      productionTransitionBusy={model.applicationUpdateProductionTransition.busy}
+                      reviewUpdate={model.reviewApplicationUpdate}
+                      dismissUpdate={model.applicationUpdate.dismiss}
+                      dismissUpdateChoice={model.dismissApplicationUpdateChoice}
                       useStable={() =>
-                        void completeApplicationUpdateProductionTransition("use-stable")
+                        void model.completeApplicationUpdateProductionTransition("use-stable")
                       }
                       keepPreview={() =>
-                        void completeApplicationUpdateProductionTransition("keep-preview")
+                        void model.completeApplicationUpdateProductionTransition("keep-preview")
                       }
-                      dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+                      dismissProductionTransition={
+                        model.dismissApplicationUpdateProductionTransition
+                      }
                     />
                   }
                 />
                 <WorkspaceRefreshNotice
-                  failure={data.refreshFailure}
-                  recoveryFailure={data.recoveryFailure}
-                  hasSnapshot={Boolean(data.catalog)}
-                  refreshing={data.refreshing}
-                  retry={data.retryRefresh}
-                  retryRecovery={data.retryRecovery}
+                  failure={model.data.refreshFailure}
+                  recoveryFailure={model.data.recoveryFailure}
+                  hasSnapshot={Boolean(model.data.catalog)}
+                  refreshing={model.data.refreshing}
+                  retry={model.data.retryRefresh}
+                  retryRecovery={model.data.retryRecovery}
                   subscriptionFailure={
-                    data.subscriptionFailure?.error ?? operations.subscriptionFailure
+                    model.data.subscriptionFailure?.error ?? model.operations.subscriptionFailure
                   }
                 />
-                {renderPreferenceFailure()}
+                {model.renderPreferenceFailure()}
               </div>
-              {renderWorkspaceView()}
-              {addGamesStarted && (
+              {model.renderWorkspaceView()}
+              {model.addGamesStarted && (
                 <AddGames
-                  key={bootstrap.generation}
-                  active={addGamesOpen && ui.view === "library" && !model.entry}
-                  generation={bootstrap.generation}
-                  ports={data.catalog?.ports ?? []}
-                  profiles={data.catalog?.source_profiles ?? []}
-                  statuses={model.statusMap}
-                  sources={data.sources}
-                  refreshFailed={Boolean(data.refreshFailure)}
-                  onAdded={data.refreshAfterMutation}
-                  onOpenPort={openPortDetails}
-                  onCheckFiles={openSourceIntake}
-                  onBrowseCatalog={() => setPrimaryView("catalog")}
-                  onCopyInstallation={() => ui.setAdoptOpen(true)}
-                  setupSource={setupSource}
-                  setSetupSource={setSetupSource}
-                  close={closeAddGames}
+                  key={model.bootstrap.generation}
+                  active={model.addGamesOpen && model.ui.view === "library" && !model.model.entry}
+                  generation={model.bootstrap.generation}
+                  ports={model.data.catalog?.ports ?? []}
+                  profiles={model.data.catalog?.source_profiles ?? []}
+                  statuses={model.model.statusMap}
+                  sources={model.data.sources}
+                  refreshFailed={Boolean(model.data.refreshFailure)}
+                  onAdded={model.data.refreshAfterMutation}
+                  onOpenPort={model.openPortDetails}
+                  onCheckFiles={model.openSourceIntake}
+                  onBrowseCatalog={() => model.setPrimaryView("catalog")}
+                  onCopyInstallation={() => model.ui.setAdoptOpen(true)}
+                  setupSource={model.setupSource}
+                  setSetupSource={model.setSetupSource}
+                  close={model.closeAddGames}
                 />
               )}
             </div>
           </main>
           <AdoptionOverlay
-            ui={ui}
-            operations={operations}
-            libraryGeneration={bootstrap.generation}
-            ports={data.catalog?.ports ?? []}
+            ui={model.ui}
+            operations={model.operations}
+            libraryGeneration={model.bootstrap.generation}
+            ports={model.data.catalog?.ports ?? []}
           />
           <CommandPalette
-            open={commandSurface.open}
-            commands={commandSurface.commands}
-            close={() => commandSurface.setOpen(false)}
+            open={model.commandSurface.open}
+            commands={model.commandSurface.commands}
+            close={() => model.commandSurface.setOpen(false)}
           />
-          {renderSourceIntake()}
+          {model.renderSourceIntake()}
         </div>
       </ArtworkProvider>
     </OperationPresentationProvider>
@@ -1701,4 +1680,116 @@ function useWorkspaceApplicationUpdates(reportError: OperationState["setError"])
     reportError: reportError,
   });
   return { applicationUpdate, applicationUpdateChoice, applicationUpdateProductionTransition };
+}
+
+function usePendingSetupReview(
+  selection: ReturnType<typeof useSetupReviewSelection>,
+  selectedId: string | undefined,
+  portId: string | undefined,
+  status: ReturnType<typeof useAppModel>["status"],
+  refreshFailure: unknown,
+  reviewInstallation: ReturnType<typeof useInstallPlanning>["review"],
+) {
+  const { pendingReview, takeReview } = selection;
+  useEffect(() => {
+    const request = pendingReview;
+    if (!request) return;
+    // Consume once, including StrictMode replay, and never plan a different detail.
+    const matches =
+      selectedId === request.portId &&
+      portId === request.portId &&
+      status?.channel === request.channel &&
+      !refreshFailure &&
+      !status.active &&
+      !status.external_runtime &&
+      status.port_actions?.some(
+        (action) => action.action === "install" && action.availability === "allowed",
+      );
+    if (takeReview(request) && matches) void reviewInstallation();
+  }, [pendingReview, takeReview, selectedId, portId, status, refreshFailure, reviewInstallation]);
+}
+
+function useWorkspaceLibrary({
+  bootstrap,
+  initialBrowsingContext,
+  rememberBrowsingContext,
+  switchLibrary,
+  resetLibrary,
+  returnToSelection,
+}: WorkspaceProps) {
+  const data = usePortcoveData(bootstrap.generation);
+  const collection = useCollectionLayout(bootstrap.library_root);
+  const favorites = useFavorites(bootstrap.generation);
+  const [setupSource, setSetupSource] = useSetupSource(data.sources);
+  const operations = useOperationState({
+    libraryGeneration: bootstrap.generation,
+    libraryLabel: bootstrap.library_root ?? "Current library",
+    refresh: data.retryRefresh,
+    refreshActivities: data.refreshActivities,
+    invalidateDiagnostics: data.invalidateDiagnostics,
+    activities: data.activities,
+  });
+  const github = useGithubAuth(operations.perform, operations.setError, bootstrap.generation);
+  const updates = useUpdateCenter(operations.perform, data.statuses);
+  const {
+    ui,
+    switchView,
+    workspace,
+    switchLibraryWithContext,
+    resetLibraryWithContext,
+    preferenceFailure,
+    saveBrowsingPreferences,
+  } = useLibraryBrowsingContext({
+    root: bootstrap.library_root,
+    initial: initialBrowsingContext,
+    returnToSelection,
+    remember: rememberBrowsingContext,
+    switchLibrary,
+    resetLibrary,
+    ready: Boolean(data.catalog),
+    installedCount: data.catalog
+      ? new Set([
+          ...data.statuses
+            .filter((status) => status.active || status.external_runtime)
+            .map((status) => status.port_id),
+          ...data.listingStatuses
+            .filter(({ status }) => status.active || status.external_runtime)
+            .map(({ port_id }) => port_id),
+          ...data.pendingSetups.map(({ port_id }) => port_id),
+        ]).size
+      : undefined,
+    catalogCount: data.catalog
+      ? new Set([
+          ...data.catalog.ports.map(({ id }) => id),
+          ...(data.listingCatalog?.listings.map(({ id }) => id) ?? []),
+        ]).size
+      : undefined,
+  });
+  const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
+  useEffect(() => {
+    if (
+      catalog &&
+      (ui.view === "settings" || ui.view === "updates") &&
+      (diagnosticsStale || !doctor)
+    )
+      void refreshDiagnostics();
+  }, [catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics, ui.view]);
+
+  return {
+    data,
+    collection,
+    favorites,
+    setupSource,
+    setSetupSource,
+    operations,
+    github,
+    updates,
+    ui,
+    switchView,
+    workspace,
+    switchLibraryWithContext,
+    resetLibraryWithContext,
+    preferenceFailure,
+    saveBrowsingPreferences,
+  };
 }

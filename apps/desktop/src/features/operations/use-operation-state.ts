@@ -228,12 +228,7 @@ export function useOperationState(configuration: {
           );
         });
       } catch (value) {
-        const mutation = failurePresentation(value)?.mutation_state;
-        const quietCancellation =
-          isCancellation(value) && (mutation === "not_started" || mutation === "no_changes");
-        outcome = isCancellation(value) ? "cancelled" : "failed";
-        if (!quietCancellation)
-          failure = value ?? new Error("The task failed without diagnostic details.");
+        ({ outcome, failure } = classifyInvocationFailure(value));
       } finally {
         acceptingEvents = false;
         if (isOwned()) {
@@ -294,4 +289,18 @@ export function useOperationState(configuration: {
     setError,
     subscriptionFailure,
   };
+}
+
+function classifyInvocationFailure(value: unknown): {
+  outcome: "cancelled" | "failed";
+  failure: unknown;
+} {
+  const mutation = failurePresentation(value)?.mutation_state;
+  const quietCancellation =
+    isCancellation(value) && (mutation === "not_started" || mutation === "no_changes");
+  const outcome = isCancellation(value) ? "cancelled" : "failed";
+  const failure = quietCancellation
+    ? undefined
+    : (value ?? new Error("The task failed without diagnostic details."));
+  return { outcome, failure };
 }
