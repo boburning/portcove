@@ -224,8 +224,6 @@ jobs:
         with:
           test-fixtures: true
       - id: workspace-cache
-        # Temporary target-cold/warm Audit15 probe; no shared-cache reads or writes.
-        if: false
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           cache-on-failure: true
@@ -264,19 +262,6 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 1
-      - name: Retain temporary Windows build profile inputs
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: windows-build-cost-profile-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            work/windows-rust-tests/build-profile-*.json
-            work/windows-rust-tests/binaries.json
-            work/windows-rust-tests/cargo.json
-            work/windows-rust-tests/warm-binaries.json
-            work/windows-rust-tests/warm-cargo.json
-          if-no-files-found: error
-          retention-days: 7
       - name: Summarize diagnostic timings
         if: always()
         continue-on-error: true
