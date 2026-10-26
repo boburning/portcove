@@ -67,6 +67,15 @@ type Controller = {
   run_attempt: number;
 };
 type Artifact = { id: number; sha256: string };
+/** An upload locator carries identity only; it grants no receipt or publication authority. */
+export function inspectPublicationResultUpload(uploaded: unknown): Artifact {
+  exact(uploaded, "id,sha256");
+  hex(uploaded.sha256);
+  if (!Number.isSafeInteger(uploaded.id) || Number(uploaded.id) < 1)
+    throw new Error("result upload numeric identity missing");
+  return { id: Number(uploaded.id), sha256: uploaded.sha256 };
+}
+
 export type PublicationResultArtifactExpected = Controller & {
   artifact: Artifact;
   bundle: Artifact;
@@ -677,18 +686,11 @@ export async function handoffPublicationResultArtifact(
         await delay(remaining(deadline, 100));
       }
     }
-    exact(uploaded, "id,sha256");
-    hex(uploaded.sha256);
-    if (!Number.isSafeInteger(uploaded.id) || Number(uploaded.id) < 1)
-      throw new Error("result upload numeric identity missing");
-    const result = await preparePublicationResultPredicate(
-      receipt,
-      { id: Number(uploaded.id), sha256: uploaded.sha256 },
-      deadline,
-    );
+    const identity = inspectPublicationResultUpload(uploaded);
+    const result = await preparePublicationResultPredicate(receipt, identity, deadline);
     return {
-      artifact_id: Number(uploaded.id),
-      sha256: uploaded.sha256,
+      artifact_id: identity.id,
+      sha256: identity.sha256,
       report_sha256: actual.report_sha256,
       predicate_sha256: digest(result.predicate),
       directory: actual.directory,

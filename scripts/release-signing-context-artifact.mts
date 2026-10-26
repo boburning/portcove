@@ -60,7 +60,7 @@ type ContextKind =
   | "release-signing-context"
   | "metadata-signing-context"
   | "catalog-signing-context";
-const contextRoute = (kind: ContextKind) =>
+export const signingContextArtifactRoute = (kind: ContextKind) =>
   kind === "release-signing-context"
     ? {
         prefix: "trusted-payload-signing-context",
@@ -469,7 +469,7 @@ async function prepareContextArtifact(kind: ContextKind, contextReceipt: object,
     await requireProducerContext(kind, contextReceipt);
     const receipt = Object.freeze({
       kind: "actual-signing-context-upload",
-      name: `${contextRoute(kind).prefix}-${tools.run_id}-${tools.run_attempt}`,
+      name: `${signingContextArtifactRoute(kind).prefix}-${tools.run_id}-${tools.run_attempt}`,
       directory,
       manifest_sha256: hash(manifestBytes),
       authority: "none",
@@ -513,7 +513,7 @@ export async function handoffSigningContextArtifact(
     throw new Error("context pending checkpoint differs");
   sha(pending.operation_id);
   const actual = await requireProducerContext(owned.kind, owned.context);
-  const name = `${contextRoute(owned.kind).prefix}-${actual.tools.identity.run_id}-${actual.tools.identity.run_attempt}`;
+  const name = `${signingContextArtifactRoute(owned.kind).prefix}-${actual.tools.identity.run_id}-${actual.tools.identity.run_attempt}`;
   await writeFile(
     path.join(owned.directory, "context-ready.json"),
     JSON.stringify({
@@ -611,7 +611,7 @@ export async function prepareSigningContextPredicate(
   const actual = await requireProducerContext(owned.kind, owned.context),
     controller = actual.tools.identity;
   if (
-    expectedIdentity.audience !== contextRoute(owned.kind).audience ||
+    expectedIdentity.audience !== signingContextArtifactRoute(owned.kind).audience ||
     expectedIdentity.controller_revision !== controller.controller_revision ||
     expectedIdentity.controller_ref !== controller.controller_ref ||
     expectedIdentity.run_id !== controller.run_id ||
@@ -638,7 +638,7 @@ export async function prepareSigningContextPredicate(
       !isRecord(raw) ||
       raw.id !== uploaded.artifact_id ||
       raw.name !==
-        `${contextRoute(owned.kind).prefix}-${controller.run_id}-${controller.run_attempt}` ||
+        `${signingContextArtifactRoute(owned.kind).prefix}-${controller.run_id}-${controller.run_attempt}` ||
       raw.digest !== `sha256:${uploaded.sha256}` ||
       raw.expired !== false ||
       typeof raw.size_in_bytes !== "number" ||
@@ -711,7 +711,7 @@ export async function prepareSigningContextPredicate(
     manifest_sha256: owned.manifest_sha256,
     binding: inspected.manifest.binding,
     facts_sha256: inspected.manifest.facts_sha256,
-    stage: contextRoute(owned.kind).stage,
+    stage: signingContextArtifactRoute(owned.kind).stage,
     publication_admission: "not-established",
     authority: "none",
   };
@@ -914,7 +914,7 @@ async function receiveContextArtifact(
         !isRecord(raw) ||
         raw.id !== item.id ||
         raw.name !==
-          `${contextRoute(kind).prefix}${bundle ? "-attestation" : ""}-${expected.run_id}-${expected.run_attempt}` ||
+          `${signingContextArtifactRoute(kind).prefix}${bundle ? "-attestation" : ""}-${expected.run_id}-${expected.run_attempt}` ||
         raw.expired !== false ||
         raw.digest !== `sha256:${item.sha256}` ||
         typeof raw.size_in_bytes !== "number" ||
@@ -1047,7 +1047,7 @@ async function receiveContextArtifact(
       manifest_sha256: inspected.manifest_sha256,
       binding: inspected.manifest.binding,
       facts_sha256: expected.facts_sha256,
-      stage: contextRoute(kind).stage,
+      stage: signingContextArtifactRoute(kind).stage,
       publication_admission: "not-established",
       authority: "none",
     };
@@ -1061,7 +1061,7 @@ async function receiveContextArtifact(
         String(job.run_id) !== expected.run_id ||
         job.run_attempt !== expected.run_attempt ||
         job.head_sha !== expected.controller_revision ||
-        job.name !== contextRoute(kind).job ||
+        job.name !== signingContextArtifactRoute(kind).job ||
         job.status !== "completed" ||
         job.conclusion !== "success" ||
         job.check_run_url !==
