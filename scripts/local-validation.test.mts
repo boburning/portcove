@@ -415,6 +415,7 @@ void test("selected nextest outcome edits retain native execution and every outc
   ]) {
     const selection = classifyChanges([change], { fileExists: allFilesExist });
     for (const consumer of [
+      "scripts/run-rust-tests.test.mts",
       "scripts/nextest-outcomes.test.mts",
       "scripts/rust-test-impact.test.mts",
       "scripts/ci-workflow.test.mts",
@@ -3524,5 +3525,48 @@ void test("platform skip inputs retain their declared case and policy consumers 
         [],
         file + "/" + variant + "/hosted",
       );
+    }
+});
+
+void test("default nextest runtime inputs retain local and hosted consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    "scripts/nextest-outcomes.mts",
+    "scripts/nextest-outcomes-cli.mts",
+    "scripts/run-rust-tests.mts",
+    "scripts/report-summary.mts",
+    "scripts/bounded-summary.mts",
+    "scripts/fallow-summary.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: allFilesExist },
+      );
+      const hosted = baselineContractTests(
+        buildValidationPlan({
+          changes: [change],
+          eventName: "pull_request",
+          base: "a".repeat(40),
+          mergeBase: "a".repeat(40),
+          head: "b".repeat(40),
+          checkout: "b".repeat(40),
+        }),
+        { fileExists: allFilesExist },
+      );
+      for (const consumer of [
+        "scripts/nextest-outcomes.test.mts",
+        "scripts/run-rust-tests.test.mts",
+      ]) {
+        assert.ok(local.nodeTests.has(consumer), file + "/" + variant + "/local");
+        assert.ok(hosted.includes(consumer), file + "/" + variant + "/hosted");
+      }
     }
 });

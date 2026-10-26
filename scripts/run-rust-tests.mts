@@ -131,8 +131,8 @@ export function parseRustRunMode(args: string[]): RustRunMode {
   }
   return {
     kind: "nextest",
-    executable: "cargo-nextest",
-    args: ["nextest", "run", ...args],
+    executable: process.execPath,
+    args: [path.join(root, "scripts/nextest-outcomes-cli.mts"), "--run", ...args],
     description: `cargo-nextest nextest run ${args.join(" ")}`.trim(),
   };
 }

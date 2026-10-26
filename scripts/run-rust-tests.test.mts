@@ -119,8 +119,8 @@ void test("runner distinguishes nextest, hosted preparation, and exact guarded c
   assert.throws(() => parseRustRunMode(["--impact-union", "portcove-core", "catalog-contract"]));
   assert.deepEqual(parseRustRunMode(["--locked", "--workspace"]), {
     kind: "nextest",
-    executable: "cargo-nextest",
-    args: ["nextest", "run", "--locked", "--workspace"],
+    executable: process.execPath,
+    args: [path.resolve("scripts/nextest-outcomes-cli.mts"), "--run", "--locked", "--workspace"],
     description: "cargo-nextest nextest run --locked --workspace",
   });
   assert.deepEqual(parseRustRunMode(["--prepare-only"]), { kind: "prepare" });
@@ -394,7 +394,7 @@ void test("runner holds the lock through nextest and preserves its exit status",
     ]);
     assert.match(
       required(events[3]),
-      /^spawn:portcove-process-tree-supervisor\.exe:.+registered\.gate cargo-nextest nextest run --package portcove-core$/u,
+      /^spawn:portcove-process-tree-supervisor\.exe:.+registered\.gate .+[/\\]nextest-outcomes-cli\.mts --run --package portcove-core$/u,
     );
     assert.deepEqual(events.slice(4), ["register:701", "release"]);
     assert.equal(registeredContainment, "windows-job");
@@ -464,9 +464,9 @@ void test("Linux runner monitors its reaper and registers the separate gated Nod
       path.resolve("scripts/rust-test-tree-supervisor.mts"),
     );
     assert.deepEqual(required(spawnedArgs).slice(7), [
-      "cargo-nextest",
-      "nextest",
-      "run",
+      process.execPath,
+      path.resolve("scripts/nextest-outcomes-cli.mts"),
+      "--run",
       "--package",
       "portcove-core",
     ]);
@@ -535,8 +535,13 @@ void test("inherited runner stays inside the recorded outer containment", async 
       }),
     });
     assert.equal(status, 0);
-    assert.equal(required(spawned).command, "cargo-nextest");
-    assert.deepEqual(required(spawned).args, ["nextest", "run", "--package", "portcove-core"]);
+    assert.equal(required(spawned).command, process.execPath);
+    assert.deepEqual(required(spawned).args, [
+      path.resolve("scripts/nextest-outcomes-cli.mts"),
+      "--run",
+      "--package",
+      "portcove-core",
+    ]);
     assert.equal(required(spawned).options.detached, false);
     assert.equal(
       required(required(spawned).options.env).PORTCOVE_HEAVY_RUST_LOCK_TOKEN,
