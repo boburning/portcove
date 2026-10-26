@@ -234,6 +234,9 @@ const workflowFeatureTests = [
   "scripts/windows-rust-tests.test.mts",
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
+export const nodeTestOwnership = parseNodeTestSuites(
+  readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+);
 const platformSkipConsumers = [
   "scripts/node-platform-skips.test.mts",
   "scripts/required-node-test-reporter.test.mts",
@@ -241,10 +244,7 @@ const platformSkipConsumers = [
   "scripts/ui-test-selection.test.mts",
   "scripts/validation-evidence.test.mts",
   "scripts/audit.test.mts",
-  ...Object.keys(
-    parseNodeTestSuites(readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"))
-      .platformSkips ?? {},
-  ),
+  ...Object.keys(nodeTestOwnership.platformSkips ?? {}),
 ];
 const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/node-platform-skips.mts", platformSkipConsumers],
@@ -1125,7 +1125,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...["scripts/node-test-suites.mts", "scripts/node-test-suites.json"].map(
     (file): [string, string[]] => [
       file,
-      [...platformSkipConsumers, "scripts/ci-workflow.test.mts"],
+      [
+        ...platformSkipConsumers,
+        "scripts/ci-workflow.test.mts",
+        "scripts/ci-baseline.test.mts",
+        "scripts/local-validation.test.mts",
+      ],
     ],
   ),
   [
@@ -1653,7 +1658,7 @@ explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
   "scripts/release-coordinator-state.test.mts",
 ]);
 
-export const coordinatorStateContractTests = [
+const coordinatorStateContractTests = [
   "scripts/release-coordinator-state.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-coordinator-remote.test.mts",
