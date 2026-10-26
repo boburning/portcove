@@ -541,3 +541,28 @@ void test("plan environment transport rejects ambiguity, corrupt encoding and bo
     /byte limit/,
   );
 });
+
+void test("both version runtime adapters inherit protected policy across lifecycle edits", () => {
+  const policy = validationOwnershipForPath("apps/desktop/scripts/release-version-policy.mts");
+  for (const file of [
+    "apps/desktop/scripts/release-version-runtime.mts",
+    "apps/desktop/scripts/release-version-bundled-runtime.mts",
+  ]) {
+    const ownership = validationOwnershipForPath(file);
+    assert.deepEqual({ ...ownership, path: policy.path }, policy);
+    for (const values of [
+      {},
+      { status: "A", oldMode: "000000" },
+      { status: "D", newMode: "000000" },
+      { status: "R100", newPath: "docs/moved.md" },
+      { status: "R100", oldPath: "docs/moved.md" },
+    ]) {
+      const selected = plan([change(file, values)]);
+      const original = plan([change("apps/desktop/scripts/release-version-policy.mts", values)]);
+      assert.equal(selected.mode, original.mode, file + "/" + JSON.stringify(values));
+      assert.equal(ownership.qualificationRequired, true);
+      assert.equal(selected.qualification_required, original.qualification_required);
+      assert.deepEqual(selected.platforms, original.platforms);
+    }
+  }
+});

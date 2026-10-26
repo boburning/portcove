@@ -3603,6 +3603,14 @@ void test("version runtime and relative fixture closure retain local and hosted 
         checkout: "b".repeat(40),
       });
       const hosted = baselineContractTests(plan, { fileExists: allFilesExist });
+      if (file.startsWith("apps/desktop/scripts/release-version-")) {
+        const { validationOwnershipForPath } = await import("./validation-plan.mts");
+        assert.equal(
+          validationOwnershipForPath(file).qualificationRequired,
+          true,
+          file + "/" + variant + "/protected-route",
+        );
+      }
       assert.ok(baselineRequiresDesktopDependencies(plan), file + "/" + variant + "/dependencies");
       const expected = [
         "scripts/production-aggregate-steps.test.mts",
