@@ -1,3 +1,5 @@
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -7,11 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 
-import {
-  defaultCoverScenario,
-  createImageRefusal,
-  restoreCacheAfterObservation,
-} from "./desktop-default-cover-test.mts";
+import { createImageRefusal, restoreCacheAfterObservation } from "./desktop-cover-observations.mts";
 
 void test("default cover restoration preserves primary failures and still closes the refusal proxy", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-cover-restore-"));
@@ -108,16 +106,25 @@ void test("default cover restoration preserves primary failures and still closes
 });
 
 void test("default cover observation remains inert when its scenario is not selected", async () => {
-  assert.match(defaultCoverScenario.toString(), /\bawait\s+restoreCacheAfterObservation\s*\(/u);
+  const source = stripTypeScriptTypes(
+    await readFile(new URL("./desktop-default-cover-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  const start = source.indexOf("export async function defaultCoverScenario(");
+  const end = source.indexOf("async function assertEmptyCache(", start);
+  assert.ok(start >= 0 && end > start);
+  const scenario = source.slice(start, end).replace("export ", "");
+  assert.match(scenario, /\bawait\s+restoreCacheAfterObservation\s*\(/u);
   let visited = 0;
-  await Reflect.apply(defaultCoverScenario, undefined, [
-    {
+  const result: unknown = runInNewContext(`${scenario} defaultCoverScenario(context)`, {
+    context: {
       browser: undefined,
       scenario: async () => {
         visited += 1;
       },
     },
-  ]);
+  });
+  await result;
   assert.equal(visited, 1);
 });
 

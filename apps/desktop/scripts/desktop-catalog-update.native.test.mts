@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runInNewContext } from "node:vm";
+import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext, runInThisContext } from "node:vm";
 import { readReviewFieldStyles } from "./desktop-review-presentation.mts";
-import { catalogUpdateScenario as actualCatalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 
 void test("catalog field presentation reaches the browser as executable JavaScript with both element arguments", async () => {
-  assert.match(actualCatalogUpdateScenario.toString(), /\bawait\s+readReviewFieldStyles\s*\(/u);
+  const caller = readFileSync(
+    new URL("./desktop-catalog-update-test.mts", import.meta.url),
+    "utf8",
+  );
+  assert.match(caller, /\bawait\s+readReviewFieldStyles\s*\(/u);
   const fields = [
     {
       width: "240px",
@@ -47,6 +52,20 @@ void test("catalog field presentation reaches the browser as executable JavaScri
 });
 
 void test("catalog transport is required only after its scenario is selected", async () => {
+  const source = stripTypeScriptTypes(
+    readFileSync(new URL("./desktop-catalog-update-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  const start = source.indexOf("export async function catalogUpdateScenario(");
+  assert.ok(start >= 0);
+  // This native suite runs before frontend dependencies are installed. Execute
+  // the actual erased producer, supplying only its selected-transport boundary.
+  const factory: unknown = runInThisContext(
+    `(function(assert,WebDriver){${source.slice(start).replace("export ", "")} return catalogUpdateScenario;})`,
+  );
+  assert.ok(typeof factory === "function");
+  const producer: unknown = Reflect.apply(factory, undefined, [assert, class WebDriver {}]);
+  assert.ok(typeof producer === "function");
   const catalogUpdateScenario = (context: {
     browser: undefined;
     invoke: () => Promise<unknown>;
@@ -54,7 +73,7 @@ void test("catalog transport is required only after its scenario is selected", a
     artifacts: string[];
     scenario: (name: string, run: () => Promise<void>) => Promise<void>;
   }): Promise<unknown> => {
-    const result: unknown = Reflect.apply(actualCatalogUpdateScenario, undefined, [context]);
+    const result: unknown = Reflect.apply(producer, undefined, [context]);
     return Promise.resolve(result);
   };
   let invoked = 0;

@@ -653,7 +653,6 @@
     },
     {
       "file": "scripts/desktop-scenarios.test.mts",
-      "desktop_dependencies": true,
       "memberships": [
         ["windows-storage-4", 100],
         ["frontend-full-4", 100],
