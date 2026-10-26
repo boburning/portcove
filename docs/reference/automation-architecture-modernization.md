@@ -382,8 +382,8 @@ gate; the prior Moon/Nx/Turbo/CLI/XState/Octokit framework decisions still stand
 
 - Removed the unused `parseNameStatus` export and its 26-line implementation.
   Production discovery already uses NUL-delimited raw Git records and the shared
-  `parseRawDiff` authority; its only callers were obsolete parser tests and a
-  dated advisory report. Modification/deletion/copy vectors moved to the existing
+  `parseRawDiff` authority; its only executable callers were obsolete parser tests; a dated advisory
+  report also referenced the export. Modification/deletion/copy vectors moved to the existing
   raw-adapter regression, alongside rename paths/modes and malformed-input refusal.
   No live workflow, dynamic command or compatibility entrypoint was removed.
 - Upstream-health scope selection now validates through the existing pure
@@ -417,3 +417,39 @@ native acceptance or required CI context was changed. These measurements and
 fixtures do not qualify installed/native/release behavior. #2420 remains the
 canonical testing-audit ledger; this bounded #1104 delivery adds no beta gate or
 parallel cleanup backlog.
+
+### Qualification and delivery accounting
+
+The actual native `frontend:tests` task passed at reviewed source
+`e445f0dc1356bce79c1dd078c0c1f249e733a4c7`: 935 unit passes and one explicit
+skip in 28.23 s, followed by 1,476 browser passes and one explicit skip in
+271.41 s. This is 2,411 passes and two skips; the refreshed baseline contains
+four more unit cases than the historical Phase 1 run. Complete browser identity
+and outcome accounting matches the controlled experiments. Unit admission waited
+110.176 s, browser admission 0.006 s; guarded phase totals were 144.481 and
+279.880 s. The sum of runner execution was 299.64 s; this is separate from the
+426.562-second outer command wall, including queueing. A later target composition is not claimed to
+have those exact timings.
+
+The five selected local tooling-contract files passed 193 cases, including the
+new failure gate and pre/post-change health oracle. Full strict checking covered
+1,345 files with zero warnings/lint/type errors (27.4 s checker, 111.115 s guarded
+including 75.436 s queue). Native TypeScript syntax and generated Node suite
+inventories passed. Independent non-writing architecture and framework reviews
+found no blocking code findings; their two documentation corrections were
+applied. This is source/fixture evidence, not native release qualification.
+
+Main advanced during qualification with PR #3663, target
+`9b3a92d33fa0e42026598fb4ef80767a80c46798`. It was integrated before final hosted
+qualification. Independent target-interaction review found no overlapping edits
+or new worker/API boundary; its portrait test refactor preserves declarations
+and artifacts. Final composed-source required CI, merge identity and readback
+are recorded with the bounded [#1104 delivery outcome](https://github.com/boburning/portcove/issues/1104).
+The issue remains open for its broader acceptance; #3662 is not reopened and no
+new backlog or beta prerequisite was created.
+
+Phase 2 modifies nine existing files: production TypeScript −28 lines, tests +100,
+configuration net zero, documentation +245; net +317 maintained lines. No whole
+files or dependencies were added or removed; no new domain module or compatibility
+wrapper was introduced. The smaller production surface and faster feedback are
+separate from the expanded historical evidence record.

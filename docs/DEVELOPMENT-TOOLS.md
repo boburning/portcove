@@ -2780,7 +2780,7 @@ share `~/.portcove/resources`, independent of worktree, branch, tool version,
 units: Rust, browser and analysis phases use one each; container preparation and
 execution use both. These are conservative admission weights, not CPU/RAM
 reservations. Cargo compilation uses at most two jobs; existing nextest limits
-remain; unit and browser projects use two workers each. Git bundle preparation
+remain; unit projects use two workers and browser projects use four. Git bundle preparation
 uses two pack threads. Preserve headroom for unrelated programs.
 
 `config.json` in that domain accepts `slots` (1..8, default 2), `waitMs`
