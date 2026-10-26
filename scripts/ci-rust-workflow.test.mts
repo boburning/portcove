@@ -155,6 +155,11 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     linuxFixture.if,
     "contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'",
   );
+  assert.equal(linuxFixture["continue-on-error"] ?? false, false);
+  assert.doesNotMatch(
+    linuxFixture.run,
+    /rustc --edition|--workspace|tauri build|continue-on-error/u,
+  );
   assert.equal(linuxFixture.shell, "bash"); // Bash's pipefail preserves a failed test before tee.
   const diagnosticCommands = executableLines(linuxFixture.run).filter((line) =>
     line.startsWith("node scripts/run-rust-tests.mts "),
