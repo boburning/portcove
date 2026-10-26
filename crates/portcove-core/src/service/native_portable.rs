@@ -2888,6 +2888,203 @@ mod tests {
         );
     }
 
+    async fn installs_with_retained_scopes(
+        service: &mut PortcoveService,
+        library: &Library,
+        server: &Server,
+        provider: &Provider,
+        expand: bool,
+    ) -> (InstallRecord, InstallRecord, ResolvedRelease) {
+        let first_release = provider.0.lock().unwrap().clone();
+        let first = service
+            .install("portable-fixture", None, None, None, false, |_| {})
+            .await
+            .unwrap();
+        let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+        // Provider/presentation changes must not reinterpret the old receipt.
+        document["ports"][0]["summary"] = serde_json::json!("Second package fixture");
+        if expand {
+            document["ports"][0]["persistent_paths"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!("campaign.dat"));
+        }
+        service.replace_catalog_for_test(Catalog::from_json(&document.to_string()).unwrap());
+        *provider.0.lock().unwrap() = server.release("v2", 2);
+        let second = service
+            .install("portable-fixture", None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert!(
+            library
+                .install_by_artifact("portable-fixture", &first.artifact.sha256, None)
+                .unwrap()
+                .is_some()
+        );
+        fs::create_dir_all(library.user_dir("portable-fixture")).unwrap();
+        (first, second, first_release)
+    }
+
+    #[tokio::test]
+    async fn artifact_reuse_checks_the_actual_retained_data_contract_before_collection() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        let (first, second, first_release) =
+            installs_with_retained_scopes(&mut service, &library, &server, &provider, true).await;
+        let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
+        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).ok();
+        fs::write(
+            second.path.join("campaign.dat"),
+            b"current runtime campaign",
+        )
+        .unwrap();
+        fs::write(
+            library.user_dir("portable-fixture").join("campaign.dat"),
+            b"canonical campaign",
+        )
+        .unwrap();
+        *provider.0.lock().unwrap() = first_release;
+        let failure = service
+            .install("portable-fixture", None, None, None, true, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(
+            failure.presentation().presentation_key,
+            "portable_data_contract_changed"
+        );
+        assert_eq!(
+            service
+                .status("portable-fixture")
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            second.id
+        );
+        assert_eq!(
+            fs::read(second.path.join("campaign.dat")).unwrap(),
+            b"current runtime campaign"
+        );
+        assert_eq!(
+            fs::read(library.user_dir("portable-fixture").join("campaign.dat")).unwrap(),
+            b"canonical campaign"
+        );
+        assert_eq!(
+            fs::read(first.path.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(fs::read(first.path.join(PSX_DATA_RECEIPT)).ok(), receipt);
+        assert!(!first.path.join("campaign.dat").exists());
+    }
+
+    #[tokio::test]
+    async fn pending_activation_recovery_checks_the_actual_retained_data_contract() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        let (first, second, _) =
+            installs_with_retained_scopes(&mut service, &library, &server, &provider, true).await;
+        let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
+        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).ok();
+        fs::write(
+            second.path.join("campaign.dat"),
+            b"current runtime campaign",
+        )
+        .unwrap();
+        fs::write(
+            library.user_dir("portable-fixture").join("campaign.dat"),
+            b"canonical campaign",
+        )
+        .unwrap();
+        library.register_install(&first, false).unwrap();
+        let mut operation = LifecycleOperation::new(
+            &Uuid::new_v4().to_string(),
+            LifecycleOperationKind::Activate,
+            "portable-fixture",
+        );
+        operation.install = Some(first.clone());
+        let store = OperationStore::new(library.clone());
+        store.put(&mut operation).unwrap();
+        let failure =
+            crate::recovery::recover_activation(&service, &store, &mut operation).unwrap_err();
+        assert_eq!(
+            failure.presentation().presentation_key,
+            "portable_data_contract_changed"
+        );
+        assert_eq!(
+            service
+                .status("portable-fixture")
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            second.id
+        );
+        assert_eq!(
+            service
+                .status("portable-fixture")
+                .unwrap()
+                .staged
+                .unwrap()
+                .id,
+            first.id
+        );
+        assert_eq!(
+            fs::read(second.path.join("campaign.dat")).unwrap(),
+            b"current runtime campaign"
+        );
+        assert_eq!(
+            fs::read(library.user_dir("portable-fixture").join("campaign.dat")).unwrap(),
+            b"canonical campaign"
+        );
+        assert_eq!(
+            fs::read(first.path.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(fs::read(first.path.join(PSX_DATA_RECEIPT)).ok(), receipt);
+        assert!(!first.path.join("campaign.dat").exists());
+    }
+
+    #[tokio::test]
+    async fn artifact_reuse_with_unchanged_retained_data_contract_still_activates() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = build_service(library.clone(), provider.clone());
+        let (first, second, first_release) =
+            installs_with_retained_scopes(&mut service, &library, &server, &provider, false).await;
+        let port = service.installed_port(&second).unwrap();
+        service
+            .prepare_launch_for_install(&port, &second, None, None)
+            .unwrap();
+        fs::write(second.path.join("settings.ini"), b"latest player choice").unwrap();
+        *provider.0.lock().unwrap() = first_release;
+        let reused = service
+            .install("portable-fixture", None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(reused.id, first.id);
+        assert_eq!(
+            service
+                .status("portable-fixture")
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            first.id
+        );
+        assert_eq!(
+            fs::read(first.path.join("settings.ini")).unwrap(),
+            b"latest player choice"
+        );
+    }
+
     #[tokio::test]
     async fn failure_after_activation_reports_the_committed_version_and_recovers_without_reversal()
     {
