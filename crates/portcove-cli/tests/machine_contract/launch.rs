@@ -136,8 +136,10 @@ pub(super) fn recover_interrupted_prepared_launch(
     );
     assert_eq!(recovered["data"]["port_id"], port_id);
     assert_eq!(recovered["data"]["child_pid"], child_pid);
-    assert_eq!(recovered["data"]["phase"], "recovering");
+    // Core persists collection after verified child exit so failed collection is retryable.
+    assert_eq!(recovered["data"]["phase"], "collecting");
     assert_eq!(recovered["data"]["outcome"], "failed");
+    assert!(recovered["data"]["finished_at"].as_i64().is_some());
     assert!(recovered["data"]["exit_code"].is_null());
     assert!(
         recovered["data"]["message"]

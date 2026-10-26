@@ -231,3 +231,13 @@ browser setup/import failures and obsolete preparation expectations are retained
 the repository-pinned browser runtime was bootstrapped into its private cache.
 The earlier successful hosted run does not qualify these subsequent changes:
 final complete-head hosted checks and independent repair review remain required.
+
+Current main's expanded CLI-consumer selection then exposed two preparation
+roundtrips sharing an obsolete recovery assertion. Core's delivered retry fix
+persists `collecting` after confirmed child exit, so a collection failure can be
+retried; the consumer still expected `recovering`. The shared CLI fixture now
+checks the authoritative collection phase and a terminal `finished_at`, while
+retaining the failed outcome, child identity, public readback equality, no-replay
+and data-preservation checks. The two failed leaves and aggregate are retained;
+no production recovery behavior or deadline is changed to satisfy the fixture.
+This broader failure is not hidden by the earlier two-case CLI selection.
