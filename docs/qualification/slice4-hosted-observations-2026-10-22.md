@@ -1447,3 +1447,25 @@ before custody checks. This is filesystem evidence, not full Git helper/DLL
 attestation or acceptance. Controlled checks preserve default hardlink refusal
 and reject system identity/ACL drift; actual Windows readback remains required.
 No account, GUI, protected authority or production/source deadline changes.
+
+### Source-only Windows observation at repaired head
+
+At `e8927e1d7dece59aae94d13801ae7a1bbb13803c`, ordinary tools/source
+40404919424/1 passed both platforms. Windows artifact12691136731 (17280bytes,
+SHA256 `325bcdb529c4d59e97207cf1c4d131ba48afb9da41116cfd78623a72403d39fb`)
+passed exact source/tree, byte/digest/ZIP/CRC and scope readback. The fresh
+directory/Git helper and independent complete source/blob/harness readback
+completed within21141milliseconds of its90-second allowance. Account execution
+was `not_requested`; dependencies were not prepared, and original protected
+parent/runtime, native and production acceptance were `not-established`.
+The recorded Git launcher had two links and PowerShell one; both were regular
+non-reparse files. This measures this run's image inputs and does not retrospectively
+identify the old generic refusal's exact path.
+
+CI40404919539/1 passed four required contexts and Windows helper contracts but
+failed Linux catalog: the separate injected startup-context C# control hit its
+15-second PowerShell child limit. That failure is retained. Its child/case
+limits are now45/60seconds; all API-failure/suspend-compensation/timed-worker
+assertions and actual two-second diagnostic join remain. This is a synthetic
+harness calibration, with no production clock or account/GUI authority change.
+The next exact-head CI/source readback cannot inherit this run's outcomes.
