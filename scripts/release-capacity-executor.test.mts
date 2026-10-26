@@ -16,7 +16,6 @@ import {
 } from "./release-capacity-executor.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
-import { isRecord } from "./runtime-values.mts";
 
 void test("imported sessions and custody cannot bind or reserve native checkpoint execution", async () => {
   const imported = Object.freeze({ kind: "authenticated-capacity-executor" as const });
