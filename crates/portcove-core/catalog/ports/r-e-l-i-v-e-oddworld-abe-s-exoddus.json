@@ -3,12 +3,12 @@
   "listing": {
     "id": "r-e-l-i-v-e-oddworld-abe-s-exoddus",
     "name": "R.E.L.I.V.E. / Oddworld: Abe's Exoddus",
-    "summary": "Explore R.E.L.I.V.E. / Oddworld: Abe's Exoddus and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an existing permitted R.E.L.I.V.E. copy for Oddworld: Abe’s Exoddus; fresh package acquisition awaits upstream license and integrity evidence.",
     "project_url": "https://github.com/AliveTeam/alive_reversing",
     "issue_number": 122,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/AliveTeam/alive_reversing",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/AliveTeam/alive_reversing#readme",
     "artwork": {
       "game_id": 1000,
       "cover_id": 173511,
@@ -16,6 +16,22 @@
       "image_sha256": "b4ebd4e1951371f2eb6a016245ac3ae03cf0d740bea4267f6b8c3da23dae74f1",
       "game_slug": "oddworld-abe-s-exoddus",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/AliveTeam/alive_reversing/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep your permitted working copy",
+          "instruction": "If you already have a permitted working R.E.L.I.V.E. installation for Oddworld: Abe’s Exoddus, keep its corresponding original game files and any progress and settings with that copy."
+        },
+        {
+          "title": "Select that game’s player",
+          "instruction": "Choose the native game player and working folder from that completed installation. Upstream setup and runtime updates remain with that copy. The two Oddworld games retain separate registrations and original-data identities."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
+    },
+    "download_block_reason": "New downloads are waiting for upstream to publish a clearly licensed stable package, a verifiable download checksum and supported original-game requirements."
   }
 }

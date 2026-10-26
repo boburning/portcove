@@ -3,11 +3,33 @@
   "listing": {
     "id": "zdoom-gzdoom",
     "name": "Doom / GZDoom (ZDoom)",
-    "summary": "Explore Doom / GZDoom (ZDoom) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
     "project_url": "https://github.com/ZDoom/gzdoom",
     "issue_number": 1824,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ZDoom/gzdoom"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/ZDoom/gzdoom#readme",
+    "release_url": "https://github.com/ZDoom/gzdoom/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the Windows player ZIP",
+          "instruction": "Choose the Windows runtime ZIP. Finish setup with gzdoom.exe in the extracted game folder. Keep your original game files and mods available."
+        },
+        {
+          "title": "Choose your original game",
+          "instruction": "On first Play, choose a compatible game IWAD detected by GZDoom. Follow upstream’s IWAD instructions if your game is not detected; the engine and original game files are separate."
+        },
+        {
+          "title": "Keep your profile and saved games",
+          "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable mode uses gzdoom_portable.ini and Save beside the player instead. Keep the locations you use, original files and mods backed up when updating the upstream runtime."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/ZDoom/gzdoom#readme"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["gzdoom-", "-windows.zip"]
+    }
   }
 }
