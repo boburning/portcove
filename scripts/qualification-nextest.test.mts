@@ -311,7 +311,14 @@ void test("successful native execution cannot pass when its receipt and diagnost
 
 void test("qualification CLI runtime closure loads without repository packages or package installation", (t) => {
   const cwd = directory(t);
-  for (const name of ["qualification-nextest.mts", "nextest-outcomes.mts", "runtime-values.mts"])
+  for (const name of [
+    "qualification-nextest.mts",
+    "nextest-outcomes.mts",
+    "runtime-values.mts",
+    "report-summary.mts",
+    "bounded-summary.mts",
+    "fallow-summary.mts",
+  ])
     copyFileSync(fileURLToPath(new URL(name, import.meta.url)), path.join(cwd, name));
   const result = spawnSync(
     process.execPath,

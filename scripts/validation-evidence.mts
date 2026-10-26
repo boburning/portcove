@@ -197,6 +197,10 @@ export function domainsForPath(input: string) {
       "scripts/node-test-suites.mts",
       "scripts/node-test-suites.json",
       "scripts/nextest-outcomes.mts",
+      "scripts/nextest-outcomes-cli.mts",
+      "scripts/report-summary.mts",
+      "scripts/bounded-summary.mts",
+      "scripts/fallow-summary.mts",
       "scripts/qualification-rustdoc.mts",
       "scripts/rustdoc-outcomes.mts",
     ].includes(file) ||
