@@ -7,7 +7,7 @@ import { isRecord } from "./runtime-values.mts";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-import { parseDocument } from "yaml";
+import { parseDocument, stringify } from "yaml";
 
 import {
   requiredFixture,
@@ -313,45 +313,159 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   assert.match(fastDependencyReview, /head-ref:/);
 });
 
-void test("reusable qualification is read-only, daily, and coalesces without cancelling", async () => {
-  assert.match(qualificationWorkflow, /^ {2}workflow_call:\r?$/m);
-  assert.match(qualificationWorkflow, /^ {2}workflow_dispatch:\r?$/m);
-  assert.match(qualificationWorkflow, /cron: "17 5 \* \* \*"/);
-  assert.match(qualificationWorkflow, /^permissions:\r?\n {2}contents: read$/m);
-  assert.match(
-    qualificationWorkflow,
-    /^concurrency:\r?\n {2}group: portcove-qualification-.*\r?\n {2}cancel-in-progress: false$/m,
-  );
-  assert.match(qualificationWorkflow, /uses: \.\/\.github\/workflows\/ci\.yml/);
-  assert.match(qualificationWorkflow, /force_qualification: true/);
-  const classification = workflow.split("\n  classify:")[1];
-  assert.ok(classification);
-  const classifier = classification.split("\n    name:")[0];
-  assert.ok(classifier);
-  const requested = [...classifier.matchAll(/^ {6}([\w-]+): (read|write)$/gm)];
-  assert.equal(requested.length, 3);
-  const release = await readFile(
-    new URL("../.github/workflows/release.yml", import.meta.url),
-    "utf8",
-  );
-  for (const [source, job] of [
-    [qualificationWorkflow, "qualify"],
-    [release, "qualification"],
-  ] as const) {
-    const callJob = source.split(`\n  ${job}:`)[1];
-    assert.ok(callJob);
-    const caller = callJob.split("\n    uses:")[0];
-    assert.ok(caller);
-    for (const [, scope, access] of requested) {
-      assert.equal(access, "read");
-      assert.match(caller, new RegExp(`^ {6}${scope}: ${access}$`, "m"));
-    }
-    assert.doesNotMatch(caller, /: write/);
+function workflowRecord(value: unknown) {
+  assert.ok(isRecord(value));
+  return value;
+}
+function parsedWorkflow(source: string) {
+  const document = parseDocument(source, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  return workflowRecord(document.toJS());
+}
+function assertQualificationCallerPolicy(sources: {
+  ci: string;
+  qualification: string;
+  release: string;
+}) {
+  const ci = parsedWorkflow(sources.ci);
+  const qualification = parsedWorkflow(sources.qualification);
+  const release = parsedWorkflow(sources.release);
+  assert.ok(Object.hasOwn(workflowRecord(ci.on), "workflow_call"));
+  const events = workflowRecord(qualification.on);
+  assert.deepEqual(Object.keys(events).sort(), ["schedule", "workflow_call", "workflow_dispatch"]);
+  assert.deepEqual(events.schedule, [{ cron: "17 5 * * *" }]);
+  assert.equal(workflowRecord(events.workflow_call).secrets, undefined);
+  assert.deepEqual(qualification.permissions, { contents: "read" });
+  assert.deepEqual(qualification.concurrency, {
+    group: "portcove-qualification-${{ github.ref }}",
+    "cancel-in-progress": false,
+  });
+  const classifier = workflowRecord(workflowRecord(ci.jobs).classify);
+  assert.deepEqual(classifier.permissions, {
+    contents: "read",
+    actions: "read",
+    "pull-requests": "read",
+  });
+  for (const value of Object.values(workflowRecord(qualification.jobs))) {
+    const job = workflowRecord(value);
+    assert.equal(job.secrets, undefined);
+    if (job.permissions !== undefined)
+      for (const access of Object.values(workflowRecord(job.permissions)))
+        assert.ok(access === "read" || access === "none");
   }
-  assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_digest/);
-  assert.match(qualificationWorkflow, /provenance_scope:/);
-  assert.doesNotMatch(qualificationWorkflow, /secrets:|pull_request_target|contents: write/);
-  assert.match(workflow, /^ {2}workflow_call:\r?$/m);
+  const qualify = workflowRecord(workflowRecord(qualification.jobs).qualify);
+  const parent = workflowRecord(workflowRecord(release.jobs).qualification);
+  for (const caller of [qualify, parent]) {
+    assert.deepEqual(caller.permissions, classifier.permissions);
+    assert.equal(caller.secrets, undefined);
+  }
+  assert.equal(qualify.uses, "./.github/workflows/ci.yml");
+  assert.equal(workflowRecord(qualify.with).force_qualification, true);
+  assert.equal(
+    workflowRecord(qualify.with).provenance_scope,
+    "${{ inputs.provenance_scope || 'qualification' }}",
+  );
+  assert.equal(parent.uses, "./.github/workflows/qualification.yml");
+  const outputs = workflowRecord(workflowRecord(events.workflow_call).outputs);
+  assert.equal(
+    workflowRecord(outputs.plan_digest).value,
+    "${{ jobs.qualify.outputs.plan_digest }}",
+  );
+}
+async function qualificationCallerSources() {
+  return {
+    ci: workflow,
+    qualification: qualificationWorkflow,
+    release: await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8"),
+  };
+}
+void test("reusable qualification is read-only, daily, and coalesces without cancelling", async () => {
+  assertQualificationCallerPolicy(await qualificationCallerSources());
+});
+void test("qualification caller policy survives YAML flow layout and reordered job fields", async () => {
+  const sources = await qualificationCallerSources();
+  const reformatted = (source: string) => {
+    const settings = parsedWorkflow(source);
+    const jobs = workflowRecord(settings.jobs);
+    settings.jobs = Object.fromEntries(
+      Object.entries(jobs)
+        .reverse()
+        .map(([name, job]) => [
+          name,
+          Object.fromEntries(Object.entries(workflowRecord(job)).reverse()),
+        ]),
+    );
+    return stringify(settings, { collectionStyle: "flow", lineWidth: 0 });
+  };
+  assertQualificationCallerPolicy({
+    ci: reformatted(sources.ci),
+    qualification: reformatted(sources.qualification),
+    release: reformatted(sources.release),
+  });
+});
+void test("qualification caller policy rejects missing coverage, privilege and cancellation regressions", async () => {
+  const sources = await qualificationCallerSources();
+  const mutations = [
+    (settings: Record<string, unknown>) => {
+      workflowRecord(settings.jobs).neighbor = {
+        "runs-on": "ubuntu-latest",
+        steps: [{ run: "echo fixture" }],
+        permissions: { contents: "write" },
+      };
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(settings.jobs).neighbor = {
+        uses: "./.github/workflows/ci.yml",
+        secrets: "inherit",
+      };
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(settings.on).schedule = [];
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(settings.on).pull_request_target = {};
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(settings.concurrency)["cancel-in-progress"] = true;
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(workflowRecord(workflowRecord(settings.jobs).qualify).permissions).actions =
+        "write";
+    },
+    (settings: Record<string, unknown>) => {
+      delete workflowRecord(workflowRecord(workflowRecord(settings.jobs).qualify).permissions)
+        .actions;
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(workflowRecord(settings.jobs).qualify).secrets = "inherit";
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(workflowRecord(settings.jobs).qualify).uses =
+        "./.github/workflows/unowned.yml";
+    },
+    (settings: Record<string, unknown>) => {
+      workflowRecord(
+        workflowRecord(workflowRecord(settings.jobs).qualify).with,
+      ).force_qualification = false;
+    },
+    (settings: Record<string, unknown>) => {
+      delete workflowRecord(settings.jobs).qualify;
+    },
+  ];
+  for (const mutation of mutations) {
+    const settings = parsedWorkflow(sources.qualification);
+    mutation(settings);
+    assert.throws(() =>
+      assertQualificationCallerPolicy({ ...sources, qualification: stringify(settings) }),
+    );
+  }
+  const release = parsedWorkflow(sources.release);
+  workflowRecord(workflowRecord(workflowRecord(release.jobs).qualification).permissions).actions =
+    "write";
+  assert.throws(() => assertQualificationCallerPolicy({ ...sources, release: stringify(release) }));
+  const ci = parsedWorkflow(sources.ci);
+  delete workflowRecord(ci.on).workflow_call;
+  assert.throws(() => assertQualificationCallerPolicy({ ...sources, ci: stringify(ci) }));
 });
 
 void test("full repository contracts install the complete workspace dependency closure before execution", () => {
