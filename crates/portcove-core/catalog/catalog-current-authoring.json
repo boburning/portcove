@@ -23240,6 +23240,74 @@
       }
     },
     {
+      "id": "leithsilver-mgsm",
+      "name": "Metal Gear Solid Mobile (MGSM)",
+      "summary": "Play Metal Gear Solid Mobile using your own N-Gage game package.",
+      "project_url": "https://github.com/LeithSilver/mgsm",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "LeithSilver/mgsm",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MGS_Mobile_",
+            "_Windows_x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mgs_mobile.exe"
+        ]
+      },
+      "persistent_paths": [
+        "ROM",
+        "game",
+        "game.setup",
+        "textures",
+        "screenshots",
+        "models",
+        "customModel",
+        "mgs_mobile.ini",
+        "mgs_mobile.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose Play, then select your own Metal Gear Solid Mobile N-Gage 2.0 package in the game's setup window. Browse to the file or drop it onto that window; the original is read without being changed. Setup writes game files and textures beside the player. No separate installer or BIOS is needed. The supported input is Metal.Gear.Solid.n-gage, 2,542,447 bytes, SHA-256 575afba9a431775edd30e20a54e23380d182560d7d51db90ae5edd5b810b2d81; the upstream setup also checks its required game components. Portcove replaces the separate managed Windows player. Original game files, interrupted setup data, saves and settings under game/game.setup, extracted or replacement textures, screenshots, exported models, customModel assets, mgs_mobile.ini, mgs_mobile.log and the optional ROM folder are declared for compatible updates and backups. A browsed original package outside that folder stays external. Logs may be replaced by the game at its next launch. Runtime rollback carries current declared files, not earlier saves or guaranteed older-version/mod compatibility. Custom positional data paths and debug output locations remain outside that contract. The game performs original-file preparation; it does not replace its own player runtime. Desktop game CPU instructions run through Unicorn with native engine services; this is not a static recompilation. Native execution, OS/GPU minimums, gameplay and populated real-save restoration remain unqualified. For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy.",
+        "original_game_title": "Metal Gear Solid Mobile",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own game package in the Windows player",
+              "instruction": "Choose Play, then select your own Metal Gear Solid Mobile N-Gage 2.0 package in the game's setup window. Browse to the file or drop it onto that window; the original is read without being changed. Setup writes game files and textures beside the player. No separate installer or BIOS is needed. The supported input is Metal.Gear.Solid.n-gage, 2,542,447 bytes, SHA-256 575afba9a431775edd30e20a54e23380d182560d7d51db90ae5edd5b810b2d81; the upstream setup also checks its required game components."
+            },
+            {
+              "title": "Use a prepared upstream Linux copy",
+              "instruction": "For Linux, use the official Linux x64 archive as an upstream-owned copy. In its extracted player folder, deliberately run ./mgs_mobile --install \"<your Metal.Gear.Solid.n-gage>\" and wait for successful completion, then register mgs_mobile as the player with that folder as its working directory. The Linux player has no Windows-style first-Play picker. Portcove does not run this preparation command during discovery and does not manage replacement or backups of this external copy."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+        },
+        "artwork": {
+          "game_id": 41041,
+          "cover_id": 157631,
+          "image_id": "co3dmn",
+          "image_sha256": "4280169241e02c28231d327b6edd95b208e804235d166540fd28f574f9b5df4b",
+          "game_slug": "metal-gear-solid-mobile",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "mdk-sdl-nemo22",
       "name": "MDK / SDL engine (nemo22)",
       "summary": "Explore MDK / SDL engine (nemo22) and follow the upstream project for requirements, downloads and setup.",

@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "athelas-return-of-the-king-pc-fix",
+    "name": "The Return of the King (PC) — Athelas ROTK Fix",
+    "summary": "Improve the 2003 Windows version of The Return of the King with Athelas and ROTK Fix.",
+    "original_game_title": "The Lord of the Rings: The Return of the King",
+    "project_url": "https://github.com/Shagg88/Athelas",
+    "issue_number": 2801,
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
+    "setup_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use Athelas with your own PC game",
+          "instruction": "Install your own 2003 Windows PC copy of The Lord of the Rings: The Return of the King. This enhancement is separate from Athelas's three original-Xbox ports; an Xbox disc does not replace this PC installation. Extract the official Athelas release into its own folder, open Athelas.exe deliberately, select the PC game and show it the game folder. The launcher installs ROTK Fix's DLLs and ROTKFix folder beside rotk.exe. Original game assets are not supplied, and the PC game's copy protection is not bypassed. Installing into a protected game folder may ask for Windows permission."
+        },
+        {
+          "title": "Keep the launcher as the useful entry point",
+          "instruction": "Use Athelas for settings and Play; register Athelas.exe with its own folder as the working directory if you want it in Portcove. Registration opens the launcher, where you select this PC game; it does not promise a direct launch of one of the bundled games. Athelas writes ROTKFix.ini beside the PC game and updates its ROTK.ini in Documents with a backup copy. Preserve existing wrappers before changes and use About → Remove ROTK Fix for the upstream-supported removal that restores its replaced files."
+        },
+        {
+          "title": "Let Athelas update and keep your own backups",
+          "instruction": "The launcher offers Update now, verifies a replacement, installs it over its own folder and restarts. Keep it upstream-owned: Portcove registration preserves all external files and does not offer managed Update, Backup or Rollback. Back up the PC game's actual save/profile folder, its game-folder ROTKFix.ini/ROTKFix content and the launcher's configuration separately. The three Xbox components use different settings and saves; do not substitute those paths for the PC game. Upstream also describes Proton and CrossOver routes, which are not native Linux/macOS qualification. This release's contents, native execution, gameplay and real-save restoration have not been observed here."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+    },
+    "artwork": {
+      "game_id": 2973,
+      "cover_id": 94191,
+      "image_id": "co20of",
+      "image_sha256": "6f9fb86207583d1e105e843e62b5230634e3746752c9532cceb7d83abcae18a6",
+      "game_slug": "the-lord-of-the-rings-the-return-of-the-king",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "athelas-return-of-the-king-pc-fix",
+    "origin": {
+      "project_url": "https://github.com/Shagg88/Athelas",
+      "repository": {
+        "host": "github.com",
+        "id": "1422517871"
+      }
+    },
+    "decisions": []
+  }
+}

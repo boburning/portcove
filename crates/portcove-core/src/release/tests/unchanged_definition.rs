@@ -384,6 +384,13 @@ async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_complianc
     // Successors are controlled fixtures, not published upstream releases.
     for (id, old_tag, old_name, new_tag, new_name) in [
         (
+            "leithsilver-mgsm",
+            "v0.1",
+            "MGS_Mobile_0.1_Windows_x64.zip",
+            "v0.2",
+            "MGS_Mobile_0.2_Windows_x64.zip",
+        ),
+        (
             "infinite-undiscovery-doc-haz",
             "v1.0.0-rc1",
             "InfiniteUndiscoveryRecomp-v1.0.0-rc1.zip",

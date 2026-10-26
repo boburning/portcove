@@ -1,0 +1,58 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "nvdemu-apeescaperecomp-macwindowslinux",
+    "name": "Ape Escape (NVDEMU)",
+    "summary": "Revisit Ape Escape with the NVDEMU launcher, settings and optional mods.",
+    "original_game_title": "Ape Escape",
+    "project_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
+    "issue_number": 2806,
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
+    "availability": "packages",
+    "recommended_download_channel": "beta",
+    "release_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases/tag/macos-nightly",
+    "setup_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the fork's own launcher and game-file setup",
+          "instruction": "Use the official package for your platform from the shared macos-nightly release; that historical tag also contains Windows and Linux packages. On Windows, extract the complete ZIP and deliberately open ApeEscapeRecomp.exe to reach its launcher. On Linux, follow the AppImage instructions, enable execution when your desktop requires it and open the AppImage itself. Select your own North American Ape Escape disc, SCUS-94423; keep a CUE and its matching BIN together and choose the CUE. A cooked 2048-byte ISO discards needed sectors. OpenBIOS is supplied; a retail PlayStation BIOS is optional, not another required download. A dual-analog controller is recommended. Original discs and retail BIOS files are not supplied."
+        },
+        {
+          "title": "Keep the macOS application handoff intact",
+          "instruction": "On macOS, use the official DMG, drag Ape Escape Recompiled.app into Applications and deliberately open it through macOS, including its normal opening confirmation for this ad-hoc-signed preview. The app's shell entry seeds the player-data folder and sets required environment values before starting its native player. Use that supported app entry. Do not register the private Contents/MacOS/ApeEscapeRecomp.bin as a substitute or bypass the wrapper. Portcove's existing native-file registration does not supply this shell/app-bundle invocation; macOS remains an upstream application/instructions handoff."
+        },
+        {
+          "title": "Register supported existing players without changing their owner",
+          "instruction": "For Windows, register ApeEscapeRecomp.exe with the extracted package folder as its working directory. For Linux, register the prepared AppImage itself; do not select its internal AppRun or another extracted helper. Registration is separate from Play and preserves the external files. This enhanced maintained fork is distinct from mstan's original integration; it does not replace or migrate an existing parent installation."
+        },
+        {
+          "title": "Use upstream updates and back up the actual data folder",
+          "instruction": "Use the fork's Nightly update interface on supported Windows/macOS builds; older builds may need a new upstream package first. Linux AppImage replacement remains manual. Keep generated overlay caches, configuration and mods with their upstream-supported workflow; they are not a generic managed runtime/data replacement contract. Windows keeps saves and configuration beside its player. macOS uses ~/Library/Application Support/Ape Escape Recompiled. Linux uses $XDG_DATA_HOME/ApeEscapeRecomp or ~/.local/share/ApeEscapeRecomp unless APE_ESCAPE_RECOMP_DATA_DIR overrides it. Preserve your actual folder, disc and optional BIOS separately. Portcove does not promise managed Update, Backup or Rollback for this copy. Upstream build/source claims and optional features do not establish Portcove native execution, gameplay or real-save qualification."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md"
+    },
+    "artwork": {
+      "game_id": 3762,
+      "cover_id": 115320,
+      "image_id": "co2gzc",
+      "image_sha256": "b689ac550b7807203e88a928ff42c5906ccdce2c4f2a38229f2a3204c878f906",
+      "game_slug": "ape-escape",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nvdemu-apeescaperecomp-macwindowslinux",
+    "origin": {
+      "project_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
+      "repository": {
+        "host": "github.com",
+        "id": "1421330677"
+      }
+    },
+    "decisions": []
+  }
+}

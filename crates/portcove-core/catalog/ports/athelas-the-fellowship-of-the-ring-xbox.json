@@ -3,13 +3,32 @@
   "listing": {
     "id": "athelas-the-fellowship-of-the-ring-xbox",
     "name": "The Lord of the Rings: The Fellowship of the Ring (Athelas ports/fellowship)",
-    "summary": "Upstream route: Athelas shared launcher/release ZIP contains FOTR-Xbox/FOTRXbox.exe. Imports own USAoriginalXboxISO/extractedfiles, launches this distinctcomponentruntime and owns settings/updates. Component source build recompile is separate. No managed Portcove operations inferred. Limits: Upstream only: Three distinct Xbox implementations share the launcher; PC ROTKFix is separate enhancement. Fellowship is a new first version; complete qualification not inherited. Not simply launcher alias: repository contains three Xbox native ports plus ROTK Fix mod. Expand per-game implementation; compare TwoTowers row56 ancestry, preserve original PC protection and launcher updates. Upstream platforms: Xbox components: Windows 10/11 x64 D3D12. Athelas uses Proton on Linux/Deck; CrossOver-like testing is not a physical Mac run. Original data: Own The Lord of the Rings: The Fellowship of the Ring originalXbox USA disc ISO or extracted default.xbe and matching files. Athelas contains its own ports/fellowship implementation; source build locally translates game code. Exact accepted executable revision/hash not stated in reviewed componentREADME; no separate XboxBIOS input described. Portcove setup/gameplay not verified.",
+    "summary": "Play the original Xbox version of The Fellowship of the Ring through Athelas.",
     "original_game_title": "The Lord of the Rings: The Fellowship of the Ring",
     "project_url": "https://github.com/Shagg88/Athelas",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Shagg88/Athelas",
-    "issue_number": 2800
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
+    "issue_number": 2800,
+    "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use Athelas with your own original Xbox game",
+          "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Fellowship of the Ring and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component FOTR-Xbox/FOTRXbox.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+        },
+        {
+          "title": "Keep upstream setup and updates together",
+          "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is FOTR-Xbox/FOTRXbox.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+        },
+        {
+          "title": "Preserve this component's data",
+          "instruction": "Back up the actual launcher folder and this game's FOTR-Xbox/saves directory before changing versions. This game has its own settings; FOTR-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. Exact accepted original executable revision/hash, native execution, gameplay and real-save restoration remain unqualified here. Existing historical lineage questions and canonical acceptance remain with this component's owner."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
