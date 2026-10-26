@@ -190,6 +190,10 @@ also contains the engine/project name so bounded launch suggestions can identify
 the game among unrelated converters; equally plausible targets still require a choice.
 Portable preparation reports a missing original game title alongside package
 feedback. Use the canonical game identity; a helper name is not a substitute.
+For listing-only downloads, a unique native player whose basename exactly matches
+the upstream project name can also be recommended. Raw packages, supporting
+programs, incomplete searches and ambiguous matches still require manual setup
+or a choice. Suggestions remain read-only; registration and Play stay explicit.
 
 Persistent paths are relative to the executable's directory, or the install root
 when `launch_from_install_root` is declared. Declare only compatible original

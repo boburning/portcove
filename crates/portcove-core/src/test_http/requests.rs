@@ -65,6 +65,12 @@ pub(crate) fn serve_http(responses: Vec<String>) -> (String, Receiver<String>, H
     serve_requests(expected, Some(expected), move |_| responses.next().unwrap())
 }
 
+pub(crate) fn serve_http_bytes(responses: Vec<Vec<u8>>) -> (String, Receiver<String>, HttpServer) {
+    let expected = responses.len();
+    let mut responses = responses.into_iter();
+    serve_requests(expected, Some(expected), move |_| responses.next().unwrap())
+}
+
 pub(crate) fn serve_routed_http(
     request_limit: usize,
     response: impl Fn(&str) -> String + Send + 'static,
@@ -72,10 +78,10 @@ pub(crate) fn serve_routed_http(
     serve_requests(request_limit, None, response)
 }
 
-fn serve_requests(
+fn serve_requests<R: AsRef<[u8]>>(
     limit: usize,
     expected: Option<usize>,
-    mut response: impl FnMut(&str) -> String + Send + 'static,
+    mut response: impl FnMut(&str) -> R + Send + 'static,
 ) -> (String, Receiver<String>, HttpServer) {
     // Bound ephemeral listener is ready before the address is published.
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -113,7 +119,7 @@ fn serve_requests(
                 let _ = requests_tx.send(request.clone());
             }
             let bytes = response(&request);
-            write_response(&mut stream, bytes.as_bytes(), deadline, &worker_stop)?;
+            write_response(&mut stream, bytes.as_ref(), deadline, &worker_stop)?;
             // Routed callers observe requests only after writing the response.
             if expected.is_none() {
                 requests_tx
@@ -317,6 +323,27 @@ mod tests {
     }
 
     #[test]
+    fn binary_response_preserves_bytes_after_fragmented_headers() {
+        let response = b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\n\0\xff\xfe\0";
+        let (root, requests, server) = serve_http_bytes(vec![response.to_vec()]);
+        let mut client = client(&root, &server);
+        client.write_all(b"GET /archive.zip HTTP/1.1\r\n").unwrap();
+        assert!(matches!(
+            requests.recv_timeout(Duration::from_millis(20)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        client.write_all(b"Host: fixture\r\n\r\n").unwrap();
+        assert_eq!(
+            requests.recv_timeout(Duration::from_secs(3)).unwrap(),
+            "GET /archive.zip HTTP/1.1\r\nHost: fixture\r\n\r\n"
+        );
+        let mut bytes = Vec::new();
+        client.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, response);
+        server.join().unwrap();
+    }
+
+    #[test]
     fn routed_limit_is_an_upper_bound_and_records_the_complete_body() {
         let (root, requests, server) = serve_routed_http(3, |request| {
             assert!(request.ends_with("payload"));
@@ -346,7 +373,7 @@ mod tests {
         let (continue_tx, continue_rx) = mpsc::channel();
         let (root, requests, server) = serve_requests(1, Some(1), move |_| {
             continue_rx.recv_timeout(Duration::from_secs(2)).unwrap();
-            "response".into()
+            "response".to_owned()
         });
         let mut client = client(&root, &server);
         client.write_all(b"GET / HTTP/1.1\r\n\r\n").unwrap();
