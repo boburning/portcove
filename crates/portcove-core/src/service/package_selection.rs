@@ -1,6 +1,72 @@
 //! Suitability only: acquisition still refreshes immutable IDs and integrity policy.
 use super::*;
 
+const ARCHIVE_FORMS: &[&str] = &[".zip", ".7z", ".tar.gz", ".tar.xz", ".tgz", ".rar"];
+const OTHER_PACKAGE_FORMS: &[&str] = &[
+    ".exe",
+    ".msi",
+    ".appimage",
+    ".dmg",
+    ".pkg",
+    ".deb",
+    ".rpm",
+    ".7z",
+    ".tar.xz",
+];
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum PackagePlatformMatch {
+    Matching,
+    Other,
+    Unspecified,
+    Ambiguous,
+}
+
+pub(crate) fn is_package_filename(name: &str) -> bool {
+    ARCHIVE_FORMS
+        .iter()
+        .chain(OTHER_PACKAGE_FORMS)
+        .any(|extension| name.ends_with(extension))
+}
+
+pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackagePlatformMatch {
+    let name = name.to_ascii_lowercase();
+    let tokens = name
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .collect::<Vec<_>>();
+    let has = |values: &[&str]| values.iter().any(|value| tokens.contains(value));
+    let windows = has(&["windows", "win", "win32", "win64", "winx64"])
+        || name.ends_with(".exe")
+        || name.ends_with(".msi");
+    let linux = has(&["linux", "appimage", "flatpak"])
+        || [".appimage", ".deb", ".rpm"]
+            .iter()
+            .any(|ext| name.ends_with(ext));
+    let mac =
+        has(&["mac", "macos", "osx", "darwin"]) || name.ends_with(".dmg") || name.ends_with(".pkg");
+    let foreign = has(&["android", "switch", "vita", "wii", "ios"]) || name.ends_with(".apk");
+    match [windows, linux, mac, foreign]
+        .into_iter()
+        .filter(|named| *named)
+        .count()
+    {
+        0 => PackagePlatformMatch::Unspecified,
+        1 => {
+            let matches = match platform {
+                Platform::WindowsX86_64 => windows,
+                Platform::LinuxX86_64 => linux,
+                Platform::MacosX86_64 | Platform::MacosAarch64 => mac,
+            };
+            if matches {
+                PackagePlatformMatch::Matching
+            } else {
+                PackagePlatformMatch::Other
+            }
+        }
+        _ => PackagePlatformMatch::Ambiguous,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDownloadRelease {
     pub id: u64,
@@ -52,9 +118,7 @@ pub(crate) fn assess_package_name(
     // recommended release. A reviewed debug player needs its whole filename.
     let reviewed_debug_player = hinted && hints.iter().any(|hint| hint.eq_ignore_ascii_case(&name));
     let finish = |suitability, reason, score| (suitability, reason, score);
-    let archive = [".zip", ".7z", ".tar.gz", ".tar.xz", ".tgz", ".rar"]
-        .iter()
-        .any(|ext| name.ends_with(ext));
+    let archive = ARCHIVE_FORMS.iter().any(|ext| name.ends_with(ext));
     if has(&[
         "checksums",
         "checksum",
@@ -78,6 +142,11 @@ pub(crate) fn assess_package_name(
             ".blockmap",
             ".zsync",
             ".txt",
+            ".dsc",
+            ".orig.tar.gz",
+            ".orig.tar.xz",
+            ".debian.tar.xz",
+            ".diff.gz",
         ]
         .iter()
         .any(|ext| name.ends_with(ext))
@@ -90,22 +159,12 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
-    let windows = has(&["windows", "win", "win32", "win64", "winx64"])
-        || name.ends_with(".exe")
-        || name.ends_with(".msi");
-    let linux = has(&["linux", "appimage", "flatpak"])
-        || [".appimage", ".deb", ".rpm"]
-            .iter()
-            .any(|ext| name.ends_with(ext));
-    let mac =
-        has(&["mac", "macos", "osx", "darwin"]) || name.ends_with(".dmg") || name.ends_with(".pkg");
-    let foreign = has(&["android", "switch", "vita", "wii", "ios"]) || name.ends_with(".apk");
-    let platform_match = match platform {
-        Platform::WindowsX86_64 => windows && !linux && !mac,
-        Platform::LinuxX86_64 => linux && !windows && !mac,
-        Platform::MacosX86_64 | Platform::MacosAarch64 => mac && !windows && !linux,
-    };
-    if foreign || ((windows || linux || mac) && !platform_match) {
+    let named_platform = package_platform_match(&name, platform);
+    let platform_match = named_platform == PackagePlatformMatch::Matching;
+    if matches!(
+        named_platform,
+        PackagePlatformMatch::Other | PackagePlatformMatch::Ambiguous
+    ) {
         return finish(
             "incompatible",
             "Named for another platform. Portcove does not offer a compatibility-layer launch route.",
@@ -125,7 +184,7 @@ pub(crate) fn assess_package_name(
     let wants_arm = platform == Platform::MacosAarch64;
     let reviewed_windows_x86 = hinted
         && platform == Platform::WindowsX86_64
-        && windows
+        && platform_match
         && hints.iter().any(|hint| {
             let hint = hint.to_ascii_lowercase();
             hint.split(|c: char| !c.is_ascii_alphanumeric())
@@ -153,20 +212,7 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
-    let supported_form = can_extract
-        || [
-            ".exe",
-            ".msi",
-            ".appimage",
-            ".dmg",
-            ".pkg",
-            ".deb",
-            ".rpm",
-            ".7z",
-            ".tar.xz",
-        ]
-        .iter()
-        .any(|ext| name.ends_with(ext));
+    let supported_form = can_extract || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
     if !supported_form || (!platform_match && !hinted) {
         return finish(
             "uncertain",

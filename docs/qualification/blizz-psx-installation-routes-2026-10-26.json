@@ -1,0 +1,495 @@
+{
+  "format_version": 1,
+  "kind": "dated-three-port-route-and-shared-provider-evidence",
+  "owners": [2510, 2926],
+  "source_commit": "a4d96bee3328ef303a636ca8cd0f483d8ab17827",
+  "initial_workset_cutoff": "2026-10-26T18:58:13.140Z",
+  "observation_cutoff": "2026-10-26T19:42:44.406Z",
+  "coverage": {
+    "distinct_existing_authored_identities": 3,
+    "original_inventory_members": 3,
+    "unresolved_identity_joins": 0,
+    "duplicate_merges": [],
+    "related_distinct_same_game_owners": {
+      "1804": [429],
+      "1865": [473]
+    },
+    "scope": "Finite original-inventory batch, not all-port completion. All 524 original identities, 312 additions and 22 joins remain preserved."
+  },
+  "shared_dependencies": {
+    "fresh_native_recommendation": "Reuse declared listing channel only with no settings, retained/staged install, external registration or pending downloaded setup. Read-only projections create no settings; accepted first intent and location/policy edits retain the chosen channel.",
+    "github_platform_stream": "Skip only a release whose nonempty player inventory is explicitly for other OSes. Unknown/mixed names, current-OS wrong CPU/variant/format, empty or debug-only candidates, missing identity and curated/pinned semantics retain normal refusals. TTL refresh cannot resurrect an older same-OS player after refusal.",
+    "compatibility": "No public schema, retained contract or legacy default rewrite. Stable remains selectable where upstream supplies it."
+  },
+  "artifacts": [
+    {
+      "scope": "linux-stable",
+      "tag": "bfm-r38-61c60516d",
+      "asset": "bfm-r38-61c60516d-linux-x86_64.tar.gz",
+      "asset_id": 606532054,
+      "bytes": 9647813,
+      "independent_expected_sha256": "6b2f95732a2da966bfd876d478bf1b7a4464258a236b75be4990739d7a0a831a",
+      "actual_sha256": "6b2f95732a2da966bfd876d478bf1b7a4464258a236b75be4990739d7a0a831a",
+      "expected_before_bytes": true,
+      "launch": "launch.sh",
+      "execution": false
+    },
+    {
+      "scope": "windows-beta",
+      "tag": "bfm-r48-1e23c3d4f",
+      "asset": "bfm-r48-355ec7668-windows-x64.zip",
+      "asset_id": 649321351,
+      "bytes": 3983449,
+      "independent_expected_sha256": "38a577f7da0dfa7bf4b1fb067b8743a3d012e0bb8fb8c1e29a0fd7f094f2726c",
+      "actual_sha256": "38a577f7da0dfa7bf4b1fb067b8743a3d012e0bb8fb8c1e29a0fd7f094f2726c",
+      "expected_before_bytes": true,
+      "launch": "launch.cmd",
+      "execution": false
+    },
+    {
+      "scope": "linux-beta",
+      "tag": "bfm-r55-ba90b87ad",
+      "asset": "bfm-r55-ba90b87ad-linux-x86_64.tar.gz",
+      "asset_id": 660502976,
+      "bytes": 8420178,
+      "independent_expected_sha256": "757e9bc95919ea6e45cb3e3fb83fa3b206e35f81301d530b2e9803328d137b60",
+      "actual_sha256": "757e9bc95919ea6e45cb3e3fb83fa3b206e35f81301d530b2e9803328d137b60",
+      "expected_before_bytes": true,
+      "launch": "launch.sh",
+      "execution": false
+    }
+  ],
+  "static_runtime_members": [
+    {
+      "scope": "linux-stable",
+      "member": "bfm-r38-61c60516d/musashi_native_boot",
+      "bytes": 9243280,
+      "sha256": "af3b50dab601efd09f38e88be1374140092ae1dd62ee55b1ee2a81730a467733",
+      "header": {
+        "format": "ELF64",
+        "machine": 62,
+        "type": 3
+      },
+      "observation": "Static bytes/header/strings, not native execution or proof of all writes"
+    },
+    {
+      "scope": "linux-beta",
+      "member": "bfm-r55-ba90b87ad/musashi_native_boot",
+      "bytes": 9432248,
+      "sha256": "c51d9c59bed84312a4dd627760bb8475944721509cd8e114fd4c526e5deba0b0",
+      "header": {
+        "format": "ELF64",
+        "machine": 62,
+        "type": 3
+      },
+      "observation": "Static bytes/header/strings, not native execution or proof of all writes"
+    },
+    {
+      "scope": "windows-beta",
+      "member": "bfm-r48-355ec7668-windows-x64/musashi_native_boot.exe",
+      "bytes": 5255168,
+      "sha256": "f67213898a277923c6b95ea5e45ca694b82dbbc738079fe632d6592ea8ffede2",
+      "header": {
+        "format": "PE",
+        "machine": "amd64"
+      },
+      "observation": "Static bytes/header/strings, not native execution or proof of all writes"
+    }
+  ],
+  "writer_audit": {
+    "public_host_source": {
+      "source": "ad71556b44506599fb08e654e28651d81eba7206",
+      "selection": "All pc_port C/C++/header/shell/docs/CMake/JSON blobs in the complete pinned tree; no execution",
+      "complete_selected_tree": true,
+      "files": 170,
+      "bytes": 2565066,
+      "binding_sha256": "b021a465b38542c341b744aad05a21537a00038809f0100f2771ff4668cbfdbc",
+      "writer_blobs": [
+        {
+          "path": "pc_port/mips_formatter.c",
+          "blob": "03fb354a577712efd183fbfc02a9a2a20d7e1756",
+          "bytes": 1093968
+        },
+        {
+          "path": "pc_port/native_boot.c",
+          "blob": "06326c2189e10a77173128ef7592265039e18bed",
+          "bytes": 244946
+        },
+        {
+          "path": "pc_port/platform/bfm_plat.c",
+          "blob": "07c2646cb7d8ce3f0e21ee4276f2fddd77d1f16b",
+          "bytes": 13014
+        },
+        {
+          "path": "pc_port/platform/bfm_plat_config.c",
+          "blob": "a248fae706d7b2fb22e30a750a0adeaa73fb0ccc",
+          "bytes": 15277
+        },
+        {
+          "path": "pc_port/platform/bfm_plat_image.c",
+          "blob": "82886db356739afce189dfe35edd25345fb2270d",
+          "bytes": 3735
+        },
+        {
+          "path": "pc_port/platform/bfm_plat_mods.c",
+          "blob": "639fb6c0d73e5954ea98504169858a1bba9ab468",
+          "bytes": 30336
+        },
+        {
+          "path": "pc_port/platform/bfm_plat_storage.c",
+          "blob": "f30d1e21b4e0ec2e86c2a33254ba3c1463692f32",
+          "bytes": 13329
+        },
+        {
+          "path": "pc_port/platform/bfm_plugin.h",
+          "blob": "a4d93e963542bd050ba608dfab1f6ffb476b287c",
+          "bytes": 6931
+        }
+      ]
+    },
+    "build_sources": {
+      "source": "ad71556b44506599fb08e654e28651d81eba7206",
+      "files": [
+        {
+          "path": "CMakeLists.txt",
+          "blob": "eea83d642223c3d886ebf770743f4885a230ab01",
+          "bytes": 39115,
+          "retained": "work/installation-resume-linux/blizz-psx-upstream-batch/bfm-host-source/CMakeLists.txt"
+        },
+        {
+          "path": "tools/package_legion.sh",
+          "blob": "0ac281e68317d7b702b1624e3f097540bd597eea",
+          "bytes": 8829,
+          "retained": "work/installation-resume-linux/blizz-psx-upstream-batch/bfm-host-source/tools__package_legion.sh"
+        },
+        {
+          "path": "tools/package_port.sh",
+          "blob": "59e5585cad2390dcf37f334c1f3972b66e834f9e",
+          "bytes": 5179,
+          "retained": "work/installation-resume-linux/blizz-psx-upstream-batch/bfm-host-source/tools__package_port.sh"
+        }
+      ]
+    },
+    "actual_linux_plugin_headers": [
+      {
+        "scope": "stable",
+        "runtime_sha256": "af3b50dab601efd09f38e88be1374140092ae1dd62ee55b1ee2a81730a467733",
+        "host_header_address": "0x110100",
+        "host_abi_version": 2,
+        "host_struct_size": 112,
+        "source_of_address": "bfm_plat_mods_init disassembly loads the 64-bit constant and stores it at hosts[i] offset zero",
+        "execution": false
+      },
+      {
+        "scope": "beta",
+        "runtime_sha256": "c51d9c59bed84312a4dd627760bb8475944721509cd8e114fd4c526e5deba0b0",
+        "host_header_address": "0x11c6d8",
+        "host_abi_version": 2,
+        "host_struct_size": 112,
+        "source_of_address": "bfm_plat_mods_init disassembly loads the 64-bit constant and stores it at hosts[i] offset zero",
+        "execution": false
+      }
+    ],
+    "classification": "Connected optional SDK saves/screenshots/mods/dump defaults are declared separately from the external ordinary BIOS card and Pictures paths. Native plugin preservation grants neither authenticity nor arbitrary ABI compatibility; custom plugins may need disabling/rebuilding. Actual Linux disassembly confirms the same ABI 2 /112-byte host header. Custom debug destinations do not receive preservation rights. No execution or complete binary/source correspondence is claimed."
+  },
+  "source_blob_bindings": [
+    {
+      "issue": 1804,
+      "source": "ad71556b44506599fb08e654e28651d81eba7206",
+      "path": "CREDITS.md",
+      "blob": "86bc76a3016575a108f8d73e515d5487bca39e2e",
+      "bytes": 5492
+    },
+    {
+      "issue": 1804,
+      "source": "ad71556b44506599fb08e654e28651d81eba7206",
+      "path": "EXCLUDED.md",
+      "blob": "f513e40e94788588220b11877b0bf11668a80506",
+      "bytes": 8974
+    },
+    {
+      "issue": 1804,
+      "source": "ad71556b44506599fb08e654e28651d81eba7206",
+      "path": "LICENSE",
+      "blob": "c14a4ba3711c7260b1942143985bfd6812d86b06",
+      "bytes": 2230
+    },
+    {
+      "issue": 1804,
+      "source": "ad71556b44506599fb08e654e28651d81eba7206",
+      "path": "NOTICE.md",
+      "blob": "dbd40ae889de95fb4cc1cc6d06ac7f9dd32a2fb1",
+      "bytes": 3375
+    },
+    {
+      "issue": 1804,
+      "source": "ad71556b44506599fb08e654e28651d81eba7206",
+      "path": "docs/SETUP.md",
+      "blob": "743e35cabc6f70f09a84dd36c66a841c1433c09e",
+      "bytes": 11030
+    },
+    {
+      "issue": 1865,
+      "source": "472469adf1bd96bac9a0b75499732a6e44435d39",
+      "path": "CREDITS.md",
+      "blob": "5e64135ec9a5d53894112af4bc63465fd2e7ae3c",
+      "bytes": 2268
+    },
+    {
+      "issue": 1865,
+      "source": "472469adf1bd96bac9a0b75499732a6e44435d39",
+      "path": "LICENSE",
+      "blob": "a216204f65e7811e1a783ea195fd75b2c448df87",
+      "bytes": 1596
+    },
+    {
+      "issue": 1865,
+      "source": "472469adf1bd96bac9a0b75499732a6e44435d39",
+      "path": "NOTICE.md",
+      "blob": "3feaa5ae5464e92ae11b8b81531471f414fad49b",
+      "bytes": 2801
+    },
+    {
+      "issue": 1865,
+      "source": "472469adf1bd96bac9a0b75499732a6e44435d39",
+      "path": "UPSTREAM_FILES.md",
+      "blob": "258aa513f5240b36fd4d44e171cb0425850f14fb",
+      "bytes": 21852
+    },
+    {
+      "issue": 1865,
+      "source": "472469adf1bd96bac9a0b75499732a6e44435d39",
+      "path": "pc_port/CMakeLists.txt",
+      "blob": "346caa77afb77b8911eaf1a7d020bf6aeba44c8e",
+      "bytes": 32089
+    },
+    {
+      "issue": 1865,
+      "source": "472469adf1bd96bac9a0b75499732a6e44435d39",
+      "path": "pc_port/package_preview.sh",
+      "blob": "4113b602da2a8fdda562ced4ed97203256b805c3",
+      "bytes": 10049
+    },
+    {
+      "issue": 1865,
+      "source": "472469adf1bd96bac9a0b75499732a6e44435d39",
+      "path": "pc_port/package_release.sh",
+      "blob": "9aa185b5d1231e49241baad1e53ed59be002c87d",
+      "bytes": 19909
+    },
+    {
+      "issue": 1909,
+      "source": "33a7260a242b23079836a178943ce8b8e25325b6",
+      "path": "CREDITS.md",
+      "blob": "f2cc1a1fa32fc812007c61e303b8064dea0896ee",
+      "bytes": 4205
+    },
+    {
+      "issue": 1909,
+      "source": "33a7260a242b23079836a178943ce8b8e25325b6",
+      "path": "LICENSE",
+      "blob": "3140d5aff63aba95c18ca5736d065378e46c53dd",
+      "bytes": 1407
+    },
+    {
+      "issue": 1909,
+      "source": "33a7260a242b23079836a178943ce8b8e25325b6",
+      "path": "NOTICE.md",
+      "blob": "5c1dcabb5ee38774d4a035a2c313e4ec5ce25f6a",
+      "bytes": 5503
+    },
+    {
+      "issue": 1909,
+      "source": "33a7260a242b23079836a178943ce8b8e25325b6",
+      "path": "UPSTREAM_FILES.md",
+      "blob": "120e175f5547a40a41fb227d39a455c3415f627f",
+      "bytes": 11717
+    },
+    {
+      "issue": 1909,
+      "source": "33a7260a242b23079836a178943ce8b8e25325b6",
+      "path": "pc_port/CMakeLists.txt",
+      "blob": "c8bea69c086d07cac9b14907485ceb28550ec7ab",
+      "bytes": 2882
+    },
+    {
+      "issue": 1909,
+      "source": "33a7260a242b23079836a178943ce8b8e25325b6",
+      "path": "pc_port/tools/package_linux.sh",
+      "blob": "58fdee095d055f5ab2751c105d181b108a235a29",
+      "bytes": 7486
+    },
+    {
+      "issue": 1909,
+      "source": "33a7260a242b23079836a178943ce8b8e25325b6",
+      "path": "pc_port/tools/package_readme.txt",
+      "blob": "bb47dfad8cffd05496ccfe5757705ec16f362e19",
+      "bytes": 3776
+    }
+  ],
+  "permission_boundaries": {
+    "1804": "Original host/native work has a scoped MIT grant; bundled third-party components retain their GPL/LGPL/MIT terms. Current EXCLUDED.md describes omitted GPL m2c helper use, not a new blanket acquisition ban. Local official-package acquisition does not grant redistribution, full-source reproduction or third-party contribution rights.",
+    "1865": "Pinned UPSTREAM_FILES explicitly identifies 462 imported bodies outside the MIT grant and states published Linux binaries contain that code. The exact latest native-only artifact is not byte-inspected; no claim that older r5 content or future repairs establish its permission.",
+    "1909": "Published r5 identifies approximately 6.6 KB of transcribed retail tables and excluded upstream contributor code. Future v0.6 source does not establish a repaired released package."
+  },
+  "ports": [
+    {
+      "id": "blizz127-brave-fencer-musashi-decomp-port",
+      "canonical_issue": 1804,
+      "canonical_specification_sha256": "52ce49b717f2bc4e757568f25c854516fc87d685a0259a2a3a68631679cae42b",
+      "prior_authored_sha256": "1f9edbe28a9976dcf2e891183d2dcc62d2d2a43f017bd86e2234efdcf3dc1192",
+      "prior_route": "Listing only; unknown platform and setup facts; no managed integration",
+      "selected_route": "Native-portable managed runtime with explicit first-Play upstream disc selection",
+      "disposition": "Add fitting managed portable route",
+      "platform_scope": ["windows-x86-64/beta", "linux-x86-64/stable", "linux-x86-64/beta"],
+      "upstream": {
+        "requested_project": "https://github.com/Blizz127/brave-fencer-musashi-decomp-port",
+        "repository": "Blizz127/Brave-Fencer-Musashi-decomp-port",
+        "repository_id": 1396787647,
+        "opaque_repository_id": "R_kgDOU0FJvw",
+        "source_commit": "ad71556b44506599fb08e654e28651d81eba7206",
+        "source_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/tree/ad71556b44506599fb08e654e28651d81eba7206",
+        "readme_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
+        "release_records": 12,
+        "release_pagination_complete": true,
+        "source_tree_files": 1201,
+        "source_tree_complete": true,
+        "metadata_observed_at": "2026-10-26T17:53:24.182Z"
+      },
+      "runtime_update_owner": "Portcove for compatible managed runtime replacement; upstream/player for existing external copies",
+      "setup_data_boundary": {
+        "originals": "User-owned USA SLUS-00726 CUE/BIN with all tracks; no BIOS; first-Play picker/remembered profile stays upstream-owned",
+        "launch": "Reviewed declared launch.cmd or executable launch.sh; no discovery execution",
+        "declared_persistent_paths": [
+          "disc",
+          "saves",
+          "screenshots",
+          "mods",
+          "dump",
+          "native_vram_display.png",
+          "native_vram_display.ppm"
+        ],
+        "external_data": "Cards, preferences, original boot cache, journal, Pictures screenshots and externally selected discs remain in the upstream account profile; outside Core backup/restore",
+        "profile": "Windows APPDATA/bfm-port; Linux XDG state/config/cache bfm-port and Pictures/bfm-port; custom environment retained by existing copy",
+        "rollback": "Runtime rollback carries declared current data, does not rewind external cards or guarantee older-runtime compatibility"
+      },
+      "maintenance_limit": "Experimental stable r38 and asymmetric preview r55 Linux/r48 Windows. Public source snapshot and release runtime commits differ; no reproducible-build or whole-game claim. External profile compatibility remains upstream-owned.",
+      "missing_fact_and_next_action": "Native gameplay, packaged Desktop and real-save observations not run; those independent acceptances remain separate. Component notices do not grant redistribution or assert full public source reproduction.",
+      "validation_scope": "Published expected digests matched for three real packages before bounded static archive/header/wrapper inspection; maintained Core preparation for all three release scopes; shared fixture regressions. No game/helper/native execution.",
+      "delivery_status": "Prepared candidate; unmerged. Canonical issues own current delivery."
+    },
+    {
+      "id": "blizz127-parasite-eve-decomp-port",
+      "canonical_issue": 1865,
+      "canonical_specification_sha256": "7b7845a33aa2c62e76ee5ca98b7597b2b817b60f339d40c89fadba77d2dc48ef",
+      "prior_authored_sha256": "f870cffe5ca9bb0b079053196199de9d6e67bf5dae1f00ac0f7efa40cc7219c4",
+      "prior_route": "Listing only; unknown platform and setup facts; no managed integration",
+      "selected_route": "Precise component acquisition condition with conditional permitted-existing-copy upstream guidance",
+      "disposition": "Improve useful limited route; resolve named acquisition basis before managed adoption",
+      "platform_scope": [
+        "linux-x86-64/published upstream package; no native execution qualification"
+      ],
+      "upstream": {
+        "requested_project": "https://github.com/Blizz127/parasite-eve-decomp-port",
+        "repository": "Blizz127/parasite-eve-decomp-port",
+        "repository_id": 1396785192,
+        "opaque_repository_id": "R_kgDOU0FAKA",
+        "source_commit": "472469adf1bd96bac9a0b75499732a6e44435d39",
+        "source_url": "https://github.com/Blizz127/parasite-eve-decomp-port/tree/472469adf1bd96bac9a0b75499732a6e44435d39",
+        "readme_url": "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
+        "release_records": 6,
+        "release_pagination_complete": true,
+        "source_tree_files": 6864,
+        "source_tree_complete": true,
+        "metadata_observed_at": "2026-10-26T17:53:26.139Z"
+      },
+      "runtime_update_owner": "Upstream/player; no managed replacement, backup, rollback or removal right",
+      "setup_data_boundary": {
+        "instructions": [
+          {
+            "title": "Prepare your own disc",
+            "instruction": "A permitted existing Linux copy requires Parasite Eve USA SLUS-00662 Disc 1 as the raw BIN/CUE set; the documented Disc 1 BIN is 495531120 bytes. Keep all referenced tracks together. ISO and CHD are not direct equivalents. Newer native-only builds also describe Disc 2 support; use the selected release instructions rather than treating the old Day 1 build as the current runtime."
+          },
+          {
+            "title": "Keep the upstream launcher and profile",
+            "instruction": "For an existing copy you are permitted to use, launch its parasite-eve wrapper with your disc folder, BIN or CUE using the selected release guide. The wrapper can remember disc1 in ~/.config/parasite-eve-port/config; the documented card is ~/.local/share/parasite-eve-port/memcard1.mcd. Preserve any customized XDG profile. Keep using the OS shortcut when the wrapper is required; Portcove does not register a shell script or assume its private binary has equivalent arguments. No files are adopted or replaced."
+          }
+        ],
+        "external_ownership": "Every file remains external. A wrapper-dependent copy keeps its OS launcher; user-selected Core registration does not accept shell scripts or grant missing environment semantics."
+      },
+      "maintenance_limit": "The published port identifies compiled upstream function bodies whose originating project has no published license; the parent MIT grant excludes those components. Portcove has no established acquisition basis for that scope. Reconsider with attributable permission or a reviewed released package that replaces the affected code. Permitted existing copies keep their non-owning setup route.",
+      "missing_fact_and_next_action": "Establish attributable permission for the specifically named excluded components, or inspect a released replacement that removes them; then finish exact artifact, writer/update and managed-fit review. Do not infer permission from NOASSERTION or future source.",
+      "validation_scope": "Pinned source/notice/packaging and complete release metadata; maintained Core declaration preparation. No artifact acquisition or native execution.",
+      "delivery_status": "Prepared candidate; unmerged. Canonical issues own current delivery."
+    },
+    {
+      "id": "blizz127-xenogears-decomp-port",
+      "canonical_issue": 1909,
+      "canonical_specification_sha256": "94cb8b79cfef7c2aaf43d1e8ef0a3777f4e4592164d0bdb3475e22b8a0be25a3",
+      "prior_authored_sha256": "0059ae62d6e2624d29aab387754a7b66de85f4f40f20ca45e71857e01787773f",
+      "prior_route": "Listing only; unknown platform and setup facts; no managed integration",
+      "selected_route": "Precise component acquisition condition with conditional permitted-existing-copy upstream guidance",
+      "disposition": "Improve useful limited route; resolve named acquisition basis before managed adoption",
+      "platform_scope": [
+        "linux-x86-64/published upstream package; no native execution qualification"
+      ],
+      "upstream": {
+        "requested_project": "https://github.com/Blizz127/xenogears-decomp-port",
+        "repository": "Blizz127/xenogears-decomp-port",
+        "repository_id": 1396636318,
+        "opaque_repository_id": "R_kgDOUz76ng",
+        "source_commit": "33a7260a242b23079836a178943ce8b8e25325b6",
+        "source_url": "https://github.com/Blizz127/xenogears-decomp-port/tree/33a7260a242b23079836a178943ce8b8e25325b6",
+        "readme_url": "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md",
+        "release_records": 1,
+        "release_pagination_complete": true,
+        "source_tree_files": 2597,
+        "source_tree_complete": true,
+        "metadata_observed_at": "2026-10-26T17:53:28.288Z"
+      },
+      "runtime_update_owner": "Upstream/player; no managed replacement, backup, rollback or removal right",
+      "setup_data_boundary": {
+        "instructions": [
+          {
+            "title": "Prepare the reviewed original files",
+            "instruction": "The published r5 route requires Xenogears USA SLUS-00664 Disc 1 as a 718738272-byte raw BIN plus SLUS_006.64, field.bin, menu.bin, shop_menu.bin, member_change_menu.bin and world_map.bin extracted from your own disc. An ISO is not equivalent. Follow the upstream extraction guide; no extractor is run by discovery and the runtime checks missing or different files."
+          },
+          {
+            "title": "Use the existing upstream launcher",
+            "instruction": "For an existing copy you are permitted to use, run xenogears.sh with the prepared data folder on the first start; it remembers the folder. Keep its lib directory and OS launcher because the wrapper supplies the library environment. Preserve ~/.config/xenogears-port and ~/.local/share/xenogears-port (or the selected XDG locations), including cards and quick checkpoints. Portcove does not register the shell script, adopt files or replace this runtime."
+          }
+        ],
+        "external_ownership": "Every file remains external. A wrapper-dependent copy keeps its OS launcher; user-selected Core registration does not accept shell scripts or grant missing environment semantics."
+      },
+      "maintenance_limit": "Published r5 includes transcribed retail tables and code from an upstream decompilation with no published license; its parent MIT grant excludes that work. Resolve permission for the affected package scope or supply a reviewed released replacement that removes it. Future-source fixes do not establish a repaired downloadable artifact. Permitted existing copies remain external.",
+      "missing_fact_and_next_action": "Establish attributable permission for the specifically named excluded components, or inspect a released replacement that removes them; then finish exact artifact, writer/update and managed-fit review. Do not infer permission from NOASSERTION or future source.",
+      "validation_scope": "Pinned source/notice/packaging and complete release metadata; maintained Core declaration preparation. No artifact acquisition or native execution.",
+      "delivery_status": "Prepared candidate; unmerged. Canonical issues own current delivery."
+    }
+  ],
+  "validation": {
+    "preparation_releases": [
+      "bfm-r38-61c60516d",
+      "bfm-r55-ba90b87ad",
+      "bfm-r48-1e23c3d4f",
+      "native-only-e26d98fd",
+      "v0.5.0-r5"
+    ],
+    "preparation": "Five selected release preparations plus a final expanded Native declaration; standalone records omit artwork, reconciled against original records before applying authored inputs.",
+    "focused_local": "88 provider/channel/workspace Rust cases and all 28 requested Node authoring cases passed with complete execution inventories; final-head review and hosted checks pending.",
+    "native_execution": "Not run",
+    "gameplay": "Not run",
+    "packaged_desktop": "Not run",
+    "real_save_acceptance": "Not run"
+  },
+  "invariants": {
+    "original_authored_identities": 1424,
+    "operational_before": 166,
+    "operational_after": 167,
+    "new_operational_ids": ["blizz127-brave-fencer-musashi-decomp-port"],
+    "all_artwork_identity_and_lineage_preserved": true,
+    "external_files_adopted": false,
+    "automatic_helper_execution": false,
+    "full_public_beta_acceptance": false
+  }
+}

@@ -3334,7 +3334,7 @@ mod tests {
                 b"preserve post-stage addition"
             );
             let mut operation = LifecycleOperation::new(
-                &Uuid::new_v4().to_string(),
+                Uuid::new_v4().to_string(),
                 LifecycleOperationKind::Activate,
                 ID,
             );

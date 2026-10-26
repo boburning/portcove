@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::{self, File, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
@@ -2526,6 +2526,35 @@ impl Library {
         )?;
         transaction.commit()?;
         Ok(())
+    }
+
+    // Missing active pointers do not make retained files or setup progress fresh.
+    pub(crate) fn port_state_footprints(
+        connection: &Connection,
+        port_ids: &[String],
+    ) -> Result<(HashSet<String>, usize)> {
+        let mut occupied = HashSet::new();
+        let mut queries = 0;
+        for ids in port_ids.chunks(status_ports_per_query(connection)?) {
+            let values = std::iter::repeat_n("(?)", ids.len())
+                .collect::<Vec<_>>()
+                .join(",");
+            let sql = format!(
+                "WITH requested(port_id) AS (VALUES {values})
+                 SELECT port_id FROM requested AS request
+                 WHERE EXISTS (SELECT 1 FROM port_settings WHERE port_id=request.port_id)
+                    OR EXISTS (SELECT 1 FROM installs WHERE port_id=request.port_id)
+                    OR EXISTS (SELECT 1 FROM external_runtime_registrations WHERE port_id=request.port_id)
+                    OR EXISTS (SELECT 1 FROM catalog_downloads WHERE port_id=request.port_id)"
+            );
+            let mut statement = connection.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(ids), |row| row.get::<_, String>(0))?;
+            for row in rows {
+                occupied.insert(row?);
+            }
+            queries += 1;
+        }
+        Ok((occupied, queries))
     }
 
     pub(crate) fn statuses_with_metrics(
