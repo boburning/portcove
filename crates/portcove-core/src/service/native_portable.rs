@@ -3147,11 +3147,11 @@ mod tests {
         );
         // A future otherwise-identical catalog must hold inactive scope expansion.
         service.replace_catalog_for_test(ready_persistence_catalog(true, false));
-        assert!(
-            service
-                .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
-                .is_err()
-        );
+        let refusal = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+        assert_eq!(refusal.details.get("install_id"), Some(&first.id));
         assert_eq!(
             fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
             b"newly owned progress"

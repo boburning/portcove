@@ -1463,8 +1463,9 @@ mutable paths. Recorded immutable members and executable companions cannot gain
 mutability. This verification allowance does not prove that player data was
 restored under a wider scope. Receipt-governed installations refuse collection or
 restoration when historical scope evidence is absent or interpreted persistence
-paths/patterns differ from their retained scope; the same preflight covers inactive versions before backup restore
-publishes canonical data. The original receipt, manifest and diagnostic-mutability
+paths/patterns differ from their retained scope; the same preflight covers inactive
+versions in read-only Restore review and again before canonical publication.
+The original receipt, manifest and diagnostic-mutability
 behavior remain unchanged. Other existing integration interpretations, including
 the separately qualified Shipwright exception, retain their own boundaries.
 

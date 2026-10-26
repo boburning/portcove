@@ -206,9 +206,10 @@ from historical unproven data. Without that receipt, collection is additive and
 conflicting copies remain recoverable. A live verification allowance for added
 mutable paths does not widen that receipt's data authority. At
 `persistence_contract_for_install`, missing historical scope or receipt-governed
-effective/retained persistent-scope divergence refuses before synchronization; all-version restore preflight
-checks inactive copies too. Closed legacy coordinate interpretations remain
-separate.
+effective/retained persistent-scope divergence refuses before synchronization.
+All-version restore preflight checks inactive copies in read-only Restore review
+and again before canonical publication. Closed legacy coordinate interpretations
+remain separate.
 
 Forward empty-only expansion stays within the existing ready-archive transaction.
 It requires authenticated retained authority, compatible unchanged source/launch

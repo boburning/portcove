@@ -1077,6 +1077,9 @@ impl PortcoveService {
         }
         let backup = self.load_backup(port_id, backup_id)?;
         let backup_plan = adoption_copy_plan(&backup.path.join("data"))?;
+        if action == BackupAction::Restore {
+            self.preflight_psx_mod_restores(port_id, &backup.path.join("data"))?;
+        }
         let user_root = self.library.user_dir(port_id);
         let current_user_data_exists = user_root.exists();
         if current_user_data_exists && !user_root.is_dir() {
