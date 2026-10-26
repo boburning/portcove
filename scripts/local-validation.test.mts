@@ -2099,6 +2099,7 @@ void test("retired GitHub policy JSON remains owned without a file-specific tomb
     "scripts/ci-workflow.test.mts",
     "scripts/deep-audit-summary.test.mts",
     "scripts/native-backup-evidence.test.mts",
+    "scripts/nextest-equivalence.test.mts",
     "scripts/repository-settings.test.mts",
     "scripts/rust-toolchain-reader.test.mts",
     "scripts/validation-plan.test.mts",

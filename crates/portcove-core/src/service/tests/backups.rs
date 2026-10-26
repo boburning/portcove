@@ -1895,15 +1895,28 @@ fn stale_restore_versions(library: &Library, service: &PortcoveService) -> Vec<P
 }
 
 fn assert_restored_versions(service: &PortcoveService, versions: &[PathBuf]) {
+    let started = std::time::Instant::now();
     for path in versions {
         assert_eq!(fs::read(path.join("general.json")).unwrap(), b"wanted");
         assert!(!path.join("mods").exists());
         assert!(!path.join(LAUNCH_MARKER).exists());
     }
     service.prepare_launch("zelda64-recomp", None).unwrap();
+    eprintln!(
+        "Restored versions initial launch complete: {:?}",
+        started.elapsed()
+    );
     service.rollback("zelda64-recomp").unwrap();
+    eprintln!(
+        "Restored versions rollback complete: {:?}",
+        started.elapsed()
+    );
     service.prepare_launch("zelda64-recomp", None).unwrap();
     service.activate_staged("zelda64-recomp").unwrap();
+    eprintln!(
+        "Restored versions staged activation complete: {:?}",
+        started.elapsed()
+    );
     service.prepare_launch("zelda64-recomp", None).unwrap();
     service.collect_user_data("zelda64-recomp").unwrap();
     let user_root = service.library.user_dir("zelda64-recomp");
@@ -1913,6 +1926,7 @@ fn assert_restored_versions(service: &PortcoveService, versions: &[PathBuf]) {
 
 #[test]
 fn restore_remains_authoritative_after_launch_rollback_and_staged_activation() {
+    let started = std::time::Instant::now();
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let user_root = library.user_dir("zelda64-recomp");
@@ -1920,9 +1934,18 @@ fn restore_remains_authoritative_after_launch_rollback_and_staged_activation() {
     fs::write(user_root.join("general.json"), b"wanted").unwrap();
     let service = service_with_release(library.clone(), "v2");
     let backup = service.create_backup("zelda64-recomp").unwrap();
+    eprintln!(
+        "Authoritative restore backup created: {:?}",
+        started.elapsed()
+    );
     let versions = stale_restore_versions(&library, &service);
+    eprintln!(
+        "Authoritative restore versions prepared: {:?}",
+        started.elapsed()
+    );
 
     let result = restore_authorized(&service, "zelda64-recomp", &backup.id).unwrap();
+    eprintln!("Authoritative restore published: {:?}", started.elapsed());
 
     let safety = result.safety_backup.unwrap();
     assert_eq!(
@@ -1934,6 +1957,10 @@ fn restore_remains_authoritative_after_launch_rollback_and_staged_activation() {
         b"new mod"
     );
     assert_restored_versions(&service, &versions);
+    eprintln!(
+        "Authoritative restore lifecycle complete: {:?}",
+        started.elapsed()
+    );
 }
 
 #[test]
