@@ -443,8 +443,8 @@ Main advanced during qualification with PR #3663, target
 `9b3a92d33fa0e42026598fb4ef80767a80c46798`. It was integrated before final hosted
 qualification. Independent target-interaction review found no overlapping edits
 or new worker/API boundary; its portrait test refactor preserves declarations
-and artifacts. Final composed-source required CI, merge identity and readback
-are recorded with the bounded [#1104 delivery outcome](https://github.com/boburning/portcove/issues/1104).
+and artifacts. Evidence for final composed-source CI, merge identity and readback
+belongs with the bounded [#1104 delivery outcome](https://github.com/boburning/portcove/issues/1104).
 The issue remains open for its broader acceptance; #3662 is not reopened and no
 new backlog or beta prerequisite was created.
 
