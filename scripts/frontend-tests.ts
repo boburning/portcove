@@ -33,7 +33,7 @@ const browserProject = {
   },
   test: {
     name: "browser",
-    maxWorkers: 2,
+    maxWorkers: 4,
     sequence: { groupOrder: 1 },
     setupFiles: ["test/browser-setup.mts"],
     include: ["src/**/*.browser.test.{ts,tsx}"],

@@ -5,7 +5,7 @@ import { appendFile, open, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { observationHash } from "./upstream-observer.mts";
-import { collectRepositoryHealth } from "./check-catalog-repositories.mts";
+import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { parseRawDiff } from "./select-ci-plan.mts";
 import { healthCatalogInputs, healthLineageInputs } from "./upstream-health-inputs.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -56,13 +56,11 @@ export async function selectUpstreamHealthScope(
   lineage?: LineageComparison,
 ): Promise<HealthScope> {
   // Validate both complete inventories without performing any requests.
-  for (const catalog of [base, head])
-    await collectRepositoryHealth(catalog, {
-      portIds: [],
-      fetch: () => {
-        throw new Error("Selection must not request");
-      },
-    });
+  for (const catalog of [base, head]) {
+    estimateHealthRequests(catalog, []);
+    // Preserve rejection of nonserializable metadata in the exported unknown input.
+    observationHash(catalog);
+  }
   assertSelectionCatalog(base);
   assertSelectionCatalog(head);
   const baseIds = new Set(base.ports.map((port) => port.id));

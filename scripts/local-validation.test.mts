@@ -32,7 +32,6 @@ import {
   fingerprintLocalStage,
   formatCommand,
   localChangesFromRaw,
-  parseNameStatus,
   requireFocusedArguments,
   storageScopeForPlan,
   untrackedFileMode,
@@ -1311,29 +1310,7 @@ void test("selected local resource scope follows actual commands and mixed or un
   assert.equal(storageScopeForPlan([{ id: "new-unclassified-stage" }]), "all");
 });
 
-void test("parses modified, deleted, renamed, and copied Git records", () => {
-  const records = parseNameStatus(
-    Buffer.from("M\0docs/QUALITY.md\0D\0old.md\0R100\0old.rs\0new.rs\0C090\0a.ts\0b.ts\0"),
-  );
-  assert.deepEqual(records, [
-    { status: "M", path: "docs/QUALITY.md" },
-    { status: "D", path: "old.md" },
-    { status: "R100", path: "new.rs", previousPath: "old.rs" },
-    { status: "C090", path: "b.ts", previousPath: "a.ts" },
-  ]);
-});
-
-void test("also accepts name-status records with an embedded tab", () => {
-  assert.deepEqual(parseNameStatus(Buffer.from("M\tdocs/QUALITY.md\0")), [
-    { status: "M", path: "docs/QUALITY.md" },
-  ]);
-});
-
 void test("incomplete diff discovery fails closed before selecting tests", () => {
-  assert.throws(
-    () => parseNameStatus(Buffer.from("R100\0crates/portcove-core/src/old.rs\0")),
-    /incomplete git rename\/copy record/u,
-  );
   assert.throws(
     () =>
       localChangesFromRaw(
@@ -1346,6 +1323,8 @@ void test("incomplete diff discovery fails closed before selecting tests", () =>
 void test("shared local planning retains raw file modes and both rename paths", () => {
   const raw = Buffer.from(
     ":100644 100755 1111111 2222222 M\0docs/QUALITY.md\0" +
+      ":100644 000000 1111111 0000000 D\0old.md\0" +
+      ":100644 100644 1111111 2222222 C090\0a.ts\0b.ts\0" +
       ":100644 100644 1111111 2222222 R100\0old.rs\0new.rs\0",
   );
   assert.deepEqual(localChangesFromRaw(raw), [
@@ -1356,6 +1335,8 @@ void test("shared local planning retains raw file modes and both rename paths", 
       oldMode: "100644",
       newMode: "100755",
     },
+    { status: "D", path: "old.md", previousPath: undefined, oldMode: "100644", newMode: "000000" },
+    { status: "C", path: "b.ts", previousPath: "a.ts", oldMode: "100644", newMode: "100644" },
     {
       status: "R",
       path: "new.rs",
