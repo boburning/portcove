@@ -250,7 +250,9 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     )
     .toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Cancel preparation", exact: true }));
-  await expect.element(page.getByText("Cancellation requested", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Cancellation requested", exact: true }))
+    .toBeVisible();
   await userEvent.keyboard("{Alt>}{Shift>}C{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));

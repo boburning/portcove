@@ -963,8 +963,8 @@ jobs:
         run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Install Linux desktop prerequisites
         if: runner.os == 'Linux'
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
+        timeout-minutes: 30
+        run: ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
       - name: Test the full Rust workspace natively
         run: node scripts/qualification-nextest.mts native "${{ matrix.partition }}"
       - name: Retain native discovery and original case outcomes

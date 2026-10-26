@@ -43,6 +43,7 @@ struct AssetAcquisition<'a> {
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     strict_staged_source: bool,
+    restore_receipt_metadata: bool,
     source_preparation: Option<(
         crate::Catalog,
         crate::preparation::source::SourcePreparation,
@@ -190,6 +191,7 @@ impl InstallQualification {
                 port.adapter,
                 AdapterKind::StagedSourcePortable | AdapterKind::NativePortable
             ) || port.n64_runtime_at_executable_parent,
+            restore_receipt_metadata: crate::persistence::requires_restore_receipt(port),
             runtime_data_policy: port.runtime_data_policy,
             managed_shared_preferences: port.managed_shared_preferences,
             shared_preferences: None,
@@ -2750,18 +2752,6 @@ fn manifest_files(
 
     let mut files = Vec::new();
     let file_patterns = qualification.file_patterns(root, selected)?;
-    let psx_metadata = qualification
-        .retained_contract
-        .as_ref()
-        .map(|contract| -> Result<bool> {
-            Ok(crate::persistence::requires_restore_receipt(
-                contract
-                    .catalog(contract.port_id())?
-                    .port(contract.port_id())?,
-            ))
-        })
-        .transpose()?
-        .unwrap_or(false);
     for path in walk_files(root)? {
         let relative = manifest_relative(root, &path)?;
         let matched_file = file_patterns
@@ -2786,7 +2776,8 @@ fn manifest_files(
         }
         if path.file_name().and_then(|value| value.to_str()) == Some(".portcove-manifest.json")
             || path.file_name().and_then(|value| value.to_str()) == Some(".portcove-launched")
-            || (psx_metadata && crate::service::psx_data_metadata_name(&relative))
+            || (qualification.restore_receipt_metadata
+                && crate::service::psx_data_metadata_name(&relative))
             || mutable_roots
                 .iter()
                 .any(|mutable| path == *mutable || path.starts_with(mutable))
@@ -4411,6 +4402,105 @@ mod tests {
         fs::remove_dir(&helpers).unwrap();
         #[cfg(unix)]
         fs::remove_file(&helpers).unwrap();
+    }
+
+    #[test]
+    fn import_verification_preserves_trusted_restore_metadata_boundaries() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("game.exe"), b"inert executable fixture").unwrap();
+        let base = InstallQualification::test("game.exe");
+        let catalog = base
+            .retained_contract
+            .as_ref()
+            .unwrap()
+            .catalog("sample")
+            .unwrap();
+        let mut document = catalog.authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "sample")
+            .unwrap();
+        port.adapter = AdapterKind::StagedSourcePortable;
+        port.persistent_paths = vec!["saves".into()];
+        assert!(crate::persistence::ready_staged_archive(port));
+        let catalog =
+            crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let created =
+            InstallQualification::from_catalog(&catalog, "sample", Platform::WindowsX86_64)
+                .unwrap();
+        let projected = InstallQualification::from_port(
+            catalog.port("sample").unwrap(),
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let (installer, install) = create_test_install(&root, &created);
+        let original_manifest = fs::read(root.join(".portcove-manifest.json")).unwrap();
+        for qualification in [&created, &projected] {
+            installer
+                .verify_import_contract(&install, qualification)
+                .unwrap();
+        }
+        let receipt = serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1, "port_id": "sample", "install_id": install.id,
+            "manifest_sha256": install.manifest_sha256
+        }))
+        .unwrap();
+        fs::write(root.join(".portcove-psx-data-restored.json"), &receipt).unwrap();
+        fs::write(
+            root.join(".portcove-psx-data-write-1234ABCD"),
+            b"partial receipt",
+        )
+        .unwrap();
+        for qualification in [&created, &projected] {
+            installer
+                .verify_import_contract(&install, qualification)
+                .unwrap();
+        }
+        for relative in [
+            ".portcove-psx-data-restored.json.other",
+            ".portcove-psx-data-write-1234ABCD.extra",
+            "sub/.portcove-psx-data-restored.json",
+        ] {
+            let path = root.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, b"unknown retained bytes").unwrap();
+            for qualification in [&created, &projected] {
+                assert!(
+                    installer
+                        .verify_import_contract(&install, qualification)
+                        .is_err()
+                );
+            }
+            assert_eq!(fs::read(&path).unwrap(), b"unknown retained bytes");
+            fs::remove_file(path).unwrap();
+        }
+        let mut other = catalog.port("sample").unwrap().clone();
+        other.adapter = AdapterKind::NativePortable;
+        assert!(!crate::persistence::requires_restore_receipt(&other));
+        let other = InstallQualification::from_port(&other, Platform::WindowsX86_64).unwrap();
+        let (files, _) = manifest_files(&root, &other, &root.join("game.exe")).unwrap();
+        assert!(
+            files
+                .iter()
+                .any(|file| file.path == ".portcove-psx-data-restored.json")
+        );
+        assert!(
+            files
+                .iter()
+                .any(|file| file.path == ".portcove-psx-data-write-1234ABCD")
+        );
+        assert!(installer.verify_import_contract(&install, &other).is_err());
+        assert_eq!(
+            fs::read(root.join(".portcove-manifest.json")).unwrap(),
+            original_manifest
+        );
+        assert_eq!(
+            fs::read(root.join(".portcove-psx-data-restored.json")).unwrap(),
+            receipt
+        );
     }
 
     fn staged_integrity_fixture() -> (

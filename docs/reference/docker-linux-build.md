@@ -33,6 +33,10 @@ pushing, committing dirty work or synchronizing another development tree.
 
 ## Preparation and fresh execution
 
+Image preparation explicitly selects the native `desktop-linux` builder, verifies
+its endpoint against that validated local context, and loads the result into the
+engine. It does not depend on an implicit builder or cache-only export default.
+
 The recipe pins Ubuntu 22.04, the Vite+ tool stage and Rust tool stage by digest.
 Rust and Vite+ versions must match the selected source pins. Copied tools must
 actually execute against Ubuntu's glibc during preparation. PowerShell's official
@@ -97,7 +101,7 @@ an arbitrary-executable sandbox guarantee.
 The builder uses four CPUs, 6 GiB RAM/no extra swap, 1 GiB shared memory and 1024
 PIDs, matching browser limits. Preparation is bounded to 120 minutes and the task
 to 90 minutes (`--timeout-ms` may tighten it). Browser deadlines stay at 30 minutes.
-Builder source-bundle export has a ten-minute safeguard, clipped to the remaining
+Builder source-bundle export has a 45-minute safeguard, clipped to the remaining
 preparation budget; the browser source-bundle safeguard stays at five minutes.
 Both adapters allow two minutes for each read-only daemon storage query, clipped
 to remaining preparation time and covered by the existing cancellation signal.

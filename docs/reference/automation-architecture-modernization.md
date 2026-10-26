@@ -1,7 +1,8 @@
 # Automation architecture modernization
 
 Phase 1 owner: completed [#3662](https://github.com/boburning/portcove/issues/3662).
-Phase 2 owner: the existing development-agility [#1104](https://github.com/boburning/portcove/issues/1104).
+Phase 2 performance owner: the existing development-agility [#1104](https://github.com/boburning/portcove/issues/1104).
+Finite Roadmap policy owner: [#3700](https://github.com/boburning/portcove/issues/3700).
 Investigation baseline: `ba55e9a06357d0230ad9c65a48c96fe93f226a56`, October 25,
 2026 (America/New_York). This is dated implementation evidence, not a planning
 ledger. #2420 retains the canonical testing-audit recommendations; #1667 retains
@@ -523,7 +524,7 @@ It found no blocking change.
 
 | Observation                                           |    Before |          After |
 | ----------------------------------------------------- | --------: | -------------: |
-| Fresh test identities/outcomes                        | 86 passes | Same 86 passes |
+| Fresh expanded case names/outcomes                    | 86 passes | Same 86 passes |
 | Node / browser case placement                         |    7 / 79 |        57 / 29 |
 | Native browser trace exports                          |        79 |             29 |
 | Successful native execution                           |    8.64 s |         8.90 s |
@@ -576,3 +577,175 @@ feedback owner; #2420 retains canonical testing recommendations. The separate
 finite [#3700](https://github.com/boburning/portcove/issues/3700) owns removal of
 the demonstrated Roadmap CLI/scoped-policy runtime import cycle. It creates no
 beta prerequisite and does not expand #1667 or reopen #3662.
+
+### Frontend continuation delivery readback
+
+[PR #3701](https://github.com/boburning/portcove/pull/3701) merged as
+`73bcaba170721984e7a30906a55102ec2f5efbc5`, from reviewed source
+`cd9f8a03530e8ed913b5fe26c8620a56e30501c9`. [CI 40346229424, attempt 1](https://github.com/boburning/portcove/actions/runs/40346229424)
+passed all five required contexts. Its actual frontend producer passed 993 unit
+cases plus one skip in 26.89 s and 1,426 browser cases plus one skip in 286.73 s;
+producer wall was 363 s. The eight additional unit cases relative to the local
+6ee85815 run are main's adapter-conformance envelope controls. Their identities
+were reconciled with no missing local unit names. These observations do not
+isolate a successful whole-suite speedup from the SSR move.
+
+Independent target-interaction review cleared the later target `1e20ac70` against
+source cd9f8a03 and actual merge-base `a19868db`. Guarded merge and REST/Git readback
+confirmed its parent and composed tree `380218daaad8695ce53e8b284c465f580d4c427f`.
+The later target itself is not claimed as the tested source. [#1104 outcome](https://github.com/boburning/portcove/issues/1104#issuecomment-6420542861)
+and [#2420 evidence](https://github.com/boburning/portcove/issues/2420#issuecomment-6420543813)
+were read back; both scoped doctors passed, with global health not evaluated.
+
+This slice changed 11 files: production/configuration +14 lines, tests/helpers
++27, documentation +123, net +164. One browser entrypoint was retired and two
+Node files added, one through a rename; net file count +1, dependencies unchanged.
+Case names, assertions and vectors survive; file/project-derived definition IDs
+intentionally change when cases move. The required unit-first gate still prevents
+browser execution after a unit-stage failure.
+
+## Roadmap policy ownership and cycle removal
+
+The runtime cycle `roadmap.mts → roadmap-scoped.mts → roadmap.mts` coupled scoped
+policy evaluation to the CLI, its live client, locks and unrelated reporting/tool
+modules. The finite elective [#3700](https://github.com/boburning/portcove/issues/3700)
+separates existing responsibility groups without adding planning or execution
+infrastructure:
+
+```text
+roadmap.mts                  CLI, live client/inventory, locks and mutations
+roadmap-scoped.mts           observed-scope evaluation and doctor execution
+roadmap-issue.mts            issue identity, field precedence, status and blockers
+roadmap-execution.mts        snapshots, consumption, context and queue projections
+roadmap-qualification.mts    diagnostic projection, matching, stages and coverage
+roadmap-readiness.mts        dependencies, readiness and snapshot reporting
+runtime-values.mts           shared record-only field access
+```
+
+Scoped evaluation imports the owning policies directly. Existing CLI exports
+remain compatibility bindings for real consumers: all 53 runtime names match the
+pre-change API, and seven moved bindings are checked for function identity.
+Retirement requires migrating those actual consumers; the Just/Actions CLI
+entrypoint remains necessary. Tests for execution, qualification and readiness
+now import their domain owner. Live GitHub collection, pagination/completeness,
+mutation preimages, quota/deadline decisions, locks and recovery retain their
+existing implementations. No second inventory or state authority was added.
+
+Issue completion/status interpretation has one owner. Snapshot inconsistency
+reporting now reuses the same predicate as readiness/scoped checks, removing an
+equivalent inline decision. The duplicate diagnostic string conversion delegates
+to the existing issue helper; record field access moves to the existing shared
+runtime module. Other guards remain independent where their obligations differ.
+
+Pre-change observations are bound to unchanged Roadmap bytes at source cd9f8a03,
+including hashes of the CLI, scoped and issue modules, #706 implementation and
+approval, and configuration. Independent review repaired two oracle gaps before
+extraction: a real legacy migration case and canonical #49/#706 pending planning
+behavior. All 51 frozen outputs match after extraction, including exact snapshot
+JSON/revision hashes, malformed consumption, field precedence, status conflicts,
+qualification identity and readiness defaults. Complete snapshot markdown also
+matches the frozen original for six repository-state/Project-status combinations.
+
+At composed source `9ca500a6d5a9fd0ec1fe721b7eac91e8fd868938`, the authoritative
+24-file Roadmap Node suite passed 431 cases with one explicit Windows-sharing
+skip on Linux; its reporter confirmed complete file/outcome coverage and no
+native failure. The selected domain/validation regressions passed 217 cases.
+A fresh-process loader control refused the old CLI import and passes for the new
+scoped graph: 24 repository modules become 18, with nine old modules unloaded
+and three cohesive policy modules added. This demonstrates coupling removal,
+not a measured improvement to whole-command wall time. The CLI itself remains
+an active client/entrypoint and still loads its necessary responsibilities.
+
+New policy leaves and shared field access participate in existing workflow
+triggers, health source comparisons, protected ownership and local/hosted test
+selection. Lifecycle regressions cover edits, additions, deletions and both
+rename sides. The shared runtime helper also retains the complete Roadmap test
+family. Generated Node command lists remain products of their existing registry,
+not independent policies; current main's #3703 registry work is reused.
+
+Readiness is not wholly pure or API-free: its default approval is read freshly
+from the owning checkout on invocation, its default observation time remains
+fresh, and the existing #706 module still depends on GitHub infrastructure.
+Actual candidate scanning and mutation authority stay with their existing
+callers. No approval, signing, publication, native qualification or release
+eligibility is inferred from these source/fixture results. The earlier framework
+and cache decisions remain unchanged.
+
+The implementation adds three substantial domain modules and retires no required
+CLI. Before this evidence update, the 17-file implementation is production +140,
+tests +105, workflow configuration +4, net +249 lines. The CLI shrinks from 5,828
+to 4,232 lines; this is relocation plus explicit boundaries and tests, not a claim
+of net source deletion. No dependencies or compatibility forwarding modules were
+added. #3700 owns its finite review, qualification and delivery evidence; #1667's
+bootstrap scope, completed #3662 and beta commitments remain unchanged.
+
+Final local strict checking of the composed implementation covered 1,357 files
+with zero warnings, lint errors or type errors (8.6 s checker, 11.964 s guarded,
+5 ms queue). All 3,268 maintained files passed formatting. These observations
+retain their source/fixture boundary and do not replace exact-head hosted CI.
+
+## Final Phase 2 guarded delivery receipts
+
+| Delivered slice                                                                                                   | Reviewed source                            | Merge                                      | Required exact-head CI, attempt 1                                             |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| [#3668](https://github.com/boburning/portcove/pull/3668): browser scheduling, failure gate, parser/health cleanup | `79bbb6382f00f8ee918ca94f937a0fbaf9edb164` | `ea62405bf8d08f21055ff7381d90a6882379efee` | [40266447605](https://github.com/boburning/portcove/actions/runs/40266447605) |
+| [#3701](https://github.com/boburning/portcove/pull/3701): SSR ownership, pre-bundling and native help             | `cd9f8a03530e8ed913b5fe26c8620a56e30501c9` | `73bcaba170721984e7a30906a55102ec2f5efbc5` | [40346229424](https://github.com/boburning/portcove/actions/runs/40346229424) |
+| [#3707](https://github.com/boburning/portcove/pull/3707): Roadmap policy ownership/cycle removal                  | `c9c295d0d5ef406ad380e510d94d7ed4529481ba` | `0eaf374e141f273b9d799849bbd81751a8e82b54` | [40361414648](https://github.com/boburning/portcove/actions/runs/40361414648) |
+
+All five contexts (`catalog`, `dependency-review`, `frontend`, `rust`,
+`rust-quality`) passed for each listed source. #3707's tooling-only selection
+skipped frontend runtime producers; its successful `frontend` context is not a
+new browser execution claim. #3701 retains the relevant hosted frontend evidence.
+The supplementary upstream-health workflow returned success without establishing
+global catalog, installed/native or production-release acceptance.
+
+Two independent non-writing reviews cleared #3707's architecture/selection and
+correctness/oracle behavior, including 46 extracted function bodies, unchanged
+live client/mutation bodies, fresh approval/time defaults and compatibility.
+Its source/target interaction review covered `abc8c03b` and then `9f44c30e`.
+The first guarded merge stopped before mutation while mergeability was unknown;
+readback confirmed open/unmerged, then the resolved state permitted normal merge.
+
+A concurrent #3708 advance became the actual parent `a8b941efd22e8d35e00d1227d218af94e256327f`.
+The prediction against the earlier reviewed target consequently failed; that
+failure is retained. Readback confirmed the merge, and composing the actual parent
+with the reviewed source exactly reproduced tree `3df7555a0e68c4d5e5c2f04ce94e8a803326ad7d`.
+Independent post-merge interaction review verified both sets of routing edits
+survive and the new standalone-Rust receipt contract does not alter Roadmap
+snapshot or approval authority. Six focused interaction files on the actual
+merged composition passed 241 cases with three explicit skips. This is separate
+from earlier exact-source CI; the later parent is not retroactively called tested
+by that CI. No merge retry occurred after successful confirmation.
+
+Across these three implementation PRs, maintained non-test TypeScript is +126
+lines, tests/helpers +232, workflow configuration +4 and evidence documentation
++474 (net +836 before this final receipt update). Most relocation remains
+original behavior; imports/exports and meaningful regression coverage explain
+the increase. There are three new domain modules and net one additional frontend
+test file, with no dependency change or competing orchestration system. A browser
+entrypoint, an unused parser and duplicated policy/fixture behavior were retired;
+no arbitrary root-script deletion target was applied.
+
+The final tracked inventory at merged source 0eaf374e is recorded below. Counts
+include modules, tests, fixtures and generated data; they are not evidence of
+obsolete code or acceptance quotas.
+
+- `scripts/`: 924 tracked files (858 direct).
+- `apps/desktop/scripts/`: 168 tracked files (162 direct).
+- `tools/`: 2 tracked files (0 direct).
+
+Release-prefixed root files remain 382. The catalog observer, ordinary validation,
+PR delivery, release coordinator and native-candidate boundaries retain their
+existing authorities where current evidence did not establish an equivalent
+removable implementation. The later Roadmap cycle/status-policy findings above
+supersede the earlier Roadmap no-change disposition at that bounded scope.
+No signing/publication controller, durable journal, trusted admission check or
+platform adapter was collapsed merely to reduce file counts.
+
+The remaining high-impact browser cost is trace/resource handling. Revisit it
+only with a supported solution that passes the retained SIGTERM and cached-resource
+negative controls. Static-task caching remains unqualified under the maintained
+Just temporary environment; a supported native task/socket fix must precede a
+new full invalidation experiment. Existing Windows Rust profiling stays with
+#3661. These are bounded resume conditions, not a new cleanup campaign or beta gate.
+#1104 and #2420 retain their broader scopes; #1667 and completed #3662 are unchanged.

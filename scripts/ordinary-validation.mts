@@ -1499,6 +1499,9 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/repository-issue-inventory.mts",
     "scripts/roadmap-inventory.mts",
     "scripts/roadmap-scoped.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
     "scripts/linux-beta-risk-706.mts",
     "deny.toml",
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
@@ -1742,6 +1745,7 @@ for (const file of [
   ]);
 }
 explicitNodeTests.set("scripts/runtime-values.mts", [
+  ...roadmapContractTests,
   ...(explicitNodeTests.get("scripts/runtime-values.mts") ?? []),
   "scripts/qualification-nextest.test.mts",
   "scripts/qualification-rustdoc.test.mts",

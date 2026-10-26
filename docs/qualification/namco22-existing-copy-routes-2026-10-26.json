@@ -1,0 +1,274 @@
+{
+  "format_version": 1,
+  "kind": "dated-five-port-acquisition-and-existing-copy-evidence",
+  "owners": [2926, 2510],
+  "source_commit": "3daf2fda27c2ec1b30e60d59f854c5c887bbb334",
+  "observation_cutoff": "2026-10-26T16:04:28.044Z",
+  "status": "Prepared candidate; unmerged. Canonical owners retain current delivery and acceptance.",
+  "coverage": {
+    "distinct_existing_authored_identities": 5,
+    "original_inventory_members": 5,
+    "unresolved_identity_joins": 0,
+    "all_current_authored_records_for_this_exact_repository": 5,
+    "scope": "Finite batch only; not a complete current-inventory or Public beta claim."
+  },
+  "upstream": {
+    "repository": "spacestate1/namco22-decompile",
+    "opaque_repository_id": 1382337569,
+    "release": "0.9.3",
+    "release_source": "d7331fba68c57f914565f7fc5186081129a23805",
+    "current_default_source": "1cc6bdada679d47fa0ef11ae3a3b3d450c63e68c",
+    "complete_release_records": 18,
+    "release_pagination": "Maintained terminal REST traversal, unique release identities",
+    "source_tree_complete": true,
+    "reviewed_host_source_files": 240,
+    "reviewed_host_source_bytes": 5116646,
+    "license": "Project MIT grant expressly excludes Namco program rights; third-party grants retain their own scope.",
+    "permission_boundary": "Existing canonical owners require resolving original C71 DSP BIOS/generated-code permission before any acquired-byte route. No attributable grant found in reviewed source; no new product deferral.",
+    "reconsideration": "Attributable permission for bundled original BIOS and translated game code, or a reviewed upstream package/preparation route that removes the ungranted content and uses owned originals."
+  },
+  "artifacts": {
+    "windows": {
+      "name": "windows-release-0.9.3.zip",
+      "asset_id": 675222329,
+      "bytes": 84374072,
+      "independent_expected_sha256": "3eb2d49fbb47b9aa1dac431d409855767fbfff8cf60438aec3a5cd88e8becceb",
+      "actual_sha256": "3eb2d49fbb47b9aa1dac431d409855767fbfff8cf60438aec3a5cd88e8becceb",
+      "archive_entries": 23,
+      "expanded_bytes": 267725973,
+      "all_eleven_headers_amd64": true,
+      "extraction": false
+    },
+    "linux": [
+      {
+        "name": "DirtDash-x86_64.AppImage",
+        "asset_id": 675223404,
+        "bytes": 3447288,
+        "expected_sha256_before_bytes": "c67842849be3d842e8c396de2d6e4866c665ddf3f14f5503badd3955266d4002",
+        "actual_sha256": "c67842849be3d842e8c396de2d6e4866c665ddf3f14f5503badd3955266d4002",
+        "outer_header": "ELF64 little-endian x86_64 AppImage type2",
+        "inner_payload_or_execution_qualified": false
+      },
+      {
+        "name": "PropCycle-x86_64.AppImage",
+        "asset_id": 675222876,
+        "bytes": 2476536,
+        "expected_sha256_before_bytes": "3232cd31ffbaaf07144b91206f7fdb7e6a27def0ccb3072fd0cbb0ff8e84a2a4",
+        "actual_sha256": "3232cd31ffbaaf07144b91206f7fdb7e6a27def0ccb3072fd0cbb0ff8e84a2a4",
+        "outer_header": "ELF64 little-endian x86_64 AppImage type2",
+        "inner_payload_or_execution_qualified": false
+      },
+      {
+        "name": "RaveRacer-x86_64.AppImage",
+        "asset_id": 675222839,
+        "bytes": 3389944,
+        "expected_sha256_before_bytes": "73f170185fe737edd3b00a96e84abdc10faadefbd877fcda9f7daaf240dcff8a",
+        "actual_sha256": "73f170185fe737edd3b00a96e84abdc10faadefbd877fcda9f7daaf240dcff8a",
+        "outer_header": "ELF64 little-endian x86_64 AppImage type2",
+        "inner_payload_or_execution_qualified": false
+      },
+      {
+        "name": "TimeCrisis-x86_64.AppImage",
+        "asset_id": 675222799,
+        "bytes": 6887928,
+        "expected_sha256_before_bytes": "b9122fd676f58048bf906647750821e0fa9dcce70e648d3e2284a19eb5275467",
+        "actual_sha256": "b9122fd676f58048bf906647750821e0fa9dcce70e648d3e2284a19eb5275467",
+        "outer_header": "ELF64 little-endian x86_64 AppImage type2",
+        "inner_payload_or_execution_qualified": false
+      },
+      {
+        "name": "TokyoWars-x86_64.AppImage",
+        "asset_id": 675222744,
+        "bytes": 3422712,
+        "expected_sha256_before_bytes": "c0f9bf815c2f59d0412751c7b8bf351a472eb988b13448f2c2e168261d6622d1",
+        "actual_sha256": "c0f9bf815c2f59d0412751c7b8bf351a472eb988b13448f2c2e168261d6622d1",
+        "outer_header": "ELF64 little-endian x86_64 AppImage type2",
+        "inner_payload_or_execution_qualified": false
+      }
+    ],
+    "original_bios_inclusion": {
+      "source": "d7331fba68c57f914565f7fc5186081129a23805",
+      "bios_include_git_blob": "f449cad559ffb8252cf20884c6f6d6b52247e3f6",
+      "word_count": 4096,
+      "little_endian_literal_bytes": 8192,
+      "little_endian_literal_sha256": "16e4e651236d6c4f1f102f89db411c1a98f64757d7fb3a962d4bbbba8f23050a",
+      "windows_packages": [
+        {
+          "executable": "DirtDash.exe",
+          "literal_original_bios_matches": 1,
+          "offsets": [8140864]
+        },
+        {
+          "executable": "PropCycle.exe",
+          "literal_original_bios_matches": 1,
+          "offsets": [3585856]
+        },
+        {
+          "executable": "RaveRacer.exe",
+          "literal_original_bios_matches": 1,
+          "offsets": [6996960]
+        },
+        {
+          "executable": "TimeCrisis.exe",
+          "literal_original_bios_matches": 1,
+          "offsets": [18968704]
+        },
+        {
+          "executable": "TokyoWars.exe",
+          "literal_original_bios_matches": 1,
+          "offsets": [8744000]
+        }
+      ],
+      "scope": "Inert exact-byte inclusion observation only; no grant or native execution. Linux compressed payload not inspected."
+    }
+  },
+  "shared_behavior": "Existing Core download_block_reason refuses options, preview and mutation before provider contact; explicit bounded non-owning registration/Play and retained existing installations remain available under their existing contracts.",
+  "ports": [
+    {
+      "id": "dirt-dash-namco22",
+      "canonical_issue": 1568,
+      "scope": ["windows-x86-64", "linux-x86-64"],
+      "pickup_route": "Listing-only, no platform/setup guidance or acquisition restriction",
+      "selected_route": "Existing named acquisition hold plus conditional non-owning existing-copy guidance",
+      "disposition": "retain-existing-provenance-limit-and-improve-permitted-existing-copy",
+      "runtime_update_owner": "Player or upstream for external copies; no Portcove replacement/backup/rollback/removal promise",
+      "setup_data": {
+        "windows_executable": "DirtDash.exe",
+        "working_directory": "The existing executable-parent windows-release folder",
+        "originals": "dirtdash.zip (World DT2 Ver.A); also keep dirtdasha.zip beside it when using a split MAME set",
+        "edition": "The Japanese DT1 program is a different revision.",
+        "windows": "Existing roms, extracted chips, game-specific controls/arcade NVRAM or high scores, log, screenshots and recordings remain external; preserve the whole folder.",
+        "linux_profile": "dirtdash",
+        "linux": "Upstream AppImage launcher preserves its own current/legacy/portable profile selection and required environment. Do not register its private binary."
+      },
+      "evidence": {
+        "guide": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
+        "windows_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/win_startup.c",
+        "bios_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/c25/c71_bios.c",
+        "linux_launcher": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/packaging/linux/pkg/namco-2x-launch",
+        "canonical_spec_sha256": "660ed35bf224c2f88de30c9c520a0c52bd7f11732e3e3600e3c3f8ac168efc97"
+      },
+      "validation": "Published expected archive/AppImage digests matched before bytes; Windows PE headers and exact full BIOS inclusion observed; Linux outer ELF/AppImage headers observed, compressed payload not inspected. Maintained before/after Core preparation validates each proposed record. No native, helper, original-game or gameplay execution.",
+      "delivery_status": "Prepared, unmerged; permission remains unresolved and managed adoption is not delivered."
+    },
+    {
+      "id": "prop-cycle-namco22",
+      "canonical_issue": 1565,
+      "scope": ["windows-x86-64", "linux-x86-64"],
+      "pickup_route": "Listing-only, no platform/setup guidance or acquisition restriction",
+      "selected_route": "Existing named acquisition hold plus conditional non-owning existing-copy guidance",
+      "disposition": "retain-existing-provenance-limit-and-improve-permitted-existing-copy",
+      "runtime_update_owner": "Player or upstream for external copies; no Portcove replacement/backup/rollback/removal promise",
+      "setup_data": {
+        "windows_executable": "PropCycle.exe",
+        "working_directory": "The existing executable-parent windows-release folder",
+        "originals": "propcycl.zip",
+        "edition": "Use the supported original Prop Cycle arcade set; the upstream checksum guide identifies its chips.",
+        "windows": "Existing roms, extracted chips, game-specific controls/arcade NVRAM or high scores, log, screenshots and recordings remain external; preserve the whole folder.",
+        "linux_profile": "propcycle",
+        "linux": "Upstream AppImage launcher preserves its own current/legacy/portable profile selection and required environment. Do not register its private binary."
+      },
+      "evidence": {
+        "guide": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
+        "windows_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/win_startup.c",
+        "bios_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/c25/c71_bios.c",
+        "linux_launcher": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/packaging/linux/pkg/namco-2x-launch",
+        "canonical_spec_sha256": "9ef6530f9ef92f84c27e162e09dd473fa747420f094006606f4ce320cdbb12ca"
+      },
+      "validation": "Published expected archive/AppImage digests matched before bytes; Windows PE headers and exact full BIOS inclusion observed; Linux outer ELF/AppImage headers observed, compressed payload not inspected. Maintained before/after Core preparation validates each proposed record. No native, helper, original-game or gameplay execution.",
+      "delivery_status": "Prepared, unmerged; permission remains unresolved and managed adoption is not delivered."
+    },
+    {
+      "id": "rave-racer-namco22",
+      "canonical_issue": 1566,
+      "scope": ["windows-x86-64", "linux-x86-64"],
+      "pickup_route": "Listing-only, no platform/setup guidance or acquisition restriction",
+      "selected_route": "Existing named acquisition hold plus conditional non-owning existing-copy guidance",
+      "disposition": "retain-existing-provenance-limit-and-improve-permitted-existing-copy",
+      "runtime_update_owner": "Player or upstream for external copies; no Portcove replacement/backup/rollback/removal promise",
+      "setup_data": {
+        "windows_executable": "RaveRacer.exe",
+        "working_directory": "The existing executable-parent windows-release folder",
+        "originals": "raverace.zip (World RV2 Ver.B) and namcoc74.zip",
+        "edition": "The Japanese program revisions are different inputs.",
+        "windows": "Existing roms, extracted chips, game-specific controls/arcade NVRAM or high scores, log, screenshots and recordings remain external; preserve the whole folder.",
+        "linux_profile": "raverace",
+        "linux": "Upstream AppImage launcher preserves its own current/legacy/portable profile selection and required environment. Do not register its private binary."
+      },
+      "evidence": {
+        "guide": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
+        "windows_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/win_startup.c",
+        "bios_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/c25/c71_bios.c",
+        "linux_launcher": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/packaging/linux/pkg/namco-2x-launch",
+        "canonical_spec_sha256": "f915ce6244ec81b394ff87c59375eec138a37943bcdff24dff4eb565bbc7e53d"
+      },
+      "validation": "Published expected archive/AppImage digests matched before bytes; Windows PE headers and exact full BIOS inclusion observed; Linux outer ELF/AppImage headers observed, compressed payload not inspected. Maintained before/after Core preparation validates each proposed record. No native, helper, original-game or gameplay execution.",
+      "delivery_status": "Prepared, unmerged; permission remains unresolved and managed adoption is not delivered."
+    },
+    {
+      "id": "time-crisis-namco22",
+      "canonical_issue": 1569,
+      "scope": ["windows-x86-64", "linux-x86-64"],
+      "pickup_route": "Listing-only, no platform/setup guidance or acquisition restriction",
+      "selected_route": "Existing named acquisition hold plus conditional non-owning existing-copy guidance",
+      "disposition": "retain-existing-provenance-limit-and-improve-permitted-existing-copy",
+      "runtime_update_owner": "Player or upstream for external copies; no Portcove replacement/backup/rollback/removal promise",
+      "setup_data": {
+        "windows_executable": "TimeCrisis.exe",
+        "working_directory": "The existing executable-parent windows-release folder",
+        "originals": "timecris.zip (World TS2 Ver.B)",
+        "edition": "The Ver.A and Japanese program revisions are different inputs.",
+        "windows": "Existing roms, extracted chips, game-specific controls/arcade NVRAM or high scores, log, screenshots and recordings remain external; preserve the whole folder.",
+        "linux_profile": "timecris",
+        "linux": "Upstream AppImage launcher preserves its own current/legacy/portable profile selection and required environment. Do not register its private binary."
+      },
+      "evidence": {
+        "guide": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
+        "windows_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/win_startup.c",
+        "bios_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/c25/c71_bios.c",
+        "linux_launcher": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/packaging/linux/pkg/namco-2x-launch",
+        "canonical_spec_sha256": "abd78a627c33b6f289bb1460b9336780d04e8a97593bcebf661879de740adaac"
+      },
+      "validation": "Published expected archive/AppImage digests matched before bytes; Windows PE headers and exact full BIOS inclusion observed; Linux outer ELF/AppImage headers observed, compressed payload not inspected. Maintained before/after Core preparation validates each proposed record. No native, helper, original-game or gameplay execution.",
+      "delivery_status": "Prepared, unmerged; permission remains unresolved and managed adoption is not delivered."
+    },
+    {
+      "id": "tokyo-wars-namco22",
+      "canonical_issue": 1567,
+      "scope": ["windows-x86-64", "linux-x86-64"],
+      "pickup_route": "Listing-only, no platform/setup guidance or acquisition restriction",
+      "selected_route": "Existing named acquisition hold plus conditional non-owning existing-copy guidance",
+      "disposition": "retain-existing-provenance-limit-and-improve-permitted-existing-copy",
+      "runtime_update_owner": "Player or upstream for external copies; no Portcove replacement/backup/rollback/removal promise",
+      "setup_data": {
+        "windows_executable": "TokyoWars.exe",
+        "working_directory": "The existing executable-parent windows-release folder",
+        "originals": "tokyowar.zip (World TW2 Ver.A)",
+        "edition": "The Japanese program revision is a different input.",
+        "windows": "Existing roms, extracted chips, game-specific controls/arcade NVRAM or high scores, log, screenshots and recordings remain external; preserve the whole folder.",
+        "linux_profile": "tokyowar",
+        "linux": "Upstream AppImage launcher preserves its own current/legacy/portable profile selection and required environment. Do not register its private binary."
+      },
+      "evidence": {
+        "guide": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
+        "windows_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/win_startup.c",
+        "bios_source": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/engine/c25/c71_bios.c",
+        "linux_launcher": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/packaging/linux/pkg/namco-2x-launch",
+        "canonical_spec_sha256": "fe9d32501c5d967284a8b619c04eb4daaa6ce81aaddffbc7e4e848339d2bc309"
+      },
+      "validation": "Published expected archive/AppImage digests matched before bytes; Windows PE headers and exact full BIOS inclusion observed; Linux outer ELF/AppImage headers observed, compressed payload not inspected. Maintained before/after Core preparation validates each proposed record. No native, helper, original-game or gameplay execution.",
+      "delivery_status": "Prepared, unmerged; permission remains unresolved and managed adoption is not delivered."
+    }
+  ],
+  "invariants": {
+    "managed_operational_additions": 0,
+    "existing_1424_identities_preserved": true,
+    "existing_166_operational_records_unchanged": true,
+    "all_artwork_and_lineage_preserved": true,
+    "existing_files_adopted": false,
+    "original_commitment": [524, 312, 22],
+    "no_native_execution": true,
+    "no_gameplay_or_real_save_qualification": true,
+    "full_inventory_or_beta_complete": false
+  }
+}
