@@ -459,9 +459,9 @@ void test("bootstrap and renewal route distinct explicit subjects through only t
 async function recoveryProviderControl() {
   const { mock } = await import("node:test");
   const { performance } = await import("node:perf_hooks");
-  const assert = (await import("node:assert/strict")).default;
+  const assert: typeof import("node:assert/strict") = (await import("node:assert/strict")).default;
   const githubUrl = new URL("./github-api.mts", process.argv[1]).href;
-  const github: typeof import("./github-api.mts") = await import(githubUrl);
+  const github = (await import(githubUrl)) as typeof import("./github-api.mts");
   let now = 10,
     delay = 0,
     gets = 0;
@@ -481,9 +481,9 @@ async function recoveryProviderControl() {
     },
   });
   mock.method(performance, "now", () => now);
-  const executor: typeof import("./release-capacity-executor.mts") = await import(
+  const executor = (await import(
     process.argv[1] + "?owned-timeout-control"
-  );
+  )) as typeof import("./release-capacity-executor.mts");
   const api = executor.capacityRecoveryProviderApi({ directory: "private", deadline: 100 });
   const read = () => api.request("GET", "repos/boburning/portcove/actions/runs/123");
   assert.deepEqual(read().body, { original: true });
