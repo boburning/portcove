@@ -1,0 +1,265 @@
+{
+  "format_version": 1,
+  "kind": "dated-source-bound-batch-evidence-not-live-backlog",
+  "base_source_commit": "efc42c654972d9094fef2b94337fc560c80d436a",
+  "observation_cutoff_utc": "2026-10-26T10:37:53.419047+00:00",
+  "canonical_owners": [2760, 2757, 2761, 2791, 2801, 2806, 163, 2800, 2798, 2799],
+  "initial_original_roadmap_workset": [2757, 2760, 2761, 2791, 2801, 2806],
+  "related_owner_scope": [163, 2798, 2799, 2800],
+  "source_inventory": "Frozen original22roadmap joins preserved by #2510/#2926; scoped current per-ID source and fully paginated primary releases/lineage comparisons. This is not an all-current-inventory assessment.",
+  "original_cohorts_preserved": {
+    "identities": 524,
+    "affected_additions": 312,
+    "roadmap_joins": 22
+  },
+  "candidate_totals": {
+    "authored": 1417,
+    "operational": 165,
+    "prior_operational_unchanged": 164,
+    "prior_authored_unchanged": 1410,
+    "prior_authored_changed_listing_only": 4,
+    "new_authored": 3,
+    "original_roadmap_authored": 10,
+    "original_roadmap_unlisted": 12
+  },
+  "still_unlisted_original_roadmap": {
+    "existing_holds": [2728, 2744, 2757, 2791],
+    "existing_retirement": [2761],
+    "not_assessed_in_this_batch": [2836, 2841, 2852, 2853, 2861, 2862, 2913]
+  },
+  "direct_route_decisions": {
+    "current_direct": 4,
+    "legacy_retained_transitions": 2,
+    "completed_by_this_batch": 0
+  },
+  "package_evidence": {
+    "mgsm_windows": {
+      "tag": "v0.1",
+      "source": "4e6d91ceadfb898322f535f82f24a394197d892b",
+      "name": "MGS_Mobile_0.1_Windows_x64.zip",
+      "bytes": 9884393,
+      "sha256": "c6058474c8b545efb8cc7743843fefee36604c2eb38292365af378609889d4c8",
+      "actual_readonly_inspection": true,
+      "publisher_expected_digest_matched": true
+    },
+    "mgsm_linux": {
+      "name": "MGS_Mobile_0.1_Linux_x64.tar.gz",
+      "bytes": 9035129,
+      "sha256": "753af0a9eff4993d412d0373dc7b5fe3f2ad30f427178a988d3091a2490f998c",
+      "actual_readonly_inspection": true,
+      "publisher_expected_digest_matched": true,
+      "managed_scope": false
+    },
+    "ape_fork": {
+      "tag": "macos-nightly",
+      "provider_prerelease_flag": false,
+      "core_presentation_channel": "beta-preview",
+      "tag_commit": "2a878d3e24ecd7b3ae805a0b92884c0aa9514e18",
+      "default_source": "95398d212b0b263a3132cecc8ad253533e61496d",
+      "publisher_manifest_build_commit": "6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c",
+      "manifest_expected_digest_matched": true,
+      "source_reproducibility_attested": false,
+      "runtime_archives_acquired_or_executed": false,
+      "lineage_current_commits": 246,
+      "lineage_current_pages": 3,
+      "lineage_complete": true,
+      "changed_files": 97
+    }
+  },
+  "records": [
+    {
+      "id": "leithsilver-mgsm",
+      "canonical_issue": 2760,
+      "platform_scope": ["windows-x86-64 managed", "linux-x86-64 external"],
+      "selected_route": "Windows native-portable Preview; Linux upstream preparation and non-owning registration",
+      "runtime_update_owner": "Portcove for a separate managed Windows player; upstream/player for Linux/external copies",
+      "setup_data_boundary": "Explicit Windows Play opens upstream original .n-gage picker. Linux requires deliberate --install; no fabricated JSON progress marker. Nine source-reviewed paths include game/setup staging, saves/settings, textures/mods, screenshots and exports; external originals/custom debug paths stay external.",
+      "change_or_reason_unchanged": "New managed Windows definition and useful Linux alternative. Existing managed-platform badge/filter limitation is disclosed. Original ARM game CPU runs via Unicorn, with native engine services; not a static recompilation.",
+      "primary_evidence": [
+        "https://github.com/LeithSilver/mgsm/blob/4e6d91ceadfb898322f535f82f24a394197d892b/mgs_native/main.cpp",
+        "https://github.com/LeithSilver/mgsm/blob/4e6d91ceadfb898322f535f82f24a394197d892b/mgs_native/installer.cpp",
+        "https://github.com/LeithSilver/mgsm/blob/4e6d91ceadfb898322f535f82f24a394197d892b/mgs_native/vfs.cpp",
+        "https://github.com/LeithSilver/mgsm/blob/4e6d91ceadfb898322f535f82f24a394197d892b/mgs_native/platform.cpp",
+        "https://github.com/LeithSilver/mgsm/blob/4e6d91ceadfb898322f535f82f24a394197d892b/licenses/THIRD_PARTY.txt",
+        "https://github.com/LeithSilver/mgsm/releases/tag/v0.1"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "authored-in-candidate"
+    },
+    {
+      "id": "caiuscodes-goldeneye-007-xbla-pc-recomp",
+      "canonical_issue": 2757,
+      "platform_scope": ["Windows observed upstream packages"],
+      "selected_route": "Retain existing exact original-input/acquisition hold",
+      "runtime_update_owner": "No newly admitted runtime replacement",
+      "setup_data_boundary": "Cancelled/unreleased Xbox360 XBLA remaster; no accepted lawful reproducible original-input route; retail N64 is a different edition. No payload acquired.",
+      "change_or_reason_unchanged": "Bounded current-source/release review retains the distinct canonical identity and existing hold; not a new product deferral. Reconsider when canonical owner accepts a lawful exact-input contract.",
+      "primary_evidence": [
+        "https://github.com/CaiusCodes/GoldenEye-007-XBLA-PC-Recomp/tree/527db75b613aaa305eac81a6358fe21341c58cdd",
+        "https://github.com/boburning/portcove/issues/163"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "assessed-unchanged-existing-hold"
+    },
+    {
+      "id": "clickingmaster-ssrecomp",
+      "canonical_issue": 2761,
+      "platform_scope": ["Historical Windows/Linux source/setup scope"],
+      "selected_route": "Retain explicit upstream retirement; no fresh active Native admission",
+      "runtime_update_owner": "Existing player/upstream ownership remains",
+      "setup_data_boundary": "Old frontend is explicitly retired. Named successor is a single-screen ROM decompilation/build-input project that still references ssrecomp, not a separately qualified replacement desktop player. Its setup requires own SoulSilver USA ROM, mwccarm and Nitro SDK; Linux also needs build/Wine tooling.",
+      "change_or_reason_unchanged": "Complete the bounded named-successor comparison; preserve historical identity, existing deferral and exact unfinished source/build/maintenance condition. Do not inherit active-native status from successor or offer an unsupported compiler/SDK workflow as portable setup.",
+      "primary_evidence": [
+        "https://github.com/ClickingMaster/ssrecomp/tree/3146fb2d4d88522b12b4bf25dee74285120975e2",
+        "https://github.com/ClickingMaster/pokeheartgold-single-screen/blob/6984a3d67592157195940049be2e4bbbf933f9ff/README.md"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "assessed-unchanged-existing-retirement"
+    },
+    {
+      "id": "dankzonestudios-cv64recomp",
+      "canonical_issue": 2791,
+      "platform_scope": ["Windows/Linux candidate source scope"],
+      "selected_route": "Retain existing source/bundled-game acquisition hold",
+      "runtime_update_owner": "No newly admitted replacement",
+      "setup_data_boundary": "RevoSucks fork hold remains. New README exclusion claims do not independently establish changed release/source permission; exact original revision/hash remains unqualified. No payload acquired.",
+      "change_or_reason_unchanged": "Review current pinned source/release metadata and preserve the existing named hold. Reconsider on concrete changed source/release permission and accepted input evidence.",
+      "primary_evidence": [
+        "https://github.com/DankZoneStudios/CV64Recomp/tree/e31b21c80b1310678fe372117c4bff84221200dc"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "assessed-unchanged-existing-hold"
+    },
+    {
+      "id": "athelas-return-of-the-king-pc-fix",
+      "canonical_issue": 2801,
+      "platform_scope": ["Windows x64 host, original US 2003 PC game"],
+      "selected_route": "Upstream setup and non-owning Athelas registration",
+      "runtime_update_owner": "Athelas/player; self-updating launcher",
+      "setup_data_boundary": "Own installed US PC game; DLL enhancement and ROTKFix folder, PC copy protection retained. Launcher owns settings/installation/removal/update. External actual PC save/profile/settings remain outside Portcove backup.",
+      "change_or_reason_unchanged": "New distinct PC enhancement entry; never merge with three Xbox games merely because they share the repository/launcher. Registration deliberately opens game-selection launcher, not a promised direct one-game launch.",
+      "primary_evidence": [
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/README.md",
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/LICENSE"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "authored-in-candidate"
+    },
+    {
+      "id": "nvdemu-apeescaperecomp-macwindowslinux",
+      "canonical_issue": 2806,
+      "platform_scope": [
+        "Windows x64 external",
+        "Linux x64 AppImage external",
+        "macOS Intel/Apple-silicon upstream app handoff"
+      ],
+      "selected_route": "Preserve enhanced maintained fork; upstream-owned setup/replacement",
+      "runtime_update_owner": "Upstream Windows/macOS updater; manual upstream Linux AppImage replacement",
+      "setup_data_boundary": "Own USA SCUS-94423 CUE/BIN; supplied OpenBIOS, retail BIOS optional. Windows native launcher and Linux AppImage registration supported; macOS shell/app entry seeds data/environment and remains an OS application/instructions handoff, not private-binary registration. Generated overlay caches and self-replacement do not fit generic managed replacement. Windows and Linux also have a separate launcher-preference/updater-metadata app-data root (NVDEMU/Ape Escape Recompiled - Enhanced Edition or explicit override), in addition to native player game data. Preserve both effective roots.",
+      "change_or_reason_unchanged": "New non-owning fork entry after complete lineage comparison: current fork246 commits ahead/97 files vs parent; original tag source23 packaging commits/5 files. Keep parent #142 richer managed integration, existing support and closed scope unchanged. Publisher manifest-declared artifact build source is separate from tag/default source.",
+      "primary_evidence": [
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md",
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/tools/package_macos.sh",
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/tools/package_release.ps1",
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/packaging/linux/AppRun",
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases/tag/macos-nightly",
+        "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/tools/apply_recomp_ui_update_patch.py"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "authored-in-candidate"
+    },
+    {
+      "id": "goldeneye-007-xbla-recomp",
+      "canonical_issue": 163,
+      "platform_scope": ["Existing source/retained scope unchanged"],
+      "selected_route": "Existing named fresh-acquisition hold now expressed through shared download_block_reason",
+      "runtime_update_owner": "Retained owner unchanged",
+      "setup_data_boundary": "No accepted lawful exact-input route for cancelled XBLA edition. Shared download guard denies options/preview/mutation without contacting provider; generic unrelated user-selected native registration is not qualified game-input endorsement.",
+      "change_or_reason_unchanged": "Apply the canonical existing hold to fresh acquisition without removing catalog identity or changing installed contracts, files or generic ownership rules. No new registration route is offered or qualified.",
+      "primary_evidence": ["https://github.com/boburning/portcove/issues/163"],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "authored-in-candidate"
+    },
+    {
+      "id": "athelas-the-fellowship-of-the-ring-xbox",
+      "canonical_issue": 2800,
+      "platform_scope": [
+        "Upstream Windows10/11 x64/D3D12 package claim; no native Linux/macOS inference"
+      ],
+      "selected_route": "Retain upstream-owned launcher/runtime; improve usable setup and registration guide",
+      "runtime_update_owner": "Athelas/player",
+      "setup_data_boundary": "Own USA original Xbox ISO or matching extracted files. Deliberate launcher game selection/setup; distinct component saves FOTR-Xbox/saves and settings FOTR-Xbox/settings.toml. No managed backup/update/rollback; native/gameplay/exact-original revision remain unqualified.",
+      "change_or_reason_unchanged": "Replace long intake-summary dump with concise outcome and contextual official setup/update/data guidance. Preserve exact ID, upstream repository identity, independent game ownership and historical lineage/acceptance.",
+      "primary_evidence": [
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/README.md",
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "authored-in-candidate"
+    },
+    {
+      "id": "athelas-the-two-towers-xbox",
+      "canonical_issue": 2798,
+      "platform_scope": [
+        "Upstream Windows10/11 x64/D3D12 package claim; no native Linux/macOS inference"
+      ],
+      "selected_route": "Retain upstream-owned launcher/runtime; improve usable setup and registration guide",
+      "runtime_update_owner": "Athelas/player",
+      "setup_data_boundary": "Own USA original Xbox ISO or matching extracted files. Deliberate launcher game selection/setup; distinct component saves TT-Xbox/saves and settings TT-Xbox/settings.toml. No managed backup/update/rollback; native/gameplay/exact-original revision remain unqualified.",
+      "change_or_reason_unchanged": "Replace long intake-summary dump with concise outcome and contextual official setup/update/data guidance. Preserve exact ID, upstream repository identity, independent game ownership and historical lineage/acceptance.",
+      "primary_evidence": [
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/README.md",
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "authored-in-candidate"
+    },
+    {
+      "id": "athelas-the-return-of-the-king-xbox",
+      "canonical_issue": 2799,
+      "platform_scope": [
+        "Upstream Windows10/11 x64/D3D12 package claim; no native Linux/macOS inference"
+      ],
+      "selected_route": "Retain upstream-owned launcher/runtime; improve usable setup and registration guide",
+      "runtime_update_owner": "Athelas/player",
+      "setup_data_boundary": "Own USA original Xbox ISO or matching extracted files. Deliberate launcher game selection/setup; distinct component saves ROTK-Xbox/saves and settings ROTK-Xbox/settings.toml. No managed backup/update/rollback; native/gameplay/exact-original revision remain unqualified.",
+      "change_or_reason_unchanged": "Replace long intake-summary dump with concise outcome and contextual official setup/update/data guidance. Preserve exact ID, upstream repository identity, independent game ownership and historical lineage/acceptance.",
+      "primary_evidence": [
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/README.md",
+        "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      ],
+      "validation_scope": "Source/metadata and actual MGSM archive inspection where identified; no game/helper/installer execution. Hosted exact-head delivery evidence is separate.",
+      "delivery_status": "authored-in-candidate"
+    }
+  ],
+  "implementation_status": "candidate-source; see canonical issues/PR exact-head delivery records for actual merge status",
+  "all_inventory_assessment_complete": false,
+  "public_beta_acceptance": false,
+  "independent_acceptance_preserved": [
+    "1422 frozen cohort",
+    "2225 recovery",
+    "47 packaged Desktop",
+    "48 real saves",
+    "534/246 publication"
+  ],
+  "local_validation": {
+    "authoring": {
+      "files": ["scripts/generate-catalog.test.mts", "scripts/prepare-port.test.mts"],
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0
+    },
+    "linux_core_focused": {
+      "passed": 2,
+      "unselected": 2051,
+      "cases": [
+        "catalog::tests::embedded_summaries_leave_structured_facts_to_structured_fields",
+        "release::tests::unchanged_definition::unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives"
+      ],
+      "scope": "Source/HTTP replay and catalog outcome summaries; not a full Rust suite or native game execution."
+    },
+    "three_prepared_proposals": "Production Core authoring validation and reviewed artwork/lineage passed.",
+    "generated_catalog": "Regenerated through maintained generator; consistency check passed."
+  }
+}
