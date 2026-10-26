@@ -74,9 +74,13 @@ internal static class ScenarioRunner
         }
         var failed = false;
         var executed = 0;
+        var skipped = 0;
+        var scenarioFailures = 0;
+        var reported = 0;
         var invocation = Guid.NewGuid().ToString("N");
         string sourceDigest = null;
-        foreach (var scenario in scenarios.Where(value => selected.Count == 0 || selected.Contains(value.Id)))
+        var chosen = scenarios.Where(value => selected.Count == 0 || selected.Contains(value.Id)).ToArray();
+        foreach (var scenario in chosen)
         {
             var before = checks();
             var timer = Stopwatch.StartNew();
@@ -98,6 +102,8 @@ internal static class ScenarioRunner
                 Console.Error.WriteLine(error);
             }
             timer.Stop();
+            if (skip != null) skipped++;
+            if (failure != null) scenarioFailures++;
             try
             {
                 if (reportingControl && scenario.Id == "control-failure")
@@ -119,6 +125,7 @@ internal static class ScenarioRunner
                         type = failure.GetType().FullName, message = Bounded(failure.Message)
                     }
                 }));
+                reported++;
             }
             catch (Exception error)
             {
@@ -127,6 +134,27 @@ internal static class ScenarioRunner
                 failed = true;
                 Console.Error.WriteLine("Scenario reporting failed for " + scenario.Id + ": " + error);
             }
+        }
+        try
+        {
+            if (sourceDigest == null) sourceDigest = AssemblyDigest();
+            Console.WriteLine("SCENARIO_INVENTORY " + Json.Print(new {
+                format_version = 1, kind = "playnite-contract-inventory",
+                runner = "Portcove.ContractTests", invocation_id = invocation,
+                source = new { kind = "compiled-contract-assembly", sha256 = sourceDigest },
+                platform = Environment.OSVersion.Platform.ToString(),
+                process_bits = Environment.Is64BitProcess ? 64 : 32, runtime_version = Environment.Version.ToString(),
+                discovered = scenarios.Select(value => value.Id).ToArray(),
+                selected = chosen.Select(value => value.Id).ToArray(),
+                discovered_count = scenarios.Length, selected_count = chosen.Length,
+                executed, skipped, failed = scenarioFailures, reported,
+                records_complete = reported == chosen.Length
+            }));
+        }
+        catch (Exception error)
+        {
+            failed = true;
+            Console.Error.WriteLine("Scenario inventory reporting failed: " + error);
         }
         if (executed == 0)
         {

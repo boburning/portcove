@@ -1,3 +1,7 @@
+import {
+  observeDesktopScenario,
+  type ScenarioObservation,
+} from "../apps/desktop/scripts/desktop-scenario-outcomes.mts";
 import "../apps/desktop/scripts/desktop-catalog-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-design-compatibility.native.test.mts";
 import "../apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts";
@@ -51,10 +55,7 @@ import os from "node:os";
 import path from "node:path";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { ownedFixtureCommand } from "../apps/desktop/scripts/desktop-scenario-state.mts";
-import {
-  isUntrustworthyProbeError,
-  requireTrustedProbeCleanup,
-} from "../apps/desktop/scripts/desktop-owned-ipc-probe.mts";
+import { requireTrustedProbeCleanup } from "../apps/desktop/scripts/desktop-owned-ipc-probe.mts";
 
 void test("owned fixture CLI binds catalog, preferences, literal selection and refuses failed responses", () => {
   const calls: Parameters<FixtureSpawn>[] = [];
@@ -230,41 +231,67 @@ void test("shared review presentation preserves native visual acceptance thresho
 });
 
 void test("untrustworthy probe cleanup retains the primary error and reaches outer teardown", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("async function scenario(");
-  const end = source.indexOf("async function connectObservedDriver()", start);
-  assert(start >= 0 && end > start);
-  const records: { name: string; outcome: string; details: unknown }[] = [];
+  const records: ScenarioObservation[] = [];
   const primary = new Error("Original owned scenario failure");
   Object.freeze(primary);
   requireTrustedProbeCleanup({ trustworthy: false }, primary);
-  const invokeAttempt = sourceFunction(
-    runInNewContext(`${source.slice(start, end)}\nscenario`, {
-      scenarioTarget: () => ({ setup: false }),
-      failedScenarioDependency: () => null,
-      recordScenario: (_target: unknown, name: string, outcome: string, details: unknown) =>
-        records.push({ name, outcome, details }),
-      captureScenarioDiagnostics: async () => {},
-      captureScenarioScreenshot: () =>
-        assert.fail("Untrustworthy session must enter outer teardown"),
-      isUntrustworthyProbeError,
-      process: { exitCode: 0 },
-    }),
-  );
+  let tick = 0;
   await assert.rejects(
-    Promise.resolve(
-      invokeAttempt("owned-probe", async () => {
+    observeDesktopScenario(
+      () => {
         throw primary;
-      }),
+      },
+      {
+        record: (observation) => records.push(observation),
+        diagnostics: async () => {},
+        screenshot: async () => assert.fail("Untrustworthy session must enter outer teardown"),
+      },
+      () => tick++ * 10,
     ),
     (error) => error === primary,
   );
-  assert.deepEqual(json(JSON.stringify(records)), [
-    { name: "owned-probe", outcome: "failed", details: { message: primary.message } },
-  ]);
+  assert.deepEqual(records, [{ outcome: "failed", message: primary.message, duration_ms: 10 }]);
+});
+
+void test("scenario action timings exclude diagnostics and screenshots and preserve reporting failures", async () => {
+  for (const failed of [false, true]) {
+    for (const reportFailed of [false, true]) {
+      const primary = new Error("Original scenario failure");
+      const reporting = new Error("Observation could not be retained");
+      let clock = 100;
+      const records: ScenarioObservation[] = [];
+      const attempt = observeDesktopScenario(
+        () => {
+          clock += 25;
+          if (failed) throw primary;
+        },
+        {
+          record: (observation) => {
+            records.push(observation);
+            if (reportFailed) throw reporting;
+          },
+          diagnostics: async () => {
+            clock += 1000;
+          },
+          screenshot: async () => {
+            clock += 2000;
+          },
+        },
+        () => clock,
+      );
+      if (reportFailed)
+        await assert.rejects(attempt, (error) => error === (failed ? primary : reporting));
+      else await attempt;
+      assert.deepEqual(records, [
+        {
+          outcome: failed ? "failed" : "passed",
+          duration_ms: 25,
+          ...(failed ? { message: primary.message } : {}),
+        },
+      ]);
+      if (!reportFailed) assert.equal(clock, failed ? 3125 : 2125);
+    }
+  }
 });
 
 void test("scan cleanup attempts every owned action and retains the primary scenario failure", async () => {

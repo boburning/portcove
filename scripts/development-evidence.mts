@@ -13,6 +13,8 @@ export interface EvidenceCheck {
   outcome: "passed" | "failed" | "not-run";
   message?: string;
   reason?: string | undefined;
+  duration_ms?: number | null;
+  duration_scope?: "scenario-action";
 }
 export interface EvidenceContext {
   selected_scenarios?: readonly string[];

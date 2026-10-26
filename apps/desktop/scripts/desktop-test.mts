@@ -26,7 +26,7 @@ import {
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
-import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
+import { observeDesktopScenario } from "./desktop-scenario-outcomes.mts";
 import { spawn } from "node:child_process";
 import {
   DesktopNativeAccountSession,
@@ -1181,7 +1181,7 @@ function recordScenario(
   target: ScenarioTarget,
   name: string,
   outcome: EvidenceCheck["outcome"],
-  details: Pick<EvidenceCheck, "message" | "reason"> = {},
+  details: Pick<EvidenceCheck, "message" | "reason" | "duration_ms" | "duration_scope"> = {},
 ) {
   target.records.push({ scenario: name, outcome, ...details });
   scenarioOutcomes.set(name, outcome);
@@ -1485,19 +1485,21 @@ async function scenario(name: string, action: () => unknown) {
   if (failedDependency) {
     recordScenario(target, name, "not-run", {
       reason: `Prerequisite ${failedDependency} did not pass`,
+      duration_ms: null,
+      duration_scope: "scenario-action",
     });
     return;
   }
-  try {
-    await action();
-    recordScenario(target, name, "passed");
-  } catch (error) {
-    recordScenario(target, name, "failed", { message: errorMessage(error) });
-    await captureScenarioDiagnostics(name, target.setup);
-    process.exitCode = 1;
-    if (isUntrustworthyProbeError(error)) throw error;
-  }
-  if (!target.setup) await captureScenarioScreenshot(name);
+  await observeDesktopScenario(action, {
+    record: ({ outcome, ...details }) => {
+      recordScenario(target, name, outcome, { ...details, duration_scope: "scenario-action" });
+      if (outcome === "failed") process.exitCode = 1;
+    },
+    diagnostics: () => captureScenarioDiagnostics(name, target.setup),
+    screenshot: async () => {
+      if (!target.setup) await captureScenarioScreenshot(name);
+    },
+  });
 }
 
 async function connectObservedDriver() {

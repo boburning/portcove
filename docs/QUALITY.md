@@ -130,6 +130,11 @@ keeps a fixed absolute observation deadline and never retries automatically.
 
 ## Test latency and reliability
 
+Native Desktop scenario records retain monotonic `duration_ms` for the scenario
+action, excluding diagnostics and screenshots (`duration_scope: scenario-action`).
+An unmet prerequisite records `not-run` with a null duration. These observations
+retain the existing execution and acceptance boundaries.
+
 The extra Linux diagnostics replay stays broad for diagnostics, Core, CLI,
 Desktop, shared, dependency and uncertain inputs. Only ordinary added or modified
 regular Rust files within the independent release-tool crate may omit it;

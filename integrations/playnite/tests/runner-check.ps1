@@ -28,7 +28,30 @@ function Assert-ScenarioIdentity([object[]]$Records, [string]$Program) {
     }
 }
 
+function Assert-ScenarioInventory([object[]]$Output, [string[]]$Discovered, [string[]]$Selected, [hashtable]$Expected) {
+    $inventories = @($Output | Where-Object { $_.StartsWith('SCENARIO_INVENTORY ') } | ForEach-Object { $_.Substring(19) | ConvertFrom-Json })
+    if ($inventories.Count -ne 1) { throw 'Expected one terminal scenario inventory.' }
+    $inventory = $inventories[0]
+    Assert-ScenarioIdentity @($inventory) $Executable
+    if ($inventory.kind -cne 'playnite-contract-inventory' -or $inventory.format_version -ne 1 -or
+        ($inventory.discovered -join "`n") -cne ($Discovered -join "`n") -or
+        ($inventory.selected -join "`n") -cne ($Selected -join "`n") -or
+        $inventory.discovered_count -ne $Discovered.Count -or $inventory.selected_count -ne $Selected.Count) {
+        throw 'Scenario discovery or selection inventory changed.'
+    }
+    foreach ($field in $Expected.Keys) {
+        if ($inventory.$field -cne $Expected[$field]) { throw "Unexpected inventory $field." }
+    }
+    $records = @($Output | Where-Object { $_.StartsWith('SCENARIO ') } | ForEach-Object { $_.Substring(9) | ConvertFrom-Json })
+    if (@($records | Where-Object { $_.invocation_id -cne $inventory.invocation_id }).Count) {
+        throw 'Inventory and case results belong to different invocations.'
+    }
+}
+
 $control = @(Invoke-RunnerControl $Executable @('--runner-control') 1)
+Assert-ScenarioInventory $control @('control-failure', 'control-after-failure') @('control-failure', 'control-after-failure') @{
+    executed = 2; skipped = 0; failed = 1; reported = 2; records_complete = $true
+}
 $records = @($control | Where-Object { $_.StartsWith('SCENARIO ') } | ForEach-Object { $_.Substring(9) | ConvertFrom-Json })
 Assert-ScenarioIdentity $records $Executable
 if ($records.Count -ne 2 -or $records[0].id -ne 'control-failure' -or $records[0].status -ne 'failed' -or
@@ -40,6 +63,9 @@ if ($records.Count -ne 2 -or $records[0].id -ne 'control-failure' -or $records[0
 }
 foreach ($line in $control) { Write-Output "RUNNER_CONTROL_OUTPUT $line" }
 $reporting = @(Invoke-RunnerControl $Executable @('--runner-reporting-control') 1)
+Assert-ScenarioInventory $reporting @('control-failure', 'control-after-failure') @('control-failure', 'control-after-failure') @{
+    executed = 2; skipped = 0; failed = 1; reported = 1; records_complete = $false
+}
 $reported = @($reporting | Where-Object { $_.StartsWith('SCENARIO ') } | ForEach-Object { $_.Substring(9) | ConvertFrom-Json })
 Assert-ScenarioIdentity $reported $Executable
 if ($reported[0].invocation_id -ceq $records[0].invocation_id) { throw 'Independent runner processes reused an invocation identity.' }
@@ -78,6 +104,14 @@ $expected = @('runtime-selection', 'personal-library', 'guided-setup', 'managed-
     'long-session-observation', 'compiled-cli-consumer')
 $listed = @(Invoke-RunnerControl $Executable @('--list-scenarios') 0)
 if (($listed -join "`n") -cne ($expected -join "`n")) { throw "Unexpected scenario inventory: $listed" }
+Assert-ScenarioInventory $skipped $expected @('compiled-cli-consumer') @{
+    executed = 0; skipped = 1; failed = 0; reported = 1; records_complete = $true
+}
+$focused = @(Invoke-RunnerControl $Executable @('--scenario', 'protocol') 0)
+Assert-ScenarioInventory $focused $expected @('protocol') @{
+    executed = 1; skipped = 0; failed = 0; reported = 1; records_complete = $true
+}
+foreach ($line in $focused) { Write-Output "RUNNER_FOCUSED_CONTROL_OUTPUT $line" }
 foreach ($invalid in @(
     @('--scenario', 'protocol', '--scenario', 'unknown'),
     @('--scenario', 'protocol', '--scenario', 'protocol'),
@@ -97,6 +131,9 @@ foreach ($item in @(
     @{arguments = @('qualification-source-guidance'); exit = 1; checks = 0; failure = 'Qualification mode requires a CLI, library, and fixture port.'}
 )) {
     $phase = @(Invoke-RunnerControl $Executable $item.arguments $item.exit)
+    Assert-ScenarioInventory $phase @($item.arguments[0]) @($item.arguments[0]) @{
+        executed = 1; skipped = 0; failed = $item.exit; reported = 1; records_complete = $true
+    }
     $phaseRecords = @($phase | Where-Object { $_.StartsWith('SCENARIO ') } | ForEach-Object { $_.Substring(9) | ConvertFrom-Json })
     Assert-ScenarioIdentity $phaseRecords $Executable
     if ($phaseRecords.Count -ne 1 -or $phaseRecords[0].id -cne $item.arguments[0] -or
