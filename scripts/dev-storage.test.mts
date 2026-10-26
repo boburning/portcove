@@ -1055,7 +1055,8 @@ void test("checked cleanup refuses an ordinary file in place of the target direc
 });
 
 for (const order of ["support-first", "Cargo-first"] as const) {
-  void test(`real Cargo owns target initialization and checked cleanup after ${order} preparation`, (t) => {
+  const name = `real Cargo owns target initialization and checked cleanup after ${order} preparation`;
+  void test(name, { timeout: 120_000 }, (t) => {
     let completed = false;
     const root = workspace(t, () => !completed);
     const observe = (message: string) => {
@@ -1082,7 +1083,8 @@ for (const order of ["support-first", "Cargo-first"] as const) {
         env,
         stdio: "pipe",
         encoding: "utf8",
-        timeout: 10_000,
+        // Cold compiler startup exceeded 10s in the complete cohort; keep other commands bounded.
+        timeout: command === "rustc" ? 30_000 : 10_000,
         windowsHide: true,
       });
       observe(

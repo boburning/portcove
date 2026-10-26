@@ -1420,6 +1420,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["apps/desktop/scripts/desktop-preparation-test.mts", ["scripts/desktop-scenarios.test.mts"]],
   [
+    "apps/desktop/scripts/desktop-scenario-outcomes.mts",
+    ["scripts/desktop-scenarios.test.mts", "scripts/native-helper-dependencies.test.mts"],
+  ],
+  [
     "apps/desktop/scripts/desktop-listener-lifetime-test.mts",
     ["scripts/desktop-listener-probe.test.mts"],
   ],

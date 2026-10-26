@@ -307,6 +307,7 @@ void test("native receipts include the admission runtime and containment reprodu
     "rust-support-cache.mts",
     "ci-metrics.mts",
     "validation-plan.mts",
+    "repository-path.mts",
     "nextest-equivalence.mts",
     "report-summary.mts",
     "bounded-summary.mts",
@@ -399,6 +400,7 @@ void test("native receipt capture binds schema validation and reproduction input
   );
   const expected = [
     "apps/desktop/scripts/desktop-scenario-state.mts",
+    "apps/desktop/scripts/desktop-scenario-outcomes.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
     "apps/desktop/scripts/desktop-staged-layout.mts",
     "apps/desktop/scripts/transport-values.mts",
@@ -410,7 +412,11 @@ void test("native receipt capture binds schema validation and reproduction input
   ];
   assert.deepEqual(nativeTransportReceiptSources, expected);
   // Metrics now decodes the admission plan through these already-loaded verifier sources.
-  expected.push("scripts/validation-plan.mts", "scripts/nextest-equivalence.mts");
+  expected.push(
+    "scripts/validation-plan.mts",
+    "scripts/repository-path.mts",
+    "scripts/nextest-equivalence.mts",
+  );
   for (const selection of [
     resolveDesktopSelection({ profile: "smoke", platform: "win32" }),
     resolveDesktopSelection({
