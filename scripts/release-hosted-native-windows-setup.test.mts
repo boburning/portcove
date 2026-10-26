@@ -567,6 +567,11 @@ $arguments=[object[]]@([Diagnostics.Process]::GetCurrentProcess().Handle,[uint32
 if(-not $open.Invoke($null,$arguments)){throw 'Actual query-only primary token open failed'}
 $token=$arguments[2]
 try{
+ $observe=$type.GetMethod('ReadTokenObservation',$flags)
+ $snapshot=$observe.Invoke($null,@($token));$brokerSnapshot=[Portcove.NativeQualification.AccountLauncher]::ObserveBrokerToken()
+ if($snapshot.IntegritySid -cnotmatch '^S-1-16-[0-9]+$' -or $snapshot.IntegritySid -cne $brokerSnapshot.IntegritySid -or $snapshot.MandatoryPolicy -ne $brokerSnapshot.MandatoryPolicy){throw 'Query-only token integrity/policy observations differ'}
+ $refused=$false;try{$observe.Invoke($null,@([IntPtr]::Zero))|Out-Null}catch{$refused=$true};if(-not $refused){throw 'Invalid token integrity query accepted'}
+
  foreach($station in @($true,$false)){
   $sddl=if($station){'O:SYG:SYD:(A;;GA;;;WD)'}else{'O:SYG:SYD:P(A;;0x200c7;;;'+$sid+')'}
   $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($sddl);$bytes=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($bytes,0)
@@ -770,4 +775,59 @@ foreach($case in @('success','timeout','stdout-pending','stderr-pending','captur
 'actual native startup validation passed nine controlled cases; no account or GUI acceptance'
 `);
   assert.match(result, /passed nine controlled cases/u);
+});
+
+void test(
+  "mandatory label reads use existing READ_CONTROL and retain raw label-only descriptor",
+  { skip: process.platform !== "win32" },
+  () => {
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
+$type=[Portcove.HostedNative.HostedDesktop];$flags=[Reflection.BindingFlags]'NonPublic,Static'
+$open=$type.GetMethod('OpenWindowStationW',$flags);$read=$type.GetMethod('ReadMandatoryLabel',$flags);$close=$type.GetMethod('CloseWindowStation',$flags)
+$station=$open.Invoke($null,@('WinSta0',$false,[uint32]0x20000))
+if($station -eq [IntPtr]::Zero){throw 'Read-control-only current station open unavailable'}
+try{
+ $label=$read.Invoke($null,@($station));$bytes=[Convert]::FromBase64String($label[0])
+ if($bytes.Length -lt 20 -or $bytes.Length -gt 8192 -or $label[1] -match '[DOG]:'){throw 'Label read contains DACL/owner/group or exceeds bound'}
+ [Security.AccessControl.RawSecurityDescriptor]::new($bytes,0)|Out-Null
+ $partial=[Portcove.HostedNative.HostedDesktop]::new()
+ $type.GetField('station',[Reflection.BindingFlags]'NonPublic,Instance').SetValue($partial,$station)
+ $observed=$partial.ObserveMandatoryLabels()
+ if($observed.station_status -cne 'read' -or $observed.desktop_status -cne 'unknown' -or -not $observed.desktop_query_failure -or $observed.ContainsKey('desktop_descriptor_base64')){throw 'Partial label read lost success or inferred failed label'}
+ $refused=$false;try{$read.Invoke($null,@([IntPtr]::Zero))|Out-Null}catch{$refused=$true}
+ if(-not $refused){throw 'Failed label query credited as implicit medium'}
+ 'actual READ_CONTROL label-only query passed; no object changes'
+}finally{$close.Invoke($null,@($station))|Out-Null}
+`);
+    assert.match(result, /label-only query passed/u);
+  },
+);
+
+void test("startup thread diagnostics refuse replaced roots and overbound or foreign inventories", () => {
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$function=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Read-HostedStartupThreads'},$true)
+. ([scriptblock]::Create($function.Extent.Text))
+$startup=[pscustomobject]@{Pid=42;CreatedFileTime=[long]134374550793111816}
+foreach($case in @('success','replaced','foreign','oversized','unavailable','exited')){
+ $script:threadCalls=0;$script:generationChecks=0
+ $startup=[pscustomobject]@{Pid=42;CreatedFileTime=[long]134374550793111816}
+ $startup|Add-Member ScriptMethod RequireAliveGeneration {$script:generationChecks++;if($case -ceq 'replaced' -or ($case -ceq 'exited' -and $script:generationChecks -eq 2)){throw 'controlled native generation refusal'}}
+ function Get-CimInstance {
+  param($ClassName,$Filter,$Property,$OperationTimeoutSec,$ErrorAction)
+  if($OperationTimeoutSec -ne 5 -or $ClassName -cne 'Win32_Thread' -or $Filter -cne "ProcessHandle = '42'"){throw 'Thread query scope or budget differs'}
+  $script:threadCalls++
+  if($case -ceq 'unavailable'){throw 'controlled WMI unavailable'}
+  1..$(if($case -ceq 'oversized'){65}else{1})|ForEach-Object {[pscustomobject]@{Handle=[string]$_;ProcessHandle=$(if($case -ceq 'foreign'){'43'}else{'42'});ThreadState=5;ThreadWaitReason=6;KernelModeTime=0;UserModeTime=0;StartAddress=0}}
+ }
+ $refused=$false;try{$observed=@(Read-HostedStartupThreads $startup)}catch{$refused=$true}
+ if($refused -ne ($case -cne 'success') -or ($case -ceq 'replaced' -and $script:threadCalls -ne 0)){throw ('Thread diagnostic failed root/bound guard: '+$case)}
+ if($case -ceq 'success' -and ($observed.Count -ne 1 -or $observed[0].thread_id -cne '1' -or $script:generationChecks -ne 2)){throw 'Thread state result or native guards differ'}
+}
+'actual startup thread guards passed six controlled cases; no native observation'
+`);
+  assert.match(result, /guards passed six controlled cases/u);
 });

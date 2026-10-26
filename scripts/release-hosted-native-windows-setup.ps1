@@ -23,6 +23,13 @@ function Read-HostedNativeProbeStream($Stream) {
     $bytes=$Stream.Snapshot()
     return [ordered]@{bytes=$bytes.Length;prefix_base64=[Convert]::ToBase64String($bytes,0,[Math]::Min($bytes.Length,16384));truncated=($bytes.Length -gt 16384)}
 }
+function Read-HostedStartupThreads($Startup) {
+    $Startup.RequireAliveGeneration()
+    $threads=@(Get-CimInstance Win32_Thread -Filter ("ProcessHandle = '"+$Startup.Pid+"'") -Property Handle,ProcessHandle,ThreadState,ThreadWaitReason,KernelModeTime,UserModeTime,StartAddress -OperationTimeoutSec 5 -ErrorAction Stop|Select-Object -First 65)
+    if($threads.Count -gt 64 -or @($threads|Where-Object ProcessHandle -NE ([string]$Startup.Pid)).Count){throw 'Startup thread diagnostic inventory outside bound or root'}
+    $Startup.RequireAliveGeneration()
+    return @($threads|ForEach-Object {[ordered]@{thread_id=$_.Handle;state=$_.ThreadState;wait_reason=$_.ThreadWaitReason;kernel_time=$_.KernelModeTime;user_time=$_.UserModeTime;start_address=$_.StartAddress}})
+}
 function Assert-HostedNativeAccount($Expected,[bool]$Enabled) {
     $actual=Get-LocalUser -SID $Expected.SID -ErrorAction Stop
     if($actual.Name -cne 'PortcoveNativeQual' -or $actual.SID.Value -cne $Expected.SID.Value -or
@@ -132,6 +139,11 @@ try {
     Enable-LocalUser -SID $account.SID
     Assert-HostedNativeAccount $account $true
     $hostedDesktop=[Portcove.HostedNative.HostedDesktop]::Prepare($owner.User.Value,$account.SID.Value,$capture)
+    $labelObservation=$null;$labelFailure=$null;$brokerToken=$null;$brokerFailure=$null
+    try{$labelObservation=$hostedDesktop.ObserveMandatoryLabels()}catch{$labelFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
+    try{$brokerToken=[Portcove.NativeQualification.AccountLauncher]::ObserveBrokerToken()}catch{$brokerFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
+    Write-HostedNativeSetupRecord (Join-Path $capture 'security-before-launch.json') ([ordered]@{context=$context;labels=$labelObservation;label_query_failure=$labelFailure;broker_token=$brokerToken;broker_token_status=$(if($brokerFailure){'unknown'}else{'read'});broker_query_failure=$brokerFailure;scope='read-only mandatory-label/token diagnostics; no GUI acceptance';authority='none'})
+    if($labelFailure -or $brokerFailure -or $labelObservation.station_status -cne 'read' -or $labelObservation.desktop_status -cne 'read'){throw 'Mandatory security diagnostics unavailable; retained observations remain Unknown'}
     $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($configuration)
     $startupRuntime=Join-Path $env:SystemRoot 'System32\whoami.exe'
     $startupSignature=Get-AuthenticodeSignature -LiteralPath $startupRuntime
@@ -139,6 +151,7 @@ try {
     $startupSha=(Get-FileHash -LiteralPath $startupRuntime -Algorithm SHA256).Hash.ToLowerInvariant()
     Assert-OriginalHostedSetup
     $startup=[Portcove.NativeQualification.AccountLauncher]::StartHostedVerifiedInGroup($group,$configuration,$password,$startupRuntime,$startupSha,@('/user','/fo','csv','/nh'),$attemptWork,$environment,$hostedDesktop.Name)
+    Write-HostedNativeSetupRecord (Join-Path $capture 'startup-token.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();status='read';token=$startup.HostedTokenObservation;scope='suspended primary token QUERY-only snapshot before resume';authority='none'})
     if(-not $startup.WaitForExit(10000)){throw 'Native account startup probe timed out before GUI launch'}
     if(-not $startup.Output.Wait(5000) -or -not $startup.ErrorOutput.Wait(5000)){throw 'Native account startup capture did not drain'}
     $startupText=$startup.Output.Result
@@ -176,7 +189,20 @@ try {
     $members=@($child.SnapshotOwnedJob())
     if(@($members|Where-Object Pid -EQ $observation.child_pid).Count -ne 1){throw 'Inert descendant absent from original job'}
     Write-HostedNativeSetupRecord (Join-Path $capture 'observed.json') ([ordered]@{context=$context;observation=$observation;root_pid=$child.Pid;root_created_filetime=$child.CreatedFileTime.ToString();members=$members;hosted_desktop=$hostedDesktop.Name;private_gui=$gui;runtime_sha256=$runtimeSha;authority='none'})
-} catch {if(-not $hostedDesktop){$stationRestored=[Portcove.HostedNative.HostedDesktop]::FailedPreparationRestored};$failure=$_.Exception.Message;throw}
+} catch {
+    $primaryError=$_
+    $failure=$_.Exception.Message
+    if(-not $hostedDesktop){$stationRestored=[Portcove.HostedNative.HostedDesktop]::FailedPreparationRestored}
+    if($group -and -not $startup){
+        try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-token.json') ([ordered]@{context=$context;status='unknown';token=$null;query_failure=$failure.Substring(0,[Math]::Min(1024,$failure.Length));scope='launch or token query failed before observation returned; no inferred label or root state';authority='none'})}catch{$cleanupFailures.Add('Startup token retention failed: '+$_.Exception.Message)}
+    }
+    if($startup -and -not $child){
+        $threadDiagnostic=$null;$threadFailure=$null
+        try{$threadDiagnostic=@(Read-HostedStartupThreads $startup)}catch{$threadFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
+        try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-threads.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();threads=$threadDiagnostic;query_failure=$threadFailure;scope='bounded exact-generation thread states; not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup diagnostic retention failed: '+$_.Exception.Message)}
+    }
+    throw $primaryError
+}
 finally {
     try {
         if($group){

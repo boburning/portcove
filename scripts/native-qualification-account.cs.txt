@@ -161,6 +161,11 @@ namespace Portcove.NativeQualification {
         public byte[] Snapshot() { lock (sync) { return retained.ToArray(); } }
     }
 
+    public sealed class AccountTokenObservation {
+        public string IntegritySid { get; private set; }
+        public uint MandatoryPolicy { get; private set; }
+        internal AccountTokenObservation(string sid, uint policy) { IntegritySid = sid; MandatoryPolicy = policy; }
+    }
     public sealed class AccountProcess : IDisposable {
         IntPtr job, process, station, desktop;
         readonly uint pid;
@@ -189,7 +194,16 @@ namespace Portcove.NativeQualification {
         public int Id { get { return checked((int)pid); } }
         public long CreatedFileTime { get { return created; } }
         public uint InitialSuspendCount { get; internal set; }
+        public AccountTokenObservation HostedTokenObservation { get; internal set; }
         public DateTime StartTime { get { return DateTime.FromFileTimeUtc(created); } }
+        public void RequireAliveGeneration() {
+            if (Native.WaitForSingleObject(process, 0) != 0x102) throw new InvalidOperationException("Original root not live before diagnostic");
+            long actual, exited, kernel, user;
+            if (!Native.GetProcessTimes(process, out actual, out exited, out kernel, out user) || actual != created)
+                throw new InvalidOperationException("Original root generation unavailable or changed");
+            if (Native.WaitForSingleObject(process, 0) != 0x102) throw new InvalidOperationException("Original root not live during diagnostic");
+        }
+
         public IntPtr Handle { get { return process; } }
         public ProcessStartInfo StartInfo { get { return new ProcessStartInfo(executable); } }
         public bool HasExited { get { return WaitForExit(0); } }
@@ -541,6 +555,10 @@ namespace Portcove.NativeQualification {
                 throw new ArgumentException("Fixed ordinary hosted GUI boundary required");
             return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName);
         }
+        public static AccountTokenObservation ObserveBrokerToken() {
+            using (var identity = WindowsIdentity.GetCurrent(TokenAccessLevels.Query))
+                return Native.ReadTokenObservation(identity.AccessToken.DangerousGetHandle());
+        }
         static uint CreationFlags(string hostedDesktop) { return 0x4 | 0x400 | (hostedDesktop == null ? 0u : 0x08000000u); }
         static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256, string hostedDesktop = null) {
             Validate(config, executable, arguments, directory, environment);
@@ -583,10 +601,11 @@ namespace Portcove.NativeQualification {
                 // No candidate thread has run. Assign job before token inspection/resume.
                 if (group != null) group.Assign(config, info.process);
                 if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("AssignProcessToJobObject");
+                AccountTokenObservation tokenObservation = null;
                 IntPtr token;
                 if (!Native.OpenProcessToken(info.process, 8, out token)) throw Native.Error("OpenProcessToken");
                 try {
-                    if (hostedDesktop != null) Native.VerifyHostedToken(token, station, desktop);
+                    if (hostedDesktop != null) { Native.VerifyHostedToken(token, station, desktop); tokenObservation = Native.ReadTokenObservation(token); }
                     using (var identity = new WindowsIdentity(token)) {
                         if (!identity.User.Equals(new SecurityIdentifier(config.AccountSid))) throw new InvalidOperationException("Launched account SID mismatch");
                         if (identity.Groups.Any(group => group.Equals(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null)))) throw new InvalidOperationException("Administrator account refused, including filtered administrator tokens");
@@ -598,6 +617,7 @@ namespace Portcove.NativeQualification {
                     if (!Native.ProcessIdToSessionId(info.pid, out childSession) || !Native.ProcessIdToSessionId(Native.GetCurrentProcessId(), out brokerSession) || childSession != brokerSession) throw new InvalidOperationException("Native GUI session mismatch");
                 } finally { Native.CloseHandle(token); }
                 var session = new AccountProcess(job, info.process, info.pid, station, desktop, executable, outputRead, errorRead);
+                session.HostedTokenObservation = tokenObservation;
                 outputRead = IntPtr.Zero; errorRead = IntPtr.Zero;
                 if (!String.Equals(System.IO.Path.GetFullPath(session.Path), System.IO.Path.GetFullPath(executable), StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Suspended process image differs from exact requested path");
                 session.InitialSuspendCount = Native.ResumeThread(info.thread);
@@ -771,6 +791,20 @@ namespace Portcove.NativeQualification {
             if (original == IntPtr.Zero) throw Error("Inspect Default desktop access");
             try { if ((GrantedDesktopRights(original, token, false) & 0x1ff) != 0) throw new InvalidOperationException("Candidate has Default desktop access"); }
             finally { CloseDesktop(original); }
+        }
+        [DllImport("advapi32", SetLastError=true)] static extern bool GetTokenInformation(IntPtr token, int information, IntPtr buffer, uint length, out uint needed);
+        internal static AccountTokenObservation ReadTokenObservation(IntPtr token) {
+            uint needed;
+            if (GetTokenInformation(token, 25, IntPtr.Zero, 0, out needed) || Marshal.GetLastWin32Error() != 122 || needed < IntPtr.Size + 4 || needed > 4096)
+                throw new InvalidOperationException("Token integrity query size unavailable or outside bound");
+            IntPtr buffer = Marshal.AllocHGlobal(checked((int)needed));
+            try {
+                if (!GetTokenInformation(token, 25, buffer, needed, out needed)) throw Error("TokenIntegrityLevel");
+                string sid = new SecurityIdentifier(Marshal.ReadIntPtr(buffer)).Value;
+                if (!sid.StartsWith("S-1-16-", StringComparison.Ordinal)) throw new InvalidOperationException("Token integrity SID authority differs");
+                if (!GetTokenInformation(token, 27, buffer, 4, out needed) || needed != 4) throw Error("TokenMandatoryPolicy");
+                return new AccountTokenObservation(sid, unchecked((uint)Marshal.ReadInt32(buffer)));
+            } finally { Marshal.FreeHGlobal(buffer); }
         }
         internal static void RequireNonInputDesktop(IntPtr desktop) {
             int input; uint needed;
