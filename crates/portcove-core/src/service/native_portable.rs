@@ -2935,7 +2935,8 @@ mod tests {
         let (first, second, first_release) =
             installs_with_retained_scopes(&mut service, &library, &server, &provider, true).await;
         let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
-        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).ok();
+        let receipt = first.path.join(PSX_DATA_RECEIPT);
+        assert!(!receipt.try_exists().unwrap());
         fs::write(
             second.path.join("campaign.dat"),
             b"current runtime campaign",
@@ -2976,7 +2977,7 @@ mod tests {
             fs::read(first.path.join(".portcove-manifest.json")).unwrap(),
             manifest
         );
-        assert_eq!(fs::read(first.path.join(PSX_DATA_RECEIPT)).ok(), receipt);
+        assert!(!receipt.try_exists().unwrap());
         assert!(!first.path.join("campaign.dat").exists());
     }
 
@@ -2990,7 +2991,8 @@ mod tests {
         let (first, second, _) =
             installs_with_retained_scopes(&mut service, &library, &server, &provider, true).await;
         let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
-        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).ok();
+        let receipt = first.path.join(PSX_DATA_RECEIPT);
+        assert!(!receipt.try_exists().unwrap());
         fs::write(
             second.path.join("campaign.dat"),
             b"current runtime campaign",
@@ -3046,7 +3048,7 @@ mod tests {
             fs::read(first.path.join(".portcove-manifest.json")).unwrap(),
             manifest
         );
-        assert_eq!(fs::read(first.path.join(PSX_DATA_RECEIPT)).ok(), receipt);
+        assert!(!receipt.try_exists().unwrap());
         assert!(!first.path.join("campaign.dat").exists());
     }
 
