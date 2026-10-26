@@ -45,7 +45,8 @@ function fixture(count = 2, bodySize = 32) {
   let bodyReads = 0,
     marker = 0,
     bytes = 0,
-    requests = 0;
+    requests = 0,
+    maxResponseBytes = 0;
   let alterPage: (value: unknown) => unknown = (v) => v;
   let mutateMarker = false;
   const project: RoadmapIssueItem[] = rows.map((r, i) => ({
@@ -115,7 +116,11 @@ function fixture(count = 2, bodySize = 32) {
       };
     } else if (query.includes("CREATED_AT")) {
       const after = vars.after === null ? 0 : Number(vars.after);
-      const nodes = rows.slice(after, after + 100).map(({ body: _body, ...r }) => r);
+      const bodies = query.includes("title body url");
+      const pageSize = bodies ? 50 : 100;
+      const page = rows.slice(after, after + pageSize);
+      const nodes = bodies ? page : page.map(({ body: _body, ...r }) => r);
+      if (bodies) bodyReads += nodes.length;
       value = alterPage({
         repository: {
           id: "REPO",
@@ -123,7 +128,10 @@ function fixture(count = 2, bodySize = 32) {
           issues: {
             nodes,
             totalCount: rows.length,
-            pageInfo: { hasNextPage: after + 100 < rows.length, endCursor: String(after + 100) },
+            pageInfo: {
+              hasNextPage: after + pageSize < rows.length,
+              endCursor: String(after + pageSize),
+            },
           },
         },
       });
@@ -135,14 +143,16 @@ function fixture(count = 2, bodySize = 32) {
       };
     } else throw new Error("Unexpected inventory query");
     requests++;
-    bytes += Buffer.byteLength(JSON.stringify(value));
+    const responseBytes = Buffer.byteLength(JSON.stringify(value));
+    bytes += responseBytes;
+    maxResponseBytes = Math.max(maxResponseBytes, responseBytes);
     return structuredClone(value);
   };
   return {
     client,
     rows,
     project,
-    stats: () => ({ bodyReads, bytes, requests }),
+    stats: () => ({ bodyReads, bytes, requests, maxResponseBytes }),
     alter: (f: typeof alterPage) => {
       alterPage = f;
     },
@@ -1019,6 +1029,9 @@ void test("warm inventory fetches changed bodies only and rejects corrupt cached
 });
 void test("one hydration revision change reconciles the whole issue before fresh Project join", () => {
   const f = fixture();
+  const warm = collectRoadmapInventory(f.client);
+  f.rows[0]!.updatedAt = "2026-10-17T01:00:00Z";
+  f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
   const graphql = f.client.graphql.bind(f.client);
   let changed = false;
   f.client.graphql = (query, vars) => {
@@ -1034,7 +1047,7 @@ void test("one hydration revision change reconciles the whole issue before fresh
     }
     return graphql(query, vars);
   };
-  const got = collectRoadmapInventory(f.client);
+  const got = collectRoadmapInventory(f.client, warm);
   assert.equal(got.issues[0]?.title, "New title");
   assert.equal(got.issues[0]?.state, "CLOSED");
   assert.equal(got.issues[0]?.body, "new body");
@@ -1346,6 +1359,9 @@ void test("same-timestamp Project title disagreement cannot reuse an old body or
 });
 void test("hydration identity mismatch remains fatal and identifies the affected issue", () => {
   const f = fixture();
+  const warm = collectRoadmapInventory(f.client);
+  f.rows[0]!.updatedAt = "2026-10-17T01:00:00Z";
+  f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
   const graphql = f.client.graphql.bind(f.client);
   f.client.graphql = (query, vars) => {
     const data = graphql(query, vars);
@@ -1355,7 +1371,7 @@ void test("hydration identity mismatch remains fatal and identifies the affected
     }
     return data;
   };
-  assert.throws(() => collectRoadmapInventory(f.client), /identity.*#1/);
+  assert.throws(() => collectRoadmapInventory(f.client, warm), /identity.*#1/);
 });
 void test("reconciliation never inherits a changed repository provider identity or name", () => {
   for (const replacement of [{ id: "OTHER" }, { nameWithOwner: "foreign/repository" }]) {
@@ -1425,6 +1441,10 @@ void test("1000 issue, 16 MiB corpus fits cold and warm two-candidate delivery r
     { body: "candidate".repeat(1000), requests: 7, bytes: 128 * 1024 },
     { body: "candidate".repeat(1000), requests: 7, bytes: 128 * 1024 },
   ]);
+  const rebuilt = new DiscoveryBudget("cold");
+  rebuilt.charge("GET", "fixture cold inventory", coldUsage.requests, coldUsage.bytes, "200");
+  rebuilt.reserveDelivery(cost.requests, cost.bytes);
+  assert.ok(rebuilt.remaining().requests >= 20);
   const ordinary = new DiscoveryBudget("ordinary");
   ordinary.charge("GET", "fixture warm inventory", delta.requests, delta.bytes, "200");
   ordinary.reserveDelivery(cost.requests, cost.bytes);
@@ -1441,4 +1461,132 @@ void test("1000 issue, 16 MiB corpus fits cold and warm two-candidate delivery r
     observationHash(cold.issues.map((i) => i.body)),
     observationHash(warm.issues.map((i) => i.body)),
   );
+});
+
+void test("1919-issue cold startup preserves research, delivery and final inventory capacity", (t) => {
+  const f = fixture(1919, 6300);
+  const cold = collectRoadmapInventory(f.client);
+  const usage = f.stats();
+  const budget = new DiscoveryBudget("cold");
+  budget.charge("POST", "complete cold inventory", usage.requests, usage.bytes, "200");
+  budget.charge("GET", "provider, authorities and observer", 11, 512 * 1024, "200");
+  const reserve = discoveryDeliveryCost(cold, []);
+  budget.reserveDelivery(reserve.requests, reserve.bytes);
+  // Collection and the required two upstream investigations must fit before final guards.
+  budget.admit(48, 2 * 1024 * 1024);
+  budget.charge("GET", "bounded collection and two investigations", 48, 2 * 1024 * 1024, "200");
+  budget.delivery = true;
+  const before = f.stats();
+  const final = collectRoadmapInventory(f.client, cold);
+  budget.charge(
+    "POST",
+    "fresh final inventory",
+    f.stats().requests - before.requests,
+    f.stats().bytes - before.bytes,
+    "200",
+  );
+  assert.equal(cold.body_reads, 1919);
+  assert.equal(final.body_reads, 0);
+  assert.deepEqual(
+    final.issues.map((i) => i.body_sha256),
+    cold.issues.map((i) => i.body_sha256),
+  );
+  assert.ok(usage.maxResponseBytes < 2 * 1024 * 1024);
+  assert.ok(budget.usage.requests <= 300);
+  assert.ok(budget.usage.bytes < 64 * 1024 * 1024);
+  assert.equal(
+    budget.usage.requests,
+    budget.usage.attempts.reduce((sum, a) => sum + a.requests, 0),
+  );
+  t.diagnostic(
+    JSON.stringify({
+      cold_inventory_requests: usage.requests,
+      delivery_reserve_requests: reserve.requests,
+      collection_research_requests: 48,
+      total_requests_with_final_guards: budget.usage.requests,
+      total_bytes: budget.usage.bytes,
+      largest_graphql_response: usage.maxResponseBytes,
+    }),
+  );
+  // New intake still needs its complete batch reserve; larger batches are not exempt.
+  budget.delivery = false;
+  assert.throws(() => budget.reserveDelivery(300, 0), /budget cannot admit/);
+});
+
+void test("cold count-drift recollection fits the current corpus budget and a second drift preserves the cache", async (t) => {
+  for (const repeatDrift of [false, true])
+    await t.test(String(repeatDrift), async (t) => {
+      const f = fixture(1919, 6300);
+      const cached = collectRoadmapInventory(f.client);
+      const { session, state } = await temporarySession(t, {
+        ...cached,
+        baseline_completed_at: "2026-01-01T00:00:00Z",
+      });
+      assert.equal(session.budget.usage.profile, "cold");
+      const retained = readFileSync(path.join(state, "inventory.json"), "utf8");
+      session.client.completeProjectContext = () => {
+        session.budget.admit(2, 2);
+        session.budget.charge("POST", "fixture details and fields", 2, 2, "200");
+        return f.client.completeProjectContext();
+      };
+      session.client.itemList = RoadmapClient.prototype.itemList;
+      let traversals = 0;
+      session.client.graphql = (query, vars) => {
+        session.budget.admit(1, 1);
+        let response: ReturnType<typeof f.client.graphql>;
+        if (query.includes("items(first:") && !query.includes("projectRevision")) {
+          if (vars?.after === null) traversals++;
+          const offset = vars?.after === null ? 0 : Number(vars?.after);
+          const drift = (traversals === 1 || repeatDrift) && offset >= 100;
+          const nodes = f.project.slice(offset, offset + 100).map((item) => ({
+            ...item,
+            content: { ...item.content, __typename: "Issue" },
+            fieldValues: {
+              totalCount: 0,
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          }));
+          response = {
+            node: {
+              items: {
+                totalCount: drift ? 1920 : 1919,
+                nodes,
+                pageInfo: {
+                  hasNextPage: offset + 100 < f.project.length,
+                  endCursor: String(offset + 100),
+                },
+              },
+            },
+          };
+        } else response = f.client.graphql(query, vars);
+        const bytes = Buffer.byteLength(JSON.stringify(response));
+        assert.ok(bytes < 2 * 1024 * 1024);
+        session.budget.charge("POST", "fixture graphql", 1, bytes, "200");
+        return response;
+      };
+      if (repeatDrift) {
+        assert.throws(() => session.refresh(), /inventory changed during pagination/);
+        assert.equal(readFileSync(path.join(state, "inventory.json"), "utf8"), retained);
+        assert.match(JSON.stringify(session.journal.notes), /"status":"failed"/);
+        assert.equal(session.inventoryStarted, false);
+      } else {
+        session.refresh();
+        assert.equal(session.inventory.body_reads, 1919);
+        assert.equal(session.inventory.issues.length, 1919);
+        requireRoadmapInventory(session.inventory, config.repository, session.client);
+        session.budget.charge("GET", "provider, authority and observer", 11, 512 * 1024, "200");
+        const reserve = discoveryDeliveryCost(session.inventory, []);
+        session.budget.reserveDelivery(reserve.requests, reserve.bytes);
+        session.budget.admit(32, 1024 * 1024);
+        assert.match(JSON.stringify(session.journal.notes), /"status":"complete"/);
+      }
+      assert.equal(traversals, 2);
+      assert.equal(session.inventoryRecollections, 1);
+      assert.equal(
+        session.budget.usage.requests,
+        session.budget.usage.attempts.reduce((sum, a) => sum + a.requests, 0),
+      );
+      assert.ok(session.budget.usage.requests < 300);
+    });
 });

@@ -381,8 +381,14 @@ a successful delivery are separate receipt fields.
 revision and body hash. Every use enumerates live thin issue revisions and
 explicit active/archived Project membership. Only the maintained collector can
 produce the in-process validated inventory accepted by capture/normalization
-and doctor. Changed bodies are fetched once and shared by opaque identity;
-the active-item policy scope is preserved. Ordinary delivery evaluates the
+and doctor. A cold rebuild uses the maintained complete body-bearing issue listing (fifty
+issues per page), retaining each body with its validated identity and revision;
+it does not list thin revisions and then separately hydrate every body. Warm
+reads and the single revision reconciliation retain complete thin enumeration
+and fetch only changed bodies. Foreign Project content still receives its own
+bounded hydration. All pages retain the existing streamed response cap and
+zero failed-request retries. Bodies are shared by opaque identity; the active-item
+policy scope is preserved. Ordinary delivery evaluates the
 affected issues rather than unrelated global planning. Unchanged finishes retain
 complete final collection guards but record doctor `not_run` with scope `none`.
 Full doctor is reserved for substantial Roadmap changes or release readiness.
