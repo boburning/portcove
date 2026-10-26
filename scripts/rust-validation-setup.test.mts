@@ -464,7 +464,8 @@ function node {
 function windowsTemporaryStorageScript(setup: string) {
   const action: unknown = parseDocument(setup).toJS();
   assert.ok(isRecord(action) && isRecord(action.runs) && Array.isArray(action.runs.steps));
-  const step = action.runs.steps.find(
+  const steps: unknown[] = action.runs.steps;
+  const step = steps.find(
     (value: unknown) => isRecord(value) && value.name === "Select Windows test temporary storage",
   );
   assert.ok(isRecord(step) && typeof step.run === "string");
