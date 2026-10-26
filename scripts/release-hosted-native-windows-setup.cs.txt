@@ -130,8 +130,8 @@ namespace Portcove.HostedNative {
                 if (known != null && known.SecurityIdentifier.Equals(sid)) throw new InvalidOperationException("Existing candidate station ACE refused");
             }
             // Deny all other station/standard rights even through Users/Everyone.
-            descriptor.DiscretionaryAcl.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x000d035d, sid, false, null));
-            descriptor.DiscretionaryAcl.InsertAce(1, new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, 0x00020022, sid, false, null));
+            descriptor.DiscretionaryAcl.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x000d037d, sid, false, null));
+            descriptor.DiscretionaryAcl.InsertAce(1, new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, 0x00020002, sid, false, null));
             if (descriptor.BinaryLength > 8192) throw new InvalidOperationException("Station ACL proposal exceeds recovery bound");
             byte[] result = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(result, 0); return result;
         }
@@ -224,4 +224,105 @@ namespace Portcove.HostedNative {
         }
     }
 
+}
+
+namespace Portcove.HostedNative {
+    // Fixed owner-side failure diagnosis only. No debugger, token duplication or raw memory dump.
+    public static class HostedStartupContext {
+        [DllImport("kernel32")] static extern IntPtr GetCurrentProcess();
+        [DllImport("kernel32",SetLastError=true)] static extern bool DuplicateHandle(IntPtr source,IntPtr handle,IntPtr target,out IntPtr copy,uint access,bool inherit,uint options);
+        [DllImport("kernel32")] static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32",SetLastError=true)] static extern uint GetProcessId(IntPtr process);
+        [DllImport("kernel32",SetLastError=true)] static extern uint GetProcessIdOfThread(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern uint GetThreadId(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern bool GetProcessTimes(IntPtr process,out long created,out long exited,out long kernel,out long user);
+        [DllImport("kernel32",SetLastError=true)] static extern uint WaitForSingleObject(IntPtr handle,uint milliseconds);
+        [DllImport("kernel32",SetLastError=true)] static extern bool IsWow64Process2(IntPtr process,out ushort machine,out ushort native);
+        [DllImport("kernel32",SetLastError=true)] static extern uint SuspendThread(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern uint ResumeThread(IntPtr thread);
+        [DllImport("kernel32",SetLastError=true)] static extern bool GetThreadContext(IntPtr thread,IntPtr context);
+        [StructLayout(LayoutKind.Sequential)] struct MemoryInformation { public IntPtr address,allocation;public uint allocationProtect;public ushort partition;public UIntPtr regionSize;public uint state,protect,type; }
+        [DllImport("kernel32",SetLastError=true)] static extern UIntPtr VirtualQueryEx(IntPtr process,IntPtr address,out MemoryInformation info,UIntPtr size);
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("psapi",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetMappedFileNameW(IntPtr process,IntPtr address,StringBuilder name,uint size);
+        [DllImport("kernel32",CharSet=CharSet.Unicode)] static extern IntPtr GetModuleHandleW(string name);
+        [DllImport("kernel32",CharSet=CharSet.Ansi,ExactSpelling=true)] static extern IntPtr GetProcAddress(IntPtr module,string name);
+        static Exception Error(string operation) { int code=Marshal.GetLastWin32Error();return new Win32Exception(code,operation+": win32="+code); }
+        static void RequireRoot(IntPtr process,IntPtr thread,uint pid,long expected) {
+            long created,exited,kernel,user;
+            if(GetProcessId(process)!=pid || GetProcessIdOfThread(thread)!=pid || !GetProcessTimes(process,out created,out exited,out kernel,out user) || created!=expected || WaitForSingleObject(process,0)!=0x102)
+                throw new InvalidOperationException("Original startup process/thread generation unavailable");
+        }
+        static void RequireAmd64(IntPtr process) {
+            ushort machine,native;
+            if(IntPtr.Size!=8 || !IsWow64Process2(process,out machine,out native) || machine!=0 || native!=0x8664)
+                throw new InvalidOperationException("Startup context requires native AMD64");
+        }
+        static string MappedName(IntPtr process,IntPtr address) {
+            var text=new StringBuilder(4096);uint length=GetMappedFileNameW(process,address,text,4096);
+            if(length==0 || length>=4096)throw Error("Mapped startup instruction module");return text.ToString();
+        }
+        static void Capture(IntPtr process,IntPtr thread,uint pid,long expected,Dictionary<string,string> data) {
+            RequireRoot(process,thread,pid,expected);RequireAmd64(GetCurrentProcess());RequireAmd64(process);
+            data["root_pid"]=pid.ToString();data["root_created_filetime"]=expected.ToString();
+            IntPtr storage=Marshal.AllocHGlobal(8192+15);IntPtr context=new IntPtr((storage.ToInt64()+15)&~15L);
+            uint previous=0xffffffff;Exception failure=null;
+            try {
+                for(int index=0;index<8192;index++)Marshal.WriteByte(context,index,0);
+                Marshal.WriteInt32(context,48,0x100003); // AMD64 CONTROL|INTEGER, no debug/extended state.
+                previous=SuspendThread(thread);if(previous==0xffffffff)throw Error("Suspend owned startup thread");
+                data["suspend_count_before"]=previous.ToString();
+                if(previous!=0)throw new InvalidOperationException("Startup thread was already suspended; no context credited");
+                if(!GetThreadContext(thread,context))throw Error("Get owned startup thread context");
+                long instruction=Marshal.ReadInt64(context,248);data["thread_id"]=GetThreadId(thread).ToString();
+                MemoryInformation memory;
+                if(VirtualQueryEx(process,new IntPtr(instruction),out memory,(UIntPtr)Marshal.SizeOf(typeof(MemoryInformation))).ToUInt64()!=(ulong)Marshal.SizeOf(typeof(MemoryInformation)))throw Error("Query complete startup instruction mapping");
+                data["mapping_type"]="0x"+memory.type.ToString("x");
+                if(memory.type!=0x1000000 || memory.state!=0x1000)throw new InvalidOperationException("Startup instruction is not committed mapped image evidence");
+                string mapped=MappedName(process,new IntPtr(instruction));long offset=checked(instruction-memory.allocation.ToInt64());
+                if(offset<0)throw new InvalidOperationException("Startup instruction mapping offset differs");
+                data["mapped_module"]=mapped;data["instruction_offset"]="0x"+offset.ToString("x");
+                IntPtr local=GetModuleHandleW("ntdll.dll");
+                if(local!=IntPtr.Zero && String.Equals(mapped,MappedName(GetCurrentProcess(),local),StringComparison.OrdinalIgnoreCase)) {
+                    foreach(string name in new [] {"NtRaiseHardError","NtAlpcSendWaitReceivePort","NtRequestWaitReplyPort","NtWaitForSingleObject","NtWaitForMultipleObjects","NtDelayExecution"}) {
+                        IntPtr export=GetProcAddress(local,name);if(export==IntPtr.Zero)continue;
+                        long distance=offset-(export.ToInt64()-local.ToInt64());
+                        if(distance<0 || distance>=32)continue;
+                        data["export_interval_hint"]=name;data["export_offset"]="0x"+distance.ToString("x");
+                        if(name=="NtRaiseHardError")data["r10_low32_hint"]="0x"+unchecked((uint)Marshal.ReadInt64(context,200)).ToString("x8");
+                        break;
+                    }
+                }
+                RequireRoot(process,thread,pid,expected);
+            } catch(Exception error) { failure=error; }
+            finally {
+                if(previous!=0xffffffff) {
+                    uint resumed=ResumeThread(thread);data["resume_count_returned"]=resumed.ToString();
+                    if(resumed==0xffffffff || resumed!=previous+1) {
+                        Exception restore=new InvalidOperationException("Startup diagnostic suspend increment restoration unverified");
+                        failure=failure==null?restore:new AggregateException(failure,restore);
+                    }
+                }
+                for(int index=0;index<8192;index++)Marshal.WriteByte(context,index,0);
+                Marshal.FreeHGlobal(storage);
+            }
+            if(failure!=null)throw failure;
+        }
+        public static Dictionary<string,string> Observe(IntPtr process,IntPtr thread,uint pid,long expected) {
+            IntPtr processCopy=IntPtr.Zero,threadCopy=IntPtr.Zero;
+            try {
+                if(!DuplicateHandle(GetCurrentProcess(),process,GetCurrentProcess(),out processCopy,0,false,2) || !DuplicateHandle(GetCurrentProcess(),thread,GetCurrentProcess(),out threadCopy,0,false,2))throw Error("Duplicate original startup handles");
+                IntPtr ownedProcess=processCopy,ownedThread=threadCopy;Dictionary<string,string> result=null;
+                var worker=new System.Threading.Thread(()=>{
+                    var data=new Dictionary<string,string>();
+                    try{Capture(ownedProcess,ownedThread,pid,expected,data);data["status"]="read";}
+                    catch(Exception error){data["status"]="unknown";data["query_failure"]=error.Message.Substring(0,Math.Min(2048,error.Message.Length));}
+                    finally{CloseHandle(ownedThread);CloseHandle(ownedProcess);result=data;}
+                });worker.IsBackground=true;
+                worker.Start();processCopy=threadCopy=IntPtr.Zero;
+                if(!worker.Join(2000))return new Dictionary<string,string>{{"status","unknown"},{"query_failure","Startup context worker exceeded two-second join; owned duplicate handles remain with background worker"}};
+                return result;
+            } finally {if(threadCopy!=IntPtr.Zero)CloseHandle(threadCopy);if(processCopy!=IntPtr.Zero)CloseHandle(processCopy);}
+        }
+    }
 }

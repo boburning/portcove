@@ -464,8 +464,8 @@ $proposed=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)
 $actual=[Security.AccessControl.RawSecurityDescriptor]::new($proposed,0)
 if($actual.Owner.Value -cne $original.Owner.Value -or $actual.Group.Value -cne $original.Group.Value -or $actual.DiscretionaryAcl.Count -ne 4){throw 'Original identity or ACEs lost'}
 $deny=$actual.DiscretionaryAcl[0];$allow=$actual.DiscretionaryAcl[1]
-if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd035d -or $deny.AceFlags -ne 'None' -or
-   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20022 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
+if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd037d -or $deny.AceFlags -ne 'None' -or
+   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20002 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
 for($i=0;$i -lt 2;$i++){
   $a=[byte[]]::new($actual.DiscretionaryAcl[$i+2].BinaryLength);$b=[byte[]]::new($original.DiscretionaryAcl[$i].BinaryLength)
  $actual.DiscretionaryAcl[$i+2].GetBinaryForm($a,0);$original.DiscretionaryAcl[$i].GetBinaryForm($b,0)
@@ -577,7 +577,7 @@ try{
   $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($sddl);$bytes=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($bytes,0)
   if($station){$bytes=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)}
   $granted=$check.Invoke($null,[object[]]@($bytes,$token,$station))
-  if($granted -ne $(if($station){0x20022}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
+  if($granted -ne $(if($station){0x20002}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
  }
  foreach($case in @('no-access','forbidden-switch')){
   $sddl=if($case -ceq 'no-access'){'O:SYG:SYD:'}else{'O:SYG:SYD:P(A;;0x201c7;;;'+$sid+')'}
@@ -830,4 +830,51 @@ foreach($case in @('success','replaced','foreign','oversized','unavailable','exi
 'actual startup thread guards passed six controlled cases; no native observation'
 `);
   assert.match(result, /guards passed six controlled cases/u);
+});
+
+void test("startup context restores exactly its own suspend increment across injected API failures", () => {
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$source=[IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}')
+$begin=$source.IndexOf('namespace Portcove.HostedNative {'+[char]10+'    // Fixed owner-side failure diagnosis only.',[StringComparison]::Ordinal)
+if($begin -lt 0){throw 'Actual context diagnostic class absent'}
+$source='using System;using System.ComponentModel;using System.Collections.Generic;using System.Runtime.InteropServices;using System.Text;'+$source.Substring($begin)
+$source=$source.Replace('public static class HostedStartupContext {','public static class HostedStartupContext { public static int Mode,Resumes,Closes;public static System.Threading.ManualResetEventSlim Gate=new System.Threading.ManualResetEventSlim(false);')
+$replacements=@{
+ '[DllImport("kernel32")] static extern IntPtr GetCurrentProcess();'='static IntPtr GetCurrentProcess(){return new IntPtr(1);}'
+ '[DllImport("kernel32",SetLastError=true)] static extern bool DuplicateHandle(IntPtr source,IntPtr handle,IntPtr target,out IntPtr copy,uint access,bool inherit,uint options);'='static bool DuplicateHandle(IntPtr source,IntPtr handle,IntPtr target,out IntPtr copy,uint access,bool inherit,uint options){if(access!=0||inherit||options!=2)throw new Exception("Duplicate grant differs");copy=new IntPtr(handle.ToInt64()+10);return true;}'
+ '[DllImport("kernel32")] static extern bool CloseHandle(IntPtr handle);'='static bool CloseHandle(IntPtr handle){System.Threading.Interlocked.Increment(ref Closes);return true;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern uint GetProcessId(IntPtr process);'='static uint GetProcessId(IntPtr process){return 42;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern uint GetProcessIdOfThread(IntPtr thread);'='static uint GetProcessIdOfThread(IntPtr thread){return Mode==7?43u:42u;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern uint GetThreadId(IntPtr thread);'='static uint GetThreadId(IntPtr thread){return 8;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern bool GetProcessTimes(IntPtr process,out long created,out long exited,out long kernel,out long user);'='static bool GetProcessTimes(IntPtr process,out long created,out long exited,out long kernel,out long user){created=Mode==8?124:123;exited=kernel=user=0;return true;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern uint WaitForSingleObject(IntPtr handle,uint milliseconds);'='static uint WaitForSingleObject(IntPtr handle,uint milliseconds){return 0x102;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern bool IsWow64Process2(IntPtr process,out ushort machine,out ushort native);'='static bool IsWow64Process2(IntPtr process,out ushort machine,out ushort native){machine=0;native=Mode==9?(ushort)0xaa64:(ushort)0x8664;return true;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern uint SuspendThread(IntPtr thread);'='static uint SuspendThread(IntPtr thread){return Mode==2?2u:Mode==3?0xffffffffu:0u;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern uint ResumeThread(IntPtr thread);'='static uint ResumeThread(IntPtr thread){Resumes++;return Mode==2?3u:Mode==4||Mode==6?0xffffffffu:1u;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern bool GetThreadContext(IntPtr thread,IntPtr context);'='static bool GetThreadContext(IntPtr thread,IntPtr context){if((context.ToInt64()&15)!=0||Marshal.ReadInt32(context,48)!=0x100003)throw new Exception("Context alignment/flags differ");if(Mode==5&&!Gate.Wait(5000))throw new Exception("Controlled gate timeout");Marshal.WriteInt64(context,248,0x1010);return Mode!=1&&Mode!=6;}'
+ '[DllImport("kernel32",SetLastError=true)] static extern UIntPtr VirtualQueryEx(IntPtr process,IntPtr address,out MemoryInformation info,UIntPtr size);'='static UIntPtr VirtualQueryEx(IntPtr process,IntPtr address,out MemoryInformation info,UIntPtr size){info=new MemoryInformation{allocation=new IntPtr(0x1000),type=0x1000000,state=Mode==11?0x2000u:0x1000u};return Mode==10?(UIntPtr)1:size;}'
+ '[DllImport("psapi",CharSet=CharSet.Unicode,SetLastError=true)] static extern uint GetMappedFileNameW(IntPtr process,IntPtr address,StringBuilder name,uint size);'='static uint GetMappedFileNameW(IntPtr process,IntPtr address,StringBuilder name,uint size){name.Append("controlled.dll");return 14;}'
+ '[DllImport("kernel32",CharSet=CharSet.Unicode)] static extern IntPtr GetModuleHandleW(string name);'='static IntPtr GetModuleHandleW(string name){return IntPtr.Zero;}'
+}
+foreach($entry in $replacements.GetEnumerator()){if(-not $source.Contains($entry.Key)){throw 'Actual diagnostic API seam differs'};$source=$source.Replace($entry.Key,$entry.Value)}
+Add-Type -TypeDefinition $source
+$capture=[Portcove.HostedNative.HostedStartupContext].GetMethod('Capture',[Reflection.BindingFlags]'NonPublic,Static')
+foreach($mode in @(0,1,2,3,4,6,7,8,9,10,11)){
+ [Portcove.HostedNative.HostedStartupContext]::Mode=$mode;[Portcove.HostedNative.HostedStartupContext]::Resumes=0
+ $data=[Collections.Generic.Dictionary[string,string]]::new();$refused=$false
+ try{$capture.Invoke($null,@([IntPtr]1,[IntPtr]2,[uint32]42,[long]123,$data))|Out-Null}catch{$refused=$true}
+ if($refused -ne ($mode -ne 0) -or [Portcove.HostedNative.HostedStartupContext]::Resumes -ne $(if($mode -in @(3,7,8,9)){0}else{1})){throw ('Suspend restoration or refusal differs: '+$mode)}
+ if($mode -eq 2 -and ($data['suspend_count_before'] -cne '2' -or $data['resume_count_returned'] -cne '3')){throw 'Preexisting suspend count was flattened'}
+}
+[Portcove.HostedNative.HostedStartupContext]::Mode=5;[Portcove.HostedNative.HostedStartupContext]::Closes=0;[Portcove.HostedNative.HostedStartupContext]::Resumes=0
+try{
+ $result=[Portcove.HostedNative.HostedStartupContext]::Observe([IntPtr]1,[IntPtr]2,42,123)
+ if($result['status'] -cne 'unknown' -or [Portcove.HostedNative.HostedStartupContext]::Closes -ne 0){throw 'Timeout closed worker-owned handles or claimed success'}
+}finally{[Portcove.HostedNative.HostedStartupContext]::Gate.Set()}
+$clock=[Diagnostics.Stopwatch]::StartNew();while([Portcove.HostedNative.HostedStartupContext]::Closes -ne 2 -and $clock.ElapsedMilliseconds -lt 5000){Start-Sleep -Milliseconds 10}
+if([Portcove.HostedNative.HostedStartupContext]::Closes -ne 2 -or [Portcove.HostedNative.HostedStartupContext]::Resumes -ne 1){throw 'Worker did not restore exactly one increment and close its own duplicates'}
+'actual context compensation and timed worker ownership passed; controlled APIs only'
+`);
+  assert.match(result, /compensation and timed worker ownership passed/u);
 });

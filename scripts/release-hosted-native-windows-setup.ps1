@@ -151,7 +151,7 @@ try {
     $startupSha=(Get-FileHash -LiteralPath $startupRuntime -Algorithm SHA256).Hash.ToLowerInvariant()
     Assert-OriginalHostedSetup
     $startup=[Portcove.NativeQualification.AccountLauncher]::StartHostedVerifiedInGroup($group,$configuration,$password,$startupRuntime,$startupSha,@('/user','/fo','csv','/nh'),$attemptWork,$environment,$hostedDesktop.Name)
-    Write-HostedNativeSetupRecord (Join-Path $capture 'startup-token.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();status='read';token=$startup.HostedTokenObservation;scope='suspended primary token QUERY-only snapshot before resume';authority='none'})
+    Write-HostedNativeSetupRecord (Join-Path $capture 'startup-token.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();status='read';runtime_path=$startupRuntime;runtime_sha256=$startupSha;token=$startup.HostedTokenObservation;scope='suspended primary token QUERY-only snapshot before resume';authority='none'})
     if(-not $startup.WaitForExit(10000)){throw 'Native account startup probe timed out before GUI launch'}
     if(-not $startup.Output.Wait(5000) -or -not $startup.ErrorOutput.Wait(5000)){throw 'Native account startup capture did not drain'}
     $startupText=$startup.Output.Result
@@ -197,6 +197,7 @@ try {
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-token.json') ([ordered]@{context=$context;status='unknown';token=$null;query_failure=$failure.Substring(0,[Math]::Min(1024,$failure.Length));scope='launch or token query failed before observation returned; no inferred label or root state';authority='none'})}catch{$cleanupFailures.Add('Startup token retention failed: '+$_.Exception.Message)}
     }
     if($startup -and -not $child){
+        try{$position=[Portcove.HostedNative.HostedStartupContext]::Observe($startup.Handle,$startup.HostedInitialThreadHandle,$startup.Pid,$startup.CreatedFileTime);Write-HostedNativeSetupRecord (Join-Path $capture 'startup-position.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();position=$position;scope='temporary owned-thread suspension; mapped instruction/export hints only, not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup position retention failed: '+$_.Exception.Message)}
         $threadDiagnostic=$null;$threadFailure=$null
         try{$threadDiagnostic=@(Read-HostedStartupThreads $startup)}catch{$threadFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-threads.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();threads=$threadDiagnostic;query_failure=$threadFailure;scope='bounded exact-generation thread states; not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup diagnostic retention failed: '+$_.Exception.Message)}

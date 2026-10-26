@@ -195,6 +195,7 @@ namespace Portcove.NativeQualification {
         public long CreatedFileTime { get { return created; } }
         public uint InitialSuspendCount { get; internal set; }
         public AccountTokenObservation HostedTokenObservation { get; internal set; }
+        public IntPtr HostedInitialThreadHandle { get; internal set; }
         public DateTime StartTime { get { return DateTime.FromFileTimeUtc(created); } }
         public void RequireAliveGeneration() {
             if (Native.WaitForSingleObject(process, 0) != 0x102) throw new InvalidOperationException("Original root not live before diagnostic");
@@ -403,6 +404,7 @@ namespace Portcove.NativeQualification {
         public void Dispose() {
             // Kill-on-close is a last resort, never a positive teardown assertion.
             if (job != IntPtr.Zero) { Native.CloseHandle(job); job = IntPtr.Zero; }
+            if (HostedInitialThreadHandle != IntPtr.Zero) { Native.CloseHandle(HostedInitialThreadHandle); HostedInitialThreadHandle = IntPtr.Zero; }
             if (process != IntPtr.Zero) { Native.CloseHandle(process); process = IntPtr.Zero; }
             if (desktop != IntPtr.Zero && (hostedObserver == null || !hostedObserver.IsAlive)) { Native.CloseDesktop(desktop); desktop = IntPtr.Zero; }
             if (station != IntPtr.Zero) { Native.CloseWindowStation(station); station = IntPtr.Zero; }
@@ -623,6 +625,7 @@ namespace Portcove.NativeQualification {
                 session.InitialSuspendCount = Native.ResumeThread(info.thread);
                 if (session.InitialSuspendCount == 0xffffffff) throw Native.Error("ResumeThread");
                 if (hostedDesktop != null && session.InitialSuspendCount != 1) throw new InvalidOperationException("Unexpected hosted initial suspend count: " + session.InitialSuspendCount);
+                if (hostedDesktop != null) { session.HostedInitialThreadHandle = info.thread; info.thread = IntPtr.Zero; }
                 transferred = true; return session;
             } finally {
                 if (executableCustody != null) executableCustody.Dispose();
@@ -781,7 +784,7 @@ namespace Portcove.NativeQualification {
             }
         }
         internal static void VerifyHostedToken(IntPtr token, IntPtr station, IntPtr desktop) {
-            if (GrantedDesktopRights(station, token, true) != 0x20022 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
+            if (GrantedDesktopRights(station, token, true) != 0x20002 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
                 throw new InvalidOperationException("Effective hosted station/private-desktop rights differ");
             IntPtr input = OpenInputDesktop(0, false, 0x20081);
             if (input == IntPtr.Zero) throw Error("Inspect actual input desktop access");
