@@ -3,12 +3,12 @@
   "listing": {
     "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
     "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
-    "summary": "Explore Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a permitted Beetle Adventure Racing player and choose your own supported USA cartridge dump.",
     "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
     "issue_number": 1800,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
     "artwork": {
       "game_id": 2715,
       "cover_id": 104718,
@@ -16,6 +16,33 @@
       "image_sha256": "cbcd2bd8f4371735cee53a83c72e5f694c09dd899c1d35ac08126389f63200e1",
       "game_slug": "beetle-adventure-racing",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game_title": "Beetle Adventure Racing!",
+    "release_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["beetle-adventure-racing-recomp-", "windows-x64.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a permitted Windows player",
+          "instruction": "Select beetle-adventure-racing-recomp.exe in your existing permitted copy and use its complete extracted folder as the working directory. Keep assets and all supplied companions together. The selected release is a Windows x64 alpha; debug-symbols ZIPs are not player packages."
+        },
+        {
+          "title": "Load your original game on first Play",
+          "instruction": "Choose Play, then Load ROM in the player and select your own supported USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and caches the selected game. The released player needs no downstream decompilation build or separate game-generation step."
+        },
+        {
+          "title": "Preserve the current copy and Controller Pak data",
+          "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+        }
+      ],
+      "warnings": [
+        "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification."
+      ],
+      "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md"
+    },
+    "download_block_reason": "The Windows player links vendored RecompFrontend code whose applicable permission remains unestablished. The project AGPL and licensed nested dependencies do not themselves establish a grant for that separately authored frontend. Keep an existing copy you are permitted to use. Reconsider acquisition with attributable compatible permission or an appropriately licensed replacement package."
   }
 }

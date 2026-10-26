@@ -3,11 +3,29 @@
   "listing": {
     "id": "wave-race-64-recompiled",
     "name": "Wave Race 64 Recompiled",
-    "summary": "Explore Wave Race 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Follow the Wave Race 64 recompilation prototype and preserve an already registered development copy.",
     "project_url": "https://github.com/chronic8000/WaveRace64Recompiled",
     "issue_number": 168,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled"
+    "availability": "source-only",
+    "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
+    "original_game_title": "Wave Race 64",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the current prototype status",
+          "instruction": "This upstream reports only two boxes of visual noise and publishes no player archive. It is not a useful fresh game installation. The README names an own USA Rev A Wave Race 64 .z64 dump, but BUILDING.md still contains inherited Majora’s Mask commands; do not substitute that game or treat those commands as a verified Wave Race preparation guide."
+        },
+        {
+          "title": "Preserve an already registered development copy",
+          "instruction": "Keep any already registered development copy, its complete folder, original inputs, generated files, saves and settings under its existing contract. You or upstream own its updates. This guide offers no new qualified registration or fresh player route and does not adopt, replace, back up, roll back or delete external files."
+        }
+      ],
+      "warnings": [
+        "The existing useful-output hold and Deferred state remain. Reconsider new operations when upstream demonstrates useful runnable output and supplies a title-specific preparation or player package; missing personal gameplay is not the reason for this hold."
+      ],
+      "help_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
+    },
+    "download_block_reason": "The current upstream is a renderer prototype with no published player archive and no demonstrated useful game output; its build guide still names another game. Fresh player acquisition remains on the existing useful-output hold. Reconsider when a useful runnable Wave Race player or title-specific reproducible preparation is available. Already registered development copies retain their existing contract."
   }
 }
