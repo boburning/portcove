@@ -3,13 +3,50 @@
   "listing": {
     "id": "powerslave-exhumed-dos-raze",
     "name": "PowerSlave / Exhumed (DOS) (Raze)",
-    "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for PowerSlave / Exhumed (DOS). Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+    "summary": "Play PowerSlave / Exhumed (DOS) in Raze using your own original PC game files.",
     "original_game_title": "PowerSlave / Exhumed (DOS)",
     "project_url": "https://github.com/ZDoom/Raze",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/ZDoom/Raze",
-    "issue_number": 2671
+    "platforms": ["windows-x86-64", "macos-x86-64", "macos-aarch64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+    "issue_number": 2671,
+    "release_url": "https://github.com/ZDoom/Raze/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["Raze-", "-windows.zip"],
+      "macos-x86-64": ["raze-macos-", ".zip"],
+      "macos-aarch64": ["raze-macos-", ".zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your recognized original game files",
+          "instruction": "Use your own DOS PowerSlave or Exhumed data folder, anchored by STUFF.DAT. Raze recognizes the distinct supported PowerSlave and Exhumed data identities. Keep the complete accompanying original data. The Saturn/PlayStation games and the 2022 Exhumed remaster are different implementations/data contracts. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+        },
+        {
+          "title": "Choose Play in the upstream player",
+          "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your STUFF.DAT archive. Use Raze\u2019s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive\u2019s companion files together."
+        },
+        {
+          "title": "Preserve the actual shared profile",
+          "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        },
+        {
+          "title": "Keep upstream update ownership and platform handoffs",
+          "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream\u2019s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+    },
+    "artwork": {
+      "game_id": 188071,
+      "cover_id": 205787,
+      "image_id": "co4esb",
+      "image_sha256": "5ec5d61d695d9cd2c0496457d697a33fb2644749ac721bbeb55182d1be346dfc",
+      "game_slug": "powerslave--1",
+      "match_kind": "underlying-game"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

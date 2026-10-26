@@ -9381,13 +9381,64 @@
     {
       "id": "blood-raze",
       "name": "Blood (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Blood. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Blood in Raze using your own original PC game files.",
       "original_game_title": "Blood",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2667
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2667,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC Blood data folder, including BLOOD.RFF, SOUNDS.RFF, BLOOD.INI and its accompanying art/data. Raze recognizes specific Blood 1.0, 1.1 and One Unit Whole Blood identities. Keep optional Cryptic Passage files with their required base data. A remaster player executable is not the original data archive. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your BLOOD.RFF archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 7644,
+        "cover_id": 126464,
+        "image_id": "co2pkw",
+        "image_sha256": "becd29ed4de2e60ca6c178769351e7c9a0847283473f9f029b636e331726e029",
+        "game_slug": "blood",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "bloodborne-mac-bloodborne-native-bloodborne",
@@ -14205,13 +14256,64 @@
     {
       "id": "duke-nukem-3d-raze",
       "name": "Duke Nukem 3D (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Duke Nukem 3D. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Duke Nukem 3D in Raze using your own original PC game files.",
       "original_game_title": "Duke Nukem 3D",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2666
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2666,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC Duke Nukem 3D data folder, anchored by DUKE3D.GRP. Raze recognizes retail 1.3/Atomic and specific World Tour data variants; the actual group-file identity selects the edition. Keep the accompanying original files. Console, mobile and other Raze games are not substitutes. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your DUKE3D.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 342,
+        "cover_id": 91005,
+        "image_id": "co1y7x",
+        "image_sha256": "8c04ef5da0d94761f148f784e5887ad8fe314a7dbea0a03320bd5d5cac971abb",
+        "game_slug": "duke-nukem-3d",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "dune-ii-dune-dynasty",
@@ -23844,13 +23946,64 @@
     {
       "id": "nam-raze",
       "name": "NAM (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for NAM. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play NAM in Raze using your own original PC game files.",
       "original_game_title": "NAM",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2672
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2672,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC NAM data folder, anchored by NAM.GRP. Keep its accompanying original files. Upstream also recognizes the distinct NAPALM.GRP edition; select the actual owned edition in Raze rather than renaming or substituting another game’s data. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your NAM.GRP archive (NAPALM.GRP for that owned edition). Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 2534,
+        "cover_id": 173650,
+        "image_id": "co3pzm",
+        "image_sha256": "0a934d6b1364dc322b01a1ede408ab9e4f9b63db7a62f53d94fbeba41b721f4f",
+        "game_slug": "nam",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "naruto-rise-of-a-ninja-naruto-rise-recomp",
@@ -27528,13 +27681,64 @@
     {
       "id": "powerslave-exhumed-dos-raze",
       "name": "PowerSlave / Exhumed (DOS) (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for PowerSlave / Exhumed (DOS). Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play PowerSlave / Exhumed (DOS) in Raze using your own original PC game files.",
       "original_game_title": "PowerSlave / Exhumed (DOS)",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2671
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2671,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own DOS PowerSlave or Exhumed data folder, anchored by STUFF.DAT. Raze recognizes the distinct supported PowerSlave and Exhumed data identities. Keep the complete accompanying original data. The Saturn/PlayStation games and the 2022 Exhumed remaster are different implementations/data contracts. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your STUFF.DAT archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 188071,
+        "cover_id": 205787,
+        "image_id": "co4esb",
+        "image_sha256": "5ec5d61d695d9cd2c0496457d697a33fb2644749ac721bbeb55182d1be346dfc",
+        "game_slug": "powerslave--1",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "presidentraptor-ace-combat-04-pc-port",
@@ -29008,12 +29212,17 @@
     {
       "id": "redneck-rampage-raze",
       "name": "Redneck Rampage (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Redneck Rampage. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Redneck Rampage in Raze using your own original PC game files.",
       "original_game_title": "Redneck Rampage",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
       "artwork": {
         "game_id": 9002,
         "cover_id": 162523,
@@ -29022,7 +29231,45 @@
         "game_slug": "redneck-rampage",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2670
+      "issue_number": 2670,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC Redneck Rampage data folder, anchored by REDNECK.GRP. Keep its companion files. Rides Again is a separate standalone title and Route 66 is an add-on with its own dependencies. This base-game entry does not acquire either or merge their requirements. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your REDNECK.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      }
     },
     {
       "id": "regh2-jillsandwich1998-guitar-hero-ii-xbox-360",
@@ -30401,13 +30648,64 @@
     {
       "id": "shadow-warrior-raze",
       "name": "Shadow Warrior (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for Shadow Warrior. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play Shadow Warrior in Raze using your own original PC game files.",
       "original_game_title": "Shadow Warrior",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
-      "issue_number": 2668
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
+      "issue_number": 2668,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own 1997 PC Shadow Warrior data folder, anchored by SW.GRP. Keep its accompanying files and any separately owned expansion data. The 2013 reboot is a different game. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your SW.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      },
+      "artwork": {
+        "game_id": 2947,
+        "cover_id": 160842,
+        "image_id": "co3g3u",
+        "image_sha256": "cdcb7c96f99239b1a1583900de4a63200ea89a0718acf746798d6ac35cd66529",
+        "game_slug": "shadow-warrior",
+        "match_kind": "underlying-game"
+      }
     },
     {
       "id": "shaneomac1337-wwe-allstars-recomp",
@@ -38425,12 +38723,17 @@
     {
       "id": "world-war-ii-gi-raze",
       "name": "World War II GI (Raze)",
-      "summary": "Upstream route: Mature Build-engine family port with Windows/macOS releases. Limits: Canonical repo moved from coelckers/Raze; split games/editions and use exact owned data, not one generic game record. Upstream platforms: Windows/macOS native release packages and Linux source-build route; selected artifact CPU architectures unknown in frozen research. Original data: Source-data contract remains Unknown in the retained Raze root README for World War II GI. Establish the required original PC game data, accepted retail/shareware edition or expansion and exact revision/layout for this game. The README names this supported Build-engine game but does not supply its player asset manifest; another Raze-supported game's data is not a substitute. Portcove setup/gameplay not verified.",
+      "summary": "Play World War II GI in Raze using your own original PC game files.",
       "original_game_title": "World War II GI",
       "project_url": "https://github.com/ZDoom/Raze",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/ZDoom/Raze",
+      "platforms": [
+        "windows-x86-64",
+        "macos-x86-64",
+        "macos-aarch64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/README.md",
       "artwork": {
         "game_id": 2533,
         "cover_id": 181103,
@@ -38439,7 +38742,45 @@
         "game_slug": "world-war-ii-gi",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2673
+      "issue_number": 2673,
+      "release_url": "https://github.com/ZDoom/Raze/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Raze-",
+          "-windows.zip"
+        ],
+        "macos-x86-64": [
+          "raze-macos-",
+          ".zip"
+        ],
+        "macos-aarch64": [
+          "raze-macos-",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your recognized original game files",
+            "instruction": "Use your own original PC WWII GI data folder, anchored by WW2GI.GRP. Keep its accompanying files. Platoon Leader is an optional separately owned expansion that depends on the base game; it is not required for this base-game entry. Raze searches installed Steam/GOG copies and configured game-data folders. Reuse a recognized copy; do not duplicate it unnecessarily. If it is not found, place a copy of its complete data folder beside Raze, or add its real location to GameSearch.Directories in raze.ini. Keep your own originals; no original game files are included."
+          },
+          {
+            "title": "Choose Play in the upstream player",
+            "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your WW2GI.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
+          },
+          {
+            "title": "Preserve the actual shared profile",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          },
+          {
+            "title": "Keep upstream update ownership and platform handoffs",
+            "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+      }
     },
     {
       "id": "worlddriverchampionship-recomp-alondero-world-driver-championship",
