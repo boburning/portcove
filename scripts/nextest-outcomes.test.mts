@@ -391,14 +391,10 @@ void test("the nextest consumer retains profile, human stderr, raw JSON and orig
       report: (value) => output.push(value),
       spawnSync(command, args, options) {
         assert.equal(command, "cargo-nextest");
-        assert.deepEqual(args.slice(0, 5), [
+        assert.deepEqual(args.slice(6), ["--locked", "--profile", "hosted-windows"]);
+        assert.deepEqual(args.slice(0, 6), [
           "nextest",
           "run",
-          "--locked",
-          "--profile",
-          "hosted-windows",
-        ]);
-        assert.deepEqual(args.slice(-4), [
           "--message-format",
           "libtest-json-plus",
           "--message-format-version",
@@ -529,6 +525,8 @@ void test("default nextest inventory preserves selection while removing runtime 
     ["--no-capture"],
     ["--no-run"],
     ["--run-ignored", "only"],
+    ["--", "owned", "--ignored"],
+    ["--", "owned", "--include-ignored"],
     ["--message-format=json"],
     ["--retries"],
   ])
@@ -542,7 +540,7 @@ void test("default guarded nextest uses actual listing identities and bounded ex
       detail["filter-match"].status = name === "passed" ? "matches" : "mismatch";
   const calls: string[][] = [],
     output: string[] = [];
-  const status = runDefaultNextest(["--locked", "--workspace"], {
+  const status = runDefaultNextest(["--locked", "--workspace", "--", "passed", "--exact"], {
     report: (line) => output.push(line),
     spawnSync: (_command, args) => {
       calls.push(args);
@@ -552,8 +550,30 @@ void test("default guarded nextest uses actual listing identities and bounded ex
     },
   });
   assert.equal(status, 0);
-  assert.equal(calls[0]?.[1], "list");
-  assert.equal(calls[1]?.[1], "run");
+  assert.deepEqual(calls[0], [
+    "nextest",
+    "list",
+    "--message-format",
+    "json",
+    "--locked",
+    "--workspace",
+    "--",
+    "passed",
+    "--exact",
+  ]);
+  assert.deepEqual(calls[1], [
+    "nextest",
+    "run",
+    "--message-format",
+    "libtest-json-plus",
+    "--message-format-version",
+    "0.1",
+    "--locked",
+    "--workspace",
+    "--",
+    "passed",
+    "--exact",
+  ]);
   assert.ok(output.some((line) => line.startsWith("Rust test case observation:")));
 });
 

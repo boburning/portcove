@@ -376,11 +376,11 @@ export function runNextestWithOutcomes(
     [
       "nextest",
       "run",
-      ...args,
       "--message-format",
       "libtest-json-plus",
       "--message-format-version",
       "0.1",
+      ...args,
     ],
     {
       cwd: dependencies.cwd ?? root,
@@ -459,6 +459,8 @@ const diagnosticFlags = new Set([
   "--message-format",
   "--message-format-version",
   "--run-ignored",
+  "--ignored",
+  "--include-ignored",
 ]);
 
 /** Preserve native selection/build options; runtime-only knobs do not affect listing. */
@@ -499,7 +501,7 @@ export function runDefaultNextest(
   if (listArgs !== null) {
     const listed = run(
       "cargo-nextest",
-      ["nextest", "list", ...listArgs, "--message-format", "json"],
+      ["nextest", "list", "--message-format", "json", ...listArgs],
       {
         cwd,
         env: environment,
