@@ -25,7 +25,7 @@ namespace Portcove.HostedNative {
   public bool Restored {get;private set;}
   public string[] RecoveryFailures {get{return recovery.ToArray();}}
   public static string[] LastPreparationRecoveryFailures {get;private set;}=new string[0];
-  static Exception Error(string operation){return new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(),operation);}
+  static Exception Error(string operation){int code=Marshal.GetLastWin32Error();return new System.ComponentModel.Win32Exception(code,operation+" (Win32="+code+")");}
   public static void RequireAuthority(){if(!ExecutionAuthorized)throw new InvalidOperationException("Targeted access audit authority not granted; no qualification attempted");}
   public static byte[] Propose(byte[] original,string sid,uint rights){
    if(original==null||original.Length>16384||rights==0)throw new ArgumentException("Bounded audit descriptor required");
@@ -74,7 +74,7 @@ namespace Portcove.HostedNative {
     value.EnablePrivilege();
     // Preflight all policy/object preimages before any policy or SACL mutation.
     value.before=Query();ReadEvents(WindowsIdentity.GetCurrent().User.Value,(uint)Process.GetCurrentProcess().Id,DateTime.UtcNow.ToFileTimeUtc(),Process.GetCurrentProcess().MainModule.FileName,CurrentLogon(),new[]{"Desktop:PortcoveAudit_preflight"},value.session);value.applied=value.before;value.applied.flags=(value.before.flags&~4u)|2u;
-    value.Add(OpenWindowStationW("WinSta0",false,0x1020000),"WindowStation","WinSta0");
+    value.Add(OpenWindowStationW("WinSta0",false,0x1020002),"WindowStation","WinSta0");
     value.Add(OpenDesktopW(desktop,0,false,0x1020081),"Desktop",desktop);
     value.Add(OpenDesktopW("Default",0,false,0x1020081),"Desktop","Default");
     value.Add(OpenInputDesktop(0,false,0x1020081),"Desktop",null);

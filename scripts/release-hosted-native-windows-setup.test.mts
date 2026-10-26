@@ -1240,3 +1240,41 @@ Add-Type -ReferencedAssemblies $references -TypeDefinition $harness.Replace('__M
     assert.match(result, /nine fake modes/u);
   },
 );
+
+void test(
+  "owner audit station name query requires read attributes without privilege changes",
+  { skip: process.platform !== "win32" },
+  () => {
+    const audit = fileURLToPath(
+      new URL("./release-hosted-native-windows-audit.cs.txt", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName System.Diagnostics.EventLog
+$references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
+Add-Type -ReferencedAssemblies $references -TypeDefinition ([IO.File]::ReadAllText('${audit.replaceAll("'", "''")}'))
+Add-Type -TypeDefinition @'
+using System;using System.Runtime.InteropServices;
+public static class AuditNameReadOnly {
+ [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] public static extern IntPtr OpenWindowStationW(string name,bool inherit,uint access);
+ [DllImport("user32",SetLastError=true)] public static extern bool CloseWindowStation(IntPtr handle);
+ [DllImport("user32")] public static extern IntPtr GetProcessWindowStation();
+}
+'@
+$name=[Portcove.HostedNative.AccessAudit].GetMethod('Name',[Reflection.BindingFlags]'NonPublic,Static')
+$original=[AuditNameReadOnly]::GetProcessWindowStation();$before=$name.Invoke($null,@($original))
+foreach($mask in @(0x20000,0x20002)){
+ $handle=[AuditNameReadOnly]::OpenWindowStationW('WinSta0',$false,$mask)
+ if($handle -eq [IntPtr]::Zero){throw 'Readonly contract station open failed'}
+ try{
+  $refused=$false;$observed=$null
+  try{$observed=$name.Invoke($null,@($handle))}catch{if($_.Exception.GetBaseException() -isnot [ComponentModel.Win32Exception] -or $_.Exception.GetBaseException().NativeErrorCode -ne 5 -or $_.Exception.Message -notmatch 'Win32=5'){throw};$refused=$true}
+  if(($mask -eq 0x20000 -and -not $refused) -or ($mask -eq 0x20002 -and ($refused -or $observed -cne 'WinSta0'))){throw 'Actual object-name access contract differs'}
+ }finally{if(-not [AuditNameReadOnly]::CloseWindowStation($handle)){throw 'Readonly station handle close failed'}}
+}
+if([AuditNameReadOnly]::GetProcessWindowStation() -ne $original -or $name.Invoke($null,@($original)) -cne $before){throw 'Readonly name query changed process station'}
+'actual name helper: READ_CONTROL denied5, READ_CONTROL plus READATTRIBUTES read; no privilege, ACL, policy or desktop changes'
+`);
+    assert.match(result, /READ_CONTROL denied5/u);
+  },
+);
