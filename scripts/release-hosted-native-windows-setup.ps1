@@ -59,15 +59,15 @@ function Assert-OriginalHostedSetup {
 }
 Assert-OriginalHostedSetup
 $tools=Split-Path -Parent $PSScriptRoot
-$manifest=Get-Content -LiteralPath (Join-Path $tools 'manifest.json') -Raw|ConvertFrom-Json
-if($manifest.source_commit -cne $context.source_commit -or $manifest.source_tree -cne $context.source_tree -or
-    $manifest.platform -cne 'windows-x86_64'){throw 'Original Windows tool source differs'}
+$manifest=Get-Content -LiteralPath (Join-Path $tools 'native-account-source.json') -Raw|ConvertFrom-Json
+if(($manifest.PSObject.Properties.Name|Sort-Object)-join ',' -cne 'files,platform,purpose,schema_version,source_commit,source_tree' -or $manifest.schema_version -isnot [long] -or $manifest.schema_version -ne 1 -or $manifest.purpose -cne 'ordinary-hosted-account-source' -or $manifest.files.Count -ne 5 -or $manifest.source_commit -cne $context.source_commit -or $manifest.source_tree -cne $context.source_tree -or
+    $manifest.platform -cne 'windows-x86_64'){throw 'Original Windows primitive source differs'}
 $names=@('scripts/release-hosted-native-windows-setup.ps1','scripts/release-hosted-native-windows-setup.cs.txt',
     'scripts/native-qualification-account.cs.txt','scripts/native-qualification-account-registry.ps1','scripts/fixtures/native-account-gui-probe.ps1')
 foreach($name in $names){
     $entry=@($manifest.files|Where-Object path -CEQ $name)
     $file=Join-Path $tools $name
-    if($entry.Count -ne 1 -or (Get-Item -LiteralPath $file).Length -ne $entry[0].bytes -or
+    if($entry.Count -ne 1 -or $entry[0].path -isnot [string] -or $entry[0].bytes -isnot [long] -or $entry[0].bytes -lt 1 -or $entry[0].bytes -gt 131072 -or $entry[0].sha256 -cnotmatch '^[a-f0-9]{64}$' -or (Get-Item -LiteralPath $file).Length -ne $entry[0].bytes -or
         (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry[0].sha256){throw 'Fixed hosted setup source changed'}
 }
 Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'release-hosted-native-windows-setup.cs.txt') -Raw)
@@ -203,7 +203,7 @@ finally {
         } catch {$cleanupFailures.Add($_.Exception.Message)}
         if($child){$child.Dispose()};if($group){$group.Dispose()};if($password){$password.Dispose()}
         if(-not $failure -and $cleanupFailures.Count){$failure='Hosted cleanup refused; retained details require recovery'}
-        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
+        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;initial_suspend_count=$(if($child){$child.InitialSuspendCount}else{$null});remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});hosted_observer_failure=$(if($child){$child.LastHostedObserverFailure}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
     }
 }
 if(-not $disabled -or -not $settled -or $failure){throw 'Hosted inert account setup did not complete'}

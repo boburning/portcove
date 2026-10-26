@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -516,6 +517,7 @@ public class Observer {
  IntPtr desktop=new IntPtr(99); uint pid=7; Thread hostedObserver;
  public bool HasExited;
  public string LastResponseInspection;
+ public string LastHostedObserverFailure;
  IntPtr FindWindow(uint target){return Native.Hidden?IntPtr.Zero:new IntPtr(42);}
 __METHOD__
 }
@@ -554,6 +556,9 @@ void test(
 $ErrorActionPreference='Stop'
 Add-Type -TypeDefinition ([IO.File]::ReadAllText('${launcher.replaceAll("'", "''")}'))
 Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
+
+$creation=[Portcove.NativeQualification.AccountLauncher].GetMethod('CreationFlags',[Reflection.BindingFlags]'NonPublic,Static')
+if($creation.Invoke($null,[object[]]@($null)) -ne 0x404 -or $creation.Invoke($null,@('PortcoveHosted_0123456789abcdef0123456789abcdef')) -ne 0x08000404){throw 'Hosted-only non-console flags changed'}
 $type=[Portcove.NativeQualification.AccountLauncher].Assembly.GetType('Portcove.NativeQualification.Native')
 $flags=[Reflection.BindingFlags]'NonPublic,Static'
 $open=$type.GetMethod('OpenProcessToken',$flags);$check=$type.GetMethod('GrantedRights',$flags);$close=$type.GetMethod('CloseHandle',$flags)
@@ -683,3 +688,59 @@ foreach($change in @('owner','protection','candidate-rights','extra-ace')){
     assert.match(result, /actual owned temporary non-input desktop descriptor readback passed/u);
   },
 );
+
+void test("actual hosted source receiver rejects tool-purpose, extra fields and changed source bytes", (t) => {
+  const root = mkdtempSync(path.join(homedir(), ".portcove-hosted-source-test-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const names = [
+    "scripts/release-hosted-native-windows-setup.ps1",
+    "scripts/release-hosted-native-windows-setup.cs.txt",
+    "scripts/native-qualification-account.cs.txt",
+    "scripts/native-qualification-account-registry.ps1",
+    "scripts/fixtures/native-account-gui-probe.ps1",
+  ];
+  const files = names.map((name, index) => {
+    const file = path.join(root, name),
+      bytes = Buffer.from(`fixed inert source ${index}`);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, bytes);
+    return {
+      path: name,
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+  });
+  const manifest = {
+    schema_version: 1,
+    purpose: "ordinary-hosted-account-source",
+    source_commit: valid.source_commit,
+    source_tree: valid.source_tree,
+    platform: "windows-x86_64",
+    files,
+  };
+  writeFileSync(path.join(root, "native-account-source.json"), JSON.stringify(manifest));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$text=[IO.File]::ReadAllText('${script.replaceAll("'", "''")}')
+$begin=$text.IndexOf('$manifest=Get-Content');$end=$text.IndexOf('Add-Type -TypeDefinition',$begin)
+if($begin -lt 0 -or $end -le $begin){throw 'Actual source reader boundary missing'}
+$reader=[scriptblock]::Create($text.Substring($begin,$end-$begin))
+$tools='${root.replaceAll("'", "''")}';$context=@{source_commit=('a'*40);source_tree=('b'*40)}
+& $reader
+$original=[IO.File]::ReadAllText((Join-Path $tools 'native-account-source.json'))
+foreach($change in @('purpose','extra','schema','source')){
+ $value=$original|ConvertFrom-Json
+ switch($change){
+  'purpose' {$value.purpose='controller-tools'}
+  'extra' {$value|Add-Member NoteProperty arbitrary $true}
+  'schema' {$value.schema_version='1'}
+  'source' {$value.files[0].sha256='0'*64}
+ }
+ [IO.File]::WriteAllText((Join-Path $tools 'native-account-source.json'),($value|ConvertTo-Json -Depth 8 -Compress))
+ $refused=$false;try{& $reader}catch{$refused=$true}
+ if(-not $refused){throw ('Changed source input admitted: '+$change)}
+}
+'actual source-only purpose/schema/hash controls passed; no account effects'
+`);
+  assert.match(result, /actual source-only purpose\/schema\/hash controls passed/u);
+});

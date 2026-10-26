@@ -188,6 +188,7 @@ namespace Portcove.NativeQualification {
         public uint Pid { get { return pid; } }
         public int Id { get { return checked((int)pid); } }
         public long CreatedFileTime { get { return created; } }
+        public uint InitialSuspendCount { get; internal set; }
         public DateTime StartTime { get { return DateTime.FromFileTimeUtc(created); } }
         public IntPtr Handle { get { return process; } }
         public ProcessStartInfo StartInfo { get { return new ProcessStartInfo(executable); } }
@@ -267,9 +268,11 @@ namespace Portcove.NativeQualification {
                 return response != IntPtr.Zero;
             }
         }
+        public string LastHostedObserverFailure { get; private set; }
         public bool HostedResponding {
             get {
                 if (hostedObserver != null && hostedObserver.IsAlive) throw new InvalidOperationException("Previous observer has not drained");
+                LastHostedObserverFailure = null;
                 bool response = false; Exception failure = null;
                 var observer = new Thread(() => {
                     try {
@@ -292,7 +295,10 @@ namespace Portcove.NativeQualification {
                 // Never close its desktop while this dedicated no-window thread is alive.
                 observer.IsBackground = true; hostedObserver = observer; observer.Start();
                 if (!observer.Join(2000)) throw new TimeoutException("Trusted desktop observer exceeded two seconds; drain after job stop");
-                if (failure != null) throw new InvalidOperationException("Trusted desktop observation refused", failure);
+                if (failure != null) {
+                    string retained = failure.ToString(); LastHostedObserverFailure = retained.Substring(0, Math.Min(retained.Length, 1024));
+                    throw new InvalidOperationException("Trusted desktop observation refused", failure);
+                }
                 return response;
             }
         }
@@ -535,6 +541,7 @@ namespace Portcove.NativeQualification {
                 throw new ArgumentException("Fixed ordinary hosted GUI boundary required");
             return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName);
         }
+        static uint CreationFlags(string hostedDesktop) { return 0x4 | 0x400 | (hostedDesktop == null ? 0u : 0x08000000u); }
         static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256, string hostedDesktop = null) {
             Validate(config, executable, arguments, directory, environment);
             string commandText = nsis ? NsisCommandLine(executable, arguments, config.WorkRoot) : String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
@@ -572,7 +579,7 @@ namespace Portcove.NativeQualification {
                 startup.desktop = hostedDesktop == null ? config.PrivateDesktop : "WinSta0\\" + hostedDesktop; startup.flags = 1 | 0x100; startup.showWindow = 0;
                 startup.input = input; startup.output = outputWrite; startup.error = errorWrite;
                 var command = new StringBuilder(commandText);
-                if (!Native.CreateProcessWithLogonW(config.UserName, ".", secret, 1, executable, command, 0x4 | 0x400, block, directory, ref startup, out info)) throw Native.Error("CreateProcessWithLogonW");
+                if (!Native.CreateProcessWithLogonW(config.UserName, ".", secret, 1, executable, command, CreationFlags(hostedDesktop), block, directory, ref startup, out info)) throw Native.Error("CreateProcessWithLogonW");
                 // No candidate thread has run. Assign job before token inspection/resume.
                 if (group != null) group.Assign(config, info.process);
                 if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("AssignProcessToJobObject");
@@ -593,7 +600,9 @@ namespace Portcove.NativeQualification {
                 var session = new AccountProcess(job, info.process, info.pid, station, desktop, executable, outputRead, errorRead);
                 outputRead = IntPtr.Zero; errorRead = IntPtr.Zero;
                 if (!String.Equals(System.IO.Path.GetFullPath(session.Path), System.IO.Path.GetFullPath(executable), StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Suspended process image differs from exact requested path");
-                if (Native.ResumeThread(info.thread) == 0xffffffff) throw Native.Error("ResumeThread");
+                session.InitialSuspendCount = Native.ResumeThread(info.thread);
+                if (session.InitialSuspendCount == 0xffffffff) throw Native.Error("ResumeThread");
+                if (hostedDesktop != null && session.InitialSuspendCount != 1) throw new InvalidOperationException("Unexpected hosted initial suspend count: " + session.InitialSuspendCount);
                 transferred = true; return session;
             } finally {
                 if (executableCustody != null) executableCustody.Dispose();

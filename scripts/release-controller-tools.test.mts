@@ -1373,3 +1373,77 @@ void test("fixed source asset preflight bounds real inventory and refuses before
     process.platform === "win32" ? "h" : "home",
   ]);
 });
+
+void test("source-only Windows account inputs retain exact source bytes and never impersonate a tool manifest", async (t) => {
+  const { stageHostedWindowsAccountSource, hostedWindowsAccountSourcePaths } =
+    await import("./qualify-controller-tools-windows.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-windows-account-source-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = path.join(root, "source"),
+    stagedRoot = path.join(root, "staged"),
+    hooks = path.join(root, "hooks");
+  for (const directory of [source, stagedRoot, hooks]) await mkdir(directory);
+  for (const name of hostedWindowsAccountSourcePaths) {
+    await mkdir(path.dirname(path.join(source, name)), { recursive: true });
+    await copyFile(path.join(sourceRoot, name), path.join(source, name));
+  }
+  const git = (args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        source,
+        "-c",
+        `core.hooksPath=${hooks}`,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.autocrlf=false",
+        ...args,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    ).trim();
+  git(["init", "--quiet"]);
+  git(["add", "--all"]);
+  git(["commit", "--quiet", "-m", "fixture"]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  const manifest = await stageHostedWindowsAccountSource(source, stagedRoot, expected);
+  assert.equal(manifest.purpose, "ordinary-hosted-account-source");
+  assert.equal(manifest.source_commit, expected.commit);
+  assert.equal(manifest.source_tree, expected.tree);
+  assert.equal(manifest.platform, "windows-x86_64");
+  assert.deepEqual(
+    manifest.files.map((file) => file.path),
+    [...hostedWindowsAccountSourcePaths],
+  );
+  for (const file of manifest.files) {
+    const original = await readFile(path.join(sourceRoot, file.path)),
+      staged = await readFile(path.join(stagedRoot, file.path));
+    assert.deepEqual(staged, original);
+    assert.equal(staged.length, file.bytes);
+    assert.equal(hash(staged), file.sha256);
+  }
+  const raw: unknown = JSON.parse(
+    await readFile(path.join(stagedRoot, "native-account-source.json"), "utf8"),
+  );
+  assert.deepEqual(raw, manifest);
+  await assert.rejects(readFile(path.join(stagedRoot, "manifest.json")), { code: "ENOENT" });
+  await assert.rejects(stageHostedWindowsAccountSource(source, stagedRoot, expected), {
+    code: "EEXIST",
+  });
+  const rejected = path.join(root, "dirty-refused");
+  await mkdir(rejected);
+  await writeFile(
+    path.join(source, hostedWindowsAccountSourcePaths[0]),
+    "changed tracked fixture bytes",
+  );
+  await assert.rejects(
+    stageHostedWindowsAccountSource(source, rejected, expected),
+    /tracked changes/u,
+  );
+  assert.deepEqual(await readdir(rejected), []);
+});
