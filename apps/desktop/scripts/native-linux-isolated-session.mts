@@ -283,17 +283,7 @@ async function launchFixedLinuxNativeSession(
   const publicBudget = publicBinding ? claimPublicBudget(publicBinding) : undefined;
   const binding = inspectIsolatedNativeLinuxBinding(raw);
   const home = publicBinding?.profile_home ?? binding.home;
-  assert.equal(process.getuid?.(), binding.account.uid);
-  assert.equal(process.getgid?.(), binding.account.gid);
-  assert.equal(program, binding.tools.driver?.path);
-  assert.equal(args.length, 6);
-  assert.equal(args[0], "--port");
-  assert.equal(args[2], "--native-port");
-  assert.equal(args[4], "--native-driver");
-  assert.equal(args[5], binding.tools.webkit_driver?.path);
-  const port = Number(args[1]);
-  assert.ok(Number.isSafeInteger(port) && port >= 1024 && port <= 65533);
-  assert.equal(Number(args[3]), port + 1);
+  const port = inspectLinuxDriverArguments(binding, program, args);
   const expires = Date.parse(binding.deadline_utc),
     remaining = () => {
       const value = expires - Date.now();
@@ -315,100 +305,17 @@ async function launchFixedLinuxNativeSession(
     await ownedDirectory(publicBinding.state, binding.account.uid);
     await ownedDirectory(publicBinding.installation, binding.account.uid);
   }
-  const recheck = async () => {
-    remaining();
-    beforeLaunch();
-    const git = binding.tools.git!;
-    assert.equal(await hash(await realpath(git.path), 64 * 1024 * 1024), git.sha256);
-    const env = {
-      PATH: "/usr/bin:/bin",
-      LANG: "C.UTF-8",
-      HOME: binding.home,
-      GIT_CONFIG_NOSYSTEM: "1",
-      GIT_CONFIG_GLOBAL: "/dev/null",
-      GIT_TERMINAL_PROMPT: "0",
-      GIT_NO_LAZY_FETCH: "1",
-    };
-    const call = (argv: string[]) =>
-      execFileSync(
-        git.path,
-        ["-c", "core.hooksPath=/dev/null", "-C", binding.controller.root, ...argv],
-        { env, encoding: "utf8", timeout: Math.min(remaining(), 5000), maxBuffer: 65536 },
-      ).trim();
-    assert.equal(call(["rev-parse", "HEAD"]), binding.controller.source_commit);
-    assert.equal(call(["rev-parse", "HEAD^{tree}"]), binding.controller.source_tree);
-    assert.equal(call(["status", "--porcelain", "--untracked-files=no"]), "");
-    assert.equal(
-      (await readFile("/proc/self/cgroup", "utf8")).trim(),
-      `0::${binding.unit.control_group}`,
-    );
-    for (const [name, value] of Object.entries(binding.tools))
-      assert.equal(
-        await hash(
-          await realpath(value.path),
-          name === "node" ? 128 * 1024 * 1024 : 64 * 1024 * 1024,
-        ),
-        value.sha256,
-      );
-    assert.equal(
-      await hash(binding.application.path, 512 * 1024 * 1024),
-      binding.application.sha256,
-    );
-    assert.equal((await lstat(binding.application.path)).size, binding.application.bytes);
-    assert.equal(
-      fixedInit,
-      `${binding.controller.root}/apps/desktop/scripts/native-linux-isolated-init.py`,
-    );
-    assert.equal(await hash(fixedInit, 1024 * 1024), binding.controller.init_sha256);
-    if (publicBinding) {
-      inspectNativeLinuxHomeMount(
-        await readFile("/proc/self/mountinfo", "utf8"),
-        binding.home,
-        await statfs(binding.home),
-      );
-      for (const [filename, expected] of [
-        ["native-linux-public-fuse.py", publicBinding.source.fuse_sha256],
-        ["native-linux-public-network.py", publicBinding.source.network_sha256],
-        ["native-linux-public-services.py", publicBinding.source.services_sha256],
-      ])
-        assert.equal(
-          await hash(`${binding.controller.root}/apps/desktop/scripts/${filename}`, 1024 * 1024),
-          expected,
-        );
-      assert.equal(
-        await hash(publicBinding.candidate.path, 512 * 1024 * 1024),
-        publicBinding.candidate.sha256,
-      );
-      assert.equal((await lstat(publicBinding.candidate.path)).size, publicBinding.candidate.bytes);
-    }
-    remaining();
-  };
+  const recheck = () => recheckLinuxSession(binding, publicBinding, remaining, beforeLaunch);
   await recheck();
   const nonce = randomUUID(),
     configurationPath = `${binding.capture_root}/namespace-${nonce}.json`,
     policyPrefix = configurationPath.slice(0, -5);
-  const allowed = [
-    "XDG_CONFIG_HOME",
-    "XDG_CACHE_HOME",
-    "XDG_DATA_HOME",
-    "PORTCOVE_LIBRARY",
-    "PORTCOVE_PREFERENCES",
-    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
-    "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
-    "PORTCOVE_APPLICATION_UPDATE_STAGING",
-  ];
-  const selected = Object.fromEntries(
-    allowed
-      .filter((key) => environment[key] !== undefined)
-      .map((key) => {
-        const value = environment[key]!;
-        assert.ok(value.startsWith(home + "/") && path.posix.normalize(value) === value);
-        return [key, value];
-      }),
-  );
+  const selected = selectLinuxEnvironment(environment, home);
   let publicConfiguration: Record<string, unknown> | undefined;
   let networkPolicyPath: string | undefined, networkPolicySha: string | undefined;
-  if (publicBinding) {
+  async function writePublicPolicies(
+    publicBinding: ReturnType<typeof inspectPublicNativeLinuxBinding>,
+  ) {
     const policies = {
       fuse: {
         schema_version: 2,
@@ -457,6 +364,8 @@ async function launchFixedLinuxNativeSession(
       ...policyPins,
     };
   }
+  if (publicBinding) await writePublicPolicies(publicBinding);
+
   await writeFile(
     configurationPath,
     JSON.stringify({
@@ -821,4 +730,117 @@ async function launchFixedLinuxNativeSession(
       return stopping;
     },
   };
+}
+
+async function recheckLinuxSession(
+  binding: ReturnType<typeof inspectIsolatedNativeLinuxBinding>,
+  publicBinding: ReturnType<typeof inspectPublicNativeLinuxBinding> | undefined,
+  remaining: () => number,
+  beforeLaunch: () => void,
+) {
+  remaining();
+  beforeLaunch();
+  const git = binding.tools.git!;
+  assert.equal(await hash(await realpath(git.path), 64 * 1024 * 1024), git.sha256);
+  const env = {
+    PATH: "/usr/bin:/bin",
+    LANG: "C.UTF-8",
+    HOME: binding.home,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_NO_LAZY_FETCH: "1",
+  };
+  const call = (argv: string[]) =>
+    execFileSync(
+      git.path,
+      ["-c", "core.hooksPath=/dev/null", "-C", binding.controller.root, ...argv],
+      { env, encoding: "utf8", timeout: Math.min(remaining(), 5000), maxBuffer: 65536 },
+    ).trim();
+  assert.equal(call(["rev-parse", "HEAD"]), binding.controller.source_commit);
+  assert.equal(call(["rev-parse", "HEAD^{tree}"]), binding.controller.source_tree);
+  assert.equal(call(["status", "--porcelain", "--untracked-files=no"]), "");
+  assert.equal(
+    (await readFile("/proc/self/cgroup", "utf8")).trim(),
+    `0::${binding.unit.control_group}`,
+  );
+  for (const [name, value] of Object.entries(binding.tools))
+    assert.equal(
+      await hash(
+        await realpath(value.path),
+        name === "node" ? 128 * 1024 * 1024 : 64 * 1024 * 1024,
+      ),
+      value.sha256,
+    );
+  assert.equal(await hash(binding.application.path, 512 * 1024 * 1024), binding.application.sha256);
+  assert.equal((await lstat(binding.application.path)).size, binding.application.bytes);
+  assert.equal(
+    fixedInit,
+    `${binding.controller.root}/apps/desktop/scripts/native-linux-isolated-init.py`,
+  );
+  assert.equal(await hash(fixedInit, 1024 * 1024), binding.controller.init_sha256);
+  if (publicBinding) {
+    inspectNativeLinuxHomeMount(
+      await readFile("/proc/self/mountinfo", "utf8"),
+      binding.home,
+      await statfs(binding.home),
+    );
+    for (const [filename, expected] of [
+      ["native-linux-public-fuse.py", publicBinding.source.fuse_sha256],
+      ["native-linux-public-network.py", publicBinding.source.network_sha256],
+      ["native-linux-public-services.py", publicBinding.source.services_sha256],
+    ])
+      assert.equal(
+        await hash(`${binding.controller.root}/apps/desktop/scripts/${filename}`, 1024 * 1024),
+        expected,
+      );
+    assert.equal(
+      await hash(publicBinding.candidate.path, 512 * 1024 * 1024),
+      publicBinding.candidate.sha256,
+    );
+    assert.equal((await lstat(publicBinding.candidate.path)).size, publicBinding.candidate.bytes);
+  }
+  remaining();
+}
+
+function selectLinuxEnvironment(environment: NodeJS.ProcessEnv, home: string) {
+  const allowed = [
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "PORTCOVE_LIBRARY",
+    "PORTCOVE_PREFERENCES",
+    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+    "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
+    "PORTCOVE_APPLICATION_UPDATE_STAGING",
+  ];
+  const selected = Object.fromEntries(
+    allowed
+      .filter((key) => environment[key] !== undefined)
+      .map((key) => {
+        const value = environment[key]!;
+        assert.ok(value.startsWith(home + "/") && path.posix.normalize(value) === value);
+        return [key, value];
+      }),
+  );
+  return selected;
+}
+
+function inspectLinuxDriverArguments(
+  binding: ReturnType<typeof inspectIsolatedNativeLinuxBinding>,
+  program: string,
+  args: readonly string[],
+) {
+  assert.equal(process.getuid?.(), binding.account.uid);
+  assert.equal(process.getgid?.(), binding.account.gid);
+  assert.equal(program, binding.tools.driver?.path);
+  assert.equal(args.length, 6);
+  assert.equal(args[0], "--port");
+  assert.equal(args[2], "--native-port");
+  assert.equal(args[4], "--native-driver");
+  assert.equal(args[5], binding.tools.webkit_driver?.path);
+  const port = Number(args[1]);
+  assert.ok(Number.isSafeInteger(port) && port >= 1024 && port <= 65533);
+  assert.equal(Number(args[3]), port + 1);
+  return port;
 }

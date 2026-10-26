@@ -110,7 +110,7 @@ const libraryActivitySettingsTargets: Partial<
   update_catalog: "catalog-updates",
 };
 
-export function UpdateCenter({
+function useUpdateCenter({
   ports,
   activityPorts = ports,
   sourceProfiles = [],
@@ -243,14 +243,65 @@ export function UpdateCenter({
       />
     </div>
   );
+  return {
+    ports,
+    activityPorts,
+    sourceProfiles,
+    statuses,
+    activities,
+    activityFeed,
+    batchRead,
+    busy,
+    checkAll,
+    onSelect,
+    onOpenSettings,
+    generation,
+    repair,
+    diagnosticsRefreshing,
+    diagnosticsStale,
+    diagnosticFailure,
+    refreshDiagnostics,
+    cleanupChanged,
+    reviewedActivityId,
+    onReviewActivity,
+    perform,
+    onLaunch,
+    onSectionChange,
+    operationEvents,
+    operationOwner,
+    setLocalSection,
+    selectedSection,
+    earlierBatch,
+    nowSeconds,
+    reviewedActivity,
+    setReviewedActivity,
+    reviewingUpdate,
+    setReviewingUpdate,
+    updateReviewOwner,
+    installed,
+    external,
+    byPort,
+    savedByPort,
+    effectiveCheck,
+    checked,
+    latestSavedCheck,
+    renderStatistics,
+  };
+}
+
+export function UpdateCenter(props: Parameters<typeof useUpdateCenter>[0]) {
+  return <UpdateCenterView {...useUpdateCenter(props)} />;
+}
+
+function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
   return (
     <Tabs.Root
       render={<section className="update-center" />}
-      value={selectedSection}
+      value={model.selectedSection}
       onValueChange={(value: unknown) => {
         if (value !== "tasks" && value !== "updates") return;
-        setLocalSection(value);
-        onSectionChange?.(value);
+        model.setLocalSection(value);
+        model.onSectionChange?.(value);
       }}
     >
       <Tabs.List aria-label="Activity sections" className="mb-4 flex flex-wrap gap-2">
@@ -264,7 +315,7 @@ export function UpdateCenter({
             key={value}
             value={value}
             data-focusable
-            render={<Button variant={selectedSection === value ? "selected" : "outline"} />}
+            render={<Button variant={model.selectedSection === value ? "selected" : "outline"} />}
           >
             {label}
           </Tabs.Tab>
@@ -276,15 +327,15 @@ export function UpdateCenter({
           className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
           data-focus-group
         >
-          {renderStatistics()}
+          {model.renderStatistics()}
           <UpdateCheckControl
-            busy={busy}
-            status={batchRead?.status}
-            hasInstalled={installed.length > 0}
-            checkAll={checkAll}
+            busy={model.busy}
+            status={model.batchRead?.status}
+            hasInstalled={model.installed.length > 0}
+            checkAll={model.checkAll}
           />
         </div>
-        <UpdateBatchNotice read={batchRead} />
+        <UpdateBatchNotice read={model.batchRead} />
         <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
           Checking only looks for updates. Review an available update before downloading or
           installing it. Play keeps using your current version.
@@ -295,45 +346,51 @@ export function UpdateCenter({
             data-focusable
             variant="link"
             size="xs"
-            onClick={() => onOpenSettings("application-updates")}
+            onClick={() => model.onOpenSettings("application-updates")}
           >
             Open Portcove update settings
           </Button>
         </p>
-        {installed.length > 0 && (
+        {model.installed.length > 0 && (
           <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-            {earlierBatch ? "Earlier update results cover " : "Update results cover "}
-            {checked.length} of {installed.length} installed{" "}
-            {installed.length === 1 ? "port" : "ports"}.
-            {latestSavedCheck > 0 &&
-              ` Latest saved check: ${formatActivityTime(latestSavedCheck)}.`}
+            {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
+            {model.checked.length} of {model.installed.length} installed{" "}
+            {model.installed.length === 1 ? "port" : "ports"}.
+            {model.latestSavedCheck > 0 &&
+              ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
           </p>
         )}
-        {installed.length === 0 ? (
+        {model.installed.length === 0 ? (
           <EmptyState
             icon={RefreshCw}
             eyebrow="UPDATE CENTER"
             title="No managed installations to check"
             description={
-              external.length > 0
+              model.external.length > 0
                 ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
                 : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
             }
           />
         ) : (
           <div className="update-list grid max-w-5xl gap-3" data-focus-group>
-            {installed.map((port) => {
-              const status = statuses.get(port.id)!;
-              const action = presentPortAction(operationOwner, port.id, status, "launch", busy);
-              const outcome = byPort.get(port.id);
-              const savedCheck = savedByPort.get(port.id)?.check;
-              const state = updateState(status, outcome, savedCheck, earlierBatch);
+            {model.installed.map((port) => {
+              const status = model.statuses.get(port.id)!;
+              const action = presentPortAction(
+                model.operationOwner,
+                port.id,
+                status,
+                "launch",
+                model.busy,
+              );
+              const outcome = model.byPort.get(port.id);
+              const savedCheck = model.savedByPort.get(port.id)?.check;
+              const state = updateState(status, outcome, savedCheck, model.earlierBatch);
               const failure = failurePresentation(outcome?.error);
               const canReviewUpdate = Boolean(
-                (status.staged || effectiveCheck(port.id)?.update_available) && perform,
+                (status.staged || model.effectiveCheck(port.id)?.update_available) && model.perform,
               );
               const canLaunch = Boolean(
-                onLaunch &&
+                model.onLaunch &&
                 status.readiness?.launchable &&
                 !status.readiness.pending_setup &&
                 status.readiness.blockers.length === 0 &&
@@ -349,7 +406,7 @@ export function UpdateCenter({
                     {canReviewUpdate && (
                       <GameUpdateControl
                         key={JSON.stringify([
-                          generation,
+                          model.generation,
                           port.id,
                           status.active?.id,
                           status.active?.version,
@@ -358,20 +415,20 @@ export function UpdateCenter({
                           status.channel,
                         ])}
                         portId={port.id}
-                        generation={generation}
+                        generation={model.generation}
                         policy={status.update_policy}
                         busy={Boolean(action.busy)}
-                        perform={perform}
+                        perform={model.perform}
                         compact
                         gameName={gameIdentityLabel(port)}
                         currentVersion={status.active?.version}
                         reviewScope={{
-                          active: reviewingUpdate === port.id,
+                          active: model.reviewingUpdate === port.id,
                           claim: () => {
-                            updateReviewOwner.current = port.id;
-                            setReviewingUpdate(port.id);
+                            model.updateReviewOwner.current = port.id;
+                            model.setReviewingUpdate(port.id);
                           },
-                          current: () => updateReviewOwner.current === port.id,
+                          current: () => model.updateReviewOwner.current === port.id,
                         }}
                       />
                     )}
@@ -383,7 +440,7 @@ export function UpdateCenter({
                         focusableWhenDisabled={Boolean(action.busy)}
                         aria-busy={Boolean(action.busy)}
                         title={action.assessment.reason}
-                        onClick={() => onLaunch?.(port.id)}
+                        onClick={() => model.onLaunch?.(port.id)}
                       >
                         {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
                       </Button>
@@ -399,7 +456,7 @@ export function UpdateCenter({
                     data-focusable
                     data-detail-origin={`updates:installed:${port.id}`}
                     className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
-                    onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
+                    onClick={() => model.onSelect(port.id, `updates:installed:${port.id}`)}
                   >
                     <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
                       {gameTitle(port).slice(0, 2).toUpperCase()}
@@ -425,10 +482,10 @@ export function UpdateCenter({
                       </div>
                       <div className="update-version min-w-0">
                         <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          {earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
+                          {model.earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
                         </small>
                         <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {releaseLabel(effectiveCheck(port.id), outcome)}
+                          {releaseLabel(model.effectiveCheck(port.id), outcome)}
                         </span>
                       </div>
                     </div>
@@ -459,7 +516,7 @@ export function UpdateCenter({
             })}
           </div>
         )}
-        {external.length > 0 && (
+        {model.external.length > 0 && (
           <section className="external-update-section mt-6" aria-label="Externally updated games">
             <h3 className="mb-2 text-base">Externally updated games</h3>
             <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
@@ -467,15 +524,15 @@ export function UpdateCenter({
               review its saved location and launch details.
             </p>
             <div className="update-list grid gap-2" data-focus-group>
-              {external.map((port) => {
-                const runtime = statuses.get(port.id)!.external_runtime!;
+              {model.external.map((port) => {
+                const runtime = model.statuses.get(port.id)!.external_runtime!;
                 return (
                   <button
                     data-focusable
                     data-detail-origin={`updates:external:${port.id}`}
                     className={updateRowClass}
                     key={port.id}
-                    onClick={() => onSelect(port.id, `updates:external:${port.id}`)}
+                    onClick={() => model.onSelect(port.id, `updates:external:${port.id}`)}
                   >
                     <div className={`${updateMarkClass} ${updateMarkTones.muted}`}>
                       {gameTitle(port).slice(0, 2).toUpperCase()}
@@ -512,33 +569,38 @@ export function UpdateCenter({
       <Tabs.Panel value="tasks" keepMounted aria-label="Tasks and history">
         <h2 className="mb-3 text-xl">Tasks &amp; history</h2>
         <RecoveryReview
-          generation={generation}
-          repair={repair}
-          ports={ports}
-          refreshing={diagnosticsRefreshing}
-          stale={diagnosticsStale}
-          failure={diagnosticFailure}
-          refresh={refreshDiagnostics}
-          cleanupChanged={cleanupChanged}
-          onSelect={onSelect}
-          onOpenStorage={() => onOpenSettings("library-storage")}
-          availableActivityIds={new Set(activities.map((activity) => activity.id))}
+          generation={model.generation}
+          repair={model.repair}
+          ports={model.ports}
+          refreshing={model.diagnosticsRefreshing}
+          stale={model.diagnosticsStale}
+          failure={model.diagnosticFailure}
+          refresh={model.refreshDiagnostics}
+          cleanupChanged={model.cleanupChanged}
+          onSelect={model.onSelect}
+          onOpenStorage={() => model.onOpenSettings("library-storage")}
+          availableActivityIds={new Set(model.activities.map((activity) => activity.id))}
           onReviewActivity={(id) => {
-            onReviewActivity?.(id);
-            setReviewedActivity((previous) => ({ id, request: (previous?.request ?? 0) + 1 }));
+            model.onReviewActivity?.(id);
+            model.setReviewedActivity((previous) => ({
+              id,
+              request: (previous?.request ?? 0) + 1,
+            }));
           }}
         />
         <ActivityHistory
-          operationEvents={operationEvents}
-          ports={activityPorts}
-          sourceProfiles={sourceProfiles}
-          activities={activities}
-          activityFeed={activityFeed}
-          onSelect={onSelect}
-          onOpenSettings={onOpenSettings}
-          generation={generation}
-          nowSeconds={nowSeconds}
-          reviewedActivityId={onReviewActivity ? reviewedActivityId : reviewedActivity?.id}
+          operationEvents={model.operationEvents}
+          ports={model.activityPorts}
+          sourceProfiles={model.sourceProfiles}
+          activities={model.activities}
+          activityFeed={model.activityFeed}
+          onSelect={model.onSelect}
+          onOpenSettings={model.onOpenSettings}
+          generation={model.generation}
+          nowSeconds={model.nowSeconds}
+          reviewedActivityId={
+            model.onReviewActivity ? model.reviewedActivityId : model.reviewedActivity?.id
+          }
         />
       </Tabs.Panel>
     </Tabs.Root>
