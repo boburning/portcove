@@ -1565,6 +1565,21 @@ explicitNodeTests.set("scripts/nextest-outcomes-cli.mts", [
   ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
 ]);
 for (const file of [
+  "apps/desktop/scripts/release-version-policy.mts",
+  "apps/desktop/scripts/release-version-runtime.mts",
+  "apps/desktop/scripts/release-version-bundled-runtime.mts",
+  "scripts/release-controller-tool-build.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/production-aggregate-steps.test.mts",
+    "scripts/release-controller-tools.test.mts",
+  ]);
+explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
+  ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/production-aggregate-steps.test.mts",
+]);
+for (const file of [
   "scripts/report-summary.mts",
   "scripts/bounded-summary.mts",
   "scripts/fallow-summary.mts",
