@@ -107,7 +107,7 @@ impl InstalledContract {
             (5, Some(format @ 1..=3), None, Some(crate::ExternalRuntimeTrust::UserSelected)) => {
                 format
             }
-            (6 | 7 | 8, Some(format @ 1..=3), None, None) => format,
+            (6..=8, Some(format @ 1..=3), None, None) => format,
             (9, Some(format @ 1..=3), Some(crate::PreparationMode::SourceOnly), None) => format,
             _ => {
                 return Err(PortcoveError::verification(

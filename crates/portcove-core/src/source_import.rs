@@ -297,19 +297,15 @@ impl PortcoveService {
 
         let (destination, destination_exists, reuse_existing, required_bytes) = match mode {
             SourceImportMode::UseCurrentLocation => (source_path.clone(), true, true, 0),
-            SourceImportMode::Copy | SourceImportMode::Move => {
-                let profile_dir = self.library().source_inbox_profile_dir(profile_id)?;
-                choose_destination(
-                    self,
-                    profile_id,
-                    &source,
-                    &source_path,
-                    &guard,
-                    &profile_dir,
-                    copy_bytes,
-                    checkpoint,
-                )?
-            }
+            SourceImportMode::Copy | SourceImportMode::Move => choose_destination(
+                self,
+                profile_id,
+                &source,
+                &source_path,
+                &guard,
+                copy_bytes,
+                checkpoint,
+            )?,
         };
 
         let mut plan = SourceImportPlan {
@@ -712,10 +708,10 @@ fn choose_destination(
     source: &SourceRecord,
     source_path: &Path,
     guard: &SourceGuard,
-    profile_dir: &Path,
     required_bytes: u64,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<(PathBuf, bool, bool, u64)> {
+    let profile_dir = service.library().source_inbox_profile_dir(profile_id)?;
     let name = safe_import_name(source_path, &source.storage_sha256)?;
     let base = profile_dir.join(&name);
     if !base.try_exists()? {
