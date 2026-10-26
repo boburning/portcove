@@ -9,6 +9,7 @@
     "scripts/rust-test-tree-supervisor.{mjs,mts}",
     "scripts/rust-coverage.mts",
     "scripts/qualification-nextest.mts",
+    "scripts/qualification-rustdoc.mts",
     "scripts/viteplus-renovate-probe.{mjs,mts}",
     "scripts/generate-catalog.{mjs,mts}",
     "scripts/prepare-port.mts",

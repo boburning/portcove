@@ -2828,6 +2828,13 @@
     {
       "file": "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
       "memberships": [["native-tools", 2900]]
+    },
+    {
+      "file": "scripts/qualification-rustdoc.test.mts",
+      "memberships": [
+        ["catalog-full-2", 6353],
+        ["repository-tools-2", 2353]
+      ]
     }
   ]
 }

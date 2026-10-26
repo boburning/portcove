@@ -273,3 +273,33 @@ see [upstream observations](UPSTREAM-OBSERVATIONS.md).
 
 Retain compiler/target/manifest and binary identities for transferred test execution;
 see [transfer operations](reference/quality-operations.md#consumed-intel-test-transfers).
+
+## Structured documentation test results
+
+Qualification and `just rust-test` retain `work/test-results/rustdoc-*` packets:
+source and checkout context, the original Cargo arguments, compiler identity,
+bounded raw streams and per-case outcomes. Document-path-qualified identities
+remain distinct across merged and standalone doctest harnesses. Native case
+durations and rustdoc compilation/total phases have different scopes. An explicit
+native zero-test suite means zero executions; successful compilation or empty
+output alone cannot establish that result. Unknown ignore reasons remain null.
+Completed observed suites do not prove that a failing or signalled Cargo invocation
+reached every crate. Those packets retain observed cases/counts while whole-recipe
+discovery and selection remain unknown.
+
+The reporter uses the repository-pinned compiler's experimental libtest JSON
+interface. Its Cargo child receives `RUSTC_BOOTSTRAP=-1`, which
+[forces stable compiler behavior](https://doc.rust-lang.org/unstable-book/compiler-environment-variables/RUSTC_BOOTSTRAP.html)
+while the pinned [libtest runtime](https://doc.rust-lang.org/src/test/cli.rs.html)
+currently admits the reporting flags. This environment also reaches build scripts
+and doctest compilation; it is not limited to formatting. Other inherited
+bootstrap values are refused. Native acceptance provenance guards remain unchanged.
+Protocol changes, missing or duplicate outcomes, invalid UTF-8 and output beyond
+32MiB per stream leave reporting incomplete. Raw streams are written during
+execution; an original nonzero native status remains primary if reporting fails.
+The CI jobs retain their finite outer budgets. Local callers retain Rust admission
+through `just rust-test` or `scripts/run-rust-tests.mts --guard-command`.
+
+This adapter supports doctests only. Ordinary Cargo test binaries can reuse the
+same case name without carrying a binary identity in this JSON dialect; their
+formatted console output is not used to invent an identity.

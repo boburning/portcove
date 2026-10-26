@@ -1324,8 +1324,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   }
   assert.match(rustTests, /windows-rust-tests\.mts run-qualification/u);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
-  assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
-  assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
+  assert.match(rustDocs, /node scripts\/qualification-rustdoc\.mts workspace/u);
+  assert.match(rustDocs, /node scripts\/qualification-rustdoc\.mts desktop/u);
   assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);
   assert.match(
     rustDocs,

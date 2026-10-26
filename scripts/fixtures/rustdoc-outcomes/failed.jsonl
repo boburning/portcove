@@ -1,0 +1,12 @@
+{ "type": "suite", "event": "started", "test_count": 5 }
+{ "type": "test", "event": "started", "name": "probe.rs - (line 1)" }
+{ "type": "test", "event": "started", "name": "probe.rs - (line 10)" }
+{ "type": "test", "event": "started", "name": "probe.rs - (line 13)" }
+{ "type": "test", "event": "started", "name": "probe.rs - (line 4)" }
+{ "type": "test", "event": "started", "name": "probe.rs - (line 7)" }
+{ "type": "test", "name": "probe.rs - (line 4)", "event": "ignored" }
+{ "type": "test", "name": "probe.rs - (line 1)", "event": "ok", "exec_time": 0.180269203 }
+{ "type": "test", "name": "probe.rs - (line 13)", "event": "ok", "exec_time": 0.180080855 }
+{ "type": "test", "name": "probe.rs - (line 7)", "event": "failed", "exec_time": 0.301617639, "stdout": "Test executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' (499895) panicked at probe.rs:3:1:\nretained original failure\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n" }
+{ "type": "test", "name": "probe.rs - (line 10)", "event": "ok", "exec_time": 0.392343593 }
+{ "type": "suite", "event": "failed", "passed": 3, "failed": 1, "ignored": 1, "measured": 0, "filtered_out": 0, "exec_time": 0.393042939 }
