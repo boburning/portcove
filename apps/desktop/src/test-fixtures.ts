@@ -463,3 +463,24 @@ export function sourceInspectionIdentityFixture(stateCode = "recognized_exact"):
     },
   };
 }
+
+export const installedLaunchStatus = (readiness?: PortStatus["readiness"]): PortStatus => ({
+  ...portStatus(),
+  active: {
+    id: "owned-install",
+    port_id: portDefinition().id,
+    version: "1.0",
+    path: "D:/Library/versions/owned",
+    channel: "stable",
+    installed_at: 1,
+    verified: true,
+    staged: false,
+    artifact: { asset_name: "owned.zip", sha256: "a".repeat(64), size: 1 },
+    manifest_sha256: "b".repeat(64),
+    selected_executable: "game.exe",
+    runtime: null,
+  },
+  ...(readiness !== undefined ? { readiness } : {}),
+  last_launched_at: 1,
+  successful_launches: 1,
+});
