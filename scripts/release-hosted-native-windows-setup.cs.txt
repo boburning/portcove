@@ -130,8 +130,8 @@ namespace Portcove.HostedNative {
                 if (known != null && known.SecurityIdentifier.Equals(sid)) throw new InvalidOperationException("Existing candidate station ACE refused");
             }
             // Deny all other station/standard rights even through Users/Everyone.
-            descriptor.DiscretionaryAcl.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x000d025c, sid, false, null));
-            descriptor.DiscretionaryAcl.InsertAce(1, new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, 0x00020123, sid, false, null));
+            descriptor.DiscretionaryAcl.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x000d037d, sid, false, null));
+            descriptor.DiscretionaryAcl.InsertAce(1, new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, 0x00020002, sid, false, null));
             if (descriptor.BinaryLength > 8192) throw new InvalidOperationException("Station ACL proposal exceeds recovery bound");
             byte[] result = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(result, 0); return result;
         }

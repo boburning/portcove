@@ -49,6 +49,23 @@ function Read-HostedStartupPopup($Startup) {
     if([Text.Encoding]::UTF8.GetByteCount(($result|ConvertTo-Json -Depth 6 -Compress)) -gt 49152){throw 'Startup popup exported JSON exceeds bound'}
     return $result
 }
+function Write-HostedAuditRecovery($Root,$Context) {
+    $capture=Join-Path $Root 'capture'
+    foreach($index in 0..3){foreach($phase in @('before','proposed','observed','restored')){
+        $file=Join-Path $capture ("audit-$index-$phase.bin")
+        if(Test-Path -LiteralPath $file){
+            if((Get-Item -LiteralPath $file).Length -gt 16384){throw 'Audit recovery descriptor exceeds bound'}
+            Write-HostedNativeSetupRecord (Join-Path $capture ("audit-$index-$phase.json")) ([ordered]@{context=$Context;object_index=$index;phase=$phase;full_descriptor_base64=[Convert]::ToBase64String([IO.File]::ReadAllBytes($file));scope='exact full SACL/MIC recovery preimage/postimage; no GUI acceptance'})
+        }
+    }}
+    $state=[ordered]@{context=$Context;scope='exact audit policy/privilege recovery; no GUI acceptance'}
+    foreach($name in @('bindings','control-WindowStation','control-Desktop','policy-before','policy-proposed','policy-observed','policy-restored','privilege-before','privilege-before-launch','privilege-restored')){
+        $file=Join-Path $capture ("audit-$name.bin")
+        if(Test-Path -LiteralPath $file){if((Get-Item -LiteralPath $file).Length -gt $(if($name -ceq 'bindings' -or $name.StartsWith('control-')){4096}else{128})){throw 'Audit state preimage exceeds bound'};$state[$name]=[Convert]::ToBase64String([IO.File]::ReadAllBytes($file))}
+    }
+    if($state.Count -gt 2){Write-HostedNativeSetupRecord (Join-Path $capture 'audit-state.json') $state}
+}
+
 function Assert-HostedNativeAccount($Expected,[bool]$Enabled) {
     $actual=Get-LocalUser -SID $Expected.SID -ErrorAction Stop
     if($actual.Name -cne 'PortcoveNativeQual' -or $actual.SID.Value -cne $Expected.SID.Value -or
@@ -86,10 +103,10 @@ function Assert-OriginalHostedSetup {
 Assert-OriginalHostedSetup
 $tools=Split-Path -Parent $PSScriptRoot
 $manifest=Get-Content -LiteralPath (Join-Path $tools 'native-account-source.json') -Raw|ConvertFrom-Json
-if(($manifest.PSObject.Properties.Name|Sort-Object)-join ',' -cne 'files,platform,purpose,schema_version,source_commit,source_tree' -or $manifest.schema_version -isnot [long] -or $manifest.schema_version -ne 1 -or $manifest.purpose -cne 'ordinary-hosted-account-source' -or $manifest.files.Count -ne 5 -or $manifest.source_commit -cne $context.source_commit -or $manifest.source_tree -cne $context.source_tree -or
+if(($manifest.PSObject.Properties.Name|Sort-Object)-join ',' -cne 'files,platform,purpose,schema_version,source_commit,source_tree' -or $manifest.schema_version -isnot [long] -or $manifest.schema_version -ne 1 -or $manifest.purpose -cne 'ordinary-hosted-account-source' -or $manifest.files.Count -ne 6 -or $manifest.source_commit -cne $context.source_commit -or $manifest.source_tree -cne $context.source_tree -or
     $manifest.platform -cne 'windows-x86_64'){throw 'Original Windows primitive source differs'}
 $names=@('scripts/release-hosted-native-windows-setup.ps1','scripts/release-hosted-native-windows-setup.cs.txt',
-    'scripts/native-qualification-account.cs.txt','scripts/native-qualification-account-registry.ps1','scripts/fixtures/native-account-gui-probe.ps1')
+    'scripts/native-qualification-account.cs.txt','scripts/native-qualification-account-registry.ps1','scripts/fixtures/native-account-gui-probe.ps1','scripts/release-hosted-native-windows-audit.cs.txt')
 foreach($name in $names){
     $entry=@($manifest.files|Where-Object path -CEQ $name)
     $file=Join-Path $tools $name
@@ -98,6 +115,11 @@ foreach($name in $names){
 }
 Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'release-hosted-native-windows-setup.cs.txt') -Raw)
 Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'native-qualification-account.cs.txt') -Raw)
+Add-Type -AssemblyName System.Diagnostics.EventLog
+$auditReferences=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
+if($auditReferences.Count -gt 256){throw 'Audit compiler reference inventory exceeds bound'}
+Add-Type -ReferencedAssemblies $auditReferences -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'release-hosted-native-windows-audit.cs.txt') -Raw)
+[Portcove.HostedNative.AccessAudit]::RequireAuthority()
 if($env:SystemRoot -ine [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows) -or $env:SystemDrive -ine 'C:'){
     throw 'Fixed hosted Windows system paths differ'
 }
@@ -110,7 +132,7 @@ Assert-OriginalHostedSetup
 [Portcove.HostedNative.Setup]::Directory($root,$owner.User.Value,$null,$false)
 Assert-OriginalHostedSetup
 Write-HostedNativeSetupRecord (Join-Path $root 'intent.json') ([ordered]@{schema_version=1;context=$context;broker_sid=$owner.User.Value;account_name='PortcoveNativeQual';automatic_retry=$false;authority='none'})
-$account=$null;$password=$null;$group=$null;$child=$null;$disabled=$false;$settled=$false;$failure=$null;$observation=$null
+$audit=$null;$account=$null;$password=$null;$group=$null;$child=$null;$disabled=$false;$settled=$false;$failure=$null;$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
 $probeCapture=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null
@@ -163,6 +185,7 @@ try {
     try{$brokerToken=[Portcove.NativeQualification.AccountLauncher]::ObserveBrokerToken()}catch{$brokerFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
     Write-HostedNativeSetupRecord (Join-Path $capture 'security-before-launch.json') ([ordered]@{context=$context;labels=$labelObservation;label_query_failure=$labelFailure;broker_token=$brokerToken;broker_token_status=$(if($brokerFailure){'unknown'}else{'read'});broker_query_failure=$brokerFailure;scope='read-only mandatory-label/token diagnostics; no GUI acceptance';authority='none'})
     if($labelFailure -or $brokerFailure -or $labelObservation.station_status -cne 'read' -or $labelObservation.desktop_status -cne 'read'){throw 'Mandatory security diagnostics unavailable; retained observations remain Unknown'}
+    $audit=[Portcove.HostedNative.AccessAudit]::Prepare($account.SID.Value,$hostedDesktop.Name,$capture)
     $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($configuration)
     Assert-OriginalHostedSetup
     $arguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $source 'scripts\fixtures\native-account-gui-probe.ps1'),'-Invocation',$context.binding)
@@ -202,7 +225,11 @@ try {
     if($group -and -not $child){
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-token.json') ([ordered]@{context=$context;status='unknown';token=$null;query_failure=$failure.Substring(0,[Math]::Min(1024,$failure.Length));scope='launch or token query failed before observation returned; no inferred label or root state';authority='none'})}catch{$cleanupFailures.Add('Startup token retention failed: '+$_.Exception.Message)}
     }
+    foreach($problem in [Portcove.HostedNative.AccessAudit]::LastPreparationRecoveryFailures){$cleanupFailures.Add('Audit preparation recovery: '+$problem)}
     if($child){
+        $auditRecord=$null
+        try{$child.RequireAliveGeneration();$events=@($audit.Observe($child.Pid,$child.CreatedFileTime,$runtime,$child.HostedTokenObservation.AuthenticationId));$child.RequireAliveGeneration();$auditRecord=[ordered]@{context=$context;root_pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString();events=$events;scope='exact root/SID/logon/object/time requested-access failures only; not initialization cause or GUI acceptance'}}catch{$auditRecord=[ordered]@{context=$context;status='unknown';failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}}
+        try{Write-HostedNativeSetupRecord (Join-Path $capture 'access-audit.json') $auditRecord}catch{$cleanupFailures.Add('Audit diagnostic retention failed: '+$_.Exception.Message)}
         try{$position=[Portcove.HostedNative.HostedStartupContext]::Observe($child.Handle,$child.HostedInitialThreadHandle,$child.Pid,$child.CreatedFileTime);Write-HostedNativeSetupRecord (Join-Path $capture 'startup-position.json') ([ordered]@{context=$context;root_pid=$child.Pid;root_created_filetime=$child.CreatedFileTime.ToString();position=$position;scope='temporary owned-thread suspension; mapped instruction/export hints only, not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup position retention failed: '+$_.Exception.Message)}
         $popup=$null
         try{$popup=Read-HostedStartupPopup $child}catch{$popup=[ordered]@{status='unknown';query_failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}}
@@ -247,6 +274,8 @@ finally {
             try {$probeCapture=@{stdout=(Read-HostedNativeProbeStream $child.OutputCapture);stderr=(Read-HostedNativeProbeStream $child.ErrorCapture);exit_code=$(if($rootExited){$child.ExitCode}else{$null})}}
             catch {$probeCapture=@{error=$_.Exception.Message}}
         }
+        try{if($audit){$audit.Dispose();foreach($problem in $audit.RecoveryFailures){$cleanupFailures.Add('Audit recovery: '+$problem)}}}catch{$cleanupFailures.Add('Audit recovery: '+$_.Exception.Message)}
+        try{Write-HostedAuditRecovery $root $context}catch{$cleanupFailures.Add('Audit recovery export: '+$_.Exception.Message)}
         try {if($hostedDesktop){$hostedDesktop.Dispose();$stationRestored=$hostedDesktop.Restored}} catch {$cleanupFailures.Add($_.Exception.Message)}
         try {
             $recovery=[ordered]@{context=$context;station='WinSta0';session_id=[Diagnostics.Process]::GetCurrentProcess().SessionId;original_base64=$null;proposed_base64=$null;desktop_proposed_base64=$null;desktop_observed_base64=$null;automatic_retry=$false}
@@ -261,7 +290,7 @@ finally {
         } catch {$cleanupFailures.Add($_.Exception.Message)}
         if($child){$child.Dispose()};if($group){$group.Dispose()};if($password){$password.Dispose()}
         if(-not $failure -and $cleanupFailures.Count){$failure='Hosted cleanup refused; retained details require recovery'}
-        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;initial_suspend_count=$(if($child){$child.InitialSuspendCount}else{$null});remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;last_launch=$(if($group){$group.LastLaunchInspection}else{$null});window_inspection=$(if($child){$child.LastWindowInspection}else{$null});hosted_observer_failure=$(if($child){$child.LastHostedObserverFailure}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
+        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;initial_suspend_count=$(if($child){$child.InitialSuspendCount}else{$null});remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;audit_restored=$(if($audit){$audit.Restored}else{$null});failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;last_launch=$(if($group){$group.LastLaunchInspection}else{$null});window_inspection=$(if($child){$child.LastWindowInspection}else{$null});hosted_observer_failure=$(if($child){$child.LastHostedObserverFailure}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
     }
 }
 if(-not $disabled -or -not $settled -or $failure){throw 'Hosted inert account setup did not complete'}

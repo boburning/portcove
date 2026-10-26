@@ -79,6 +79,7 @@ function assertHostedWindowsSource(source: string, expected: { commit: string; t
 export const hostedWindowsAccountSourcePaths = Object.freeze([
   "scripts/release-hosted-native-windows-setup.ps1",
   "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
   "scripts/native-qualification-account.cs.txt",
   "scripts/native-qualification-account-registry.ps1",
   "scripts/fixtures/native-account-gui-probe.ps1",
@@ -318,6 +319,13 @@ async function main() {
       "capture/startup-token.json",
       "capture/startup-threads.json",
       "capture/startup-position.json",
+      "capture/access-audit.json",
+      "capture/audit-state.json",
+      ...Array.from({ length: 4 }, (_, index) =>
+        ["before", "proposed", "observed", "restored"].map(
+          (phase) => `capture/audit-${index}-${phase}.json`,
+        ),
+      ).flat(),
       "capture/startup-popup.json",
       "capture/station-recovery.json",
     ]) {

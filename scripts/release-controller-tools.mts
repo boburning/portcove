@@ -77,6 +77,7 @@ const windowsAssets = Object.freeze([
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
   "scripts/release-hosted-native-windows-setup.ps1",
   "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
   "scripts/native-qualification-account.cs.txt",
   "scripts/native-qualification-account-registry.ps1",
   "scripts/fixtures/native-account-gui-probe.ps1",

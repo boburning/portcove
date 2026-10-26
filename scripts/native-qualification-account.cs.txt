@@ -201,7 +201,8 @@ namespace Portcove.NativeQualification {
     public sealed class AccountTokenObservation {
         public string IntegritySid { get; private set; }
         public uint MandatoryPolicy { get; private set; }
-        internal AccountTokenObservation(string sid, uint policy) { IntegritySid = sid; MandatoryPolicy = policy; }
+        public string AuthenticationId { get; private set; }
+        internal AccountTokenObservation(string sid, uint policy,string authenticationId) { IntegritySid = sid; MandatoryPolicy = policy; AuthenticationId=authenticationId; }
     }
     public sealed class AccountProcess : IDisposable {
         IntPtr job, process, station, desktop;
@@ -833,7 +834,7 @@ namespace Portcove.NativeQualification {
             }
         }
         internal static void VerifyHostedToken(IntPtr token, IntPtr station, IntPtr desktop) {
-            if (GrantedDesktopRights(station, token, true) != 0x20123 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
+            if (GrantedDesktopRights(station, token, true) != 0x20002 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
                 throw new InvalidOperationException("Effective hosted station/private-desktop rights differ");
             IntPtr input = OpenInputDesktop(0, false, 0x20081);
             if (input == IntPtr.Zero) throw Error("Inspect actual input desktop access");
@@ -855,7 +856,9 @@ namespace Portcove.NativeQualification {
                 string sid = new SecurityIdentifier(Marshal.ReadIntPtr(buffer)).Value;
                 if (!sid.StartsWith("S-1-16-", StringComparison.Ordinal)) throw new InvalidOperationException("Token integrity SID authority differs");
                 if (!GetTokenInformation(token, 27, buffer, 4, out needed) || needed != 4) throw Error("TokenMandatoryPolicy");
-                return new AccountTokenObservation(sid, unchecked((uint)Marshal.ReadInt32(buffer)));
+                uint policy=unchecked((uint)Marshal.ReadInt32(buffer));uint statsLength;
+                GetTokenInformation(token,10,IntPtr.Zero,0,out statsLength);if(statsLength<56||statsLength>4096)throw Error("Bound token statistics");
+                IntPtr stats=Marshal.AllocHGlobal((int)statsLength);try{if(!GetTokenInformation(token,10,stats,statsLength,out statsLength))throw Error("Read token authentication identity");ulong authentication=((ulong)unchecked((uint)Marshal.ReadInt32(stats,12))<<32)|unchecked((uint)Marshal.ReadInt32(stats,8));return new AccountTokenObservation(sid,policy,"0x"+authentication.ToString("x",System.Globalization.CultureInfo.InvariantCulture));}finally{Marshal.FreeHGlobal(stats);}
             } finally { Marshal.FreeHGlobal(buffer); }
         }
         internal static void RequireNonInputDesktop(IntPtr desktop) {

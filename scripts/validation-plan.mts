@@ -261,6 +261,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-hosted-native-installation.mts",
   "scripts/release-hosted-native-windows-setup.ps1",
   "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
   "scripts/release-hosted-native-windows-observation.mts",
   "scripts/prepare-hosted-native-linux-installation.py",
   "scripts/prepare-hosted-native-linux-installation.test.py",

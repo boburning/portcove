@@ -224,6 +224,7 @@ $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'"
 if($errors.Count){throw 'Actual setup script parse failure'}
 $write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true)
 . ([scriptblock]::Create($write.Extent.Text))
+$export=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedAuditRecovery'},$true);. ([scriptblock]::Create($export.Extent.Text))
 $main=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]})
 if($main.Count -ne 1){throw 'Actual cleanup boundary differs'}
 $base='${root.replaceAll("'", "''")}';$nativeProfile='inert profile';$context=@{fixture='controlled-providers'}
@@ -471,8 +472,8 @@ $proposed=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)
 $actual=[Security.AccessControl.RawSecurityDescriptor]::new($proposed,0)
 if($actual.Owner.Value -cne $original.Owner.Value -or $actual.Group.Value -cne $original.Group.Value -or $actual.DiscretionaryAcl.Count -ne 4){throw 'Original identity or ACEs lost'}
 $deny=$actual.DiscretionaryAcl[0];$allow=$actual.DiscretionaryAcl[1]
-if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd025c -or $deny.AceFlags -ne 'None' -or
-   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20123 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
+if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd037d -or $deny.AceFlags -ne 'None' -or
+   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20002 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
 for($i=0;$i -lt 2;$i++){
   $a=[byte[]]::new($actual.DiscretionaryAcl[$i+2].BinaryLength);$b=[byte[]]::new($original.DiscretionaryAcl[$i].BinaryLength)
  $actual.DiscretionaryAcl[$i+2].GetBinaryForm($a,0);$original.DiscretionaryAcl[$i].GetBinaryForm($b,0)
@@ -584,7 +585,7 @@ try{
   $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($sddl);$bytes=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($bytes,0)
   if($station){$bytes=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)}
   $granted=$check.Invoke($null,[object[]]@($bytes,$token,$station))
-  if($granted -ne $(if($station){0x20123}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
+  if($granted -ne $(if($station){0x20002}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
  }
  foreach($case in @('no-access','forbidden-switch')){
   $sddl=if($case -ceq 'no-access'){'O:SYG:SYD:'}else{'O:SYG:SYD:P(A;;0x201c7;;;'+$sid+')'}
@@ -707,6 +708,7 @@ void test("actual hosted source receiver rejects tool-purpose, extra fields and 
   const names = [
     "scripts/release-hosted-native-windows-setup.ps1",
     "scripts/release-hosted-native-windows-setup.cs.txt",
+    "scripts/release-hosted-native-windows-audit.cs.txt",
     "scripts/native-qualification-account.cs.txt",
     "scripts/native-qualification-account-registry.ps1",
     "scripts/fixtures/native-account-gui-probe.ps1",
@@ -990,6 +992,7 @@ $ErrorActionPreference='Stop';$tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'Required-root setup parse failed'}
 $write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
+$export=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedAuditRecovery'},$true);. ([scriptblock]::Create($export.Extent.Text))
 $main=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]})
 $base='${root.replaceAll("'", "''")}';$nativeProfile='inert';$context=@{fixture='controlled required-root cleanup'}
 foreach($case in @('settled','stop','root','observer','unreturned-settled','unreturned-timeout','unreturned-unknown','unreturned-noidentity')){
@@ -1018,3 +1021,183 @@ foreach($case in @('settled','stop','root','observer','unreturned-settled','unre
 `);
   assert.match(result, /cleanup passed eight controlled outcomes/u);
 });
+
+void test(
+  "disabled access audit preserves SACL labels and rejects unrelated or overbound Security records",
+  { skip: process.platform !== "win32" },
+  () => {
+    const audit = fileURLToPath(
+      new URL("./release-hosted-native-windows-audit.cs.txt", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName System.Diagnostics.EventLog
+$references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
+Add-Type -ReferencedAssemblies $references -TypeDefinition ([IO.File]::ReadAllText('${audit.replaceAll("'", "''")}'))
+$refused=$false;try{[Portcove.HostedNative.AccessAudit]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'authority not granted'}
+if(-not $refused -or [Portcove.HostedNative.AccessAudit]::ExecutionAuthorized){throw 'Audit gate allowed a privileged path'}
+$sid='S-1-5-21-1-2-3-1001';$before=[Security.AccessControl.RawSecurityDescriptor]::new('O:SYG:SYD:P(A;;GA;;;SY)S:(ML;;NW;;;LW)')
+$bytes=[byte[]]::new($before.BinaryLength);$before.GetBinaryForm($bytes,0)
+$changed=[Security.AccessControl.RawSecurityDescriptor]::new([Portcove.HostedNative.AccessAudit]::Propose($bytes,$sid,0xf037f),0)
+if($changed.GetSddlForm('Owner,Group,Access') -cne $before.GetSddlForm('Owner,Group,Access') -or $changed.SystemAcl.Count -ne 2){throw 'SACL proposal changed unrelated security'}
+$left=[byte[]]::new($before.SystemAcl[0].BinaryLength);$right=[byte[]]::new($changed.SystemAcl[1].BinaryLength);$before.SystemAcl[0].GetBinaryForm($left,0);$changed.SystemAcl[1].GetBinaryForm($right,0)
+if([Convert]::ToBase64String($left) -cne [Convert]::ToBase64String($right) -or $changed.SystemAcl[0].AceFlags -ne 'FailedAccess'){throw 'Mandatory label lost or broad success auditing added'}
+$stamp=[DateTime]::UtcNow.AddSeconds(-1);$created=$stamp.AddSeconds(-1).ToFileTimeUtc();$image='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+foreach($case in @('valid','desktop','sid','logon','pid','provider-pid','provider','channel','event','object','mask','success','time','duplicate','dtd','oversized','record-id','system-duplicate')){
+ $type=$(if($case -ceq 'desktop'){'Desktop'}else{'WindowStation'});$name=$(if($case -ceq 'desktop'){'PortcoveHosted_inert'}else{'WinSta0'})
+ $xml='<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event"><System><Provider Name="Microsoft-Windows-Security-Auditing"/><EventID>4656</EventID><Channel>Security</Channel><Execution ProcessID="42"/><Keywords>0x8010000000000000</Keywords><EventRecordID>7</EventRecordID><TimeCreated SystemTime="'+$stamp.ToString('o')+'"/></System><EventData><Data Name="SubjectUserSid">'+$sid+'</Data><Data Name="SubjectLogonId">0xffffffffffff1234</Data><Data Name="ProcessId">0x2a</Data><Data Name="ProcessName">'+$image+'</Data><Data Name="ObjectType">'+$type+'</Data><Data Name="ObjectName">'+$name+'</Data><Data Name="AccessMask">0x2</Data></EventData></Event>'
+ switch($case){sid{$xml=$xml.Replace($sid,'S-1-5-21-1-2-3-1002')}logon{$xml=$xml.Replace('0xffffffffffff1234','0x123')}pid{$xml=$xml.Replace('0x2a','0x2b')}provider-pid{$xml=$xml.Replace('0x2a','0x2b')}provider{$xml=$xml.Replace('Microsoft-Windows-Security-Auditing','other')}channel{$xml=$xml.Replace('Security</Channel>','Application</Channel>')}event{$xml=$xml.Replace('4656','4663')}object{$xml=$xml.Replace('>'+ $name+'<','>unrelated<')}mask{$xml=$xml.Replace('>0x2<','>0x100000000<')}success{$xml=$xml.Replace('0x8010000000000000','0x8020000000000000')}time{$xml=$xml.Replace($stamp.ToString('o'),$stamp.AddMinutes(-5).ToString('o'))}duplicate{$xml=$xml.Replace('</EventData>','<Data Name="ProcessId">0x2a</Data></EventData>')}record-id{$xml=$xml.Replace('<EventRecordID>7</EventRecordID>','<EventRecordID>18446744073709551616</EventRecordID>')}system-duplicate{$xml=$xml.Replace('<EventRecordID>7</EventRecordID>','<EventRecordID>7</EventRecordID><EventRecordID>8</EventRecordID>')}dtd{$xml='<!DOCTYPE x [<!ENTITY x SYSTEM "file:///untrusted">]>'+$xml}oversized{$xml+='x'*32769}}
+ $refused=$false;try{$record=[Portcove.HostedNative.AccessAudit]::SelectRecord($xml,$sid,42,$created,$image,'0xffffffffffff1234',@($type+':'+$name),1)}catch{$refused=$true}
+ if($refused -ne ($case -notin @('valid','desktop'))){throw ('Audit record boundary differs: '+$case)}
+}
+[Portcove.HostedNative.AccessAudit]::BoundRecords(@([Collections.Generic.Dictionary[string,string]]::new()))
+$oversize=[Collections.Generic.Dictionary[string,string]]::new();$oversize['bounded-key']='x'*6000
+$refused=$false;try{[Portcove.HostedNative.AccessAudit]::BoundRecords(@($oversize))}catch{$refused=$true};if(-not $refused){throw 'Aggregate export bound not enforced'}
+'actual audit proposal/label/authority and eighteen XML controls passed; no privilege, SACL, policy or Security-log effects'
+`);
+    assert.match(result, /eighteen XML controls passed/u);
+  },
+);
+
+void test(
+  "audit recovery restores independent objects, policy and privilege without overwriting drift",
+  { skip: process.platform !== "win32" },
+  () => {
+    const audit = fileURLToPath(
+      new URL("./release-hosted-native-windows-audit.cs.txt", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${audit.replaceAll("'", "''")}')
+$start=$source.IndexOf('  public void Dispose(){');$end=$source.IndexOf('  [StructLayout',$start);$dispose=$source.Substring($start,$end-$start)
+$start=$source.IndexOf('  static string Sacl(');$end=$source.IndexOf('  sealed class AuditObject',$start);$comparison=$source.Substring($start,$end-$start)
+$harness=@'
+using System;using System.Collections.Generic;using System.Security.AccessControl;
+public class RecoveryControl {
+ class AuditObject {internal IntPtr handle;internal string type,name;internal byte[] original,proposed;internal bool attempted;}
+ struct Policy {internal int flags;}
+ readonly List<AuditObject> objects=new List<AuditObject>();readonly List<string> recovery=new List<string>();
+ IntPtr token=(IntPtr)9;Policy before=new Policy{flags=0},applied=new Policy{flags=2};bool policyChanged=true,privilegeChanged,privilegeKnown=false;object originalPrivilege=null;
+ public bool Restored {get;private set;}
+ static string mode;static Dictionary<IntPtr,byte[]> states;static int closes,privilegeRestores,policyWrites;static Policy current;
+ __COMPARE__
+ static byte[] Read(IntPtr h){return states[h];}
+ static void Write(IntPtr h,byte[] bytes){if(mode=="write"&&h==(IntPtr)1)throw new Exception("controlled object write refusal");states[h]=bytes;}
+ static bool CloseDesktop(IntPtr h){closes++;return true;}static bool CloseWindowStation(IntPtr h){closes++;return true;}static bool CloseHandle(IntPtr h){closes++;return true;}
+ static Policy Query(){return current;}static bool Equal(Policy a,Policy b){return a.flags==b.flags;}
+ static bool AuditSetSystemPolicy(ref Policy p,uint n){policyWrites++;if(mode=="policy-write")return false;current=p;return true;}
+ void EnablePrivilege(){if(mode=="enable")throw new Exception("controlled privilege unavailable");privilegeChanged=true;}
+ void RestorePrivilege(){privilegeRestores++;if(mode=="privilege")throw new Exception("controlled privilege restore failure");privilegeChanged=false;}
+ object ReadRestoredPrivilege(){return originalPrivilege;}
+ static byte[] PolicyBytes(Policy value){return new byte[1];}static byte[] PrivilegeBytes(object value){return new byte[1];}
+ void Save(string name,byte[] bytes){}
+ static Exception Error(string message){return new Exception(message);}
+ __DISPOSE__
+ static byte[] Descriptor(string level){var sd=new RawSecurityDescriptor("O:SYG:SYD:P(A;;GA;;;SY)S:(ML;;NW;;;"+level+")");var bytes=new byte[sd.BinaryLength];sd.GetBinaryForm(bytes,0);return bytes;}
+ public static void Run(){
+  foreach(string selected in new[]{"settled","already","drift","write","policy-drift","policy-write","enable","privilege"}){
+   mode=selected;closes=privilegeRestores=policyWrites=0;current=new Policy{flags=mode=="policy-drift"?1:mode=="already"?0:2};states=new Dictionary<IntPtr,byte[]>();var control=new RecoveryControl();
+   byte[] original=Descriptor("LW"),proposed=Descriptor("ME"),foreign=Descriptor("HI");
+   for(int i=1;i<=2;i++){IntPtr h=(IntPtr)i;control.objects.Add(new AuditObject{handle=h,name="owned"+i,type=i==1?"Desktop":"WindowStation",original=original,proposed=proposed,attempted=true});states[h]=mode=="already"?original:mode=="drift"&&i==1?foreign:proposed;}
+   control.Dispose();
+   if(closes!=3||privilegeRestores!=1||Sacl(states[(IntPtr)2])!=Sacl(original))throw new Exception("Independent restore/close skipped: "+mode);
+   bool failed=mode!="settled"&&mode!="already";if((control.recovery.Count>0)!=failed||control.Restored==failed)throw new Exception("Recovery outcome differs: "+mode);
+   if(mode=="drift"&&Sacl(states[(IntPtr)1])!=Sacl(foreign))throw new Exception("Foreign SACL overwritten");
+   if(mode=="policy-drift"&&current.flags!=1)throw new Exception("Foreign policy overwritten");
+  }
+ }
+}
+'@
+Add-Type -TypeDefinition $harness.Replace('__COMPARE__',$comparison).Replace('__DISPOSE__',$dispose)
+[RecoveryControl]::Run()
+'actual audit recovery passed eight controlled modes; no native privilege, SACL or policy calls'
+`);
+    assert.match(result, /recovery passed eight controlled modes/u);
+  },
+);
+
+void test(
+  "audit diagnostic retention keeps the primary failure after observation or record I/O fails",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = fileURLToPath(
+      new URL("./release-hosted-native-windows-setup.ps1", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${script.replaceAll("'", "''")}')
+$block=[regex]::Match($source,'(?s)(        \$auditRecord=\$null.*?)(?=        try\{\$position=)').Groups[1].Value
+if(-not $block){throw 'Actual audit catch retention block missing'}
+foreach($mode in @('read','unknown')){
+ $cleanupFailures=[Collections.Generic.List[string]]::new();$primaryError=[Exception]::new('original GUI failure');$capture='C:\bounded';$context=@{};$runtime='fixed';$observedMode=$mode
+ $child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]1;HostedTokenObservation=[pscustomobject]@{AuthenticationId='0x1'}}
+ $child|Add-Member ScriptMethod RequireAliveGeneration {}
+ $audit=[pscustomobject]@{};$audit|Add-Member ScriptMethod Observe {if($observedMode -ceq 'unknown'){throw 'controlled observer refusal'};return @()}
+ function Write-HostedNativeSetupRecord {throw 'controlled record I/O refusal'}
+ try{& ([scriptblock]::Create($block));throw $primaryError}catch{if($_.Exception.Message -cne 'original GUI failure'){throw 'Diagnostic replaced primary error'}}
+ if($cleanupFailures.Count -ne 1 -or $cleanupFailures[0] -notmatch '^Audit diagnostic retention failed:'){throw 'Retention failure not isolated'}
+}
+'actual audit catch keeps primary failure in both controlled I/O modes'
+`);
+    assert.match(result, /keeps primary failure in both controlled I\/O modes/u);
+  },
+);
+
+void test(
+  "audit controls detach and close owned objects and read actual restored privilege",
+  { skip: process.platform !== "win32" },
+  () => {
+    const audit = fileURLToPath(
+      new URL("./release-hosted-native-windows-audit.cs.txt", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${audit.replaceAll("'", "''")}')
+$control=[regex]::Match($source,'(?s)  void ProveDenials\(\)\{.*?(?=  static byte\[\] PolicyBytes)').Value.Replace('Marshal.GetLastWin32Error()','5')
+$enable=[regex]::Match($source,'(?s)  void EnablePrivilege\(\).*?(?=  Privileges ReadRestoredPrivilege)').Value.Replace('Marshal.GetLastWin32Error()','0')
+$privilege=[regex]::Match($source,'(?s)  Privileges ReadRestoredPrivilege\(\).*?(?=  void Save)').Value.Replace('Marshal.GetLastWin32Error()','0')
+$proposal=[regex]::Match($source,'(?s)  public static byte\[\] Propose\(.*?(?=  static string Sacl)').Value
+$harness=@'
+using System;using System.Collections.Generic;using System.Diagnostics;using System.IO;using System.Linq;using System.Runtime.InteropServices;using System.Security.AccessControl;using System.Security.Principal;using System.Text;using System.Threading;
+public class AuditLifecycleControl {
+ struct Attributes {internal uint length;internal IntPtr descriptor;}
+ struct Luid {internal uint low;internal int high;}
+ struct Privileges {internal uint count,attributes;internal Luid id;}
+ readonly List<string> recovery=new List<string>();public Dictionary<string,string>[] CapabilityEvents;
+ int session=1;IntPtr token=(IntPtr)9;bool privilegeKnown=true,privilegeChanged;Privileges originalPrivilege=new Privileges{count=1,id=new Luid{low=1,high=0},attributes=2};
+ static string mode="";static IntPtr desktop=(IntPtr)1;static int closes,restores,adjusts;static uint actualAttributes=2;
+ static uint PrivilegeAttributes(Luid id){return actualAttributes;}
+ static bool AdjustTokenPrivileges(IntPtr t,bool d,ref Privileges desired,uint length,out Privileges previous,out uint returned){adjusts++;previous=desired;returned=16;if(mode=="adjust-fail"||mode=="restore-fail")return false;actualAttributes=desired.attributes;return true;}
+ static IntPtr GetCurrentProcess(){return (IntPtr)1;}static bool OpenProcessToken(IntPtr p,uint access,out IntPtr t){t=(IntPtr)9;return true;}static bool LookupPrivilegeValueW(string s,string n,out Luid id){id=new Luid{low=1,high=0};return true;}
+ static Exception Error(string value){return new Exception(value);}
+ static uint GetCurrentThreadId(){return 1;}static IntPtr GetThreadDesktop(uint thread){return desktop;}
+ static bool SetThreadDesktop(IntPtr original){restores++;if(mode=="detach")return false;desktop=original;return true;}
+ static IntPtr GetProcessWindowStation(){return (IntPtr)100;}static string Name(IntPtr h){return "WinSta0";}
+ static IntPtr CreateWindowStationW(string n,uint f,uint a,ref Attributes at){return (IntPtr)10;}
+ static IntPtr CreateDesktopW(string n,IntPtr d,IntPtr m,uint f,uint a,ref Attributes at){if(mode!="unchanged")desktop=(IntPtr)20;return (IntPtr)20;}
+ static bool CloseWindowStation(IntPtr h){closes++;return true;}
+ static bool CloseDesktop(IntPtr h){closes++;return desktop!=h&&mode!="close";}
+ static IntPtr OpenWindowStationW(string n,bool i,uint a){return IntPtr.Zero;}static IntPtr OpenDesktopW(string n,uint f,bool i,uint a){return IntPtr.Zero;}
+ static byte[] Read(IntPtr h){var sd=new RawSecurityDescriptor("O:SYG:SYD:P(A;;GA;;;SY)");var b=new byte[sd.BinaryLength];sd.GetBinaryForm(b,0);return b;}
+ static bool SetUserObjectSecurity(IntPtr h,ref uint f,IntPtr data){return true;}
+ static string CurrentLogon(){return "0x1";}
+ static Dictionary<string,string>[] ReadEvents(string sid,uint pid,long since,string image,string logon,string[] names,int session){return new[]{new Dictionary<string,string>{{"access_mask","0x2"}}};}
+ public static void BoundRecords(Dictionary<string,string>[] records){}
+ static byte[] PrivilegeBytes(Privileges value){return new byte[1];}
+ void Save(string n,byte[] b){if(mode=="preimage")throw new IOException("controlled preimage refusal");}
+ __ENABLE__
+ __PROPOSAL__
+ __PRIVILEGE__
+ __CONTROL__
+ public static void Run(){
+  foreach(string selected in new[]{"settled","unchanged","detach","close"}){mode=selected;desktop=(IntPtr)1;closes=restores=0;var value=new AuditLifecycleControl();bool failed=false;try{value.ProveDenials();}catch{failed=true;}if(failed!=(mode!="settled"&&mode!="unchanged")||closes!=2||restores<(mode=="unchanged"?0:1))throw new Exception("Control lifecycle outcome differs: "+mode);if((mode=="settled"||mode=="unchanged")&&(desktop!=(IntPtr)1||value.CapabilityEvents.Length!=2||value.recovery.Count!=0))throw new Exception("Owned control desktop not restored");if(mode!="settled"&&mode!="unchanged"&&value.recovery.Count==0)throw new Exception("Control cleanup failure lost");}
+  foreach(string selected in new[]{"preimage","adjust-fail","restore-fail","disabled-roundtrip","enabled-roundtrip"}){mode=selected;actualAttributes=mode=="enabled-roundtrip"?2u:0u;adjusts=0;var value=new AuditLifecycleControl();value.privilegeKnown=false;value.token=IntPtr.Zero;bool failed=false;try{if(mode=="restore-fail")mode="disabled-roundtrip";value.EnablePrivilege();if(selected=="restore-fail")mode=selected;value.RestorePrivilege();value.ReadRestoredPrivilege();}catch{failed=true;}bool expected=selected=="preimage"||selected=="adjust-fail"||selected=="restore-fail";if(failed!=expected)throw new Exception("Enable/restore failure lost: "+selected);if(selected=="preimage"&&adjusts!=0)throw new Exception("Enabled privilege before persisted preimage");if(!expected&&actualAttributes!=(selected=="enabled-roundtrip"?2u:0u))throw new Exception("Privilege state changed after roundtrip");}
+  foreach(string selected in new[]{"enabled","disabled","drift-enabled","drift-disabled","restoring"}){mode=selected;var value=new AuditLifecycleControl();value.originalPrivilege.attributes=mode.Contains("disabled")||mode=="restoring"?0u:2u;actualAttributes=mode.StartsWith("drift")?1u:mode=="restoring"?2u:value.originalPrivilege.attributes;value.privilegeChanged=mode=="restoring";bool refused=false;try{value.RestorePrivilege();var read=value.ReadRestoredPrivilege();if(read.attributes!=actualAttributes)throw new Exception("Invented privilege readback");}catch{refused=true;}if(refused!=mode.StartsWith("drift"))throw new Exception("Actual privilege drift guard differs: "+mode);}
+ }
+}
+'@
+if(-not $control -or -not $privilege -or -not $proposal){throw 'Actual lifecycle methods missing'}
+Add-Type -TypeDefinition $harness.Replace('__ENABLE__',$enable).Replace('__PROPOSAL__',$proposal).Replace('__PRIVILEGE__',$privilege).Replace('__CONTROL__',$control)
+[AuditLifecycleControl]::Run()
+'actual lifecycle passed four object and ten privilege modes with fake native effects'
+`);
+    assert.match(result, /four object and ten privilege modes/u);
+  },
+);

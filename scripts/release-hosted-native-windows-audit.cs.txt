@@ -1,0 +1,178 @@
+// Disabled owner-side diagnostic proposal. Never loaded by the candidate.
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Text;
+using System.Threading;
+using System.Xml;
+
+namespace Portcove.HostedNative {
+ public sealed class AccessAudit : IDisposable {
+  public static bool ExecutionAuthorized { get { return false; } }
+  static int started;
+  static readonly Guid KernelObjects=new Guid("0cce921f-69ae-11d9-bed3-505054503030");
+  readonly List<AuditObject> objects=new List<AuditObject>();
+  readonly List<string> recovery=new List<string>();
+  IntPtr token;Privileges originalPrivilege;bool privilegeKnown,privilegeChanged,policyChanged;Policy before,applied;
+  string directory,subject;int session;
+  public Dictionary<string,string>[] CapabilityEvents {get;private set;}
+  public bool Restored {get;private set;}
+  public string[] RecoveryFailures {get{return recovery.ToArray();}}
+  public static string[] LastPreparationRecoveryFailures {get;private set;}=new string[0];
+  static Exception Error(string operation){return new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(),operation);}
+  public static void RequireAuthority(){if(!ExecutionAuthorized)throw new InvalidOperationException("Targeted access audit authority not granted; no qualification attempted");}
+  public static byte[] Propose(byte[] original,string sid,uint rights){
+   if(original==null||original.Length>16384||rights==0)throw new ArgumentException("Bounded audit descriptor required");
+   var sd=new RawSecurityDescriptor(original,0);var who=new SecurityIdentifier(sid);
+   if(sd.SystemAcl==null)sd.SystemAcl=new RawAcl(2,1);
+   if(sd.SystemAcl.OfType<QualifiedAce>().Any(a=>a.SecurityIdentifier.Equals(who)&&a.AceQualifier==AceQualifier.SystemAudit))throw new InvalidOperationException("Existing subject audit ACE refused");
+   sd.SystemAcl.InsertAce(0,new CommonAce(AceFlags.FailedAccess,AceQualifier.SystemAudit,unchecked((int)rights),who,false,null));
+   sd.SetFlags(sd.ControlFlags|ControlFlags.SystemAclPresent);
+   if(sd.BinaryLength>16384)throw new InvalidOperationException("Audit postimage exceeds bound");
+   byte[] bytes=new byte[sd.BinaryLength];sd.GetBinaryForm(bytes,0);return bytes;
+  }
+  static string Sacl(byte[] bytes){var sd=new RawSecurityDescriptor(bytes,0);if(sd.SystemAcl==null)return "absent:"+((int)sd.ControlFlags&0x2a30);byte[] acl=new byte[sd.SystemAcl.BinaryLength];sd.SystemAcl.GetBinaryForm(acl,0);return ((int)sd.ControlFlags&0x2a30)+":"+Convert.ToBase64String(acl);}
+  static string Unchanged(byte[] bytes){var sd=new RawSecurityDescriptor(bytes,0);return sd.GetSddlForm(AccessControlSections.Owner|AccessControlSections.Group|AccessControlSections.Access);}
+  sealed class AuditObject {
+   internal IntPtr handle;internal string name,type;internal byte[] original,proposed;internal bool attempted;
+  }
+  static byte[] Read(IntPtr handle){uint flags=31,needed;GetUserObjectSecurity(handle,ref flags,IntPtr.Zero,0,out needed);if(needed<20||needed>16384)throw Error("Bound full user-object descriptor");IntPtr data=Marshal.AllocHGlobal((int)needed);try{if(!GetUserObjectSecurity(handle,ref flags,data,needed,out needed))throw Error("Read full user-object descriptor");byte[] bytes=new byte[needed];Marshal.Copy(data,bytes,0,bytes.Length);return bytes;}finally{Marshal.FreeHGlobal(data);}}
+  static void Write(IntPtr handle,byte[] bytes){uint flags=8;IntPtr data=Marshal.AllocHGlobal(bytes.Length);try{Marshal.Copy(bytes,0,data,bytes.Length);if(!SetUserObjectSecurity(handle,ref flags,data))throw Error("Set audit SACL only");}finally{Marshal.FreeHGlobal(data);}}
+  static string Name(IntPtr handle){uint needed;var value=new StringBuilder(512);if(!GetUserObjectInformationW(handle,2,value,1024,out needed)||needed>1024)throw Error("Read audit object name");return value.ToString();}
+  bool CloseObject(IntPtr handle,string type){bool closed=type=="Desktop"?CloseDesktop(handle):CloseWindowStation(handle);if(!closed)recovery.Add("Close preflight audit object failed: "+type);return closed;}
+  void Add(IntPtr handle,string type,string expected){
+   if(handle==IntPtr.Zero)throw Error("Open audit object");string name;
+   try{name=Name(handle);if(!System.Text.RegularExpressions.Regex.IsMatch(name,"^[A-Za-z0-9_]{1,128}$"))throw new InvalidOperationException("Unsupported audit object name");if(expected!=null&&!String.Equals(name,expected,StringComparison.Ordinal))throw new InvalidOperationException("Audit object name differs");if(objects.Any(o=>o.type==type&&o.name==name)){bool closed=CloseObject(handle,type);handle=IntPtr.Zero;if(!closed)throw new InvalidOperationException("Duplicate audit handle close failed");return;}byte[] original=Read(handle);objects.Add(new AuditObject{handle=handle,type=type,name=name,original=original,proposed=Propose(original,subject,type=="Desktop"?0xf01ffu:0xf037fu)});}catch{if(handle!=IntPtr.Zero)CloseObject(handle,type);throw;}
+  }
+  static Policy Query(){Guid id=KernelObjects;IntPtr data;if(!AuditQuerySystemPolicy(ref id,1,out data))throw Error("Read Kernel Object audit policy");try{var value=(Policy)Marshal.PtrToStructure(data,typeof(Policy));if(value.subcategory!=id||(value.flags&~7u)!=0)throw new InvalidOperationException("Unexpected audit policy");return value;}finally{AuditFree(data);}}
+  static bool Equal(Policy a,Policy b){return a.subcategory==b.subcategory&&a.category==b.category&&a.flags==b.flags;}
+  uint PrivilegeAttributes(Luid id){uint needed;GetTokenInformation(token,3,IntPtr.Zero,0,out needed);if(needed<4||needed>65536)throw Error("Bound owner privilege query");IntPtr data=Marshal.AllocHGlobal((int)needed);try{if(!GetTokenInformation(token,3,data,needed,out needed))throw Error("Read owner privilege state");int count=Marshal.ReadInt32(data);if(count<0||count>1024||4L+12L*count>needed)throw new InvalidOperationException("Invalid privilege inventory");for(int i=0;i<count;i++){int offset=4+12*i;if(unchecked((uint)Marshal.ReadInt32(data,offset))==id.low&&Marshal.ReadInt32(data,offset+4)==id.high)return unchecked((uint)Marshal.ReadInt32(data,offset+8));}throw new InvalidOperationException("Existing audit privilege absent; no assignment/elevation");}finally{Marshal.FreeHGlobal(data);}}
+  void EnablePrivilege(){
+   if(token==IntPtr.Zero&&!OpenProcessToken(GetCurrentProcess(),0x28,out token))throw Error("Open owner audit token");Luid id;if(!LookupPrivilegeValueW(null,"SeSecurityPrivilege",out id))throw Error("Find existing audit privilege");
+   uint attributes=PrivilegeAttributes(id);if(!privilegeKnown){originalPrivilege=new Privileges{count=1,id=id,attributes=attributes};privilegeKnown=true;Save("audit-privilege-before.bin",PrivilegeBytes(originalPrivilege));}else if(attributes!=originalPrivilege.attributes)throw new InvalidOperationException("Owner privilege drift; no overwrite");
+   if((attributes&2)!=0)return;var desired=new Privileges{count=1,id=id,attributes=attributes|2};Privileges previous;uint returned;
+   privilegeChanged=true;if(!AdjustTokenPrivileges(token,false,ref desired,(uint)Marshal.SizeOf(typeof(Privileges)),out previous,out returned)||Marshal.GetLastWin32Error()!=0||PrivilegeAttributes(id)!=(attributes|2))throw Error("Enable/read existing audit privilege");
+  }
+  Privileges ReadRestoredPrivilege(){var actual=new Privileges{count=1,id=originalPrivilege.id,attributes=PrivilegeAttributes(originalPrivilege.id)};if(actual.attributes!=originalPrivilege.attributes)throw new InvalidOperationException("Final owner privilege drift; no overwrite");return actual;}
+  void RestorePrivilege(){if(!privilegeChanged){if(privilegeKnown)ReadRestoredPrivilege();return;}uint current=PrivilegeAttributes(originalPrivilege.id);if(current!=originalPrivilege.attributes&&(current!=(originalPrivilege.attributes|2)))throw new InvalidOperationException("Owner privilege drift; restore refused");if(current!=originalPrivilege.attributes){Privileges ignored;uint returned;if(!AdjustTokenPrivileges(token,false,ref originalPrivilege,(uint)Marshal.SizeOf(typeof(Privileges)),out ignored,out returned)||Marshal.GetLastWin32Error()!=0||PrivilegeAttributes(originalPrivilege.id)!=originalPrivilege.attributes)throw Error("Restore/read owner audit privilege");}privilegeChanged=false;}
+  void Save(string name,byte[] bytes){using(var file=new FileStream(Path.Combine(directory,name),FileMode.CreateNew,FileAccess.Write,FileShare.None)){file.Write(bytes,0,bytes.Length);file.Flush(true);}if(!File.ReadAllBytes(Path.Combine(directory,name)).SequenceEqual(bytes))throw new IOException("Audit recovery preimage/postimage readback differs");}
+  public static AccessAudit Prepare(string candidate,string desktop,string capture){
+   RequireAuthority();
+   if(Interlocked.CompareExchange(ref started,1,0)!=0)throw new InvalidOperationException("Audit attempt is one-shot; no automatic retry");
+   LastPreparationRecoveryFailures=new string[0];
+   if(Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted"||Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true"||Environment.GetEnvironmentVariable("GITHUB_REPOSITORY")!="boburning/portcove"||Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT")!="1"||!System.Text.RegularExpressions.Regex.IsMatch(Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF")??"","^boburning/portcove/\\.github/workflows/controller-tool-build-fixture\\.yml@(?:refs/pull/[1-9][0-9]*/merge|refs/heads/main)$")||!System.Text.RegularExpressions.Regex.IsMatch(desktop??"","^PortcoveHosted_[0-9a-f]{32}$"))throw new InvalidOperationException("Fixed ordinary hosted audit required");
+   if(!Path.IsPathFullyQualified(capture)||!Directory.Exists(capture))throw new ArgumentException("Existing private audit capture required");
+   for(string cursor=Path.GetFullPath(capture);!String.IsNullOrEmpty(cursor);cursor=Path.GetDirectoryName(cursor))if((File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("Audit capture reparse ancestry refused");
+   var value=new AccessAudit{subject=new SecurityIdentifier(candidate).Value,directory=capture,session=Process.GetCurrentProcess().SessionId};
+   try{
+    value.EnablePrivilege();
+    // Preflight all policy/object preimages before any policy or SACL mutation.
+    value.before=Query();ReadEvents(WindowsIdentity.GetCurrent().User.Value,(uint)Process.GetCurrentProcess().Id,DateTime.UtcNow.ToFileTimeUtc(),Process.GetCurrentProcess().MainModule.FileName,CurrentLogon(),new[]{"Desktop:PortcoveAudit_preflight"},value.session);value.applied=value.before;value.applied.flags=(value.before.flags&~4u)|2u;
+    value.Add(OpenWindowStationW("WinSta0",false,0x1020000),"WindowStation","WinSta0");
+    value.Add(OpenDesktopW(desktop,0,false,0x1020081),"Desktop",desktop);
+    value.Add(OpenDesktopW("Default",0,false,0x1020081),"Desktop","Default");
+    value.Add(OpenInputDesktop(0,false,0x1020081),"Desktop",null);
+    value.Save("audit-bindings.bin",Encoding.UTF8.GetBytes("session="+value.session+"\n"+String.Join("\n",value.objects.Select((item,index)=>index+"|"+item.type+"|"+item.name))));
+    for(int i=0;i<value.objects.Count;i++){value.Save("audit-"+i+"-before.bin",value.objects[i].original);value.Save("audit-"+i+"-proposed.bin",value.objects[i].proposed);}
+    value.Save("audit-policy-before.bin",PolicyBytes(value.before));value.Save("audit-policy-proposed.bin",PolicyBytes(value.applied));
+    if(!Equal(Query(),value.before))throw new InvalidOperationException("Audit policy preimage changed");
+    if(!Equal(value.before,value.applied)){value.policyChanged=true;if(!AuditSetSystemPolicy(ref value.applied,1)||!Equal(Query(),value.applied))throw Error("Set/read failure-only audit policy");}
+    value.Save("audit-policy-observed.bin",PolicyBytes(Query()));
+    value.ProveDenials();
+    int observedIndex=0;foreach(var item in value.objects){if(Sacl(Read(item.handle))!=Sacl(item.original))throw new InvalidOperationException("Audit SACL preimage drift");item.attempted=true;Write(item.handle,item.proposed);byte[] actual=Read(item.handle);if(Sacl(actual)!=Sacl(item.proposed)||Unchanged(actual)!=Unchanged(item.original))throw new InvalidOperationException("Audit write changed SACL/MIC or another descriptor section");value.Save("audit-"+(observedIndex++)+"-observed.bin",actual);}
+    value.RestorePrivilege();value.Save("audit-privilege-before-launch.bin",PrivilegeBytes(value.ReadRestoredPrivilege()));return value;
+   }catch{value.Dispose();LastPreparationRecoveryFailures=value.RecoveryFailures;throw;}
+  }
+  static string CurrentLogon(){IntPtr handle;if(!OpenProcessToken(GetCurrentProcess(),8,out handle))throw Error("Read control token");try{uint needed;GetTokenInformation(handle,10,IntPtr.Zero,0,out needed);if(needed<56||needed>4096)throw Error("Bound control token statistics");IntPtr data=Marshal.AllocHGlobal((int)needed);try{if(!GetTokenInformation(handle,10,data,needed,out needed))throw Error("Read control logon");ulong id=((ulong)unchecked((uint)Marshal.ReadInt32(data,12))<<32)|unchecked((uint)Marshal.ReadInt32(data,8));return "0x"+id.ToString("x",System.Globalization.CultureInfo.InvariantCulture);}finally{Marshal.FreeHGlobal(data);}}finally{CloseHandle(handle);}}
+  static byte[] PrivilegeBytes(Privileges value){int size=Marshal.SizeOf(typeof(Privileges));IntPtr data=Marshal.AllocHGlobal(size);try{Marshal.StructureToPtr(value,data,false);byte[] bytes=new byte[size];Marshal.Copy(data,bytes,0,size);return bytes;}finally{Marshal.FreeHGlobal(data);}}
+  void ProveDenials(){
+   string sid=WindowsIdentity.GetCurrent().User.Value;var controls=new List<Dictionary<string,string>>();
+   foreach(string type in new[]{"WindowStation","Desktop"}){
+    string name="PortcoveAudit_"+Guid.NewGuid().ToString("N");IntPtr handle=IntPtr.Zero,descriptor=IntPtr.Zero;IntPtr originalDesktop=GetThreadDesktop(GetCurrentThreadId());if(originalDesktop==IntPtr.Zero||Name(GetProcessWindowStation())!="WinSta0")throw new InvalidOperationException("Audit control desktop/station origin unavailable");
+    try{
+     byte[] initial=new byte[new RawSecurityDescriptor("O:"+sid+"D:P(A;;GA;;;SY)(A;;GA;;;"+sid+")").BinaryLength];new RawSecurityDescriptor("O:"+sid+"D:P(A;;GA;;;SY)(A;;GA;;;"+sid+")").GetBinaryForm(initial,0);
+     descriptor=Marshal.AllocHGlobal(initial.Length);Marshal.Copy(initial,0,descriptor,initial.Length);var attributes=new Attributes{length=(uint)Marshal.SizeOf(typeof(Attributes)),descriptor=descriptor};
+     handle=type=="WindowStation"?CreateWindowStationW(name,0,0x10f037f,ref attributes):CreateDesktopW(name,IntPtr.Zero,IntPtr.Zero,0,0x10f01ff,ref attributes);
+     if(handle==IntPtr.Zero)throw Error("Create new audit capability control");
+     if(GetThreadDesktop(GetCurrentThreadId())!=originalDesktop&&(!SetThreadDesktop(originalDesktop)||GetThreadDesktop(GetCurrentThreadId())!=originalDesktop))throw Error("Restore original control thread desktop");
+     if(Name(GetProcessWindowStation())!="WinSta0")throw new InvalidOperationException("Audit control station changed");
+     byte[] original=Read(handle);var denied=new RawSecurityDescriptor(Propose(original,sid,2),0);denied.DiscretionaryAcl.InsertAce(0,new CommonAce(AceFlags.None,AceQualifier.AccessDenied,2,new SecurityIdentifier(sid),false,null));byte[] applied=new byte[denied.BinaryLength];denied.GetBinaryForm(applied,0);
+     uint flags=12;IntPtr data=Marshal.AllocHGlobal(applied.Length);try{Marshal.Copy(applied,0,data,applied.Length);if(!SetUserObjectSecurity(handle,ref flags,data))throw Error("Prepare new denial control");}finally{Marshal.FreeHGlobal(data);}
+     long since=DateTime.UtcNow.AddSeconds(-1).ToFileTimeUtc();IntPtr deniedHandle=type=="WindowStation"?OpenWindowStationW(name,false,2):OpenDesktopW(name,0,false,2);int error=Marshal.GetLastWin32Error();if(deniedHandle!=IntPtr.Zero){if(type=="WindowStation")CloseWindowStation(deniedHandle);else CloseDesktop(deniedHandle);throw new InvalidOperationException("Control open was not denied");}if(error!=5)throw new System.ComponentModel.Win32Exception(error,"Control denial differs");
+     var delivery=Stopwatch.StartNew();Dictionary<string,string>[] events;do{events=ReadEvents(sid,(uint)Process.GetCurrentProcess().Id,since,Process.GetCurrentProcess().MainModule.FileName,CurrentLogon(),new[]{type+":"+name},session);if(events.Length!=0)break;Thread.Sleep(100);}while(delivery.ElapsedMilliseconds<2000);
+     if(events.Length!=1||events[0]["access_mask"]!="0x2")throw new InvalidOperationException("Useful exact Desktop/WindowStation failure event unavailable; no candidate launch");
+     controls.Add(events[0]);Save("audit-control-"+type+".bin",Encoding.UTF8.GetBytes(String.Join("\n",events[0].Select(item=>item.Key+"="+item.Value))));
+    }finally{try{if(GetThreadDesktop(GetCurrentThreadId())!=originalDesktop&&(!SetThreadDesktop(originalDesktop)||GetThreadDesktop(GetCurrentThreadId())!=originalDesktop))throw Error("Restore control desktop during cleanup");if(Name(GetProcessWindowStation())!="WinSta0")throw new InvalidOperationException("Control process station changed");}catch(Exception error){recovery.Add(error.Message);}try{if(handle!=IntPtr.Zero&&!(type=="WindowStation"?CloseWindowStation(handle):CloseDesktop(handle)))throw Error("Close owned audit control");}catch(Exception error){recovery.Add(error.Message);}if(descriptor!=IntPtr.Zero)Marshal.FreeHGlobal(descriptor);}
+   }
+   CapabilityEvents=controls.ToArray();BoundRecords(CapabilityEvents);if(recovery.Count!=0)throw new InvalidOperationException("Audit capability cleanup incomplete; no candidate launch");
+  }
+  static byte[] PolicyBytes(Policy policy){int size=Marshal.SizeOf(typeof(Policy));IntPtr data=Marshal.AllocHGlobal(size);try{Marshal.StructureToPtr(policy,data,false);byte[] bytes=new byte[size];Marshal.Copy(data,bytes,0,size);return bytes;}finally{Marshal.FreeHGlobal(data);}}
+  public Dictionary<string,string>[] Observe(uint pid,long created,string image,string logon){
+   RequireAuthority();return ReadEvents(subject,pid,created,image,logon,objects.Select(o=>o.type+":"+o.name).ToArray(),session);
+  }
+  public static Dictionary<string,string> SelectRecord(string xml,string sid,uint pid,long created,string image,string logon,string[] objectNames,int session){
+   if(xml==null||xml.Length>32768)throw new InvalidOperationException("Audit XML exceeds bound");var document=new XmlDocument();document.XmlResolver=null;
+   using(var reader=XmlReader.Create(new StringReader(xml),new XmlReaderSettings{DtdProcessing=DtdProcessing.Prohibit,MaxCharactersInDocument=32768,XmlResolver=null}))document.Load(reader);
+   var ns=new XmlNamespaceManager(document.NameTable);ns.AddNamespace("e","http://schemas.microsoft.com/win/2004/08/events/event");
+   if(document.SelectNodes("/e:Event/e:System",ns).Count!=1||document.SelectNodes("/e:Event/e:EventData",ns).Count!=1)throw new InvalidOperationException("Duplicate audit sections");
+   Func<string,string> system=path=>{var nodes=document.SelectNodes("/e:Event/e:System/"+path,ns);if(nodes.Count!=1)throw new InvalidOperationException("Duplicate/missing audit system field");return nodes[0].InnerText;};
+   if(system("e:EventID")!="4656"||system("e:Channel")!="Security"||system("e:Provider/@Name")!="Microsoft-Windows-Security-Auditing")throw new InvalidOperationException("Foreign audit event");
+   var fields=new Dictionary<string,string>();foreach(XmlNode node in document.SelectNodes("/e:Event/e:EventData/e:Data",ns)){string key=node.Attributes["Name"]?.Value;if(key==null||fields.ContainsKey(key))throw new InvalidOperationException("Duplicate/missing audit field");fields.Add(key,node.InnerText);}
+   Func<string,string> get=key=>fields.ContainsKey(key)?fields[key]:throw new InvalidOperationException("Missing audit field");
+   ulong process,mask,keywords;if(!UInt64.TryParse(get("ProcessId").Replace("0x",""),System.Globalization.NumberStyles.HexNumber,System.Globalization.CultureInfo.InvariantCulture,out process)||process!=pid||!UInt64.TryParse(get("AccessMask").Replace("0x",""),System.Globalization.NumberStyles.HexNumber,System.Globalization.CultureInfo.InvariantCulture,out mask)||!UInt64.TryParse(system("e:Keywords").Replace("0x",""),System.Globalization.NumberStyles.HexNumber,System.Globalization.CultureInfo.InvariantCulture,out keywords)||(keywords&0x30000000000000UL)!=0x10000000000000UL||get("SubjectUserSid")!=sid||!String.Equals(get("SubjectLogonId"),logon,StringComparison.OrdinalIgnoreCase)||mask>UInt32.MaxValue||!String.Equals(get("ProcessName"),image,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Audit subject/process/failure differs");
+   string type=get("ObjectType"),name=get("ObjectName");if(!objectNames.Any(o=>{var parts=o.Split(new[]{':'},2);return parts[0]==type&&(name==parts[1]||name=="\\Sessions\\"+session+"\\Windows\\WindowStations\\"+(type=="WindowStation"?parts[1]:"WinSta0\\"+parts[1]));}))throw new InvalidOperationException("Foreign audited object");
+   DateTime time=XmlConvert.ToDateTime(system("e:TimeCreated/@SystemTime"),XmlDateTimeSerializationMode.Utc);if(time<DateTime.FromFileTimeUtc(created).AddSeconds(-1)||time>DateTime.UtcNow.AddSeconds(1))throw new InvalidOperationException("Audit event outside original generation time");
+   ulong recordId;if(!UInt64.TryParse(system("e:EventRecordID"),System.Globalization.NumberStyles.None,System.Globalization.CultureInfo.InvariantCulture,out recordId)||recordId==0)throw new InvalidOperationException("Invalid audit record ID");
+   return new Dictionary<string,string>{{"record_id",recordId.ToString(System.Globalization.CultureInfo.InvariantCulture)},{"time",time.ToString("o")},{"subject_sid",sid},{"logon_luid",logon},{"runtime_image",image},{"pid",pid.ToString()},{"object_type",type},{"object_name",name},{"access_mask","0x"+mask.ToString("x")}};
+  }
+  public static void BoundRecords(Dictionary<string,string>[] records){if(records.Length>8)throw new InvalidOperationException("Audit result exceeds eight records");long encoded=2;foreach(var record in records){encoded+=3;foreach(var pair in record)encoded+=8+6L*(pair.Key.Length+pair.Value.Length);}if(encoded>32768)throw new InvalidOperationException("Audit aggregate encoded export exceeds 32KiB");}
+  static Dictionary<string,string>[] ReadEvents(string sid,uint pid,long created,string image,string logon,string[] names,int session){Dictionary<string,string>[] result=null;Exception failure=null;var worker=new Thread(()=>{try{result=ReadEventsCore(sid,pid,created,image,logon,names,session);}catch(Exception error){failure=error;}});worker.IsBackground=true;worker.Start();if(!worker.Join(2500))throw new TimeoutException("Owned Security reader exceeded bounded join; no acceptance");if(failure!=null)throw failure;return result;}
+  static Dictionary<string,string>[] ReadEventsCore(string sid,uint pid,long created,string image,string logon,string[] names,int session){
+   string since=DateTime.FromFileTimeUtc(created).AddSeconds(-1).ToString("o");string filters=String.Join(" or ",names.SelectMany(item=>{var part=item.Split(new[]{':'},2);string full="\\Sessions\\"+session+"\\Windows\\WindowStations\\"+(part[0]=="WindowStation"?part[1]:"WinSta0\\"+part[1]);return new[]{"(Data[@Name='ObjectType']='"+part[0]+"' and (Data[@Name='ObjectName']='"+part[1]+"' or Data[@Name='ObjectName']='"+full+"'))"};}));string query="*[System[EventID=4656 and TimeCreated[@SystemTime>='"+since+"']] and EventData[Data[@Name='SubjectUserSid']='"+sid+"' and Data[@Name='ProcessId']='0x"+pid.ToString("x")+"' and Data[@Name='SubjectLogonId']='"+logon+"' and ("+filters+")]]";
+   var results=new List<Dictionary<string,string>>();var clock=Stopwatch.StartNew();
+   using(var reader=new EventLogReader(new EventLogQuery("Security",PathType.LogName,query){ReverseDirection=true})){
+    while(clock.ElapsedMilliseconds<2000){using(var item=reader.ReadEvent(TimeSpan.FromMilliseconds(250))){if(item==null)break;if(results.Count==8)throw new InvalidOperationException("Audit result exceeds eight records");results.Add(SelectRecord(item.ToXml(),sid,pid,created,image,logon,names,session));}}
+   }
+   var bounded=results.ToArray();BoundRecords(bounded);return bounded;
+  }
+  public void Dispose(){
+   for(int i=objects.Count-1;i>=0;i--){var item=objects[i];try{if(item.attempted){byte[] current=Read(item.handle);if(Sacl(current)==Sacl(item.original)){}else if(Sacl(current)==Sacl(item.proposed)&&Unchanged(current)==Unchanged(item.original)){Write(item.handle,item.original);if(Sacl(Read(item.handle))!=Sacl(item.original))throw new InvalidOperationException("SACL restoration readback differs");}else throw new InvalidOperationException("Audit SACL drift; restore refused");Save("audit-"+i+"-restored.bin",Read(item.handle));}}catch(Exception error){recovery.Add(item.type+":"+item.name+":"+error.Message);}finally{if(!(item.type=="Desktop"?CloseDesktop(item.handle):CloseWindowStation(item.handle)))recovery.Add("Close audit handle failed: "+item.type+":"+item.name);}}
+   objects.Clear();try{if(policyChanged){if(!privilegeChanged)EnablePrivilege();var current=Query();if(Equal(current,before)){}else if(Equal(current,applied)){if(!AuditSetSystemPolicy(ref before,1)||!Equal(Query(),before))throw Error("Restore audit policy");}else throw new InvalidOperationException("Audit policy drift; restore refused");Save("audit-policy-restored.bin",PolicyBytes(Query()));}}catch(Exception error){recovery.Add(error.Message);}policyChanged=false;
+   try{RestorePrivilege();if(privilegeKnown)Save("audit-privilege-restored.bin",PrivilegeBytes(ReadRestoredPrivilege()));}catch(Exception error){recovery.Add(error.Message);}finally{if(token!=IntPtr.Zero){if(!CloseHandle(token))recovery.Add("Close audit token failed");token=IntPtr.Zero;}}
+   Restored=recovery.Count==0;
+  }
+  [StructLayout(LayoutKind.Sequential)] struct Luid{internal uint low;internal int high;}
+  [StructLayout(LayoutKind.Sequential)] struct Privileges{internal uint count;internal Luid id;internal uint attributes;}
+  [StructLayout(LayoutKind.Sequential)] struct Policy{internal Guid subcategory;internal uint flags;internal Guid category;}
+  [StructLayout(LayoutKind.Sequential)] struct Attributes{internal uint length;internal IntPtr descriptor;internal int inherit;}
+  [DllImport("advapi32",SetLastError=true)] static extern bool GetTokenInformation(IntPtr token,int information,IntPtr data,uint length,out uint needed);
+  [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateWindowStationW(string name,uint flags,uint access,ref Attributes attributes);
+  [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateDesktopW(string name,IntPtr device,IntPtr mode,uint flags,uint access,ref Attributes attributes);
+  [DllImport("kernel32")] static extern IntPtr GetCurrentProcess();
+  [DllImport("kernel32")] static extern uint GetCurrentThreadId();
+  [DllImport("user32",SetLastError=true)] static extern IntPtr GetThreadDesktop(uint thread);
+  [DllImport("user32",SetLastError=true)] static extern bool SetThreadDesktop(IntPtr desktop);
+  [DllImport("user32",SetLastError=true)] static extern IntPtr GetProcessWindowStation();
+  [DllImport("kernel32")] static extern bool CloseHandle(IntPtr handle);
+  [DllImport("advapi32",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
+  [DllImport("advapi32",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool LookupPrivilegeValueW(string system,string name,out Luid id);
+  [DllImport("advapi32",SetLastError=true)] static extern bool AdjustTokenPrivileges(IntPtr token,bool disable,ref Privileges desired,uint length,out Privileges previous,out uint returned);
+  [DllImport("advapi32",SetLastError=true)] [return:MarshalAs(UnmanagedType.U1)] static extern bool AuditQuerySystemPolicy(ref Guid subcategory,uint count,out IntPtr data);
+  [DllImport("advapi32",SetLastError=true)] [return:MarshalAs(UnmanagedType.U1)] static extern bool AuditSetSystemPolicy(ref Policy policy,uint count);
+  [DllImport("advapi32")] static extern void AuditFree(IntPtr data);
+  [DllImport("user32",SetLastError=true)] static extern bool GetUserObjectSecurity(IntPtr handle,ref uint flags,IntPtr data,uint length,out uint needed);
+  [DllImport("user32",SetLastError=true)] static extern bool SetUserObjectSecurity(IntPtr handle,ref uint flags,IntPtr data);
+  [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool GetUserObjectInformationW(IntPtr handle,int index,StringBuilder value,uint length,out uint needed);
+  [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr OpenWindowStationW(string name,bool inherit,uint access);
+  [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr OpenDesktopW(string name,uint flags,bool inherit,uint access);
+  [DllImport("user32",SetLastError=true)] static extern IntPtr OpenInputDesktop(uint flags,bool inherit,uint access);
+  [DllImport("user32",SetLastError=true)] static extern bool CloseDesktop(IntPtr handle);
+  [DllImport("user32",SetLastError=true)] static extern bool CloseWindowStation(IntPtr handle);
+ }
+}
