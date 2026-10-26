@@ -39,3 +39,25 @@ export async function assertReviewFieldPresentation(
   assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
   return fieldPresentation;
 }
+
+export function readReviewFieldStyles(
+  browser: Pick<WebDriver, "executeScript">,
+  ...fields: WebElement[]
+) {
+  return executeBrowserScript(
+    browser,
+    (...fields) =>
+      fields.map((field) => {
+        const style = getComputedStyle(field);
+        return {
+          width: style.width,
+          paddingLeft: style.paddingLeft,
+          borderStyle: style.borderStyle,
+          borderWidth: style.borderWidth,
+          backgroundColor: style.backgroundColor,
+          color: style.color,
+        };
+      }),
+    ...fields,
+  );
+}

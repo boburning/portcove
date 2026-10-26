@@ -320,7 +320,7 @@ export async function defaultCoverScenario({
   );
 }
 
-async function createImageRefusal() {
+export async function createImageRefusal() {
   const origins: string[] = [];
   const sockets = new Set<Socket>();
   // Test-only local refusal: never forwards traffic or records headers, paths or credentials.
@@ -365,7 +365,7 @@ async function createImageRefusal() {
   };
 }
 
-async function restoreCacheAfterObservation({
+export async function restoreCacheAfterObservation({
   withheld,
   restart,
   primaryFailure,
@@ -374,11 +374,11 @@ async function restoreCacheAfterObservation({
   refusal,
 }: {
   withheld: WithheldCover | undefined;
-  restart: CoverContext["restart"];
+  restart: (name: string, prepareWhileStopped?: () => Promise<void>) => Promise<unknown>;
   primaryFailure: { error: unknown } | undefined;
   output: string;
   artifacts: string[];
-  refusal: Awaited<ReturnType<typeof createImageRefusal>> | null;
+  refusal: Pick<Awaited<ReturnType<typeof createImageRefusal>>, "close"> | null;
 }) {
   let cleanupFailure: { error: unknown } | undefined;
   try {
