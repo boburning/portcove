@@ -1,8 +1,8 @@
 /** Dependency data observations only. No original receipt or execution authority. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstatSync, readlinkSync, realpathSync, type BigIntStats } from "node:fs";
-import { opendir } from "node:fs/promises";
+import { constants, lstatSync, readlinkSync, realpathSync, type BigIntStats } from "node:fs";
+import { opendir, open } from "node:fs/promises";
 import path from "node:path";
 import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -165,6 +165,44 @@ function resolveLink(root: string, filename: string, active: () => void) {
   return contained(root, current);
 }
 
+/** The complete physical walk pins ancestry once; retain per-file handle/path
+ * identities instead of walking every ancestor again for every package file. */
+async function hashDependencyFile(filename: string, before: BigIntStats, active: () => void) {
+  active();
+  const handle = await open(
+    filename,
+    constants.O_RDONLY | (process.platform === "win32" ? 0 : constants.O_NOFOLLOW),
+  );
+  const same = (info: BigIntStats) =>
+    assert.equal(identity(info), identity(before), "dependency file changed during hash");
+  try {
+    same(await handle.stat({ bigint: true }));
+    const digest = createHash("sha256"),
+      buffer = Buffer.alloc(65536);
+    let count = 0;
+    while (true) {
+      active();
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        Math.min(buffer.length, Number(before.size) - count + 1),
+        null,
+      );
+      if (!bytesRead) break;
+      count += bytesRead;
+      assert.ok(count <= Number(before.size));
+      digest.update(buffer.subarray(0, bytesRead));
+    }
+    assert.equal(count, Number(before.size));
+    same(await handle.stat({ bigint: true }));
+    same(lstatSync(filename, { bigint: true }));
+    active();
+    return digest.digest("hex");
+  } finally {
+    await handle.close();
+  }
+}
+
 type DependencyRecord = Readonly<{
   path: string;
   kind: "directory" | "file" | "link";
@@ -242,15 +280,15 @@ export async function snapshotWindowsNativeDependencies(
       }
     } else {
       assert.ok(before.isFile() && before.nlink === 1n && before.size <= 128n * 1024n ** 2n);
-      const observed = await hashNativeCapturedFile(source, relative, 128 * 1024 ** 2, deadline);
-      bytes += observed.bytes;
+      bytes += Number(before.size);
       assert.ok(bytes <= 2 * 1024 ** 3, "dependency bytes exceed bound");
+      const sha256 = await hashDependencyFile(filename, before, active);
       record = {
         path: relative,
         kind: "file",
         identity: same,
-        bytes: observed.bytes,
-        sha256: observed.sha256,
+        bytes: Number(before.size),
+        sha256,
       };
     }
     assert.equal(
@@ -284,6 +322,12 @@ export async function snapshotWindowsNativeDependencies(
     }
   }
   active();
+  assert.equal(
+    identity(lstatSync(source, { bigint: true })),
+    identity(sourceInfo),
+    "dependency source root changed",
+  );
+  assert.equal(realpathSync(source), source, "dependency source root alias changed");
   return Object.freeze({
     records: Object.freeze(records),
     entries: records.length,

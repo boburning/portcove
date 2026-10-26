@@ -6,6 +6,7 @@ import test from "node:test";
 import { readWindowsFixtureStreamPrefix } from "./qualify-controller-tools-windows.mts";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import {
   inspectWindowsNativeDependencyInputs,
@@ -200,4 +201,29 @@ void test("Windows fixture diagnostics retain oversized binary prefixes and refu
   assert.equal((await readWindowsFixtureStreamPrefix(root, "empty")).retained_bytes, 0);
   linkSync(path.join(root, name), path.join(root, "alias"));
   await assert.rejects(readWindowsFixtureStreamPrefix(root, name));
+});
+
+void test("Windows graph hashing refuses ancestor and source-root replacement even when the opened inode is unchanged", (context) => {
+  const root = disposableDirectory(context, path.join(tmpdir(), "pc-win-hash-drift-")),
+    module = new URL("./release-hosted-native-windows-dependency-files.mts", import.meta.url).href;
+  const code = String.raw`
+import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import * as fs from 'node:fs';import * as fsp from 'node:fs/promises';import path from 'node:path';
+const scratch=process.argv[1];let source,target,relocate,replacement,changed=false;
+globalThis.graphFs={opendir:fsp.opendir,open:async(...args)=>{if(args[0]===target&&!changed){changed=true;fs.renameSync(relocate,replacement);fs.symlinkSync(replacement,relocate,process.platform==='win32'?'junction':'dir')}return fsp.open(...args)}};
+registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(module)}&&s==='node:fs/promises')return {url:'graph-fs:controlled',shortCircuit:true};return next(s,c)},load(u,c,next){if(u==='graph-fs:controlled')return {format:'module',source:'export const open=globalThis.graphFs.open;export const opendir=globalThis.graphFs.opendir;',shortCircuit:true};return next(u,c)}});
+const {snapshotWindowsNativeDependencies}=await import(${JSON.stringify(module)});
+for(const kind of ['ancestor','source-root']){
+ source=path.join(scratch,kind);fs.mkdirSync(path.join(source,'node_modules/pkg'),{recursive:true});fs.mkdirSync(path.join(source,'apps/desktop/node_modules'),{recursive:true});target=path.join(source,'node_modules/pkg/index.js');fs.writeFileSync(target,Buffer.alloc(128000,65),{mode:0o600});
+ relocate=kind==='ancestor'?path.dirname(target):source;replacement=path.join(scratch,'retained-'+kind);changed=false;
+ await assert.rejects(snapshotWindowsNativeDependencies(source,performance.now()+10000,()=>{}),/changed/);assert.equal(changed,true);assert.equal(fs.readFileSync(kind==='ancestor'?path.join(replacement,'index.js'):path.join(replacement,'node_modules/pkg/index.js')).length,128000);
+}
+console.log('controlled ancestor replacements refused; no native or account acceptance');
+`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+    encoding: "utf8",
+    timeout: 15000,
+    maxBuffer: 65536,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /ancestor replacements refused/u);
 });

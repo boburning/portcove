@@ -437,7 +437,18 @@ type DependencyPlan = Pick<Plan, "schema_version" | "binding" | "root" | "setup"
   inputs: Awaited<ReturnType<typeof inspectWindowsNativeDependencyInputs>>;
 };
 
+let dependencyProgress: { phase: string; elapsed_milliseconds: number }[] = [];
 async function acquireDependencies(planFile: string) {
+  const started = performance.now();
+  const phase = (name: string) => {
+    assert.ok(dependencyProgress.length < 16);
+    dependencyProgress.push({
+      phase: name,
+      elapsed_milliseconds: Math.round(performance.now() - started),
+    });
+  };
+  dependencyProgress = [];
+  phase("preflight");
   assert.ok(process.platform === "win32" && process.arch === "x64");
   assertControllerBootstrapEnvironment();
   const raw: unknown = JSON.parse((await readControllerToolFile(planFile, 8192)).toString("utf8"));
@@ -479,6 +490,7 @@ async function acquireDependencies(planFile: string) {
       undefined,
       "retained dependencies require explicit recovery",
     );
+  phase("validated-inputs");
   let created = false;
   // Detection can lag writes; the original supervisor owns process-tree teardown.
   const inventory = () => {
@@ -553,8 +565,10 @@ async function acquireDependencies(planFile: string) {
     },
   );
   created = true;
+  phase("private-directory");
   const pnpmBefore = hash(await readControllerToolFile(plan.pnpm));
   assert.equal((await command(plan.pnpm, ["--version"])).toString().trim(), nativePnpmVersion);
+  phase("package-manager-version");
   await command(plan.pnpm, [
     "--dir",
     plan.source,
@@ -576,12 +590,15 @@ async function acquireDependencies(planFile: string) {
     "--config.fetch-timeout=15000",
     "--reporter=silent",
   ]);
+  phase("frozen-install-complete");
   assert.equal(hash(await readControllerToolFile(plan.pnpm)), pnpmBefore);
   assert.deepEqual(
     await inspectWindowsNativeDependencyInputs(plan.source, deadline, active),
     plan.inputs,
   );
+  phase("dependency-snapshot");
   const graph = await snapshotWindowsNativeDependencies(plan.source, deadline, active);
+  phase("dependency-snapshot-complete");
   inventory();
   return {
     schema_version: 1,
@@ -591,6 +608,7 @@ async function acquireDependencies(planFile: string) {
     entries: graph.entries,
     bytes: graph.bytes,
     graph_sha256: graph.sha256,
+    progress: dependencyProgress,
     native_acceptance: "not-established",
     authority: "none",
   };
@@ -993,6 +1011,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
               : "Windows dependency preparation",
           failure: (error instanceof Error ? error.message : String(error)).slice(0, 2048),
           diagnostic: error instanceof Error && "diagnostic" in error ? error.diagnostic : null,
+          progress: dependencyProgress,
           automatic_retry: false,
           authority: "none",
         }) + "\n",
