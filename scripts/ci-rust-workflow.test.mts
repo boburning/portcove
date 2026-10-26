@@ -1281,6 +1281,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)",
   ];
+  const restoreVersionFilter =
+    "package(portcove-core) & test(/^service::tests::backups::recovers_restore_version_synchronized$/)";
   const replacementDownloadFilter =
     "package(portcove-core) & test(/^service::catalog_download::tests::replacement_download_keeps_current_registration_until_reviewed_relink$/)";
   const psxProgressionFilter =
@@ -1320,6 +1322,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: restoreVersionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
     ]
@@ -1329,6 +1332,12 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   assert.deepEqual(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: curatedInstalledWithdrawalFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.deepEqual(overrideFor(restoreVersionFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: restoreVersionFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
