@@ -4,13 +4,14 @@ import { existsSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { RoadmapClient, validateConfig, renderPortIssueBody } from "./roadmap.mts";
+import { RoadmapClient, validateConfig } from "./roadmap.mts";
+import { renderPortIssueBody } from "./roadmap-issue.mts";
 import {
   collectRoadmapInventory,
   requireRoadmapInventory,
   invalidateRoadmapInventory,
 } from "./roadmap-inventory.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { InventoryCache } from "./roadmap-inventory.mts";
 import { GitHubApiClient } from "./github-api.mts";
 import { GitHubApiError } from "./github-api.mts";

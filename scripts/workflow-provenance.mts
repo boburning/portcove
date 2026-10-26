@@ -741,7 +741,7 @@ function hostedBrowserSelection(
     throw invalid("audit-exit", report);
   return {
     plan_digest: digest,
-    browser: entries.some((entry) => field(entry, "id") === "ui-browser-tests"),
+    browser: entries.some((entry) => field(entry, "id") === "ui-tests"),
     pre_change_audit: audit,
   };
 }
@@ -1474,8 +1474,7 @@ export async function runHostedValidation(
     if (phase === "provision") {
       if (!Array.isArray(report.obligations))
         throw new Error("Preflight obligations are not an array");
-      if (!report.obligations.some((entry: unknown) => field(entry, "id") === "ui-browser-tests"))
-        return 0;
+      if (!report.obligations.some((entry: unknown) => field(entry, "id") === "ui-tests")) return 0;
       const result = execute("pnpm", ["--dir", "apps/desktop", "browser:bootstrap"], {
         cwd: source,
         env: child,

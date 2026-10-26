@@ -382,6 +382,15 @@ owns application plugins, dev-server and production-build behavior. The exact
 release is in the pnpm catalog. Inspect the resolved bundle with `pnpm exec vp
 toolchain`; upgrade the release as a unit using the documented migrator.
 
+Full frontend selection and `frontend:runtime` use `frontend:tests` to execute
+all maintained Vitest projects in one fresh runner. Focused unit/browser and
+literal/related commands retain their existing scopes. Ordinary native TypeScript
+syntax checks share bounded batches; receipt fingerprints include every selected
+file's domains. Roadmap issue identity lives in `scripts/roadmap-issue.mts`, so
+discovery can consume it without initializing live API and mutation tooling.
+The [automation architecture record](reference/automation-architecture-modernization.md)
+documents framework decisions, measurements and retained boundaries.
+
 Use the [global Vite+ CLI](https://viteplus.dev/guide/global-cli) with environment
 management enabled for development and agent setup. Its `node` and `pnpm` shims
 select the exact versions declared by `.node-version` and `package.json` in each

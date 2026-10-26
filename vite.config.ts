@@ -247,14 +247,13 @@ export default defineConfig({
           "node scripts/run-viteplus.mts test --project browser --project browser-locale --project browser-forced-colors",
         cache: false,
       },
+      "frontend:tests": {
+        command: "node scripts/run-viteplus.mts test",
+        cache: false,
+      },
       "frontend:build": { command: "node apps/desktop/scripts/build-frontend.mts", cache: false },
       "frontend:runtime": {
-        command: [
-          "vp run frontend:content",
-          "vp run frontend:unit",
-          "vp run frontend:browser",
-          "vp run frontend:build",
-        ],
+        command: ["vp run frontend:content", "vp run frontend:tests", "vp run frontend:build"],
         cache: false,
       },
       "frontend:verify": {

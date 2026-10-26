@@ -1411,7 +1411,6 @@ void test("local Rust planning and shared Windows/CI selection retain workspace 
   );
   const commands = buildPlan(classifyChanges([modified(file)], { fileExists: () => true }), {
     validationPlan: plan,
-    doctestPackages: new Set(),
   });
   const rust = requiredFixture(commands.find((command) => command.id === "rust-workspace-tests"));
   assert.deepEqual(
