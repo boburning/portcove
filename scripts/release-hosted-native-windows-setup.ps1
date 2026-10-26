@@ -113,7 +113,7 @@ Write-HostedNativeSetupRecord (Join-Path $root 'intent.json') ([ordered]@{schema
 $account=$null;$password=$null;$group=$null;$child=$null;$disabled=$false;$settled=$false;$failure=$null;$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
-$probeCapture=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$startup=$null;$startupCapture=$null;$startupRootExited=$null
+$probeCapture=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$startup=$null;$startupCapture=$null;$startupRootExited=$null;$guiControl=$null;$guiControlObservation=$null;$guiControlRootExited=$null;$guiControlObserverDrained=$null
 try {
     Assert-OriginalHostedSetup
     $password=[Portcove.HostedNative.Setup]::Password()
@@ -220,6 +220,25 @@ try {
         $popup=$null
         try{$popup=Read-HostedStartupPopup $startup}catch{$popup=[ordered]@{status='unknown';query_failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}}
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-popup.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();popup=$popup;scope='bounded System Application Popup26 executable/time correlation only; no GUI acceptance';authority='none'})}catch{$cleanupFailures.Add('Startup popup retention failed: '+$_.Exception.Message)}
+        $guiControlObservation=[ordered]@{status='unknown';visible_responsive=$false;failure=$null;runtime_path=$null;runtime_sha256=$null;pe_subsystem=$null;scope='fixed signed GUI-subsystem countercontrol only; not form/HKCU/descendant or GUI acceptance'}
+        try{
+            $guiRuntime=Join-Path $env:SystemRoot 'System32\winver.exe';$guiControlObservation.runtime_path=$guiRuntime
+            $guiSignature=Get-AuthenticodeSignature -LiteralPath $guiRuntime
+            if($guiSignature.Status -ne 'Valid' -or $guiSignature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)'){throw 'Fixed GUI countercontrol signature unavailable; no install or fallback'}
+            [Portcove.HostedNative.HostedStartupContext]::RequireGuiImage($guiRuntime);$guiControlObservation.pe_subsystem=2
+            $guiSha=(Get-FileHash -LiteralPath $guiRuntime -Algorithm SHA256).Hash.ToLowerInvariant();$guiControlObservation.runtime_sha256=$guiSha
+            Assert-OriginalHostedSetup
+            $guiControl=[Portcove.NativeQualification.AccountLauncher]::StartHostedGuiControlVerifiedInGroup($group,$configuration,$password,$guiRuntime,$guiSha,@(),$attemptWork,$environment,$hostedDesktop.Name)
+            $guiClock=[Diagnostics.Stopwatch]::StartNew()
+            while(-not $guiControl.HasExited -and $guiClock.ElapsedMilliseconds -lt 3000){
+                $hostedDesktop.AssertNonInput()
+                if($guiControl.HostedResponding){$guiControlObservation.visible_responsive=$true}
+                $hostedDesktop.AssertNonInput()
+                if($guiControlObservation.visible_responsive){break};Start-Sleep -Milliseconds 50
+            }
+            $guiControlObservation.status=$(if($guiControlObservation.visible_responsive){'observed'}else{'not_observed'})
+        }catch{$guiControlObservation.failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
+        try{Write-HostedNativeSetupRecord (Join-Path $capture 'gui-counter.json') ([ordered]@{context=$context;observation=$guiControlObservation;root_pid=$(if($guiControl){$guiControl.Pid}else{$null});root_created_filetime=$(if($guiControl){$guiControl.CreatedFileTime.ToString()}else{$null});token=$(if($guiControl){$guiControl.HostedTokenObservation}else{$null});window_inspection=$(if($guiControl){$guiControl.LastWindowInspection}else{$null});response_inspection=$(if($guiControl){$guiControl.LastResponseInspection}else{$null});observer_failure=$(if($guiControl){$guiControl.LastHostedObserverFailure}else{$null});authority='none'})}catch{$cleanupFailures.Add('GUI countercontrol retention failed: '+$_.Exception.Message)}
         $threadDiagnostic=$null;$threadFailure=$null
         try{$threadDiagnostic=@(Read-HostedStartupThreads $startup)}catch{$threadFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-threads.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();threads=$threadDiagnostic;query_failure=$threadFailure;scope='bounded exact-generation thread states; not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup diagnostic retention failed: '+$_.Exception.Message)}
@@ -231,12 +250,14 @@ finally {
         if($group){
             $remaining=@($group.StopAndObserve(5000))
             if($child){$rootExited=$child.WaitForExit(5000)}
+            if($guiControl){$guiControlRootExited=$guiControl.WaitForExit(5000);if(-not $guiControlRootExited){throw 'GUI countercontrol root teardown incomplete'}}
             if($startup){$startupRootExited=$startup.WaitForExit(5000);if(-not $startupRootExited){throw 'Native startup root teardown incomplete'}}
             if($remaining.Count -ne 0 -or ($child -and -not $rootExited)){throw 'Original hosted native job teardown incomplete'}
             $settled=$true
         }
     } catch {$cleanupFailures.Add($_.Exception.Message)}
     try {if($child){$observerDrained=$child.DrainHostedObserver(5000);if(-not $observerDrained){throw 'Trusted hosted observer did not drain; retained handle closes only with bounded owner exit'}}} catch {$cleanupFailures.Add($_.Exception.Message)}
+    try {if($guiControl){$guiControlObserverDrained=$guiControl.DrainHostedObserver(5000);if(-not $guiControlObserverDrained){throw 'GUI countercontrol observer did not drain'}}}catch{$cleanupFailures.Add($_.Exception.Message)}
     # Disabling the exact created identity is independent of process settlement.
     # It prevents further logons but never claims to terminate existing children.
     try {
@@ -269,9 +290,10 @@ finally {
             try {$startupCapture=@{root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();initial_suspend_count=$startup.InitialSuspendCount;root_exited=$startupRootExited;stdout=(Read-HostedNativeProbeStream $startup.OutputCapture);stderr=(Read-HostedNativeProbeStream $startup.ErrorCapture);exit_code=$(if($startupRootExited){$startup.ExitCode}else{$null})}} catch {$startupCapture=@{error=$_.Exception.Message}}
             $startup.Dispose()
         }
+        if($guiControl){$guiControl.Dispose()}
         if($child){$child.Dispose()};if($group){$group.Dispose()};if($password){$password.Dispose()}
         if(-not $failure -and $cleanupFailures.Count){$failure='Hosted cleanup refused; retained details require recovery'}
-        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;initial_suspend_count=$(if($child){$child.InitialSuspendCount}else{$null});remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;startup_capture=$startupCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});hosted_observer_failure=$(if($child){$child.LastHostedObserverFailure}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
+        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;initial_suspend_count=$(if($child){$child.InitialSuspendCount}else{$null});remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;gui_counter=$guiControlObservation;gui_counter_root_exited=$guiControlRootExited;gui_counter_observer_drained=$guiControlObserverDrained;startup_capture=$startupCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});hosted_observer_failure=$(if($child){$child.LastHostedObserverFailure}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
     }
 }
 if(-not $disabled -or -not $settled -or $failure){throw 'Hosted inert account setup did not complete'}

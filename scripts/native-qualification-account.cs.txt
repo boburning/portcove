@@ -547,6 +547,14 @@ namespace Portcove.NativeQualification {
         }
         // Source-prepared hosted proposal only; ordinary/protected callers retain the private station.
         public static AccountProcess StartHostedVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, string desktopName) {
+            return StartHostedCore(group, config, password, executable, expectedSha256, arguments, directory, environment, desktopName, false);
+        }
+        public static AccountProcess StartHostedGuiControlVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, string desktopName) {
+            if (arguments == null || arguments.Length != 0 || !String.Equals(executable, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "winver.exe"), StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Fixed empty-argument System32 GUI countercontrol required");
+            return StartHostedCore(group, config, password, executable, expectedSha256, arguments, directory, environment, desktopName, true);
+        }
+        static AccountProcess StartHostedCore(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, string desktopName, bool showWithoutActivation) {
             string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
             if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
                 Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" ||
@@ -555,14 +563,14 @@ namespace Portcove.NativeQualification {
                 !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$") ||
                 desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))
                 throw new ArgumentException("Fixed ordinary hosted GUI boundary required");
-            return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName);
+            return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName, showWithoutActivation);
         }
         public static AccountTokenObservation ObserveBrokerToken() {
             using (var identity = WindowsIdentity.GetCurrent(TokenAccessLevels.Query))
                 return Native.ReadTokenObservation(identity.AccessToken.DangerousGetHandle());
         }
         static uint CreationFlags(string hostedDesktop) { return 0x4 | 0x400 | (hostedDesktop == null ? 0u : 0x08000000u); }
-        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256, string hostedDesktop = null) {
+        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256, string hostedDesktop = null, bool showWithoutActivation = false) {
             Validate(config, executable, arguments, directory, environment);
             string commandText = nsis ? NsisCommandLine(executable, arguments, config.WorkRoot) : String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
             if (password == null || password.Length < 1) throw new ArgumentException("Fixed owner-held account credential unavailable");
@@ -596,7 +604,7 @@ namespace Portcove.NativeQualification {
                 string environmentBlock = String.Join("\0", environment.OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase).Select(item => item.Key + "=" + item.Value)) + "\0\0";
                 block = Marshal.StringToHGlobalUni(environmentBlock);
                 var startup = new Native.StartupInfo(); startup.cb = (uint)Marshal.SizeOf(startup);
-                startup.desktop = hostedDesktop == null ? config.PrivateDesktop : "WinSta0\\" + hostedDesktop; startup.flags = 1 | 0x100; startup.showWindow = 0;
+                startup.desktop = hostedDesktop == null ? config.PrivateDesktop : "WinSta0\\" + hostedDesktop; startup.flags = 1 | 0x100; startup.showWindow = (ushort)(hostedDesktop != null && showWithoutActivation ? 4 : 0);
                 startup.input = input; startup.output = outputWrite; startup.error = errorWrite;
                 var command = new StringBuilder(commandText);
                 if (!Native.CreateProcessWithLogonW(config.UserName, ".", secret, 1, executable, command, CreationFlags(hostedDesktop), block, directory, ref startup, out info)) throw Native.Error("CreateProcessWithLogonW");

@@ -229,7 +229,7 @@ $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value
 $group=[pscustomobject]@{};$group|Add-Member ScriptMethod StopAndObserve {param($timeout)throw 'controlled group teardown failure'}
 $group|Add-Member ScriptMethod Dispose {}
 $child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123};$child|Add-Member ScriptMethod Dispose {}; $child|Add-Member ScriptMethod DrainHostedObserver {param($milliseconds)return $true}
-$startup=$null;$startupCapture=$null;$startupRootExited=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
+$startup=$null;$startupCapture=$null;$startupRootExited=$null;$guiControl=$null;$guiControlObservation=$null;$guiControlRootExited=$null;$guiControlObserverDrained=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
 function Get-LocalUser {param($SID)if($SID.Value -cne $account.SID.Value){throw 'Wrong cleanup SID'};return $account}
@@ -909,4 +909,54 @@ foreach($case in @('success','empty','source','log','foreign','oversized','unava
 'actual popup query guards passed twelve controlled cases; no system events or GUI acceptance'
 `);
   assert.match(result, /guards passed twelve controlled cases/u);
+});
+
+void test("fixed GUI image validation refuses nonnative, console, malformed and oversized PE inputs", (t) => {
+  const root = mkdtempSync(path.join(homedir(), ".portcove-gui-pe-control-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
+$path=Join-Path '${root.replaceAll("'", "''")}' 'inert-image.bin'
+foreach($case in @('valid','dos','signature','machine','magic','console','offset','optional','outside','oversized')){
+ $bytes=[byte[]]::new($(if($case -ceq 'oversized'){4194305}else{256}))
+ [BitConverter]::GetBytes([uint16]0x5a4d).CopyTo($bytes,0);[BitConverter]::GetBytes([int]64).CopyTo($bytes,60)
+ [BitConverter]::GetBytes([uint32]0x4550).CopyTo($bytes,64);[BitConverter]::GetBytes([uint16]0x8664).CopyTo($bytes,68)
+ [BitConverter]::GetBytes([uint16]128).CopyTo($bytes,84);[BitConverter]::GetBytes([uint16]0x20b).CopyTo($bytes,88);[BitConverter]::GetBytes([uint16]2).CopyTo($bytes,156)
+ switch($case){dos{$bytes[0]=0}signature{$bytes[64]=0}machine{$bytes[68]=0}magic{$bytes[88]=0}console{$bytes[156]=3}offset{[BitConverter]::GetBytes([int]2147483647).CopyTo($bytes,60)}optional{$bytes[84]=0}outside{[BitConverter]::GetBytes([uint16]4096).CopyTo($bytes,84)}}
+ [IO.File]::WriteAllBytes($path,$bytes);$refused=$false
+ try{[Portcove.HostedNative.HostedStartupContext]::RequireGuiImage($path)}catch{$refused=$true}
+ if($refused -ne ($case -cne 'valid')){throw ('Actual GUI image guard differs: '+$case)}
+}
+'actual GUI PE guards passed ten source-file cases; no executable launched'
+`);
+  assert.match(result, /PE guards passed ten source-file cases/u);
+});
+
+void test("GUI countercontrol teardown and observer failures cannot skip disabling or replace original failure", (t) => {
+  const root = mkdtempSync(path.join(homedir(), ".portcove-gui-cleanup-control-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
+$main=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]})
+$base='${root.replaceAll("'", "''")}';$nativeProfile='inert';$context=@{fixture='controlled GUI cleanup'}
+foreach($case in @('settled','stop','root','observer')){
+ $root=Join-Path $base $case;[IO.Directory]::CreateDirectory($root)|Out-Null
+ $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'};Description='owned';Enabled=$true}
+ $script:stops=0;$script:drains=0
+ $group=[pscustomobject]@{};$group|Add-Member ScriptMethod StopAndObserve {param($timeout)$script:stops++;if($case -ceq 'stop'){throw 'controlled original-group stop failure'};return @()};$group|Add-Member ScriptMethod Dispose {}
+ $guiControl=[pscustomobject]@{};$guiControl|Add-Member ScriptMethod WaitForExit {param($timeout)return $case -cne 'root'};$guiControl|Add-Member ScriptMethod DrainHostedObserver {param($timeout)$script:drains++;return $case -cne 'observer'};$guiControl|Add-Member ScriptMethod Dispose {}
+ $child=$null;$startup=$null;$password=$null;$hostedDesktop=$null;$actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null;$probeCapture=$null;$startupCapture=$null;$startupRootExited=$null;$stationRestored=$null;$observerDrained=$null
+ $guiControlObservation=@{scope='diagnostic only'};$guiControlRootExited=$null;$guiControlObserverDrained=$null;$failure='original startup refusal';$observation=$null;$disabled=$false;$settled=$false;$cleanupFailures=[Collections.Generic.List[string]]::new()
+ function Get-LocalUser {param($SID)return $account};function Disable-LocalUser {param($SID)$account.Enabled=$false}
+ . ([scriptblock]::Create(($main[0].Finally.Statements.Extent.Text -join [Environment]::NewLine)))
+ $record=Get-Content -LiteralPath (Join-Path $root 'result.json') -Raw|ConvertFrom-Json
+ if(-not $record.disabled -or $record.failure -cne 'original startup refusal' -or $script:stops -ne 1 -or $script:drains -ne 1 -or $record.job_empty -ne ($case -in @('settled','observer')) -or $record.gui_counter_observer_drained -ne ($case -cne 'observer')){throw ('Counter cleanup independence differs: '+$case)}
+ if($case -ceq 'settled' -and ($record.gui_counter_root_exited -ne $true -or @($record.cleanup_failures).Count)){throw 'Settled counter root was not positively read back'}
+}
+'actual GUI counter cleanup passed four controlled outcomes; no account effects'
+`);
+  assert.match(result, /cleanup passed four controlled outcomes/u);
 });

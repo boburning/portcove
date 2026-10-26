@@ -308,6 +308,18 @@ namespace Portcove.HostedNative {
             }
             if(failure!=null)throw failure;
         }
+        public static void RequireGuiImage(string path) {
+            using(var file=new System.IO.FileStream(path,System.IO.FileMode.Open,System.IO.FileAccess.Read,System.IO.FileShare.Read))
+            using(var reader=new System.IO.BinaryReader(file)) {
+                if(file.Length<128 || file.Length>4*1024*1024 || reader.ReadUInt16()!=0x5a4d)throw new InvalidOperationException("Fixed GUI image DOS header or size differs");
+                file.Position=0x3c;int offset=reader.ReadInt32();
+                if(offset<64 || offset>file.Length-94)throw new InvalidOperationException("Fixed GUI PE offset outside image");
+                file.Position=offset;if(reader.ReadUInt32()!=0x4550 || reader.ReadUInt16()!=0x8664)throw new InvalidOperationException("Fixed GUI PE signature/machine differs");
+                file.Position=offset+20;int optionalSize=reader.ReadUInt16();if(optionalSize<70 || offset+24+optionalSize>file.Length)throw new InvalidOperationException("Fixed GUI optional header exceeds image");
+                file.Position=offset+24;if(reader.ReadUInt16()!=0x20b)throw new InvalidOperationException("Fixed GUI image must be PE32+");
+                file.Position=offset+24+68;if(reader.ReadUInt16()!=2)throw new InvalidOperationException("Fixed control is not GUI subsystem");
+            }
+        }
         public static Dictionary<string,string> Observe(IntPtr process,IntPtr thread,uint pid,long expected) {
             IntPtr processCopy=IntPtr.Zero,threadCopy=IntPtr.Zero;
             try {
