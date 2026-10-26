@@ -6,7 +6,22 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
-import { RoadmapClient, executeSetMany, validateConfig } from "./roadmap.mts";
+import {
+  RoadmapClient,
+  executeSetMany,
+  validateConfig,
+  executionSnapshot as cliSnapshot,
+  analyzeReleaseReadiness as cliReadiness,
+  dependencyCycles as cliCycles,
+  fieldValue as cliField,
+  repositoryStatusConflict as cliStatus,
+  validatePortIssueCoverage as cliCoverage,
+  validatePortStageSemantics as cliStages,
+} from "./roadmap.mts";
+import { executionSnapshot } from "./roadmap-execution.mts";
+import { analyzeReleaseReadiness, dependencyCycles } from "./roadmap-readiness.mts";
+import { fieldValue, repositoryStatusConflict } from "./roadmap-issue.mts";
+import { validatePortIssueCoverage, validatePortStageSemantics } from "./roadmap-qualification.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import { InventoryError, retryableInventoryRead } from "./repository-issue-inventory.mts";
 import {
@@ -581,26 +596,33 @@ void test("issue events and explicit requests select scoped checks; substantial 
   );
 });
 
-void test("extracted Roadmap issue policy still triggers and selects a global health check", () => {
-  const leaf = "scripts/roadmap-issue.mts";
-  const workflow: unknown = parseDocument(
-    readFileSync(new URL("../.github/workflows/roadmap-health.yml", import.meta.url), "utf8"),
-    { uniqueKeys: true },
-  ).toJS();
-  assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.on.push));
-  assert.ok(Array.isArray(workflow.on.push.paths) && workflow.on.push.paths.includes(leaf));
-  assert.deepEqual(
-    selectRoadmapHealth(
-      "push",
-      {
-        before: "a".repeat(40),
-        after: "b".repeat(40),
-      },
-      (revision, file) =>
-        file === leaf ? revision : file.endsWith("catalog.json") ? '{"ports":[]}' : "same",
-    ),
-    { mode: "global" },
-  );
+void test("extracted Roadmap policy still triggers and selects a global health check", () => {
+  for (const leaf of [
+    "scripts/roadmap-issue.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
+    "scripts/runtime-values.mts",
+  ]) {
+    const workflow: unknown = parseDocument(
+      readFileSync(new URL("../.github/workflows/roadmap-health.yml", import.meta.url), "utf8"),
+      { uniqueKeys: true },
+    ).toJS();
+    assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.on.push));
+    assert.ok(Array.isArray(workflow.on.push.paths) && workflow.on.push.paths.includes(leaf));
+    assert.deepEqual(
+      selectRoadmapHealth(
+        "push",
+        {
+          before: "a".repeat(40),
+          after: "b".repeat(40),
+        },
+        (revision, file) =>
+          file === leaf ? revision : file.endsWith("catalog.json") ? '{"ports":[]}' : "same",
+      ),
+      { mode: "global" },
+    );
+  }
 });
 
 void test("diagnostic reporting is quiet on unchanged repeats and scoped success cannot clear global failure", () => {
@@ -926,4 +948,39 @@ void test("actual unattended entrypoint retains missing-credential diagnostics w
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
+});
+
+void test("CLI compatibility exports bind directly to the policy owners", () => {
+  for (const [compatibility, owner] of [
+    [cliSnapshot, executionSnapshot],
+    [cliReadiness, analyzeReleaseReadiness],
+    [cliCycles, dependencyCycles],
+    [cliField, fieldValue],
+    [cliStatus, repositoryStatusConflict],
+    [cliCoverage, validatePortIssueCoverage],
+    [cliStages, validatePortStageSemantics],
+  ])
+    assert.equal(compatibility, owner);
+});
+
+void test("loading scoped evaluation does not initialize the Roadmap CLI", () => {
+  const cli = new URL("./roadmap.mts", import.meta.url).href;
+  const scoped = new URL("./roadmap-scoped.mts", import.meta.url).href;
+  // A fresh loader observes real imports; this process has already loaded the CLI.
+  const source = `
+    import { registerHooks } from "node:module";
+    registerHooks({ resolve(specifier, context, next) {
+      const found = next(specifier, context);
+      if (found.url === ${JSON.stringify(cli)}) throw new Error("Scoped policy initialized the CLI");
+      return found;
+    }});
+    await import(${JSON.stringify(scoped)});
+    console.log("scoped policy loaded");
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", source], {
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), "scoped policy loaded");
 });

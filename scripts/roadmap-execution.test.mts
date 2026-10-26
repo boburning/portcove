@@ -3,9 +3,6 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 
 import {
-  RoadmapClient,
-  roadmapCommandHelp,
-  analyzeReleaseReadiness,
   executionSnapshot,
   validateExecutionSnapshot,
   normalizeRequirements,
@@ -17,7 +14,9 @@ import {
   executionQueueData,
   renderExecutionQueue,
   selectNextItems,
-} from "./roadmap.mts";
+} from "./roadmap-execution.mts";
+import { RoadmapClient, roadmapCommandHelp } from "./roadmap.mts";
+import { analyzeReleaseReadiness } from "./roadmap-readiness.mts";
 
 import {
   fixtureValue,

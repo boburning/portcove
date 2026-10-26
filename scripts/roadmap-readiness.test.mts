@@ -1,3 +1,4 @@
+import { catalogQualificationSummary } from "./roadmap-qualification.mts";
 import { validateApproval706 } from "./linux-beta-risk-706.mts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -6,13 +7,12 @@ import test from "node:test";
 import {
   analyzeReleaseReadiness,
   renderReadinessSummary,
-  catalogQualificationSummary,
   completionEvidenceLinks,
   dependencyCycles,
-  parseArguments,
   renderSnapshot,
   resolveSnapshotOutput,
-} from "./roadmap.mts";
+} from "./roadmap-readiness.mts";
+import { parseArguments } from "./roadmap.mts";
 
 import { fixtureValue, fixtureElement } from "./fixtures/roadmap-fixtures.mts";
 
@@ -549,3 +549,36 @@ void test("snapshot output is confined to docs/releases", () => {
     );
   });
 }
+
+void test("snapshot inconsistency reporting preserves open, closed and merged status conflicts", () => {
+  const items = ["OPEN", "CLOSED", "MERGED"].flatMap((state, index) =>
+    ["Ready", "Done"].map((status, offset) => ({
+      id: `item-${index}-${offset}`,
+      title: `${state} ${status}`,
+      status,
+      "target release": "Alpha 1",
+      "release commitment": "Required",
+      content: {
+        number: index * 2 + offset + 1,
+        state,
+        url: `https://github.com/boburning/portcove/issues/${index * 2 + offset + 1}`,
+      },
+    })),
+  );
+  const document = renderSnapshot({
+    release: "Alpha 1",
+    generatedAt: "2026-10-26T15:00:00Z",
+    commit: "a".repeat(40),
+    projectUrl: "https://example.test/project",
+    items,
+    catalog: { ports: [] },
+  });
+  const section = document
+    .split("## Repository closure and Project Status inconsistencies\n\n")[1]
+    ?.split("\n\n## ")[0];
+  assert.ok(section);
+  for (const name of ["OPEN Done", "CLOSED Ready", "MERGED Ready"])
+    assert.ok(section.includes(name), name);
+  for (const name of ["OPEN Ready", "CLOSED Done", "MERGED Done"])
+    assert.ok(!section.includes(name), name);
+});

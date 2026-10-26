@@ -233,6 +233,11 @@ void test("scoped beta matcher and Roadmap release consumer retain protected qua
     "scripts/linux-beta-risk-706.mts",
     "scripts/linux-beta-risk-706.test.mts",
     "scripts/roadmap.mts",
+    "scripts/roadmap-issue.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
+    "scripts/runtime-values.mts",
     "scripts/roadmap.test.mts",
   ]) {
     const ownership = validationOwnershipForPath(file);

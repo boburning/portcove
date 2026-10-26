@@ -2958,6 +2958,10 @@ void test("Roadmap test families preserve shared owners and narrow the New Port 
   for (const file of [
     "scripts/roadmap.mts",
     "scripts/roadmap-issue.mts",
+    "scripts/roadmap-qualification.mts",
+    "scripts/roadmap-execution.mts",
+    "scripts/roadmap-readiness.mts",
+    "scripts/runtime-values.mts",
     "scripts/github-api.mts",
     "scripts/repository-issue-inventory.mts",
     "scripts/repository-issue-inventory.fixture.mts",
