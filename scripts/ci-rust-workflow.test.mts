@@ -1270,6 +1270,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   // inventory also rejects duplicates without a separately maintained count.
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
+  const intelRecoveryFilter =
+    "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/))";
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
@@ -1278,6 +1280,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       { filter: sourcePreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
+      { platform: "x86_64-apple-darwin", filter: intelRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
@@ -1291,6 +1294,12 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   assert.deepEqual(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: curatedInstalledWithdrawalFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.deepEqual(overrideFor(intelRecoveryFilter, "x86_64-apple-darwin"), {
+    platform: "x86_64-apple-darwin",
+    filter: intelRecoveryFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
