@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import os from "node:os";
+import { writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { createNodePlatformSkipInventory } from "./node-platform-skips.mts";
 import { parseNodeTestSuites } from "./node-test-suites.mts";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
@@ -107,6 +111,87 @@ void test("requested paths resolve from the caller while ownership paths resolve
   inventory.capture({ ...observe(), data: { ...observe().data, entryFile } });
   assert.equal(inventory.finish().contracts.length, 1);
   assert.deepEqual(inventory.finish().errors, []);
+});
+void test("skipped and TODO suites cannot bypass platform ownership at any nesting", () => {
+  for (const nesting of [0, 1])
+    for (const marker of ["skip", "todo"]) {
+      const inventory = createNodePlatformSkipInventory(
+        [file],
+        [],
+        { [file]: contract },
+        { platform: "linux" },
+      );
+      inventory.capture(observe());
+      inventory.capture({
+        type: "test:pass",
+        data: {
+          name: "unknown suite",
+          entryFile: path.resolve(file),
+          nesting,
+          details: { type: "suite" },
+          [marker]: true,
+        },
+      });
+      assert.match(inventory.finish().errors.join(";"), /Unregistered skipped or todo suite/u);
+    }
+  const activeSuite = createNodePlatformSkipInventory(
+    [file],
+    [],
+    { [file]: contract },
+    { platform: "linux" },
+  );
+  activeSuite.capture(observe());
+  activeSuite.capture({
+    type: "test:pass",
+    data: { entryFile: path.resolve(file), details: { type: "suite" } },
+  });
+  assert.deepEqual(activeSuite.finish().errors, []);
+});
+void test("actual pinned Node nested-suite deferrals reach the platform observer", (t) => {
+  let unproven = false;
+  const root = disposableDirectory(t, path.join(os.tmpdir(), "platform-suite-events-"), {
+    drain() {
+      assert.ok(!unproven, "Native suite worker exit unproven; retain " + root);
+    },
+  });
+  const fixture = path.join(root, "owned.test.mjs");
+  writeFileSync(
+    fixture,
+    "import {test,describe} from 'node:test'; test('owned Linux case',()=>{}); describe('outer',()=>{describe.skip('hidden skip',()=>{}); describe.todo('hidden todo',()=>{});});",
+  );
+  const controller = path.join(root, "inspect.mjs");
+  writeFileSync(
+    controller,
+    `
+    import {run} from 'node:test';
+    import {createNodePlatformSkipInventory} from ${JSON.stringify(new URL("./node-platform-skips.mts", import.meta.url).href)};
+    const file=process.argv[2];
+    const inventory=createNodePlatformSkipInventory([file],[],{'owned.test.mjs':${JSON.stringify(contract)}},{root:${JSON.stringify(root)},platform:'linux'});
+    for await(const event of run({files:[file]})) inventory.capture(event);
+    console.log(JSON.stringify(inventory.finish()));
+  `,
+  );
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, [controller, fixture], {
+    encoding: "utf8",
+    env: environment,
+    timeout: 15000,
+    maxBuffer: 128 * 1024,
+    windowsHide: true,
+  });
+  unproven = !!result.error || !!result.signal || result.status === null;
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const observed: unknown = JSON.parse(result.stdout);
+  assert.ok(
+    typeof observed === "object" &&
+      observed !== null &&
+      "errors" in observed &&
+      "contracts" in observed,
+  );
+  assert.deepEqual(observed.errors, ["Unregistered skipped or todo suite in owned.test.mjs"]);
+  assert.ok(Array.isArray(observed.contracts) && observed.contracts.length === 1);
 });
 function registry(override: unknown = contract) {
   return JSON.stringify({

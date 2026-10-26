@@ -38,15 +38,20 @@ export function createNodePlatformSkipInventory(
         (event.type !== "test:pass" && event.type !== "test:fail") ||
         !isRecord(event.data) ||
         !isRecord(event.data.details) ||
-        event.data.details.type !== "test" ||
         typeof event.data.entryFile !== "string"
       )
         return;
+      const details = event.data.details;
       const data = event.data;
       const owner = files.get(identity(data.entryFile as string));
       if (!owner) return;
       const skipped = data.skip === true || typeof data.skip === "string";
       const deferred = data.todo === true || typeof data.todo === "string";
+      if (details.type === "suite") {
+        if (skipped || deferred) problem("Unregistered skipped or todo suite in " + owner.file);
+        return;
+      }
+      if (details.type !== "test") return;
       const known =
         data.nesting === 0 &&
         typeof data.name === "string" &&
