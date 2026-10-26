@@ -289,3 +289,33 @@ void test("fixture closure requires entries and enforces finite module and byte 
   );
   assert.throws(() => readFixtureModuleClosure(root, ["bytes.mjs"]), /exceeds 8 MiB/u);
 });
+
+void test("cover and catalog Native contracts execute without optional package installation", (t) => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const directory = fixture(t);
+  const prefix = "apps/desktop/scripts/";
+  const entries = [
+    "desktop-default-cover.native.test.mts",
+    "desktop-catalog-update.native.test.mts",
+  ].map((name) => prefix + name);
+  const closure = readFixtureModuleClosure(root, entries);
+  for (const dependency of closure.external) assert.ok(isBuiltin(dependency), dependency);
+  for (const module of closure.modules) write(directory, module.path, module.bytes);
+  // These read-only wiring observations are not imported runtime dependencies.
+  for (const source of ["desktop-default-cover-test.mts", "desktop-catalog-update-test.mts"])
+    write(directory, prefix + source, readFileSync(path.join(root, prefix, source)));
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, ["--test", ...entries], {
+    env: environment,
+    cwd: directory,
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 1024 * 1024,
+    windowsHide: true,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /pass 5/u);
+  assert.match(result.stdout, /fail 0/u);
+});

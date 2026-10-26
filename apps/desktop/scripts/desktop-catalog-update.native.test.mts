@@ -3,20 +3,14 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext, runInThisContext } from "node:vm";
-import { executeBrowserScript } from "./browser-script.mts";
+import { readReviewFieldStyles } from "./desktop-review-presentation.mts";
 
 void test("catalog field presentation reaches the browser as executable JavaScript with both element arguments", async () => {
-  const source = stripTypeScriptTypes(
-    readFileSync(new URL("./desktop-catalog-update-test.mts", import.meta.url), "utf8"),
-    { mode: "strip" },
+  const caller = readFileSync(
+    new URL("./desktop-catalog-update-test.mts", import.meta.url),
+    "utf8",
   );
-  const start = source.indexOf("const fieldPresentation = await executeBrowserScript(");
-  const end = source.indexOf("for (const presentation of fieldPresentation)", start);
-  assert.ok(start >= 0 && end > start);
-  const factory: unknown = runInThisContext(
-    `(async function(executeBrowserScript,browser,publicKeyField,locationField){${source.slice(start, end)} return fieldPresentation;})`,
-  );
-  assert.ok(typeof factory === "function");
+  assert.match(caller, /\bawait\s+readReviewFieldStyles\s*\(/u);
   const fields = [
     {
       width: "240px",
@@ -49,8 +43,7 @@ void test("catalog field presentation reaches the browser as executable JavaScri
       return Promise.resolve(transported);
     },
   };
-  const result: unknown = await Reflect.apply(factory, undefined, [
-    executeBrowserScript,
+  const result: unknown = await Reflect.apply(readReviewFieldStyles, undefined, [
     browser,
     ...fields,
   ]);

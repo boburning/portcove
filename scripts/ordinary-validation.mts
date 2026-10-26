@@ -1425,14 +1425,25 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-listener-lifetime-probe.mts",
     ["scripts/desktop-listener-probe.test.mts", "scripts/desktop-execution-plan.test.mts"],
   ],
-  ["apps/desktop/scripts/desktop-default-cover-test.mts", ["scripts/desktop-scenarios.test.mts"]],
+  ...[
+    "apps/desktop/scripts/desktop-default-cover-test.mts",
+    "apps/desktop/scripts/desktop-cover-observations.mts",
+    "apps/desktop/scripts/desktop-catalog-update-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-scenarios.test.mts", "scripts/fixture-module-closure.test.mts"],
+  ]),
   ["apps/desktop/scripts/desktop-source-dialog-test.mts", ["scripts/desktop-scenarios.test.mts"]],
   ...[
     "apps/desktop/scripts/desktop-review-controls.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",
   ].map((file): [string, string[]] => [
     file,
-    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-execution-plan.test.mts"],
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/fixture-module-closure.test.mts",
+    ],
   ]),
   [
     ".github/quality-tools.json",
