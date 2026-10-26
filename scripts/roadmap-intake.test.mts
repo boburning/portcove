@@ -669,8 +669,16 @@ void test("capture-port creates one Project-backed issue without depending on pa
   );
   assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 1);
 });
-for (const parentNumber of [null, 16, 777]) {
-  void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} idempotently`, () => {
+const normalizationCases = [null, 16, 777].flatMap((parentNumber) =>
+  ["unlisted", "exact", "captured", "other-key", "other-upstream", "missing-upstream"].map(
+    (adoption) => ({
+      parentNumber,
+      adoption,
+    }),
+  ),
+);
+for (const { parentNumber, adoption } of normalizationCases) {
+  void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} with ${adoption} catalog adoption idempotently`, () => {
     const calls: RunnerCall[] = [];
     const mockedConfig = structuredClone(config);
     mockedConfig.project.number = 7;
@@ -685,6 +693,15 @@ form-port
 ### User outcome and why this port matters
 
 Preserve this contributor text.`;
+    if (adoption === "captured") {
+      body =
+        renderPortIssueBody({
+          title: "Form Port",
+          upstream: "https://github.com/example/form-port",
+          portKey: "form-port",
+        }) + "\n\nPreserve this contributor text.";
+    }
+    const initialBody = body;
     let workType = "Research";
     const issue = () => ({
       node_id: "I_form",
@@ -799,7 +816,24 @@ Preserve this contributor text.`;
     const client = new RoadmapClient(mockedConfig, runner);
     client.repositoryIssues = () =>
       fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
-    const catalog = { ports: [] };
+    const catalog = {
+      ports:
+        adoption === "unlisted"
+          ? []
+          : [
+              {
+                id: adoption === "other-key" ? "different-port" : "form-port",
+                ...(adoption === "missing-upstream"
+                  ? {}
+                  : {
+                      project_url:
+                        adoption === "other-upstream"
+                          ? "https://github.com/example/different-project"
+                          : "https://github.com/EXAMPLE/Form-Port.git/",
+                    }),
+              },
+            ],
+    };
     const readInventory = client.readInventory.bind(client);
     client.readInventory = (query, variables, select, identity) =>
       query.includes("projectItems(")
@@ -815,10 +849,39 @@ Preserve this contributor text.`;
     assert.equal(first.projectItemAdded, false);
     assert.deepEqual(first.fieldsChanged, ["Work type"]);
     assert.match(body, /Preserve this contributor text/);
+    if (adoption === "exact" || adoption === "captured") {
+      assert.match(body, /<!-- portcove-catalog-id: form-port -->/);
+      assert.doesNotMatch(body, /<!-- portcove-port-key:|<!-- portcove-research:/);
+    } else {
+      assert.match(body, /<!-- portcove-port-key: form-port -->/);
+      assert.doesNotMatch(body, /<!-- portcove-catalog-id:/);
+    }
     const second = client.normalizePortIssue({ number: 42, catalog });
     assert.equal(second.bodyChanged, false);
     assert.deepEqual(second.fieldsChanged, []);
     assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 0);
     assert.equal(calls.filter((call) => call.input?.includes("addSubIssue")).length, 0);
+    body = initialBody;
+    const readIssue = client.repositoryIssue.bind(client);
+    let reads = 0;
+    client.repositoryIssue = (number) => {
+      if (++reads === 2) body += "\nConcurrent contributor change.";
+      return readIssue(number);
+    };
+    const before = calls.length;
+    assert.throws(
+      () => client.normalizePortIssue({ number: 42, catalog }),
+      /changed during normalization/,
+    );
+    assert.match(body, /Concurrent contributor change/);
+    assert.equal(
+      calls
+        .slice(before)
+        .filter(
+          (call) =>
+            call.args.includes("PATCH") || call.input?.includes("updateProjectV2ItemFieldValue"),
+        ).length,
+      0,
+    );
   });
 }
