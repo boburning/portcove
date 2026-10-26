@@ -71,6 +71,17 @@ void test("reviewed portability literals apply only to exact files and exact val
       ...inherited.flatMap((value) => [scope.file, neighbor].map((file) => ({ file, value }))),
     );
   }
+  const production = qualificationLiterals.global_inheritance_control;
+  const productionFile = path.join(directory, production.file);
+  await mkdir(path.dirname(productionFile), { recursive: true });
+  await writeFile(
+    productionFile,
+    [...production.allowed_values, production.denied_value]
+      .map((value, index) => `const INHERITED_${index}: &str = ${rustString(value)};`)
+      .join("\n"),
+  );
+  allowed.push(...production.allowed_values.map((value) => ({ file: production.file, value })));
+  expected.push({ file: production.file, value: production.denied_value });
   const result = spawnSync(command, ["check", "--format", "json"], {
     cwd: directory,
     encoding: "utf8",

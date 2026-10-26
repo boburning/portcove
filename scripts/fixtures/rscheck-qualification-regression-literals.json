@@ -14,9 +14,28 @@
       ]
     },
     {
-      "file": "crates/portcove-core/src/adapter.rs",
-      "kind": "Unix-only non-mutating failure fixture",
-      "values": ["/usr/bin/false"]
+      "file": "crates/portcove-core/src/adapter_unix_failure_tests.rs",
+      "kind": "Unix-only fixture included in its original test namespace; no production-file rule override",
+      "values": ["/usr/bin/false"],
+      "source": "crates/portcove-core/src/adapter.rs"
     }
-  ]
+  ],
+  "global_inheritance_control": {
+    "observed_run": 40358310040,
+    "observed_job": 121696770902,
+    "file": "crates/portcove-core/src/adapter.rs",
+    "allowed_values": [
+      "/usr/bin/mame/chdman",
+      "/usr/bin/chdman",
+      "/usr/local/bin/chdman",
+      "/opt/homebrew/bin/chdman",
+      "/Applications/MAME/chdman",
+      "/usr/bin/dolphin-tool",
+      "/usr/local/bin/dolphin-tool",
+      "/app/bin/dolphin-tool",
+      "/opt/homebrew/bin/dolphin-tool",
+      "/Applications/Dolphin.app/Contents/MacOS/DolphinTool"
+    ],
+    "denied_value": "/usr/bin/false"
+  }
 }

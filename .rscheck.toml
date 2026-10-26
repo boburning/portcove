@@ -278,7 +278,7 @@ allow_regex = [
 
 # The Unix-only failure fixture runs this exact non-mutating system command.
 [[scope]]
-include = ["**/crates/portcove-core/src/adapter.rs"]
+include = ["**/crates/portcove-core/src/adapter_unix_failure_tests.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = ["^/usr/bin/false$"]
