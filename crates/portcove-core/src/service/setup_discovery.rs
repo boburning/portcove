@@ -259,6 +259,7 @@ impl PortcoveService {
                 .as_deref()
                 .unwrap_or(&pending.listing.name),
         );
+        let unintegrated = self.catalog.port(port_id).is_err();
         let project = reqwest::Url::parse(&pending.listing.project_url)
             .ok()
             .and_then(|url| {
@@ -283,7 +284,7 @@ impl PortcoveService {
                         .to_string_lossy(),
                 );
                 reviewed_hint
-                    || (project.len() >= 4 && name == project)
+                    || (unintegrated && project.len() >= 4 && name == project)
                     || [&id, &title].iter().any(|key| {
                         key.len() >= 4 && (name == **key || name.starts_with(key.as_str()))
                     })

@@ -279,6 +279,46 @@ async fn downloaded_project_named_player_is_suggested_without_overriding_safety_
             .external_runtime
             .is_none()
     );
+
+    fs::copy(&probe, &player).unwrap();
+    let reviewed_player = player_root.join(if cfg!(windows) {
+        "ReviewedPlayer.exe"
+    } else {
+        "ReviewedPlayer"
+    });
+    fs::copy(&probe, &reviewed_player).unwrap();
+    let embedded = Catalog::embedded().unwrap();
+    let mut document = embedded.document().clone();
+    let mut managed = embedded
+        .ports()
+        .iter()
+        .find(|port| port.adapter == AdapterKind::NativePortable)
+        .unwrap()
+        .clone();
+    let platform = Platform::current().unwrap();
+    managed.id = request.port_id.clone();
+    managed.platforms = vec![platform];
+    managed.executable_hints = std::collections::BTreeMap::from([(
+        platform,
+        vec![
+            reviewed_player
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into(),
+        ],
+    )]);
+    managed.release.asset_hints =
+        std::collections::BTreeMap::from([(platform, vec!["runtime.zip".into()])]);
+    document.ports = vec![managed];
+    service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert_eq!(
+        service
+            .discover_setup_launch_targets(&request.port_id, &pending.id)
+            .unwrap()
+            .recommended_executable,
+        Some(reviewed_player)
+    );
 }
 
 #[test]
