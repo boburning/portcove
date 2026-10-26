@@ -1,7 +1,11 @@
+import assert from "node:assert/strict";
+import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   appendFileSync,
+  existsSync,
+  realpathSync,
   closeSync,
   lstatSync,
   mkdirSync,
@@ -452,24 +456,156 @@ export function buildWindowsRustArchive() {
   const binaries = path.join(packetDirectory, "binaries.json");
   const cargo = path.join(packetDirectory, "cargo.json");
   const scope = ["--locked", "--workspace", "--all-targets"];
-  metrics.measure("windows-workspace-build", () => {
+  // Temporary Audit15 experiment; remove before the evidence-only head merges.
+  const binaryBuildArgs = [
+    "nextest",
+    "list",
+    ...scope,
+    "--list-type",
+    "binaries-only",
+    "--message-format",
+    "json",
+  ];
+  const cargoMetadataArgs = ["metadata", "--locked", "--format-version", "1"];
+  const expectedTarget = path.resolve(root, "target");
+  const dependencyFetchArgs = [
+    "--config",
+    'build.target-dir="work/windows-profile-fetch"',
+    "fetch",
+    "--locked",
+  ];
+  const profileIdentity =
+    process.env.GITHUB_JOB === "fast_rust"
+      ? {
+          format_version: 1,
+          kind: "windows-build-cost-profile",
+          identity,
+          candidate: plan.identities.head,
+          checkout: plan.identities.checkout,
+          git_tree: execute("git", ["rev-parse", "HEAD^{tree}"]).trim(),
+          source_status: execute("git", [
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=no",
+          ]).trim(),
+          job: process.env.GITHUB_JOB,
+          runner: {
+            platform: process.platform,
+            arch: process.arch,
+            image_os: process.env.ImageOS ?? null,
+            image_version: process.env.ImageVersion ?? null,
+          },
+          recorded_at: new Date().toISOString(),
+          cargo_home: realpathSync(process.env.CARGO_HOME ?? path.join(homedir(), ".cargo")),
+          cargo_version: execute("cargo", ["--version", "--verbose"]).trim(),
+          expected_target: expectedTarget,
+          target_present_before: existsSync(expectedTarget),
+          cache_policy:
+            "producer Rust cache restore/save intentionally disabled for this experiment",
+          dependency_fetch_command: ["cargo", ...dependencyFetchArgs],
+          commands: [
+            ["cargo-nextest", ...binaryBuildArgs],
+            ["cargo", ...cargoMetadataArgs],
+          ],
+          environment: Object.fromEntries(
+            [
+              "CARGO_TARGET_DIR",
+              "CARGO_BUILD_JOBS",
+              "CARGO_ENCODED_RUSTFLAGS",
+              "NEXTEST_TEST_THREADS",
+              "RUSTUP_TOOLCHAIN",
+              "RUSTFLAGS",
+              "CARGO_INCREMENTAL",
+              "CARGO_PROFILE_DEV_DEBUG",
+              "CARGO_PROFILE_TEST_DEBUG",
+            ].map((name) => [name, process.env[name] ?? null]),
+          ),
+        }
+      : null;
+  if (profileIdentity) {
     writeFileSync(
-      binaries,
-      execute("cargo-nextest", [
-        "nextest",
-        "list",
-        ...scope,
-        "--list-type",
-        "binaries-only",
-        "--message-format",
-        "json",
-      ]),
+      path.join(packetDirectory, "build-profile-start.json"),
+      JSON.stringify(profileIdentity),
       { flag: "wx" },
     );
-    writeFileSync(cargo, execute("cargo", ["metadata", "--locked", "--format-version", "1"]), {
-      flag: "wx",
+    assert.equal(
+      profileIdentity.source_status,
+      "",
+      "Cold/warm probe requires unchanged tracked source",
+    );
+    assert.equal(
+      profileIdentity.target_present_before,
+      false,
+      "Target-cold probe requires the actual workspace target to be absent",
+    );
+    metrics.record("windows-build-profile:cache-policy", {
+      cache_outcome: "restore-and-save-disabled",
     });
+    metrics.measure("windows-build-profile:dependency-fetch", () =>
+      execute("cargo", dependencyFetchArgs),
+    );
+    const targetBeforeBuild = {
+      observed_at: new Date().toISOString(),
+      target: expectedTarget,
+      present: existsSync(expectedTarget),
+    };
+    writeFileSync(
+      path.join(packetDirectory, "build-profile-ready.json"),
+      JSON.stringify(targetBeforeBuild),
+      { flag: "wx" },
+    );
+    assert.equal(
+      targetBeforeBuild.present,
+      false,
+      "Dependency fetch must not populate the measured target",
+    );
+  }
+  metrics.measure("windows-workspace-build", () => {
+    writeFileSync(binaries, execute("cargo-nextest", binaryBuildArgs), { flag: "wx" });
+    writeFileSync(cargo, execute("cargo", cargoMetadataArgs), { flag: "wx" });
   });
+  if (profileIdentity) {
+    const warmBinaries = path.join(packetDirectory, "warm-binaries.json");
+    const warmCargo = path.join(packetDirectory, "warm-cargo.json");
+    metrics.measure("windows-workspace-build-warm", () => {
+      writeFileSync(warmBinaries, execute("cargo-nextest", binaryBuildArgs), { flag: "wx" });
+      writeFileSync(warmCargo, execute("cargo", cargoMetadataArgs), { flag: "wx" });
+    });
+    const coldCargo = readJson(cargo);
+    assert.ok(isRecord(coldCargo) && typeof coldCargo.target_directory === "string");
+    assert.equal(
+      path.resolve(coldCargo.target_directory).toLowerCase(),
+      expectedTarget.toLowerCase(),
+    );
+    assert.deepEqual(
+      readJson(warmBinaries),
+      readJson(binaries),
+      "Cold/warm official binary metadata differs",
+    );
+    assert.deepEqual(readJson(warmCargo), coldCargo, "Cold/warm Cargo metadata differs");
+    assert.equal(
+      execute("git", ["status", "--porcelain=v1", "--untracked-files=no"]).trim(),
+      profileIdentity.source_status,
+      "Cold/warm source changed during build",
+    );
+    writeFileSync(
+      path.join(packetDirectory, "build-profile-complete.json"),
+      JSON.stringify({
+        ...profileIdentity,
+        completed_at: new Date().toISOString(),
+        target_directory: coldCargo.target_directory,
+        target_immediately_before_build: readJson(
+          path.join(packetDirectory, "build-profile-ready.json"),
+        ),
+        metadata: [binaries, cargo, warmBinaries, warmCargo].map((file) => ({
+          file: path.basename(file),
+          sha256: fileDigest(file),
+        })),
+        complete: true,
+      }),
+      { flag: "wx" },
+    );
+  }
   const metadata = [
     "--binaries-metadata",
     binaries,
