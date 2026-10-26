@@ -14822,7 +14822,13 @@ fn main() {
                     "batch {id}; reversed={reverse}"
                 );
                 assert_eq!(single.blockers, batched.blockers);
-                assert!(single.launchable);
+                assert!(!single.launchable);
+                assert!(single.pending_setup);
+                assert!(
+                    single
+                        .blockers
+                        .contains(&LaunchBlocker::PreparationRequired)
+                );
             }
         }
         assert_eq!(
