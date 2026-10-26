@@ -70,6 +70,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
   const more = page.getByRole("button", { name: /^More actions for/ }).first();
   await more.click();
+  await expect.element(page.getByRole("menu", { name: /^More actions for/ })).toHaveFocus();
   await userEvent.keyboard("{End}");
   await expect.element(page.getByRole("menuitem", { name: "Saves and storage" })).toHaveFocus();
   await userEvent.keyboard("{Escape}");
