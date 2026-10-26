@@ -40,6 +40,10 @@ import { isRecord } from "./runtime-values.mts";
 import { isDeepStrictEqual } from "node:util";
 import { performance } from "node:perf_hooks";
 import {
+  inspectWindowsNativeDependencyInputs,
+  snapshotWindowsNativeDependencies,
+} from "./release-hosted-native-windows-dependency-files.mts";
+import {
   inspectWindowsNativeSourceTree,
   verifyWindowsNativeSourceFiles,
 } from "./release-hosted-native-windows-source.mts";
@@ -640,46 +644,57 @@ async function main() {
     const observedGit = createHash("sha256")
       .update(await readControllerToolFile(osGit))
       .digest("hex");
-    const sourceOut = openSync(path.join(directory, "windows-source.stdout.json"), "wx");
-    let sourceErr: number;
-    try {
-      sourceErr = openSync(path.join(directory, "windows-source.stderr.bin"), "wx");
-    } catch (error) {
-      closeSync(sourceOut);
-      throw error;
-    }
-    try {
-      assert.equal(
-        await runResourceCommand(
-          "analysis",
-          path.join(built.tools, "bin/node.exe"),
-          [
-            path.join(built.tools, "scripts/release-hosted-native-windows-source.bundle.mjs"),
-            "acquire-source",
-            sourcePlan,
-          ],
-          {
-            cwd: buildParent,
-            environment: { ...environment, GITHUB_ACTIONS: "true" },
-            output: { stdout: sourceOut, stderr: sourceErr },
-            queueDeadline: sourceDeadline,
-            executionTimeoutMilliseconds: Math.floor(sourceDeadline - performance.now()),
-            supervise: (args, dependencies) =>
-              runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
-          },
-        ),
-        0,
-        "ordinary Windows source helper refused; retain evidence",
+    const runPreparation = async (
+      operation: "source" | "dependencies",
+      planFile: string,
+      deadline: number,
+    ) => {
+      const stdout = openSync(path.join(directory, `windows-${operation}.stdout.json`), "wx");
+      let stderr: number;
+      try {
+        stderr = openSync(path.join(directory, `windows-${operation}.stderr.bin`), "wx");
+      } catch (error) {
+        closeSync(stdout);
+        throw error;
+      }
+      try {
+        assert.equal(
+          await runResourceCommand(
+            "analysis",
+            path.join(built.tools, "bin/node.exe"),
+            [
+              path.join(built.tools, "scripts/release-hosted-native-windows-source.bundle.mjs"),
+              `acquire-${operation}`,
+              planFile,
+            ],
+            {
+              cwd: buildParent,
+              environment: { ...environment, GITHUB_ACTIONS: "true" },
+              output: { stdout, stderr },
+              queueDeadline: deadline,
+              executionTimeoutMilliseconds: Math.floor(deadline - performance.now()),
+              supervise: (args, dependencies) =>
+                runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+            },
+          ),
+          0,
+          `ordinary Windows ${operation} helper refused; retain evidence`,
+        );
+      } finally {
+        closeSync(stdout);
+        closeSync(stderr);
+      }
+      const readback: unknown = JSON.parse(
+        (
+          await readControllerToolFile(
+            path.join(directory, `windows-${operation}.stdout.json`),
+            65536,
+          )
+        ).toString("utf8"),
       );
-    } finally {
-      closeSync(sourceOut);
-      closeSync(sourceErr);
-    }
-    const sourceReadback: unknown = JSON.parse(
-      (
-        await readControllerToolFile(path.join(directory, "windows-source.stdout.json"), 65536)
-      ).toString("utf8"),
-    );
+      return readback;
+    };
+    const sourceReadback = await runPreparation("source", sourcePlan, sourceDeadline);
     assert.ok(
       isRecord(sourceReadback) &&
         sourceReadback.binding === binding &&
@@ -719,6 +734,108 @@ async function main() {
       scope:
         "credential-free Git/source/directory observation only; no original protected capability",
     });
+    phase = "credential-free-Windows-dependency-preparation";
+    const dependencyDeadline = performance.now() + 90000;
+    const dependencyActive = () => assert.ok(performance.now() < dependencyDeadline && !stopped);
+    const dependencySource = path.join(sourceRoot, "source");
+    const inputs = await inspectWindowsNativeDependencyInputs(
+      dependencySource,
+      dependencyDeadline,
+      dependencyActive,
+    );
+    const dependencyPlan = path.join(buildParent, "windows-dependencies-intent.json");
+    await writeFile(
+      dependencyPlan,
+      JSON.stringify({
+        schema_version: 1,
+        binding,
+        root: path.join(buildParent, "windows-dependencies"),
+        setup: path.join(built.tools, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        source: dependencySource,
+        pnpm: path.join(built.tools, "bin/pnpm.exe"),
+        inputs,
+        expires_at: Date.now() + Math.floor(dependencyDeadline - performance.now()),
+      }),
+      { flag: "wx", flush: true },
+    );
+    const dependencyFiles = [dependencyPlan],
+      dependencyCustody = inspectNativeRuntimeCustody(dependencyFiles);
+    const dependencies = await runPreparation("dependencies", dependencyPlan, dependencyDeadline);
+    assert.ok(
+      isRecord(dependencies) &&
+        dependencies.binding === binding &&
+        dependencies.dependencies_prepared === true &&
+        dependencies.authority === "none" &&
+        dependencies.native_acceptance === "not-established",
+    );
+    assert.deepEqual(dependencies.inputs, inputs);
+    const graph = await snapshotWindowsNativeDependencies(
+      dependencySource,
+      dependencyDeadline,
+      dependencyActive,
+    );
+    assert.equal(graph.sha256, dependencies.graph_sha256);
+    assert.equal(graph.entries, dependencies.entries);
+    assert.equal(graph.bytes, dependencies.bytes);
+    verifyWindowsNativeSourceFiles(
+      dependencySource,
+      inspectWindowsNativeSourceTree(tree),
+      harnessHash,
+      dependencyActive,
+    );
+    recheckNativeRuntimeCustody(sourceFiles, sourceCustody);
+    recheckNativeRuntimeCustody(dependencyFiles, dependencyCustody);
+    recheckWindowsSourceSystemCustody(sourceSystemCustody);
+    dependencyActive();
+    await record("windows-dependencies-preparation.json", {
+      ...dependencies,
+      source: expected,
+      elapsed_milliseconds: 90000 - Math.floor(dependencyDeadline - performance.now()),
+      original_parent_runtime_acceptance: "not-established",
+      account_execution: "not_requested",
+      scope: "frozen registry dependency/source observation only; no original protected capability",
+    });
+    phase = "Windows-dependency-graph-contracts";
+    const graphOut = openSync(path.join(directory, "windows-dependency-controls.stdout.txt"), "wx");
+    let graphErr: number;
+    try {
+      graphErr = openSync(path.join(directory, "windows-dependency-controls.stderr.txt"), "wx");
+    } catch (error) {
+      closeSync(graphOut);
+      throw error;
+    }
+    try {
+      assert.equal(
+        await runResourceCommand(
+          "analysis",
+          path.join(built.tools, "bin/node.exe"),
+          [
+            "--test",
+            "--test-timeout=30000",
+            path.join(source, "scripts/release-hosted-native-windows-dependency-files.test.mts"),
+          ],
+          {
+            cwd: source,
+            environment: { ...environment, GITHUB_ACTIONS: "true" },
+            output: { stdout: graphOut, stderr: graphErr },
+            executionTimeoutMilliseconds: 60000,
+            supervise: (args, dependencies) =>
+              runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+          },
+        ),
+        0,
+        "Windows graph controls refused; retain partial evidence",
+      );
+    } finally {
+      closeSync(graphOut);
+      closeSync(graphErr);
+    }
+    await record("windows-dependency-controls.json", {
+      status: "pass",
+      scope: "ordinary Windows filesystem graph controls only",
+      native_acceptance: "not-established",
+      authority: "none",
+    });
     recheckNativeRuntimeCustody(files, custody);
     await record("result.json", {
       status: "pass",
@@ -736,7 +853,8 @@ async function main() {
       ],
       filesystem_custody: "actual-owner-ACL-and-identity-recheck",
       account_execution: "not_requested",
-      scope: "Windows controller-tool bootstrap and credential-free source preparation only",
+      scope:
+        "Windows controller-tool bootstrap and credential-free source/dependency preparation only",
       native_acceptance: "not-established",
       production_tool_acceptance: "not-established",
       authority: "none",

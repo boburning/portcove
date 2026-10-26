@@ -1,0 +1,151 @@
+import assert from "node:assert/strict";
+import { mkdirSync, writeFileSync, symlinkSync, linkSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { disposableDirectory } from "./fixtures/disposable-directory.mts";
+import {
+  inspectWindowsNativeDependencyInputs,
+  inspectWindowsNativeDependencyTarget,
+  snapshotWindowsNativeDependencies,
+} from "./release-hosted-native-windows-dependency-files.mts";
+
+const deadline = () => performance.now() + 10000;
+const active = () => {};
+function fixture(context: test.TestContext) {
+  const root = disposableDirectory(context, path.join(tmpdir(), "pc-win-dependencies-"));
+  for (const name of ["node_modules", "apps/desktop/node_modules"])
+    mkdirSync(path.join(root, name), { recursive: true });
+  return root;
+}
+function link(target: string, filename: string) {
+  symlinkSync(
+    process.platform === "win32" ? target : path.relative(path.dirname(filename), target),
+    filename,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+}
+
+void test("Windows dependency target syntax supports local junctions without UNC/device/ADS ambiguity", () => {
+  assert.equal(
+    inspectWindowsNativeDependencyTarget("\\\\?\\C:\\source\\node_modules\\pkg"),
+    "C:\\source\\node_modules\\pkg",
+  );
+  assert.equal(inspectWindowsNativeDependencyTarget("../.pnpm/pkg"), "..\\.pnpm\\pkg");
+  for (const invalid of [
+    "\\\\server\\share",
+    "\\\\?\\UNC\\server\\share",
+    "\\\\.\\device",
+    "\\??\\C:\\other",
+    "C:relative",
+    "C:\\file:stream",
+    "relative:stream",
+    "\\rooted",
+    "bad\0name",
+  ])
+    assert.throws(() => inspectWindowsNativeDependencyTarget(invalid));
+});
+
+void test("Windows dependency snapshots hash physical files once and preserve ordinary package cycles", async (context) => {
+  const root = fixture(context),
+    a = path.join(root, "node_modules/.pnpm/a/node_modules/a"),
+    b = path.join(root, "node_modules/.pnpm/b/node_modules/b");
+  for (const dir of [a, b]) {
+    mkdirSync(path.join(dir, "node_modules"), { recursive: true });
+    writeFileSync(path.join(dir, "index.js"), "export {};\n", { mode: 0o600 });
+  }
+  link(b, path.join(a, "node_modules/b"));
+  link(a, path.join(b, "node_modules/a"));
+  link(a, path.join(root, "node_modules/a"));
+  const observed = await snapshotWindowsNativeDependencies(root, deadline(), active),
+    again = await snapshotWindowsNativeDependencies(root, deadline(), active);
+  assert.equal(observed.sha256, again.sha256);
+  assert.equal(observed.records.filter((row) => row.kind === "file").length, 2);
+  assert.equal(observed.records.filter((row) => row.kind === "link").length, 3);
+  assert.equal(observed.authority, "none");
+  writeFileSync(path.join(a, "index.js"), "changed\n", { mode: 0o600 });
+  assert.notEqual(
+    (await snapshotWindowsNativeDependencies(root, deadline(), active)).sha256,
+    observed.sha256,
+  );
+});
+
+void test("Windows dependency snapshots refuse external aliases and source-root links", async (context) => {
+  const root = fixture(context),
+    outside = fixture(context);
+  writeFileSync(path.join(outside, "keep"), "retained", { mode: 0o600 });
+  link(outside, path.join(root, "node_modules/external"));
+  await assert.rejects(snapshotWindowsNativeDependencies(root, deadline(), active), /escapes/);
+  assert.equal(readFileSync(path.join(outside, "keep"), "utf8"), "retained");
+  const other = fixture(context);
+  link(other, path.join(other, "node_modules/root"));
+  await assert.rejects(snapshotWindowsNativeDependencies(other, deadline(), active), /source root/);
+});
+
+void test("Windows dependency snapshots refuse contained targets outside the inventoried graph", async (context) => {
+  const root = fixture(context),
+    target = path.join(root, "untracked-cache/pkg");
+  mkdirSync(target, { recursive: true });
+  writeFileSync(path.join(target, "index.js"), "untracked", { mode: 0o600 });
+  link(target, path.join(root, "node_modules/pkg"));
+  await assert.rejects(
+    snapshotWindowsNativeDependencies(root, deadline(), active),
+    /outside inventoried physical graph/,
+  );
+  assert.equal(readFileSync(path.join(target, "index.js"), "utf8"), "untracked");
+});
+
+void test("Windows dependency snapshots refuse hardlinked files and expired original clocks", async (context) => {
+  const root = fixture(context),
+    file = path.join(root, "node_modules/data");
+  writeFileSync(file, "same", { mode: 0o600 });
+  linkSync(file, path.join(root, "node_modules/alias"));
+  await assert.rejects(snapshotWindowsNativeDependencies(root, deadline(), active));
+  await assert.rejects(
+    snapshotWindowsNativeDependencies(root, performance.now() - 1, active),
+    /deadline exhausted/,
+  );
+});
+
+void test("Windows dependency snapshots reject cyclic link resolution without traversing it", async (context) => {
+  const root = fixture(context),
+    first = path.join(root, "node_modules/first"),
+    second = path.join(root, "node_modules/second");
+  link(second, first);
+  link(first, second);
+  await assert.rejects(snapshotWindowsNativeDependencies(root, deadline(), active), /cycle/);
+});
+
+void test("Windows dependency preflight rejects lockfile routes as well as manifest and registry overrides", async (context) => {
+  const root = fixture(context);
+  writeFileSync(
+    path.join(root, "package.json"),
+    JSON.stringify({ packageManager: "pnpm@12.14.0", dependencies: { inert: "1.0.0" } }),
+    { mode: 0o600 },
+  );
+  writeFileSync(path.join(root, "apps/desktop/package.json"), "{}", { mode: 0o600 });
+  writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages: [apps/desktop]\n", {
+    mode: 0o600,
+  });
+  const lock = `lockfileVersion: '9.0'\npackages:\n  inert@1.0.0:\n    resolution: {integrity: sha512-${Buffer.alloc(64).toString("base64")}}\nimporters:\n  .: {}\n`;
+  writeFileSync(path.join(root, "pnpm-lock.yaml"), lock, { mode: 0o600 });
+  assert.equal(
+    (await inspectWindowsNativeDependencyInputs(root, deadline(), active)).registry_packages,
+    1,
+  );
+  writeFileSync(
+    path.join(root, "pnpm-lock.yaml"),
+    lock.replace("resolution: {", "resolution: {tarball: 'https://outside.invalid/package.tgz', "),
+    { mode: 0o600 },
+  );
+  await assert.rejects(
+    inspectWindowsNativeDependencyInputs(root, deadline(), active),
+    /lock resolution refused/,
+  );
+  writeFileSync(path.join(root, "pnpm-lock.yaml"), lock, { mode: 0o600 });
+  writeFileSync(path.join(root, ".npmrc"), "registry=https://outside.invalid\n", { mode: 0o600 });
+  await assert.rejects(
+    inspectWindowsNativeDependencyInputs(root, deadline(), active),
+    /registry overrides refused/,
+  );
+});

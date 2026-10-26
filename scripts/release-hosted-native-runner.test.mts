@@ -203,7 +203,7 @@ void test("fixed native composite pins uploads and binds responses through envir
 void test(
   "Linux workflow handoff keeps actual original process identity across both uploads and refuses drift",
   {
-    timeout: 90000,
+    timeout: 150000,
     skip: process.platform !== "linux" || process.getuid?.() === 0,
   },
   (t) => {
@@ -270,7 +270,7 @@ console.log('actual file/PID workflow rendezvous passed; source, native worker a
     const childStarted = performance.now();
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 60000,
+      timeout: 120000,
       maxBuffer: 65536,
     });
     assert.equal(

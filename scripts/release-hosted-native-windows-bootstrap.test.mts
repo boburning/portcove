@@ -46,7 +46,7 @@ void test(
       String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
 import {mkdir,writeFile,readFile,stat} from 'node:fs/promises';import path from 'node:path';
-const root=process.argv[1], token={}, caps=Object.freeze({kind:'original controlled capabilities',deadline:10000});
+const root=process.argv[1], token={};let budget=10000,caps=Object.freeze({kind:'original controlled capabilities',deadline:10000});
 const actual=await import(${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)});
 const {assertControllerBootstrapEnvironment:guard}=await import(${JSON.stringify(new URL("./release-controller-job-bootstrap.mts", import.meta.url).href)});
 Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});
@@ -58,12 +58,12 @@ globalThis.fixture={read:actual.readControllerToolFile,guard,home:()=>home,now:(
  admit:(policy,env,bytes,platform,stage)=>{assert.equal(platform,'windows-x86_64');assert.equal(stage,'payload-signing');assert.equal(env.GITHUB_JOB,'native_windows');assert.equal(bytes,workflow);if(fault==='source')throw Error('refused source');return source},
  require:(value,job,purpose)=>{assert.equal(value,source);assert.equal(job,'native_windows');assert.equal(purpose,'application')},
  selected:()=>({configuration:{purpose:'application',fixed:'Windows'}}),
- deadline:(platform,identity,cwd,bound)=>{assert.equal(platform,'windows-x86_64');assert.equal(identity.run_id,'123');assert.equal(bound,571000);return 10000},
- receive:async(parent,artifact,bundle,options)=>{receives++;assert.equal(path.dirname(parent),home);assert.match(path.basename(parent),/^\.pcn-[a-f0-9]{32}$/);assert.equal(artifact.platform,'windows-x86_64');assert.equal(artifact.artifact_id,3);assert.equal(bundle.artifact_id,4);assert.equal(options.deadline,10000);if(fault==='tools')throw Error('tools refused');if(fault==='late')clock=10001;return token},
+ deadline:(platform,identity,cwd,bound)=>{assert.equal(platform,'windows-x86_64');assert.equal(identity.run_id,'123');assert.equal(bound,571000);return budget},
+ receive:async(parent,artifact,bundle,options)=>{receives++;assert.equal(path.dirname(parent),home);assert.match(path.basename(parent),/^\.pcn-[a-f0-9]{32}$/);assert.equal(artifact.platform,'windows-x86_64');assert.equal(artifact.artifact_id,3);assert.equal(bundle.artifact_id,4);assert.equal(options.deadline,budget);if(fault==='tools')throw Error('tools refused');if(fault==='late')clock=10001;return token},
  paths:async value=>{pathReads++;if(fault==='late-final'&&pathReads===4)clock=10001;if(fault==='role-final'&&pathReads===4)process.env.PORTCOVE_TUF_ROOT_KEY='inert forbidden';assert.equal(value,token);if(fault==='environment')process.env.GH_TOKEN='changed';return {root:home,node:fault==='node'?path.join(home,'runner.mjs'):process.execPath,platform:fault==='platform'?'linux-x86_64':'windows-x86_64',entries:{'release-hosted-native-runner':path.join(home,'runner.mjs')}}},
  custody:files=>{if(files.length===1){if(fault==='custody')throw Error('foreign ACL');assert.equal((awaitableStat(files[0])).nlink,1)}return new Map(files.map(file=>[file,'fixed']))},
  recheck:(files,before)=>{assert.deepEqual([...before.keys()],files);if(fault==='changed-custody'&&receives)throw Error('changed custody')},
- imported:()=>imports++,prepare:async(raw,parent,deadline,executing)=>{prepared++;assert.equal(raw.tools.artifact.platform,'windows-x86_64');assert.equal(deadline,10000);assert.equal(executing,path.join(home,'runner.mjs'));return fault==='issuer-final'?{...caps,deadline:500}:caps},
+ imported:()=>imports++,prepare:async(raw,parent,deadline,executing)=>{prepared++;assert.equal(raw.tools.artifact.platform,'windows-x86_64');assert.equal(deadline,budget);assert.equal(executing,path.join(home,'runner.mjs'));return fault==='issuer-final'?{...caps,deadline:500}:caps},
 };
 const {statSync:awaitableStat}=await import('node:fs');
 const routes={
@@ -92,6 +92,14 @@ for(const name of ['','source','windows-missing','windows-failed','bundle-missin
  const record=JSON.parse(await readFile(path.join(directory,'portcove-native-job-clock.json')));assert.equal(record.platform,'windows-x86_64');assert.equal(record.authority,'none');assert.ok(BigInt(record.deadline_ns)-BigInt(record.started_ns)<=570000000000n);
  await assert.rejects(api.prepareFixedHostedWindowsNativeRuntime());assert.equal(receives,1);
  await assert.rejects(api.readActualHostedLinuxBootstrapScope('pre-sign'));await assert.rejects(api.readActualHostedWindowsBootstrapScope('arbitrary'));
+}
+
+for(const operation of ['Source','Installation']) {
+ fault='';receives=imports=prepared=pathReads=0;clock=1000;budget=500000;home=path.join(root,'full-'+operation);await mkdir(home);process.env.RUNNER_TEMP=home;delete process.env.PORTCOVE_TUF_ROOT_KEY;process.env.GH_TOKEN='inert reader';
+ caps=Object.freeze({deadline:budget,source:{},dependencies:{},installation:{}});
+ await writeFile(path.join(home,'manifest.json'),'{}');await writeFile(path.join(home,'runner.mjs'),'globalThis.fixture.imported();export const prepareConfiguredHostedWindows'+operation+'=(...a)=>globalThis.fixture.prepare(...a);');
+ const result=await api['prepareFixedHostedWindowsNative'+operation]();assert.equal(result,caps);assert.equal(prepared,1);assert.equal(imports,1);assert.equal(result.deadline,budget);
+ await assert.rejects(api['prepareFixedHostedWindowsNative'+operation]());assert.equal(receives,1);
 }
 console.log('controlled Windows preparation passed');
 `,

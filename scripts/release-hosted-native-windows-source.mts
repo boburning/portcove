@@ -38,6 +38,16 @@ import { runRustTests } from "./run-rust-tests.mts";
 import { readNativeCapturedStream } from "./release-native-capture-files.mts";
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  checkCoordinatorDeadline,
+  coordinatorCommandTimeout,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
+import { nativePnpmVersion } from "./release-pnpm-runtime.mts";
+import {
+  inspectWindowsNativeDependencyInputs,
+  snapshotWindowsNativeDependencies,
+} from "./release-hosted-native-windows-dependency-files.mts";
 
 const { git, powershell } = windowsSourceSystemExecutables;
 const harness = "apps/desktop/scripts/desktop-test.mts";
@@ -191,54 +201,12 @@ function inspectPlan(raw: unknown): Plan {
   return raw as Plan;
 }
 
-/** Prepared supervisor child. It emits observations, never original receipts. */
-async function acquireSource(planFile: string) {
-  assert.ok(process.platform === "win32" && process.arch === "x64");
-  assertControllerBootstrapEnvironment();
-  const plan = inspectPlan(
-    JSON.parse((await readControllerToolFile(planFile, 8192)).toString("utf8")),
-  );
-  const active = () => assert.ok(Date.now() < plan.expires_at, "source preparation expired");
-  const environment = {
-    HOME: path.dirname(plan.root),
-    USERPROFILE: path.dirname(plan.root),
-    XDG_CONFIG_HOME: path.dirname(plan.root),
-    SystemRoot: "C:\\Windows",
-    PATH: path.dirname(process.execPath) + ";C:\\Windows\\System32",
-    TEMP: path.dirname(plan.root),
-    TMP: path.dirname(plan.root),
-    GIT_CONFIG_NOSYSTEM: "1",
-    GIT_CONFIG_GLOBAL: "NUL",
-    GIT_CONFIG_SYSTEM: "NUL",
-    GIT_ATTR_NOSYSTEM: "1",
-    GIT_NO_LAZY_FETCH: "1",
-    GIT_NO_REPLACE_OBJECTS: "1",
-    GIT_TERMINAL_PROMPT: "0",
-    GCM_INTERACTIVE: "never",
-  };
-  // Detection can lag writes; this is deliberately not a hard filesystem quota.
-  let inventoryEnabled = false;
-  const inventory = () => {
-    active();
-    if (!inventoryEnabled) return;
-    let count = 0,
-      bytes = 0;
-    const pending = [plan.root];
-    while (pending.length) {
-      active();
-      for (const item of readdirSync(pending.pop()!, { withFileTypes: true })) {
-        const filename = path.join(item.parentPath, item.name),
-          stat = lstatSync(filename);
-        assert.ok(++count <= 32768 && !stat.isSymbolicLink());
-        bytes += stat.size;
-        assert.ok(
-          bytes <= 512 * 1024 ** 2 && (stat.isDirectory() || (stat.isFile() && stat.nlink === 1)),
-        );
-        if (stat.isDirectory()) pending.push(filename);
-      }
-    }
-  };
-  const command = async (
+function preparationCommand(
+  environment: Record<string, string>,
+  cwd: string,
+  inventory: () => void,
+) {
+  return async (
     executable: string,
     args: string[],
     maximum = 8192,
@@ -252,7 +220,7 @@ async function acquireSource(planFile: string) {
       errorBytes: Buffer[] = [];
     await new Promise<void>((resolve, reject) => {
       const child = spawn(executable, args, {
-        cwd: path.dirname(plan.root),
+        cwd,
         env: { ...environment, ...extra },
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
@@ -265,9 +233,11 @@ async function acquireSource(planFile: string) {
           stage:
             executable === powershell
               ? "private-directory"
-              : args.find((arg) =>
-                  ["init", "fetch", "rev-parse", "ls-tree", "checkout"].includes(arg),
-                ),
+              : path.basename(executable).toLowerCase() === "pnpm.exe"
+                ? "dependencies"
+                : args.find((arg) =>
+                    ["init", "fetch", "rev-parse", "ls-tree", "checkout"].includes(arg),
+                  ),
           exit,
           signal,
           reason: String(reason).slice(0, 512),
@@ -319,6 +289,56 @@ async function acquireSource(planFile: string) {
     inventory();
     return Buffer.concat(output);
   };
+}
+
+/** Prepared supervisor child. It emits observations, never original receipts. */
+async function acquireSource(planFile: string) {
+  assert.ok(process.platform === "win32" && process.arch === "x64");
+  assertControllerBootstrapEnvironment();
+  const plan = inspectPlan(
+    JSON.parse((await readControllerToolFile(planFile, 8192)).toString("utf8")),
+  );
+  const active = () => assert.ok(Date.now() < plan.expires_at, "source preparation expired");
+  const environment = {
+    HOME: path.dirname(plan.root),
+    USERPROFILE: path.dirname(plan.root),
+    XDG_CONFIG_HOME: path.dirname(plan.root),
+    SystemRoot: "C:\\Windows",
+    PATH: path.dirname(process.execPath) + ";C:\\Windows\\System32",
+    TEMP: path.dirname(plan.root),
+    TMP: path.dirname(plan.root),
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: "NUL",
+    GIT_CONFIG_SYSTEM: "NUL",
+    GIT_ATTR_NOSYSTEM: "1",
+    GIT_NO_LAZY_FETCH: "1",
+    GIT_NO_REPLACE_OBJECTS: "1",
+    GIT_TERMINAL_PROMPT: "0",
+    GCM_INTERACTIVE: "never",
+  };
+  // Detection can lag writes; this is deliberately not a hard filesystem quota.
+  let inventoryEnabled = false;
+  const inventory = () => {
+    active();
+    if (!inventoryEnabled) return;
+    let count = 0,
+      bytes = 0;
+    const pending = [plan.root];
+    while (pending.length) {
+      active();
+      for (const item of readdirSync(pending.pop()!, { withFileTypes: true })) {
+        const filename = path.join(item.parentPath, item.name),
+          stat = lstatSync(filename);
+        assert.ok(++count <= 32768 && !stat.isSymbolicLink());
+        bytes += stat.size;
+        assert.ok(
+          bytes <= 512 * 1024 ** 2 && (stat.isDirectory() || (stat.isFile() && stat.nlink === 1)),
+        );
+        if (stat.isDirectory()) pending.push(filename);
+      }
+    }
+  };
+  const command = preparationCommand(environment, path.dirname(plan.root), inventory);
   const script =
     "$ErrorActionPreference='Stop';Set-StrictMode -Version Latest;$p=[IO.File]::ReadAllText($env:PORTCOVE_SOURCE_PLAN)|ConvertFrom-Json;Add-Type -TypeDefinition ([IO.File]::ReadAllText($p.setup));[Portcove.HostedNative.Setup]::Directory($p.root,[Security.Principal.WindowsIdentity]::GetCurrent().User.Value,$null,$false)";
   await command(
@@ -410,6 +430,162 @@ async function acquireSource(planFile: string) {
   };
 }
 
+type DependencyPlan = Pick<Plan, "schema_version" | "binding" | "root" | "setup" | "expires_at"> & {
+  source: string;
+  pnpm: string;
+  inputs: Awaited<ReturnType<typeof inspectWindowsNativeDependencyInputs>>;
+};
+
+async function acquireDependencies(planFile: string) {
+  assert.ok(process.platform === "win32" && process.arch === "x64");
+  assertControllerBootstrapEnvironment();
+  const raw: unknown = JSON.parse((await readControllerToolFile(planFile, 8192)).toString("utf8"));
+  assert.ok(
+    isRecord(raw) &&
+      Object.keys(raw).sort().join(",") ===
+        "binding,expires_at,inputs,pnpm,root,schema_version,setup,source",
+  );
+  assert.equal(raw.schema_version, 1);
+  assert.ok(typeof raw.binding === "string" && /^[a-f0-9]{64}$/u.test(raw.binding));
+  for (const key of ["root", "setup", "source", "pnpm"] as const)
+    assert.ok(typeof raw[key] === "string" && path.isAbsolute(raw[key]));
+  assert.ok(
+    typeof raw.expires_at === "number" &&
+      Number.isSafeInteger(raw.expires_at) &&
+      raw.expires_at > Date.now() &&
+      raw.expires_at - Date.now() <= 90000,
+  );
+  const plan = raw as DependencyPlan;
+  assert.equal(path.basename(plan.root), "windows-dependencies");
+  assert.equal(plan.source, path.join(path.dirname(plan.root), "windows-source", "source"));
+  assert.equal(path.basename(plan.setup), "release-hosted-native-windows-setup.cs.txt");
+  assert.equal(plan.pnpm, path.join(path.dirname(path.dirname(plan.setup)), "bin/pnpm.exe"));
+  const deadline = performance.now() + plan.expires_at - Date.now();
+  const active = () => {
+    assertControllerBootstrapEnvironment();
+    assert.ok(
+      Date.now() < plan.expires_at && performance.now() < deadline,
+      "original dependency preparation expired",
+    );
+  };
+  assert.deepEqual(
+    await inspectWindowsNativeDependencyInputs(plan.source, deadline, active),
+    plan.inputs,
+  );
+  for (const name of ["node_modules", "apps/desktop/node_modules"])
+    assert.equal(
+      lstatSync(path.join(plan.source, name), { throwIfNoEntry: false }),
+      undefined,
+      "retained dependencies require explicit recovery",
+    );
+  let created = false;
+  // Detection can lag writes; the original supervisor owns process-tree teardown.
+  const inventory = () => {
+    active();
+    if (!created) return;
+    const pending = [
+      plan.root,
+      ...["node_modules", "apps/desktop/node_modules"].map((name) => path.join(plan.source, name)),
+    ];
+    let count = 0,
+      bytes = 0;
+    while (pending.length) {
+      active();
+      const current = pending.pop()!,
+        info = lstatSync(current, { throwIfNoEntry: false });
+      assert.ok(++count <= 100000);
+      if (!info) continue; // pnpm removes/renames live staging leaves.
+      bytes += info.size;
+      assert.ok(
+        bytes <= 2 * 1024 ** 3 &&
+          (info.isSymbolicLink() || info.isDirectory() || (info.isFile() && info.nlink === 1)),
+        "dependency preparation inventory exceeded",
+      );
+      if (info.isDirectory() && !info.isSymbolicLink()) {
+        let entries;
+        try {
+          entries = readdirSync(current);
+        } catch (error) {
+          if (isRecord(error) && error.code === "ENOENT") continue;
+          throw error;
+        }
+        assert.ok(count + pending.length + entries.length <= 100000);
+        pending.push(...entries.map((name) => path.join(current, name)));
+      }
+    }
+  };
+  const environment = {
+    SystemRoot: "C:\\Windows",
+    PATH: path.dirname(process.execPath) + ";C:\\Windows\\System32",
+    HOME: plan.root,
+    USERPROFILE: plan.root,
+    XDG_CONFIG_HOME: plan.root,
+    XDG_CACHE_HOME: plan.root,
+    XDG_DATA_HOME: plan.root,
+    TEMP: plan.root,
+    TMP: plan.root,
+    CI: "true",
+    COREPACK_ENABLE_NETWORK: "0",
+    npm_config_userconfig: "NUL",
+    npm_config_globalconfig: "NUL",
+  };
+  const command = preparationCommand(environment, path.dirname(plan.root), inventory);
+  await command(
+    powershell,
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      "$ErrorActionPreference='Stop';Set-StrictMode -Version Latest;$p=[IO.File]::ReadAllText($env:PORTCOVE_SOURCE_PLAN)|ConvertFrom-Json;Add-Type -TypeDefinition ([IO.File]::ReadAllText($p.setup));[Portcove.HostedNative.Setup]::Directory($p.root,[Security.Principal.WindowsIdentity]::GetCurrent().User.Value,$null,$false)",
+    ],
+    8192,
+    { PORTCOVE_SOURCE_PLAN: planFile, TEMP: path.dirname(plan.root), TMP: path.dirname(plan.root) },
+  );
+  created = true;
+  const pnpmBefore = hash(await readControllerToolFile(plan.pnpm));
+  assert.equal((await command(plan.pnpm, ["--version"])).toString().trim(), nativePnpmVersion);
+  await command(plan.pnpm, [
+    "--dir",
+    plan.source,
+    "install",
+    "--frozen-lockfile",
+    "--ignore-scripts",
+    "--ignore-pnpmfile",
+    "--pm-on-fail=error",
+    "--runtime-on-fail=error",
+    "--package-import-method=copy",
+    "--store-dir",
+    path.join(plan.root, "store"),
+    "--registry=https://registry.npmjs.org/",
+    "--config.modules-dir=node_modules",
+    "--config.virtual-store-dir=" + path.join(plan.source, "node_modules/.pnpm"),
+    "--config.enable-global-virtual-store=false",
+    "--config.node-linker=isolated",
+    "--config.fetch-retries=0",
+    "--config.fetch-timeout=15000",
+    "--reporter=silent",
+  ]);
+  assert.equal(hash(await readControllerToolFile(plan.pnpm)), pnpmBefore);
+  assert.deepEqual(
+    await inspectWindowsNativeDependencyInputs(plan.source, deadline, active),
+    plan.inputs,
+  );
+  const graph = await snapshotWindowsNativeDependencies(plan.source, deadline, active);
+  inventory();
+  return {
+    schema_version: 1,
+    binding: plan.binding,
+    inputs: plan.inputs,
+    dependencies_prepared: true,
+    entries: graph.entries,
+    bytes: graph.bytes,
+    graph_sha256: graph.sha256,
+    native_acceptance: "not-established",
+    authority: "none",
+  };
+}
+
 const attempts = new WeakSet<object>();
 const sources = new WeakMap<
   object,
@@ -441,6 +617,7 @@ export async function requireActualHostedWindowsSource(receipt: object) {
     const active = () => {
       assertControllerBootstrapEnvironment();
       parent.recheck();
+      checkCoordinatorDeadline();
       assert.ok(
         sources.get(receipt) === source && performance.now() < parent.deadline,
         "original Windows source stopped or expired",
@@ -461,201 +638,356 @@ export async function requireActualHostedWindowsSource(receipt: object) {
   }
 }
 
-export async function prepareActualHostedWindowsSource(
+const dependencyAttempts = new WeakSet<object>();
+const dependencies = new WeakMap<
+  object,
+  {
+    source: object;
+    parent: object;
+    tools: object;
+    runtime: object;
+    sha256: string;
+    inputs: Awaited<ReturnType<typeof inspectWindowsNativeDependencyInputs>>;
+    files: string[];
+    custody: ReturnType<typeof inspectNativeRuntimeCustody>;
+  }
+>();
+/** Minimal original clock/parent read before a preparation phase hashes its graph. */
+export async function requireActualHostedWindowsDependencyParent(receipt: object) {
+  assertControllerBootstrapEnvironment();
+  const retained = dependencies.get(receipt);
+  assert.ok(retained, "original Windows dependencies required");
+  const parent = await requireActualHostedNativeParentSource(retained.parent);
+  assertControllerBootstrapEnvironment();
+  parent.recheck();
+  assert.equal(dependencies.get(receipt), retained, "original Windows dependencies stopped");
+  return Object.freeze({ parent: retained.parent, deadline: parent.deadline });
+}
+
+export async function requireActualHostedWindowsDependencies(receipt: object) {
+  assertControllerBootstrapEnvironment();
+  const retained = dependencies.get(receipt);
+  assert.ok(retained, "original Windows dependencies required");
+  try {
+    const source = await requireActualHostedWindowsSource(retained.source);
+    assert.equal(source.parent, retained.parent);
+    assert.equal(source.tools, retained.tools);
+    assert.equal(source.runtime, retained.runtime);
+    const parent = await requireActualHostedNativeParentSource(retained.parent);
+    const deadline = Math.min(
+      parent.deadline,
+      performance.now() +
+        coordinatorCommandTimeout(Math.max(1, Math.floor(parent.deadline - performance.now()))),
+    );
+    const active = () => {
+      assertControllerBootstrapEnvironment();
+      parent.recheck();
+      checkCoordinatorDeadline();
+      assert.ok(
+        dependencies.get(receipt) === retained && performance.now() < parent.deadline,
+        "original Windows dependencies stopped or expired",
+      );
+    };
+    recheckNativeRuntimeCustody(retained.files, retained.custody);
+    assert.deepEqual(
+      await inspectWindowsNativeDependencyInputs(source.root, deadline, active),
+      retained.inputs,
+    );
+    assert.equal(
+      (await snapshotWindowsNativeDependencies(source.root, deadline, active)).sha256,
+      retained.sha256,
+      "Windows dependency graph changed",
+    );
+    recheckNativeRuntimeCustody(retained.files, retained.custody);
+    await requireActualHostedWindowsSource(retained.source);
+    active();
+    return Object.freeze({ ...source, source: retained.source });
+  } catch (error) {
+    dependencies.delete(receipt);
+    throw error;
+  }
+}
+export function prepareActualHostedWindowsSource(parent: object, tools: object, runtime: object) {
+  return prepareWindowsOperation(parent, tools, runtime);
+}
+export function prepareActualHostedWindowsDependencies(
+  parent: object,
+  tools: object,
+  runtime: object,
+  source: object,
+) {
+  assert.ok(source && typeof source === "object");
+  return prepareWindowsOperation(parent, tools, runtime, source);
+}
+
+async function prepareWindowsOperation(
   parentReceipt: object,
   toolsReceipt: object,
   runtimeReceipt: object,
+  sourceReceipt?: object,
 ) {
+  const started = performance.now();
   assert.ok(process.platform === "win32" && process.arch === "x64");
   assertControllerBootstrapEnvironment();
   const parent = await requireActualHostedNativeParentSource(parentReceipt);
-  const tools = await verifiedControllerToolPaths(toolsReceipt);
-  assert.equal(parent.platform_label, "windows-x86_64");
-  assert.equal(parent.configuration.purpose, "application");
-  assert.equal(tools.platform, parent.platform_label);
-  assert.equal(parent.stage, "payload-signing");
-  for (const key of ["controller_revision", "controller_ref", "run_id", "run_attempt"] as const)
-    assert.equal(tools.identity[key], parent.producer[key]);
-  assert.equal(
-    (await requireHostedNativeRuntime(runtimeReceipt, parentReceipt)).tools,
-    toolsReceipt,
-    "source/runtime tools differ",
+  const deadline = Math.min(
+    started + 90000,
+    parent.deadline - 210000,
+    performance.now() + coordinatorCommandTimeout(90000),
   );
-  assert.ok(!attempts.has(parentReceipt), "one Windows source attempt; retain and recover");
-  attempts.add(parentReceipt);
-  const deadline = Math.min(performance.now() + 90000, parent.deadline - 210000);
-  const active = () => {
-    assertControllerBootstrapEnvironment();
-    parent.recheck();
-    assert.ok(performance.now() < deadline, "original Windows source allowance exhausted");
-  };
-  active();
-  const root = path.join(parent.directory, "windows-source"),
-    entry = path.join(tools.root, "scripts/release-hosted-native-windows-source.bundle.mjs"),
-    setup = path.join(tools.root, "scripts/release-hosted-native-windows-setup.cs.txt");
-  const selected = parent.configuration.hosted_native["windows-x86_64"].producer;
-  assert.equal(selected.harness.path, harness);
-  const plan: Plan = {
-    schema_version: 1,
-    binding: hash(Buffer.from(JSON.stringify({ producer: parent.producer, selected }))),
-    source_commit: selected.source_commit,
-    source_tree: selected.source_tree,
-    harness_sha256: selected.harness.sha256,
-    root,
-    setup,
-    expires_at: Date.now() + Math.floor(deadline - performance.now()),
-  };
-  const planFile = path.join(parent.directory, "windows-source-intent.json");
-  await writeFile(planFile, JSON.stringify(plan), { flag: "wx", mode: 0o600, flush: true });
-  const files = [planFile, setup, entry, tools.node],
-    custody = inspectNativeRuntimeCustody(files);
-  const systemCustody = inspectWindowsSourceSystemCustody();
-  const observedGit = hash(await readControllerToolFile(git));
-  const support = await hostedNativeSupportDependencies(
-    runtimeReceipt,
-    parentReceipt,
-    parent.directory,
-  );
-  active();
-  const stdout = openSync(path.join(parent.directory, "windows-source.stdout.bin"), "wx", 0o600);
-  let stderr: number;
-  try {
-    stderr = openSync(path.join(parent.directory, "windows-source.stderr.bin"), "wx", 0o600);
-  } catch (error) {
-    closeSync(stdout);
-    throw error;
-  }
-  const signal = new EventEmitter(),
-    timer = setTimeout(() => signal.emit("SIGTERM"), Math.max(1, deadline - performance.now()));
-  let failure: unknown;
-  try {
-    const status = await runResourceCommand(
-      "analysis",
-      tools.node,
-      [entry, "acquire-source", planFile],
-      {
-        cwd: parent.directory,
-        environment: {
-          SystemRoot: "C:\\Windows",
-          PATH: path.dirname(tools.node) + ";C:\\Windows\\System32",
-          TEMP: parent.directory,
-          TMP: parent.directory,
-        },
-        queueDeadline: deadline,
-        executionTimeoutMilliseconds: Math.floor(deadline - performance.now()),
-        output: { stdout, stderr },
-        supervise: (args, options) =>
-          runRustTests(args, {
-            ...options,
-            ...support,
-            tempRoot: parent.directory,
-            signalTarget: signal,
-            spawn: (command, childArgs, childOptions) => {
-              active();
-              recheckNativeRuntimeCustody(files, custody);
-              recheckWindowsSourceSystemCustody(systemCustody);
-              active();
-              const child = spawn(command, [...childArgs], {
-                ...childOptions,
-                stdio: ["pipe", "pipe", "pipe"],
-              });
-              for (const [stream, descriptor, maximum] of [
-                [child.stdout, stdout, 65536],
-                [child.stderr, stderr, 8192],
-              ] as const) {
-                let retained = 0;
-                stream.on("data", (bytes: Buffer) => {
-                  try {
-                    const available = Math.max(0, maximum - retained);
-                    if (available) writeSync(descriptor, bytes.subarray(0, available));
-                    retained += bytes.length;
-                    assert.ok(retained <= maximum);
-                  } catch (error) {
-                    failure ??= error;
-                    signal.emit("SIGTERM");
-                  }
-                });
-              }
-              return child;
-            },
-          }),
-      },
+  return withCoordinatorDeadline(deadline, async () => {
+    const tools = await verifiedControllerToolPaths(toolsReceipt);
+    assert.equal(parent.platform_label, "windows-x86_64");
+    assert.equal(parent.configuration.purpose, "application");
+    assert.equal(tools.platform, parent.platform_label);
+    assert.equal(parent.stage, "payload-signing");
+    for (const key of ["controller_revision", "controller_ref", "run_id", "run_attempt"] as const)
+      assert.equal(tools.identity[key], parent.producer[key]);
+    assert.equal(
+      (await requireHostedNativeRuntime(runtimeReceipt, parentReceipt)).tools,
+      toolsReceipt,
+      "source/runtime tools differ",
+    );
+    const preparedSource = sourceReceipt
+      ? await requireActualHostedWindowsSource(sourceReceipt)
+      : undefined;
+    if (preparedSource) {
+      assert.equal(preparedSource.parent, parentReceipt);
+      assert.equal(preparedSource.tools, toolsReceipt);
+      assert.equal(preparedSource.runtime, runtimeReceipt);
+    }
+    const operation = preparedSource ? "dependencies" : "source",
+      used = preparedSource ? dependencyAttempts : attempts;
+    assert.ok(!used.has(parentReceipt), `one Windows ${operation} attempt; retain and recover`);
+    used.add(parentReceipt);
+    const active = () => {
+      assertControllerBootstrapEnvironment();
+      parent.recheck();
+      assert.ok(performance.now() < deadline, `original Windows ${operation} allowance exhausted`);
+    };
+    active();
+    const root = path.join(parent.directory, `windows-${operation}`),
+      entry = path.join(tools.root, "scripts/release-hosted-native-windows-source.bundle.mjs"),
+      setup = path.join(tools.root, "scripts/release-hosted-native-windows-setup.cs.txt");
+    const selected = parent.configuration.hosted_native["windows-x86_64"].producer;
+    assert.equal(selected.harness.path, harness);
+    const sourcePlan: Plan = {
+      schema_version: 1,
+      binding: hash(Buffer.from(JSON.stringify({ producer: parent.producer, selected }))),
+      source_commit: selected.source_commit,
+      source_tree: selected.source_tree,
+      harness_sha256: selected.harness.sha256,
+      root,
+      setup,
+      expires_at: Date.now() + Math.floor(deadline - performance.now()),
+    };
+    const plan: Plan | DependencyPlan = preparedSource
+      ? {
+          schema_version: 1,
+          binding: sourcePlan.binding,
+          root,
+          setup,
+          expires_at: sourcePlan.expires_at,
+          source: preparedSource.root,
+          pnpm: tools.pnpm,
+          inputs: await inspectWindowsNativeDependencyInputs(preparedSource.root, deadline, active),
+        }
+      : sourcePlan;
+    const planFile = path.join(parent.directory, `windows-${operation}-intent.json`);
+    await writeFile(planFile, JSON.stringify(plan), { flag: "wx", mode: 0o600, flush: true });
+    const files = [planFile, setup, entry, tools.node, ...(preparedSource ? [tools.pnpm] : [])],
+      custody = inspectNativeRuntimeCustody(files);
+    const systemCustody = inspectWindowsSourceSystemCustody();
+    const observedGit = hash(await readControllerToolFile(git));
+    const support = await hostedNativeSupportDependencies(
+      runtimeReceipt,
+      parentReceipt,
+      parent.directory,
     );
     active();
-    assert.equal(failure, undefined);
-    assert.equal(status, 0, "Windows source refused; retain state, no automatic retry");
-  } finally {
-    clearTimeout(timer);
-    closeSync(stdout);
-    closeSync(stderr);
-  }
-  const report: unknown = JSON.parse(
-    (await readNativeCapturedStream(parent.directory, "windows-source.stdout.bin")).toString(
-      "utf8",
-    ),
-  );
-  assert.ok(
-    isRecord(report) &&
-      report.binding === plan.binding &&
-      report.source_commit === plan.source_commit &&
-      report.source_tree === plan.source_tree &&
-      report.acquired === true &&
-      report.dependencies_prepared === false &&
-      report.authority === "none" &&
-      report.native_acceptance === "not-established",
-  );
-  const tree = await readControllerToolFile(path.join(root, "tree.bin"), 4 * 1024 ** 2);
-  assert.equal(hash(tree), report.tree_inventory_sha256);
-  const entries = inspectWindowsNativeSourceTree(tree),
-    sourceRoot = path.join(root, "source");
-  verifyWindowsNativeSourceFiles(sourceRoot, entries, plan.harness_sha256, active);
-  recheckNativeRuntimeCustody(files, custody);
-  recheckWindowsSourceSystemCustody(systemCustody);
-  assert.equal(hash(await readControllerToolFile(git)), observedGit);
-  await requireHostedNativeRuntime(runtimeReceipt, parentReceipt);
-  await requireActualHostedNativeParentSource(parentReceipt);
-  active();
-  const sourceFiles = [
-      planFile,
-      path.join(root, "tree.bin"),
-      path.join(sourceRoot, ...harness.split("/")),
-    ],
-    sourceCustody = inspectNativeRuntimeCustody(sourceFiles);
-  active();
-  const receipt = Object.freeze({ kind: "original-hosted-windows-source", authority: "none" });
-  sources.set(receipt, {
-    parent: parentReceipt,
-    tools: toolsReceipt,
-    runtime: runtimeReceipt,
-    root: sourceRoot,
-    entries,
-    harness: plan.harness_sha256,
-    files: sourceFiles,
-    custody: sourceCustody,
+    const stdout = openSync(
+      path.join(parent.directory, `windows-${operation}.stdout.bin`),
+      "wx",
+      0o600,
+    );
+    let stderr: number;
+    try {
+      stderr = openSync(
+        path.join(parent.directory, `windows-${operation}.stderr.bin`),
+        "wx",
+        0o600,
+      );
+    } catch (error) {
+      closeSync(stdout);
+      throw error;
+    }
+    const signal = new EventEmitter(),
+      timer = setTimeout(() => signal.emit("SIGTERM"), Math.max(1, deadline - performance.now()));
+    let failure: unknown;
+    try {
+      const status = await runResourceCommand(
+        "analysis",
+        tools.node,
+        [entry, `acquire-${operation}`, planFile],
+        {
+          cwd: parent.directory,
+          environment: {
+            SystemRoot: "C:\\Windows",
+            PATH: path.dirname(tools.node) + ";C:\\Windows\\System32",
+            TEMP: parent.directory,
+            TMP: parent.directory,
+          },
+          queueDeadline: deadline,
+          executionTimeoutMilliseconds: Math.floor(deadline - performance.now()),
+          output: { stdout, stderr },
+          supervise: (args, options) =>
+            runRustTests(args, {
+              ...options,
+              ...support,
+              tempRoot: parent.directory,
+              signalTarget: signal,
+              spawn: (command, childArgs, childOptions) => {
+                active();
+                recheckNativeRuntimeCustody(files, custody);
+                recheckWindowsSourceSystemCustody(systemCustody);
+                active();
+                const child = spawn(command, [...childArgs], {
+                  ...childOptions,
+                  stdio: ["pipe", "pipe", "pipe"],
+                });
+                for (const [stream, descriptor, maximum] of [
+                  [child.stdout, stdout, 65536],
+                  [child.stderr, stderr, 8192],
+                ] as const) {
+                  let retained = 0;
+                  stream.on("data", (bytes: Buffer) => {
+                    try {
+                      const available = Math.max(0, maximum - retained);
+                      if (available) writeSync(descriptor, bytes.subarray(0, available));
+                      retained += bytes.length;
+                      assert.ok(retained <= maximum);
+                    } catch (error) {
+                      failure ??= error;
+                      signal.emit("SIGTERM");
+                    }
+                  });
+                }
+                return child;
+              },
+            }),
+        },
+      );
+      active();
+      assert.equal(failure, undefined);
+      assert.equal(status, 0, `Windows ${operation} refused; retain state, no automatic retry`);
+    } finally {
+      clearTimeout(timer);
+      closeSync(stdout);
+      closeSync(stderr);
+    }
+    const report: unknown = JSON.parse(
+      (
+        await readNativeCapturedStream(parent.directory, `windows-${operation}.stdout.bin`)
+      ).toString("utf8"),
+    );
+    if (preparedSource && sourceReceipt && "inputs" in plan) {
+      assert.ok(
+        isRecord(report) &&
+          report.binding === plan.binding &&
+          report.dependencies_prepared === true &&
+          report.authority === "none" &&
+          report.native_acceptance === "not-established",
+      );
+      assert.deepEqual(report.inputs, plan.inputs);
+      const graph = await snapshotWindowsNativeDependencies(preparedSource.root, deadline, active);
+      assert.equal(graph.sha256, report.graph_sha256);
+      assert.equal(graph.entries, report.entries);
+      assert.equal(graph.bytes, report.bytes);
+      recheckNativeRuntimeCustody(files, custody);
+      recheckWindowsSourceSystemCustody(systemCustody);
+      await requireActualHostedWindowsSource(sourceReceipt);
+      active();
+      const receipt = Object.freeze({
+        kind: "original-hosted-windows-dependencies",
+        authority: "none",
+      });
+      dependencies.set(receipt, {
+        source: sourceReceipt,
+        parent: parentReceipt,
+        tools: toolsReceipt,
+        runtime: runtimeReceipt,
+        sha256: graph.sha256,
+        inputs: plan.inputs,
+        files,
+        custody,
+      });
+      return receipt;
+    }
+    assert.ok(!preparedSource && "source_commit" in plan);
+    assert.ok(
+      isRecord(report) &&
+        report.binding === plan.binding &&
+        report.source_commit === plan.source_commit &&
+        report.source_tree === plan.source_tree &&
+        report.acquired === true &&
+        report.dependencies_prepared === false &&
+        report.authority === "none" &&
+        report.native_acceptance === "not-established",
+    );
+    const tree = await readControllerToolFile(path.join(root, "tree.bin"), 4 * 1024 ** 2);
+    assert.equal(hash(tree), report.tree_inventory_sha256);
+    const entries = inspectWindowsNativeSourceTree(tree),
+      sourceRoot = path.join(root, "source");
+    verifyWindowsNativeSourceFiles(sourceRoot, entries, plan.harness_sha256, active);
+    recheckNativeRuntimeCustody(files, custody);
+    recheckWindowsSourceSystemCustody(systemCustody);
+    assert.equal(hash(await readControllerToolFile(git)), observedGit);
+    await requireHostedNativeRuntime(runtimeReceipt, parentReceipt);
+    await requireActualHostedNativeParentSource(parentReceipt);
+    active();
+    const sourceFiles = [
+        planFile,
+        path.join(root, "tree.bin"),
+        path.join(sourceRoot, ...harness.split("/")),
+      ],
+      sourceCustody = inspectNativeRuntimeCustody(sourceFiles);
+    active();
+    const receipt = Object.freeze({ kind: "original-hosted-windows-source", authority: "none" });
+    sources.set(receipt, {
+      parent: parentReceipt,
+      tools: toolsReceipt,
+      runtime: runtimeReceipt,
+      root: sourceRoot,
+      entries,
+      harness: plan.harness_sha256,
+      files: sourceFiles,
+      custody: sourceCustody,
+    });
+    return receipt;
   });
-  return receipt;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   assert.equal(process.argv.length, 4);
-  assert.equal(process.argv[2], "acquire-source");
-  acquireSource(process.argv[3]!)
+  assert.ok(["acquire-source", "acquire-dependencies"].includes(process.argv[2]!));
+  const acquire = process.argv[2] === "acquire-source" ? acquireSource : acquireDependencies;
+  acquire(process.argv[3]!)
     .then((result) => process.stdout.write(JSON.stringify(result) + "\n"))
     .catch((error: unknown) => {
       writeSync(
         1,
         JSON.stringify({
-          stage: "Windows source acquisition",
+          stage:
+            process.argv[2] === "acquire-source"
+              ? "Windows source acquisition"
+              : "Windows dependency preparation",
           failure: (error instanceof Error ? error.message : String(error)).slice(0, 2048),
           diagnostic: error instanceof Error && "diagnostic" in error ? error.diagnostic : null,
           automatic_retry: false,
           authority: "none",
         }) + "\n",
       );
-      writeSync(
-        2,
-        "Windows source acquisition refused; retain stdout failure record and partial state\n",
-      );
+      writeSync(2, "Windows preparation refused; retain stdout failure record and partial state\n");
       process.exit(1);
     });
 }
