@@ -101,6 +101,7 @@ export const nativeHelperSharedSources = Object.freeze([
   "scripts/rust-support-cache.mts",
   "scripts/ci-metrics.mts",
   "scripts/validation-plan.mts",
+  "scripts/repository-path.mts",
   "scripts/nextest-equivalence.mts",
   "scripts/report-summary.mts",
   "scripts/bounded-summary.mts",
