@@ -1,0 +1,163 @@
+{
+  "format_version": 1,
+  "audit": 36,
+  "kind": "bounded-paired-fixture-profile",
+  "source": {
+    "head": "456263bb550eed4d35ba24247c826eba23611920",
+    "input_dirty": true,
+    "baseline_path": "crates/portcove-core/src/test_fixture.rs",
+    "baseline_sha256": "c7f0aef1735457a16919ed25725d96606ac22c8d552f1cef7fc5e68dd37479af",
+    "profile_source_sha256": "6cbd3385afcd9797958f56075bbf3febff0ddfec923274b8cd9fd9cde0938bbe"
+  },
+  "environment": {
+    "platform": "Linux",
+    "machine": "x86_64",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "profile": "test/debug",
+    "native_guard": "run-rust-tests.mts --guard-command",
+    "local_payload_limit": 1
+  },
+  "recipe": {
+    "samples": 5,
+    "revisions_per_sample": 16,
+    "first_revision": 7,
+    "projection_bytes": 782938,
+    "order": "alternating baseline/candidate per revision",
+    "byte_comparison": "exact index and every content name/byte after each pair, outside timed sections",
+    "port_selection": "Catalog::embedded().ports()[0]",
+    "catalog_source_sha256": "b66ba7e1646cff2cfc351d1da2ab3ed4e5b736f1e53c9e33d430ec4361b5e969"
+  },
+  "unchanged_control": [
+    {
+      "baseline_construct_ns": 32601215,
+      "baseline_revision_ns": 1128024151,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 31742666,
+      "candidate_revision_ns": 1130392225,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 0
+    },
+    {
+      "baseline_construct_ns": 32095981,
+      "baseline_revision_ns": 1126683843,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 31885565,
+      "candidate_revision_ns": 1131790198,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 1
+    },
+    {
+      "baseline_construct_ns": 32206982,
+      "baseline_revision_ns": 1126144749,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 32020743,
+      "candidate_revision_ns": 1125136466,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 2
+    },
+    {
+      "baseline_construct_ns": 31965615,
+      "baseline_revision_ns": 1127148580,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 31669428,
+      "candidate_revision_ns": 1131569204,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 3
+    },
+    {
+      "baseline_construct_ns": 32171352,
+      "baseline_revision_ns": 1132640934,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 31908475,
+      "candidate_revision_ns": 1133754634,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 4
+    }
+  ],
+  "optimized_pairs": [
+    {
+      "baseline_construct_ns": 32647715,
+      "baseline_revision_ns": 1132539092,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 49211702,
+      "candidate_revision_ns": 5508538,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 0
+    },
+    {
+      "baseline_construct_ns": 31711276,
+      "baseline_revision_ns": 1132274925,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 48965932,
+      "candidate_revision_ns": 5234606,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 1
+    },
+    {
+      "baseline_construct_ns": 33232847,
+      "baseline_revision_ns": 1134554667,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 52020092,
+      "candidate_revision_ns": 5219095,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 2
+    },
+    {
+      "baseline_construct_ns": 32958090,
+      "baseline_revision_ns": 1132302131,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 50065798,
+      "candidate_revision_ns": 5051535,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 3
+    },
+    {
+      "baseline_construct_ns": 31686967,
+      "baseline_revision_ns": 1133450934,
+      "byte_equal_pairs": 16,
+      "candidate_construct_ns": 49250249,
+      "candidate_revision_ns": 5270404,
+      "iterations": 16,
+      "order": "alternating-per-revision",
+      "projection_bytes": 782938,
+      "sample": 4
+    }
+  ],
+  "constructor_plus_16_revisions_median_ns": {
+    "baseline": 1165186807,
+    "candidate": 54720240
+  },
+  "constructor_plus_16_revisions_reduction_fraction": 0.9530373673377852,
+  "identity_checks": {
+    "matched_revision_pairs": 80,
+    "entry": "fresh serialized bytes and digest each revision",
+    "index": "fresh serialized bytes each revision",
+    "contract": "one digest of private immutable fixture-owned bytes",
+    "scope": "no signing, revocation or admission reuse"
+  },
+  "limits": [
+    "One WSL Linux host and pinned debug/test build; no Windows, installed/native acceptance or whole-suite speed claim.",
+    "Constructors were measured baseline then candidate; revision order alternated, but host/cache and order effects remain.",
+    "Timing excludes compilation, resource queueing and equality assertions.",
+    "Original absolute include-path compile failure retained; repaired baseline bytes have identical SHA-256.",
+    "Temporary baseline module and profiler are removed before delivery."
+  ]
+}

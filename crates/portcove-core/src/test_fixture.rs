@@ -168,10 +168,12 @@ pub(crate) fn indexed_catalog_bundle_at_revision(
 pub(crate) struct IndexedCatalogFixture<'a> {
     port: &'a crate::PortDefinition,
     contract: Vec<u8>,
+    contract_sha256: String,
 }
 
 impl<'a> IndexedCatalogFixture<'a> {
     pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
+        use sha2::{Digest, Sha256};
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
         let mut contract = serde_json::to_vec(&serde_json::json!({
@@ -180,18 +182,19 @@ impl<'a> IndexedCatalogFixture<'a> {
         }))
         .unwrap();
         contract.push(b'\n');
+        let contract_sha256 = hex::encode(Sha256::digest(&contract));
         Self {
             port: catalog.port(port_id).unwrap(),
             contract,
+            contract_sha256,
         }
     }
 
     pub(crate) fn at_revision(&self, revision: u64) -> IndexedCatalogBundle {
         use serde_json::json;
         use sha2::{Digest, Sha256};
-        let target = |bytes: &[u8]| format!("sha256/{}.json", hex::encode(Sha256::digest(bytes)));
         let contract = &self.contract;
-        let leaf = target(contract);
+        let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port;
         let port_id = &port.id;
         let capability_version = if port.adapter == crate::AdapterKind::PsxRecompManaged {
@@ -283,20 +286,20 @@ impl<'a> IndexedCatalogFixture<'a> {
         "artifact_bindings":[],"evidence_references":[]
     }))
     .unwrap();
-        let contents: Vec<_> = [&entry, contract].into_iter().map(|bytes| json!({
-        "target":target(bytes),"sha256":hex::encode(Sha256::digest(bytes)),"length":bytes.len()
-    })).collect();
+        let entry_sha256 = hex::encode(Sha256::digest(&entry));
+        let entry_target = format!("sha256/{entry_sha256}.json");
+        let contents = [
+            json!({"target":entry_target,"sha256":entry_sha256,"length":entry.len()}),
+            json!({"target":leaf,"sha256":self.contract_sha256,"length":contract.len()}),
+        ];
         let index = serde_json::to_vec_pretty(&json!({
-        "index_schema":1,"definitions":[{"namespace":"official","stable_id":port_id,"revision":revision,"target":target(&entry)}],
-        "contents":contents
-    }))
-    .unwrap();
+            "index_schema":1,"definitions":[{"namespace":"official","stable_id":port_id,"revision":revision,"target":entry_target}],
+            "contents":contents
+        }))
+        .unwrap();
         IndexedCatalogBundle {
             index,
-            contents: vec![
-                (target(&entry), entry),
-                (target(contract), contract.clone()),
-            ],
+            contents: vec![(entry_target, entry), (leaf, contract.clone())],
         }
     }
 }
@@ -357,6 +360,103 @@ fn indexed_fixture_revisions_preserve_full_catalog_projection() {
             serde_json::to_value(catalog.authoritative_document()).unwrap()
         );
     }
+}
+
+#[test]
+fn indexed_fixture_returned_streams_cannot_reuse_mutated_identity() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port_id = &catalog.ports()[0].id;
+    let fixture = IndexedCatalogFixture::new(&catalog, port_id);
+    let original = fixture.at_revision(8);
+    for stream in 0..2 {
+        let mut changed = fixture.at_revision(8);
+        let index = crate::DefinitionContentIndex::parse(&changed.index).unwrap();
+        index
+            .inspect_catalog_projection(
+                "official",
+                port_id,
+                &changed.contents[0].1,
+                &changed.contents[1].1,
+            )
+            .unwrap();
+        let before: serde_json::Value =
+            serde_json::from_slice(&changed.contents[stream].1).unwrap();
+        // Same-length JSON whitespace isolates digest checking from length and parsing.
+        let newline = changed.contents[stream]
+            .1
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .unwrap();
+        changed.contents[stream].1[newline] = b' ';
+        let after: serde_json::Value = serde_json::from_slice(&changed.contents[stream].1).unwrap();
+        assert_eq!(before, after);
+        assert_eq!(
+            changed.contents[stream].1.len(),
+            original.contents[stream].1.len()
+        );
+        assert!(
+            index
+                .verify_content(&changed.contents[stream].0, &changed.contents[stream].1)
+                .is_err()
+        );
+        assert!(
+            index
+                .inspect_catalog_projection(
+                    "official",
+                    port_id,
+                    &changed.contents[0].1,
+                    &changed.contents[1].1,
+                )
+                .is_err()
+        );
+        let retained = fixture.at_revision(8);
+        assert_eq!(retained.index, original.index);
+        assert_eq!(retained.contents, original.contents);
+    }
+    let mut changed = fixture.at_revision(8);
+    assert_eq!(changed.index[1], b'\n');
+    changed.index[1] = b' ';
+    assert_ne!(changed.index, original.index);
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&changed.index).unwrap(),
+        serde_json::from_slice::<serde_json::Value>(&original.index).unwrap(),
+    );
+    assert_eq!(fixture.at_revision(8).index, original.index);
+}
+
+#[test]
+fn indexed_fixture_cache_belongs_to_its_exact_catalog() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port_id = &catalog.ports()[0].id;
+    let original = IndexedCatalogFixture::new(&catalog, port_id).at_revision(8);
+    let mut document = catalog.authoritative_document();
+    document.ports[0]
+        .summary
+        .push_str(" Fixture identity changed.");
+    let changed_catalog =
+        crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let changed = IndexedCatalogFixture::new(&changed_catalog, port_id).at_revision(8);
+    assert_ne!(changed.contents[1].0, original.contents[1].0);
+    assert_ne!(changed.contents[1].1, original.contents[1].1);
+    let index = crate::DefinitionContentIndex::parse(&changed.index).unwrap();
+    index
+        .inspect_catalog_projection(
+            "official",
+            port_id,
+            &changed.contents[0].1,
+            &changed.contents[1].1,
+        )
+        .unwrap();
+    assert!(
+        index
+            .inspect_catalog_projection(
+                "official",
+                port_id,
+                &changed.contents[0].1,
+                &original.contents[1].1
+            )
+            .is_err()
+    );
 }
 
 pub(crate) fn indexed_catalog(catalog: &crate::Catalog, port_id: &str) -> crate::Catalog {
