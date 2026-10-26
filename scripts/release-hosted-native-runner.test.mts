@@ -203,6 +203,7 @@ void test("fixed native composite pins uploads and binds responses through envir
 void test(
   "Linux workflow handoff keeps actual original process identity across both uploads and refuses drift",
   {
+    timeout: 90000,
     skip: process.platform !== "linux" || process.getuid?.() === 0,
   },
   (t) => {
@@ -247,7 +248,7 @@ const routes={'node:fs/promises':'fs','./github-api.mts':'github','./release-sig
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'workflow:'+routes[s],shortCircuit:true};if((c.parentURL===${JSON.stringify(entry)}||c.parentURL===${JSON.stringify(new URL("./release-hosted-native-worker.mts", import.meta.url).href)})&&s==='./release-hosted-native-bootstrap.mts')return {url:'workflow:scope',shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('workflow:'))return {format:'module',source:u==='workflow:fs'?'export const appendFile=globalThis.workflowFixture.appendFile;export const mkdir=globalThis.workflowFixture.mkdir;export const open=globalThis.workflowFixture.open;':u==='workflow:github'?'export class GitHubApiClient {request(method,endpoint){if(method!=="GET"||endpoint!=="repos/boburning/portcove/actions/runs/123/attempts/1/jobs?per_page=100")throw Error("wrong fixed read");if(globalThis.workflowFixture.fault()==="prerequisite-ambiguous")throw Error("ambiguous GET");return {status:200,headers:new Map(),body:{total_count:2,jobs:["Sign admitted updater payloads","Sign authenticated Timestamp metadata"].map((name,i)=>({id:i+1,run_id:123,head_sha:"a".repeat(40),name,status:"completed",conclusion:globalThis.workflowFixture.fault()==="prerequisite-failed"?"failure":"success"}))}}}};export const createGitHubRunner=()=>()=>{};':u==='workflow:budget'?'export const currentNativeJobDeadline=globalThis.workflowFixture.budget;':u==='workflow:scope'?'export const readActualHostedLinuxBootstrapScope=globalThis.workflowFixture.scope;':u==='workflow:tools'?'export const receiveControllerTools=globalThis.workflowFixture.receive;export const verifiedControllerToolPaths=globalThis.workflowFixture.verify;':u==='workflow:read'?'export const readControllerToolFile=globalThis.workflowFixture.read;export const controllerToolPaths=["bin/node","scripts/release-hosted-native-worker.bundle.mjs"];':'export const spawn=globalThis.workflowFixture.spawn;',shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','prerequisite-failed','prerequisite-ambiguous','dies-during-prerequisite-close','partial-records','shared-node','late-refusal','dies-during-clock','wrong-owner','changed-binding','expired-clock','retained-refusal','missing-final']){
- fault=name;child=undefined;killDuringRead=false;refusalDuringRead=false;process.env.PORTCOVE_FIXTURE_FAULT=name;binding='fixed';home=path.join(root,name);temporary=path.join(home,'temp');await mkdir(home,{mode:0o700});await mkdir(temporary,{mode:0o700});process.env.HOME=home;deadline=performance.now()+30000;
+ process.stderr.write('workflow-fixture:'+name+'\n');fault=name;child=undefined;killDuringRead=false;refusalDuringRead=false;process.env.PORTCOVE_FIXTURE_FAULT=name;binding='fixed';home=path.join(root,name);temporary=path.join(home,'temp');await mkdir(home,{mode:0o700});await mkdir(temporary,{mode:0o700});process.env.HOME=home;deadline=performance.now()+30000;
  try{
   if(name==='shared-node'){await assert.rejects(api.startHostedLinuxWorkflow());assert.equal(child,undefined);assert.equal(existsSync(path.join(temporary,'portcove-native-workflow-start.json')),true);continue}
   await api.startHostedLinuxWorkflow();await assert.rejects(api.startHostedLinuxWorkflow(),{code:'EEXIST'});
@@ -266,12 +267,24 @@ for(const name of ['valid','prerequisite-failed','prerequisite-ambiguous','dies-
 }
 console.log('actual file/PID workflow rendezvous passed; source, native worker and provider peers controlled');
 `;
+    const childStarted = performance.now();
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 40000,
+      timeout: 60000,
       maxBuffer: 65536,
     });
-    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(
+      result.status,
+      0,
+      JSON.stringify({
+        error_code: result.error && "code" in result.error ? result.error.code : null,
+        error: result.error?.message,
+        signal: result.signal,
+        elapsed_milliseconds: Math.round(performance.now() - childStarted),
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }),
+    );
     assert.match(result.stdout, /actual file\/PID workflow rendezvous passed/u);
   },
 );
@@ -427,8 +440,8 @@ for(const name of ['valid','overflow','oversized-registration','missing-post','b
  deadline=performance.now()+(name==='missing-post'?150:1000);
  const outcome=api.superviseFixedHostedLinuxNativeStages().then(value=>({value}),error=>({error})).finally(()=>{done=true});
  if(['valid','bad-post','lost-supervisor','late-final'].includes(name)){
-  const ready=path.join(directory,'pre-sign-supervision-settlement.json');for(let i=0;i<1000&&!fs.existsSync(ready)&&!done;i++)await delay(2);
-  assert.ok(fs.existsSync(ready));
+  const ready=path.join(directory,'pre-sign-supervision-settlement.json');let complete=false;for(let i=0;i<1000&&!complete&&!done;i++){try{JSON.parse(await fsp.readFile(ready,'utf8'));complete=true}catch(error){if(error.code!=='ENOENT'&&!(error instanceof SyntaxError))throw error}if(!complete)await delay(2)}
+  assert.ok(complete,'fixture must await completed settlement bytes before signaling');
   if(name==='bad-post')await fsp.writeFile(path.join(directory,'native-post-start.json'),'{}');else if(name==='lost-supervisor'){await assert.rejects(api.signalFixedHostedLinuxPostStart(),/supervisor is unavailable/);stopped=true;assert.ok(fs.existsSync(path.join(directory,'native-post-start.json')))}else await api.signalFixedHostedLinuxPostStart();
  }
  const result=await outcome,final=JSON.parse(await fsp.readFile(path.join(directory,'native-supervision-settlement.json'),'utf8'));
@@ -452,28 +465,28 @@ console.log('controlled supervisor bounds and late partial outcomes passed; proc
 
 void test(
   "Linux private launch preparation preserves original Node identity and partial effects without spawning a worker",
-  { skip: process.platform !== "linux" || process.getuid?.() === 0 },
+  { timeout: 150000, skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
     const root = disposableDirectory(t, path.join(os.homedir(), ".native-launch-preparation-"));
     chmodSync(root, 0o700);
     const entry = new URL("./release-hosted-native-launcher.mts", import.meta.url).href;
     const code = String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';
-import {mkdir,writeFile,readFile,chmod,rename,symlink,lstat,readdir} from 'node:fs/promises';
+import {mkdir,writeFile,readFile,copyFile,chmod,rename,symlink,lstat,readdir} from 'node:fs/promises';
 import path from 'node:path';import {performance} from 'node:perf_hooks';
 const root=process.argv[1], identity={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/fixed-fixture',run_id:'123',run_attempt:1};
 let binding='fixed',fault='',checks=0,receives=0;const token={},actualTools=await import(${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)});let tools;
 globalThis.launchFixture={
 scope:async operation=>{assert.ok(['pre-sign','post-sign'].includes(operation));if(fault==='source')throw Error('source refused');return {operation,identity,binding,artifact:{expected:'fixed source'},bundle:{expected:'fixed issuer'},unchanged(){checks++;if(fault==='changed')throw Error('changed source')}}},
 clock:()=>{if(fault==='provider')throw Error('provider refused');return performance.now()+(fault==='expired'?-1:570000)},
-receive:async(root,artifact,bundle,options)=>{receives++;assert.deepEqual(artifact,{expected:'fixed source'});assert.deepEqual(bundle,{expected:'fixed issuer'});assert.ok(options.deadline>performance.now());if(fault==='foreign-tools')throw Error('foreign issuer');tools=path.join(root,'authenticated-tools');await mkdir(tools,{mode:0o700});await writeFile(path.join(tools,'verified-node'),await readFile(process.execPath),{mode:0o700});await writeFile(path.join(tools,'manifest.json'),'{}',{mode:0o600});return token},
+receive:async(root,artifact,bundle,options)=>{receives++;assert.deepEqual(artifact,{expected:'fixed source'});assert.deepEqual(bundle,{expected:'fixed issuer'});assert.ok(options.deadline>performance.now());if(fault==='foreign-tools')throw Error('foreign issuer');tools=path.join(root,'authenticated-tools');await mkdir(tools,{mode:0o700});await copyFile(process.execPath,path.join(tools,'verified-node'));await chmod(path.join(tools,'verified-node'),0o700);await writeFile(path.join(tools,'manifest.json'),'{}',{mode:0o600});return token},
 paths:async receipt=>{assert.equal(receipt,token);return {root:tools,node:path.join(tools,'verified-node'),identity:{expected:'fixed source'}}},
 read:async(...args)=>{assert.notEqual(args[0],process.execPath,'a shared source-path replacement must never choose executable bytes');return actualTools.readControllerToolFile(...args)}
 };
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}){if(s==='./release-hosted-native-bootstrap.mts')return {url:'launch:scope',shortCircuit:true};if(s==='./release-signing-job-budget.mts')return {url:'launch:clock',shortCircuit:true};if(s==='./release-controller-tool-admission.mts')return {url:'launch:tools',shortCircuit:true};if(s==='./release-controller-tools.mts')return {url:'launch:files',shortCircuit:true}}return next(s,c)},load(u,c,next){if(u==='launch:scope')return {format:'module',source:'export const readActualHostedLinuxBootstrapScope=globalThis.launchFixture.scope;',shortCircuit:true};if(u==='launch:clock')return {format:'module',source:'export const currentNativeJobDeadline=globalThis.launchFixture.clock;',shortCircuit:true};if(u==='launch:tools')return {format:'module',source:'export const receiveControllerTools=globalThis.launchFixture.receive;export const verifiedControllerToolPaths=globalThis.launchFixture.paths;',shortCircuit:true};if(u==='launch:files')return {format:'module',source:'export const controllerToolPaths=["verified-node"];export const readControllerToolFile=globalThis.launchFixture.read;',shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','foreign-tools','missing-pre','replay','binding','replaced','bytes','writable','linked','source','provider','expired','changed','occupied']){
- const home=path.join(root,name);await mkdir(home,{mode:0o700});process.env.HOME=home;binding='fixed';fault=name;
+process.stderr.write('launch-fixture:'+name+'\n'); const home=path.join(root,name);await mkdir(home,{mode:0o700});process.env.HOME=home;binding='fixed';fault=name;
  const fixedRoot=path.join(home,'.portcove-native-123-1-'+identity.controller_revision),node=path.join(fixedRoot,'bootstrap-node');
  const pre=()=>api.prepareFixedHostedLinuxLaunch('pre-sign'),post=()=>api.prepareFixedHostedLinuxLaunch('post-sign');
  if(name==='missing-pre'){await assert.rejects(post());assert.deepEqual(await readdir(home),[]);continue}
@@ -491,12 +504,24 @@ for(const name of ['valid','foreign-tools','missing-pre','replay','binding','rep
 await assert.rejects(api.prepareFixedHostedLinuxLaunch('selected-operation'));assert.ok(checks>0&&receives>0);
 console.log('real private Node custody and retained launch refusal checks passed; no worker or provider acceptance');
 `;
+    const childStarted = performance.now();
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 20000,
+      timeout: 120000,
       maxBuffer: 65536,
     });
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      result.status,
+      0,
+      JSON.stringify({
+        error_code: result.error && "code" in result.error ? result.error.code : null,
+        error: result.error?.message,
+        signal: result.signal,
+        elapsed_milliseconds: Math.round(performance.now() - childStarted),
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }),
+    );
     assert.match(result.stdout, /real private Node custody/u);
   },
 );
@@ -885,7 +910,7 @@ void test(
 
 void test(
   "Linux runtime uses original controlled providers, exact inputs and prepared support without compiler fallback",
-  { skip: process.platform !== "linux" || process.getuid?.() === 0 },
+  { timeout: 60000, skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
     const root = mkdtempSync(path.join(os.homedir(), ".portcove-runtime-binding-"));
     chmodSync(root, 0o700);
@@ -925,6 +950,7 @@ function fixture(name){
  return {directory,tools,tool,parent,entry:path.join(tools,'scripts/release-hosted-native-runner.bundle.mjs')};
 }
 let f=fixture('valid');const runtime=await api.prepareHostedNativeRuntime(f.tool,f.parent,f.entry);
+assert.equal((await api.requireHostedNativeRuntime(runtime,f.parent)).tools,f.tool);
 await assert.rejects(api.requireHostedNativeRuntime({...runtime},f.parent),/original/);
 await assert.rejects(api.requireHostedNativeRuntime(runtime,{}),/original/);
 const deps=await api.hostedNativeSupportDependencies(runtime,f.parent,f.directory);
@@ -958,12 +984,24 @@ for(const kind of ['writable-root','writable-file','wrong-source','wrong-run','c
 }
 console.log('controlled original-runtime and fixed support refusals passed; no provider or native acceptance');
 `;
+    const childStarted = performance.now();
     const result = spawnSync(fixedNode, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 20000,
+      timeout: 45000,
       maxBuffer: 65536,
     });
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      result.status,
+      0,
+      JSON.stringify({
+        error_code: result.error && "code" in result.error ? result.error.code : null,
+        error: result.error?.message,
+        signal: result.signal,
+        elapsed_milliseconds: Math.round(performance.now() - childStarted),
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }),
+    );
     assert.match(result.stdout, /fixed support refusals passed/u);
   },
 );

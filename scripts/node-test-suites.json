@@ -1864,6 +1864,13 @@
       ]
     },
     {
+      "file": "scripts/release-hosted-native-windows-source.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000005],
+        ["release-check", 16204]
+      ]
+    },
+    {
       "file": "scripts/release-routing-marker.test.mts",
       "memberships": [
         ["catalog-full-2", 15146],

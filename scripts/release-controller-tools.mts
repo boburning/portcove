@@ -24,6 +24,7 @@ export const controllerToolEntries = Object.freeze([
   "release-controller-job",
   "release-hosted-native-runner",
   "release-hosted-native-worker",
+  "release-hosted-native-windows-source",
   "release-native-keyless-assembly",
 ] as const);
 /** These child entry paths are part of the existing driver's/supervisor's ABI. */

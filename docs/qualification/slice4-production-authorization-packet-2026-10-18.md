@@ -1657,3 +1657,29 @@ candidate joins, capture/report/proof/upload, actual producer/client-minimum/
 protected observations, whole-job fit and final source/digest/grant reconciliation
 remain unfinished. The inert fixture approval and disabled consumed account/audit
 grants retain their exact scope; no new manual setup is requested.
+
+## Windows source joins remain preparation only October 26
+
+The Windows source API adds one credential-free fixed-origin checkout to the
+original parent/tools/runtime capabilities. Its at-most-90-second phase preserves
+210 seconds for capture/recovery within the existing570-second bound. Public
+observations grant no capability or retry. The ordinary Windows fixture may
+observe fresh-directory/Git preparation without account/profile/audit/WinSta0/GUI
+calls. Even a positive result is source evidence only. Host Git launcher custody
+is not full helper/DLL attestation, and inventory proves no hard quota/headroom.
+See the dated hosted-observations continuation for controlled tests and failures.
+
+Dependencies, reserved candidates and capture/report/proof/upload still require
+integration. Actual original-parent/runtime execution, whole-job fit and native/
+production acceptance remain unqualified. Original inert-only approval cannot
+authorize arbitrary/protected candidates. Account/audit disables, D1/D2/D3,
+single-owner recovery, $0 stop, Unknown capacity/availability, no paid fallback/
+reservation, final source/resource-policy/grant reconciliation and protected/
+production holds remain. No owner decision is requested by this component.
+
+The first source-component CI/source-smoke failures at `ed1cab86` are retained in
+the hosted observations. The repair separates fixed OS-image custody from strict
+controller single-link custody and calibrates only a mocked cleanup harness. It
+adds no caller-selected path/relaxation option, account/GUI operation, native
+acceptance, extra source/job allowance or owner authority. Exact repaired-source
+CI and actual Windows source-only readback are still required.

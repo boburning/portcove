@@ -429,6 +429,28 @@ export async function prepareConfiguredHostedWindowsRuntime(
   return Object.freeze({ tools, parent, runtime, deadline: Math.min(deadline, original.deadline) });
 }
 
+/** Original preparation joins only. Source observations add no execution grant. */
+export async function prepareConfiguredHostedWindowsSource(
+  raw: unknown,
+  root: string,
+  deadline: number,
+  executingEntry: string,
+) {
+  const prepared = await prepareConfiguredHostedWindowsRuntime(raw, root, deadline, executingEntry);
+  const { prepareActualHostedWindowsSource } =
+    await import("./release-hosted-native-windows-source.mts");
+  const source = await prepareActualHostedWindowsSource(
+    prepared.parent,
+    prepared.tools,
+    prepared.runtime,
+  );
+  assert.ok(
+    performance.now() < prepared.deadline - 210000,
+    "Windows source must preserve capture/recovery reserve",
+  );
+  return Object.freeze({ ...prepared, source });
+}
+
 /** Fixed caller entry. The bootstrap must supply its original cross-process
  * monotonic deadline; the CLI neither creates nor renews a job budget. Actual
  * producer admission independently verifies the fixed source/job identity. */

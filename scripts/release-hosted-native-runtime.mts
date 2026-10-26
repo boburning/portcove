@@ -202,7 +202,12 @@ export async function requireHostedNativeRuntime(receipt: object, parentReceipt:
       !state.stopped && performance.now() < parent.deadline,
       "original native runtime stopped or expired",
     );
-    return { root: state.root, deadline: parent.deadline, authority: "none" as const };
+    return {
+      root: state.root,
+      tools: state.tools,
+      deadline: parent.deadline,
+      authority: "none" as const,
+    };
   } catch (error) {
     state.stopped = true;
     throw error;
