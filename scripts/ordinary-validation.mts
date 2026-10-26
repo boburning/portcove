@@ -12,6 +12,7 @@ import { hasNextestEquivalence } from "./nextest-equivalence.mts";
 import {
   nativeHelperDependencies,
   nativeHelperRegistryPath,
+  nativeHelperFiles,
 } from "./native-helper-dependencies.mts";
 import { ordinaryOwnershipForPath } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
@@ -246,7 +247,16 @@ const platformSkipConsumers = [
   "scripts/audit.test.mts",
   ...Object.keys(nodeTestOwnership.platformSkips ?? {}),
 ];
-const explicitNodeTests = new Map<string, readonly string[]>([
+const explicitNodeTests = new Map<string, readonly string[]>();
+for (const [file, tests] of [
+  [
+    "scripts/local-validation.mts",
+    [...selectionContractTests, "scripts/repository-settings.test.mts"],
+  ],
+  [
+    "scripts/ordinary-validation.mts",
+    [...selectionContractTests, "scripts/validation-evidence.test.mts"],
+  ],
   ["scripts/node-platform-skips.mts", platformSkipConsumers],
   [
     "scripts/repository-path.mts",
@@ -427,10 +437,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-metadata-site-controller.mts",
     ["scripts/release-metadata-site-controller.test.mts"],
   ],
-  ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
-    ["scripts/release-semantic-worker.test.mts"],
+    [
+      "scripts/release-semantic-worker.test.mts",
+      ...(name === "request-pipeline"
+        ? []
+        : ["scripts/release-catalog-review-maintenance.test.mts"]),
+    ],
   ]),
   ...[
     "scripts/release-semantic-source.mts",
@@ -469,20 +483,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-candidate-progress-contract.mts",
     ["scripts/release-candidate-progress-contract.test.mts"],
   ],
-  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-published-source.mts", ["scripts/release-published-source.test.mts"]],
   ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
   [
     "scripts/release-semantic-disposition-reader.mts",
     ["scripts/release-semantic-disposition-reader.test.mts"],
-  ],
-  [
-    "scripts/release-authority-configuration.mts",
-    [
-      "scripts/production-controller-admission.test.mts",
-      "scripts/release-bootstrap-preparation.test.mts",
-      "scripts/release-catalog-authorities.test.mts",
-    ],
   ],
   [
     "scripts/fixtures/release-semantic-disposition-fixture.mts",
@@ -1022,20 +1027,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/container-source.mts",
     "tools/containers/browser/Dockerfile",
   ].map((file): [string, string[]] => [file, ["scripts/container-browser.test.mts"]]),
-  ...[...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath].map(
-    (file): [string, string[]] => [
-      file,
-      [
-        "scripts/native-helper-dependencies.test.mts",
-        "scripts/native-confirmation.test.mts",
-        "scripts/desktop-execution-plan.test.mts",
-        "scripts/windows-helper-checks.test.mts",
-        ...(file === nativeHelperRegistryPath
-          ? ["scripts/desktop-input-observation.test.mts"]
-          : []),
-      ],
-    ],
-  ),
   ...[
     "scripts/frontend-command-preflight.mts",
     "apps/desktop/scripts/build-frontend.mts",
@@ -1082,8 +1073,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...[
     "scripts/validation-plan.mts",
     "scripts/validation-plan.test.mts",
-    "scripts/local-validation.mts",
-    "scripts/ordinary-validation.mts",
     "scripts/local-validation.test.mts",
   ].map((file): [string, string[]] => [file, selectionContractTests]),
   ["AGENTS.md", ["scripts/repository-settings.test.mts", "scripts/repository-skills.test.mts"]],
@@ -1157,10 +1146,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["docs/PROJECT-GOVERNANCE.md", ["scripts/repository-settings.test.mts"]],
   ["docs/QUALITY.md", ["scripts/repository-settings.test.mts"]],
   ["docs/REPOSITORY-SETTINGS.md", ["scripts/repository-settings.test.mts"]],
-  [
-    "scripts/local-validation.mts",
-    [...selectionContractTests, "scripts/repository-settings.test.mts"],
-  ],
   [
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mts", "scripts/local-validation.test.mts"],
@@ -1547,10 +1532,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [".oxfmtrc.json", ["scripts/local-validation.test.mts", "scripts/ci-workflow.test.mts"]],
   [
-    "scripts/ordinary-validation.mts",
-    [...selectionContractTests, "scripts/validation-evidence.test.mts"],
-  ],
-  [
     "scripts/release-capacity-operation.mts",
     ["scripts/release-catalog-review-maintenance.test.mts"],
   ],
@@ -1563,12 +1544,21 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-metadata-contract.mts",
     ["scripts/release-catalog-review-maintenance.test.mts"],
   ],
-  [
-    "scripts/release-semantic-worker-recovery.mts",
-    ["scripts/release-catalog-review-maintenance.test.mts"],
-  ],
-  ["scripts/release-semantic-worker.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
-]);
+] satisfies [string, readonly string[]][]) {
+  if (explicitNodeTests.has(file)) throw new Error(`Duplicate Node test input owner: ${file}`);
+  explicitNodeTests.set(file, tests);
+}
+
+// Shared custody consumers supplement each helper's feature-owned tests.
+for (const file of [...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/native-helper-dependencies.test.mts",
+    "scripts/native-confirmation.test.mts",
+    "scripts/desktop-execution-plan.test.mts",
+    "scripts/windows-helper-checks.test.mts",
+    ...(file === nativeHelperRegistryPath ? ["scripts/desktop-input-observation.test.mts"] : []),
+  ]);
 
 // Source declarations are consumed by a cheap Node contract even when no release
 // script changes. Keep the consumer's own input inventory authoritative.
@@ -1868,6 +1858,36 @@ const releaseContractTests = Object.freeze([
   "scripts/release-workflow.test.mts",
   "scripts/windows-qualification-session.test.mts",
   "scripts/qualification-preparation.test.mts",
+]);
+
+// Native lifecycle consumers also use helper dependencies without changing their entrypoint.
+for (const [file, tests] of [
+  [
+    "apps/desktop/scripts/native-linux-isolated-session.mts",
+    [...releaseContractTests, "apps/desktop/scripts/desktop-linux-public-update.native.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-native-account-session.mts",
+    [
+      ...releaseContractTests,
+      "scripts/desktop-scenarios.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+] satisfies [string, string[]][])
+  explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), ...tests]);
+for (const root of Object.keys(nativeHelperDependencies)) {
+  const consumers = explicitNodeTests.get(root) ?? [];
+  for (const input of nativeHelperFiles([root]))
+    explicitNodeTests.set(input, [
+      ...new Set([...(explicitNodeTests.get(input) ?? []), ...consumers]),
+    ]);
+}
+explicitNodeTests.set(nativeHelperRegistryPath, [
+  ...new Set([
+    ...(explicitNodeTests.get(nativeHelperRegistryPath) ?? []),
+    ...Object.keys(nativeHelperDependencies).flatMap((file) => explicitNodeTests.get(file) ?? []),
+  ]),
 ]);
 
 export function command(

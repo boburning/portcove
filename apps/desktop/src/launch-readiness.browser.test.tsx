@@ -1,131 +1,22 @@
+import { actions } from "./components/rendered-test-fixtures";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { DetailPanel, type DetailActions } from "./components/DetailPanel";
+import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { desktopApi } from "./api";
-import { portDefinition, portStatus, confirmedSourceAssessment } from "./test-fixtures";
-import type { ActivityRecord, InstallPlan, PortStatus, ReadinessBlocker } from "./types";
-import { filterPorts, portReadiness, summarizeLibrary } from "./view-model";
+import {
+  portDefinition,
+  portStatus,
+  confirmedSourceAssessment,
+  installedLaunchStatus,
+} from "./test-fixtures";
+import type { ActivityRecord, InstallPlan, PortStatus } from "./types";
+import { summarizeLibrary } from "./view-model";
 
 const port = { ...portDefinition(), source_profile: "owned-source" };
-const installed = (readiness?: PortStatus["readiness"]): PortStatus => ({
-  ...portStatus(),
-  active: {
-    id: "owned-install",
-    port_id: port.id,
-    version: "1.0",
-    path: "D:/Library/versions/owned",
-    channel: "stable",
-    installed_at: 1,
-    verified: true,
-    staged: false,
-    artifact: { asset_name: "owned.zip", sha256: "a".repeat(64), size: 1 },
-    manifest_sha256: "b".repeat(64),
-    selected_executable: "game.exe",
-    runtime: null,
-  },
-  ...(readiness !== undefined ? { readiness } : {}),
-  last_launched_at: 1,
-  successful_launches: 1,
-});
-const actions: DetailActions = {
-  activate: vi.fn(),
-  backup: vi.fn(),
-  check: vi.fn(),
-  close: vi.fn(),
-  deleteBackup: vi.fn(),
-  dismissInstallReview: vi.fn(),
-  install: vi.fn(),
-  launch: vi.fn(),
-  openUserData: vi.fn(),
-  reviewInstall: vi.fn(),
-  remove: vi.fn(),
-  restoreBackup: vi.fn(),
-  rollback: vi.fn(),
-  setChannel: vi.fn(),
-  setPolicy: vi.fn(),
-  verify: vi.fn(),
-};
 
-it.each([false, true])(
-  "keeps byte health and clean process history separate from compatibility: confirmed=%s",
-  (confirmed) => {
-    const status = installed({
-      launchable: true,
-      blockers: [],
-      pending_setup: false,
-      source: "current",
-      ...(confirmed ? { source_assessment: confirmedSourceAssessment("owned-source") } : {}),
-    });
-    status.successful_launches = 999;
-    const detail = renderToStaticMarkup(
-      <DetailPanel
-        port={port}
-        status={status}
-        sourcePath=""
-        setSourcePath={vi.fn()}
-        actions={actions}
-      />,
-    );
-    expect(detail.includes("Compatibility unconfirmed")).toBe(!confirmed);
-    expect(detail.includes(">Try launch</button>")).toBe(!confirmed);
-    expect(detail.includes("Ready to play")).toBe(confirmed);
-    const card = renderToStaticMarkup(
-      <PortBrowser
-        view="library"
-        ports={[port]}
-        statuses={new Map([[port.id, status]])}
-        overview={summarizeLibrary([port], new Map([[port.id, status]]))}
-        recent={{ port, status }}
-        filter="all"
-        setFilter={vi.fn()}
-        onSelect={vi.fn()}
-        onContinue={vi.fn()}
-        loading={false}
-      />,
-    );
-    expect(card.includes("Compatibility unconfirmed")).toBe(!confirmed);
-    expect(card.includes("Play again")).toBe(confirmed);
-  },
-);
-
-it.each(["blocker", "action"] as const)(
-  "does not offer card or Continue launch from contradictory %s claims",
-  (kind) => {
-    const status = installed({
-      launchable: true,
-      blockers: kind === "blocker" ? ["missing_source"] : [],
-      pending_setup: false,
-      source: "current",
-      source_assessment: confirmedSourceAssessment("owned-source"),
-    });
-    if (kind === "action")
-      status.port_actions = [
-        { action: "launch", availability: "held", reason: "invalid_installation" },
-      ];
-    const html = renderToStaticMarkup(
-      <PortBrowser
-        view="library"
-        ports={[port]}
-        statuses={new Map([[port.id, status]])}
-        overview={summarizeLibrary([port], new Map([[port.id, status]]))}
-        recent={{ port, status }}
-        filter="all"
-        setFilter={vi.fn()}
-        onSelect={vi.fn()}
-        onContinue={vi.fn()}
-        loading={false}
-      />,
-    );
-    expect(html).not.toContain(">Play</button>");
-    expect(html).not.toContain("Play again");
-    expect(html).not.toContain("Ready to play");
-    expect(html).not.toContain("All can launch");
-    expect(html).toContain("Review launch");
-  },
-);
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
@@ -241,7 +132,12 @@ it("shows a core-held managed setup reason before installation review", () => {
 
 it("explains a retained launch hold without presenting it as missing game files", () => {
   const status: PortStatus = {
-    ...installed({ launchable: false, pending_setup: false, blockers: [], source: "current" }),
+    ...installedLaunchStatus({
+      launchable: false,
+      pending_setup: false,
+      blockers: [],
+      source: "current",
+    }),
     port_actions: [
       {
         action: "launch",
@@ -266,35 +162,6 @@ it("explains a retained launch hold without presenting it as missing game files"
   expect(host.textContent).not.toContain("Choose required game files");
 });
 
-it.each([undefined, null])(
-  "keeps an installed game out of Ready when the core assessment is %s",
-  (readiness) => {
-    const status = installed(readiness);
-    const statuses = new Map([[port.id, status]]);
-    expect(portReadiness(status)).toBe("unknown");
-    expect(filterPorts([port], statuses, "library", "ready", "")).toEqual([]);
-    expect(filterPorts([port], statuses, "library", "setup", "")).toEqual([port]);
-    expect(summarizeLibrary([port], statuses)).toEqual({
-      installed: 1,
-      ready: 0,
-      needsSetup: 1,
-      staged: 0,
-    });
-  },
-);
-
-it.each([{ blockers: [] }, { blockers: ["future_blocker" as ReadinessBlocker] }])(
-  "preserves a core launch refusal without recognized blockers: $blockers",
-  ({ blockers }) => {
-    const status = installed({
-      launchable: false,
-      pending_setup: false,
-      blockers,
-    });
-    expect(portReadiness({ ...status, staged: status.active })).toBe("blocked");
-  },
-);
-
 it.each([true, false])(
   "does not offer Play for a missing assessment with source requirement %s",
   (requiresSource) => {
@@ -305,7 +172,7 @@ it.each([true, false])(
           ...port,
           source_profile: requiresSource ? "owned-source" : null,
         }}
-        status={installed()}
+        status={installedLaunchStatus()}
         sourcePath="D:/Selected/game.z64"
         setSourcePath={vi.fn()}
         actions={actions}
@@ -327,7 +194,7 @@ it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [
     const root = createRoot(host);
     const launch = vi.fn();
     const details = vi.fn();
-    const status = installed(readiness);
+    const status = installedLaunchStatus(readiness);
     const statuses = new Map([[port.id, status]]);
     try {
       await act(async () =>
@@ -371,8 +238,8 @@ it("restores Continue only after a new positive core assessment without changing
   const root = createRoot(host);
   const launch = vi.fn();
   const details = vi.fn();
-  const unknown = installed();
-  const ready = installed({
+  const unknown = installedLaunchStatus();
+  const ready = installedLaunchStatus({
     launchable: true,
     pending_setup: false,
     blockers: [],

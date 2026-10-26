@@ -1,7 +1,13 @@
-import { fixtureValue } from "./test-fixtures";
+import { fixtureValue, installedLaunchStatus } from "./test-fixtures";
 import { portDefinition, portStatus, sourceProfile } from "./test-fixtures";
 import { describe, expect, it } from "vite-plus/test";
-import type { ActivityRecord, InstallRecord, PortDefinition, PortStatus } from "./types";
+import type {
+  ActivityRecord,
+  InstallRecord,
+  PortDefinition,
+  PortStatus,
+  ReadinessBlocker,
+} from "./types";
 import {
   activityHistoryPreview,
   currentUpdateSnapshot,
@@ -515,3 +521,33 @@ describe("catalog view model", () => {
     expect(errorText("failure")).toBe("failure");
   });
 });
+
+it.each([undefined, null])(
+  "keeps an installed game out of Ready when the core assessment is %s",
+  (readiness) => {
+    const status = installedLaunchStatus(readiness);
+    const launchPort = { ...portDefinition(), source_profile: "owned-source" };
+    const statuses = new Map([[launchPort.id, status]]);
+    expect(portReadiness(status)).toBe("unknown");
+    expect(filterPorts([launchPort], statuses, "library", "ready", "")).toEqual([]);
+    expect(filterPorts([launchPort], statuses, "library", "setup", "")).toEqual([launchPort]);
+    expect(summarizeLibrary([launchPort], statuses)).toEqual({
+      installed: 1,
+      ready: 0,
+      needsSetup: 1,
+      staged: 0,
+    });
+  },
+);
+
+it.each([{ blockers: [] }, { blockers: ["future_blocker" as ReadinessBlocker] }])(
+  "preserves a core launch refusal without recognized blockers: $blockers",
+  ({ blockers }) => {
+    const status = installedLaunchStatus({
+      launchable: false,
+      pending_setup: false,
+      blockers,
+    });
+    expect(portReadiness({ ...status, staged: status.active })).toBe("blocked");
+  },
+);
