@@ -303,3 +303,25 @@ through `just rust-test` or `scripts/run-rust-tests.mts --guard-command`.
 This adapter supports doctests only. Ordinary Cargo test binaries can reuse the
 same case name without carrying a binary identity in this JSON dialect; their
 formatted console output is not used to invent an identity.
+
+### Declared platform skips
+
+The existing Node ownership record may declare `platform_skips`: intended platform,
+prerequisite, reason, complete qualification owner and stable top-level case names.
+The declaration remains distinct from the runner's original skip reason. Its
+qualification owner must be an actual, enabled, unfiltered producer on the stated
+platform; missing, unsupported or wrong-platform runner labels cannot qualify it.
+
+For unfiltered invocations, the required reporter refuses missing or ambiguous
+cases, unregistered skips/todos in declared families, and outcomes inconsistent
+with the intended platform. A registered case cannot become TODO on its owner.
+Filtered runs explicitly report that full-family evaluation was not performed;
+they cannot replace the complete qualification owner. Metadata read failures are
+reported after consuming original runner failures. This opt-in platform contract
+does not classify undeclared families, other skip categories or native acceptance.
+
+### Default nextest outcome reporting
+
+The guarded default `run-rust-tests.mts` route lists its native selection before execution and reuses the bounded nextest outcome reporter. Raw listing stdout/stderr is retained under `work/nextest-default-outcomes`; missing, malformed and empty inventories cannot establish qualifying success. Original native failure status and human diagnostics remain primary.
+
+Explicit compile-only/help, native-format, no-capture and ignored-run overrides keep their original raw diagnostic behavior and emit a nonqualifying inventory annotation. They do not substitute for the maintained qualification routes. Guarded arbitrary commands keep their existing execution contract.

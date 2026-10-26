@@ -7,6 +7,13 @@ export const nodeTestPath = /^scripts\/[^/]+\.test\.[cm]?[jt]s$/u;
 const nativeNodeTestPath = /^apps\/desktop\/scripts\/[a-z0-9-]+\.native\.test\.mts$/u;
 const registeredTestPath = (file: string) =>
   nodeTestPath.test(file) || nativeNodeTestPath.test(file);
+export interface NodePlatformSkipContract {
+  platform: "linux" | "win32";
+  owner: string;
+  prerequisite: string;
+  reason: string;
+  cases: string[];
+}
 export interface NodeTestSuite {
   arguments: string[];
   files: string[];
@@ -15,10 +22,60 @@ export interface NodeTestSuites {
   format_version: 1;
   suites: Record<string, NodeTestSuite>;
   qualificationOwners?: Record<string, Record<string, string>>;
+  platformSkips?: Record<string, NodePlatformSkipContract>;
+}
+function validPlatformCases(cases: unknown): cases is string[] {
+  return (
+    Array.isArray(cases) &&
+    cases.length > 0 &&
+    cases.length <= 128 &&
+    cases.every(
+      (name: unknown) => typeof name === "string" && name.trim() && name.length <= 2048,
+    ) &&
+    new Set(cases).size === cases.length
+  );
+}
+function registerPlatformSkips(
+  entry: Record<string, unknown>,
+  file: string,
+  memberships: ReadonlySet<string>,
+  contracts: Record<string, NodePlatformSkipContract>,
+  owners: Record<string, Record<string, string>>,
+) {
+  const value = entry.platform_skips;
+  if (value === undefined) return;
+  if (
+    !isRecord(value) ||
+    Object.keys(value).sort().join(",") !== "cases,owner,platform,prerequisite,reason"
+  )
+    throw new Error("Invalid platform skip contract: " + file);
+  if (value.platform !== "linux" && value.platform !== "win32")
+    throw new Error("Unknown platform skip target: " + file);
+  const owner = value.owner;
+  if (typeof owner !== "string" || !memberships.has(owner))
+    throw new Error("Platform skip owner must execute its file: " + file);
+  for (const key of ["prerequisite", "reason"] as const)
+    if (typeof value[key] !== "string" || !value[key].trim() || value[key].length > 1024)
+      throw new Error("Platform skip prerequisite/reason missing: " + file);
+  const cases = value.cases;
+  if (!validPlatformCases(cases)) throw new Error("Invalid platform skip case inventory: " + file);
+  const platform = value.platform === "linux" ? "linux-x86_64" : "windows-x86_64";
+  const existing = owners[file]?.[platform];
+  if (existing !== undefined && existing !== owner)
+    throw new Error("Platform skip qualification owner conflicts: " + file);
+  owners[file] = { ...owners[file], [platform]: owner };
+  contracts[file] = {
+    platform: value.platform,
+    owner,
+    prerequisite: value.prerequisite as string,
+    reason: value.reason as string,
+    cases,
+  };
 }
 function expandNodeTestOwnership(
   value: Record<string, unknown>,
   qualificationOwners: Record<string, Record<string, string>>,
+  platformSkips: Record<string, NodePlatformSkipContract>,
 ) {
   if (
     Object.keys(value).some((key) => !["format_version", "suites", "tests"].includes(key)) ||
@@ -44,7 +101,9 @@ function expandNodeTestOwnership(
   for (const entry of value.tests) {
     if (
       !isRecord(entry) ||
-      Object.keys(entry).some((key) => !["file", "memberships", "qualification"].includes(key)) ||
+      Object.keys(entry).some(
+        (key) => !["file", "memberships", "qualification", "platform_skips"].includes(key),
+      ) ||
       typeof entry.file !== "string" ||
       !registeredTestPath(entry.file) ||
       seenFiles.has(entry.file) ||
@@ -87,6 +146,7 @@ function expandNodeTestOwnership(
       }
       qualificationOwners[entry.file] = owners;
     }
+    registerPlatformSkips(entry, entry.file, seenSuites, platformSkips, qualificationOwners);
   }
   for (const [id, members] of positions) {
     const suite = suites[id];
@@ -99,8 +159,9 @@ function expandNodeTestOwnership(
 export function parseNodeTestSuites(text: string): NodeTestSuites {
   let value: unknown = JSON.parse(text);
   const qualificationOwners: Record<string, Record<string, string>> = {};
+  const platformSkips: Record<string, NodePlatformSkipContract> = {};
   if (isRecord(value) && value.format_version === 2)
-    value = expandNodeTestOwnership(value, qualificationOwners);
+    value = expandNodeTestOwnership(value, qualificationOwners, platformSkips);
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.suites))
     throw new Error("Invalid Node test suite registry");
   const suites: Record<string, NodeTestSuite> = {};
@@ -140,6 +201,7 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
     format_version: 1,
     suites,
     ...(Object.keys(qualificationOwners).length ? { qualificationOwners } : {}),
+    ...(Object.keys(platformSkips).length ? { platformSkips } : {}),
   };
 }
 

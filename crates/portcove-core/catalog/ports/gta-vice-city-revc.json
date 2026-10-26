@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gta-vice-city-revc",
+    "name": "Grand Theft Auto: Vice City / reVC",
+    "original_game_title": "Grand Theft Auto: Vice City",
+    "summary": "Use a permitted existing reVC player with your own original PC game data.",
+    "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+    "issue_number": 2853,
+    "availability": "packages",
+    "setup_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your existing player for this game",
+          "instruction": "Use an existing reVC copy you are permitted to use with your own original PC Grand Theft Auto: Vice City assets. Select reVC.exe on Windows or the native reVC executable on Linux and use that game’s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game’s executable, console originals and Definitive Edition are not substitutes."
+        },
+        {
+          "title": "Keep saves and settings with the working copy",
+          "instruction": "This game-specific reVC_1.0 README places user files (saves and settings) in the game root and uses reVC.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback."
+        },
+        {
+          "title": "Preserve the archived implementation identity",
+          "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md"
+    },
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+    "artwork": {
+      "game_id": 733,
+      "cover_id": 120935,
+      "image_id": "co2lbb",
+      "image_sha256": "a3d322aebc6ce090b7b5053b2dc5fc4b2724ed5d00fb6ba9116ff6de78d0ae65",
+      "game_slug": "grand-theft-auto-vice-city",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gta-vice-city-revc",
+    "origin": {
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "repository": {
+        "host": "github.com",
+        "id": "358736937"
+      }
+    },
+    "decisions": []
+  }
+}

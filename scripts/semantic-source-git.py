@@ -88,7 +88,10 @@ def main():
     if remaining < 1:
         raise ValueError("source deadline exhausted before Git")
     with open("/usr/bin/git", "rb") as binary:
-        if hashlib.file_digest(binary, "sha256").hexdigest() != value["git_sha256"]:
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: binary.read(1024 * 1024), b""):
+            digest.update(chunk)
+        if digest.hexdigest() != value["git_sha256"]:
             raise ValueError("fixed source Git changed")
     # These apply before Git/index-pack touches untrusted compressed data.
     resource.setrlimit(resource.RLIMIT_AS, (1024**3, 1024**3))

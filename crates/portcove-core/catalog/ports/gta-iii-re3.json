@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gta-iii-re3",
+    "name": "Grand Theft Auto III / re3",
+    "original_game_title": "Grand Theft Auto III",
+    "summary": "Use a permitted existing re3 player with your own original PC game data.",
+    "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+    "issue_number": 2852,
+    "availability": "packages",
+    "setup_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your existing player for this game",
+          "instruction": "Use an existing re3 copy you are permitted to use with your own original PC Grand Theft Auto III assets. Select re3.exe on Windows or the native re3 executable on Linux and use that game’s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game’s executable, console originals and Definitive Edition are not substitutes."
+        },
+        {
+          "title": "Keep saves and settings with the working copy",
+          "instruction": "This game-specific re3_v1.0 README places user files (saves and settings) in the game root and uses re3.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback."
+        },
+        {
+          "title": "Preserve the archived implementation identity",
+          "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md"
+    },
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+    "artwork": {
+      "game_id": 730,
+      "cover_id": 120932,
+      "image_id": "co2lb8",
+      "image_sha256": "5f64f7a41034ea93cb44c3cd3c5b7167d680f647e9952967e167e452dd8e447c",
+      "game_slug": "grand-theft-auto-iii",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gta-iii-re3",
+    "origin": {
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "repository": {
+        "host": "github.com",
+        "id": "358736937"
+      }
+    },
+    "decisions": []
+  }
+}

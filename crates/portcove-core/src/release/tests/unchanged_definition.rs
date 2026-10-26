@@ -288,10 +288,150 @@ fn variant_port() -> PortDefinition {
 }
 
 #[tokio::test]
+async fn observed_native_archive_layouts_resolve_successors_without_definition_changes() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    // Observed names/sizes/digests; controlled HTTP replay, no artifact execution.
+    for (id, old_tag, new_tag, platform, packages) in [
+        (
+            "diegodedios-alienrerecomp",
+            "v0.1.7",
+            "v0.1.8",
+            Platform::WindowsX86_64,
+            [
+                (
+                    "AlienResurrection-0.1.7-windows-x64.zip",
+                    "67c9a5c7cba0bcd7a888226041f788e19470c9cabf7626ab537dcc75e9da657b",
+                    2_763_329_u64,
+                ),
+                (
+                    "AlienResurrection-0.1.8-windows-x64.zip",
+                    "ec74b39e6d3827f62f2dd2cfe73cc582721834da6ebc1b03b36417d1ee40e48f",
+                    2_763_454,
+                ),
+            ],
+        ),
+        (
+            "diegodedios-alienrerecomp",
+            "v0.1.7",
+            "v0.1.8",
+            Platform::LinuxX86_64,
+            [
+                (
+                    "AlienResurrection-0.1.7-linux-x86_64.tar.gz",
+                    "ace1b401ac8643b59c12486cca2f646201792f5b92af024b90cea7132dff4773",
+                    2_564_446,
+                ),
+                (
+                    "AlienResurrection-0.1.8-linux-x86_64.tar.gz",
+                    "12c5790d50dee8a64ed03b5f7780f14e4a75612773b6dbc5b252d0f0545b007d",
+                    2_564_673,
+                ),
+            ],
+        ),
+        (
+            "mr-finster-stunts-hd",
+            "v1.5.21",
+            "v1.5.22",
+            Platform::WindowsX86_64,
+            [
+                (
+                    "Stunts-HD-win-x64.zip",
+                    "866b95cb379e1f49da69f324d07372800328bb4641c4df7a8857732e1cabc392",
+                    111_603_100,
+                ),
+                (
+                    "Stunts-HD-win-x64.zip",
+                    "118f0598916966bb8d79f3786016e94c8cb8dce57b7e97c02240c41c8d52aaf5",
+                    111_604_171,
+                ),
+            ],
+        ),
+        (
+            "mr-finster-stunts-hd",
+            "v1.5.21",
+            "v1.5.22",
+            Platform::LinuxX86_64,
+            [
+                (
+                    "Stunts-HD-linux-x64.tar.gz",
+                    "d465c2949157a1ae6baae8859e942cf3009cb4cbe8126bc1e0618e2050ed2f46",
+                    102_788_078,
+                ),
+                (
+                    "Stunts-HD-linux-x64.tar.gz",
+                    "693ab6cc4c8d96df57752c28df0e0f65a5bb56635a8d08eec57098da83c48543",
+                    102_789_136,
+                ),
+            ],
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let [old_asset, new_asset] = packages.map(|(name, digest, size)| {
+            let mut value = asset(name, None);
+            value["digest"] = format!("sha256:{digest}").into();
+            value["size"] = size.into();
+            value
+        });
+        let old = release(old_tag, vec![old_asset]);
+        let current = [release(new_tag, vec![new_asset]), old.clone()];
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(&[old]),
+            metadata(),
+            metadata(),
+            releases(&current),
+            metadata(),
+            releases(&current),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(root.clone()).unwrap();
+        let baseline = provider
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        let cached = provider
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        assert_eq!(cached.asset, baseline.asset);
+        for entry in provider.cache.write().await.values_mut() {
+            entry.stored_at -= RELEASE_CACHE_TTL + Duration::from_secs(1);
+        }
+        let successor = provider
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        let fresh = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, platform)
+            .await
+            .unwrap();
+        for (resolved, (name, digest, size), version) in [
+            (&baseline, packages[0], old_tag),
+            (&successor, packages[1], new_tag),
+            (&fresh, packages[1], new_tag),
+        ] {
+            assert_eq!(resolved.version, version);
+            assert_eq!(resolved.asset.name, name);
+            assert_eq!(resolved.asset.sha256, digest);
+            assert_eq!(resolved.asset.size, size);
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 7);
+    }
+}
+
+#[tokio::test]
 async fn unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives() {
     let catalog = crate::Catalog::embedded().unwrap();
     // Successors are controlled fixtures, not published upstream releases.
     for (id, old_tag, old_name, new_tag, new_name) in [
+        (
+            "leithsilver-mgsm",
+            "v0.1",
+            "MGS_Mobile_0.1_Windows_x64.zip",
+            "v0.2",
+            "MGS_Mobile_0.2_Windows_x64.zip",
+        ),
         (
             "infinite-undiscovery-doc-haz",
             "v1.0.0-rc1",
@@ -527,7 +667,7 @@ async fn cached_package_selection_cannot_cross_n64_root_package_contracts() {
     );
     let (api_root, requests, server) = serve_http(vec![
         metadata(),
-        releases(&[current.clone()]),
+        releases(std::slice::from_ref(&current)),
         metadata(),
         releases(&[current]),
     ]);

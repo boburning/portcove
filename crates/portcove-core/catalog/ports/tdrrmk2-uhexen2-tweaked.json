@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tdrrmk2-uhexen2-tweaked",
+    "name": "Hexen II / uHexen2 Tweaked",
+    "original_game_title": "Hexen II",
+    "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
+    "project_url": "https://github.com/TDRRmk2/uhexen2-tweaked",
+    "issue_number": 2747,
+    "availability": "packages",
+    "platforms": ["windows-x86-64"],
+    "release_url": "https://github.com/TDRRmk2/uhexen2-tweaked/releases",
+    "setup_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a separate working game copy",
+          "instruction": "Use your own documented Hexen II installation, normally retail 1.11 with data1/pak0.pak and data1/pak1.pak. Keep the original installation recoverable. The test ZIP contains the player and libraries, not original data or the patching tools described in the general Hammer of Thyrion instructions."
+        },
+        {
+          "title": "Select the OpenGL player",
+          "instruction": "Extract the complete Windows test ZIP into that prepared working copy. Select glh2.exe with the working game folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
+        },
+        {
+          "title": "Preserve the whole working copy",
+          "instruction": "Windows saves, configuration, demos and screenshots use the selected game directory, normally data1. Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+        }
+      ],
+      "warnings": [
+        "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility."
+      ],
+      "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]
+    },
+    "recommended_download_channel": "beta"
+  }
+}

@@ -3,11 +3,33 @@
   "listing": {
     "id": "bodbdearg-psydoom",
     "name": "Doom / PsyDoom (BodbDearg)",
-    "summary": "Explore Doom / PsyDoom (BodbDearg) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play PlayStation Doom and Final Doom through PsyDoom using your own game-disc image.",
     "project_url": "https://github.com/BodbDearg/PsyDoom",
     "issue_number": 1873,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/BodbDearg/PsyDoom"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/BodbDearg/PsyDoom#running-the-game",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the Windows player together",
+          "instruction": "Extract the complete Windows x64 ZIP into a separate folder. If the player requires it, follow upstream’s Windows Visual C++ runtime prerequisite."
+        },
+        {
+          "title": "Choose your PlayStation game disc",
+          "instruction": "Finish setup with PsyDoom.exe and its folder. On Play, use the launcher to select a supported PS1 Doom or Final Doom .cue file, keeping all referenced track files with it. A PC Doom WAD does not replace that disc image."
+        },
+        {
+          "title": "Preserve your working copy",
+          "instruction": "Updates remain with you and upstream. Keep original disc files and mods backed up. Windows settings, saves and demos normally use AppData/Roaming/com.codelobster/PsyDoom; also preserve a local launcher.ini or custom files if your copy uses them."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/BodbDearg/PsyDoom#running-the-game"
+    },
+    "release_url": "https://github.com/BodbDearg/PsyDoom/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["PsyDoom_", "_Windows_x86_64.zip"]
+    }
   }
 }

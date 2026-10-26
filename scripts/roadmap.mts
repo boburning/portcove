@@ -10,6 +10,7 @@ import {
   itemUrl,
   normalizePortKey,
   normalizedPortTitle,
+  normalizedUpstream,
   parsePortIssueForm,
   portCatalogMarkers,
   portIdentity,
@@ -172,7 +173,7 @@ type QualificationPlatformFields = Pick<
 >;
 export type QualificationPortObservation = Pick<PortDefinition, "id"> & {
   [K in keyof QualificationPlatformFields]?: readonly string[];
-} & { support_tier?: unknown };
+} & { support_tier?: unknown; project_url?: unknown };
 export interface QualificationCatalogObservation {
   ports?: readonly QualificationPortObservation[] | null;
   source_catalog?: { qualification?: readonly unknown[] | null } | null;
@@ -4411,7 +4412,7 @@ export class RoadmapClient {
     }
     const ids = portCatalogMarkers(issueBody);
     if (ids.length > 1) throw new Error(`issue #${number} claims multiple catalog IDs`);
-    const catalogId = ids[0] ?? null;
+    let catalogId = ids[0] ?? null;
     let form: { upstream: string; portKey: string | null };
     if (/^###\s+(?:Direct upstream URL|Durable game or target key)\s*$/imu.test(issueBody)) {
       form = parsePortIssueForm(issueBody);
@@ -4430,6 +4431,14 @@ export class RoadmapClient {
         `### Direct upstream URL\n\n${upstreams[0]}\n\n### Durable game or target key\n\n${keys[0] ?? catalogId}`,
       );
       if (!keys.length) form.portKey = null;
+    }
+    if (!catalogId && form.portKey) {
+      const adopted = (catalog?.ports ?? []).find(
+        (port) =>
+          port.id === form.portKey &&
+          normalizedUpstream(port.project_url) === normalizedUpstream(form.upstream),
+      );
+      catalogId = adopted?.id ?? null;
     }
     if (catalogId && !(catalog?.ports ?? []).some((port) => port.id === catalogId)) {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
@@ -4497,6 +4506,13 @@ export class RoadmapClient {
 
     if (inventory) invalidateRoadmapInventory(inventory);
     if (bodyChanged) {
+      const current = this.repositoryIssue(number);
+      if (
+        current.node_id !== issue.node_id ||
+        current.title !== issueTitle ||
+        (current.body ?? "") !== issueBody
+      )
+        throw new Error("Issue changed during normalization; refresh the issue before retrying");
       this.api.request("PATCH", `repos/${this.config.repository}/issues/${number}`, { body });
     }
     const item = existingItem ?? this.ensureIssueItem(issue.node_id);

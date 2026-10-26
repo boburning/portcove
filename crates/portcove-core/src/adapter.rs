@@ -5355,12 +5355,12 @@ mod tests {
             std::fs::create_dir(destination.parent().unwrap()).unwrap();
             let mut rom = canonical;
             if order == "swapped" {
-                for pair in rom.chunks_exact_mut(2) {
+                for pair in rom.as_chunks_mut::<2>().0 {
                     pair.swap(0, 1);
                 }
             }
             if order == "little" {
-                for word in rom.chunks_exact_mut(4) {
+                for word in rom.as_chunks_mut::<4>().0 {
                     word.reverse();
                 }
             }

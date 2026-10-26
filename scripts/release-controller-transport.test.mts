@@ -5,8 +5,8 @@ import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext } from "node:vm";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   controllerTransportClock,
   retainControllerUpload,
@@ -22,6 +22,8 @@ import {
   normalizeControllerAttestationBundle,
 } from "./release-controller-transport.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
+import { signingContextArtifactRoute } from "./release-signing-context-artifact.mts";
+import { inspectPublicationResultUpload } from "./release-publication-result-artifact.mts";
 import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
@@ -32,6 +34,102 @@ const identity = {
   GITHUB_SHA: "a".repeat(40),
   GITHUB_REF: "refs/tags/portcove-production-controller-test",
 };
+
+// Fresh module mocks exercise the real entrypoint without minting producer custody or contacting GitHub.
+async function runUploadIdentityControl() {
+  const { mock } = await import("node:test");
+  const assert: typeof import("node:assert/strict") = (await import("node:assert/strict")).default;
+  const { readFile } = await import("node:fs/promises");
+  const path = (await import("node:path")).default;
+  const { pathToFileURL } = await import("node:url");
+  delete process.env.PORTCOVE_JOB_OPERATION;
+  const moduleUrl = (file: string) => pathToFileURL(path.join(process.cwd(), "scripts", file)).href;
+  const ownedUrl = moduleUrl("release-publication-result.mts");
+  const toolsUrl = moduleUrl("release-controller-tools.mts");
+  const githubUrl = moduleUrl("github-api.mts");
+  const owned = (await import(ownedUrl)) as typeof import("./release-publication-result.mts");
+  const tools = (await import(toolsUrl)) as typeof import("./release-controller-tools.mts");
+  const github = (await import(githubUrl)) as typeof import("./github-api.mts");
+  const receipt = {};
+  const directory = process.argv[1]!;
+  const uploaded = { artifact_id: 93, sha256: "f".repeat(64) };
+  let reads = 0,
+    providerCalls = 0;
+  mock.module(ownedUrl, {
+    exports: {
+      ...owned,
+      requireOwnedPublicationResult: async (value: object) => {
+        assert.equal(value, receipt);
+        return {
+          directory,
+          report_sha256: "a".repeat(64),
+          record: { controller: { run_id: "123", run_attempt: 1 } },
+        };
+      },
+    },
+  });
+  mock.module(toolsUrl, {
+    exports: {
+      ...tools,
+      readControllerToolFile: async (file: string, maximum: number) => {
+        assert.equal(file, path.join(directory, "result-uploaded.json"));
+        assert.equal(maximum, 4096);
+        reads++;
+        return Buffer.from(JSON.stringify(uploaded));
+      },
+    },
+  });
+  mock.module(githubUrl, {
+    exports: {
+      ...github,
+      GitHubApiClient: class {
+        constructor() {
+          providerCalls++;
+          throw new Error("controlled provider boundary must not be reached");
+        }
+      },
+    },
+  });
+  // The custody module also imports this consumer; use a fresh instance after installing mocks.
+  const { handoffPublicationResultArtifact } = (await import(
+    moduleUrl("release-publication-result-artifact.mts") + "?upload-identity-control"
+  )) as typeof import("./release-publication-result-artifact.mts");
+  const pending = { checkpoint: "b".repeat(40), operation_id: "c".repeat(64) };
+  await assert.rejects(
+    handoffPublicationResultArtifact(receipt, pending, performance.now() + 5000),
+    /publication result handoff refused/u,
+  );
+  const refusal: unknown = JSON.parse(
+    await readFile(path.join(directory, "result-handoff-refusal.json"), "utf8"),
+  );
+  assert.deepEqual(refusal, { pending, automatic_retry: false, authority: "none" });
+  assert.equal(providerCalls, 0);
+  assert.equal(reads, 1);
+  console.log(JSON.stringify({ cases: 1, reads, providerCalls, authority: "none" }));
+}
+
+void test("actual publication handoff rejects malformed upload locators before the provider boundary", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "result-upload-contract-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const result = execFileSync(
+    process.execPath,
+    [
+      "--experimental-test-module-mocks",
+      "--input-type=module",
+      "-e",
+      "(" + runUploadIdentityControl.toString() + ")()",
+      root,
+    ],
+    {
+      cwd: fileURLToPath(new URL("../", import.meta.url)),
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    },
+  );
+  assert.deepEqual(JSON.parse(result), { cases: 1, reads: 1, providerCalls: 0, authority: "none" });
+});
 void test("concurrent marker readers see complete published bytes and duplicate publication cannot replace them", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "pump-marker-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -294,18 +392,7 @@ void test("actual local routing interleaves control and pending upload before th
   await mkdir(directory);
   // Execute the maintained producer's pure naming route, not another naming
   // fixture. No producer admission or private receipt is constructed here.
-  const producerSource = await readFile(
-    new URL("./release-signing-context-artifact.mts", import.meta.url),
-    "utf8",
-  );
-  const start = producerSource.indexOf("const contextRoute ="),
-    end = producerSource.indexOf("const compare =", start);
-  assert(start >= 0 && end > start);
-  const prefix: unknown = runInNewContext(
-    `${stripTypeScriptTypes(producerSource.slice(start, end))};contextRoute("metadata-signing-context").prefix`,
-    {},
-    { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
-  );
+  const prefix = signingContextArtifactRoute("metadata-signing-context").prefix;
   assert.equal(typeof prefix, "string");
   const files = ["signing-context-manifest.json", "signing-context-bytes.bin"];
   for (const file of files)
@@ -435,30 +522,15 @@ void test("result acknowledgement passes the maintained producer's exact consume
   const uploaded: unknown = JSON.parse(
     await readFile(path.join(directory, "result-uploaded.json"), "utf8"),
   );
-  const producer = await readFile(
-    new URL("./release-publication-result-artifact.mts", import.meta.url),
-    "utf8",
-  );
-  const start = producer.indexOf(
-      'exact(uploaded, "id,sha256");',
-      producer.indexOf("export async function handoffPublicationResultArtifact"),
-    ),
-    end = producer.indexOf("const result =", start);
-  assert(start >= 0 && end > start);
-  const validation = producer.slice(start, end);
-  const validate = (value: unknown): unknown =>
-    runInNewContext(
-      validation,
-      {
-        uploaded: value,
-        exact: (raw: Record<string, unknown>, keys: string) =>
-          assert.equal(Object.keys(raw).sort().join(","), keys),
-        hex: (value: string) => assert.match(value, /^[a-f0-9]{64}$/u),
-      },
-      { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
-    );
-  assert.doesNotThrow(() => validate(uploaded));
-  assert.throws(() => validate({ artifact_id: 93, sha256: "f".repeat(64) }));
+  assert.deepEqual(inspectPublicationResultUpload(uploaded), { id: 93, sha256: "f".repeat(64) });
+  for (const invalid of [
+    { artifact_id: 93, sha256: "f".repeat(64) },
+    { id: 0, sha256: "f".repeat(64) },
+    { id: 1.5, sha256: "f".repeat(64) },
+    { id: 93, sha256: "invalid" },
+    { id: 93, sha256: "f".repeat(64), authority: "publisher" },
+  ])
+    assert.throws(() => inspectPublicationResultUpload(invalid));
 });
 void test("fixed routing rejects cross-role keys, escaped files and changed public upload bytes", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "fixed-pump-refuse-"));

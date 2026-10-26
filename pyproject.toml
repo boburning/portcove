@@ -4,3 +4,8 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "B", "I", "SIM", "UP"]
+
+# These delivered helpers also run under Ubuntu 22.04's system Python 3.10.
+[tool.ruff.per-file-target-version]
+"apps/desktop/scripts/native-linux-public-fuse.py" = "py310"
+"scripts/semantic-source-git.py" = "py310"

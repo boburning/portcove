@@ -1,0 +1,82 @@
+{
+  "format_version": 1,
+  "source": "f81ca1148bee948c37d5ef7fbcdb56cb48180ea4",
+  "private_file": "crates/portcove-core/src/release/tests/unchanged_definition.rs",
+  "actual_git_probe": {
+    "source": "f81ca1148bee948c37d5ef7fbcdb56cb48180ea4",
+    "changed_files": ["M\tcrates/portcove-core/src/release/tests/unchanged_definition.rs"],
+    "preimage_sha256": "4f58cfd2148fdc89cc002be9c8ed687db740af4bfdfe406e6415f88bf1b23b42",
+    "probe_sha256": "13725d53b3d69f586ee01eff907d35a468e7b7799e80214d56bcc06e91773903",
+    "code_change": "temporary trailing comment; planning probe, not a test execution or shipping change",
+    "native_execution_receipts": "separate frozen Core union and full CLI runs"
+  },
+  "before": "broad complete Core package",
+  "after": [
+    {
+      "id": "release-discovery",
+      "filter": "test(/^gitlab::tests::/) | test(/^providers::tests::/) | test(/^release::tests::/) | test(/^release::observation::tests::/)"
+    }
+  ],
+  "core_package_inventory": {
+    "listed": 2053,
+    "runnable": 2041
+  },
+  "observed_release_family_execution": 100,
+  "observed_catalog_family_execution": 199,
+  "distinct_core_union_executed": 299,
+  "private_cases_verified": [
+    "release::tests::unchanged_definition::adopted_psx_rules_follow_successors_for_every_reviewed_platform_scope",
+    "release::tests::unchanged_definition::cached_package_selection_cannot_cross_adapter_package_contracts",
+    "release::tests::unchanged_definition::cached_package_selection_cannot_cross_n64_root_package_contracts",
+    "release::tests::unchanged_definition::observed_native_archive_layouts_resolve_successors_without_definition_changes",
+    "release::tests::unchanged_definition::psx_package_rules_refuse_variant_fallback_but_keep_owned_input_preparation_kits",
+    "release::tests::unchanged_definition::successor_checksum_must_name_the_successor_asset",
+    "release::tests::unchanged_definition::successor_resolution_refuses_lost_variant_ambiguity_wrong_architecture_and_missing_integrity",
+    "release::tests::unchanged_definition::unchanged_authored_rules_follow_versioned_packages_after_cache_expiry_and_on_fresh_install",
+    "release::tests::unchanged_definition::unchanged_beta_staged_rules_follow_player_successors_and_skip_compliance_archives",
+    "release::tests::unchanged_definition::unchanged_closed_policy_rules_resolve_successors_with_exact_provider_bindings"
+  ],
+  "cli_package_inventory": {
+    "listed": 233,
+    "runnable": 232
+  },
+  "observed_cli_executed": 232,
+  "cli_ignored": 1,
+  "consumer_closure": "all production Core definition implementations preserve complete CLI, including unit renderers; private fixture-only routes stay focused",
+  "selection_cardinality_reduction": 0.9510044096031357,
+  "limits": [
+    "Selection reduction for the actual one-file planning probe, not elapsed time or whole-suite speedup.",
+    "The planning comment was temporary and restored byte-for-byte. Native execution receipts are separately frozen.",
+    "Core union source5e274e1d and finalsourcef81 have identical Rust code and group filters; routing repair only adds CLI consumer preservation.",
+    "Raw source/checkout fields remain null; request binding is separate.",
+    "Requested-package inventory is not complete workspace discovery.",
+    "Original one-group invocation refusal and wrong namespace assertion probe remain retained as failures."
+  ],
+  "raw_evidence": [
+    {
+      "file": "release-fixture-routing-nextest-v2.log",
+      "bytes": 351443,
+      "sha256": "59fbf450c8de338f7a2b7493a5438bf26f72b2fca81505bfb3ccc8c987e01aa2"
+    },
+    {
+      "file": "release-fixture-cli-execution-v2.log",
+      "bytes": 286715,
+      "sha256": "1f5fdef3847a8bb56d3785f4e33f2df852d8c35ec8ae9c23e6e905337d23e567"
+    },
+    {
+      "file": "release-fixture-full-core-inventory-v2.json",
+      "bytes": 295967,
+      "sha256": "a4706529f10f9c60f4d238ff1348071bca3664a6e975675004559f192d0478fe"
+    },
+    {
+      "file": "release-fixture-full-cli-inventory-v2.json",
+      "bytes": 35173,
+      "sha256": "370b565f75e83ff1754ea88a8766591bb8b6ee5a084665146b7c3f6f4282e917"
+    },
+    {
+      "file": "release-fixture-routing-real-git-plan-v1.log",
+      "bytes": 967,
+      "sha256": "f9d2ce5ea416511e4ab34e68c8f6cf9b518e0d5859ba6f2ed21c1037a05a3b91"
+    }
+  ]
+}

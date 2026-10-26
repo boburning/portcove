@@ -1,0 +1,408 @@
+{
+  "format_version": 1,
+  "source_commit": "0ecba1d035d72d661c7e82b727f358604dd7b011",
+  "original_workset_source": "7036c0a21f573d25dbe676fb3accd5610a2bb0c7",
+  "observation_cutoff": "2026-10-26T06:31:17.756Z",
+  "inventory_sources": [
+    "Six frozen existing IDs byte-reconciled against delivered main0ecba1d0",
+    "Original preserved524-member inventory9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+    "Six canonical Roadmap contexts including historical1422 minimum/conditions",
+    "Complete official release pagination, recursive pinned source trees and five bounded actual Windows archive observations",
+    "Existing UZDoom/OpenJKDF2 records and retained canonical tagged/artifact qualification; unchanged routes remain unchanged"
+  ],
+  "coverage": {
+    "distinct_port_identities": 6,
+    "authored_changes": [1873, 369, 370, 1812],
+    "unchanged_appropriate_routes": [1899, 725],
+    "managed_fit_unfinished": [1873, 369, 370, 1812],
+    "new_operational_integrations": 0,
+    "current_operational": 163,
+    "current_authored": 1410,
+    "unresolved_identity_joins": [],
+    "duplicate_identity_mappings_added": []
+  },
+  "original_commitment": {
+    "parent": 2510,
+    "rollout_owner": 2926,
+    "original_identities": 524,
+    "affected_additions": 312,
+    "original_roadmap_joins": 22,
+    "full_acceptance_satisfied": false,
+    "historical_1422_cohort_expanded": false,
+    "separate_acceptance_owners": [2225, 47, 48],
+    "separate_publication_owners": [534, 246]
+  },
+  "evidence_boundary": "Dated coverage evidence, not a live backlog or new port registry. Four unfinished managed fits stay unfinished; missing evidence is not Unsupported or a new product deferral. Authenticated artifact, actual source, fixture, native execution, packaged Desktop and real-save acceptance remain separate.",
+  "retained_openjkdf2_prerelease": {
+    "source": "814b684c0d06bbfc6e1121941fc8a9e88e3aede7",
+    "tag": "v0.9.9",
+    "scope": "Existing prerelease identity/artifact qualification retained; no new runtime execution or stable package claim."
+  },
+  "ports": [
+    {
+      "id": "bodbdearg-psydoom",
+      "canonical_issue": 1873,
+      "original_inventory_member": true,
+      "current_route": "Existing discovery listing without operational integration",
+      "selected_route": "Recommend the official Windows x64 ZIP, PsyDoom.exe, upstream Windows VC++ prerequisite and launcher-led PS1 CUE selection.",
+      "disposition": "improve-upstream-or-existing-route",
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "official_upstream": {
+        "repository": "BodbDearg/PsyDoom",
+        "node_id": "MDEwOlJlcG9zaXRvcnkyMTI1MDU1MDc=",
+        "source": "2c50690b6e0ae26cbb83ad9039d24748f76275f8",
+        "source_kind": "selected-stable-tag",
+        "tag": "releases/1.1.1",
+        "release_inventory_complete": true,
+        "releases_observed": 27,
+        "source_tree_complete": true,
+        "observed_at": "2026-10-26T05:29:52.715Z"
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:10.352055+00:00",
+        "repo": "BodbDearg/PsyDoom",
+        "tag": "releases/1.1.1",
+        "source": "2c50690b6e0ae26cbb83ad9039d24748f76275f8",
+        "asset_id": 112501908,
+        "url": "https://github.com/BodbDearg/PsyDoom/releases/download/releases/1.1.1/PsyDoom_1.1.1_Windows_x86_64.zip",
+        "bytes": 1540884,
+        "publisher_expected_digest": null,
+        "actual_sha256": "06145417179b16e0b10634a4ebafacd0fa2e93ec29f034090a6b0b51999bb35a",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 1,
+          "central_directory_bytes": 93,
+          "compressed_bytes": 1540884
+        },
+        "expanded_bytes": 4059648,
+        "executable_headers": [
+          {
+            "path": "PsyDoom.exe",
+            "bytes": 4059648,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "PS1 Doom/Final Doom supported CUE plus referenced track files; not a PC Doom WAD. Tagged Utils uses SDL_GetPrefPath(com.codelobster,PsyDoom): default Windows AppData/Roaming/com.codelobster/PsyDoom. Launcher prefs may use a local launcher.ini instead. Originals/mods, profile and recorded demos remain external.",
+      "managed_fit": "Managed fit unfinished: no independently expected digest established in complete official release assets/notes; full compatible writer/persistence contract would still need review. Computed inspection hash is not authentication.",
+      "next_action": "Keep the useful upstream route. Establish independent expected artifact identity and complete managed writer/compatibility facts before managed admission.",
+      "authored_path": "crates/portcove-core/catalog/ports/bodbdearg-psydoom.json",
+      "authored_preimage_sha256": "8a419024ed61809e80805fd3fcec8e5c732278e5c25fc4fb73c0f22993dabcaa",
+      "authored_sha256": "b0d212ae65e7a1d097a3b98f80776539e8c338f7511b9bb03c911dcce9f093a3",
+      "authoring": {
+        "changed": true,
+        "operational_changed": false,
+        "prepared_record_matches": true,
+        "original_game_title": null,
+        "artwork_preserved": true
+      },
+      "validation_scope": "Pinned source, official package/readme/header observations where inspected, maintained metadata preparation. Required exact-source CI/reviews and actual merge are tracked separately. No original/helper/game execution.",
+      "delivery_status": "Source candidate; canonical PR/issue readback owns actual delivery.",
+      "other_platforms": "Windows observation only; other offered platform operations still need independent review. Prior unknown scopes do not establish removed platform commitments."
+    },
+    {
+      "id": "doom-ii-rpg-doomiirpg-re",
+      "canonical_issue": 370,
+      "original_inventory_member": true,
+      "current_route": "Existing discovery listing without operational integration",
+      "selected_route": "Recommend Windows ZIP, DoomIIRPG.exe and its exact original iOS IPA; disclose the actual OpenAL prerequisite and local data folder.",
+      "disposition": "improve-upstream-or-existing-route",
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "official_upstream": {
+        "repository": "Erick194/DoomIIRPG-RE",
+        "node_id": "R_kgDOK4M78A",
+        "source": "a979bcf9e741dee7546194d2e87c29f361d18c72",
+        "source_kind": "selected-stable-tag",
+        "tag": "v.0.1",
+        "release_inventory_complete": true,
+        "releases_observed": 1,
+        "source_tree_complete": true,
+        "observed_at": "2026-10-26T05:29:54.591Z"
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:10.654113+00:00",
+        "repo": "Erick194/DoomIIRPG-RE",
+        "tag": "v.0.1",
+        "source": "a979bcf9e741dee7546194d2e87c29f361d18c72",
+        "asset_id": 140013043,
+        "url": "https://github.com/Erick194/DoomIIRPG-RE/releases/download/v.0.1/DoomIIRPG.v0.1.zip",
+        "bytes": 1124693,
+        "publisher_expected_digest": null,
+        "actual_sha256": "704589bcb435af041cc17c3f598e0415bc3b5d5a04d622b05bb98e0e505dba3f",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 4,
+          "central_directory_bytes": 367,
+          "compressed_bytes": 1124693
+        },
+        "expanded_bytes": 2985174,
+        "executable_headers": [
+          {
+            "path": "DoomIIRPG.exe",
+            "bytes": 611840,
+            "machine": "0x14c"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Actual packaged README and tagged Main.cpp require Doom 2 RPG.ipa beside player. JavaStream reads Payload/Doom2rpg.app resources from IPA and writes relative Doom2rpg.app save/settings directory. The README’s BREW/J2ME rendering/cheat discussion does not grant alternate input support. Original IPA and progress stay user-owned; no IPA acquired or game/helper run.",
+      "managed_fit": "Managed fit unfinished: no independently expected package digest established; exact input admission, runtime dependency and compatible persistence/readiness still need their own reviewed facts. Useful upstream preparation does not grant Core ownership.",
+      "next_action": "Preserve the concrete iOS/OpenAL/upstream route; establish managed artifact/input/persistence/readiness before any ownership change.",
+      "authored_path": "crates/portcove-core/catalog/ports/doom-ii-rpg-doomiirpg-re.json",
+      "authored_preimage_sha256": "5f9f05b714addfa6f57db540da66307e55619fa17a46ef315fb9babced14342b",
+      "authored_sha256": "bc8a071af0e27be46c37bfa288fbb8feb749ae1188b8462a2371bf4f61002fad",
+      "authoring": {
+        "changed": true,
+        "operational_changed": false,
+        "prepared_record_matches": true,
+        "original_game_title": "Doom II RPG",
+        "artwork_preserved": true
+      },
+      "validation_scope": "Pinned source, official package/readme/header observations where inspected, maintained metadata preparation. Required exact-source CI/reviews and actual merge are tracked separately. No original/helper/game execution.",
+      "delivery_status": "Source candidate; canonical PR/issue readback owns actual delivery.",
+      "other_platforms": "Windows observation only; other offered platform operations still need independent review. Prior unknown scopes do not establish removed platform commitments."
+    },
+    {
+      "id": "doom-rpg-doomrpg-re",
+      "canonical_issue": 369,
+      "original_inventory_member": true,
+      "current_route": "Existing discovery listing without operational integration",
+      "selected_route": "Recommend the Windows player, explicitly separate manual BarToZip preparation and use reviewed original-game-title metadata to identify DoomRPG.exe.",
+      "disposition": "improve-upstream-or-existing-route",
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "official_upstream": {
+        "repository": "Erick194/DoomRPG-RE",
+        "node_id": "R_kgDOK4MPjQ",
+        "source": "fb8e9deb7b7f6e6fa2632daf4bd79133978482da",
+        "source_kind": "selected-stable-tag",
+        "tag": "v.0.2.2",
+        "release_inventory_complete": true,
+        "releases_observed": 3,
+        "source_tree_complete": true,
+        "observed_at": "2026-10-26T05:29:56.363Z"
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:10.965304+00:00",
+        "repo": "Erick194/DoomRPG-RE",
+        "tag": "v.0.2.2",
+        "source": "fb8e9deb7b7f6e6fa2632daf4bd79133978482da",
+        "asset_id": 147418826,
+        "url": "https://github.com/Erick194/DoomRPG-RE/releases/download/v.0.2.2/DoomRPG_Port.-.v.0.2.2.zip",
+        "bytes": 5709480,
+        "publisher_expected_digest": null,
+        "actual_sha256": "d870fe1463ac67f595eb824dafc75db34c09b5a6fdf0b1276a7fc0c9a0170c70",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 15,
+          "central_directory_bytes": 1537,
+          "compressed_bytes": 5709480
+        },
+        "expanded_bytes": 10700053,
+        "executable_headers": [
+          {
+            "path": "DoomRPG/BarToZip.exe",
+            "bytes": 71168,
+            "machine": "0x14c"
+          },
+          {
+            "path": "DoomRPG/DoomRPG.exe",
+            "bytes": 203264,
+            "machine": "0x14c"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Tagged Main.c opens DoomRPG.zip relative to working directory. Current package contains DoomRPG.exe and BarToZip.exe; bounded static helper strings name doomrpg.bar and DoomRPG.zip. Release0.2.1/package README document PMD-to-WAV conversion without old PureVoice. Game.c writes Config, Player, Player2 and World in working directory. Exact compatible owned BREW variant/helper preparation remains unqualified; no original BAR acquired or helper invoked, and J2ME/iOS are not automatically interchangeable.",
+      "managed_fit": "Managed fit unfinished: independent expected artifact identity, exact original input/preparation and compatible lifecycle facts remain required. The guide offers a useful already-prepared/permitted upstream route without authenticating arbitrary mobile data.",
+      "next_action": "Bind attributable exact permitted BREW input/preparation and independent artifact identity; retain conditional prepared-copy use and helper/Play separation.",
+      "authored_path": "crates/portcove-core/catalog/ports/doom-rpg-doomrpg-re.json",
+      "authored_preimage_sha256": "25f601ddd30a883b93a436aabf373a2b427971d5ca82d860dfa0f222772b0e34",
+      "authored_sha256": "0e72ff0c80316bc6c5ec4df198eb9da31d81fe82edf73e95538a655c2eb3cf92",
+      "authoring": {
+        "changed": true,
+        "operational_changed": false,
+        "prepared_record_matches": true,
+        "original_game_title": "Doom RPG",
+        "artwork_preserved": true
+      },
+      "validation_scope": "Pinned source, official package/readme/header observations where inspected, maintained metadata preparation. Required exact-source CI/reviews and actual merge are tracked separately. No original/helper/game execution.",
+      "delivery_status": "Source candidate; canonical PR/issue readback owns actual delivery.",
+      "other_platforms": "Windows observation only; other offered platform operations still need independent review. Prior unknown scopes do not establish removed platform commitments."
+    },
+    {
+      "id": "styd051-doom64-ex-plus-enhanced",
+      "canonical_issue": 1812,
+      "original_inventory_member": true,
+      "current_route": "Existing discovery listing without operational integration",
+      "selected_route": "Improve conditional registration of an already permitted Windows copy; preserve PC remaster input and actual current/legacy user-data locations. Do not newly recommend or classify fresh acquisition.",
+      "disposition": "improve-upstream-or-existing-route",
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "official_upstream": {
+        "repository": "Styd051/DOOM64-EX-Plus-Enhanced",
+        "node_id": "R_kgDOO1yjtQ",
+        "source": "47fcfc08040df701e02e68a89d3ef5d1a5a7b0bc",
+        "source_kind": "selected-stable-tag",
+        "tag": "V1.0.0.1",
+        "release_inventory_complete": true,
+        "releases_observed": 3,
+        "source_tree_complete": true,
+        "observed_at": "2026-10-26T05:29:58.543Z"
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:11.391929+00:00",
+        "repo": "Styd051/DOOM64-EX-Plus-Enhanced",
+        "tag": "V1.0.0.1",
+        "source": "47fcfc08040df701e02e68a89d3ef5d1a5a7b0bc",
+        "asset_id": 309787204,
+        "url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced/releases/download/V1.0.0.1/doom64ex-plus-enhanced-1.0.0.1-win64.zip",
+        "bytes": 17742435,
+        "publisher_expected_digest": "sha256:b2a8f92f5885e48f283a402f96b9af303e064532d66ec1dbfec331843d291632",
+        "actual_sha256": "b2a8f92f5885e48f283a402f96b9af303e064532d66ec1dbfec331843d291632",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 14,
+          "central_directory_bytes": 2305,
+          "compressed_bytes": 17742435
+        },
+        "expanded_bytes": 23642553,
+        "executable_headers": [
+          {
+            "path": "doom64ex-plus-enhanced-1.0.0.1-win64/DOOM64EX+ENHANCED.exe",
+            "bytes": 1163264,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Authenticated Windows ZIP has one AMD64 DOOM64EX+ENHANCED.exe, companion Enhanced WAD/libraries and optional DoomBuilder configuration. Source requires DOOM64.WAD, Doom64.kpf and normally DOOMSND.DLS; searches GOG/Steam remaster data and rejects legacy ROM-derived WADs. Missing files error, not a demonstrated picker. Current config.cfg, doomsav*.dsg and screenshots use SDL_GetPrefPath(empty,doom64ex-plus); startup moves older local config/save/screenshot files to that external profile. Other EX+ runtimes can share it. No Core backup/update/deletion right.",
+      "managed_fit": "Managed fit unfinished despite accepted archive digest: pinned README/COPYING/source headers identify the original Doom Source License, not GPL. Exact applicable code/FMOD/Enhanced-WAD and separately attributed sprite grants, complete writer behavior and source/readiness remain unestablished. No universal Unsupported/illegality/product-deferral conclusion or new acquisition hold is manufactured.",
+      "next_action": "Finish attributable grant and complete writer/source/readiness review before managed admission. Keep permitted existing copies and both legacy/current profiles recoverable.",
+      "authored_path": "crates/portcove-core/catalog/ports/styd051-doom64-ex-plus-enhanced.json",
+      "authored_preimage_sha256": "97f434ba6b2f17b4e9ed4ff8f9876e8c5ad12f883ae3f98490cd3c7254d48987",
+      "authored_sha256": "72b5b44f45b277c941314d1862e44dc2b0560b005745efd364f8c60f82822b6b",
+      "authoring": {
+        "changed": true,
+        "operational_changed": false,
+        "prepared_record_matches": true,
+        "original_game_title": null,
+        "artwork_preserved": true
+      },
+      "validation_scope": "Pinned source, official package/readme/header observations where inspected, maintained metadata preparation. Required exact-source CI/reviews and actual merge are tracked separately. No original/helper/game execution.",
+      "delivery_status": "Source candidate; canonical PR/issue readback owns actual delivery.",
+      "other_platforms": "Windows observation only; other offered platform operations still need independent review. Prior unknown scopes do not establish removed platform commitments."
+    },
+    {
+      "id": "uzdoom-uzdoom",
+      "canonical_issue": 1899,
+      "original_inventory_member": true,
+      "current_route": "Existing useful non-owning guide retained",
+      "selected_route": "Retain the existing accurate Windows package/player/IWAD/profile and upstream updater guide unchanged.",
+      "disposition": "retain-appropriate-existing-route",
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "official_upstream": {
+        "repository": "UZDoom/UZDoom",
+        "node_id": "R_kgDOQCY4NA",
+        "source": "7910df7102033fd7754a317f3254f24101135926",
+        "source_kind": "selected-stable-tag",
+        "tag": "5.0.3",
+        "release_inventory_complete": true,
+        "releases_observed": 7,
+        "source_tree_complete": true,
+        "observed_at": "2026-10-26T05:30:00.876Z"
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:11.969204+00:00",
+        "repo": "UZDoom/UZDoom",
+        "tag": "5.0.3",
+        "source": "7910df7102033fd7754a317f3254f24101135926",
+        "asset_id": 584674267,
+        "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/Windows-UZDoom-Release-x86_64.zip",
+        "bytes": 29337585,
+        "publisher_expected_digest": "sha256:3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+        "actual_sha256": "3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 16,
+          "central_directory_bytes": 1565,
+          "compressed_bytes": 29337585
+        },
+        "expanded_bytes": 46026070,
+        "executable_headers": [
+          {
+            "path": "updater.exe",
+            "bytes": 113664,
+            "machine": "0x8664"
+          },
+          {
+            "path": "uzdoom.exe",
+            "bytes": 17872896,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Existing guide names uzdoom.exe as player and updater.exe as runtime replacement helper; first Play selects own supported IWAD/free data. Default Documents/My Games/UZDoom config and Saved Games/UZDoom saves, optional portable INI/Save/Screenshots and custom overrides remain upstream/player-owned. Fresh actual ZIP confirms separate player/updater and publisher digest; current tag matches the guide’s pinned source.",
+      "managed_fit": "Selected non-owning route remains appropriate; self-replacement is an existing useful capability and one runtime must retain one replacement owner. No management transition or fresh qualification is needed merely to rewrite an already useful guide.",
+      "next_action": "Retain current upstream owner. Reconsider only for an independently supported compatible route that preserves updater/data capabilities.",
+      "authored_path": "crates/portcove-core/catalog/ports/uzdoom-uzdoom.json",
+      "authored_preimage_sha256": "17a07c494216ca20e4daad53824afb18e87cdb763fbd42939bd6432a175d0805",
+      "authored_sha256": "17a07c494216ca20e4daad53824afb18e87cdb763fbd42939bd6432a175d0805",
+      "authoring": {
+        "changed": false,
+        "source_record_unchanged": true
+      },
+      "validation_scope": "Pinned source, official package/readme/header observations where inspected, maintained metadata preparation. Required exact-source CI/reviews and actual merge are tracked separately. No original/helper/game execution.",
+      "delivery_status": "Source candidate; canonical PR/issue readback owns actual delivery.",
+      "other_platforms": "Windows observation only; other offered platform operations still need independent review. Prior unknown scopes do not establish removed platform commitments."
+    },
+    {
+      "id": "openjkdf2-jedi-knight-dark-forces-ii",
+      "canonical_issue": 725,
+      "original_inventory_member": true,
+      "current_route": "Existing useful non-owning guide retained",
+      "selected_route": "Retain the existing detailed OpenJKDF2 Windows debug-player/import/profile/updater route unchanged.",
+      "disposition": "retain-appropriate-existing-route",
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "official_upstream": {
+        "repository": "shinyquagsire23/OpenJKDF2",
+        "node_id": "MDEwOlJlcG9zaXRvcnkxMzk1NDI3OTI=",
+        "source": "187afbb5e731ff8d1bad504fa156f02f77c91b6d",
+        "source_kind": "current-default-branch-no-stable-release",
+        "tag": null,
+        "release_inventory_complete": true,
+        "releases_observed": 128,
+        "source_tree_complete": true,
+        "observed_at": "2026-10-26T05:30:04.030Z"
+      },
+      "artifact_inspection": {
+        "scope": "Retained canonical prerelease artifact qualification, no new payload acquired."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Existing guide identifies openjkdf2-64.exe, own supported Jedi Knight data, optional original soundtrack/expansions/mods, actual imported data/profile files and upstream updater. Full release inventory contains no stable releases; retained v0.9.9 is an explicit prerelease with independently expected win64-debug.zip SHA. Prior canonical archive qualification is retained, not replayed as new execution. Current default-branch source is distinct from the retained tagged/source evidence.",
+      "managed_fit": "Appropriate existing non-owning route retained; a debug prerelease alone does not mean universal Unsupported and a self-replacing runtime should keep its reviewed upstream owner. Existing bounded source/permission/integrity acceptance conditions are not silently erased.",
+      "next_action": "Keep the current working copy and upstream updater/data capabilities. Review any changed source/grant/contract under its canonical owner; no automatic managed adoption or stage promotion.",
+      "authored_path": "crates/portcove-core/catalog/ports/openjkdf2-jedi-knight-dark-forces-ii.json",
+      "authored_preimage_sha256": "f49db17fe02aa724502f518825027b3ef00ef67fbc60c6a5e64f300b12fd0878",
+      "authored_sha256": "f49db17fe02aa724502f518825027b3ef00ef67fbc60c6a5e64f300b12fd0878",
+      "authoring": {
+        "changed": false,
+        "source_record_unchanged": true
+      },
+      "validation_scope": "Pinned source, official package/readme/header observations where inspected, maintained metadata preparation. Required exact-source CI/reviews and actual merge are tracked separately. No original/helper/game execution.",
+      "delivery_status": "Source candidate; canonical PR/issue readback owns actual delivery.",
+      "other_platforms": "Windows observation only; other offered platform operations still need independent review. Prior unknown scopes do not establish removed platform commitments."
+    }
+  ]
+}

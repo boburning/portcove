@@ -692,6 +692,18 @@ void test("preflight and controller share the exact hosted script authority boun
   assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/scripts/example.mjs"), true);
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/example.test.mjs"), false);
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/workflow-provenance.mts"), false);
+  for (const file of [
+    "scripts/nextest-outcomes-cli.mts",
+    "scripts/bounded-summary.mts",
+    "scripts/fallow-summary.mts",
+    "scripts/node-platform-skips.mts",
+    "scripts/node-test-suites.mts",
+    "scripts/node-test-suites.json",
+  ])
+    assert.ok(
+      isHostedLocalCheckScriptAuthority(file) && hostedLocalCheckAuthorityPaths.includes(file),
+      file,
+    );
   assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/src/example.ts"), false);
   assert.ok(hostedLocalCheckAuthorityPaths.includes("scripts/workflow-provenance.mts") === false);
 });

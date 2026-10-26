@@ -1433,7 +1433,16 @@
       "memberships": [
         ["frontend-full-6", 7400],
         ["release-check", 14300]
-      ]
+      ],
+      "platform_skips": {
+        "platform": "linux",
+        "owner": "frontend-full-6",
+        "prerequisite": "Linux /proc process identity and Unix-domain controller channel",
+        "reason": "The fixed isolated-key client requires actual Linux process identity; run the complete Linux frontend-full-6 qualification owner.",
+        "cases": [
+          "concurrent fixed key client permits a control round during the actual socket consume callback"
+        ]
+      }
     },
     {
       "file": "scripts/release-controller-wake.test.mts",
@@ -1489,7 +1498,18 @@
       "memberships": [
         ["frontend-full-6", 2334],
         ["release-check", 3134]
-      ]
+      ],
+      "platform_skips": {
+        "platform": "linux",
+        "owner": "frontend-full-6",
+        "prerequisite": "Actual Linux owned capture-store filesystem custody",
+        "reason": "Native owned capture stores require Linux; run the complete Linux frontend-full-6 qualification owner.",
+        "cases": [
+          "native Linux App custody keeps ordinary file/storage limits",
+          "native Linux checkpoint custody keeps ordinary file/storage limits",
+          "native proof custody admits the exact capture allowance and complete bounded exchange without widening other stores"
+        ]
+      }
     },
     {
       "file": "scripts/release-coordinator-checkpoint-signing.test.mts",
@@ -2842,6 +2862,13 @@
       "memberships": [
         ["catalog-full-2", 6353],
         ["repository-tools-2", 2353]
+      ]
+    },
+    {
+      "file": "scripts/node-platform-skips.test.mts",
+      "memberships": [
+        ["catalog-full-3", 200],
+        ["development-tools", 5300]
       ]
     }
   ]

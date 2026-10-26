@@ -1,7 +1,8 @@
 import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts";
 import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
 import type { ValidationChangeInput, ValidationPlan } from "./validation-plan.mts";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { parseNodeTestSuites } from "./node-test-suites.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, validationOwnershipForPath } from "./validation-plan.mts";
@@ -145,6 +146,7 @@ const containmentInputs = new Set([
   "scripts/rust-test-impact.mts",
   "scripts/windows-rust-tests.mts",
   "scripts/nextest-outcomes.mts",
+  "scripts/nextest-outcomes-cli.mts",
   "scripts/desktop-linux-x11.mts",
   "scripts/resource-paths.mts",
   "scripts/native-build.mts",
@@ -232,7 +234,20 @@ const workflowFeatureTests = [
   "scripts/windows-rust-tests.test.mts",
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
+const platformSkipConsumers = [
+  "scripts/node-platform-skips.test.mts",
+  "scripts/required-node-test-reporter.test.mts",
+  "scripts/node-test-inventory.test.mts",
+  "scripts/ui-test-selection.test.mts",
+  "scripts/validation-evidence.test.mts",
+  "scripts/audit.test.mts",
+  ...Object.keys(
+    parseNodeTestSuites(readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"))
+      .platformSkips ?? {},
+  ),
+];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/node-platform-skips.mts", platformSkipConsumers],
   ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
   ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
   [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
@@ -257,7 +272,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/required-node-test-reporter.mts",
     [
-      "scripts/required-node-test-reporter.test.mts",
+      ...platformSkipConsumers,
       "scripts/ci-baseline.test.mts",
       "scripts/node-test-inventory.test.mts",
     ],
@@ -895,11 +910,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
-    ["scripts/release-publication-result-artifact.test.mts"],
+    [
+      "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-controller-transport.test.mts",
+    ],
   ],
   [
     "scripts/release-signing-context-artifact.mts",
-    ["scripts/release-signing-context-artifact.test.mts"],
+    [
+      "scripts/release-signing-context-artifact.test.mts",
+      "scripts/release-controller-transport.test.mts",
+    ],
   ],
   [
     "scripts/release-authority-configuration.mts",
@@ -1063,6 +1084,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
+      "scripts/node-platform-skips.test.mts",
       "scripts/node-test-inventory.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/python-test-results.test.mts",
@@ -1103,7 +1125,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...["scripts/node-test-suites.mts", "scripts/node-test-suites.json"].map(
     (file): [string, string[]] => [
       file,
-      ["scripts/node-test-inventory.test.mts", "scripts/ci-workflow.test.mts"],
+      [...platformSkipConsumers, "scripts/ci-workflow.test.mts"],
     ],
   ),
   [
@@ -1198,6 +1220,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/nextest-outcomes.mts",
     [
+      "scripts/run-rust-tests.test.mts",
       "scripts/nextest-outcomes.test.mts",
       "scripts/qualification-nextest.test.mts",
       "scripts/windows-rust-tests.test.mts",
@@ -1537,6 +1560,26 @@ for (const file of nativeCompatibilitySourcePaths)
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-native-source-contract.test.mts",
   ]);
+
+explicitNodeTests.set("scripts/nextest-outcomes-cli.mts", [
+  ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
+]);
+for (const file of [
+  "scripts/report-summary.mts",
+  "scripts/bounded-summary.mts",
+  "scripts/fallow-summary.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/report-summary.test.mts",
+    "scripts/fallow-summary.test.mts",
+    ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
+  ]);
+explicitNodeTests.set("scripts/run-rust-tests.mts", [
+  ...(explicitNodeTests.get("scripts/run-rust-tests.mts") ?? []),
+  "scripts/run-rust-tests.test.mts",
+  "scripts/nextest-outcomes.test.mts",
+]);
 
 const workflowTests = new Map([
   [

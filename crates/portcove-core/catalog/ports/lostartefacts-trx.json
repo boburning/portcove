@@ -3,11 +3,35 @@
   "listing": {
     "id": "lostartefacts-trx",
     "name": "Tomb Raider I-III / TRX (LostArtefacts)",
-    "summary": "Explore Tomb Raider I-III / TRX (LostArtefacts) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Set up Tomb Raider I–III with the upstream TRX Windows installer and your original game files.",
     "project_url": "https://github.com/LostArtefacts/TRX",
     "issue_number": 1898,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/LostArtefacts/TRX"
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
+    "release_url": "https://github.com/LostArtefacts/TRX/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Run the upstream Windows installer",
+          "instruction": "Open the download folder and run the Windows Installer EXE yourself. Choose a separate TRX folder and the game packs you want."
+        },
+        {
+          "title": "Select your original game files",
+          "instruction": "Use the installer’s supported Steam, GOG or disc locations for the corresponding Tomb Raider games. Let it arrange the required files; the portable ZIP needs manual game-specific placement instead."
+        },
+        {
+          "title": "Choose the installed player",
+          "instruction": "Finish Portcove setup with the installed TRX.exe and its folder. Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
+        }
+      ],
+      "warnings": [
+        "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data."
+      ],
+      "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["TRX-", "-Windows_Installer.exe"]
+    }
   }
 }

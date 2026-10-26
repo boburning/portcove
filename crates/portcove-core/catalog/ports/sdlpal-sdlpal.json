@@ -3,12 +3,12 @@
   "listing": {
     "id": "sdlpal-sdlpal",
     "name": "Legend of Sword and Fairy / SDLPal (sdlpal)",
-    "summary": "Explore Legend of Sword and Fairy / SDLPal (sdlpal) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play The Legend of Sword and Fairy with SDLPAL and a working copy of your original game data.",
     "project_url": "https://github.com/sdlpal/sdlpal",
     "issue_number": 1878,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/sdlpal/sdlpal",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
     "artwork": {
       "game_id": 18928,
       "cover_id": 243131,
@@ -16,6 +16,30 @@
       "image_sha256": "1f39fdcee8bb8f823cfca576fb2f91508d582f5b7cf42f5239e360632105340d",
       "game_slug": "the-legend-of-sword-and-fairy",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/sdlpal/sdlpal/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a working copy of your game data",
+          "instruction": "Keep your originals safe and make a separate working copy of the matching DOS or Windows game-data folder. Extract the Windows MinGW ZIP’s sdlpal.exe into that working copy."
+        },
+        {
+          "title": "Keep the player and save folder together",
+          "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
+        },
+        {
+          "title": "Preserve your saved games",
+          "instruction": "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates. For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
+        }
+      ],
+      "warnings": [
+        "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy."
+      ],
+      "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["sdlpal-win32-mingw.zip"]
     }
   }
 }

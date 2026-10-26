@@ -435,6 +435,20 @@ jobs:
         run: |
           rustc --edition 2024 --test apps/desktop/src-tauri/src/application_update_process_environment.rs -o "$RUNNER_TEMP/portcove-update-environment-tests"
           "$RUNNER_TEMP/portcove-update-environment-tests"
+      - name: Read pinned Linux diagnostic test runner
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
+        id: linux-diagnostic-test-runner
+        shell: pwsh
+        run: |
+          $manifest = Get-Content .github/quality-tools.json -Raw | ConvertFrom-Json
+          $version = ($manifest.tools | Where-Object id -eq "cargo-nextest").version
+          if (-not $version) { throw "Missing cargo-nextest version" }
+          "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
+      - name: Install pinned Linux diagnostic test runner
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        with:
+          tool: ${{ steps.linux-diagnostic-test-runner.outputs.spec }}
       - name: Test typed runtime diagnostics and frontend admission on Linux
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
         shell: bash
@@ -443,9 +457,9 @@ jobs:
           export PORTCOVE_DIAGNOSTICS_SOURCE_REVISION
           node --input-type=module -e "import fs from 'node:fs'; import crypto from 'node:crypto'; const files = ['Cargo.toml', 'Cargo.lock', 'crates/portcove-diagnostics/Cargo.toml', 'crates/portcove-diagnostics/src/lib.rs', 'crates/portcove-diagnostics/src/sessions.rs', 'crates/portcove-diagnostics/src/sessions/tests.rs', 'crates/portcove-diagnostics/src/tests.rs', 'crates/portcove-diagnostics/src/writer.rs', 'crates/portcove-diagnostics/src/writer_tests.rs', 'crates/portcove-diagnostics/src/events.rs', 'crates/portcove-diagnostics/src/events_tests.rs', 'apps/desktop/src-tauri/src/diagnostics.rs', 'apps/desktop/src-tauri/src/host_startup.rs', 'apps/desktop/src-tauri/src/lib.rs', 'crates/portcove-cli/src/main.rs', 'crates/portcove-cli/src/startup.rs', 'crates/portcove-cli/tests/host_diagnostics.rs', 'crates/portcove-cli/tests/desktop_host_diagnostics.rs', 'crates/portcove-core/src/host_preferences.rs', 'crates/portcove-core/src/database.rs', 'crates/portcove-core/src/support_bundle_export.rs', 'crates/portcove-core/src/support_bundle_export_tests.rs', 'apps/desktop/src-tauri/src/frontend_diagnostics.rs', 'crates/portcove-core/src/runtime_diagnostics.rs', 'crates/portcove-core/src/operation.rs', 'crates/portcove-core/src/support_bundle.rs', 'crates/portcove-core/src/service.rs', 'crates/portcove-core/src/preparation_execution.rs', 'crates/portcove-core/src/tool_process.rs', 'crates/portcove-cli/tests/runtime_diagnostics.rs']; const hashes = Object.fromEntries(files.map(file => [file, crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')])); fs.mkdirSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR, {recursive:true}); fs.writeFileSync(process.env.PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR + '/source.json', JSON.stringify({format_version:1, source_revision:process.env.PORTCOVE_DIAGNOSTICS_SOURCE_REVISION, runner_os:process.env.RUNNER_OS, runner_arch:process.env.RUNNER_ARCH, run_id:process.env.GITHUB_RUN_ID, run_attempt:process.env.GITHUB_RUN_ATTEMPT, source_sha256:hashes}, null, 2) + '\n');"
           rustc --version --verbose > "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/compiler.txt"
-          node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-diagnostics -- --test-threads=1 --nocapture 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/shared-host-tests.txt"
-          node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics -- --test-threads=1 --nocapture 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/runtime-tests.txt"
-          node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core support_bundle_export -- --test-threads=1 --nocapture 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/support-export-tests.txt"
+          node scripts/run-rust-tests.mts --locked -p portcove-diagnostics --test-threads=1 --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/shared-host-tests.txt"
+          node scripts/run-rust-tests.mts --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics --test-threads=1 --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/runtime-tests.txt"
+          node scripts/run-rust-tests.mts --locked -p portcove-core -E 'test(support_bundle_export)' --test-threads=1 --success-output immediate --failure-output immediate 2>&1 | tee "$PORTCOVE_DIAGNOSTICS_EVIDENCE_DIR/support-export-tests.txt"
       - name: Retain Linux runtime diagnostics acceptance evidence
         if: always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -470,6 +484,14 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: node scripts/ci-metrics.mts summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain Linux diagnostic nextest inventories
+        if: always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtime-diagnostics-nextest-linux-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/nextest-default-outcomes/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Retain diagnostic timings
         if: always()
         continue-on-error: true
@@ -1183,8 +1205,8 @@ jobs:
           node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/check-rust-architecture.test.mts
       - run: node scripts/check-rust-architecture.mts
       - name: Install Linux desktop schema-export prerequisites
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
+        timeout-minutes: 30
+        run: ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
       - name: Run all-target Clippy on Linux
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check child-process policy and live transport contracts
@@ -1383,7 +1405,7 @@ jobs:
       - name: Test bounded release run evidence
         run: |
           # node-suite: catalog-full-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts scripts/node-platform-skips.test.mts
       - name: Validate local RetComM mappings
         run: node scripts/check-retcomm-upstreams.mts --offline
 
