@@ -1132,6 +1132,14 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
         self.require_acquisition(&request)?;
+        if request.qualification.source_preparation.is_some() {
+            let staged = InstallRecord {
+                path: payload_root.clone(),
+                ..install.clone()
+            };
+            crate::preparation::source::require_publication(&self.library, &staged, None)?;
+        }
+
         fs::create_dir_all(
             lifecycle
                 .destination
@@ -1150,6 +1158,10 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.require_acquisition(&request)?;
+        if request.qualification.source_preparation.is_some() {
+            crate::preparation::source::require_publication(&self.library, &install, None)?;
+        }
+
         if let Some(replacement) = replacement {
             (replacement.prepare_activation)(&install)?;
             self.verify_critical(&install, &request.qualification)?;

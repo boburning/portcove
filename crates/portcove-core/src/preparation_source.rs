@@ -168,6 +168,36 @@ pub(crate) fn validate(
     Ok(())
 }
 
+pub(crate) fn require_publication(
+    library: &Library,
+    install: &InstallRecord,
+    expected_plan: Option<&super::PreparationPlan>,
+) -> Result<()> {
+    let installer = Installer::new(library.clone())?;
+    if installer.retained_preparation_mode(install)? != Some(PreparationMode::SourceOnly) {
+        return Ok(());
+    }
+    let catalog = installer.retained_catalog(install)?.ok_or_else(|| {
+        PortcoveError::verification("sealed source publication has no retained definition")
+    })?;
+    let port = catalog.port(&install.port_id)?;
+    let profile = port.source_profile.as_deref().ok_or_else(|| {
+        PortcoveError::verification("sealed source publication has no source profile")
+    })?;
+    let source = library.source(profile)?.ok_or_else(|| {
+        PortcoveError::source("sealed source publication requires its registered original")
+    })?;
+    crate::source_inspection::verify_registered(&catalog, &source)?;
+    validate(
+        library,
+        &catalog,
+        port,
+        install,
+        Some(&source),
+        expected_plan,
+    )
+}
+
 pub(crate) fn sealed(library: &Library, port: &PortDefinition, root: &Path) -> Result<bool> {
     if !eligible(port) {
         return Ok(false);
@@ -255,34 +285,7 @@ pub(crate) fn materialize(
             Err(error) => return Err(error.into()),
         }
     }
-    if let Some(filename) = &port.runtime_source_filename {
-        let destination = working.join(filename);
-        if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        if inputs.conversion_tool.is_some() {
-            process_quiesced.set(false);
-        }
-        crate::adapter::prepare_admitted_runtime_source(
-            &inputs.source,
-            &destination,
-            port.runtime_source_materialization
-                .ok_or_else(|| PortcoveError::state("runtime source has no materialization"))?,
-            &port.runtime_source_hashes,
-            inputs
-                .conversion_tool
-                .as_ref()
-                .map(|tool| tool.path.as_path()),
-            checkpoint,
-            crate::tool_process::ToolProcessObserver {
-                diagnostics: None,
-                quiesced: Some(&mut || {
-                    process_quiesced.set(true);
-                    Ok(())
-                }),
-            },
-        )?;
-    }
+    materialize_single_source(port, inputs, working, checkpoint, process_quiesced)?;
     for target in &port.runtime_source_set {
         checkpoint()?;
         let destination = working.join(&target.destination);
@@ -323,6 +326,44 @@ pub(crate) fn materialize(
     owned.runtime_mutable_paths.clear();
     super::execution::validate_outputs(&owned, payload, &before, &permissions)?;
     checkpoint()
+}
+
+fn materialize_single_source(
+    port: &PortDefinition,
+    inputs: &SourcePreparation,
+    working: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+    process_quiesced: &Cell<bool>,
+) -> Result<()> {
+    if let Some(filename) = &port.runtime_source_filename {
+        let destination = working.join(filename);
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        if inputs.conversion_tool.is_some() {
+            process_quiesced.set(false);
+        }
+        crate::adapter::prepare_admitted_runtime_source(
+            &inputs.source,
+            &destination,
+            port.runtime_source_materialization
+                .ok_or_else(|| PortcoveError::state("runtime source has no materialization"))?,
+            &port.runtime_source_hashes,
+            inputs
+                .conversion_tool
+                .as_ref()
+                .map(|tool| tool.path.as_path()),
+            checkpoint,
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    process_quiesced.set(true);
+                    Ok(())
+                }),
+            },
+        )?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
