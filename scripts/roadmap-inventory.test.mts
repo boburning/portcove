@@ -55,17 +55,22 @@ function fixture(count = 2, bodySize = 32) {
     content: { ...r, body: undefined },
     fieldValues: [],
   }));
-  client.completeProjectContext = () => ({
-    number: config.project.number,
-    details: {
-      id: "PROJECT",
+  client.completeProjectContext = () => {
+    const context = {
       number: config.project.number,
-      title: config.project.title,
-      url: "https://github.com/users/boburning/projects/1",
-      public: true,
-    },
-    fields: [],
-  });
+      details: {
+        id: "PROJECT",
+        number: config.project.number,
+        title: config.project.title,
+        url: "https://github.com/users/boburning/projects/1",
+        public: true,
+      },
+      fields: [],
+    };
+    requests += 2;
+    bytes += Buffer.byteLength(JSON.stringify(context));
+    return context;
+  };
   client.itemList = (_number, options) => {
     assert.equal(options?.includeArchived, true);
     assert.equal(options?.includeBodies, false);
@@ -1448,10 +1453,11 @@ void test("1000 issue, 16 MiB corpus fits cold and warm two-candidate delivery r
   const ordinary = new DiscoveryBudget("ordinary");
   ordinary.charge("GET", "fixture warm inventory", delta.requests, delta.bytes, "200");
   ordinary.reserveDelivery(cost.requests, cost.bytes);
-  assert.ok(
-    ordinary.remaining().requests >= 20,
-    JSON.stringify({ remaining: ordinary.remaining(), delta, cost }),
-  );
+  assert.equal(delta.requests, 29);
+  assert.equal(cost.requests, 152);
+  assert.equal(ordinary.remaining().requests, 19);
+  // Charge both Project context reads and preserve the documented research allowance.
+  assert.ok(ordinary.remaining().requests >= 16);
   assert.ok(ordinary.remaining().bytes > 10 * 1024 * 1024);
   assert.deepEqual(
     cold.issues.map((i) => i.body),
