@@ -116,10 +116,7 @@ export function baselineRequiresPython(plan: ValidationPlan, options: ClassifyOp
   const selected = baselineContractTests(plan, options);
   return (
     selected.some((file) =>
-      [
-        "scripts/nextest-equivalence.test.mts",
-        ...pythonContractTests,
-      ].includes(file),
+      ["scripts/nextest-equivalence.test.mts", ...pythonContractTests].includes(file),
     ) ||
     plan.changes.some(
       (change) =>
