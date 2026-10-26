@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   classifyRenovateSnapshot,
+  diagnoseRenovateReleaseAge,
   fastLanePolicyErrors,
   fastLaneSummary,
   metadataPlan,
@@ -665,5 +666,77 @@ void test("human summary preserves the machine verdict and reason", () => {
   assert.equal(
     fastLaneSummary({ verdict: "waiting", reason: "minimum release age is still pending" }),
     "waiting: minimum release age is still pending",
+  );
+});
+
+void test("age diagnosis does not turn an unexplained pending digest into verified youth or eligibility", () => {
+  const body =
+    "| Package | Update | Change |\n|---|---|---|\n| ubuntu | digest | `old` → `new` |\n\n" +
+    `<!--renovate-debug:${Buffer.from(JSON.stringify({ updatedInVer: "44.180.0" })).toString("base64")}-->`;
+  const diagnosis = diagnoseRenovateReleaseAge(
+    [
+      {
+        context: "renovate/stability-days",
+        state: "pending",
+        description: "Updates have not met minimum release age requirement",
+      },
+    ],
+    body,
+  );
+  assert.equal(diagnosis.classification, "pending-unexplained");
+  assert.equal(diagnosis.observed_bot_version, "44.180.0");
+  assert.match(diagnosis.bot_version_boundary, /current hosted deployment is not established/);
+  assert.match(diagnosis.next_action, /pending alone does not prove a young release/);
+  assert.equal(diagnosis.upstream_issue, "https://github.com/renovatebot/renovate/issues/45236");
+  assert.match(diagnosis.upstream_match ?? "", /not a confirmed/);
+});
+
+void test("age diagnosis preserves missing conflicting failed and explicit missing-timestamp evidence", () => {
+  const status = (state: string, description?: string) => ({
+    context: "renovate/stability-days",
+    state,
+    description: description ?? null,
+  });
+  assert.equal(diagnoseRenovateReleaseAge([], "").classification, "missing");
+  assert.equal(
+    diagnoseRenovateReleaseAge([status("success"), status("pending")], "").classification,
+    "ambiguous",
+  );
+  for (const state of ["failure", "error"])
+    assert.equal(diagnoseRenovateReleaseAge([status(state)], "").classification, "failed");
+  assert.equal(diagnoseRenovateReleaseAge([status("success")], "").classification, "passed");
+  assert.equal(
+    diagnoseRenovateReleaseAge([status("pending", "release timestamp unavailable")], "")
+      .classification,
+    "timestamp-unavailable",
+  );
+  assert.equal(
+    diagnoseRenovateReleaseAge([status("pending", "unknown releaseTimestamp")], "").classification,
+    "timestamp-unavailable",
+  );
+});
+
+void test("optional bot debug metadata fails closed and update hints require actual table metadata", () => {
+  const age = [{ context: "renovate/stability-days", state: "pending" }];
+  const marker = (value: unknown) =>
+    `<!--renovate-debug:${Buffer.from(JSON.stringify(value)).toString("base64")}-->`;
+  for (const body of [
+    "<!--renovate-debug:eA==-->",
+    marker({ updatedInVer: 44180 }),
+    marker({ updatedInVer: "latest" }),
+    marker({ updatedInVer: "44.180.0" }) + "\n" + marker({ updatedInVer: "44.171.2" }),
+  ])
+    assert.equal(diagnoseRenovateReleaseAge(age, body).observed_bot_version, null);
+  assert.equal(
+    diagnoseRenovateReleaseAge(
+      age,
+      "| Update | Change |\n|---|---|\n| lockFileMaintenance | All locks refreshed |\n",
+    ).upstream_issue,
+    "https://github.com/renovatebot/renovate/issues/45236",
+  );
+  assert.equal(
+    diagnoseRenovateReleaseAge(age, "digest lockFileMaintenance mentioned only in release notes")
+      .upstream_issue,
+    null,
   );
 });
