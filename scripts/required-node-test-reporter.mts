@@ -1,7 +1,11 @@
 import type { TestEvent } from "node:test/reporters";
 import path from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import report, { nodeFileObservation } from "./test-duration-reporter.mts";
-import { isRecord } from "./runtime-values.mts";
+import { isRecord, errorMessage } from "./runtime-values.mts";
+import { parseNodeTestSuites, type NodePlatformSkipContract } from "./node-test-suites.mts";
+import { createNodePlatformSkipInventory } from "./node-platform-skips.mts";
 
 const maximumFiles = 512;
 const maximumCases = 16_384;
@@ -14,7 +18,19 @@ const identity = (file: string) => {
 export function createNodeExecutionInventory(
   requestedFiles: readonly string[],
   filters: readonly string[] = [],
+  options: {
+    platformSkips?: Record<string, NodePlatformSkipContract> | undefined;
+    registryError?: string | undefined;
+    root?: string | undefined;
+    platform?: NodeJS.Platform | undefined;
+  } = {},
 ) {
+  const platformSkips = createNodePlatformSkipInventory(
+    requestedFiles,
+    filters,
+    options.platformSkips ?? {},
+    { root: options.root ?? process.cwd(), platform: options.platform ?? process.platform },
+  );
   const errors = new Set<string>();
   const requested = new Map<string, string>();
   const observed = new Set<string>();
@@ -29,6 +45,7 @@ export function createNodeExecutionInventory(
   const error = (message: string) => {
     if (errors.size < 32) errors.add(message);
   };
+  if (options.registryError) error(options.registryError);
   for (const file of requestedFiles.slice(0, maximumFiles)) {
     if (!file || file.length > 4096 || /[*?{}[\]]/u.test(file)) {
       error("Required Node execution needs explicit test files");
@@ -42,6 +59,7 @@ export function createNodeExecutionInventory(
     error("Required Node execution needs one to 512 explicit test files");
   return {
     capture(event: TestEvent) {
+      platformSkips.capture(event);
       if (event.type === "test:fail") {
         const ignored =
           event.data.skip === true ||
@@ -117,6 +135,8 @@ export function createNodeExecutionInventory(
       } else counts.passed++;
     },
     finish() {
+      const skipInventory = platformSkips.finish();
+      for (const message of skipInventory.errors) error(message);
       if (!terminal) error("Node execution has no terminal runner summary");
       for (const key of requested.keys()) {
         if (!observed.has(key))
@@ -149,6 +169,7 @@ export function createNodeExecutionInventory(
         selected_case_inventory:
           "unavailable: requested files and filters do not enumerate dynamic cases",
         outcome_identity_records: "Node test case observation",
+        ...(skipInventory.contracts.length ? { platform_skip_inventory: skipInventory } : {}),
         files: [...requested].map(([key, file]) => ({
           file,
           observed: observed.has(key),
@@ -171,7 +192,20 @@ export default async function* requiredReport(source: AsyncIterable<TestEvent>) 
     filters.push(value);
     if (!value.includes("=")) filters.push(process.execArgv[++index] ?? "");
   }
-  const inventory = createNodeExecutionInventory(process.argv.slice(1), filters);
+  let platformSkips: Record<string, NodePlatformSkipContract> | undefined;
+  let registryError: string | undefined;
+  try {
+    platformSkips = parseNodeTestSuites(
+      readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+    ).platformSkips;
+  } catch (error) {
+    registryError = "Platform skip ownership unavailable: " + errorMessage(error);
+  }
+  const inventory = createNodeExecutionInventory(process.argv.slice(1), filters, {
+    platformSkips,
+    registryError,
+    root: fileURLToPath(new URL("../", import.meta.url)),
+  });
   async function* inspect() {
     for await (const event of source) {
       inventory.capture(event);

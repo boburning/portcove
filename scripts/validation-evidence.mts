@@ -193,6 +193,9 @@ export function domainsForPath(input: string) {
     file === "scripts/required-node-test-reporter.mts" ||
     file === "scripts/node-case-observations.mts" ||
     [
+      "scripts/node-platform-skips.mts",
+      "scripts/node-test-suites.mts",
+      "scripts/node-test-suites.json",
       "scripts/nextest-outcomes.mts",
       "scripts/qualification-rustdoc.mts",
       "scripts/rustdoc-outcomes.mts",

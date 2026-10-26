@@ -131,7 +131,11 @@ export function requireNodeTestInventory(
                 : Object.keys(registry.qualificationOwners?.[file] ?? {})) {
               const key = `${candidate}:${file}`;
               const producers = qualificationProducers.get(key) ?? [];
-              producers.push({ suite: command.id, arguments: command.arguments, eligible });
+              producers.push({
+                suite: command.id,
+                arguments: command.arguments,
+                eligible: eligible && candidate === platform,
+              });
               qualificationProducers.set(key, producers);
             }
         }

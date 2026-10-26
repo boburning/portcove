@@ -237,3 +237,18 @@ void test("malformed Node file summaries stay incomplete rather than disappearin
   assert.equal(result.inventory.passed, 1);
   assert.match(result.stderr, /Malformed Node entry-file summary/u);
 });
+
+void test("skip-registry reporting failure retains the original native failure", async () => {
+  const { createNodeExecutionInventory } = await import("./required-node-test-reporter.mts");
+  const inventory = createNodeExecutionInventory(["scripts/fixture.test.mts"], [], {
+    registryError: "controlled ownership read failure",
+  });
+  inventory.capture({
+    type: "test:fail",
+    data: { details: { error: { failureType: "testCodeFailure" } } },
+  } as unknown as import("node:test/reporters").TestEvent);
+  const result = inventory.finish();
+  assert.equal(result.native_failure, true);
+  assert.equal(result.complete, false);
+  assert.ok(result.errors.includes("controlled ownership read failure"));
+});

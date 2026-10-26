@@ -3452,3 +3452,57 @@ void test("controller decision modules retain their imported transport consumer 
       );
     }
 });
+
+void test("platform skip inputs retain their declared case and policy consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    "scripts/node-platform-skips.mts",
+    "scripts/node-test-suites.mts",
+    "scripts/node-test-suites.json",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = new Set(
+        baselineContractTests(
+          buildValidationPlan({
+            changes: [change],
+            eventName: "pull_request",
+            base: "a".repeat(40),
+            mergeBase: "a".repeat(40),
+            head: "b".repeat(40),
+            checkout: "b".repeat(40),
+          }),
+          { fileExists: () => false },
+        ),
+      );
+      const expected = [
+        "scripts/node-platform-skips.test.mts",
+        "scripts/required-node-test-reporter.test.mts",
+        "scripts/node-test-inventory.test.mts",
+        "scripts/release-checkpoint-store.test.mts",
+        "scripts/release-controller-transport.test.mts",
+        "scripts/ui-test-selection.test.mts",
+        "scripts/audit.test.mts",
+      ];
+      assert.deepEqual(
+        expected.filter((consumer) => !local.nodeTests.has(consumer)),
+        [],
+        file + "/" + variant + "/local",
+      );
+      assert.deepEqual(
+        expected.filter((consumer) => !hosted.has(consumer)),
+        [],
+        file + "/" + variant + "/hosted",
+      );
+    }
+});

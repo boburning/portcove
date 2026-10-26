@@ -1,7 +1,8 @@
 import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts";
 import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
 import type { ValidationChangeInput, ValidationPlan } from "./validation-plan.mts";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { parseNodeTestSuites } from "./node-test-suites.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, validationOwnershipForPath } from "./validation-plan.mts";
@@ -232,7 +233,20 @@ const workflowFeatureTests = [
   "scripts/windows-rust-tests.test.mts",
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
+const platformSkipConsumers = [
+  "scripts/node-platform-skips.test.mts",
+  "scripts/required-node-test-reporter.test.mts",
+  "scripts/node-test-inventory.test.mts",
+  "scripts/ui-test-selection.test.mts",
+  "scripts/validation-evidence.test.mts",
+  "scripts/audit.test.mts",
+  ...Object.keys(
+    parseNodeTestSuites(readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"))
+      .platformSkips ?? {},
+  ),
+];
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/node-platform-skips.mts", platformSkipConsumers],
   ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
   ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
   [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
@@ -257,7 +271,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/required-node-test-reporter.mts",
     [
-      "scripts/required-node-test-reporter.test.mts",
+      ...platformSkipConsumers,
       "scripts/ci-baseline.test.mts",
       "scripts/node-test-inventory.test.mts",
     ],
@@ -1109,7 +1123,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...["scripts/node-test-suites.mts", "scripts/node-test-suites.json"].map(
     (file): [string, string[]] => [
       file,
-      ["scripts/node-test-inventory.test.mts", "scripts/ci-workflow.test.mts"],
+      [...platformSkipConsumers, "scripts/ci-workflow.test.mts"],
     ],
   ),
   [
