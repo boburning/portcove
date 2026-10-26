@@ -556,10 +556,10 @@ Add-Type -TypeDefinition ([IO.File]::ReadAllText('${launcher.replaceAll("'", "''
 Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
 $type=[Portcove.NativeQualification.AccountLauncher].Assembly.GetType('Portcove.NativeQualification.Native')
 $flags=[Reflection.BindingFlags]'NonPublic,Static'
-$duplicate=$type.GetMethod('DuplicateToken',$flags);$check=$type.GetMethod('GrantedRights',$flags);$close=$type.GetMethod('CloseHandle',$flags)
+$open=$type.GetMethod('OpenProcessToken',$flags);$check=$type.GetMethod('GrantedRights',$flags);$close=$type.GetMethod('CloseHandle',$flags)
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent();$sid=$identity.User.Value
-$arguments=[object[]]@($identity.Token,2,[IntPtr]::Zero)
-if(-not $duplicate.Invoke($null,$arguments)){throw 'Actual token duplication failed'}
+$arguments=[object[]]@([Diagnostics.Process]::GetCurrentProcess().Handle,[uint32]8,[IntPtr]::Zero)
+if(-not $open.Invoke($null,$arguments)){throw 'Actual query-only primary token open failed'}
 $token=$arguments[2]
 try{
  foreach($station in @($true,$false)){
@@ -569,10 +569,18 @@ try{
   $granted=$check.Invoke($null,[object[]]@($bytes,$token,$station))
   if($granted -ne $(if($station){0x20002}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
  }
+ foreach($case in @('no-access','forbidden-switch')){
+  $sddl=if($case -ceq 'no-access'){'O:SYG:SYD:'}else{'O:SYG:SYD:P(A;;0x201c7;;;'+$sid+')'}
+  $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($sddl);$bytes=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($bytes,0)
+  $granted=$check.Invoke($null,[object[]]@($bytes,$token,$false))
+  if($granted -ne $(if($case -ceq 'no-access'){0}else{0x201c7})){throw ('Actual access denial/forbidden-rights result differs: '+$case)}
+ }
+ $refused=$false;try{$check.Invoke($null,[object[]]@($bytes,[IntPtr]::Zero,$false))|Out-Null}catch{$refused=$true}
+ if(-not $refused){throw 'Unavailable token gained ambient evaluator authority'}
 }finally{$close.Invoke($null,@($token))|Out-Null;$identity.Dispose()}
-'actual AccessCheck synthetic-descriptor controls passed; no object mutation'
+'actual AuthzAccessCheck query-only primary-token controls passed; no object mutation'
 `);
-    assert.match(result, /actual AccessCheck synthetic-descriptor controls passed/u);
+    assert.match(result, /actual AuthzAccessCheck query-only primary-token controls passed/u);
   },
 );
 

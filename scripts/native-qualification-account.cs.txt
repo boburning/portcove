@@ -577,7 +577,7 @@ namespace Portcove.NativeQualification {
                 if (group != null) group.Assign(config, info.process);
                 if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("AssignProcessToJobObject");
                 IntPtr token;
-                if (!Native.OpenProcessToken(info.process, hostedDesktop == null ? 8u : 10u, out token)) throw Native.Error("OpenProcessToken");
+                if (!Native.OpenProcessToken(info.process, 8, out token)) throw Native.Error("OpenProcessToken");
                 try {
                     if (hostedDesktop != null) Native.VerifyHostedToken(token, station, desktop);
                     using (var identity = new WindowsIdentity(token)) {
@@ -671,7 +671,7 @@ namespace Portcove.NativeQualification {
         [DllImport("kernel32")] internal static extern bool CloseHandle(IntPtr handle);
         [DllImport("kernel32")] internal static extern uint GetCurrentProcessId();
         [DllImport("kernel32", SetLastError=true)] internal static extern bool ProcessIdToSessionId(uint pid, out uint session);
-        internal static Exception Error(string operation) { return new Win32Exception(Marshal.GetLastWin32Error(), operation + " failed"); }
+        internal static Exception Error(string operation) { int error = Marshal.GetLastWin32Error(); return new Win32Exception(error, operation + " failed: win32=" + error); }
         internal static void CreatePrivateDesktop(AccountConfiguration config, out IntPtr station, out IntPtr desktop) {
             station = IntPtr.Zero; desktop = IntPtr.Zero;
             IntPtr descriptor = IntPtr.Zero, previous = GetProcessWindowStation();
@@ -703,9 +703,15 @@ namespace Portcove.NativeQualification {
         [DllImport("user32", SetLastError=true)] internal static extern bool SetThreadDesktop(IntPtr desktop);
         [DllImport("user32", SetLastError=true)] internal static extern bool GetUserObjectInformationW(IntPtr handle, int index, out int value, uint length, out uint needed);
         [StructLayout(LayoutKind.Sequential)] struct GenericMapping { public uint read, write, execute, all; }
-        [DllImport("advapi32", SetLastError=true)] static extern bool DuplicateToken(IntPtr token, int level, out IntPtr duplicate);
         [DllImport("advapi32")] static extern void MapGenericMask(ref uint access, ref GenericMapping mapping);
-        [DllImport("advapi32", SetLastError=true)] static extern bool AccessCheck(byte[] descriptor, IntPtr token, uint access, ref GenericMapping mapping, byte[] privileges, ref uint privilegeLength, out uint granted, out bool allowed);
+        [StructLayout(LayoutKind.Sequential)] struct Luid { public uint low; public int high; }
+        [StructLayout(LayoutKind.Sequential)] struct AuthzRequest { public uint access; public IntPtr self, types; public uint typeCount; public IntPtr arguments; }
+        [StructLayout(LayoutKind.Sequential)] struct AuthzReply { public uint count; public IntPtr granted, sacl, errors; }
+        [DllImport("authz", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool AuthzInitializeResourceManager(uint flags, IntPtr accessCallback, IntPtr groupsCallback, IntPtr freeGroupsCallback, string name, out IntPtr manager);
+        [DllImport("authz", SetLastError=true)] static extern bool AuthzInitializeContextFromToken(uint flags, IntPtr token, IntPtr manager, IntPtr expiry, Luid id, IntPtr arguments, out IntPtr context);
+        [DllImport("authz", SetLastError=true)] static extern bool AuthzAccessCheck(uint flags, IntPtr context, ref AuthzRequest request, IntPtr audit, byte[] descriptor, IntPtr optional, uint optionalCount, ref AuthzReply reply, IntPtr cached);
+        [DllImport("authz")] static extern bool AuthzFreeContext(IntPtr context);
+        [DllImport("authz")] static extern bool AuthzFreeResourceManager(IntPtr manager);
         [DllImport("user32", SetLastError=true)] static extern bool GetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor, uint length, out uint needed);
         [DllImport("user32", SetLastError=true)] static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint access);
         static uint GrantedDesktopRights(IntPtr handle, IntPtr token, bool station) {
@@ -725,25 +731,37 @@ namespace Portcove.NativeQualification {
                 if (ace != null) { uint mask = unchecked((uint)ace.AccessMask); MapGenericMask(ref mask, ref mapping); ace.AccessMask = unchecked((int)mask); }
             }
             descriptor = new byte[security.BinaryLength]; security.GetBinaryForm(descriptor, 0);
-            byte[] privileges = new byte[65536]; uint length = (uint)privileges.Length, granted; bool allowed;
-            if (!AccessCheck(descriptor, token, 0x02000000, ref mapping, privileges, ref length, out granted, out allowed)) throw Error("Check suspended candidate object access");
-            return allowed ? granted : 0;
-        }
-        internal static void VerifyHostedToken(IntPtr primary, IntPtr station, IntPtr desktop) {
-            IntPtr token;
-            if (!DuplicateToken(primary, 2, out token)) throw Error("Duplicate suspended token for access check");
+            IntPtr manager = IntPtr.Zero, context = IntPtr.Zero, result = IntPtr.Zero;
             try {
-                if (GrantedDesktopRights(station, token, true) != 0x20002 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
-                    throw new InvalidOperationException("Effective hosted station/private-desktop rights differ");
-                IntPtr input = OpenInputDesktop(0, false, 0x20081);
-                if (input == IntPtr.Zero) throw Error("Inspect actual input desktop access");
-                try { if ((GrantedDesktopRights(input, token, false) & 0x1ff) != 0) throw new InvalidOperationException("Candidate has input desktop access"); }
-                finally { CloseDesktop(input); }
-                IntPtr original = OpenDesktopW("Default", 0, false, 0x20081);
-                if (original == IntPtr.Zero) throw Error("Inspect Default desktop access");
-                try { if ((GrantedDesktopRights(original, token, false) & 0x1ff) != 0) throw new InvalidOperationException("Candidate has Default desktop access"); }
-                finally { CloseDesktop(original); }
-            } finally { CloseHandle(token); }
+                // NO_AUDIT and the existing TOKEN_QUERY handle require no extra privilege.
+                if (!AuthzInitializeResourceManager(1, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, "Portcove hosted desktop access", out manager)) throw Error("Initialize read-only access evaluator");
+                if (!AuthzInitializeContextFromToken(0, token, manager, IntPtr.Zero, new Luid(), IntPtr.Zero, out context)) throw Error("Read suspended query-only token context");
+                result = Marshal.AllocHGlobal(12);
+                for (int offset = 0; offset < 12; offset += 4) Marshal.WriteInt32(result, offset, 0);
+                var request = new AuthzRequest { access = 0x02000000 };
+                var reply = new AuthzReply { count = 1, granted = result, sacl = IntPtr.Add(result, 4), errors = IntPtr.Add(result, 8) };
+                if (!AuthzAccessCheck(0, context, ref request, IntPtr.Zero, descriptor, IntPtr.Zero, 0, ref reply, IntPtr.Zero)) throw Error("Evaluate suspended candidate object access");
+                int error = Marshal.ReadInt32(result, 8);
+                if (error == 5 && Marshal.ReadInt32(result) == 0) return 0;
+                if (error != 0) throw new Win32Exception(error, "Suspended candidate access evaluation refused");
+                return unchecked((uint)Marshal.ReadInt32(result));
+            } finally {
+                if (result != IntPtr.Zero) Marshal.FreeHGlobal(result);
+                if (context != IntPtr.Zero) AuthzFreeContext(context);
+                if (manager != IntPtr.Zero) AuthzFreeResourceManager(manager);
+            }
+        }
+        internal static void VerifyHostedToken(IntPtr token, IntPtr station, IntPtr desktop) {
+            if (GrantedDesktopRights(station, token, true) != 0x20002 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
+                throw new InvalidOperationException("Effective hosted station/private-desktop rights differ");
+            IntPtr input = OpenInputDesktop(0, false, 0x20081);
+            if (input == IntPtr.Zero) throw Error("Inspect actual input desktop access");
+            try { if ((GrantedDesktopRights(input, token, false) & 0x1ff) != 0) throw new InvalidOperationException("Candidate has input desktop access"); }
+            finally { CloseDesktop(input); }
+            IntPtr original = OpenDesktopW("Default", 0, false, 0x20081);
+            if (original == IntPtr.Zero) throw Error("Inspect Default desktop access");
+            try { if ((GrantedDesktopRights(original, token, false) & 0x1ff) != 0) throw new InvalidOperationException("Candidate has Default desktop access"); }
+            finally { CloseDesktop(original); }
         }
         internal static void RequireNonInputDesktop(IntPtr desktop) {
             int input; uint needed;
