@@ -1,6 +1,6 @@
 import { collectRepositoryIssueInventory } from "./repository-issue-inventory.mts";
 import type { InventoryReader } from "./repository-issue-inventory.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 
 /** Fixtures pass through the real collector; no production proof-construction bypass. */
 export function fixtureIssueInventory(

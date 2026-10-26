@@ -3,7 +3,7 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { RoadmapClient, validateConfig } from "./roadmap.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { captureCheckoutContext } from "./checkout-context.mts";
 import { sanitizeOperationError } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";

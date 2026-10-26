@@ -1,5 +1,5 @@
 import { requireRepositoryIssueInventory } from "./repository-issue-inventory.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type {
   PortSourceContract,
   SourceIdentityProfile,
@@ -21,11 +21,10 @@ import {
   RoadmapClient,
   validateConfig,
   fieldValue,
-  sourceProvenancePortIdentity,
-  sourceProvenancePortIssues,
   validatePortIssueCoverage,
   validatePortStageSemantics,
 } from "./roadmap.mts";
+import { sourceProvenancePortIdentity, sourceProvenancePortIssues } from "./roadmap-issue.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");

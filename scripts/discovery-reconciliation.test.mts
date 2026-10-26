@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +7,7 @@ import { join } from "node:path";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { assertDiscoveryIntakeIdentity } from "./discovery-intake-identity.mts";
-import { reconcilePortIssueMarkers } from "./roadmap.mts";
+import { reconcilePortIssueMarkers } from "./roadmap-issue.mts";
 import {
   reconcileDiscoveryIdentity,
   reconcileDiscoverySnapshot,
@@ -29,6 +30,27 @@ const candidate: ReviewedDiscoveryIdentity = {
   game_key: "game-a",
   kind: "implementation",
 };
+void test("discovery identity does not initialize live Roadmap, API or process infrastructure", () => {
+  execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import { registerHooks } from 'node:module';
+    import assert from 'node:assert/strict';
+    registerHooks({ resolve(specifier, context, next) {
+      if (/(?:roadmap|github-api|process-lock)\\.mts$/u.test(specifier))
+        throw new Error('identity imported live infrastructure: ' + specifier);
+      return next(specifier, context);
+    }});
+    const { assertDiscoveryIntakeIdentity } = await import('./scripts/discovery-intake-identity.mts');
+    assert.equal(typeof assertDiscoveryIntakeIdentity, 'function');
+  `,
+    ],
+    { cwd: new URL("../", import.meta.url), windowsHide: true, timeout: 10_000 },
+  );
+});
 void test("reviewed family aliases retain closed ownership through normalized bodies and transfers", () => {
   const body = reconcilePortIssueMarkers(
     "Underlying game: **Game A**.\nGitHub repository ID: 42.\nReviewed source-family alias: https://github.com/contributor/game-linux (GitHub repository ID: 201)\nRelationship: Reviewed host adaptation; primary credits retained.",

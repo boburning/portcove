@@ -54,8 +54,6 @@ import {
 } from "./ordinary-validation.mts";
 export {
   isRepositoryLintInput,
-  packagesWithDoctests,
-  readDoctestPackages,
   deduplicateCommands,
   classifyChanges,
   buildPlan,
@@ -461,8 +459,11 @@ function localStageDomains(entry: ValidationCommand): ValidationDomain[] {
     return [...domains].sort();
   }
   if (entry.id.startsWith("node-syntax:")) {
-    const file = entry.args.at(-1);
-    return file ? [...domainsForPath(file).domains].sort() : [];
+    const files =
+      entry.args[0] === "scripts/check-node-source.mts"
+        ? entry.args.slice(1)
+        : entry.args.slice(-1);
+    return [...new Set(files.flatMap((file) => [...domainsForPath(file).domains]))].sort();
   }
   return [];
 }

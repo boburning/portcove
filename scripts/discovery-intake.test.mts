@@ -2,17 +2,16 @@ import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts"
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { RoadmapClient, validateConfig } from "./roadmap.mts";
 import {
-  RoadmapClient,
   renderPortIssueBody,
   renderPortResearchDeclaration,
   findPortIssueDuplicates,
-  validateConfig,
-} from "./roadmap.mts";
+} from "./roadmap-issue.mts";
 
 import { GitHubApiClient } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { intakeAmendmentAction, validateDiscoveryIntakeBody } from "./daily-discovery-session.mts";
 import { observationHash } from "./upstream-observer.mts";
 const config = validateConfig(

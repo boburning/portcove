@@ -3,15 +3,14 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
   validateConfig,
-  renderPortIssueBody,
   validateDurableIssueBody,
   validatePortStageSemantics,
-  renderPortResearchDeclaration,
 } from "./roadmap.mts";
+import { renderPortIssueBody, renderPortResearchDeclaration } from "./roadmap-issue.mts";
 import { validateRoadmapReplacement } from "./roadmap-authoring.mts";
 import { writeGitHubBody } from "./github-body.mts";
 import { editRoadmapBatch } from "./roadmap-edit.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { scopedIssueWithBlockers } from "./roadmap-scoped.mts";
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),

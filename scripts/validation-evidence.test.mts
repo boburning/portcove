@@ -117,7 +117,7 @@ void test("ordinary hosted planning imports and executes without loading audit o
     const { classifyChanges, buildPlan } = await import('./scripts/ordinary-validation.mts');
     await import('./scripts/ci-baseline.mts');
     const selection = classifyChanges([{status:'M',path:'README.md'}]);
-    const plan = buildPlan(selection, {doctestPackages:new Set()});
+    const plan = buildPlan(selection);
     assert(plan.some(entry=>entry.id==='diff-check'));
     assert(!plan.some(entry=>entry.id.startsWith('rust-')));
   `,

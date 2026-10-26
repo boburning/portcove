@@ -17,15 +17,17 @@ import { readDiscoveryCache } from "./discovery-cache.mts";
 import {
   RoadmapClient,
   runDoctor,
+  fieldValue,
+  portFieldInitialization,
+  validateDurableIssueBody,
+} from "./roadmap.mts";
+import {
   findPortIssueDuplicates,
   sourceProvenancePortIssues,
   sourceProvenancePortIdentity,
-  fieldValue,
-  portFieldInitialization,
   reconcilePortIssueMarkers,
-  validateDurableIssueBody,
   isNonCatalogResearchBody,
-} from "./roadmap.mts";
+} from "./roadmap-issue.mts";
 import type { RoadmapInventory, InventoryCache } from "./roadmap-inventory.mts";
 import { collectRoadmapInventory, requireRoadmapInventory } from "./roadmap-inventory.mts";
 import {

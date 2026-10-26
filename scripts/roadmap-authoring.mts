@@ -5,11 +5,8 @@ import {
   validateDurableIssueBody,
   qualificationCatalogObservation,
 } from "./roadmap.mts";
-import type {
-  RoadmapIssueItem,
-  RoadmapConfig,
-  QualificationCatalogObservation,
-} from "./roadmap.mts";
+import type { RoadmapConfig, QualificationCatalogObservation } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { evaluateScopedRoadmap, scopedIssueWithBlockers } from "./roadmap-scoped.mts";
 
 export function isRoadmapSpecification(issue: RoadmapIssueItem) {

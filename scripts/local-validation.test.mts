@@ -32,7 +32,6 @@ import {
   fingerprintLocalStage,
   formatCommand,
   localChangesFromRaw,
-  packagesWithDoctests,
   parseNameStatus,
   requireFocusedArguments,
   storageScopeForPlan,
@@ -40,7 +39,6 @@ import {
   buildExecutionPreflight,
   selectedPlanInventory,
   inspectHostedLocalRoute,
-  readDoctestPackages,
   main,
 } from "./local-validation.mts";
 import { buildValidationPlan } from "./validation-plan.mts";
@@ -309,7 +307,6 @@ void test("qualification archive helper and oracle retain surviving contracts wi
       { status: "R100", previousPath: "docs/moved.md", path: file },
     ]) {
       const selected = classifyChanges([change], { fileExists: () => false });
-      assert.equal(selected.workspaceRustTests, true, JSON.stringify(change));
       for (const contract of [
         "windows-rust-tests",
         "ci-rust-workflow",
@@ -418,7 +415,6 @@ void test("selected nextest outcome edits retain native execution and every outc
     { status: "R100", previousPath: "docs/renamed.md", path: helper },
   ]) {
     const selection = classifyChanges([change], { fileExists: allFilesExist });
-    assert.equal(selection.workspaceRustTests, true);
     for (const consumer of [
       "scripts/nextest-outcomes.test.mts",
       "scripts/rust-test-impact.test.mts",
@@ -774,7 +770,6 @@ void test("removed, renamed-away and non-code frontend inputs retain complete ex
     );
     const plan = buildPlan(selection);
     assert.ok(plan.some(({ id }) => id === "ui-tests"));
-    assert.ok(plan.some(({ id }) => id === "ui-browser-tests"));
     assert.ok(!plan.some(({ id }) => id === "ui-related-tests"));
   }
 });
@@ -788,7 +783,7 @@ void test("shared browser trace runtime selects full frontend tests and build", 
   const plan = buildPlan(selection);
   assert.ok(plan.some((entry) => entry.id === "ui-build"));
   const tests = requiredFixture(plan.find((entry) => entry.id === "ui-tests"));
-  assert.ok(tests.args.includes("frontend:unit"));
+  assert.ok(tests.args.includes("frontend:tests"));
   assert.ok(!tests.args.includes("--related"));
 });
 
@@ -817,8 +812,7 @@ void test("current and deleted test configurations retain full frontend coverage
         assert.equal(selection.uiRelatedFiles.size, 0, label);
         const commands = buildPlan(selection);
         for (const [id, task] of [
-          ["ui-tests", "frontend:unit"],
-          ["ui-browser-tests", "frontend:browser"],
+          ["ui-tests", "frontend:tests"],
           ["ui-build", "frontend:build"],
         ] as const) {
           assert.ok(
@@ -881,7 +875,7 @@ void test("integrated source lint fails before expensive stages while preserving
   });
   assert.deepEqual(successful, ids);
   assert.ok(
-    requiredFixture(plan.find((entry) => entry.id === "ui-tests")).args.includes("frontend:unit"),
+    requiredFixture(plan.find((entry) => entry.id === "ui-tests")).args.includes("frontend:tests"),
   );
 });
 
@@ -1174,25 +1168,6 @@ void test("hosted dispatch-ref arguments fail before discovery when missing or o
   );
 });
 
-void test("missing Cargo is a bounded non-provisioning planning failure", () => {
-  assert.throws(
-    () =>
-      readDoctestPackages({
-        observeOnly: true,
-        spawn: (command, args, options) => {
-          assert.equal(command, "cargo");
-          assert.ok(args.includes("--offline") && args.includes("--locked"));
-          assert.equal(options.timeout, 15000);
-          assert.ok(options.env);
-          assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
-          assert.equal(options.env.CARGO_NET_OFFLINE, "true");
-          return { error: Object.assign(new Error("unavailable fixture"), { code: "ENOENT" }) };
-        },
-      }),
-    /unavailable fixture/,
-  );
-});
-
 void test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu", () => {
   const inputs = preflightFixture();
   const plan = [
@@ -1219,21 +1194,6 @@ void test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu"
   });
   assert.equal(requiredFixture(report.obligations[0]).route, "blocked");
   assert.ok(requiredFixture(report.obligations[0]).missing.includes("windows-host"));
-});
-
-void test("normal metadata selection keeps its existing execution contract", () => {
-  assert.deepEqual(
-    [
-      ...readDoctestPackages({
-        spawn: (_command, args, options) => {
-          assert.equal(options.timeout, undefined);
-          assert.ok(!args.includes("--offline"));
-          return { status: 0, stdout: JSON.stringify({ packages: [] }) };
-        },
-      }),
-    ],
-    [],
-  );
 });
 
 const change = (path: string, options: Partial<LocalChange> = {}): LocalChange => ({
@@ -1264,7 +1224,6 @@ function planFor(paths: (string | LocalChange)[]) {
         head: "a".repeat(40),
         checkout: "a".repeat(40),
       }),
-      doctestPackages: new Set(["portcove-core", "portcove-release-tools", "portcove-desktop"]),
     }),
   };
 }
@@ -1581,16 +1540,6 @@ void test("shared diagnostics changes retain explicit ownership and complete wor
   assert.ok(classifyChanges([change(unowned)]).unknown.has(unowned));
 });
 
-void test("doctest capability comes from Cargo target metadata", () => {
-  const packages = packagesWithDoctests({
-    packages: [
-      { name: "library", targets: [{ kind: ["lib"], doctest: true }] },
-      { name: "binary", targets: [{ kind: ["bin"], doctest: false }] },
-    ],
-  });
-  assert.deepEqual([...packages], ["library"]);
-});
-
 void test("all optional workspace Rust execution remains behind the existing admission runner", () => {
   for (const file of ["crates/portcove-core/src/database.rs", "Cargo.toml"]) {
     const commands = planFor([file]).plan;
@@ -1670,7 +1619,6 @@ for (const manifest of ["package.json", "apps/desktop/package.json"]) {
       assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mts"));
       assert.ok(!ids(plan).includes("fallow"));
     } else {
-      assert.ok(ids(plan).includes("ui-browser-tests"));
     }
   });
 }
@@ -1687,7 +1635,6 @@ void test("manifest consumers coalesce in mixed plans without widening lock-only
   const node = requiredFixture(plan.find((entry) => entry.id === "node-tests"));
   assert.equal(node.args.filter((arg) => arg === "scripts/ci-workflow.test.mts").length, 1);
   assert.ok(ids(plan).includes("ui-tests"));
-  assert.ok(ids(plan).includes("ui-browser-tests"));
   assert.ok(!ids(plan).includes("fallow"));
   for (const lock of ["pnpm-lock.yaml", "apps/desktop/pnpm-lock.yaml"]) {
     const selected = planFor([lock]);
@@ -1730,7 +1677,6 @@ void test("pnpm package patches select full UI coverage including removal", () =
     assert.deepEqual([...selection.unknown], []);
     assert.equal(selection.uiFullTests, true);
     assert.ok(ids(plan).includes("ui-tests"));
-    assert.ok(ids(plan).includes("ui-browser-tests"));
     assert.ok(!ids(plan).includes("ui-related-tests"));
   }
   const { selection } = planFor(["patches/unowned.txt"]);
@@ -1907,9 +1853,26 @@ void test("heavy Rust runner and lock changes select both guarded execution cont
   assert.ok(selection.nodeTests.has("scripts/heavy-rust-test-lock.test.mts"));
   assert.ok(selection.nodeTests.has("scripts/run-rust-tests.test.mts"));
   assert.ok(selection.nodeTests.has("scripts/rust-support-cache.test.mts"));
-  assert.ok(ids(plan).includes("node-syntax:scripts/heavy-rust-test-lock.mts"));
-  assert.ok(ids(plan).includes("node-syntax:scripts/run-rust-tests.mts"));
-  assert.ok(ids(plan).includes("node-syntax:scripts/rust-support-cache.mts"));
+  assert.ok(
+    plan.some(
+      (entry) =>
+        entry.id.startsWith("node-syntax:") &&
+        entry.args.includes("scripts/heavy-rust-test-lock.mts"),
+    ),
+  );
+  assert.ok(
+    plan.some(
+      (entry) =>
+        entry.id.startsWith("node-syntax:") && entry.args.includes("scripts/run-rust-tests.mts"),
+    ),
+  );
+  assert.ok(
+    plan.some(
+      (entry) =>
+        entry.id.startsWith("node-syntax:") &&
+        entry.args.includes("scripts/rust-support-cache.mts"),
+    ),
+  );
   assert.ok(ids(plan).includes("node-tests"));
 
   const fixtureOnly = planFor(["scripts/fixtures/windows-process-tree-supervisor.rs.txt"]);
@@ -2701,6 +2664,56 @@ void test("native TypeScript syntax selection checks stripped JavaScript early e
     "scripts/heavy-rust-test-lock.mts",
   ]);
 });
+
+void test("native TypeScript batches retain every file and reject a later invalid source", (t) => {
+  const files = ["scripts/ci-health.mts", "scripts/dev-doctor.mts"];
+  const syntax = planFor(files).plan.filter((entry) => entry.id.startsWith("node-syntax:"));
+  assert.equal(syntax.length, 1);
+  assert.deepEqual(requiredFixture(syntax[0]).args, ["scripts/check-node-source.mts", ...files]);
+  const root = mkdtempSync(path.join(tmpdir(), "portcove-syntax-batch-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const first = path.join(root, "first.mts"),
+    last = path.join(root, "last.mts");
+  writeFileSync(first, "const value: string = 'valid'; throw new Error('must not execute');");
+  writeFileSync(last, "const duplicate = 1; const duplicate = 2;");
+  assert.throws(
+    () =>
+      execFileSync(process.execPath, ["scripts/check-node-source.mts", first, last], {
+        encoding: "utf8",
+        timeout: 10_000,
+        stdio: "pipe",
+      }),
+    /already been declared/u,
+  );
+  writeFileSync(last, "const valid: number = 2;");
+  assert.doesNotThrow(() =>
+    execFileSync(process.execPath, ["scripts/check-node-source.mts", first, last], {
+      encoding: "utf8",
+      timeout: 10_000,
+      stdio: "pipe",
+    }),
+  );
+});
+
+void test("syntax batch receipts bind the domains of earlier files as well as the last file", () => {
+  const stage = requiredFixture(
+    planFor(["scripts/ci-health.mts", "scripts/dev-doctor.mts"]).plan.find((entry) =>
+      entry.id.startsWith("node-syntax:"),
+    ),
+  );
+  assert.notEqual(
+    fingerprintLocalStage(stage, receiptInventory("original"), receiptRuntime),
+    fingerprintLocalStage(stage, receiptInventory("changed"), receiptRuntime),
+  );
+  assert.notEqual(
+    fingerprintLocalStage(stage, receiptInventory(), receiptRuntime),
+    fingerprintLocalStage(
+      { ...stage, args: [...stage.args].reverse() },
+      receiptInventory(),
+      receiptRuntime,
+    ),
+  );
+});
 void test("a successful payload cannot mint a reusable receipt after source changes", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-source-change-"));
   t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
@@ -2938,6 +2951,7 @@ void test("Roadmap test families preserve shared owners and narrow the New Port 
   const planner = ["scripts/roadmap-intake.test.mts"];
   for (const file of [
     "scripts/roadmap.mts",
+    "scripts/roadmap-issue.mts",
     "scripts/github-api.mts",
     "scripts/repository-issue-inventory.mts",
     "scripts/repository-issue-inventory.fixture.mts",

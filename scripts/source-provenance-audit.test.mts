@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
@@ -7,7 +7,7 @@ import test from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { fixtureProjectDetails } from "./fixtures/roadmap-fixtures.mts";
 
-import { renderPortIssueBody } from "./roadmap.mts";
+import { renderPortIssueBody } from "./roadmap-issue.mts";
 import {
   buildSourceProvenanceAudit,
   readLiveSourceProvenance,
