@@ -9,7 +9,7 @@ import {
   isQualificationOnlyCondition,
 } from "./qualification-coverage.mts";
 import {
-  annotatedNodeCommands,
+  executableNodeCommands,
   commandTokens,
   parseNodeTestSuites,
   nodeTestPath,
@@ -96,7 +96,7 @@ export function requireNodeTestInventory(
     for (const step of steps) {
       if (!isRecord(step) || typeof step.run !== "string") continue;
       // Check generation even in a disabled lane, but never count that lane as coverage.
-      const commands = annotatedNodeCommands(step.run, registry);
+      const commands = executableNodeCommands(step.run, registry);
       const directory =
         step["working-directory"] ??
         defaults(job.defaults)["working-directory"] ??
@@ -178,7 +178,7 @@ export function requireNodeTestInventory(
   let body: string[] = [];
   const flush = () => {
     const source = body.join("\n");
-    const commands = annotatedNodeCommands(source, registry);
+    const commands = executableNodeCommands(source, registry);
     if (globalContext && straightLine(source)) {
       for (const command of commands) for (const file of command.files) localFiles.add(file);
       if (body.some((line) => wrapper.test(line.trim()))) localWindows = true;
@@ -204,16 +204,14 @@ export function requireNodeTestInventory(
     body.push(line.slice(4));
   }
   flush();
-  const windowsCommands = annotatedNodeCommands(windowsRunner, registry);
+  const windowsCommands = executableNodeCommands(windowsRunner, registry);
   if (windowsCommands.length) {
     // Pin the reviewed mutex/try/finally/exit envelope independently of the registry.
     // A shell control-flow change needs an explicit custody review, not text inference.
     const envelope = windowsRunner
       .replaceAll("\r\n", "\n")
-      .replace(
-        /^([ \t]*)# node-suite: [a-z][a-z0-9-]*\n\1& node --test[^\n]*$/mu,
-        "$1<node-suite-payload>",
-      );
+      .replace(/^[ \t]*# node-suite: [a-z][a-z0-9-]*\n/gmu, "")
+      .replace(/^([ \t]*)& node --test[^\n]*$/mu, "$1<node-suite-payload>");
     if (
       windowsCommands.length !== 1 ||
       createHash("sha256").update(envelope).digest("hex") !==

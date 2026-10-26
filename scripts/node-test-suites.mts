@@ -23,6 +23,7 @@ export interface NodeTestSuites {
   suites: Record<string, NodeTestSuite>;
   qualificationOwners?: Record<string, Record<string, string>>;
   platformSkips?: Record<string, NodePlatformSkipContract>;
+  desktopDependencies?: string[];
 }
 function validPlatformCases(cases: unknown): cases is string[] {
   return (
@@ -76,6 +77,7 @@ function expandNodeTestOwnership(
   value: Record<string, unknown>,
   qualificationOwners: Record<string, Record<string, string>>,
   platformSkips: Record<string, NodePlatformSkipContract>,
+  desktopDependencies: string[],
 ) {
   if (
     Object.keys(value).some((key) => !["format_version", "suites", "tests"].includes(key)) ||
@@ -102,7 +104,14 @@ function expandNodeTestOwnership(
     if (
       !isRecord(entry) ||
       Object.keys(entry).some(
-        (key) => !["file", "memberships", "qualification", "platform_skips"].includes(key),
+        (key) =>
+          ![
+            "file",
+            "memberships",
+            "qualification",
+            "platform_skips",
+            "desktop_dependencies",
+          ].includes(key),
       ) ||
       typeof entry.file !== "string" ||
       !registeredTestPath(entry.file) ||
@@ -112,6 +121,11 @@ function expandNodeTestOwnership(
     )
       throw new Error("Invalid or repeated Node test ownership record");
     seenFiles.add(entry.file);
+    if (entry.desktop_dependencies !== undefined) {
+      if (entry.desktop_dependencies !== true)
+        throw new Error("Invalid Desktop dependency ownership: " + entry.file);
+      desktopDependencies.push(entry.file);
+    }
     const seenSuites = new Set<string>();
     for (const membership of entry.memberships) {
       if (!Array.isArray(membership) || membership.length !== 2)
@@ -160,8 +174,9 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
   let value: unknown = JSON.parse(text);
   const qualificationOwners: Record<string, Record<string, string>> = {};
   const platformSkips: Record<string, NodePlatformSkipContract> = {};
+  const desktopDependencies: string[] = [];
   if (isRecord(value) && value.format_version === 2)
-    value = expandNodeTestOwnership(value, qualificationOwners, platformSkips);
+    value = expandNodeTestOwnership(value, qualificationOwners, platformSkips, desktopDependencies);
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.suites))
     throw new Error("Invalid Node test suite registry");
   const suites: Record<string, NodeTestSuite> = {};
@@ -202,6 +217,7 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
     suites,
     ...(Object.keys(qualificationOwners).length ? { qualificationOwners } : {}),
     ...(Object.keys(platformSkips).length ? { platformSkips } : {}),
+    ...(desktopDependencies.length ? { desktopDependencies } : {}),
   };
 }
 
@@ -229,39 +245,30 @@ export function commandTokens(command: string): string[] {
   return tokens;
 }
 
-export function annotatedNodeCommands(source: string, registry: NodeTestSuites) {
+export function executableNodeCommands(source: string, registry: NodeTestSuites) {
+  const signatures = new Map<string, { id: string; arguments: string[]; files: string[] }>();
+  for (const [id, suite] of Object.entries(registry.suites)) {
+    const signature = JSON.stringify([...suite.arguments, ...suite.files]);
+    if (signatures.has(signature)) throw new Error("Ambiguous Node suite executable signature");
+    signatures.set(signature, { id, ...suite });
+  }
   const lines = source.split(/\r?\n/u);
   const invocations: { id: string; arguments: string[]; files: string[] }[] = [];
-  const matchedLines = new Set<number>();
-  for (let i = 0; i < lines.length; i++) {
-    const match = /^\s*# node-suite: ([a-z][a-z0-9-]*)\s*$/u.exec(lines[i] ?? "");
-    if (!match && /^\s*# node-suite:/u.test(lines[i] ?? ""))
-      throw new Error("Nonliteral Node suite annotation");
-    if (!match) continue;
-    const id = match[1] ?? "";
-    const suite = registry.suites[id];
-    if (!suite) throw new Error(`Unknown Node suite: ${id}`);
-    let command = (lines[++i] ?? "").trim();
-    matchedLines.add(i);
+  for (const [index, line] of lines.entries()) {
+    const marker = /^\s*# node-suite: ([a-z][a-z0-9-]*)\s*$/u.exec(line);
+    if (/^\s*# node-suite:/u.test(line) && (!marker || !registry.suites[marker[1]!]))
+      throw new Error("Unknown or nonliteral Node suite authoring marker");
+    let command = line.trim();
     for (const prefix of ["& ", "{{storage}} ", "node scripts/dev-storage.mts run -- "])
       if (command.startsWith(prefix)) command = command.slice(prefix.length);
-    const args = commandTokens(command);
-    if (
-      args.shift() !== "node" ||
-      JSON.stringify(args) !== JSON.stringify([...suite.arguments, ...suite.files])
-    )
-      throw new Error(`Node suite ${id} generated command differs from registry`);
-    invocations.push({ id, ...suite });
-  }
-  for (const [index, line] of lines.entries()) {
-    if (matchedLines.has(index)) continue;
-    if (
-      /^\s*(?:& |\{\{storage\}\} |node scripts\/dev-storage\.mts run -- )?node --test\b/u.test(
-        line,
-      ) &&
-      /\sscripts\/[^/\s]+\.test\.[cm]?[jt]s(?=\s|$)/u.test(line)
-    )
-      throw new Error("Root Node test invocation has no suite annotation");
+    if (!/^node --test(?: |$)/u.test(command)) continue;
+    const args = commandTokens(command).slice(1);
+    const invocation = signatures.get(JSON.stringify(args));
+    if (!invocation) throw new Error("Node suite executable command differs from registry");
+    const preceding = /^\s*# node-suite: ([a-z][a-z0-9-]*)\s*$/u.exec(lines[index - 1] ?? "");
+    if (preceding && preceding[1] !== invocation.id)
+      throw new Error("Node suite authoring marker differs from executable invocation");
+    invocations.push(invocation);
   }
   return invocations;
 }
@@ -329,7 +336,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const destination = path.join(root, file);
       const source = readFileSync(destination, "utf8");
       if (mode === "--write") writeFileSync(destination, generateNodeCommands(source, registry));
-      else annotatedNodeCommands(source, registry);
+      else executableNodeCommands(source, registry);
     }
     console.log(`Node suite commands ${mode === "--write" ? "generated" : "verified"}`);
   } catch (error) {
