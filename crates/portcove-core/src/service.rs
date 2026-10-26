@@ -2996,6 +2996,9 @@ impl PortcoveService {
         {
             self.require_installed_shared_preferences(staged)?;
             self.managed_install_root(&port.id, &staged.path)?;
+            if let Some(active) = &status.active {
+                self.require_portable_target_transition(active, staged)?;
+            }
             let qualification = self.installed_mutability_qualification(staged)?;
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
@@ -3014,13 +3017,19 @@ impl PortcoveService {
             self.managed_install_root(&port.id, &existing.path)?;
             if let Some(active) = &status.active {
                 // Reuse publishes the target's retained contract, not today's definition.
-                self.require_portable_transition(active, &self.installed_port(&existing)?)?;
+                self.require_portable_target_transition(active, &existing)?;
             }
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             reporter.operation.begin_publication()?;
             self.collect_active_user_data_if_launched(&port.id)?;
+            if let Some(active) = &status.active {
+                self.require_portable_target_transition(active, &existing)?;
+            }
             self.restore_user_data_to(port, &existing.path)?;
+            if let Some(active) = &status.active {
+                self.require_portable_target_transition(active, &existing)?;
+            }
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
@@ -3068,6 +3077,10 @@ impl PortcoveService {
                 &mut *reporter.emit,
             )
             .await?;
+        if staged_activation && let Some(active) = &status.active {
+            self.require_portable_target_transition(active, &installed)
+                .map_err(|error| error.detail("staged_install_id", &installed.id))?;
+        }
         if staged_activation && activate {
             self.activate_staged_locked(&port.id, &Uuid::new_v4().to_string())
         } else {
@@ -3580,7 +3593,7 @@ impl PortcoveService {
         )?;
         let port = self.installed_port(&staged)?;
         if let Some(active) = &status.active {
-            self.require_portable_transition(active, &port)?;
+            self.require_portable_target_transition(active, &staged)?;
         }
         self.require_installed_shared_preferences(&staged)?;
         let qualification = self.installed_mutability_qualification(&staged)?;
@@ -3595,7 +3608,13 @@ impl PortcoveService {
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
             self.collect_active_user_data_if_launched(port_id)?;
+            if let Some(active) = &status.active {
+                self.require_portable_target_transition(active, &staged)?;
+            }
             self.restore_user_data_to(&port, &staged.path)?;
+            if let Some(active) = &status.active {
+                self.require_portable_target_transition(active, &staged)?;
+            }
             Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
             let commit = activation.prepare_commit(self, &mut lifecycle)?;
             let activated = self.library.activate_staged(port_id)?;
@@ -5523,7 +5542,23 @@ impl PortcoveService {
         &self,
         install: &InstallRecord,
     ) -> Result<PersistenceContract> {
+        let retained_catalog = Installer::new(self.library.clone())?.retained_catalog(install)?;
+        let retained = self.installed_port(install)?;
         let port = self.installed_mutability_port(install)?;
+        if crate::persistence::requires_restore_receipt(&retained)
+            && (retained_catalog.is_none()
+                || retained.persistent_paths != port.persistent_paths
+                || retained.persistent_file_patterns != port.persistent_file_patterns)
+        {
+            return Err(PortcoveError::conflict(
+                "Portcove cannot verify which player-data paths were synchronized for this installed copy. Preserve both copies and review a supported data transition before synchronizing them.",
+            )
+            .detail("install_id", &install.id)
+            .detail("directory", install.path.display().to_string())
+            .detail("retained_paths", if retained_catalog.is_some() { serde_json::to_string(&retained.persistent_paths)? } else { "unknown (no retained contract)".into() })
+            .detail("proposed_paths", serde_json::to_string(&port.persistent_paths)?)
+            .with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged));
+        }
         let legacy = Installer::new(self.library.clone())?.retained_preparation_mode(install)?
             == Some(crate::PreparationMode::Ghostship200Legacy);
         let writes_directly = if legacy {
@@ -16382,6 +16417,52 @@ fn main() {
                 .reference,
             active_reference
         );
+    }
+
+    #[test]
+    fn richer_managed_activation_keeps_non_ready_persistence_changes_applicable() {
+        const PORT: &str = "zelda64-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old = Catalog::embedded().unwrap();
+        let port = old.port(PORT).unwrap();
+        assert!(!crate::persistence::ready_staged_archive(port));
+        assert!(!crate::persistence::requires_restore_receipt(port));
+        assert_ne!(port.adapter, AdapterKind::NativePortable);
+        let executable = b"inert richer-adapter fixture";
+        register_zelda_install_contract(&library, "v1", true, executable, Some(&old));
+        let mut document = old.authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == PORT)
+            .unwrap()
+            .persistent_paths
+            .push("new-settings.ini".into());
+        let current = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let path =
+            register_zelda_install_contract(&library, "v2", false, executable, Some(&current));
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        service.replace_catalog_for_test(current);
+        let before = library.status(PORT, ReleaseChannel::Stable).unwrap();
+        service
+            .require_portable_target_transition(
+                before.active.as_ref().unwrap(),
+                before.staged.as_ref().unwrap(),
+            )
+            .unwrap();
+        let activated = service.activate_staged(PORT).unwrap();
+        assert_eq!(activated.path, path);
+        assert_eq!(
+            library
+                .status(PORT, ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            activated.id
+        );
+        assert!(OperationStore::new(library).all().unwrap().is_empty());
     }
 
     #[test]

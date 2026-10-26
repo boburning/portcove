@@ -770,15 +770,21 @@ impl PortcoveService {
     pub(crate) fn prepare_recovered_psx_activation(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
-        if let Some(active) = self
+        let active = self
             .library
             .status(&install.port_id, install.channel)?
-            .active
-        {
-            self.require_portable_transition(&active, &port)?;
+            .active;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
         }
         self.collect_active_user_data_if_launched(&install.port_id)?;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
+        }
         self.restore_user_data_to(&port, &install.path)?;
+        if let Some(active) = &active {
+            self.require_portable_target_transition(active, install)?;
+        }
         Installer::new(self.library.clone())?.verify_critical(install, &qualification)?;
         Ok(())
     }

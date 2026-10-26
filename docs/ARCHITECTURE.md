@@ -203,7 +203,28 @@ and retained-coordinate guard. Core collects declared edits made before first Pl
 disposable runtime outputs stay with their version. The existing bounded
 install/manifest-bound data-restoration receipt distinguishes an initialized copy
 from historical unproven data. Without that receipt, collection is additive and
-conflicting copies remain recoverable. Raw Installer activation refuses, and
+conflicting copies remain recoverable. A live verification allowance for added
+mutable paths does not widen that receipt's data authority. At
+`persistence_contract_for_install`, missing historical scope or receipt-governed
+effective/retained persistent-scope divergence refuses before synchronization; all-version restore preflight
+checks inactive copies too. Closed legacy coordinate interpretations remain
+separate.
+
+Forward empty-only expansion stays within the existing ready-archive transaction.
+It requires authenticated retained authority, compatible unchanged source/launch
+coordinates and patterns, an immutable-manifest/executable-companion check, and
+bounded no-follow absence checks for every added path in the old runtime,
+canonical root and actual staged/reused destination. Rechecks surround collection,
+restoration and activation, including pending recovery. The new installation owns
+its new retained scope; old manifests and receipts are never rewritten. A
+post-publication refusal may retain an ordinary staged copy, reported by
+`staged_install_id`, while the prior active copy remains authoritative. Both
+activation and stage-only retry validate that actual destination. Committed
+activation recovery finishes the committed version without reapplying an old
+absence condition. Transfer/import continue verifying retained-plus-retained
+contracts. No new registry, receipt format or lifecycle engine is introduced.
+
+Raw Installer activation refuses, and
 interrupted publication checks retained contracts and data before changing the
 active pointer. New independent definitions of this shape require staged-source
 capability 23 and a format-6 retained envelope, including embedded/unscoped
