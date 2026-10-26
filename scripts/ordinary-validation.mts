@@ -895,11 +895,17 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
-    ["scripts/release-publication-result-artifact.test.mts"],
+    [
+      "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-controller-transport.test.mts",
+    ],
   ],
   [
     "scripts/release-signing-context-artifact.mts",
-    ["scripts/release-signing-context-artifact.test.mts"],
+    [
+      "scripts/release-signing-context-artifact.test.mts",
+      "scripts/release-controller-transport.test.mts",
+    ],
   ],
   [
     "scripts/release-authority-configuration.mts",

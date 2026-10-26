@@ -37,8 +37,8 @@ const identity = {
 // Fresh module mocks exercise the real entrypoint without minting producer custody or contacting GitHub.
 async function runUploadIdentityControl() {
   const { mock } = await import("node:test");
-  const assert = (await import("node:assert/strict")).default;
-  const { mkdir, readFile } = await import("node:fs/promises");
+  const assert: typeof import("node:assert/strict") = (await import("node:assert/strict")).default;
+  const { readFile } = await import("node:fs/promises");
   const path = (await import("node:path")).default;
   const { pathToFileURL } = await import("node:url");
   delete process.env.PORTCOVE_JOB_OPERATION;
@@ -46,16 +46,16 @@ async function runUploadIdentityControl() {
   const ownedUrl = moduleUrl("release-publication-result.mts");
   const toolsUrl = moduleUrl("release-controller-tools.mts");
   const githubUrl = moduleUrl("github-api.mts");
-  const owned = await import(ownedUrl);
-  const tools = await import(toolsUrl);
-  const github = await import(githubUrl);
+  const owned = (await import(ownedUrl)) as typeof import("./release-publication-result.mts");
+  const tools = (await import(toolsUrl)) as typeof import("./release-controller-tools.mts");
+  const github = (await import(githubUrl)) as typeof import("./github-api.mts");
   const receipt = {};
-  let directory = "",
-    uploaded: unknown,
-    reads = 0,
+  const directory = process.argv[1]!;
+  const uploaded = { artifact_id: 93, sha256: "f".repeat(64) };
+  let reads = 0,
     providerCalls = 0;
   mock.module(ownedUrl, {
-    namedExports: {
+    exports: {
       ...owned,
       requireOwnedPublicationResult: async (value: object) => {
         assert.equal(value, receipt);
@@ -68,7 +68,7 @@ async function runUploadIdentityControl() {
     },
   });
   mock.module(toolsUrl, {
-    namedExports: {
+    exports: {
       ...tools,
       readControllerToolFile: async (file: string, maximum: number) => {
         assert.equal(file, path.join(directory, "result-uploaded.json"));
@@ -79,7 +79,7 @@ async function runUploadIdentityControl() {
     },
   });
   mock.module(githubUrl, {
-    namedExports: {
+    exports: {
       ...github,
       GitHubApiClient: class {
         constructor() {
@@ -90,31 +90,21 @@ async function runUploadIdentityControl() {
     },
   });
   // The custody module also imports this consumer; use a fresh instance after installing mocks.
-  const { handoffPublicationResultArtifact } = await import(
+  const { handoffPublicationResultArtifact } = (await import(
     moduleUrl("release-publication-result-artifact.mts") + "?upload-identity-control"
+  )) as typeof import("./release-publication-result-artifact.mts");
+  const pending = { checkpoint: "b".repeat(40), operation_id: "c".repeat(64) };
+  await assert.rejects(
+    handoffPublicationResultArtifact(receipt, pending, performance.now() + 5000),
+    /publication result handoff refused/u,
   );
-  const invalid = [{ artifact_id: 93, sha256: "f".repeat(64) }];
-  for (const [index, value] of invalid.entries()) {
-    directory = path.join(process.argv[1]!, String(index));
-    await mkdir(directory);
-    uploaded = value;
-    await assert.rejects(
-      handoffPublicationResultArtifact(
-        receipt,
-        { checkpoint: "b".repeat(40), operation_id: "c".repeat(64) },
-        performance.now() + 5000,
-      ),
-      /publication result handoff refused/u,
-    );
-    const refusal = JSON.parse(
-      await readFile(path.join(directory, "result-handoff-refusal.json"), "utf8"),
-    );
-    assert.equal(refusal.automatic_retry, false);
-    assert.equal(refusal.authority, "none");
-  }
+  const refusal: unknown = JSON.parse(
+    await readFile(path.join(directory, "result-handoff-refusal.json"), "utf8"),
+  );
+  assert.deepEqual(refusal, { pending, automatic_retry: false, authority: "none" });
   assert.equal(providerCalls, 0);
-  assert.equal(reads, invalid.length);
-  console.log(JSON.stringify({ cases: invalid.length, reads, providerCalls, authority: "none" }));
+  assert.equal(reads, 1);
+  console.log(JSON.stringify({ cases: 1, reads, providerCalls, authority: "none" }));
 }
 
 void test("actual publication handoff rejects malformed upload locators before the provider boundary", async (t) => {
