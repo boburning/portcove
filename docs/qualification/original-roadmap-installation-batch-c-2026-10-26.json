@@ -1,0 +1,394 @@
+{
+  "format_version": 1,
+  "base_commit": "5dd4b2ed46cf1786e54ba48a4244fea67610176e",
+  "observation_cutoff": "2026-10-26T11:56:35.110157+00:00",
+  "inventory_scope": "Finite remaining seven identities from the frozen original 22 roadmap joins, reconciled against current main. This dated packet is evidence, not a live backlog.",
+  "inventory_sources": [
+    "Preserved original #2510/#2926 524-identity/312-addition/22-roadmap cohort and canonical full issue/Project preimages.",
+    "Complete dated I2 traversal: 1,919 issues, 1,918 active and one archived Project record; source e5a2 checkpoint/cutoff 2026-10-26T05:46:52.826Z. Its 1,509 distinct known identities are not a live remaining-fit count.",
+    "Fresh seven canonical issue/Project contexts, opaque upstream repository IDs, terminally complete releases and non-truncated pinned source trees.",
+    "Current main 5dd4b2ed per-ID records and integration definitions."
+  ],
+  "coverage": {
+    "distinct_batch_ports": 7,
+    "all_seven_assessed": true,
+    "authored_before": 1417,
+    "authored_candidate": 1424,
+    "operational_before": 165,
+    "operational_candidate": 166,
+    "prior_per_id_blobs_unchanged": 1417,
+    "prior_operational_contracts_unchanged": 165,
+    "original_identities_preserved": 524,
+    "original_affected_additions_preserved": 312,
+    "original_roadmap_joins_preserved": 22,
+    "original_joins_authored_before": 10,
+    "original_joins_authored_candidate": 17,
+    "original_joins_unlisted_candidate": 5,
+    "unlisted_reasons": {
+      "named_acquisition_holds": [2728, 2744, 2757, 2791],
+      "explicit_retirement": [2761]
+    },
+    "remaining_current_direct_decisions": 4,
+    "remaining_retained_legacy_transitions": 2,
+    "unresolved_identity_joins_in_this_batch": [],
+    "fresh_acquisition_conditions_retained_or_precisely_evidenced": 6,
+    "whole_inventory_implementation_complete": false,
+    "full_public_beta_acceptance": false
+  },
+  "duplicate_and_lineage_review": [
+    {
+      "issues": [2852, 2853],
+      "decision": "Distinct games, game-specific historical tags/README and original PC assets. Same archived opaque repository 358736937 does not merge identities."
+    },
+    {
+      "issues": [2841, 1891],
+      "decision": "Distinct maintained Godot fork of archived parent; opaque IDs 1007465321/938896783. Both configure the same user profile, so preserve parent identity/artwork and warn before switching."
+    },
+    {
+      "issues": [2861, 173],
+      "decision": "Distinct implementation lineages. Preserve existing nickclyde richer integration and retained Portcove-built compatibility; do not transfer its qualification to Companion."
+    }
+  ],
+  "ports": [
+    {
+      "identity": "lodilorenzo-cybermage-darklight-re-awakening",
+      "canonical_issue": 2836,
+      "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening",
+      "repository_id": 1414550706,
+      "platform_scope": ["windows-x86-64"],
+      "current_route": "Roadmap-only preserved identity; no prior authored or operational record.",
+      "selected_route": "Conditional non-owning permitted-existing-copy guidance; fresh acquisition held.",
+      "upstream_evidence": {
+        "source": "6c99942342913bb18cf53df7240bc5725d4719a4",
+        "tag": "v1.3.0",
+        "readme": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md",
+        "release_inventory_complete": true,
+        "release_count": 4,
+        "tree_complete": true,
+        "tag_is_not_package_build_attestation": true
+      },
+      "update_owner": "Upstream/player; no Core backup/update/rollback authority.",
+      "setup_data_boundary": [
+        "If you already have a permitted Windows copy, select cybermage.exe with its containing folder as the working directory. Choose Play explicitly. The player runs the original x86 code through an interpreter with native services; this does not prevent useful existing-copy registration.",
+        "The game accepts your own CyberMage DOS v1.01F ISO 9660 .iso or CM_HI.EXE from its CYBERMAG folder. BIN/CUE and other executable versions are outside this input contract. Its first-Play picker verifies and copies required files to iso/CYBERMAG beside the player without changing the original. It does not import original DOS saves/settings or require optional SC-55 firmware.",
+        "The upstream player owns runtime replacement and setup. Keep iso/CYBERMAG, run and NATIVE.CNF backed up with the application closed; a custom --root uses that chosen data root instead. Existing imported destinations are not overwritten automatically; retain a working folder before following upstream repair instructions. Portcove registration leaves all files external and provides no managed update, backup or rollback."
+      ],
+      "persistent_paths": null,
+      "fresh_acquisition_condition": "Fresh acquisition remains held pending clarification or a clean official package for the embedded commercial Darklight icon. Upstream THIRD_PARTY_NOTICE.md explicitly excludes it from the MIT grant and supplies no redistribution permission. This does not classify the interpreted player as unsupported or transfer rights to an existing copy.",
+      "validation_scope": "Pinned source/documentation, identity/edition/data writer review and maintained production Core authoring. Actual archive inspection only for Stunts; no game/helper/native/packaged Desktop/real-save execution.",
+      "delivery_status": "Authored candidate awaiting complete review, exact-head hosted checks, guarded merge and canonical readback."
+    },
+    {
+      "identity": "btfighter-super-mario-world-remastered-plus",
+      "canonical_issue": 2841,
+      "project_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus",
+      "repository_id": 1007465321,
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
+      "current_route": "Roadmap-only preserved identity; no prior authored or operational record.",
+      "selected_route": "Conditional non-owning permitted-existing-copy guidance; fresh acquisition held.",
+      "upstream_evidence": {
+        "source": "91b704d088d81cbef96b9ebbd0f859fcd73e1a56",
+        "tag": "v1.1",
+        "readme": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md",
+        "release_inventory_complete": true,
+        "release_count": 2,
+        "tree_complete": true,
+        "tag_is_not_package_build_attestation": true
+      },
+      "update_owner": "Upstream/player; no Core backup/update/rollback authority.",
+      "setup_data_boundary": [
+        "This is BTFighter\u2019s Godot fork of JHDev2006 Super Mario World Remastered, not a native 65816 recompilation. Use an existing copy you are permitted to use and select its exported game executable, with that game folder as the working directory. Keep its companion data files together. Current releases are RAR archives; Portcove does not extract RAR. Older ZIP releases do not resolve the separate bundled-artwork question.",
+        "Place your own baserom.sfc in the SuperMarioWorldRemastered user-data folder shown by the game\u2019s ROM screen. Its checker accepts specific USA, Japanese and European SNES hashes, including some headered variants; an additional accepted hash has no independently established edition here. This gate checks the ROM but does not extract or establish permission for the already bundled sprites/music. Use upstream\u2019s exact recognized edition; no Core original-file receipt is claimed.",
+        "Both this fork and its archived parent configure the same SuperMarioWorldRemastered user-data directory. Back up that actual Godot profile with both games closed before switching, and keep each working runtime; save compatibility between forks is unqualified. The game normally uses %APPDATA%/SuperMarioWorldRemastered on Windows and $XDG_DATA_HOME/SuperMarioWorldRemastered or ~/.local/share/SuperMarioWorldRemastered on Linux. Updates and backups remain yours; registration neither migrates the parent nor provides managed rollback."
+      ],
+      "persistent_paths": null,
+      "fresh_acquisition_condition": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+      "validation_scope": "Pinned source/documentation, identity/edition/data writer review and maintained production Core authoring. Actual archive inspection only for Stunts; no game/helper/native/packaged Desktop/real-save execution.",
+      "delivery_status": "Authored candidate awaiting complete review, exact-head hosted checks, guarded merge and canonical readback."
+    },
+    {
+      "identity": "gta-iii-re3",
+      "canonical_issue": 2852,
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "repository_id": 358736937,
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
+      "current_route": "Roadmap-only preserved identity; no prior authored or operational record.",
+      "selected_route": "Conditional non-owning permitted-existing-copy guidance; fresh acquisition held.",
+      "upstream_evidence": {
+        "source": "e35c56ceb3eea3c3ccda1cc4e6645e901787d70a",
+        "tag": "re3_v1.0",
+        "readme": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md",
+        "release_inventory_complete": true,
+        "release_count": 2,
+        "tree_complete": true,
+        "tag_is_not_package_build_attestation": true
+      },
+      "update_owner": "Upstream/player; no Core backup/update/rollback authority.",
+      "setup_data_boundary": [
+        "Use an existing re3 copy you are permitted to use with your own original PC Grand Theft Auto III assets. Select re3.exe on Windows or the native re3 executable on Linux and use that game\u2019s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game\u2019s executable, console originals and Definitive Edition are not substitutes.",
+        "This game-specific re3_v1.0 README places user files (saves and settings) in the game root and uses re3.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback.",
+        "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+      ],
+      "persistent_paths": null,
+      "fresh_acquisition_condition": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "validation_scope": "Pinned source/documentation, identity/edition/data writer review and maintained production Core authoring. Actual archive inspection only for Stunts; no game/helper/native/packaged Desktop/real-save execution.",
+      "delivery_status": "Authored candidate awaiting complete review, exact-head hosted checks, guarded merge and canonical readback."
+    },
+    {
+      "identity": "gta-vice-city-revc",
+      "canonical_issue": 2853,
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "repository_id": 358736937,
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
+      "current_route": "Roadmap-only preserved identity; no prior authored or operational record.",
+      "selected_route": "Conditional non-owning permitted-existing-copy guidance; fresh acquisition held.",
+      "upstream_evidence": {
+        "source": "e604be65d9b7845ee7ca975545fc9277c662bc11",
+        "tag": "reVC_1.0",
+        "readme": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md",
+        "release_inventory_complete": true,
+        "release_count": 2,
+        "tree_complete": true,
+        "tag_is_not_package_build_attestation": true
+      },
+      "update_owner": "Upstream/player; no Core backup/update/rollback authority.",
+      "setup_data_boundary": [
+        "Use an existing reVC copy you are permitted to use with your own original PC Grand Theft Auto: Vice City assets. Select reVC.exe on Windows or the native reVC executable on Linux and use that game\u2019s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game\u2019s executable, console originals and Definitive Edition are not substitutes.",
+        "This game-specific reVC_1.0 README places user files (saves and settings) in the game root and uses reVC.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback.",
+        "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+      ],
+      "persistent_paths": null,
+      "fresh_acquisition_condition": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "validation_scope": "Pinned source/documentation, identity/edition/data writer review and maintained production Core authoring. Actual archive inspection only for Stunts; no game/helper/native/packaged Desktop/real-save execution.",
+      "delivery_status": "Authored candidate awaiting complete review, exact-head hosted checks, guarded merge and canonical readback."
+    },
+    {
+      "identity": "rages4calm-earthbound-companion",
+      "canonical_issue": 2861,
+      "project_url": "https://github.com/rages4calm/earthbound-companion",
+      "repository_id": 1404543852,
+      "platform_scope": ["windows-x86-64"],
+      "current_route": "Roadmap-only preserved identity; no prior authored or operational record.",
+      "selected_route": "Conditional non-owning permitted-existing-copy guidance; fresh acquisition held.",
+      "upstream_evidence": {
+        "source": "5b147f42bfd17bc0aa97226beea70e5811b7c373",
+        "tag": "v1.0.12",
+        "readme": "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md",
+        "release_inventory_complete": true,
+        "release_count": 76,
+        "tree_complete": true,
+        "tag_is_not_package_build_attestation": true
+      },
+      "update_owner": "Upstream/player; no Core backup/update/rollback authority.",
+      "setup_data_boundary": [
+        "Select EarthBound Companion.exe with its own folder as the working directory, then choose Play explicitly. Use its guided setup with your own clean USA EarthBound ROM. The launcher builds native game data and optional supported Redux content; Portcove does not run its helpers during discovery. This is a distinct implementation from nickclyde/EarthBoundRecomp and does not change that integration or retained contracts. If your existing launcher uses a custom data root, retain its --data-root argument and chosen directory when registering: enter --data-root and the directory as two separate argument lines. Otherwise it opens the default profile instead.",
+        "The ordinary Windows build uses the launcher folder as its data root; portable/preview builds can use %LOCALAPPDATA%/EarthBoundCompanionPreview instead. Keep the complete actual Companion data root, including Game, Profiles, UserData, msu, settings, supported mods and generated content, backed up with the game closed. Original, Redux and generated seeds have separate save namespaces. Make a normal in-game phone save before changing versions: quick states are build-specific, and runtime rollback does not restore earlier saves or guarantee older compatibility. Use the launcher\u2019s own supported backup/restore and migration controls; retain original ROMs and working runtimes separately.",
+        "The launcher and its helpers own preparation, version-specific content generation and replacement. Registration leaves every external file untouched and does not promise Portcove-managed update, backup, restore or rollback. Fresh foundation redistribution/GPL qualification remains unresolved; a conditional existing-copy guide is not binary-distribution clearance."
+      ],
+      "persistent_paths": null,
+      "fresh_acquisition_condition": "Fresh runtime acquisition remains held under upstream\u2019s explicit native-foundation redistribution/GPL qualification boundary. Reconsider when exact foundation source, combined distribution terms and release artifacts are accepted. The launcher\u2019s own-code license and original-ROM requirement do not alone resolve that boundary.",
+      "validation_scope": "Pinned source/documentation, identity/edition/data writer review and maintained production Core authoring. Actual archive inspection only for Stunts; no game/helper/native/packaged Desktop/real-save execution.",
+      "delivery_status": "Authored candidate awaiting complete review, exact-head hosted checks, guarded merge and canonical readback."
+    },
+    {
+      "identity": "mr-finster-stunts-hd",
+      "canonical_issue": 2862,
+      "project_url": "https://github.com/mr-finster/stunts-hd",
+      "repository_id": 1413080005,
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
+      "current_route": "Roadmap-only preserved identity; no prior authored or operational record.",
+      "selected_route": "Managed native-portable desktop carrier; useful non-owning/browser/OS alternatives retained.",
+      "upstream_evidence": {
+        "source": "59b9e1a22c1ecf880a16b199a4a454489b20e59d",
+        "tag": "v1.5.22",
+        "readme": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md",
+        "release_inventory_complete": true,
+        "release_count": 21,
+        "tree_complete": true,
+        "tag_is_not_package_build_attestation": true
+      },
+      "update_owner": "Portcove for the Windows/Linux managed carrier only; upstream/player for external alternatives.",
+      "setup_data_boundary": [
+        "On first Play, select your own Stunts 1.1 folder or ZIP in the game\u2019s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied.",
+        "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup.",
+        "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+      ],
+      "persistent_paths": [],
+      "fresh_acquisition_condition": null,
+      "validation_scope": "Pinned source/documentation, identity/edition/data writer review and maintained production Core authoring. Actual archive inspection only for Stunts; no game/helper/native/packaged Desktop/real-save execution.",
+      "delivery_status": "Authored candidate awaiting complete review, exact-head hosted checks, guarded merge and canonical readback."
+    },
+    {
+      "identity": "abuse-abuse-2025",
+      "canonical_issue": 2913,
+      "project_url": "https://github.com/apancik/Abuse_2025",
+      "repository_id": 900596819,
+      "platform_scope": ["windows-x86-64", "linux-x86-64"],
+      "current_route": "Roadmap-only preserved identity; no prior authored or operational record.",
+      "selected_route": "Conditional non-owning permitted-existing-copy guidance; fresh acquisition held.",
+      "upstream_evidence": {
+        "source": "244543fcae4b140771ec6a7f4c5e619851d4711f",
+        "tag": "2025.1.0",
+        "readme": "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md",
+        "release_inventory_complete": true,
+        "release_count": 1,
+        "tree_complete": true,
+        "tag_is_not_package_build_attestation": true
+      },
+      "update_owner": "Upstream/player; no Core backup/update/rollback authority.",
+      "setup_data_boundary": [
+        "For an existing copy you are permitted to use, select abuse.exe on Windows or abuse on Linux with its game folder as the working directory. Keep its compatible data and libraries together; ABUSE_PATH overrides the asset root. The current release offers Windows and macOS packages; Linux here describes an already prepared native copy, not an offered Linux archive or a Portcove build. macOS uses the upstream application through the OS, not a private bundle binary.",
+        "The reviewed SDL code normally uses SDL_GetPrefPath(\"abuse\", \"data\") for saves/settings: %APPDATA%/abuse/data on Windows, or $XDG_DATA_HOME/abuse/data (normally ~/.local/share/abuse/data) on Linux. ABUSE_SAVE_PATH overrides it; if preference-path creation fails upstream falls back to the current working directory. Preserve that actual location, custom levels/mods and the working data folder with the game closed. The local_save flag alone is not proof that saves are beside the executable.",
+        "Registration leaves the external files untouched. You and upstream own updates and backups; Portcove supplies no managed backup or rollback. Upstream mentions a public-domain data subset, but its exact clean subset and compatibility with this release still need acceptance. Do not automatically replace mixed bundled assets or claim that a root code license covers music and soundfonts."
+      ],
+      "persistent_paths": null,
+      "fresh_acquisition_condition": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",
+      "validation_scope": "Pinned source/documentation, identity/edition/data writer review and maintained production Core authoring. Actual archive inspection only for Stunts; no game/helper/native/packaged Desktop/real-save execution.",
+      "delivery_status": "Authored candidate awaiting complete review, exact-head hosted checks, guarded merge and canonical readback."
+    }
+  ],
+  "stunts_archive_observations": [
+    {
+      "observed_at": "2026-10-26T11:37:08.374302+00:00",
+      "repo": "mr-finster/stunts-hd",
+      "tag": "v1.5.22",
+      "source": "59b9e1a22c1ecf880a16b199a4a454489b20e59d",
+      "asset_id": 677258869,
+      "url": "https://github.com/mr-finster/stunts-hd/releases/download/v1.5.22/Stunts-HD-win-x64.zip",
+      "bytes": 111604171,
+      "publisher_expected_digest": "sha256:118f0598916966bb8d79f3786016e94c8cb8dce57b7e97c02240c41c8d52aaf5",
+      "actual_sha256": "118f0598916966bb8d79f3786016e94c8cb8dce57b7e97c02240c41c8d52aaf5",
+      "authenticated_by_publisher_digest": true,
+      "raw_metadata_budget": {
+        "raw_count": 98,
+        "central_directory_bytes": 9871,
+        "compressed_bytes": 111604171
+      },
+      "expanded_bytes": 282103559,
+      "executable_headers": [
+        {
+          "path": "Stunts HD.exe",
+          "bytes": 188869632,
+          "machine": "0x8664"
+        }
+      ],
+      "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution.",
+      "retained_notices": [
+        {
+          "path": "LICENSE.electron.txt",
+          "characters": 1096,
+          "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+        },
+        {
+          "path": "LICENSES.chromium.html",
+          "characters": 9098551,
+          "sha256": "0ba4c7b781e9f149195a23d3be0f704945f858a581871a9fedd353f12ce839ca"
+        }
+      ]
+    },
+    {
+      "observed_at": "2026-10-26T11:41:31.976159+00:00",
+      "repo": "mr-finster/stunts-hd",
+      "tag": "v1.5.22",
+      "source": "59b9e1a22c1ecf880a16b199a4a454489b20e59d",
+      "asset_id": 677258871,
+      "url": "https://github.com/mr-finster/stunts-hd/releases/download/v1.5.22/Stunts-HD-linux-x64.tar.gz",
+      "bytes": 102789136,
+      "publisher_expected_digest": "sha256:693ab6cc4c8d96df57752c28df0e0f65a5bb56635a8d08eec57098da83c48543",
+      "actual_sha256": "693ab6cc4c8d96df57752c28df0e0f65a5bb56635a8d08eec57098da83c48543",
+      "authenticated_by_publisher_digest": true,
+      "raw_metadata_budget": {
+        "raw_records": 100,
+        "extension_bytes": 0,
+        "decoded_bytes": 275720192
+      },
+      "executable_headers": [
+        {
+          "path": "Stunts-HD-linux-x64/chrome-sandbox",
+          "bytes": 38448,
+          "class_bits": 64,
+          "machine": 62
+        },
+        {
+          "path": "Stunts-HD-linux-x64/chrome_crashpad_handler",
+          "bytes": 2630640,
+          "class_bits": 64,
+          "machine": 62
+        },
+        {
+          "path": "Stunts-HD-linux-x64/libEGL.so",
+          "bytes": 259856,
+          "class_bits": 64,
+          "machine": 62
+        },
+        {
+          "path": "Stunts-HD-linux-x64/libGLESv2.so",
+          "bytes": 6921488,
+          "class_bits": 64,
+          "machine": 62
+        },
+        {
+          "path": "Stunts-HD-linux-x64/libffmpeg.so",
+          "bytes": 2691504,
+          "class_bits": 64,
+          "machine": 62
+        },
+        {
+          "path": "Stunts-HD-linux-x64/libvk_swiftshader.so",
+          "bytes": 4772328,
+          "class_bits": 64,
+          "machine": 62
+        },
+        {
+          "path": "Stunts-HD-linux-x64/libvulkan.so.1",
+          "bytes": 2238416,
+          "class_bits": 64,
+          "machine": 62
+        },
+        {
+          "path": "Stunts-HD-linux-x64/stunts-hd",
+          "bytes": 186276400,
+          "class_bits": 64,
+          "machine": 62
+        }
+      ],
+      "self_checks": ["oversized PAX refused before tarfile", "valid tar accepted"],
+      "parser": "/usr/lib/python3.14/tarfile.py",
+      "scope": "Bounded decoded/raw metadata preflight before tarfile semantic iteration; no extraction/helper/game execution. Unsupported links/extensions refused. Read-only artifact inspection, not native execution."
+    }
+  ],
+  "stunts_old_release_metadata": {
+    "tag": "v1.5.21",
+    "scope": "Publisher names, sizes and digests plus pinned source N\u2192N+1 comparison; old archives not acquired/executed.",
+    "source_compatibility": "Entry/boot blobs identical, productName and profile/database coordinates unchanged, Electron 33.2.1 and publish:null retained."
+  },
+  "boundaries": {
+    "no_production_rust_ui_or_lifecycle_change": true,
+    "actual_game_helper_execution": false,
+    "native_execution_qualified": false,
+    "packaged_desktop_qualified": false,
+    "populated_real_save_restoration_qualified": false,
+    "independent_owners_unchanged": [2225, 47, 48, 534, 246],
+    "parent_issues_remain_open": [2510, 2926]
+  },
+  "local_validation": {
+    "node": {
+      "requested_files": [
+        "scripts/prepare-port.test.mts",
+        "scripts/catalog-source-authoring.test.mts"
+      ],
+      "passed": 26,
+      "skipped": 0
+    },
+    "linux_rust": {
+      "requested_cases": [
+        "observed_native_archive_layouts_resolve_successors_without_definition_changes",
+        "embedded_summaries_leave_structured_facts_to_structured_fields"
+      ],
+      "passed": 2,
+      "unselected": 2051
+    },
+    "generated_output_consistency": "passed",
+    "scope": "Focused local checks only; no whole-suite or hosted acceptance inferred."
+  }
+}
