@@ -33,12 +33,13 @@ filter = 'package(portcove-core) & (test(/^preparation::source::tests::source_on
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
-# Qualification40182282476/a1 cut this exact Intel lifecycle off at30.016s.
+# Qualification40182282476/a1 cut the ISO Intel lifecycle off at30.016s;
+# 40387036159/a1 cut the matching second-port/CHD sequence off at30.022s.
 # Preserve the real CLI operations, phase output, cleanup, slots and zero retries
 # with finite90s harness headroom; product and child deadlines are unchanged.
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'
-filter = 'package(portcove-cli) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/)'
+filter = 'package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 

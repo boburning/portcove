@@ -212,7 +212,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const linuxLifecycleFilter =
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
   const intelPreparationFilter =
-    "package(portcove-cli) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/)";
+    "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/))";
   const curatedInstalledWithdrawalFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)";
   const windowsLifecycleFilters = [
