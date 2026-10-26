@@ -4,9 +4,9 @@ import test from "node:test";
 import {
   planPortStageReconciliation,
   qualifiedPlatforms,
-  renderPortIssueBody,
   validatePortStageSemantics,
 } from "./roadmap.mts";
+import { renderPortIssueBody } from "./roadmap-issue.mts";
 
 import { fixtureFind, fixtureElement, fixtureObject } from "./fixtures/roadmap-fixtures.mts";
 

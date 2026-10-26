@@ -3,12 +3,12 @@
   "listing": {
     "id": "m-x-d-heretic2r",
     "name": "Heretic II / Heretic2R (m-x-d)",
-    "summary": "Explore Heretic II / Heretic2R (m-x-d) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Heretic II with Heretic2R’s widescreen display, smoother effects and OGG music support.",
     "project_url": "https://github.com/m-x-d/Heretic2R",
     "issue_number": 1826,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/m-x-d/Heretic2R",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/m-x-d/Heretic2R#installation",
     "artwork": {
       "game_id": 20752,
       "cover_id": 106010,
@@ -16,6 +16,30 @@
       "image_sha256": "4daba6125e43283a39078923a7c3a7234d659032983c8fc0a6e42ed71863317a",
       "game_slug": "heretic-ii",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/m-x-d/Heretic2R/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["Heretic2R_", ".zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a separate Heretic2R copy",
+          "instruction": "Use the Windows runtime ZIP in a separate folder. Copy your Heretic II version 1.06 base folder into it, excluding the original DLL files; keep the original installation untouched. Finish setup with Heretic2R.exe."
+        },
+        {
+          "title": "Keep saves and settings",
+          "instruction": "Heretic2R stores saves, settings, screenshots and logs in your Windows Saved Games/Heretic2R folder. Keep that folder when updating the upstream runtime."
+        },
+        {
+          "title": "Optional CD music",
+          "instruction": "For OGG music, place your own CD tracks named track02.ogg through track14.ogg in base/music inside the separate runtime folder."
+        }
+      ],
+      "warnings": [
+        "Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately."
+      ],
+      "help_url": "https://github.com/m-x-d/Heretic2R#installation"
     }
   }
 }

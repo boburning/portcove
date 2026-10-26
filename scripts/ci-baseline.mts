@@ -173,14 +173,7 @@ export function baselineFrontendPlan(plan: ValidationPlan, options: ClassifyOpti
   selection.ui = true;
   selection.uiFullTests ||= Boolean(plan.fallback) || !selection.uiRelatedFiles.size;
   return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
-    [
-      "ui-content",
-      "ui-check",
-      "ui-build",
-      "ui-tests",
-      "ui-browser-tests",
-      "ui-related-tests",
-    ].includes(entry.id),
+    ["ui-content", "ui-check", "ui-build", "ui-tests", "ui-related-tests"].includes(entry.id),
   );
 }
 

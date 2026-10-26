@@ -631,6 +631,23 @@ void test("frontend tools resolve through the pinned Vite+ bundle", async () => 
   assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mts");
 });
 
+void test("full frontend tests share a fresh runner across all maintained projects", async () => {
+  const { default: configuration } = await import("../vite.config.ts");
+  const tasks = requiredFixture(configuration.run?.tasks);
+  assert.deepEqual(tasks["frontend:tests"], {
+    command: "node scripts/run-viteplus.mts test",
+    cache: false,
+  });
+  const runtime = tasks["frontend:runtime"];
+  assert.ok(isRecord(runtime));
+  assert.deepEqual(runtime.command, [
+    "vp run frontend:content",
+    "vp run frontend:tests",
+    "vp run frontend:build",
+  ]);
+  assert.equal(runtime.cache, false);
+});
+
 void test("routine checks retain architecture enforcement but make cycles optional", async () => {
   assert.doesNotMatch(rustQuality, /cargo modules/);
   assert.match(rustQuality, /node scripts\/check-rust-architecture\.mts/);

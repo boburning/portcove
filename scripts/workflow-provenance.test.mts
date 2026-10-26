@@ -799,7 +799,7 @@ function browserProvisioningReport(
     base: f.base,
     merge_base: f.base,
     plan_digest: "d".repeat(64),
-    obligations: [{ id: browser ? "ui-browser-tests" : "diff-check", route: "local", missing: [] }],
+    obligations: [{ id: browser ? "ui-tests" : "diff-check", route: "local", missing: [] }],
   };
 }
 
@@ -917,7 +917,7 @@ void test("complete policy preflight exit one preserves audit and provisions sel
   const calls: (readonly string[])[] = [];
   const report = {
     ...browserProvisioningReport(f),
-    obligations: [{ id: "ui-browser-tests", route: "local", missing: [] }],
+    obligations: [{ id: "ui-tests", route: "local", missing: [] }],
     pre_change_audit: {
       profile: "complete",
       command: "just audit --profile transition --fresh",
@@ -1000,7 +1000,7 @@ void test("provisioning refuses blocked selection and unnamed preflight failures
       {
         ...report,
         pre_change_audit: audit,
-        obligations: [{ id: "ui-browser-tests", route: "blocked", missing: ["ui-workspace"] }],
+        obligations: [{ id: "ui-tests", route: "blocked", missing: ["ui-workspace"] }],
       },
     ],
     [
@@ -1008,14 +1008,11 @@ void test("provisioning refuses blocked selection and unnamed preflight failures
       {
         ...report,
         pre_change_audit: audit,
-        obligations: [{ id: "ui-browser-tests", route: "local", missing: ["node"] }],
+        obligations: [{ id: "ui-tests", route: "local", missing: ["node"] }],
       },
     ],
-    [
-      0,
-      { ...report, obligations: [{ id: "ui-browser-tests", route: "blocked", missing: ["pnpm"] }] },
-    ],
-    [0, { ...report, obligations: [{ id: "ui-browser-tests", route: "local" }] }],
+    [0, { ...report, obligations: [{ id: "ui-tests", route: "blocked", missing: ["pnpm"] }] }],
+    [0, { ...report, obligations: [{ id: "ui-tests", route: "local" }] }],
   ] as const) {
     const calls: (readonly string[])[] = [];
     await assert.rejects(
@@ -1105,7 +1102,7 @@ void test("invalid or incomplete selected plan refuses acquisition", async (t) =
     { ...report, obligations: null },
     { ...report, obligations: [] },
     { ...report, obligations: [{ id: "" }] },
-    { ...report, obligations: [{ id: "ui-browser-tests" }, { id: "ui-browser-tests" }] },
+    { ...report, obligations: [{ id: "ui-tests" }, { id: "ui-tests" }] },
   ]) {
     const calls: (readonly string[])[] = [];
     await assert.rejects(

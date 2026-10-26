@@ -12,13 +12,8 @@ import {
 } from "./repository-issue-inventory.mts";
 import type { DoctorReadAttempt, InventoryReader } from "./repository-issue-inventory.mts";
 import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
-import {
-  RoadmapClient,
-  runDoctor,
-  doctorProjectItems,
-  validateConfig,
-  renderPortIssueBody,
-} from "./roadmap.mts";
+import { RoadmapClient, runDoctor, doctorProjectItems, validateConfig } from "./roadmap.mts";
+import { renderPortIssueBody } from "./roadmap-issue.mts";
 import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 

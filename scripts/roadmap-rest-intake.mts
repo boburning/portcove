@@ -1,5 +1,5 @@
 import { RoadmapClient } from "./roadmap.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { RestInventoryTransport } from "./github-rest-inventory.mts";
 import { collectRestRepositoryIssueInventory } from "./repository-issue-inventory.mts";
 import { isRecord } from "./runtime-values.mts";

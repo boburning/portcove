@@ -1,5 +1,5 @@
 import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts";
-import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { GitHubRunner } from "./github-api.mts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -8,12 +8,7 @@ import test from "node:test";
 import {
   RoadmapClient,
   featureIntakeFields,
-  findPortIssueDuplicates,
-  normalizePortKey,
-  parsePortIssueForm,
   portFieldInitialization,
-  reconcilePortIssueMarkers,
-  renderPortIssueBody,
   uxAuditOriginIds,
   uxAuditOrigins,
   validateDurableIssueBody,
@@ -21,6 +16,13 @@ import {
   validatePortIssueCoverage,
   validateUxAuditOriginCoverage,
 } from "./roadmap.mts";
+import {
+  findPortIssueDuplicates,
+  normalizePortKey,
+  parsePortIssueForm,
+  reconcilePortIssueMarkers,
+  renderPortIssueBody,
+} from "./roadmap-issue.mts";
 
 import {
   fixtureValue,
