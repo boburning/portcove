@@ -307,6 +307,7 @@ void test("qualification outcome helpers retain all direct consumers across life
     "scripts/runtime-values.mts",
     "scripts/fixtures/nextest-inventory-baseline.json",
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     ".node-version",
     ".github/quality-tools.json",
   ];
@@ -345,6 +346,7 @@ void test("qualification outcome helpers retain all direct consumers across life
         [
           "scripts/qualification-nextest.mts",
           "scripts/nextest-outcomes.mts",
+          "scripts/nextest-skip-routes.mts",
           "scripts/runtime-values.mts",
         ].includes(file)
       )
@@ -3671,6 +3673,7 @@ void test("default nextest runtime inputs retain local and hosted consumers acro
   const { baselineContractTests } = await import("./ci-baseline.mts");
   for (const file of [
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-skip-routes.mts",
     "scripts/nextest-outcomes-cli.mts",
     "scripts/run-rust-tests.mts",
     "scripts/report-summary.mts",

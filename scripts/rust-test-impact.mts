@@ -8,6 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, readValidationPlanInput } from "./validation-plan.mts";
 import { createCiMetrics } from "./ci-metrics.mts";
+import { parseNextestSkipRoutes } from "./nextest-skip-routes.mts";
+import type { NextestSkipRoute } from "./nextest-skip-routes.mts";
 import {
   nextestOutcomeSelection,
   runNextestWithOutcomes,
@@ -30,6 +32,7 @@ interface RustImpactPackage {
 export interface RustImpactMap {
   schema_version: 1;
   packages: Record<string, RustImpactPackage>;
+  ignored_routes?: NextestSkipRoute[];
 }
 interface RustImpactChange extends Pick<ValidationChangeInput, "status" | "previousPath"> {
   path: string;
@@ -183,6 +186,7 @@ function assertRustTestImpactMap(value: unknown): asserts value is RustImpactMap
   if (!isRecord(value)) throw new Error("Rust test-impact map must be an object");
   if (value.schema_version !== 1) throw new Error("unsupported Rust test-impact schema version");
   if (!isRecord(value.packages)) throw new Error("Rust test-impact map packages must be an object");
+  if (value.ignored_routes !== undefined) parseNextestSkipRoutes(value.ignored_routes);
 
   for (const [packageName, config] of Object.entries(value.packages)) {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(packageName))

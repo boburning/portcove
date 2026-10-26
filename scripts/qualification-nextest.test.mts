@@ -21,6 +21,7 @@ import {
 } from "./qualification-nextest.mts";
 import oracle from "./fixtures/nextest-inventory-baseline.json" with { type: "json" };
 import pins from "../.github/quality-tools.json" with { type: "json" };
+import type { NextestSkipRoute } from "./nextest-skip-routes.mts";
 
 const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/nextest-outcomes/${name}`, import.meta.url), "utf8");
@@ -72,6 +73,7 @@ function nativeControl(
     head?: string;
     diagnostic?: (text: string) => void;
     receiptFailure?: boolean;
+    skipRoutes?: readonly NextestSkipRoute[];
   } = {},
 ) {
   const calls: string[][] = [];
@@ -79,6 +81,16 @@ function nativeControl(
   const invoke = () =>
     runQualificationNextest("workspace-other", undefined, {
       cwd,
+      skipRoutes: options.skipRoutes ?? [
+        {
+          package: "portcove-nextest-protocol",
+          test: "ignored",
+          source: "crates/portcove-nextest-protocol/src/lib.rs",
+          platforms: ["linux", "darwin", "win32"],
+          reason: "controlled native ignored fixture",
+          category: "explicit-acceptance",
+        },
+      ],
       environment: {
         PORTCOVE_HEAD_SHA: options.head ?? "b".repeat(40),
         GITHUB_SHA: "a".repeat(40),
@@ -313,6 +325,7 @@ void test("qualification CLI runtime closure loads without repository packages o
   const cwd = directory(t);
   for (const name of [
     "qualification-nextest.mts",
+    "nextest-skip-routes.mts",
     "nextest-outcomes.mts",
     "runtime-values.mts",
     "report-summary.mts",
@@ -332,4 +345,21 @@ void test("qualification CLI runtime closure loads without repository packages o
   );
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.error, undefined);
+});
+
+void test("unexpected ignored cases fail qualification after preserving original native execution", (t) => {
+  for (const status of [0, 17]) {
+    const cwd = directory(t);
+    const control = nativeControl(cwd, { status, skipRoutes: [] });
+    assert.equal(control.invoke(), status || 1);
+    assert.equal(control.calls.at(-1)?.[2], "run");
+    const retained = packet(cwd);
+    assert.equal(retained.receipt.native_status, status);
+    assert.equal(retained.receipt.complete, false);
+    assert.match(String(retained.receipt.failure), /Unregistered Rust skip/u);
+    const skips: unknown = JSON.parse(
+      readFileSync(path.join(retained.output, "skip-routes.json"), "utf8"),
+    );
+    assert.ok(isRecord(skips) && Array.isArray(skips.errors) && skips.errors.length === 1);
+  }
 });
