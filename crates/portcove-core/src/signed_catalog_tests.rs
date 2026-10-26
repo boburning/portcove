@@ -131,6 +131,8 @@ async fn publish(service: &PortcoveService, source: &CatalogUpdateSource) -> Cat
 
 #[tokio::test]
 async fn refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries() {
+    let started = std::time::Instant::now();
+    eprintln!("artwork catalog recovery: start");
     let root = tempfile::tempdir().unwrap();
     let library_root = root.path().join("library");
     let library = Library::open(&library_root).unwrap();
@@ -152,6 +154,10 @@ async fn refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then
     )
     .await;
 
+    eprintln!(
+        "artwork catalog recovery: initial catalog committed after {:?}",
+        started.elapsed()
+    );
     let service = PortcoveService::new(library.clone()).unwrap();
     let image_path = root.path().join("owned-local-choice.png");
     image::RgbImage::from_pixel(12, 24, image::Rgb([24_u8, 80, 160]))
@@ -161,6 +167,10 @@ async fn refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then
     let imported = service
         .import_artwork(&port_id, crate::ArtworkSlot::Cover, &image_path, 0)
         .unwrap();
+    eprintln!(
+        "artwork catalog recovery: local choice imported after {:?}",
+        started.elapsed()
+    );
     let mut correction = initial.clone();
     correction.sequence = 2;
     let artwork = correction.catalog.ports[0]
@@ -200,6 +210,10 @@ async fn refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then
             .apply_catalog_update(&source, &plan.plan_sha256, |_| {})
             .await
             .is_err()
+    );
+    eprintln!(
+        "artwork catalog recovery: commit refusal observed after {:?}",
+        started.elapsed()
     );
     drop(service);
     drop(library);
@@ -243,10 +257,18 @@ async fn refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then
         .unwrap()
         .execute_batch("DROP TRIGGER reject_artwork_commit")
         .unwrap();
+    eprintln!(
+        "artwork catalog recovery: prior state verified after {:?}",
+        started.elapsed()
+    );
     publish(&service, &source).await;
     drop(service);
     drop(library);
 
+    eprintln!(
+        "artwork catalog recovery: retry published after {:?}",
+        started.elapsed()
+    );
     let service = PortcoveService::new_read_only(Library::open(&library_root).unwrap()).unwrap();
     assert_eq!(
         service.library().catalog_status().unwrap().highest_sequence,

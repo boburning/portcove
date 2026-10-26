@@ -78,6 +78,16 @@ filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_r
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Scheduled40312434217/a1 cut these Intel fixtures off at30.021-30.027s.
+# Recovery completed seven of eight phases at27.04/28.35s. Retain the full
+# refusal/reopen/retry assertions with exact60s headroom and phase output;
+# product deadlines, two workers, cleanup and zero retries stay unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The historical byte-only backup round trip passed in the preceding batch,
 # then hit the Windows30.126s outer cap in run3be9ce8b. Preserve the complete
 # create/review/restore/assertion flow, two workers and zero retries. Exact60s
