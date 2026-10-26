@@ -12,7 +12,7 @@ import type { ReleaseControlPhase } from "./release-control-phases.mts";
 export const productionControllerWorkflow = ".github/workflows/application-update-production.yml";
 const repository = "boburning/portcove";
 const repositoryId = "1354613114";
-const maximumWorkflowBytes = 64 * 1024;
+export const maximumProductionControllerWorkflowBytes = 96 * 1024;
 const admittedSources = new WeakMap<
   object,
   { workflow: string; job: string; purpose: string; snapshot: string; sharedObserver: boolean }
@@ -103,7 +103,7 @@ function admitController(
     refuse("principal, first attempt, job or runner identity");
   if (
     workflowBytes.byteLength < 1 ||
-    workflowBytes.byteLength > maximumWorkflowBytes ||
+    workflowBytes.byteLength > maximumProductionControllerWorkflowBytes ||
     createHash("sha256").update(workflowBytes).digest("hex") !== policy.workflow_sha256
   )
     refuse("workflow source byte identity");
@@ -434,7 +434,7 @@ async function readFixedControllerWorkflowBytes(workflow: string) {
   const handle = await open(filename, "r");
   try {
     if (!(await handle.stat()).isFile()) refuse("workflow must be a regular file");
-    const bytes = Buffer.alloc(maximumWorkflowBytes + 1);
+    const bytes = Buffer.alloc(maximumProductionControllerWorkflowBytes + 1);
     let length = 0;
     while (length < bytes.length) {
       const read = await handle.read(bytes, length, bytes.length - length, null);
