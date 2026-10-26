@@ -3,12 +3,12 @@
   "listing": {
     "id": "prop-cycle-namco22",
     "name": "Prop Cycle Native (Namco22)",
-    "summary": "Explore Prop Cycle Native (Namco22) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Explore Prop Cycle's native arcade port and register an existing copy you are permitted to use.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1565,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/spacestate1/namco22-decompile",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
     "artwork": {
       "game_id": 40395,
       "cover_id": 90454,
@@ -16,6 +16,34 @@
       "image_sha256": "13f3e3269b804ec08ff7262b8b13397eb4ca77dce41f1719111163fa62256f88",
       "game_slug": "prop-cycle",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game_title": "Prop Cycle",
+    "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["windows-release-", ".zip"],
+      "linux-x86-64": ["PropCycle-x86_64", ".AppImage"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Supply your original game files",
+          "instruction": "If your permitted existing copy has not already prepared its original chips, supply your own propcycl.zip. Use the supported original Prop Cycle arcade set; the upstream checksum guide identifies its chips. On Windows, keep the ZIP files packed in roms beside PropCycle.exe; the game unpacks its chips on first Play. Completed copies can keep their extracted chips without importing the ZIPs again. This does not establish permission for the bundled BIOS or translated program."
+        },
+        {
+          "title": "Use the Windows player",
+          "instruction": "Select PropCycle.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+        },
+        {
+          "title": "Use the upstream Linux AppImage",
+          "instruction": "For an existing Linux copy you are permitted to use, select the upstream PropCycle-x86_64.AppImage rather than its internal binary. If needed, mark it executable; upstream supports --appimage-extract-and-run without FUSE. If original chips are not already prepared, placing your ROM ZIPs beside the AppImage lets its launcher copy them into its selected profile. Keep the existing selected profile’s roms folder when using legacy namco22 or portable data. The fresh default is $XDG_DATA_HOME/namco-2x-systems/propcycle/roms (normally ~/.local/share/namco-2x-systems/propcycle/roms)."
+        }
+      ],
+      "warnings": [
+        "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
+        "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux propcycle profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
+      ],
+      "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+    },
+    "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
   }
 }

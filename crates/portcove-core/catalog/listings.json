@@ -13071,12 +13071,15 @@
     {
       "id": "dirt-dash-namco22",
       "name": "Dirt Dash Native (Namco22)",
-      "summary": "Explore Dirt Dash Native (Namco22) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Explore Dirt Dash's native arcade port and register an existing copy you are permitted to use.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1568,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/spacestate1/namco22-decompile",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
       "artwork": {
         "game_id": 39827,
         "cover_id": 90748,
@@ -13084,7 +13087,41 @@
         "image_sha256": "14b2a90e01edc31fdb15a612d83224ce585c29841ad6f275e91a5eeb04a642e5",
         "game_slug": "dirt-dash",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Dirt Dash",
+      "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "windows-release-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "DirtDash-x86_64",
+          ".AppImage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply your original game files",
+            "instruction": "If your permitted existing copy has not already prepared its original chips, supply your own dirtdash.zip (World DT2 Ver.A); also keep dirtdasha.zip beside it when using a split MAME set. The Japanese DT1 program is a different revision. On Windows, keep the ZIP files packed in roms beside DirtDash.exe; the game unpacks its chips on first Play. Completed copies can keep their extracted chips without importing the ZIPs again. This does not establish permission for the bundled BIOS or translated program."
+          },
+          {
+            "title": "Use the Windows player",
+            "instruction": "Select DirtDash.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+          },
+          {
+            "title": "Use the upstream Linux AppImage",
+            "instruction": "For an existing Linux copy you are permitted to use, select the upstream DirtDash-x86_64.AppImage rather than its internal binary. If needed, mark it executable; upstream supports --appimage-extract-and-run without FUSE. If original chips are not already prepared, placing your ROM ZIPs beside the AppImage lets its launcher copy them into its selected profile. Keep the existing selected profile’s roms folder when using legacy namco22 or portable data. The fresh default is $XDG_DATA_HOME/namco-2x-systems/dirtdash/roms (normally ~/.local/share/namco-2x-systems/dirtdash/roms)."
+          }
+        ],
+        "warnings": [
+          "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
+          "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux dirtdash profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
+        ],
+        "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+      },
+      "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
     },
     {
       "id": "disgaead2macos-sean13128-sean13128-disgaea-d2-a-brighter-darkness",
@@ -28051,12 +28088,15 @@
     {
       "id": "prop-cycle-namco22",
       "name": "Prop Cycle Native (Namco22)",
-      "summary": "Explore Prop Cycle Native (Namco22) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Explore Prop Cycle's native arcade port and register an existing copy you are permitted to use.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1565,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/spacestate1/namco22-decompile",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
       "artwork": {
         "game_id": 40395,
         "cover_id": 90454,
@@ -28064,7 +28104,41 @@
         "image_sha256": "13f3e3269b804ec08ff7262b8b13397eb4ca77dce41f1719111163fa62256f88",
         "game_slug": "prop-cycle",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Prop Cycle",
+      "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "windows-release-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "PropCycle-x86_64",
+          ".AppImage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply your original game files",
+            "instruction": "If your permitted existing copy has not already prepared its original chips, supply your own propcycl.zip. Use the supported original Prop Cycle arcade set; the upstream checksum guide identifies its chips. On Windows, keep the ZIP files packed in roms beside PropCycle.exe; the game unpacks its chips on first Play. Completed copies can keep their extracted chips without importing the ZIPs again. This does not establish permission for the bundled BIOS or translated program."
+          },
+          {
+            "title": "Use the Windows player",
+            "instruction": "Select PropCycle.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+          },
+          {
+            "title": "Use the upstream Linux AppImage",
+            "instruction": "For an existing Linux copy you are permitted to use, select the upstream PropCycle-x86_64.AppImage rather than its internal binary. If needed, mark it executable; upstream supports --appimage-extract-and-run without FUSE. If original chips are not already prepared, placing your ROM ZIPs beside the AppImage lets its launcher copy them into its selected profile. Keep the existing selected profile’s roms folder when using legacy namco22 or portable data. The fresh default is $XDG_DATA_HOME/namco-2x-systems/propcycle/roms (normally ~/.local/share/namco-2x-systems/propcycle/roms)."
+          }
+        ],
+        "warnings": [
+          "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
+          "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux propcycle profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
+        ],
+        "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+      },
+      "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
     },
     {
       "id": "proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground",
@@ -28858,12 +28932,15 @@
     {
       "id": "rave-racer-namco22",
       "name": "Rave Racer Native (Namco22)",
-      "summary": "Explore Rave Racer Native (Namco22) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Explore Rave Racer's native arcade port and register an existing copy you are permitted to use.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1566,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/spacestate1/namco22-decompile",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
       "artwork": {
         "game_id": 39713,
         "cover_id": 395104,
@@ -28871,7 +28948,41 @@
         "image_sha256": "8ebab5ac34d52adfc2da503ae20dd90bd6d07c2904665c00e8b2357be6d779ce",
         "game_slug": "rave-racer",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Rave Racer",
+      "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "windows-release-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "RaveRacer-x86_64",
+          ".AppImage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply your original game files",
+            "instruction": "If your permitted existing copy has not already prepared its original chips, supply your own raverace.zip (World RV2 Ver.B) and namcoc74.zip. The Japanese program revisions are different inputs. On Windows, keep the ZIP files packed in roms beside RaveRacer.exe; the game unpacks its chips on first Play. Completed copies can keep their extracted chips without importing the ZIPs again. This does not establish permission for the bundled BIOS or translated program."
+          },
+          {
+            "title": "Use the Windows player",
+            "instruction": "Select RaveRacer.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+          },
+          {
+            "title": "Use the upstream Linux AppImage",
+            "instruction": "For an existing Linux copy you are permitted to use, select the upstream RaveRacer-x86_64.AppImage rather than its internal binary. If needed, mark it executable; upstream supports --appimage-extract-and-run without FUSE. If original chips are not already prepared, placing your ROM ZIPs beside the AppImage lets its launcher copy them into its selected profile. Keep the existing selected profile’s roms folder when using legacy namco22 or portable data. The fresh default is $XDG_DATA_HOME/namco-2x-systems/raverace/roms (normally ~/.local/share/namco-2x-systems/raverace/roms)."
+          }
+        ],
+        "warnings": [
+          "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
+          "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux raverace profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
+        ],
+        "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+      },
+      "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
     },
     {
       "id": "rb-blitz-xenon-recomp-gabrielofavero-rock-band-blitz",
@@ -34869,12 +34980,15 @@
     {
       "id": "time-crisis-namco22",
       "name": "Time Crisis Native (Namco22)",
-      "summary": "Explore Time Crisis Native (Namco22) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Explore Time Crisis's native arcade port and register an existing copy you are permitted to use.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1569,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/spacestate1/namco22-decompile",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
       "artwork": {
         "game_id": 11739,
         "cover_id": 90993,
@@ -34882,7 +34996,41 @@
         "image_sha256": "54b9a288fe591f0b3fe28d0e14cafb1d8d2f24cb4a1e6c44ba477e5c167de8b1",
         "game_slug": "time-crisis",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Time Crisis",
+      "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "windows-release-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "TimeCrisis-x86_64",
+          ".AppImage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply your original game files",
+            "instruction": "If your permitted existing copy has not already prepared its original chips, supply your own timecris.zip (World TS2 Ver.B). The Ver.A and Japanese program revisions are different inputs. On Windows, keep the ZIP files packed in roms beside TimeCrisis.exe; the game unpacks its chips on first Play. Completed copies can keep their extracted chips without importing the ZIPs again. This does not establish permission for the bundled BIOS or translated program."
+          },
+          {
+            "title": "Use the Windows player",
+            "instruction": "Select TimeCrisis.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+          },
+          {
+            "title": "Use the upstream Linux AppImage",
+            "instruction": "For an existing Linux copy you are permitted to use, select the upstream TimeCrisis-x86_64.AppImage rather than its internal binary. If needed, mark it executable; upstream supports --appimage-extract-and-run without FUSE. If original chips are not already prepared, placing your ROM ZIPs beside the AppImage lets its launcher copy them into its selected profile. Keep the existing selected profile’s roms folder when using legacy namco22 or portable data. The fresh default is $XDG_DATA_HOME/namco-2x-systems/timecris/roms (normally ~/.local/share/namco-2x-systems/timecris/roms)."
+          }
+        ],
+        "warnings": [
+          "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
+          "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux timecris profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
+        ],
+        "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+      },
+      "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
     },
     {
       "id": "time-to-kill-native-recomp-musicmonstermod-duke-nukem-time-to-kill",
@@ -35135,12 +35283,15 @@
     {
       "id": "tokyo-wars-namco22",
       "name": "Tokyo Wars Native (Namco22)",
-      "summary": "Explore Tokyo Wars Native (Namco22) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Explore Tokyo Wars's native arcade port and register an existing copy you are permitted to use.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1567,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/spacestate1/namco22-decompile",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
       "artwork": {
         "game_id": 66860,
         "cover_id": 48323,
@@ -35148,7 +35299,41 @@
         "image_sha256": "66d45b5fab2eb9c8da3b3db65c733f806289f4ea142137cf971edc739af897d8",
         "game_slug": "tokyo-wars",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Tokyo Wars",
+      "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "windows-release-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "TokyoWars-x86_64",
+          ".AppImage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply your original game files",
+            "instruction": "If your permitted existing copy has not already prepared its original chips, supply your own tokyowar.zip (World TW2 Ver.A). The Japanese program revision is a different input. On Windows, keep the ZIP files packed in roms beside TokyoWars.exe; the game unpacks its chips on first Play. Completed copies can keep their extracted chips without importing the ZIPs again. This does not establish permission for the bundled BIOS or translated program."
+          },
+          {
+            "title": "Use the Windows player",
+            "instruction": "Select TokyoWars.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+          },
+          {
+            "title": "Use the upstream Linux AppImage",
+            "instruction": "For an existing Linux copy you are permitted to use, select the upstream TokyoWars-x86_64.AppImage rather than its internal binary. If needed, mark it executable; upstream supports --appimage-extract-and-run without FUSE. If original chips are not already prepared, placing your ROM ZIPs beside the AppImage lets its launcher copy them into its selected profile. Keep the existing selected profile’s roms folder when using legacy namco22 or portable data. The fresh default is $XDG_DATA_HOME/namco-2x-systems/tokyowar/roms (normally ~/.local/share/namco-2x-systems/tokyowar/roms)."
+          }
+        ],
+        "warnings": [
+          "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
+          "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux tokyowar profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
+        ],
+        "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+      },
+      "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
     },
     {
       "id": "tom-clancy-s-rainbow-six-3-xbox-static-recompilation-phobos665-tom-clancy-s-rainbow-six-3-xbox",
