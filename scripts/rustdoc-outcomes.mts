@@ -21,6 +21,7 @@ interface Suite {
   terminals: Map<string, Case>;
 }
 interface State {
+  kind: "rustdoc" | "standalone";
   active: Suite | null;
   suites: number;
   selected: number;
@@ -65,7 +66,7 @@ function observeTest(event: Record<string, unknown>, state: State) {
     !suite ||
     typeof name !== "string" ||
     name.length > 4096 ||
-    !/^.+ - .*\(line [1-9][0-9]*\)$/u.test(name)
+    !(state.kind === "rustdoc" ? /^.+ - .*\(line [1-9][0-9]*\)$/u : /^[^\s\0]+$/u).test(name)
   )
     throw new Error("Rustdoc test has no bounded identity or active suite");
   if (event.event === "started") {
@@ -128,9 +129,10 @@ function observe(event: unknown, state: State) {
   throw new Error("Unknown or misplaced rustdoc protocol record");
 }
 
-/** Only rustdoc path-qualified names are identities; ordinary libtest binaries are unsupported. */
-export function parseRustdocOutcomes(raw: string) {
+/** Shared bounded native protocol; each caller retains its own identity grammar. */
+function parseOutcomes(raw: string, kind: State["kind"]) {
   const state: State = {
+    kind,
     active: null,
     suites: 0,
     selected: 0,
@@ -168,4 +170,27 @@ export function parseRustdocOutcomes(raw: string) {
     cases: state.cases,
     phases: state.phases,
   };
+}
+
+export function parseRustdocOutcomes(raw: string) {
+  return parseOutcomes(raw, "rustdoc");
+}
+
+export function parseStandaloneLibtestOutcomes(raw: string) {
+  const result = parseOutcomes(raw, "standalone");
+  if (result.complete && (result.observed_suites !== 1 || result.phases.length !== 0))
+    return {
+      ...result,
+      complete: false,
+      failure: "Standalone libtest requires exactly one native suite",
+    };
+  if (result.complete && result.selected === 0)
+    return { ...result, complete: false, failure: "Standalone libtest selected no cases" };
+  if (result.complete && result.filtered !== 0)
+    return {
+      ...result,
+      complete: false,
+      failure: "Unfiltered standalone route reported filtered cases",
+    };
+  return result;
 }
