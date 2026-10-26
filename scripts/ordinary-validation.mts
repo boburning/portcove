@@ -225,15 +225,22 @@ export const pythonContractTests = [
   "scripts/semantic-review-linux-supervisor.test.mts",
   "scripts/release-semantic-source.test.mts",
 ];
+const rustWorkflowContractTests = [
+  "scripts/ci-rust-workflow.test.mts",
+  "scripts/rust-validation-setup.test.mts",
+  "scripts/ci-workflow-fixture.test.mts",
+  "scripts/qualification-coverage.test.mts",
+  "scripts/windows-rust-tests.test.mts",
+  "scripts/select-ci-plan.test.mts",
+];
 const workflowFeatureTests = [
   "scripts/ci-frontend-workflow.test.mts",
   "scripts/ci-native-workflow.test.mts",
   "scripts/ci-release-workflow.test.mts",
-  "scripts/ci-rust-workflow.test.mts",
+  ...rustWorkflowContractTests,
   "scripts/nextest-equivalence.test.mts",
   "scripts/native-backup-evidence.test.mts",
   "scripts/rust-toolchain-reader.test.mts",
-  "scripts/windows-rust-tests.test.mts",
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
 export const nodeTestOwnership = parseNodeTestSuites(
@@ -1175,7 +1182,7 @@ for (const [file, tests] of [
     [
       "scripts/windows-rust-tests.test.mts",
       "scripts/qualification-coverage.test.mts",
-      "scripts/ci-rust-workflow.test.mts",
+      ...rustWorkflowContractTests,
       "scripts/nextest-equivalence.test.mts",
       "scripts/ci-workflow.test.mts",
       "scripts/ci-result-gate.test.mts",
@@ -1201,17 +1208,14 @@ for (const [file, tests] of [
     [
       "scripts/qualification-nextest.test.mts",
       "scripts/nextest-outcomes.test.mts",
-      "scripts/ci-rust-workflow.test.mts",
+      ...rustWorkflowContractTests,
       "scripts/nextest-equivalence.test.mts",
       "scripts/qualification-coverage.test.mts",
       "scripts/audit.test.mts",
       "scripts/precommit-check.test.mts",
     ],
   ],
-  [
-    ".config/nextest.toml",
-    ["scripts/ci-rust-workflow.test.mts", "scripts/nextest-equivalence.test.mts"],
-  ],
+  [".config/nextest.toml", [...rustWorkflowContractTests, "scripts/nextest-equivalence.test.mts"]],
   ...[
     "scripts/qualification-rustdoc.mts",
     "scripts/rustdoc-outcomes.mts",
@@ -1226,7 +1230,7 @@ for (const [file, tests] of [
       "scripts/validation-evidence.test.mts",
       "scripts/workflow-provenance.test.mts",
       "scripts/qualification-coverage.test.mts",
-      "scripts/ci-rust-workflow.test.mts",
+      ...rustWorkflowContractTests,
       "scripts/nextest-equivalence.test.mts",
       "scripts/dev-storage.test.mts",
       "scripts/audit.test.mts",
@@ -1250,9 +1254,8 @@ for (const [file, tests] of [
         "scripts/run-rust-tests.test.mts",
         "scripts/nextest-outcomes.test.mts",
         "scripts/qualification-nextest.test.mts",
-        "scripts/windows-rust-tests.test.mts",
         "scripts/rust-test-impact.test.mts",
-        "scripts/ci-rust-workflow.test.mts",
+        ...rustWorkflowContractTests,
         "scripts/nextest-equivalence.test.mts",
         "scripts/ci-workflow.test.mts",
         "scripts/audit.test.mts",
