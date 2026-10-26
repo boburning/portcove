@@ -5,19 +5,7 @@ import type { SemVer } from "semver";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-// Control-plane imports need no version runtime; version calls retain its original load failure.
-let semverLoadFailure: unknown;
-const semver = await import("semver").then(
-  (module) => module.default,
-  (error: unknown) => {
-    semverLoadFailure = error;
-    return undefined;
-  },
-);
-function semverRuntime() {
-  if (!semver) throw semverLoadFailure;
-  return semver;
-}
+import { semverRuntime } from "./release-version-runtime.mts";
 
 function diagnosticText(value: unknown): string {
   return String(value);

@@ -79,6 +79,22 @@ export async function bundleControllerEntries(
       outputOptions: { entryFileNames: definition.output, codeSplitting: false },
       plugins: [
         {
+          name: "portcove-bundled-version-runtime",
+          resolveId(specifier, importer) {
+            if (
+              specifier === "./release-version-runtime.mts" &&
+              importer &&
+              path.resolve(importer) ===
+                path.join(sourceRoot, "apps/desktop/scripts/release-version-policy.mts")
+            )
+              return path.join(
+                sourceRoot,
+                "apps/desktop/scripts/release-version-bundled-runtime.mts",
+              );
+            return null;
+          },
+        },
+        {
           name: "portcove-fixed-module-locations",
           transform(code, id) {
             if (!id.endsWith(".mts") || !code.includes("import.meta.url")) return null;

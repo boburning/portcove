@@ -3577,6 +3577,9 @@ void test("version runtime and relative fixture closure retain local and hosted 
     await import("./ci-baseline.mts");
   for (const file of [
     "apps/desktop/scripts/release-version-policy.mts",
+    "apps/desktop/scripts/release-version-runtime.mts",
+    "apps/desktop/scripts/release-version-bundled-runtime.mts",
+    "scripts/release-controller-tool-build.mts",
     "scripts/fixtures/module-closure.mts",
   ])
     for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
@@ -3603,7 +3606,9 @@ void test("version runtime and relative fixture closure retain local and hosted 
       assert.ok(baselineRequiresDesktopDependencies(plan), file + "/" + variant + "/dependencies");
       const expected = [
         "scripts/production-aggregate-steps.test.mts",
-        ...(file.startsWith("apps/") ? ["scripts/release-controller-tools.test.mts"] : []),
+        ...(file !== "scripts/fixtures/module-closure.mts"
+          ? ["scripts/release-controller-tools.test.mts"]
+          : []),
       ];
       for (const consumer of expected) {
         assert.ok(local.nodeTests.has(consumer), file + "/" + variant + "/local");
