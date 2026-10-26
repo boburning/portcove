@@ -1068,10 +1068,12 @@ void test(
     );
     const result = powershell(String.raw`
 $ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${audit.replaceAll("'", "''")}')
+$retention=[regex]::Match($source,'(?s)  void RetainRecovery\(.*?(?=  public static AccessAudit Prepare)').Value
+$command=[regex]::Match($source,'(?s)  static Policy RestorePolicyCommand\(.*?(?=  static byte\[\] PolicyBytes)').Value
 $start=$source.IndexOf('  public void Dispose(){');$end=$source.IndexOf('  [StructLayout',$start);$dispose=$source.Substring($start,$end-$start)
 $start=$source.IndexOf('  static string Sacl(');$end=$source.IndexOf('  sealed class AuditObject',$start);$comparison=$source.Substring($start,$end-$start)
 $harness=@'
-using System;using System.Collections.Generic;using System.Security.AccessControl;
+using System;using System.Collections.Generic;using System.Security.AccessControl;using System.Runtime.InteropServices;
 public class RecoveryControl {
  class AuditObject {internal IntPtr handle;internal string type,name;internal byte[] original,proposed;internal bool attempted;}
  struct Policy {internal int flags;}
@@ -1084,34 +1086,41 @@ public class RecoveryControl {
  static void Write(IntPtr h,byte[] bytes){if(mode=="write"&&h==(IntPtr)1)throw new Exception("controlled object write refusal");states[h]=bytes;}
  static bool CloseDesktop(IntPtr h){closes++;return true;}static bool CloseWindowStation(IntPtr h){closes++;return true;}static bool CloseHandle(IntPtr h){closes++;return true;}
  static Policy Query(){return current;}static bool Equal(Policy a,Policy b){return a.flags==b.flags;}
- static bool AuditSetSystemPolicy(ref Policy p,uint n){policyWrites++;if(mode=="policy-write")return false;current=p;return true;}
+ static bool AuditSetSystemPolicy(ref Policy p,uint n){policyWrites++;if(mode=="policy-write")return false;if(p.flags!=0)current=new Policy{flags=p.flags==4?0:p.flags};return true;}
  void EnablePrivilege(){if(mode=="enable")throw new Exception("controlled privilege unavailable");privilegeChanged=true;}
  void RestorePrivilege(){privilegeRestores++;if(mode=="privilege")throw new Exception("controlled privilege restore failure");privilegeChanged=false;}
  object ReadRestoredPrivilege(){return originalPrivilege;}
- static byte[] PolicyBytes(Policy value){return new byte[1];}static byte[] PrivilegeBytes(object value){return new byte[1];}
- void Save(string name,byte[] bytes){}
+ readonly Dictionary<string,byte[]> saved=new Dictionary<string,byte[]>();
+ static byte[] PolicyBytes(Policy value){return new[]{(byte)value.flags};}static byte[] PrivilegeBytes(object value){return new byte[1];}
+ void Save(string name,byte[] bytes){if(mode=="retention-before"&&name=="audit-policy-recovery-before.bin"||mode=="retention-command"&&name=="audit-policy-restore-command.bin")throw new Exception("controlled recovery retention failure");saved.Add(name,bytes);}
+ __COMMAND__
+ __RETENTION__
  static Exception Error(string message){return new Exception(message);}
  __DISPOSE__
  static byte[] Descriptor(string level){var sd=new RawSecurityDescriptor("O:SYG:SYD:P(A;;GA;;;SY)S:(ML;;NW;;;"+level+")");var bytes=new byte[sd.BinaryLength];sd.GetBinaryForm(bytes,0);return bytes;}
  public static void Run(){
-  foreach(string selected in new[]{"settled","already","drift","write","policy-drift","policy-write","enable","privilege"}){
-   mode=selected;closes=privilegeRestores=policyWrites=0;current=new Policy{flags=mode=="policy-drift"?1:mode=="already"?0:2};states=new Dictionary<IntPtr,byte[]>();var control=new RecoveryControl();
+  foreach(string selected in new[]{"settled","already","drift","write","policy-drift","policy-write","enable","privilege","success-before","retention-before","retention-command"}){
+   mode=selected;closes=privilegeRestores=policyWrites=0;current=new Policy{flags=mode=="policy-drift"?1:mode=="already"?0:2};states=new Dictionary<IntPtr,byte[]>();var control=new RecoveryControl();if(mode=="success-before"){control.before=new Policy{flags=1};control.applied=new Policy{flags=3};current=new Policy{flags=3};}
    byte[] original=Descriptor("LW"),proposed=Descriptor("ME"),foreign=Descriptor("HI");
    for(int i=1;i<=2;i++){IntPtr h=(IntPtr)i;control.objects.Add(new AuditObject{handle=h,name="owned"+i,type=i==1?"Desktop":"WindowStation",original=original,proposed=proposed,attempted=true});states[h]=mode=="already"?original:mode=="drift"&&i==1?foreign:proposed;}
    control.Dispose();
    if(closes!=3||privilegeRestores!=1||Sacl(states[(IntPtr)2])!=Sacl(original))throw new Exception("Independent restore/close skipped: "+mode);
-   bool failed=mode!="settled"&&mode!="already";if((control.recovery.Count>0)!=failed||control.Restored==failed)throw new Exception("Recovery outcome differs: "+mode);
+   bool failed=mode!="settled"&&mode!="already"&&mode!="success-before";if((control.recovery.Count>0)!=failed||control.Restored==failed)throw new Exception("Recovery outcome differs: "+mode);
    if(mode=="drift"&&Sacl(states[(IntPtr)1])!=Sacl(foreign))throw new Exception("Foreign SACL overwritten");
    if(mode=="policy-drift"&&current.flags!=1)throw new Exception("Foreign policy overwritten");
+   if(mode=="settled"&&(control.saved["audit-policy-restore-command.bin"][0]!=4||control.saved["audit-policy-recovery-observed.bin"][0]!=0||current.flags!=0||control.before.flags!=0))throw new Exception("Queried zero was reused as unchanged setter command");
+   if((mode=="retention-before"||mode=="retention-command")&&current.flags!=0)throw new Exception("Recovery retention failure skipped actual restoration");
+   if(mode=="success-before"&&(current.flags!=1||control.saved["audit-policy-restore-command.bin"][0]!=1))throw new Exception("Existing success policy lost");
+   if(mode=="policy-write"&&(control.saved["audit-policy-recovery-observed.bin"][0]!=2||control.saved.ContainsKey("audit-policy-restored.bin")))throw new Exception("Failed restoration query state not retained");
   }
  }
 }
 '@
-Add-Type -TypeDefinition $harness.Replace('__COMPARE__',$comparison).Replace('__DISPOSE__',$dispose)
+Add-Type -TypeDefinition $harness.Replace('__COMPARE__',$comparison).Replace('__COMMAND__',$command).Replace('__RETENTION__',$retention).Replace('__DISPOSE__',$dispose)
 [RecoveryControl]::Run()
-'actual audit recovery passed eight controlled modes; no native privilege, SACL or policy calls'
+'actual audit recovery passed eleven controlled modes; no native privilege, SACL or policy calls'
 `);
-    assert.match(result, /recovery passed eight controlled modes/u);
+    assert.match(result, /recovery passed eleven controlled modes/u);
   },
 );
 
@@ -1150,9 +1159,10 @@ void test(
     );
     const result = powershell(String.raw`
 $ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${audit.replaceAll("'", "''")}')
-$control=[regex]::Match($source,'(?s)  void ProveDenials\(\)\{.*?(?=  static byte\[\] PolicyBytes)').Value.Replace('Marshal.GetLastWin32Error()','5')
+$control=[regex]::Match($source,'(?s)  void ProveDenials\(\)\{.*?(?=  static Policy RestorePolicyCommand)').Value.Replace('Marshal.GetLastWin32Error()','5')
 $enable=[regex]::Match($source,'(?s)  void EnablePrivilege\(\).*?(?=  Privileges ReadRestoredPrivilege)').Value.Replace('Marshal.GetLastWin32Error()','0')
 $privilege=[regex]::Match($source,'(?s)  Privileges ReadRestoredPrivilege\(\).*?(?=  void Save)').Value.Replace('Marshal.GetLastWin32Error()','0')
+$comparison=[regex]::Match($source,'(?s)  static string Sacl\(.*?(?=  sealed class AuditObject)').Value
 $proposal=[regex]::Match($source,'(?s)  public static byte\[\] Propose\(.*?(?=  static string Sacl)').Value
 $harness=@'
 using System;using System.Collections.Generic;using System.Diagnostics;using System.IO;using System.Linq;using System.Runtime.InteropServices;using System.Security.AccessControl;using System.Security.Principal;using System.Text;using System.Threading;
@@ -1162,43 +1172,44 @@ public class AuditLifecycleControl {
  struct Privileges {internal uint count,attributes;internal Luid id;}
  readonly List<string> recovery=new List<string>();public Dictionary<string,string>[] CapabilityEvents;
  int session=1;IntPtr token=(IntPtr)9;bool privilegeKnown=true,privilegeChanged;Privileges originalPrivilege=new Privileges{count=1,id=new Luid{low=1,high=0},attributes=2};
- static string mode="";static IntPtr desktop=(IntPtr)1;static int closes,restores,adjusts;static uint actualAttributes=2;
+ static string mode="";static IntPtr desktop=(IntPtr)1;static int closes,restores,adjusts;static bool written;static uint actualAttributes=2;
  static uint PrivilegeAttributes(Luid id){return actualAttributes;}
  static bool AdjustTokenPrivileges(IntPtr t,bool d,ref Privileges desired,uint length,out Privileges previous,out uint returned){adjusts++;previous=desired;returned=16;if(mode=="adjust-fail"||mode=="restore-fail")return false;actualAttributes=desired.attributes;return true;}
  static IntPtr GetCurrentProcess(){return (IntPtr)1;}static bool OpenProcessToken(IntPtr p,uint access,out IntPtr t){t=(IntPtr)9;return true;}static bool LookupPrivilegeValueW(string s,string n,out Luid id){id=new Luid{low=1,high=0};return true;}
  static Exception Error(string value){return new Exception(value);}
  static uint GetCurrentThreadId(){return 1;}static IntPtr GetThreadDesktop(uint thread){return desktop;}
  static bool SetThreadDesktop(IntPtr original){restores++;if(mode=="detach")return false;desktop=original;return true;}
- static IntPtr GetProcessWindowStation(){return (IntPtr)100;}static string Name(IntPtr h){return "WinSta0";}
- static IntPtr CreateWindowStationW(string n,uint f,uint a,ref Attributes at){return (IntPtr)10;}
- static IntPtr CreateDesktopW(string n,IntPtr d,IntPtr m,uint f,uint a,ref Attributes at){if(mode!="unchanged")desktop=(IntPtr)20;return (IntPtr)20;}
+ static IntPtr GetProcessWindowStation(){return (IntPtr)100;}static string stationName,desktopName;static string Name(IntPtr h){return h==(IntPtr)10?stationName:h==(IntPtr)20?desktopName:"WinSta0";}
+ static IntPtr CreateWindowStationW(string n,uint f,uint a,ref Attributes at){stationName=n;written=false;return (IntPtr)10;}
+ static IntPtr CreateDesktopW(string n,IntPtr d,IntPtr m,uint f,uint a,ref Attributes at){desktopName=n;written=false;if(mode!="unchanged")desktop=(IntPtr)20;return (IntPtr)20;}
  static bool CloseWindowStation(IntPtr h){closes++;return true;}
  static bool CloseDesktop(IntPtr h){closes++;return desktop!=h&&mode!="close";}
  static IntPtr OpenWindowStationW(string n,bool i,uint a){return IntPtr.Zero;}static IntPtr OpenDesktopW(string n,uint f,bool i,uint a){return IntPtr.Zero;}
- static byte[] Read(IntPtr h){var sd=new RawSecurityDescriptor("O:SYG:SYD:P(A;;GA;;;SY)");var b=new byte[sd.BinaryLength];sd.GetBinaryForm(b,0);return b;}
- static bool SetUserObjectSecurity(IntPtr h,ref uint f,IntPtr data){return true;}
+ static byte[] Read(IntPtr h){var sd=new RawSecurityDescriptor("O:SYG:SYD:P(A;;GA;;;SY)");var b=new byte[sd.BinaryLength];sd.GetBinaryForm(b,0);if(written&&mode!="readback"){string sid=WindowsIdentity.GetCurrent().User.Value;sd=new RawSecurityDescriptor(Propose(b,sid,2),0);sd.DiscretionaryAcl.InsertAce(0,new CommonAce(AceFlags.None,AceQualifier.AccessDenied,2,new SecurityIdentifier(sid),false,null));b=new byte[sd.BinaryLength];sd.GetBinaryForm(b,0);}return b;}
+ static bool SetUserObjectSecurity(IntPtr h,ref uint f,IntPtr data){written=true;return true;}
  static string CurrentLogon(){return "0x1";}
  static Dictionary<string,string>[] ReadEvents(string sid,uint pid,long since,string image,string logon,string[] names,int session){return new[]{new Dictionary<string,string>{{"access_mask","0x2"}}};}
  public static void BoundRecords(Dictionary<string,string>[] records){}
  static byte[] PrivilegeBytes(Privileges value){return new byte[1];}
  void Save(string n,byte[] b){if(mode=="preimage")throw new IOException("controlled preimage refusal");}
  __ENABLE__
+ __COMPARISON__
  __PROPOSAL__
  __PRIVILEGE__
  __CONTROL__
  public static void Run(){
-  foreach(string selected in new[]{"settled","unchanged","detach","close"}){mode=selected;desktop=(IntPtr)1;closes=restores=0;var value=new AuditLifecycleControl();bool failed=false;try{value.ProveDenials();}catch{failed=true;}if(failed!=(mode!="settled"&&mode!="unchanged")||closes!=2||restores<(mode=="unchanged"?0:1))throw new Exception("Control lifecycle outcome differs: "+mode);if((mode=="settled"||mode=="unchanged")&&(desktop!=(IntPtr)1||value.CapabilityEvents.Length!=2||value.recovery.Count!=0))throw new Exception("Owned control desktop not restored");if(mode!="settled"&&mode!="unchanged"&&value.recovery.Count==0)throw new Exception("Control cleanup failure lost");}
+  foreach(string selected in new[]{"settled","unchanged","detach","close","readback"}){mode=selected;desktop=(IntPtr)1;closes=restores=0;var value=new AuditLifecycleControl();bool failed=false;try{value.ProveDenials();}catch{failed=true;}if(failed!=(mode!="settled"&&mode!="unchanged")||closes!=(mode=="readback"?1:2)||restores<(mode=="unchanged"||mode=="readback"?0:1))throw new Exception("Control lifecycle outcome differs: "+mode);if((mode=="settled"||mode=="unchanged")&&(desktop!=(IntPtr)1||value.CapabilityEvents.Length!=2||value.recovery.Count!=0))throw new Exception("Owned control desktop not restored");if(mode!="settled"&&mode!="unchanged"&&mode!="readback"&&value.recovery.Count==0)throw new Exception("Control cleanup failure lost");}
   foreach(string selected in new[]{"preimage","adjust-fail","restore-fail","disabled-roundtrip","enabled-roundtrip"}){mode=selected;actualAttributes=mode=="enabled-roundtrip"?2u:0u;adjusts=0;var value=new AuditLifecycleControl();value.privilegeKnown=false;value.token=IntPtr.Zero;bool failed=false;try{if(mode=="restore-fail")mode="disabled-roundtrip";value.EnablePrivilege();if(selected=="restore-fail")mode=selected;value.RestorePrivilege();value.ReadRestoredPrivilege();}catch{failed=true;}bool expected=selected=="preimage"||selected=="adjust-fail"||selected=="restore-fail";if(failed!=expected)throw new Exception("Enable/restore failure lost: "+selected);if(selected=="preimage"&&adjusts!=0)throw new Exception("Enabled privilege before persisted preimage");if(!expected&&actualAttributes!=(selected=="enabled-roundtrip"?2u:0u))throw new Exception("Privilege state changed after roundtrip");}
   foreach(string selected in new[]{"enabled","disabled","drift-enabled","drift-disabled","restoring"}){mode=selected;var value=new AuditLifecycleControl();value.originalPrivilege.attributes=mode.Contains("disabled")||mode=="restoring"?0u:2u;actualAttributes=mode.StartsWith("drift")?1u:mode=="restoring"?2u:value.originalPrivilege.attributes;value.privilegeChanged=mode=="restoring";bool refused=false;try{value.RestorePrivilege();var read=value.ReadRestoredPrivilege();if(read.attributes!=actualAttributes)throw new Exception("Invented privilege readback");}catch{refused=true;}if(refused!=mode.StartsWith("drift"))throw new Exception("Actual privilege drift guard differs: "+mode);}
  }
 }
 '@
 if(-not $control -or -not $privilege -or -not $proposal){throw 'Actual lifecycle methods missing'}
-Add-Type -TypeDefinition $harness.Replace('__ENABLE__',$enable).Replace('__PROPOSAL__',$proposal).Replace('__PRIVILEGE__',$privilege).Replace('__CONTROL__',$control)
+Add-Type -TypeDefinition $harness.Replace('__ENABLE__',$enable).Replace('__COMPARISON__',$comparison).Replace('__PROPOSAL__',$proposal).Replace('__PRIVILEGE__',$privilege).Replace('__CONTROL__',$control)
 [AuditLifecycleControl]::Run()
-'actual lifecycle passed four object and ten privilege modes with fake native effects'
+'actual lifecycle passed five object and ten privilege modes with fake native effects'
 `);
-    assert.match(result, /four object and ten privilege modes/u);
+    assert.match(result, /five object and ten privilege modes/u);
   },
 );
 

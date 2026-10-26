@@ -62,6 +62,7 @@ namespace Portcove.HostedNative {
   Privileges ReadRestoredPrivilege(){var actual=new Privileges{count=1,id=originalPrivilege.id,attributes=PrivilegeAttributes(originalPrivilege.id)};if(actual.attributes!=originalPrivilege.attributes)throw new InvalidOperationException("Final owner privilege drift; no overwrite");return actual;}
   void RestorePrivilege(){if(!privilegeChanged){if(privilegeKnown)ReadRestoredPrivilege();return;}uint current=PrivilegeAttributes(originalPrivilege.id);if(current!=originalPrivilege.attributes&&(current!=(originalPrivilege.attributes|2)))throw new InvalidOperationException("Owner privilege drift; restore refused");if(current!=originalPrivilege.attributes){Privileges ignored;uint returned;if(!AdjustTokenPrivileges(token,false,ref originalPrivilege,(uint)Marshal.SizeOf(typeof(Privileges)),out ignored,out returned)||Marshal.GetLastWin32Error()!=0||PrivilegeAttributes(originalPrivilege.id)!=originalPrivilege.attributes)throw Error("Restore/read owner audit privilege");}privilegeChanged=false;}
   void Save(string name,byte[] bytes){using(var file=new FileStream(Path.Combine(directory,name),FileMode.CreateNew,FileAccess.Write,FileShare.None)){file.Write(bytes,0,bytes.Length);file.Flush(true);}if(!File.ReadAllBytes(Path.Combine(directory,name)).SequenceEqual(bytes))throw new IOException("Audit recovery preimage/postimage readback differs");}
+  void RetainRecovery(string name,byte[] bytes){try{Save(name,bytes);}catch(Exception error){recovery.Add("Audit recovery retention failed: "+name+":"+error.Message);}}
   public static AccessAudit Prepare(string candidate,string desktop,string capture){
    RequireAuthority();
    if(Interlocked.CompareExchange(ref started,1,0)!=0)throw new InvalidOperationException("Audit attempt is one-shot; no automatic retry");
@@ -104,14 +105,19 @@ namespace Portcove.HostedNative {
      if(Name(GetProcessWindowStation())!="WinSta0")throw new InvalidOperationException("Audit control station changed");
      byte[] original=Read(handle);var denied=new RawSecurityDescriptor(Propose(original,sid,2),0);denied.DiscretionaryAcl.InsertAce(0,new CommonAce(AceFlags.None,AceQualifier.AccessDenied,2,new SecurityIdentifier(sid),false,null));byte[] applied=new byte[denied.BinaryLength];denied.GetBinaryForm(applied,0);
      uint flags=12;IntPtr data=Marshal.AllocHGlobal(applied.Length);try{Marshal.Copy(applied,0,data,applied.Length);if(!SetUserObjectSecurity(handle,ref flags,data))throw Error("Prepare new denial control");}finally{Marshal.FreeHGlobal(data);}
+     byte[] controlReadback=Read(handle);if(Name(handle)!=name||Sacl(controlReadback)!=Sacl(applied)||Unchanged(controlReadback)!=Unchanged(applied))throw new InvalidOperationException("Owned audit control descriptor/name readback differs; no candidate launch");
+     string controlLogon=CurrentLogon(),controlImage=Process.GetCurrentProcess().MainModule.FileName;
+     Save("audit-control-"+type+"-prepared.bin",Encoding.UTF8.GetBytes("type="+type+"\nname="+name+"\nsubject_sid="+sid+"\npid="+Process.GetCurrentProcess().Id+"\nlogon="+controlLogon+"\nimage="+controlImage+"\nrequested_mask=0x2\ndescriptor_readback=exact"));
      long since=DateTime.UtcNow.AddSeconds(-1).ToFileTimeUtc();IntPtr deniedHandle=type=="WindowStation"?OpenWindowStationW(name,false,2):OpenDesktopW(name,0,false,2);int error=Marshal.GetLastWin32Error();if(deniedHandle!=IntPtr.Zero){if(type=="WindowStation")CloseWindowStation(deniedHandle);else CloseDesktop(deniedHandle);throw new InvalidOperationException("Control open was not denied");}if(error!=5)throw new System.ComponentModel.Win32Exception(error,"Control denial differs");
-     var delivery=Stopwatch.StartNew();Dictionary<string,string>[] events;do{events=ReadEvents(sid,(uint)Process.GetCurrentProcess().Id,since,Process.GetCurrentProcess().MainModule.FileName,CurrentLogon(),new[]{type+":"+name},session);if(events.Length!=0)break;Thread.Sleep(100);}while(delivery.ElapsedMilliseconds<2000);
+     Save("audit-control-"+type+"-denied.bin",Encoding.UTF8.GetBytes("name="+name+"\nerror=5\nsince_filetime="+since));
+     var delivery=Stopwatch.StartNew();Dictionary<string,string>[] events;do{events=ReadEvents(sid,(uint)Process.GetCurrentProcess().Id,since,controlImage,controlLogon,new[]{type+":"+name},session);if(events.Length!=0)break;Thread.Sleep(100);}while(delivery.ElapsedMilliseconds<2000);
      if(events.Length!=1||events[0]["access_mask"]!="0x2")throw new InvalidOperationException("Useful exact Desktop/WindowStation failure event unavailable; no candidate launch");
      controls.Add(events[0]);Save("audit-control-"+type+".bin",Encoding.UTF8.GetBytes(String.Join("\n",events[0].Select(item=>item.Key+"="+item.Value))));
     }finally{try{if(GetThreadDesktop(GetCurrentThreadId())!=originalDesktop&&(!SetThreadDesktop(originalDesktop)||GetThreadDesktop(GetCurrentThreadId())!=originalDesktop))throw Error("Restore control desktop during cleanup");if(Name(GetProcessWindowStation())!="WinSta0")throw new InvalidOperationException("Control process station changed");}catch(Exception error){recovery.Add(error.Message);}try{if(handle!=IntPtr.Zero&&!(type=="WindowStation"?CloseWindowStation(handle):CloseDesktop(handle)))throw Error("Close owned audit control");}catch(Exception error){recovery.Add(error.Message);}if(descriptor!=IntPtr.Zero)Marshal.FreeHGlobal(descriptor);}
    }
    CapabilityEvents=controls.ToArray();BoundRecords(CapabilityEvents);if(recovery.Count!=0)throw new InvalidOperationException("Audit capability cleanup incomplete; no candidate launch");
   }
+  static Policy RestorePolicyCommand(Policy observed){if(observed.flags==0)observed.flags=4;return observed;}
   static byte[] PolicyBytes(Policy policy){int size=Marshal.SizeOf(typeof(Policy));IntPtr data=Marshal.AllocHGlobal(size);try{Marshal.StructureToPtr(policy,data,false);byte[] bytes=new byte[size];Marshal.Copy(data,bytes,0,size);return bytes;}finally{Marshal.FreeHGlobal(data);}}
   public Dictionary<string,string>[] Observe(uint pid,long created,string image,string logon){
    RequireAuthority();return ReadEvents(subject,pid,created,image,logon,objects.Select(o=>o.type+":"+o.name).ToArray(),session);
@@ -144,7 +150,19 @@ namespace Portcove.HostedNative {
   }
   public void Dispose(){
    for(int i=objects.Count-1;i>=0;i--){var item=objects[i];try{if(item.attempted){byte[] current=Read(item.handle);if(Sacl(current)==Sacl(item.original)){}else if(Sacl(current)==Sacl(item.proposed)&&Unchanged(current)==Unchanged(item.original)){Write(item.handle,item.original);if(Sacl(Read(item.handle))!=Sacl(item.original))throw new InvalidOperationException("SACL restoration readback differs");}else throw new InvalidOperationException("Audit SACL drift; restore refused");Save("audit-"+i+"-restored.bin",Read(item.handle));}}catch(Exception error){recovery.Add(item.type+":"+item.name+":"+error.Message);}finally{if(!(item.type=="Desktop"?CloseDesktop(item.handle):CloseWindowStation(item.handle)))recovery.Add("Close audit handle failed: "+item.type+":"+item.name);}}
-   objects.Clear();try{if(policyChanged){if(!privilegeChanged)EnablePrivilege();var current=Query();if(Equal(current,before)){}else if(Equal(current,applied)){if(!AuditSetSystemPolicy(ref before,1)||!Equal(Query(),before))throw Error("Restore audit policy");}else throw new InvalidOperationException("Audit policy drift; restore refused");Save("audit-policy-restored.bin",PolicyBytes(Query()));}}catch(Exception error){recovery.Add(error.Message);}policyChanged=false;
+   objects.Clear();try{if(policyChanged){
+    if(!privilegeChanged)EnablePrivilege();var current=Query();RetainRecovery("audit-policy-recovery-before.bin",PolicyBytes(current));
+    if(!Equal(current,before)&&!Equal(current,applied)){RetainRecovery("audit-policy-recovery-observed.bin",PolicyBytes(current));throw new InvalidOperationException("Audit policy drift; restore refused");}
+    if(!Equal(current,before)){
+     var command=RestorePolicyCommand(before);RetainRecovery("audit-policy-restore-command.bin",PolicyBytes(command));
+     bool restored=AuditSetSystemPolicy(ref command,1);int code=Marshal.GetLastWin32Error();
+     if(!restored)recovery.Add("Audit policy restore API refused (Win32="+code+")");
+     current=Query();RetainRecovery("audit-policy-recovery-observed.bin",PolicyBytes(current));
+     if(!restored)throw new System.ComponentModel.Win32Exception(code,"Restore audit policy");
+    }else RetainRecovery("audit-policy-recovery-observed.bin",PolicyBytes(current));
+    if(!Equal(current,before))throw new InvalidOperationException("Audit policy restoration readback differs; observed state retained");
+    RetainRecovery("audit-policy-restored.bin",PolicyBytes(current));
+   }}catch(Exception error){recovery.Add(error.Message);}policyChanged=false;
    try{RestorePrivilege();if(privilegeKnown)Save("audit-privilege-restored.bin",PrivilegeBytes(ReadRestoredPrivilege()));}catch(Exception error){recovery.Add(error.Message);}finally{if(token!=IntPtr.Zero){if(!CloseHandle(token))recovery.Add("Close audit token failed");token=IntPtr.Zero;}}
    Restored=recovery.Count==0;
   }

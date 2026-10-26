@@ -59,7 +59,7 @@ function Write-HostedAuditRecovery($Root,$Context) {
         }
     }}
     $state=[ordered]@{context=$Context;scope='exact audit policy/privilege recovery; no GUI acceptance'}
-    foreach($name in @('bindings','control-WindowStation','control-Desktop','policy-before','policy-proposed','policy-observed','policy-restored','privilege-before','privilege-before-launch','privilege-restored')){
+    foreach($name in @('bindings','control-WindowStation','control-Desktop','control-WindowStation-prepared','control-WindowStation-denied','control-Desktop-prepared','control-Desktop-denied','policy-before','policy-proposed','policy-observed','policy-recovery-before','policy-restore-command','policy-recovery-observed','policy-restored','privilege-before','privilege-before-launch','privilege-restored')){
         $file=Join-Path $capture ("audit-$name.bin")
         if(Test-Path -LiteralPath $file){if((Get-Item -LiteralPath $file).Length -gt $(if($name -ceq 'bindings' -or $name.StartsWith('control-')){4096}else{128})){throw 'Audit state preimage exceeds bound'};$state[$name]=[Convert]::ToBase64String([IO.File]::ReadAllBytes($file))}
     }

@@ -23,6 +23,7 @@ import {
 } from "./release-controller-transport.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { setTimeout as delay } from "node:timers/promises";
+import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 const sha = (raw: Buffer) => createHash("sha256").update(raw).digest("hex");
 const identity = {
@@ -619,4 +620,50 @@ void test("always-retained diagnostics select bounded public markers and preserv
     await readFile(path.join(root, "private.key"), "utf8"),
     "inert-secret-not-for-artifacts",
   );
+});
+
+void test("owned Linux process observation treats exit during proc read as gone and preserves other failures", async () => {
+  const source = await readFile(
+    new URL("./release-controller-transport.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function linuxProcessStart(");
+  const end = source.indexOf("/** One fixed concurrent socket client", start);
+  assert.ok(start >= 0 && end > start);
+  const definition = stripTypeScriptTypes(source.slice(start, end));
+  for (const code of ["ENOENT", "ESRCH", "EACCES", "EIO", "malformed", "overbound", "valid"]) {
+    const observe = runInNewContext(`${definition}; linuxProcessStart`, {
+      process: { platform: "linux" },
+      Number,
+      Buffer,
+      isRecord,
+      inspectControllerKeyProcess,
+      createReadStream(file: string, options: { highWaterMark: number }) {
+        assert.equal(file, "/proc/42/stat");
+        assert.equal(options.highWaterMark, 8193);
+        return (async function* () {
+          if (code === "malformed") {
+            yield Buffer.from("not a process identity");
+            return;
+          }
+          if (code === "overbound") {
+            yield Buffer.alloc(8193);
+            return;
+          }
+          if (code === "valid") {
+            const fields = ["S", ...Array.from({ length: 18 }, () => "0"), "123"];
+            yield Buffer.from(`42 (owned client) ${fields.join(" ")}`);
+            return;
+          }
+          throw Object.assign(new Error("controlled proc read refusal"), { code });
+        })();
+      },
+    }) as (pid: number) => Promise<ReturnType<typeof inspectControllerKeyProcess> | null>;
+    if (code === "ENOENT" || code === "ESRCH") assert.equal(await observe(42), null);
+    else if (code === "valid")
+      assert.deepEqual(await observe(42), { state: "S", start_ticks: "123" });
+    else if (code === "malformed") await assert.rejects(observe(42), /identity/u);
+    else if (code === "overbound") await assert.rejects(observe(42), /exceeds bound/u);
+    else await assert.rejects(observe(42), { code });
+  }
 });
