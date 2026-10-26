@@ -1624,13 +1624,16 @@ password or administrator step is requested.
 ### Held Windows tool producer — October 26
 
 The [Windows producer preparation](slice4-hosted-observations-2026-10-22.md#held-windows-tool-producer-wiring-october-26)
-connects the existing Windows builder/receiver to separate application-only build
-and isolated attestation jobs in the held workflow. Exact source/artifact/issuer
-bindings remain required; this is preparation, not a protected artifact or native
-acceptance. The trusted workflow input budget is 96 KiB with unchanged exact-digest
-admission. Current declared application/catalog alternatives are 91/40 job-minutes,
-hard 100 unchanged. A future Windows 10 native allocation would total 101 and remains
-an unresolved resource-fit prerequisite. No existing limit is shortened to claim fit.
+connects the existing Windows builder/receiver to an application-only build and
+separate platform subjects/bundles in the existing isolated attester. Linux
+outputs remain compatible; catalog's skipped Windows producer cannot skip the
+shared attester. Exact source/artifact/issuer bindings remain required. This is
+preparation, not a protected artifact or native acceptance. The trusted workflow
+input budget is 96 KiB with unchanged exact-digest admission. Current declared
+application/catalog alternatives are 89/40 job-minutes, hard 100 unchanged. A
+future Windows 10-minute native allocation would total 99. Shared attestation
+removes a duplicate job without shortening any timeout; actual whole-job fit
+remains unqualified, including two-subject attestation under the existing budget.
 
 Automatic dedicated-account qualification is source-disabled after its consumed
 one-shot grant. Tool fixtures retain source comparison and ordinary build/custody

@@ -99,9 +99,9 @@ void test("shared observer phases retain mode routing and the original ten-minut
     () => sharedProtectionOriginalJobDeadline({ ...inventory, total_count: 2 }, identity, now, 100),
     /inventory/u,
   );
-  assert.equal(slice4CapacityResources.declared_job_minutes, 91);
-  assert.equal(slice4CapacityResources.declared_job_minutes + 10, 101);
-  assert.ok(101 > slice4CapacityResources.total_job_minutes);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
+  assert.equal(slice4CapacityResources.declared_job_minutes + 10, 99);
+  assert.ok(99 < slice4CapacityResources.total_job_minutes);
 });
 
 type Step = {
@@ -272,6 +272,7 @@ void test("installed workflows remain inert without configuration and preserve e
         github: { sha: "a".repeat(40), ref: "refs/heads/main" },
         needs,
         always: () => true,
+        cancelled: () => false,
         success: () => Object.values(needs).every((value) => value?.result === "success"),
       });
       assert.equal(
@@ -677,7 +678,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       slice4CapacityResources.declared_job_minutes,
       slice4CapacityResources.catalog_declared_job_minutes,
     ),
-    91,
+    89,
   );
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);

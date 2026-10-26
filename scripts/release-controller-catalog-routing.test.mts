@@ -392,7 +392,7 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     assert.ok(isRecord(job));
     assert.match(String(job.if), /needs.admission.outputs.publication_purpose == 'application'/);
   }
-  assert.equal(slice4CapacityResources.declared_job_minutes, 91);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(
     slice4CapacityResources.catalog_job_minutes.reduce((a, b) => a + b, 0) +

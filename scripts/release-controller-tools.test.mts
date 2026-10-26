@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { runInNewContext } from "node:vm";
 import { parseDocument } from "yaml";
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -1479,9 +1480,9 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   assert.deepEqual(document.errors, []);
   const jobs = record(record(document.toJS()).jobs);
   const producer = record(jobs.tool_bootstrap_windows);
-  const attester = record(jobs.tool_attest_windows);
+  const attester = record(jobs.tool_attest);
+  assert.equal(producer.if, "${{ needs.admission.outputs.publication_purpose == 'application' }}");
   for (const job of [producer, attester]) {
-    assert.equal(job.if, "${{ needs.admission.outputs.publication_purpose == 'application' }}");
     assert.doesNotMatch(
       JSON.stringify(job),
       /secrets\.|actions\/cache@|permission-administration|release-native|windows-setup/,
@@ -1520,7 +1521,34 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   assert.ok(typeof diagnostics.path === "string");
   assert.match(diagnostics.path, /~\/\.pct-\*\/ct-\*\/failure\.json/u);
   assert.match(diagnostics.path, /controller-tools-windows-predicate\.json/u);
-  assert.deepEqual(attester.needs, ["admission", "tool_bootstrap_windows"]);
+  assert.deepEqual(attester.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
+  assert.ok(typeof attester.if === "string");
+  for (const [purpose, windows, linux, admission, cancelled, expected] of [
+    ["application", "success", "success", "success", false, true],
+    ["application", "success", "success", "success", true, false],
+    ["application", "failure", "success", "success", false, false],
+    ["application", "skipped", "success", "success", false, false],
+    ["application", "success", "failure", "success", false, false],
+    ["application", "success", "success", "failure", false, false],
+    ["catalog-publication", "skipped", "success", "success", false, true],
+    ["catalog-publication", "success", "success", "success", false, false],
+    ["catalog-publication", "skipped", "failure", "success", false, false],
+    ["unknown", "success", "success", "success", false, false],
+  ] as const) {
+    assert.equal(
+      runInNewContext(attester.if.slice(3, -2), {
+        always: () => true,
+        cancelled: () => cancelled,
+        needs: {
+          admission: { result: admission, outputs: { publication_purpose: purpose } },
+          tool_bootstrap: { result: linux },
+          tool_bootstrap_windows: { result: windows },
+        },
+      }),
+      expected,
+      `${purpose}/${windows}/${linux}/${admission}`,
+    );
+  }
   assert.equal(attester["timeout-minutes"], 2);
   assert.deepEqual(attester.permissions, {
     contents: "read",
@@ -1531,20 +1559,24 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   assert.ok(Array.isArray(attester.steps));
   const attesterSteps: Record<string, unknown>[] = attester.steps.map(record);
   const predicate = record(
-    attesterSteps.find((step) => isRecord(step.env) && step.env.PORTCOVE_PREDICATE),
+    attesterSteps.find(
+      (step) =>
+        isRecord(step.env) &&
+        step.env.PORTCOVE_PREDICATE === "${{ needs.tool_bootstrap_windows.outputs.predicate }}",
+    ),
   );
   assert.equal(
     record(predicate.env).PORTCOVE_PREDICATE,
     "${{ needs.tool_bootstrap_windows.outputs.predicate }}",
   );
-  const attest = record(record(attesterSteps.find((step) => step.id === "attest")).with);
+  const attest = record(record(attesterSteps.find((step) => step.id === "attest_windows")).with);
   assert.equal(attest["subject-name"], "controller-tools-windows-manifest");
   assert.equal(attest["predicate-type"], windowsControllerToolPredicateType);
   assert.equal(
     attest["subject-digest"],
     "${{ format('sha256:{0}', needs.tool_bootstrap_windows.outputs.manifest_sha256) }}",
   );
-  const bundle = record(record(attesterSteps.find((step) => step.id === "bundle")).with);
+  const bundle = record(record(attesterSteps.find((step) => step.id === "bundle_windows")).with);
   assert.equal(
     bundle.name,
     "trusted-controller-tools-windows-attestation-${{ github.run_id }}-${{ github.run_attempt }}",
@@ -1552,6 +1584,29 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   assert.equal(bundle.path, "${{ runner.temp }}/controller-tools-windows-attestation.json");
   assert.match(JSON.stringify(attesterSteps), /controller-tools-windows-attestation\.json/u);
   assert.equal(jobs.native_windows, undefined);
+  assert.equal(jobs.tool_attest_windows, undefined);
+  assert.equal(
+    record(attester.outputs).windows_bundle_artifact_id,
+    "${{ steps.bundle_windows.outputs.artifact-id }}",
+  );
+  assert.equal(
+    record(attester.outputs).bundle_artifact_id,
+    "${{ steps.bundle.outputs.artifact-id }}",
+  );
+  for (const step of attesterSteps.filter(
+    (step) =>
+      JSON.stringify(step).includes("controller-tools-windows") || step.id === "bundle_windows",
+  )) {
+    assert.ok(typeof step.if === "string");
+    assert.equal(
+      runInNewContext(step.if.slice(3, -2), {
+        always: () => true,
+        cancelled: () => false,
+        needs: { admission: { outputs: { publication_purpose: "catalog-publication" } } },
+      }),
+      false,
+    );
+  }
   const { hostedWindowsAccountQualificationEnabled } =
     await import("./qualify-controller-tools-windows.mts");
   assert.equal(hostedWindowsAccountQualificationEnabled, false);

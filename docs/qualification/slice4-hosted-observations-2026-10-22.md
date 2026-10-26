@@ -1299,29 +1299,36 @@ Native-sequence source `ff47f255edef85854ffbd429a4484eb841c9ed7e` passed require
 
 ## Held Windows tool producer wiring October 26
 
-The held controller now declares the existing Windows tool build and a separate
-checkout-free attester. Its fixed Windows 2022 producer identity, immutable artifact
-ID/digest, exact source/tree/run/attempt, platform-specific manifest subject and
-predicate, and normalized bundle member match the existing authenticated Windows
-receiver. Compilation clears inherited GitHub tokens; only subsequent provider
-readback receives the read token. The attester has no checkout, dependency
-installation or role credentials. Both jobs are application-only; catalog routing
-and Linux consumers remain unchanged. This adds no Windows native invocation or
-protected execution grant, and does not establish an actual protected tool artifact.
+The held controller now declares the existing Windows tool build and joins its
+attestation into the existing checkout-free attester. Its fixed Windows 2022
+producer identity, immutable artifact ID/digest, exact source/tree/run/attempt,
+platform-specific manifest subject and predicate, and normalized bundle member
+match the existing authenticated Windows receiver. Compilation clears inherited
+GitHub tokens; only subsequent provider readback receives the read token. The
+attester has no checkout, dependency installation or role credentials. Distinct
+Windows outputs preserve existing Linux consumers. The shared attester requires
+successful admission and Linux build; application additionally requires the Windows
+build, while catalog requires that application-only producer to be skipped. A
+cancelled workflow cannot start the attester. Every Windows-specific step remains
+application-only. This adds no Windows native invocation or protected execution
+grant, and does not establish an actual protected tool artifact.
 
-The trusted-workflow reader/admission bound is now 96 KiB (previously 64 KiB), using
-the same finite growth probe and exact workflow digest checks. Closed asset and
-archive bounds remain unchanged. Windows failure/manifest diagnostics follow the
-builder's actual short private-home path. Two diagnostic artifacts are added
+The trusted-workflow reader/admission bound is now 96 KiB (previously 64 KiB),
+using the same finite growth probe and exact workflow digest checks. Closed asset
+and archive bounds remain unchanged. Windows failure/manifest diagnostics follow
+the builder's actual short private-home path. Two diagnostic artifacts are added
 (11→13). The complete mirrored workflow and resource-policy digest must be
 reconciled into final runnable grants before use; old ratification cannot cover them.
 
-Declared application use is 91 job-minutes (85 plus Windows build 4/attestation 2),
-with catalog 40 as the mutually exclusive alternative and the unchanged hard 100
-ceiling. Adding the still-missing ten-minute Windows native job would total 101,
-so whole-job fit remains unresolved. These are declared bounds, not observed
-preparation/attestation timing, available headroom or a reservation. No timeout
-is reduced to manufacture fit, and no paid fallback is introduced.
+Declared application use is 89 job-minutes (85 plus Windows build 4), with catalog
+40 as the mutually exclusive alternative and the unchanged hard 100 ceiling.
+The initial separately attested candidate would have used 91, or 101 with the
+missing ten-minute Windows native job. Sharing the same isolated responsibility
+removes that duplicate job; the future declared graph is 99. No existing timeout
+is shortened. This is arithmetic feasibility only: two-subject attestation within
+the existing two-minute job, preparation, waits, capture and cleanup still require
+actual whole-job qualification. Availability/headroom remain Unknown; no capacity
+reservation or paid fallback follows.
 
 The generic Windows tool fixture now source-disables automatic dedicated-account
 execution: its one reviewed qualification was consumed in 40366111230/1. It retains
