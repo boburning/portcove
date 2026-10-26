@@ -621,3 +621,57 @@ foreach($case in @('unchanged','restore','drift','write-before','write-after','r
 `);
   assert.match(result, /actual restoration logic controlled outcomes passed/u);
 });
+
+void test(
+  "actual Windows private desktop readback matches explicit rights and still refuses changed security",
+  { skip: process.platform !== "win32" },
+  () => {
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
+Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class ActualDesktopReadback {
+ [StructLayout(LayoutKind.Sequential)] struct Attributes { public int length;public IntPtr descriptor;public int inherit; }
+ [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateDesktopW(string name,IntPtr device,IntPtr mode,uint flags,uint access,ref Attributes attributes);
+ [DllImport("user32",SetLastError=true)] static extern bool CloseDesktop(IntPtr handle);
+ [DllImport("user32",SetLastError=true)] static extern bool GetUserObjectSecurity(IntPtr handle,ref uint information,byte[] descriptor,uint length,out uint needed);
+ [DllImport("user32",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool GetUserObjectInformationW(IntPtr handle,int index,out int value,uint length,out uint needed);
+ public static byte[] Read(byte[] proposal) {
+  var pin=GCHandle.Alloc(proposal,GCHandleType.Pinned);IntPtr desktop=IntPtr.Zero;
+  try {
+   var attributes=new Attributes{length=Marshal.SizeOf<Attributes>(),descriptor=pin.AddrOfPinnedObject()};
+   desktop=CreateDesktopW("PortcoveAclControl_"+Guid.NewGuid().ToString("N"),IntPtr.Zero,IntPtr.Zero,0,0xf01ff,ref attributes);
+   if(desktop==IntPtr.Zero)throw new Win32Exception(Marshal.GetLastWin32Error(),"Owned temporary desktop control refused; no escalation");
+   uint needed,information=7;GetUserObjectSecurity(desktop,ref information,null,0,out needed);
+   if(needed<20 || needed>8192)throw new Exception("Descriptor bound");byte[] actual=new byte[needed];
+   if(!GetUserObjectSecurity(desktop,ref information,actual,needed,out needed))throw new Win32Exception(Marshal.GetLastWin32Error());
+   int input;if(!GetUserObjectInformationW(desktop,6,out input,4,out needed)||input!=0)throw new Exception("Owned control desktop is not non-input");
+   return actual;
+  } finally {pin.Free();if(desktop!=IntPtr.Zero && !CloseDesktop(desktop))throw new Win32Exception(Marshal.GetLastWin32Error(),"Owned desktop close failed");}
+ }
+}
+'@
+$owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;$candidate='S-1-5-21-1-2-3-1001'
+$type=[Portcove.HostedNative.HostedDesktop];$flags=[Reflection.BindingFlags]'NonPublic,Static'
+$builder=$type.GetMethod('DesktopDescriptor',$flags);$matches=$type.GetMethod('DesktopMatches',$flags)
+$expected=$builder.Invoke($null,@($owner,$candidate));$actual=[ActualDesktopReadback]::Read($expected)
+if(-not $matches.Invoke($null,@($actual,$expected,$owner))){throw 'Production desktop descriptor did not survive actual Windows creation'}
+foreach($change in @('owner','protection','candidate-rights','extra-ace')){
+ $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($actual,0)
+ switch($change){
+  'owner' {$descriptor.Owner=[Security.Principal.SecurityIdentifier]::new('S-1-5-18')}
+  'protection' {$descriptor.SetFlags($descriptor.ControlFlags -band (-bnot [Security.AccessControl.ControlFlags]::DiscretionaryAclProtected))}
+  'candidate-rights' {$descriptor.DiscretionaryAcl[2].AccessMask=$descriptor.DiscretionaryAcl[2].AccessMask -bor 0x100}
+  'extra-ace' {$descriptor.DiscretionaryAcl.InsertAce(3,[Security.AccessControl.CommonAce]::new([Security.AccessControl.AceFlags]::None,[Security.AccessControl.AceQualifier]::AccessAllowed,0x200c7,[Security.Principal.SecurityIdentifier]::new('S-1-1-0'),$false,$null))}
+ }
+ $changed=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($changed,0)
+ if($matches.Invoke($null,@($changed,$expected,$owner))){throw ('Changed desktop security accepted: '+$change)}
+}
+'actual owned temporary non-input desktop descriptor readback passed; no GUI/account/existing ACL mutation'
+`);
+    assert.match(result, /actual owned temporary non-input desktop descriptor readback passed/u);
+  },
+);

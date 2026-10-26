@@ -162,7 +162,7 @@ try {
     $members=@($child.SnapshotOwnedJob())
     if(@($members|Where-Object Pid -EQ $observation.child_pid).Count -ne 1){throw 'Inert descendant absent from original job'}
     Write-HostedNativeSetupRecord (Join-Path $capture 'observed.json') ([ordered]@{context=$context;observation=$observation;root_pid=$child.Pid;root_created_filetime=$child.CreatedFileTime.ToString();members=$members;hosted_desktop=$hostedDesktop.Name;private_gui=$gui;runtime_sha256=$runtimeSha;authority='none'})
-} catch {$failure=$_.Exception.Message;throw}
+} catch {if(-not $hostedDesktop){$stationRestored=[Portcove.HostedNative.HostedDesktop]::FailedPreparationRestored};$failure=$_.Exception.Message;throw}
 finally {
     try {
         if($group){
@@ -191,8 +191,8 @@ finally {
         }
         try {if($hostedDesktop){$hostedDesktop.Dispose();$stationRestored=$hostedDesktop.Restored}} catch {$cleanupFailures.Add($_.Exception.Message)}
         try {
-            $recovery=[ordered]@{context=$context;station='WinSta0';session_id=[Diagnostics.Process]::GetCurrentProcess().SessionId;original_base64=$null;proposed_base64=$null;automatic_retry=$false}
-            foreach($entry in @{original_base64='station-dacl-before.bin';proposed_base64='station-dacl-proposed.bin'}.GetEnumerator()){
+            $recovery=[ordered]@{context=$context;station='WinSta0';session_id=[Diagnostics.Process]::GetCurrentProcess().SessionId;original_base64=$null;proposed_base64=$null;desktop_proposed_base64=$null;desktop_observed_base64=$null;automatic_retry=$false}
+            foreach($entry in @{original_base64='station-dacl-before.bin';proposed_base64='station-dacl-proposed.bin';desktop_proposed_base64='desktop-dacl-proposed.bin';desktop_observed_base64='desktop-dacl-observed.bin'}.GetEnumerator()){
                 $file=Join-Path (Join-Path $root 'capture') $entry.Value
                 if(Test-Path -LiteralPath $file){
                     if((Get-Item -LiteralPath $file).Length -gt 8192){throw 'Station recovery ACL exceeds bound'}

@@ -69,6 +69,7 @@ namespace Portcove.HostedNative {
         byte[] before, applied;
         bool changed;
         public bool Restored { get; private set; }
+        public static bool? FailedPreparationRestored { get; private set; }
         [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] static extern IntPtr OpenWindowStationW(string name, bool inherit, uint access);
         [DllImport("user32", SetLastError=true)] static extern IntPtr GetProcessWindowStation();
         [DllImport("user32", SetLastError=true)] static extern bool SetProcessWindowStation(IntPtr station);
@@ -107,6 +108,7 @@ namespace Portcove.HostedNative {
             byte[] result = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(result, 0); return result;
         }
         public static HostedDesktop Prepare(string owner, string candidate, string recoveryDirectory) {
+            FailedPreparationRestored = null;
             var value = new HostedDesktop();
             try {
                 if (WindowsIdentity.GetCurrent().User.Value != owner || owner == candidate) throw new InvalidOperationException("Distinct actual owner required");
@@ -131,8 +133,7 @@ namespace Portcove.HostedNative {
                     IntPtr existing = OpenDesktopW(value.Name, 0, false, 0x20081);
                     if (existing != IntPtr.Zero) { CloseDesktop(existing); throw new InvalidOperationException("Existing desktop refused"); }
                     if (Marshal.GetLastWin32Error() != 2) throw new Win32Exception(Marshal.GetLastWin32Error(), "Desktop absence unavailable");
-                    var acl = new RawSecurityDescriptor("O:" + owner + "D:P(A;;GA;;;" + owner + ")(A;;GA;;;SY)(A;;0x000200c7;;;" + candidate + ")");
-                    byte[] bytes = new byte[acl.BinaryLength]; acl.GetBinaryForm(bytes, 0);
+                    byte[] bytes = DesktopDescriptor(owner, candidate);
                     var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                     try {
                         var attributes = new Attributes {length=Marshal.SizeOf<Attributes>(), descriptor=pinned.AddrOfPinnedObject()};
@@ -140,12 +141,16 @@ namespace Portcove.HostedNative {
                         if (value.desktop == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "Create non-input private desktop");
                     } finally { pinned.Free(); }
                     if (ObjectName(value.desktop) != value.Name) throw new InvalidOperationException("Private desktop name differs");
-                    if (!DesktopMatches(ReadAcl(value.desktop), bytes, owner)) throw new InvalidOperationException("Private desktop DACL differs");
+                    byte[] actual = ReadAcl(value.desktop);
+                    using (var file = new System.IO.FileStream(System.IO.Path.Combine(recoveryDirectory, "desktop-dacl-proposed.bin"), System.IO.FileMode.CreateNew)) { file.Write(bytes, 0, bytes.Length); file.Flush(true); }
+                    using (var file = new System.IO.FileStream(System.IO.Path.Combine(recoveryDirectory, "desktop-dacl-observed.bin"), System.IO.FileMode.CreateNew)) { file.Write(actual, 0, actual.Length); file.Flush(true); }
+                    if (!DesktopMatches(actual, bytes, owner)) throw new InvalidOperationException("Private desktop DACL differs");
                     value.AssertNonInput();
                 } finally { if (!SetProcessWindowStation(previous)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Restore station"); }
                 return value;
             } catch (Exception failure) {
                 try { value.Dispose(); } catch (Exception recovery) { throw new AggregateException("Hosted desktop preparation and recovery refused", failure, recovery); }
+                finally { FailedPreparationRestored = value.Restored; }
                 throw;
             }
         }
@@ -156,6 +161,11 @@ namespace Portcove.HostedNative {
             var name = new StringBuilder(256); uint needed;
             if (!GetUserObjectInformationW(handle, 2, name, 512, out needed)) throw new Win32Exception(Marshal.GetLastWin32Error(), "Read bounded station name");
             return name.ToString();
+        }
+        static byte[] DesktopDescriptor(string owner, string candidate) {
+            // Windows maps generic rights when creating user objects; compare explicit rights.
+            var acl = new RawSecurityDescriptor("O:" + owner + "D:P(A;;0x000f01ff;;;" + owner + ")(A;;0x000f01ff;;;SY)(A;;0x000200c7;;;" + candidate + ")");
+            byte[] bytes = new byte[acl.BinaryLength]; acl.GetBinaryForm(bytes, 0); return bytes;
         }
         static bool DesktopMatches(byte[] actual, byte[] expected, string owner) {
             var observed = new RawSecurityDescriptor(actual, 0); var proposal = new RawSecurityDescriptor(expected, 0);
