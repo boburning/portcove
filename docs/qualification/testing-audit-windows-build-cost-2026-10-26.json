@@ -1,0 +1,2072 @@
+{
+  "format_version": 1,
+  "kind": "windows-build-phase-cost-measurement",
+  "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+  "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+  "run": 40252630121,
+  "attempt": 1,
+  "producer_job": 121347714111,
+  "producer_outcome": "success",
+  "whole_run_outcome": "failure",
+  "whole_run_failure": "actionlint rejected temporary constant false cache-step condition; no experiment code will merge",
+  "profile_identity": {
+    "format_version": 1,
+    "kind": "windows-build-cost-profile",
+    "identity": {
+      "source": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+      "run": "40252630121",
+      "attempt": "1",
+      "plan": "9578428de09fa58e94a323473ea0bdc2ef809391c0e2cb5f5186d292be1000ce",
+      "compiler": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-pc-windows-msvc\nrelease: 1.99.1\nLLVM version: 23.1.1",
+      "nextest": "cargo-nextest 0.9.100 (7e6129fe2 2025-07-07)\nrelease: 0.9.100\ncommit-hash: 7e6129fe2c410ba2b5fd0da0755c61f9f2252b59\ncommit-date: 2025-07-07\nhost: x86_64-pc-windows-msvc",
+      "target": "x86_64-pc-windows-msvc",
+      "inputs": "9c828f51a09a8ee02406f82f1f09b548e9df30296cfc2970c69a41599d3d500d"
+    },
+    "candidate": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+    "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+    "git_tree": "7488473c7a0c2aac57d0a0185e34831885ecd8bd",
+    "source_status": "",
+    "job": "fast_rust",
+    "runner": {
+      "platform": "win32",
+      "arch": "x64",
+      "image_os": "win25-vs2026",
+      "image_version": "20261021.278.1"
+    },
+    "recorded_at": "2026-10-26T01:08:31.863Z",
+    "cargo_home": "C:\\Users\\runneradmin\\.cargo",
+    "cargo_version": "cargo 1.99.1 (5f94df478 2026-08-27)\nrelease: 1.99.1\ncommit-hash: 5f94df4789f005f9a352888e8355ffc645b7ed0e\ncommit-date: 2026-08-27\nhost: x86_64-pc-windows-msvc\nlibgit2: 1.9.6 (sys:0.21.0 vendored)\nlibcurl: 8.21.0-DEV (sys:0.4.90+curl-8.21.0 vendored ssl:Schannel)\nos: Windows 10.0.26100 (Windows 11 ServerDatacenter) [64-bit]",
+    "expected_target": "D:\\a\\portcove\\portcove\\target",
+    "target_present_before": false,
+    "cache_policy": "producer Rust cache restore/save intentionally disabled for this experiment",
+    "dependency_fetch_command": [
+      "cargo",
+      "--config",
+      "build.target-dir=\"work/windows-profile-fetch\"",
+      "fetch",
+      "--locked"
+    ],
+    "commands": [
+      [
+        "cargo-nextest",
+        "nextest",
+        "list",
+        "--locked",
+        "--workspace",
+        "--all-targets",
+        "--list-type",
+        "binaries-only",
+        "--message-format",
+        "json"
+      ],
+      ["cargo", "metadata", "--locked", "--format-version", "1"]
+    ],
+    "environment": {
+      "CARGO_TARGET_DIR": null,
+      "CARGO_BUILD_JOBS": null,
+      "CARGO_ENCODED_RUSTFLAGS": null,
+      "NEXTEST_TEST_THREADS": null,
+      "RUSTUP_TOOLCHAIN": null,
+      "RUSTFLAGS": null,
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+      "CARGO_PROFILE_TEST_DEBUG": "line-tables-only"
+    },
+    "completed_at": "2026-10-26T01:15:40.398Z",
+    "target_directory": "D:\\a\\portcove\\portcove\\target",
+    "target_immediately_before_build": {
+      "observed_at": "2026-10-26T01:09:22.442Z",
+      "target": "D:\\a\\portcove\\portcove\\target",
+      "present": false
+    },
+    "metadata": [
+      {
+        "file": "binaries.json",
+        "sha256": "1a8af6a26da4d496d3e13c07a7728b24fde9686149ddad6964fa96ac87a19fc3"
+      },
+      {
+        "file": "cargo.json",
+        "sha256": "835192cc482d8050e1a8eda86bf99d71612dc6b637105bfb5d491604b95aff06"
+      },
+      {
+        "file": "warm-binaries.json",
+        "sha256": "1a8af6a26da4d496d3e13c07a7728b24fde9686149ddad6964fa96ac87a19fc3"
+      },
+      {
+        "file": "warm-cargo.json",
+        "sha256": "835192cc482d8050e1a8eda86bf99d71612dc6b637105bfb5d491604b95aff06"
+      }
+    ],
+    "complete": true
+  },
+  "build_phases": {
+    "02545267-28d5-4665-9d65-c0518fc4e838.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "cache:rust-workspace",
+      "recorded_at": "2026-10-26T01:08:26.833Z",
+      "process_elapsed_ms": 3,
+      "cache_outcome": "unknown"
+    },
+    "055c1f10-b804-41ee-ae31-7290c557947f.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-build-profile:dependency-fetch",
+      "recorded_at": "2026-10-26T01:09:22.442Z",
+      "process_elapsed_ms": 51228,
+      "elapsed_ms": 50507,
+      "outcome": "completed"
+    },
+    "14ec4f14-bbac-4c50-8b6d-cd2d74a33a4b.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-selection",
+      "recorded_at": "2026-10-26T01:15:45.538Z",
+      "process_elapsed_ms": 434322,
+      "complete_tests": 2686,
+      "selected_tests": 2686,
+      "groups": ["workspace"]
+    },
+    "2e961986-f42f-44ed-aa2b-c448df777676.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:08:29.917Z",
+      "process_elapsed_ms": 1199,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 555
+    },
+    "346308b8-cdbc-4125-a3d5-77c908feb37a.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:08:29.917Z",
+      "process_elapsed_ms": 1198,
+      "elapsed_ms": 555,
+      "outcome": "completed"
+    },
+    "352f985e-ce63-43a6-af7d-fc4463338ae9.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-archive",
+      "recorded_at": "2026-10-26T01:15:45.398Z",
+      "process_elapsed_ms": 434182,
+      "elapsed_ms": 2568,
+      "outcome": "completed"
+    },
+    "3f7f2429-9118-490a-bf72-178a21a7f73d.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:08:20.966Z",
+      "process_elapsed_ms": 279,
+      "elapsed_ms": 270,
+      "outcome": "completed"
+    },
+    "4d7f133c-2f8d-4cf9-9186-6d37dde447be.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-workspace-build",
+      "recorded_at": "2026-10-26T01:15:38.188Z",
+      "process_elapsed_ms": 426972,
+      "elapsed_ms": 375743,
+      "outcome": "completed"
+    },
+    "a316de2d-0097-466f-992c-f5e96bc6492c.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:08:23.187Z",
+      "process_elapsed_ms": 2500,
+      "elapsed_ms": 2220,
+      "outcome": "completed"
+    },
+    "ae600798-d7f4-410e-b1f0-979a576634fb.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:08:29.169Z",
+      "process_elapsed_ms": 451,
+      "elapsed_ms": 447,
+      "outcome": "completed"
+    },
+    "cc165e91-8d42-487a-99ce-b88994aedba7.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:08:29.361Z",
+      "process_elapsed_ms": 643,
+      "elapsed_ms": 191,
+      "outcome": "completed"
+    },
+    "cdb6e87a-44d3-4fe9-8024-93be6b6290fc.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "bootstrap-regressions",
+      "recorded_at": "2026-10-26T01:08:28.144Z",
+      "process_elapsed_ms": 721,
+      "elapsed_ms": 669,
+      "outcome": "completed"
+    },
+    "eb69c602-5366-4b0d-a89b-21844f4bf036.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:08:23.187Z",
+      "process_elapsed_ms": 2500,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 2220
+    },
+    "ed4402a2-02f8-455a-ac96-7a939fecb6cd.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-workspace-build-warm",
+      "recorded_at": "2026-10-26T01:15:40.241Z",
+      "process_elapsed_ms": 429025,
+      "elapsed_ms": 2053,
+      "outcome": "completed"
+    },
+    "fc7cd9df-2b8b-4dab-b9d0-9546f7bf0c2a.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-build-profile:cache-policy",
+      "recorded_at": "2026-10-26T01:08:31.934Z",
+      "process_elapsed_ms": 720,
+      "cache_outcome": "restore-and-save-disabled"
+    }
+  },
+  "transport_phases": {
+    "09073fa9-03c7-4961-b563-dd0f7d2db4b1.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "transport.core-output",
+      "recorded_at": "2026-10-26T01:09:49.657Z",
+      "process_elapsed_ms": 64042,
+      "elapsed_ms": 186,
+      "outcome": "completed"
+    },
+    "20bd24c0-f46e-482e-8321-77f1de123ac4.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:08:44.931Z",
+      "process_elapsed_ms": 3047,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 2231
+    },
+    "29f3ea51-dfe1-4e9e-82d8-1fba7e4d0641.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "transport.desktop-parity",
+      "recorded_at": "2026-10-26T01:11:00.573Z",
+      "process_elapsed_ms": 134957,
+      "elapsed_ms": 13,
+      "outcome": "completed"
+    },
+    "574c6e2c-6f60-4e64-9c87-88111c3636ce.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "transport.desktop-headless",
+      "recorded_at": "2026-10-26T01:09:49.916Z",
+      "process_elapsed_ms": 64301,
+      "elapsed_ms": 61,
+      "outcome": "completed"
+    },
+    "6bc57c50-1469-4bf0-8183-873cce944d89.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:08:42.400Z",
+      "process_elapsed_ms": 516,
+      "elapsed_ms": 509,
+      "outcome": "completed"
+    },
+    "6f577893-15fe-46c6-8166-e80e64b5bd02.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "transport.desktop-native",
+      "recorded_at": "2026-10-26T01:11:00.559Z",
+      "process_elapsed_ms": 134943,
+      "elapsed_ms": 61,
+      "outcome": "completed"
+    },
+    "8131a62c-eeb8-45b8-80a0-00332dd73c14.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:08:42.698Z",
+      "process_elapsed_ms": 815,
+      "elapsed_ms": 298,
+      "outcome": "completed"
+    },
+    "8df7cb9e-2d87-4fa8-aa0b-37c74e1631e6.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:08:44.930Z",
+      "process_elapsed_ms": 3047,
+      "elapsed_ms": 2232,
+      "outcome": "completed"
+    },
+    "97316a42-e87c-49e5-a5e8-837b7eddcf80.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "transport.core-input",
+      "recorded_at": "2026-10-26T01:09:49.853Z",
+      "process_elapsed_ms": 64239,
+      "elapsed_ms": 174,
+      "outcome": "completed"
+    },
+    "a2c79334-0576-4af1-b239-f69810f48b96.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "transport.build-desktop-native",
+      "recorded_at": "2026-10-26T01:11:00.498Z",
+      "process_elapsed_ms": 134882,
+      "elapsed_ms": 70580,
+      "outcome": "completed"
+    },
+    "c82424de-47c0-4d76-a633-3d62faf0ac2d.json": {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_transport",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "transport.build-core-headless",
+      "recorded_at": "2026-10-26T01:09:49.469Z",
+      "process_elapsed_ms": 63855,
+      "elapsed_ms": 63851,
+      "outcome": "completed"
+    }
+  },
+  "partitions": [
+    {
+      "partition": 1,
+      "executed": 335,
+      "execution_ms": 254933,
+      "extract_inventory_ms": 2035,
+      "queue_ms": 446,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:48Z",
+        "completed_at": "2026-10-26T01:16:53Z",
+        "duration_seconds": 5.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    },
+    {
+      "partition": 2,
+      "executed": 336,
+      "execution_ms": 179534,
+      "extract_inventory_ms": 2689,
+      "queue_ms": 530,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:41Z",
+        "completed_at": "2026-10-26T01:16:45Z",
+        "duration_seconds": 4.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    },
+    {
+      "partition": 3,
+      "executed": 335,
+      "execution_ms": 309863,
+      "extract_inventory_ms": 1916,
+      "queue_ms": 484,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:41Z",
+        "completed_at": "2026-10-26T01:16:44Z",
+        "duration_seconds": 3.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    },
+    {
+      "partition": 4,
+      "executed": 336,
+      "execution_ms": 286851,
+      "extract_inventory_ms": 1989,
+      "queue_ms": 458,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:47Z",
+        "completed_at": "2026-10-26T01:16:52Z",
+        "duration_seconds": 5.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    },
+    {
+      "partition": 5,
+      "executed": 336,
+      "execution_ms": 283545,
+      "extract_inventory_ms": 2100,
+      "queue_ms": 498,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:41Z",
+        "completed_at": "2026-10-26T01:16:43Z",
+        "duration_seconds": 2.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    },
+    {
+      "partition": 6,
+      "executed": 336,
+      "execution_ms": 183151,
+      "extract_inventory_ms": 2548,
+      "queue_ms": 378,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:40Z",
+        "completed_at": "2026-10-26T01:16:43Z",
+        "duration_seconds": 3.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    },
+    {
+      "partition": 7,
+      "executed": 336,
+      "execution_ms": 241185,
+      "extract_inventory_ms": 2337,
+      "queue_ms": 374,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:44Z",
+        "completed_at": "2026-10-26T01:16:48Z",
+        "duration_seconds": 4.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    },
+    {
+      "partition": 8,
+      "executed": 336,
+      "execution_ms": 276241,
+      "extract_inventory_ms": 2103,
+      "queue_ms": 514,
+      "archive_download": {
+        "started_at": "2026-10-26T01:16:44Z",
+        "completed_at": "2026-10-26T01:16:53Z",
+        "duration_seconds": 9.0,
+        "precision": "one-second GitHub step timestamp resolution"
+      }
+    }
+  ],
+  "discovered_runnable": 2686,
+  "selected": 2686,
+  "executed": 2686,
+  "unique_executed": 2686,
+  "selected_groups": ["workspace"],
+  "derived_producer_postwarm_discovery_selection_validation_ms": 2589,
+  "derived_interval_scope": "Between warm build end and archive start in the same producer metrics instance: metadata comparison, full discovery, union/partition checks and config generation; not isolated enumeration time",
+  "archive_upload_step": {
+    "started_at": "2026-10-26T01:15:45Z",
+    "completed_at": "2026-10-26T01:15:49Z",
+    "duration_seconds": 4.0,
+    "precision": "GitHub job step timestamps, one-second resolution"
+  },
+  "raw_artifacts": [
+    {
+      "file": "windows-build-profile-build-v1.zip",
+      "sha256": "a73474b15fb48e4635f50cc06e8c6d747cd9111f753ce2e1c5561131c39d3f82"
+    },
+    {
+      "file": "windows-build-profile-inputs-v1.zip",
+      "sha256": "ea1160cec7b2bb421958ab0b52502e1c595ee03ff23bcd6801dfa827055b4509"
+    },
+    {
+      "file": "windows-build-profile-partition-1-timing-v1.zip",
+      "sha256": "35b4736d75c6fb5a8563a97cdd8098abe8a0622fcb13e7b7f926c7d88e820e18"
+    },
+    {
+      "file": "windows-build-profile-partition-2-timing-v1.zip",
+      "sha256": "3f2ff2bda419ceffab95b6050fa801f4bd385bece68ba3529f522197c2004636"
+    },
+    {
+      "file": "windows-build-profile-partition-3-timing-v1.zip",
+      "sha256": "051d67e774ee651a88afcef7bb8cc95a6f8732cbcd1d63368ec40bfb6e71f57a"
+    },
+    {
+      "file": "windows-build-profile-partition-4-timing-v1.zip",
+      "sha256": "9e22476c0e61991fabd8d6542d0aa923f15ab7877a987107f00711beadfaccb8"
+    },
+    {
+      "file": "windows-build-profile-partition-5-timing-v1.zip",
+      "sha256": "446caddf2f45bd7b9dd53018ffa69fe94002556ff5087907fa08f3402ce9f780"
+    },
+    {
+      "file": "windows-build-profile-partition-6-timing-v1.zip",
+      "sha256": "bc6e5a2cedec6d367884b923104ca1f968c1cfdf367f52944013a46dd7037e4a"
+    },
+    {
+      "file": "windows-build-profile-partition-7-timing-v1.zip",
+      "sha256": "ed34099afa123320886d0d84e4698d923153dce5a26c60d699caf41765bdbb67"
+    },
+    {
+      "file": "windows-build-profile-partition-8-timing-v1.zip",
+      "sha256": "f7479af96df034ad615b4f3d1c48c2100e27d9efba5e73b6f2570bfae4e73a9a"
+    },
+    {
+      "file": "windows-build-profile-transport-v1.zip",
+      "sha256": "af3a7ff2886b8ee111574d01af9204167e92ce638f89a935e138668dc5e8b7bb"
+    }
+  ],
+  "limits": [
+    "One target-cold/dependency-source-present and immediate same-job warm pair; not a fully cold machine",
+    "Wall-clock operations, not compiler CPU or end-to-end savings",
+    "Other worker/transport phases are separate Windows jobs, not controlled cold/warm pairs",
+    "No selection, cache, retry, thread, deadline or acceptance change will remain in final diff"
+  ],
+  "provider_commit": {
+    "parents": [
+      "ba55e9a06357d0230ad9c65a48c96fe93f226a56",
+      "1eb5210bfb3993d61b30b035585ac5e26ce583f8"
+    ],
+    "sha": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+    "tree": "7488473c7a0c2aac57d0a0185e34831885ecd8bd"
+  },
+  "partition_phase_records": [
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:45.327Z",
+      "process_elapsed_ms": 2594,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 2298
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:21:14.396Z",
+      "process_elapsed_ms": 257321,
+      "elapsed_ms": 254933,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:55.124Z",
+      "process_elapsed_ms": 653,
+      "elapsed_ms": 203,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:59.251Z",
+      "process_elapsed_ms": 2180,
+      "elapsed_ms": 2035,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:55.710Z",
+      "process_elapsed_ms": 1239,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 584
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:45.327Z",
+      "process_elapsed_ms": 2594,
+      "elapsed_ms": 2298,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:43.027Z",
+      "process_elapsed_ms": 295,
+      "elapsed_ms": 285,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:55.710Z",
+      "process_elapsed_ms": 1238,
+      "elapsed_ms": 585,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:54.921Z",
+      "process_elapsed_ms": 450,
+      "elapsed_ms": 446,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:46.808Z",
+      "process_elapsed_ms": 532,
+      "elapsed_ms": 530,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:51.390Z",
+      "process_elapsed_ms": 2836,
+      "elapsed_ms": 2689,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:19:51.108Z",
+      "process_elapsed_ms": 182560,
+      "elapsed_ms": 179534,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:38.791Z",
+      "process_elapsed_ms": 2232,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 1955
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:47.446Z",
+      "process_elapsed_ms": 1170,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 464
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:46.981Z",
+      "process_elapsed_ms": 705,
+      "elapsed_ms": 172,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:36.835Z",
+      "process_elapsed_ms": 277,
+      "elapsed_ms": 268,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:38.791Z",
+      "process_elapsed_ms": 2232,
+      "elapsed_ms": 1955,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:47.446Z",
+      "process_elapsed_ms": 1170,
+      "elapsed_ms": 465,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:47.278Z",
+      "process_elapsed_ms": 1239,
+      "elapsed_ms": 547,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:50.622Z",
+      "process_elapsed_ms": 2053,
+      "elapsed_ms": 1916,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:46.529Z",
+      "process_elapsed_ms": 489,
+      "elapsed_ms": 484,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:36.119Z",
+      "process_elapsed_ms": 307,
+      "elapsed_ms": 298,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:38.102Z",
+      "process_elapsed_ms": 2290,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 1982
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:46.731Z",
+      "process_elapsed_ms": 691,
+      "elapsed_ms": 201,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:47.279Z",
+      "process_elapsed_ms": 1239,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 547
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:38.102Z",
+      "process_elapsed_ms": 2289,
+      "elapsed_ms": 1982,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:22:00.683Z",
+      "process_elapsed_ms": 312117,
+      "elapsed_ms": 309863,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:43.388Z",
+      "process_elapsed_ms": 2391,
+      "elapsed_ms": 2111,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:55.303Z",
+      "process_elapsed_ms": 1235,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 573
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:21:45.851Z",
+      "process_elapsed_ms": 289212,
+      "elapsed_ms": 286851,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:43.388Z",
+      "process_elapsed_ms": 2391,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 2111
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:55.302Z",
+      "process_elapsed_ms": 1235,
+      "elapsed_ms": 574,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:54.728Z",
+      "process_elapsed_ms": 660,
+      "elapsed_ms": 198,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:54.530Z",
+      "process_elapsed_ms": 462,
+      "elapsed_ms": 458,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:58.761Z",
+      "process_elapsed_ms": 2127,
+      "elapsed_ms": 1989,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:41.275Z",
+      "process_elapsed_ms": 280,
+      "elapsed_ms": 270,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:21:33.787Z",
+      "process_elapsed_ms": 285993,
+      "elapsed_ms": 283545,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:45.757Z",
+      "process_elapsed_ms": 503,
+      "elapsed_ms": 498,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:38.675Z",
+      "process_elapsed_ms": 2567,
+      "elapsed_ms": 2279,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:50.031Z",
+      "process_elapsed_ms": 2239,
+      "elapsed_ms": 2100,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:38.675Z",
+      "process_elapsed_ms": 2567,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 2279
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:46.504Z",
+      "process_elapsed_ms": 1250,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 546
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:46.503Z",
+      "process_elapsed_ms": 1250,
+      "elapsed_ms": 547,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:45.956Z",
+      "process_elapsed_ms": 702,
+      "elapsed_ms": 198,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:36.394Z",
+      "process_elapsed_ms": 287,
+      "elapsed_ms": 277,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:45.741Z",
+      "process_elapsed_ms": 990,
+      "elapsed_ms": 445,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:49.458Z",
+      "process_elapsed_ms": 2697,
+      "elapsed_ms": 2548,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:45.130Z",
+      "process_elapsed_ms": 380,
+      "elapsed_ms": 378,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:19:52.788Z",
+      "process_elapsed_ms": 186034,
+      "elapsed_ms": 183151,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:45.741Z",
+      "process_elapsed_ms": 991,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 445
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:37.899Z",
+      "process_elapsed_ms": 2250,
+      "elapsed_ms": 1978,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:35.920Z",
+      "process_elapsed_ms": 272,
+      "elapsed_ms": 263,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:45.295Z",
+      "process_elapsed_ms": 545,
+      "elapsed_ms": 164,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:37.899Z",
+      "process_elapsed_ms": 2250,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 1978
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:53.729Z",
+      "process_elapsed_ms": 2457,
+      "elapsed_ms": 2337,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:49.845Z",
+      "process_elapsed_ms": 377,
+      "elapsed_ms": 374,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:38.668Z",
+      "process_elapsed_ms": 389,
+      "elapsed_ms": 381,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:50.254Z",
+      "process_elapsed_ms": 786,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 243
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:20:55.088Z",
+      "process_elapsed_ms": 243814,
+      "elapsed_ms": 241185,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:50.010Z",
+      "process_elapsed_ms": 542,
+      "elapsed_ms": 165,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:50.254Z",
+      "process_elapsed_ms": 786,
+      "elapsed_ms": 243,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:41.368Z",
+      "process_elapsed_ms": 3088,
+      "elapsed_ms": 2698,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:41.368Z",
+      "process_elapsed_ms": 3089,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 2698
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "selected-rust-tests",
+      "recorded_at": "2026-10-26T01:21:36.007Z",
+      "process_elapsed_ms": 278719,
+      "elapsed_ms": 276241,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:55.943Z",
+      "process_elapsed_ms": 1301,
+      "cache_outcome": "built",
+      "fingerprint": "036697b87640328e89a9b42d6971896f75ecf1952a31e091842977c06dad3265",
+      "elapsed_ms": 575
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:41.162Z",
+      "process_elapsed_ms": 2679,
+      "elapsed_ms": 2362,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:55.366Z",
+      "process_elapsed_ms": 724,
+      "elapsed_ms": 205,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-setup:windows-process-tree-supervisor",
+      "recorded_at": "2026-10-26T01:16:55.942Z",
+      "process_elapsed_ms": 1301,
+      "elapsed_ms": 576,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "windows-test-extract-and-inventory",
+      "recorded_at": "2026-10-26T01:16:59.530Z",
+      "process_elapsed_ms": 2242,
+      "elapsed_ms": 2103,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "rust-reservation-wait",
+      "recorded_at": "2026-10-26T01:16:55.160Z",
+      "process_elapsed_ms": 518,
+      "elapsed_ms": 514,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "compiler-identity",
+      "recorded_at": "2026-10-26T01:16:38.798Z",
+      "process_elapsed_ms": 317,
+      "elapsed_ms": 303,
+      "outcome": "completed"
+    },
+    {
+      "format": 1,
+      "kind": "ci-timing",
+      "context": {
+        "source": "1eb5210bfb3993d61b30b035585ac5e26ce583f8",
+        "checkout": "fb0f8e24608122fbf0655f4dfd79a2d49e02039a",
+        "run": "40252630121",
+        "attempt": "1",
+        "job": "fast_rust_tests",
+        "runner": "Windows-X64",
+        "mode": "fast"
+      },
+      "phase": "support-cache:host-tool-probe",
+      "recorded_at": "2026-10-26T01:16:41.162Z",
+      "process_elapsed_ms": 2680,
+      "cache_outcome": "built",
+      "fingerprint": "cd6a70588ec6343e33fd8fa19121fa2e6c46115e8221c3d4fbaeaeb79339625a",
+      "elapsed_ms": 2362
+    }
+  ],
+  "executed_identity_set_sha256": "e1030c6a32951dc119e4c29d36f6340cf070e04c9888b55c3486408c50e06bb5",
+  "identity_encoding": "Sorted original JSON-string identities [package,binary,test]; compact UTF-8 JSON array",
+  "original_summary_failure": "Initial collector assumed335cases/shard from older run; official current discovery2686 yields335/336; source data never changed. Original assertion failure retained."
+}
