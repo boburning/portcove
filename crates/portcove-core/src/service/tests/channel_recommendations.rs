@@ -193,7 +193,7 @@ fn native_channel_recommendation_survives_location_policy_and_reopen() {
             .output_location(NATIVE_ID, None)
             .unwrap()
             .configured_output_directory,
-        Some(destination)
+        Some(fs::canonicalize(&destination).unwrap())
     );
 
     let policy_root = temporary.path().join("policy-library");
