@@ -1158,7 +1158,12 @@ for (const [file, tests] of [
   ["docs/REPOSITORY-SETTINGS.md", ["scripts/repository-settings.test.mts"]],
   [
     ".config/rust-test-impact.json",
-    ["scripts/rust-test-impact.test.mts", "scripts/local-validation.test.mts"],
+    [
+      "scripts/rust-test-impact.test.mts",
+      "scripts/local-validation.test.mts",
+      "scripts/nextest-outcomes.test.mts",
+      "scripts/qualification-nextest.test.mts",
+    ],
   ],
   ...[
     "scripts/windows-rust-tests.mts",
@@ -1238,21 +1243,25 @@ for (const [file, tests] of [
     "scripts/fixtures/nextest-inventory-baseline.json",
     ["scripts/nextest-outcomes.test.mts", "scripts/qualification-nextest.test.mts"],
   ],
-  [
-    "scripts/nextest-outcomes.mts",
-    [
-      "scripts/run-rust-tests.test.mts",
-      "scripts/nextest-outcomes.test.mts",
-      "scripts/qualification-nextest.test.mts",
-      "scripts/windows-rust-tests.test.mts",
-      "scripts/rust-test-impact.test.mts",
-      "scripts/ci-rust-workflow.test.mts",
-      "scripts/nextest-equivalence.test.mts",
-      "scripts/ci-workflow.test.mts",
-      "scripts/audit.test.mts",
-      "scripts/precommit-check.test.mts",
+  ...["scripts/nextest-outcomes.mts", "scripts/nextest-skip-routes.mts"].map(
+    (file): [string, string[]] => [
+      file,
+      [
+        "scripts/run-rust-tests.test.mts",
+        "scripts/nextest-outcomes.test.mts",
+        "scripts/qualification-nextest.test.mts",
+        "scripts/windows-rust-tests.test.mts",
+        "scripts/rust-test-impact.test.mts",
+        "scripts/ci-rust-workflow.test.mts",
+        "scripts/nextest-equivalence.test.mts",
+        "scripts/ci-workflow.test.mts",
+        "scripts/audit.test.mts",
+        "scripts/precommit-check.test.mts",
+        "scripts/validation-evidence.test.mts",
+        "scripts/workflow-provenance.test.mts",
+      ],
     ],
-  ],
+  ),
   ...["passed.jsonl", "failing.jsonl", "ignored.jsonl", "inventory.json", "provenance.json"].map(
     (file): [string, string[]] => [
       `scripts/fixtures/nextest-outcomes/${file}`,
