@@ -3,12 +3,12 @@
   "listing": {
     "id": "andyvand-opentyrian2000",
     "name": "Tyrian 2000 / OpenTyrian2000 (andyvand)",
-    "summary": "Explore Tyrian 2000 / OpenTyrian2000 (andyvand) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play OpenTyrian2000 using the upstream Windows package and its included data folder.",
     "project_url": "https://github.com/andyvand/opentyrian2000",
     "issue_number": 1861,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/andyvand/opentyrian2000",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/andyvand/opentyrian2000#readme",
     "artwork": {
       "game_id": 14432,
       "cover_id": 139249,
@@ -16,6 +16,28 @@
       "image_sha256": "e911149612234653a05a98c61f6c6e289ec12a34a7efadd22cf657c3cf474867",
       "game_slug": "tyrian-2000",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/andyvand/opentyrian2000/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the portable package together",
+          "instruction": "Extract the Windows MinGW x64 ZIP into a separate folder. This selected package includes the upstream data directory; keep it beside opentyrian2000.exe."
+        },
+        {
+          "title": "Use the included player",
+          "instruction": "Finish setup with opentyrian2000.exe and its folder, then choose Play. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
+        },
+        {
+          "title": "Keep your current copy when updating",
+          "instruction": "Apply upstream updates separately and keep your existing data, configuration and progress backed up. This downloaded copy remains upstream/player-owned."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/andyvand/opentyrian2000#readme"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["opentyrian2000-MinGW-X86_64.zip"]
     }
   }
 }

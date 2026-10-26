@@ -3,12 +3,11 @@
   "listing": {
     "id": "nicholas-ochoa-opensc2k",
     "name": "SimCity 2000 / OpenSC2K (nicholas-ochoa)",
-    "summary": "Explore SimCity 2000 / OpenSC2K (nicholas-ochoa) and follow the upstream project for requirements, downloads and setup.",
-    "project_url": "https://github.com/nicholas-ochoa/OpenSC2K",
+    "summary": "Build cities in OpenSC2K using your SimCity 2000 Special Edition game files.",
+    "project_url": "https://github.com/OpenSC2K/OpenSC2K",
     "issue_number": 1858,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/nicholas-ochoa/OpenSC2K",
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
     "artwork": {
       "game_id": 330,
       "cover_id": 77917,
@@ -16,6 +15,98 @@
       "image_sha256": "e035728b695e48b6959451357f7c0e6721b62761a46c19bfc3f07de21c2ae697",
       "game_slug": "simcity-2000",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/OpenSC2K/OpenSC2K/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Import your original SimCity 2000 files",
+          "instruction": "On first Play, choose SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files beside it. Upstream can also import from a mounted game disc."
+        },
+        {
+          "title": "Keep your existing copy available",
+          "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
+        }
+      ],
+      "warnings": [
+        "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities."
+      ],
+      "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md"
+    },
+    "original_game_title": "SimCity 2000"
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "nicholas-ochoa-opensc2k",
+    "origin": {
+      "project_url": "https://github.com/nicholas-ochoa/OpenSC2K",
+      "repository": {
+        "host": "github.com",
+        "id": "120053075"
+      }
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/nicholas-ochoa/OpenSC2K",
+          "repository": {
+            "host": "github.com",
+            "id": "120053075"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/OpenSC2K/OpenSC2K",
+          "repository": {
+            "host": "github.com",
+            "id": "120053075"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The historical and current GitHub repository endpoints resolve to the same opaque repository database and node identities; this retains the named OpenSC2K project at its moved owner. No prior Portcove managed runtime contract exists; the current Godot/Rust release is assessed separately from historical application architecture. Keep the existing stable Portcove ID, canonical issue, game identity and artwork.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/nicholas-ochoa/OpenSC2K",
+            "note": "The historical endpoint resolves to OpenSC2K/OpenSC2K with repository ID 120053075 and matching node identity."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/OpenSC2K/OpenSC2K",
+            "note": "The canonical endpoint has the same repository database ID and node identity. Tag v0.3.0 resolves to f4f33738315b24b53efc3056790788de625e34b4."
+          }
+        ],
+        "reconsider_when": "A different repository identity, contradictory canonical ownership or a distinct implementation requires a new lineage decision; no silent rebinding.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/1858#issuecomment-6408463469",
+          "decision_sha256": "94bca39e51609bd578794cda2872cf024dba7919a6d8b519ed0c8172693a4203"
+        }
+      }
+    ]
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "OpenSC2K/OpenSC2K",
+      "asset_hints": {
+        "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["OpenSC2K.exe"]
+    },
+    "persistent_paths": ["data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves only its data folder: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. Existing external copies keep their own ownership and profiles."
     }
   }
 }

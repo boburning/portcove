@@ -1,0 +1,463 @@
+{
+  "format_version": 1,
+  "source_commit": "5b6a003aec3e23abec8640296c0278c375835c65",
+  "observation_cutoff": "2026-10-26T05:23:30.739Z",
+  "original_frozen_source": "0c8c534d91770bc8db6612f4a4e2817a4a48d42d",
+  "inventory_sources": [
+    "Six frozen existing IDs, reconciled byte-for-byte against refreshed main before source mutation",
+    "Original 524-member preserved inventory9e160ec99ddfd5b78be6762e7ab3ca05e3415ec1",
+    "Six canonical Roadmap contexts, including Cannonball’s existing Blocked owner",
+    "Complete official release pagination and recursive pinned source trees; same opaque repository identity for the OpenSC2K relocation",
+    "Five bounded actual Windows ZIP inspections; OpenSC2K previous/current authenticated package/source comparison and full writer audit"
+  ],
+  "coverage": {
+    "distinct_port_identities": 6,
+    "duplicate_identity_mappings_added": [],
+    "unresolved_identity_joins": [],
+    "managed_additions": [1858],
+    "managed_fit_unfinished": [1861, 1898, 1878],
+    "appropriate_upstream_updater_owner": [1849],
+    "existing_acquisition_hold": [120],
+    "authored_listing_count": 1410,
+    "operational_count": 163
+  },
+  "original_commitment": {
+    "parent": 2510,
+    "rollout_owner": 2926,
+    "original_identities": 524,
+    "affected_additions": 312,
+    "original_roadmap_joins": 22,
+    "full_acceptance_satisfied": false,
+    "historical_1422_cohort_expanded": false,
+    "separate_acceptance_owners": [2225, 47, 48],
+    "separate_publication_owners": [534, 246]
+  },
+  "relocation": {
+    "port_id": "nicholas-ochoa-opensc2k",
+    "repository_id": 120053075,
+    "decision_sha256": "94bca39e51609bd578794cda2872cf024dba7919a6d8b519ed0c8172693a4203",
+    "review": "https://github.com/boburning/portcove/issues/1858#issuecomment-6408463469",
+    "preserved": "Stable ID, canonical issue, name, artwork and originals. Current Godot/Rust implementation assessed separately; no historical runtime ABI claim."
+  },
+  "archive_safety": "Raw bounded ZIP metadata preflight precedes ZipFile interpretation; no extraction or upstream execution. TRX’s 356MB package exceeded the original128MiB outer download and100MiB raw compressed caps. Both refusals are retained. Its explicit reviewed inspection budget is512MiB compressed,2GiB expanded,512MiB per entry; raw10000 entries/4MiB central directory/4096-byte metadata-string bounds remain. No product extraction budget changed.",
+  "evidence_boundary": "Dated source-bound batch evidence, not a live backlog or full inventory claim. Existing upstream holds and unresolved managed fits stay unfinished. Actual archives/source, shared fixtures, native execution, packaged Desktop and real-save acceptance remain distinct.",
+  "ports": [
+    {
+      "id": "andyvand-opentyrian2000",
+      "canonical_issue": 1861,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "Previously discovery listing without operational integration",
+      "selected_route": "Recommend the official MinGW x64 ZIP; retain its bundled data directory and select opentyrian2000.exe.",
+      "official_upstream": {
+        "repository": "andyvand/opentyrian2000",
+        "node_id": "R_kgDOL7veOg",
+        "source": "a6758c7814bcaea3504cd738017ce058a938f5d2",
+        "tag": "3.0.0-SDL3",
+        "release_id": 197248957,
+        "observed_at": "2026-10-26T04:18:32.736Z",
+        "release_inventory_complete": true,
+        "releases_observed": 3,
+        "selected_assets_observed": 20,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:01:31.273219+00:00",
+        "repo": "andyvand/opentyrian2000",
+        "tag": "3.0.0-SDL3",
+        "source": "a6758c7814bcaea3504cd738017ce058a938f5d2",
+        "asset_id": 232780403,
+        "url": "https://github.com/andyvand/opentyrian2000/releases/download/3.0.0-SDL3/opentyrian2000-MinGW-X86_64.zip",
+        "bytes": 6074395,
+        "publisher_expected_digest": null,
+        "actual_sha256": "6e7a3796d791ebf8ad5d7c4f027240c33f54cedade15bd8e5e25d8ffcbe638cb",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 83,
+          "central_directory_bytes": 10350,
+          "compressed_bytes": 6074395
+        },
+        "expanded_bytes": 18352655,
+        "executable_headers": [
+          {
+            "path": "opentyrian2000-MinGW-X86_64/opentyrian2000.exe",
+            "bytes": 2158208,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "The inspected Windows package already includes data/tyrian.hdt and other Tyrian2000 data. README attributes the game data as freeware; COPYING covers the engine. Existing copy, original/optional data, settings and progress remain upstream/player-owned.",
+      "managed_fit": "Unfinished managed fit: the complete release inventory supplies no independently expected digest for this selected ZIP; a computed inspection hash is not authentication. Runtime writer/persistence review still needs completion.",
+      "next_action": "Establish accepted independent artifact identity and complete the runtime writer contract before managed admission.",
+      "download_asset_hints": {
+        "windows-x86-64": ["opentyrian2000-MinGW-X86_64.zip"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/andyvand-opentyrian2000.json",
+      "authored_preimage_sha256": "08c38aa93c1ee44fe5e76d3f2e1cef2f0cad8b994202f0605d11eebd1d997fab",
+      "authored_sha256": "17d9d412935a380e7efd5878cf6fd8ebe590636258afdca14607c681176c4363",
+      "authored_hash_scope": "Formatted per-ID bytes; generated aggregates rebuilt through maintained generator.",
+      "preparation": {
+        "operational_changed": false,
+        "lineage": "legacy-unassessed",
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "record_matches": true
+      },
+      "validation_scope": "Pinned upstream/source/actual archive observations where acquired, current Core authoring inspector for managed addition; selected exact-source CI and final review tracked by the PR. No upstream program/helper or native gameplay executed.",
+      "delivery_status": "Reviewed source candidate; canonical issue/PR readback owns delivered state.",
+      "other_platforms": "Not qualified by these Windows observations; previous unknown scopes create no removed platform commitment."
+    },
+    {
+      "id": "cannonball-outrun",
+      "canonical_issue": 120,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "Previously discovery listing without operational integration",
+      "selected_route": "Preserve the existing fresh-acquisition hold and offer registration of an already permitted working copy.",
+      "official_upstream": {
+        "repository": "djyt/cannonball",
+        "node_id": "MDEwOlJlcG9zaXRvcnk1OTQwMTAx",
+        "source": "0f3fabcb80682c34487eb68cbf91ec6d8884b54d",
+        "tag": "v0.34",
+        "release_id": 41998262,
+        "observed_at": "2026-10-26T04:18:39.329Z",
+        "release_inventory_complete": true,
+        "releases_observed": 4,
+        "selected_assets_observed": 1,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "scope": "No held payload acquired; release metadata/source/license only."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "OutRun Revision B originals and the existing ROM/config folders stay with that copy. The pinned project license explicitly grants conditional non-commercial redistribution; this observation refines, rather than erases, the existing owner hold. No held payload acquired.",
+      "managed_fit": "Existing Blocked owner remains. Publisher integrity, accepted exact original ROM-set identity and applicability of redistribution conditions to the offered package remain unaccepted.",
+      "next_action": "Resolve the existing owner conditions with attributable evidence; preserve any permitted working copy and all files.",
+      "download_asset_hints": null,
+      "download_block_reason": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered.",
+      "authored_path": "crates/portcove-core/catalog/ports/cannonball-outrun.json",
+      "authored_preimage_sha256": "5fade407e1e7af12e0c1d69ffc0bbf9f283c2e7881506e17b2a23fc63f26e3bb",
+      "authored_sha256": "5aa1f0487675e924dc1a3e76db0f656ef7251af7a7325ae6f37b15d75f5e1793",
+      "authored_hash_scope": "Formatted per-ID bytes; generated aggregates rebuilt through maintained generator.",
+      "preparation": {
+        "operational_changed": false,
+        "lineage": "legacy-unassessed",
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "record_matches": true
+      },
+      "validation_scope": "Pinned upstream/source/actual archive observations where acquired, current Core authoring inspector for managed addition; selected exact-source CI and final review tracked by the PR. No upstream program/helper or native gameplay executed.",
+      "delivery_status": "Reviewed source candidate; canonical issue/PR readback owns delivered state.",
+      "other_platforms": "Not qualified by these Windows observations; previous unknown scopes create no removed platform commitment."
+    },
+    {
+      "id": "lostartefacts-trx",
+      "canonical_issue": 1898,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "Previously discovery listing without operational integration",
+      "selected_route": "Recommend the supported combined upstream Windows installer, select original games there, then register installed TRX.exe.",
+      "official_upstream": {
+        "repository": "LostArtefacts/TRX",
+        "node_id": "MDEwOlJlcG9zaXRvcnkzMzY5MDIzMDQ=",
+        "source": "fa7807f2db852773313c9840f44bab33a3314352",
+        "tag": "trx-1.11.1",
+        "release_id": 393862660,
+        "observed_at": "2026-10-26T04:18:42.411Z",
+        "release_inventory_complete": true,
+        "releases_observed": 191,
+        "selected_assets_observed": 5,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:04:51.531823+00:00",
+        "repo": "LostArtefacts/TRX",
+        "tag": "trx-1.11.1",
+        "source": "fa7807f2db852773313c9840f44bab33a3314352",
+        "asset_id": 581672136,
+        "url": "https://github.com/LostArtefacts/TRX/releases/download/trx-1.11.1/TRX-1.11.1-Windows.zip",
+        "bytes": 356023557,
+        "publisher_expected_digest": "sha256:392a0fb26ec13233b982f0bd9df34a53ddb91f0a4884af648eb198858ebd1806",
+        "actual_sha256": "392a0fb26ec13233b982f0bd9df34a53ddb91f0a4884af648eb198858ebd1806",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 1010,
+          "central_directory_bytes": 81407,
+          "compressed_bytes": 356023557
+        },
+        "expanded_bytes": 355876881,
+        "executable_headers": [
+          {
+            "path": "TRX.exe",
+            "bytes": 10232334,
+            "machine": "0x14c"
+          }
+        ],
+        "inspection_limits": {
+          "compressed_bytes": 536870912,
+          "total_expanded_bytes": 2147483648,
+          "individual_entry_bytes": 536870912,
+          "raw_metadata_preflight": "unchanged retained first-party cap before ZipFile; bounded native-header/notice reads only"
+        },
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "TR1–TR3 retain their corresponding commercial inputs. The installer arranges games/<id>; the portable ZIP mixes version-owned game/config content and manually placed originals. Defaults use cfg, saves, cache, screenshots and games beside the player, with supported TRX_* overrides. This guide grants no management of any location.",
+      "managed_fit": "Upstream installer is the fitting supported preparation route. Managed portable adoption remains unfinished: no reviewed package-safe original-data projection/readiness and mixed-tree persistence contract is established. Declaring games or cfg wholesale would mask version-owned package files.",
+      "next_action": "Retain the useful upstream setup route. Establish a supported original-data preparation/readiness and compatible persistence contract before proposing managed replacement.",
+      "download_asset_hints": {
+        "windows-x86-64": ["TRX-", "-Windows_Installer.exe"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/lostartefacts-trx.json",
+      "authored_preimage_sha256": "788fa0b6660504b16a0d2893b57a507967f9f046d914e77eabc17ac9c3ec258a",
+      "authored_sha256": "c86929e0263d7e403dbd1dc7abdc586d48ea026d74aaf81cf06eb9ea1294e62a",
+      "authored_hash_scope": "Formatted per-ID bytes; generated aggregates rebuilt through maintained generator.",
+      "preparation": {
+        "operational_changed": false,
+        "lineage": "legacy-unassessed",
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "record_matches": true
+      },
+      "validation_scope": "Pinned upstream/source/actual archive observations where acquired, current Core authoring inspector for managed addition; selected exact-source CI and final review tracked by the PR. No upstream program/helper or native gameplay executed.",
+      "delivery_status": "Reviewed source candidate; canonical issue/PR readback owns delivered state.",
+      "other_platforms": "Not qualified by these Windows observations; previous unknown scopes create no removed platform commitment."
+    },
+    {
+      "id": "opencommunityedition-opence",
+      "canonical_issue": 1849,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "Previously discovery listing without operational integration",
+      "selected_route": "Recommend halo-windows-release.zip and halo.exe; first Play selects the original Xbox ISO/XISO; preserve OpenCE’s own updater.",
+      "official_upstream": {
+        "repository": "OpenCommunityEdition/OpenCE",
+        "node_id": "R_kgDOUsUqXA",
+        "source": "b09a3ea739d653ee837e403df066e841279b39b4",
+        "tag": "build-276",
+        "release_id": 423652826,
+        "observed_at": "2026-10-26T04:21:36.809Z",
+        "release_inventory_complete": true,
+        "releases_observed": 5,
+        "selected_assets_observed": 10,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:02:10.816805+00:00",
+        "repo": "OpenCommunityEdition/OpenCE",
+        "tag": "build-276",
+        "source": "b09a3ea739d653ee837e403df066e841279b39b4",
+        "asset_id": 676084662,
+        "url": "https://github.com/OpenCommunityEdition/OpenCE/releases/download/build-276/halo-windows-release.zip",
+        "bytes": 13902361,
+        "publisher_expected_digest": "sha256:66d0c7a716392cac0edc97fc2eefda6b19ca8af692b9a4b855b723de45e6094e",
+        "actual_sha256": "66d0c7a716392cac0edc97fc2eefda6b19ca8af692b9a4b855b723de45e6094e",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 10,
+          "central_directory_bytes": 845,
+          "compressed_bytes": 13902361
+        },
+        "expanded_bytes": 23416130,
+        "executable_headers": [
+          {
+            "path": "halo.exe",
+            "bytes": 20978688,
+            "machine": "0x14c"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Original Xbox maps are extracted beside the player; PC/CustomEdition maps do not substitute. config.toml stays local, default saves use AppData/Roaming/halo unless paths.saves changes it. custom_maps/resources are optional; OpenSauce maps are incompatible. Root AGPL3 and separate packaged third-party notices remain attributable. No original maps bundled.",
+      "managed_fit": "Existing upstream runtime replacement is concrete: Windows win32_update.c downloads, renames/replaces its running executable/DLLs and relaunches. Native-portable management would conflict with that owner and remove a useful update capability. The supported non-owning route remains appropriate.",
+      "next_action": "Use upstream updates. Reconsider Core ownership only for an upstream-supported non-self-replacing route with compatible data and retained functionality.",
+      "download_asset_hints": {
+        "windows-x86-64": ["halo-windows-release.zip"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/opencommunityedition-opence.json",
+      "authored_preimage_sha256": "1372740e8c89b50d0bee34386ad52be369a44bec5f966fad9b6678513e207fd0",
+      "authored_sha256": "a83a54cff9477ea06b6377aecd103b5fa948766a8bf513e6158ce455d24e8fb1",
+      "authored_hash_scope": "Formatted per-ID bytes; generated aggregates rebuilt through maintained generator.",
+      "preparation": {
+        "operational_changed": false,
+        "lineage": "legacy-unassessed",
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "record_matches": true
+      },
+      "validation_scope": "Pinned upstream/source/actual archive observations where acquired, current Core authoring inspector for managed addition; selected exact-source CI and final review tracked by the PR. No upstream program/helper or native gameplay executed.",
+      "delivery_status": "Reviewed source candidate; canonical issue/PR readback owns delivered state.",
+      "other_platforms": "Not qualified by these Windows observations; previous unknown scopes create no removed platform commitment."
+    },
+    {
+      "id": "sdlpal-sdlpal",
+      "canonical_issue": 1878,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "Previously discovery listing without operational integration",
+      "selected_route": "Recommend the MinGW Windows player in a separate working copy of original game data, register the same working directory and preserve .rpg/cfg files.",
+      "official_upstream": {
+        "repository": "sdlpal/sdlpal",
+        "node_id": "MDEwOlJlcG9zaXRvcnk2MTQ4NTYxNw==",
+        "source": "366bc366cbfa0b34c66b0c19171ab05d1643adfd",
+        "tag": "v3.0.2025.0616",
+        "release_id": 225417306,
+        "observed_at": "2026-10-26T04:21:50.543Z",
+        "release_inventory_complete": true,
+        "releases_observed": 3,
+        "selected_assets_observed": 7,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T05:02:11.270795+00:00",
+        "repo": "sdlpal/sdlpal",
+        "tag": "v3.0.2025.0616",
+        "source": "366bc366cbfa0b34c66b0c19171ab05d1643adfd",
+        "asset_id": 264188556,
+        "url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-win32-mingw.zip",
+        "bytes": 2683645,
+        "publisher_expected_digest": "sha256:375f04ebe1f3c68080dc3827254b41bc85d9475b4f3b38c3e913fcfaddabed0d",
+        "actual_sha256": "375f04ebe1f3c68080dc3827254b41bc85d9475b4f3b38c3e913fcfaddabed0d",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 1,
+          "central_directory_bytes": 80,
+          "compressed_bytes": 2683645
+        },
+        "expanded_bytes": 2743822,
+        "executable_headers": [
+          {
+            "path": "sdlpal.exe",
+            "bytes": 2743822,
+            "machine": "0x14c"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "player/upstream",
+      "maintenance_declaration": "user-managed-update",
+      "setup_and_data_boundary": "Windows setup is a same-process dialog. PAL_LoadConfig sets SavePath=./ before the dialog changes only GamePath; first-session saves can therefore stay at the runtime cwd. PAL_SaveConfig omits SavePath=./; the next launch may instead default saves to the selected external GamePath. The guide keeps both coordinates at the same working copy. A separate runtime folder needs an explicit absolute SavePath before the first session. DOS/Windows edition/save formats remain distinct.",
+      "managed_fit": "Managed proposal rejected before source adoption after two independent reviewers found first-session save writes outside the cfg-only contract and later path switching. This is an actual source defect/boundary, not optional gameplay uncertainty or universal Unsupported status.",
+      "next_action": "Establish a stable first-session/restart save coordinate through upstream repair or supported preparation and preserve all real writers before managed admission. No new product deferral or artificial marker.",
+      "download_asset_hints": {
+        "windows-x86-64": ["sdlpal-win32-mingw.zip"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/sdlpal-sdlpal.json",
+      "authored_preimage_sha256": "802343bd88c94927164daf0d2e0ec0351be76720edfc4f9561b7112a7e93dedf",
+      "authored_sha256": "d0b523d810356246f61c4182a5351e4c99325f5e7a89cb39f1ec26905b5a0842",
+      "authored_hash_scope": "Formatted per-ID bytes; generated aggregates rebuilt through maintained generator.",
+      "preparation": {
+        "operational_changed": false,
+        "lineage": "legacy-unassessed",
+        "validation": {
+          "status": "unchanged-operational-projection",
+          "scope": "Per-record listing structure checked; final Core catalog/listing CI still applies."
+        },
+        "record_matches": true
+      },
+      "validation_scope": "Pinned upstream/source/actual archive observations where acquired, current Core authoring inspector for managed addition; selected exact-source CI and final review tracked by the PR. No upstream program/helper or native gameplay executed.",
+      "delivery_status": "Reviewed source candidate; canonical issue/PR readback owns delivered state.",
+      "other_platforms": "Not qualified by these Windows observations; previous unknown scopes create no removed platform commitment."
+    },
+    {
+      "id": "nicholas-ochoa-opensc2k",
+      "canonical_issue": 1858,
+      "original_inventory_member": true,
+      "reviewed_platform_scope": ["windows-x86-64"],
+      "current_route": "Previously discovery listing without operational integration",
+      "selected_route": "Add the existing native-portable managed Windows x64 route with stable package/executable selectors; retain the non-owning existing-copy alternative.",
+      "official_upstream": {
+        "repository": "OpenSC2K/OpenSC2K",
+        "node_id": "MDEwOlJlcG9zaXRvcnkxMjAwNTMwNzU=",
+        "source": "f4f33738315b24b53efc3056790788de625e34b4",
+        "tag": "v0.3.0",
+        "release_id": 407394175,
+        "observed_at": "2026-10-26T04:21:33.776Z",
+        "release_inventory_complete": true,
+        "releases_observed": 7,
+        "selected_assets_observed": 10,
+        "source_tree_complete": true
+      },
+      "artifact_inspection": {
+        "observed_at": "2026-10-26T04:34:23.215709+00:00",
+        "repo": "OpenSC2K/OpenSC2K",
+        "tag": "v0.3.0",
+        "source": "f4f33738315b24b53efc3056790788de625e34b4",
+        "asset_id": 623480102,
+        "url": "https://github.com/OpenSC2K/OpenSC2K/releases/download/v0.3.0/OpenSC2K-0.3.0-windows-x64-portable.zip",
+        "bytes": 55232302,
+        "publisher_expected_digest": "sha256:7bffa89b05884d293c0f2196ffd0b3bcaf065a7e58742c58c7fb11e737841cef",
+        "actual_sha256": "7bffa89b05884d293c0f2196ffd0b3bcaf065a7e58742c58c7fb11e737841cef",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 37,
+          "central_directory_bytes": 4123,
+          "compressed_bytes": 55232302
+        },
+        "expanded_bytes": 146656222,
+        "executable_headers": [
+          {
+            "path": "OpenSC2K-0.3.0-windows-x64-portable/OpenSC2K.exe",
+            "bytes": 109260800,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "update_owner": "Portcove runtime; upstream first-Play setup",
+      "maintenance_declaration": "managed-update",
+      "setup_and_data_boundary": "First Play imports SimCity2000 Special Edition for Windows95(1996), SIMCITY.EXE with companions or mounted disc. The packaged empty data/ marker selects portable mode. Core carries only data/: settings, imported packs, ordinary cities/scenarios/scripts/SCURK and recorded audio. Keep originals for pack re-import when upstream pack revisions change. Temporary autosaves in system-temp/OpenSC2K Autosaves, custom save/export/data/audio/SoundFont paths, Godot logs/profile and original installation stay external. Normal-save cities before backup. Runtime rollback carries current data, not historical cities or save compatibility.",
+      "managed_fit": "Fitting Windows managed adoption. Same executable-relative data coordinate and portable marker established in authenticated v0.2.0 and v0.3.0 packages/source. Upstream update action opens the release URL, without self-replacement. Full pinned source writer audit separates defaults/custom paths and temporary autosaves. MIT project, six font-family SIL OFL1.1 grants and the actual packaged LGPL/MIT/Apache/0BSD third-party notices reviewed; originals are not bundled. No installed historical managed contract is migrated.",
+      "next_action": "Deliver this exact metadata and shared native-portable lifecycle under required CI and independent review; retain external files/ownership.",
+      "download_asset_hints": {
+        "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"]
+      },
+      "download_block_reason": null,
+      "authored_path": "crates/portcove-core/catalog/ports/nicholas-ochoa-opensc2k.json",
+      "authored_preimage_sha256": "19713bd77ac35b9be52b5efc72b72dbdb8bc9bb678b9e2d95876ba047439d356",
+      "authored_sha256": "a28cfdd41dbd5552607d32cff53e5811b2e0aa10f6682ca96c24d25ca9f06cb0",
+      "authored_hash_scope": "Formatted per-ID bytes; generated aggregates rebuilt through maintained generator.",
+      "preparation": {
+        "operational_changed": true,
+        "lineage": "recorded",
+        "validation": {
+          "format_version": 1,
+          "input_sha256": "9be3b9ed5ef3ca6a9a97f7421feea7868dd75d11115423a3240831e711102ac7",
+          "input_bytes": 972052,
+          "catalog_schema": 2,
+          "checked_port_count": 163,
+          "selected_port": {
+            "port_id": "nicholas-ochoa-opensc2k",
+            "definition_sha256": "bc6557419ee301b641b1924de97abede438468bbbd10c1ecca5b457d58ac0093",
+            "check": "catalog-declared-contract-validation"
+          },
+          "validator_artifact_sha256": "b0b3c5e97a91f36d2a93394e8ff781ce3272f57ad18ff5f0b1a8a31a5e84c9dc",
+          "scope": "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance"
+        },
+        "record_matches": true
+      },
+      "validation_scope": "Pinned upstream/source/actual archive observations where acquired, current Core authoring inspector for managed addition; selected exact-source CI and final review tracked by the PR. No upstream program/helper or native gameplay executed.",
+      "delivery_status": "Reviewed source candidate; canonical issue/PR readback owns delivered state.",
+      "other_platforms": "Not qualified by these Windows observations; previous unknown scopes create no removed platform commitment."
+    }
+  ]
+}

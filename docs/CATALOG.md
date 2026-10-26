@@ -84,6 +84,12 @@ without game-specific Rust or React code. The minimum integration shape is:
 ```
 
 These are reviewed facts, not an invitation to copy those paths to every game.
+Trace save and settings writes during the first setup session as well as after
+restart. Choosing a game-data folder does not prove that the running process
+also changed its save folder; preserve every actual managed write coordinate
+before promising updates or backup. Keep a useful upstream-owned route when
+that coordinate requires upstream repair or supported preparation.
+
 For manual preparation that must finish before Play, `native-portable` may
 declare a `setup_marker` pointing to an upstream completion JSON record beneath
 an already declared persistent directory. Establish that upstream removes the

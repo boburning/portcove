@@ -7843,12 +7843,14 @@
     {
       "id": "andyvand-opentyrian2000",
       "name": "Tyrian 2000 / OpenTyrian2000 (andyvand)",
-      "summary": "Explore Tyrian 2000 / OpenTyrian2000 (andyvand) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play OpenTyrian2000 using the upstream Windows package and its included data folder.",
       "project_url": "https://github.com/andyvand/opentyrian2000",
       "issue_number": 1861,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/andyvand/opentyrian2000",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/andyvand/opentyrian2000#readme",
       "artwork": {
         "game_id": 14432,
         "cover_id": 139249,
@@ -7856,6 +7858,30 @@
         "image_sha256": "e911149612234653a05a98c61f6c6e289ec12a34a7efadd22cf657c3cf474867",
         "game_slug": "tyrian-2000",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/andyvand/opentyrian2000/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the portable package together",
+            "instruction": "Extract the Windows MinGW x64 ZIP into a separate folder. This selected package includes the upstream data directory; keep it beside opentyrian2000.exe."
+          },
+          {
+            "title": "Use the included player",
+            "instruction": "Finish setup with opentyrian2000.exe and its folder, then choose Play. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
+          },
+          {
+            "title": "Keep your current copy when updating",
+            "instruction": "Apply upstream updates separately and keep your existing data, configuration and progress backed up. This downloaded copy remains upstream/player-owned."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/andyvand/opentyrian2000#readme"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "opentyrian2000-MinGW-X86_64.zip"
+        ]
       }
     },
     {
@@ -10143,12 +10169,14 @@
     {
       "id": "cannonball-outrun",
       "name": "Cannonball / OutRun",
-      "summary": "Explore Cannonball / OutRun and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an existing permitted Cannonball installation with your matching OutRun ROMs.",
       "project_url": "https://github.com/djyt/cannonball",
       "issue_number": 120,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/djyt/cannonball",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/djyt/cannonball#readme",
       "artwork": {
         "game_id": 2051,
         "cover_id": 125104,
@@ -10156,7 +10184,23 @@
         "image_sha256": "b73e8678bba802ebed6776d5130fa0e5330cd413880507fa7f7c0115bc42ff1e",
         "game_slug": "outrun",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/djyt/cannonball/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your permitted working copy",
+            "instruction": "Use an already permitted Cannonball installation with the matching OutRun Revision B ROMs required by that copy. Keep its configuration and ROM folders together."
+          },
+          {
+            "title": "Select the completed installation",
+            "instruction": "Select the native Cannonball player and its working folder. Keep your existing copy available; updates and data stay with you and upstream."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/djyt/cannonball#readme"
+      },
+      "download_block_reason": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered."
     },
     {
       "id": "captain-america-super-soldier-recompiled-m1ndcrap-captain-america-super-soldier",
@@ -20610,12 +20654,41 @@
     {
       "id": "lostartefacts-trx",
       "name": "Tomb Raider I-III / TRX (LostArtefacts)",
-      "summary": "Explore Tomb Raider I-III / TRX (LostArtefacts) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Set up Tomb Raider I–III with the upstream TRX Windows installer and your original game files.",
       "project_url": "https://github.com/LostArtefacts/TRX",
       "issue_number": 1898,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/LostArtefacts/TRX"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
+      "release_url": "https://github.com/LostArtefacts/TRX/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Run the upstream Windows installer",
+            "instruction": "Open the download folder and run the Windows Installer EXE yourself. Choose a separate TRX folder and the game packs you want."
+          },
+          {
+            "title": "Select your original game files",
+            "instruction": "Use the installer’s supported Steam, GOG or disc locations for the corresponding Tomb Raider games. Let it arrange the required files; the portable ZIP needs manual game-specific placement instead."
+          },
+          {
+            "title": "Choose the installed player",
+            "instruction": "Finish Portcove setup with the installed TRX.exe and its folder. Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
+          }
+        ],
+        "warnings": [
+          "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data."
+        ],
+        "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "TRX-",
+          "-Windows_Installer.exe"
+        ]
+      }
     },
     {
       "id": "lufia-ii-recompiled-cellenseres-lufia-ii-rise-of-the-sinistrals",
@@ -23773,12 +23846,11 @@
     {
       "id": "nicholas-ochoa-opensc2k",
       "name": "SimCity 2000 / OpenSC2K (nicholas-ochoa)",
-      "summary": "Explore SimCity 2000 / OpenSC2K (nicholas-ochoa) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/nicholas-ochoa/OpenSC2K",
+      "summary": "Build cities in OpenSC2K using your SimCity 2000 Special Edition game files.",
+      "project_url": "https://github.com/OpenSC2K/OpenSC2K",
       "issue_number": 1858,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/nicholas-ochoa/OpenSC2K",
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md",
       "artwork": {
         "game_id": 330,
         "cover_id": 77917,
@@ -23786,7 +23858,34 @@
         "image_sha256": "e035728b695e48b6959451357f7c0e6721b62761a46c19bfc3f07de21c2ae697",
         "game_slug": "simcity-2000",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/OpenSC2K/OpenSC2K/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenSC2K-",
+          "windows-x64-portable.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Import your original SimCity 2000 files",
+            "instruction": "On first Play, choose SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files beside it. Upstream can also import from a mounted game disc."
+          },
+          {
+            "title": "Keep your existing copy available",
+            "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
+          }
+        ],
+        "warnings": [
+          "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities."
+        ],
+        "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md"
+      },
+      "original_game_title": "SimCity 2000",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "ninja-gaiden-black-ninja-gaiden-black-recompiled",
@@ -24387,12 +24486,14 @@
     {
       "id": "opencommunityedition-opence",
       "name": "Halo: Combat Evolved / OpenCE (OpenCommunityEdition)",
-      "summary": "Explore Halo: Combat Evolved / OpenCE (OpenCommunityEdition) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image and the upstream updater.",
       "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
       "issue_number": 1849,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenCommunityEdition/OpenCE",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenCommunityEdition/OpenCE#readme",
       "artwork": {
         "game_id": 740,
         "cover_id": 128403,
@@ -24400,6 +24501,32 @@
         "image_sha256": "8e10e22bd95498f7c0cddbcf8566ae173456a5ccb3c9e91ebec215b21f633d8f",
         "game_slug": "halo-combat-evolved",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/OpenCommunityEdition/OpenCE/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the Windows package together",
+            "instruction": "Extract halo-windows-release.zip into a separate upstream-owned folder. Finish setup with halo.exe and that folder."
+          },
+          {
+            "title": "Choose your original Xbox disc image on Play",
+            "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso. OpenCE extracts its maps beside the player. Halo PC or Custom Edition maps do not replace these Xbox maps."
+          },
+          {
+            "title": "Use OpenCE’s updates and keep your data",
+            "instruction": "OpenCE replaces its own runtime when you use its updater. Keep the extracted maps, config.toml and your saves backed up; Windows saves normally use the halo folder under AppData/Roaming, unless paths.saves changes it."
+          }
+        ],
+        "warnings": [
+          "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible. Portcove does not replace or back up this upstream-owned runtime."
+        ],
+        "help_url": "https://github.com/OpenCommunityEdition/OpenCE#readme"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "halo-windows-release.zip"
+        ]
       }
     },
     {
@@ -29450,12 +29577,14 @@
     {
       "id": "sdlpal-sdlpal",
       "name": "Legend of Sword and Fairy / SDLPal (sdlpal)",
-      "summary": "Explore Legend of Sword and Fairy / SDLPal (sdlpal) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play The Legend of Sword and Fairy with SDLPAL and a working copy of your original game data.",
       "project_url": "https://github.com/sdlpal/sdlpal",
       "issue_number": 1878,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/sdlpal/sdlpal",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
       "artwork": {
         "game_id": 18928,
         "cover_id": 243131,
@@ -29463,6 +29592,32 @@
         "image_sha256": "1f39fdcee8bb8f823cfca576fb2f91508d582f5b7cf42f5239e360632105340d",
         "game_slug": "the-legend-of-sword-and-fairy",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/sdlpal/sdlpal/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a working copy of your game data",
+            "instruction": "Keep your originals safe and make a separate working copy of the matching DOS or Windows game-data folder. Extract the Windows MinGW ZIP’s sdlpal.exe into that working copy."
+          },
+          {
+            "title": "Keep the player and save folder together",
+            "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
+          },
+          {
+            "title": "Preserve your saved games",
+            "instruction": "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates. For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
+          }
+        ],
+        "warnings": [
+          "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy."
+        ],
+        "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md"
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "sdlpal-win32-mingw.zip"
+        ]
       }
     },
     {

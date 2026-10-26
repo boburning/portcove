@@ -23694,6 +23694,68 @@
       }
     },
     {
+      "id": "nicholas-ochoa-opensc2k",
+      "name": "SimCity 2000 / OpenSC2K (nicholas-ochoa)",
+      "summary": "Build cities in OpenSC2K using your SimCity 2000 Special Edition game files.",
+      "project_url": "https://github.com/OpenSC2K/OpenSC2K",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "OpenSC2K/OpenSC2K",
+        "asset_hints": {
+          "windows-x86-64": [
+            "OpenSC2K-",
+            "windows-x64-portable.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenSC2K.exe"
+        ]
+      },
+      "persistent_paths": [
+        "data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files. Keep those originals for later pack re-import prompts. Portcove updates this portable runtime and preserves only its data folder: imported packs, settings and ordinary saved cities, scenarios, scripts and SCURK files. Temporary autosaves in the system temporary folder, custom save/export/pack/SoundFont locations, Godot logs and the original installation remain external and outside these backups. Save cities normally before backup. Runtime rollback keeps current declared data; it does not rewind cities or guarantee older-version compatibility. Existing external copies keep their own ownership and profiles.",
+        "original_game_title": "SimCity 2000",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Import your original SimCity 2000 files",
+              "instruction": "On first Play, choose SIMCITY.EXE from your SimCity 2000 Special Edition for Windows 95 (1996), with its companion files beside it. Upstream can also import from a mounted game disc."
+            },
+            {
+              "title": "Keep your existing copy available",
+              "instruction": "For an existing upstream installation, select OpenSC2K.exe and its folder. Portable copies use the data folder beside the player; standard Windows copies use the OpenSC2K Godot user profile. Keep the profile used by that copy when updating it."
+            }
+          ],
+          "warnings": [
+            "Extended .sc2x cities cannot be opened by the original game. Keep backup copies of your cities."
+          ],
+          "help_url": "https://github.com/OpenSC2K/OpenSC2K/blob/main/docs/install.md"
+        },
+        "artwork": {
+          "game_id": 330,
+          "cover_id": 77917,
+          "image_id": "co1o4d",
+          "image_sha256": "e035728b695e48b6959451357f7c0e6721b62761a46c19bfc3f07de21c2ae697",
+          "game_slug": "simcity-2000",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "noahvl-birdman64",
       "name": "Pilotwings 64 / Birdman64 (NoahVl)",
       "summary": "Explore Pilotwings 64 / Birdman64 (NoahVl) and follow the upstream project for requirements, downloads and setup.",
