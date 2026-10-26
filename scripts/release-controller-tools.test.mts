@@ -11,11 +11,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
 import {
   bundleControllerEntries,
+  buildControllerTools,
   controllerBootstrapEnvironment,
   materializeControllerCompilerSource,
 } from "./release-controller-tool-build.mts";
 import {
   controllerToolAssets,
+  controllerToolSourceAssetMaximumBytes,
+  readControllerToolFile,
   controllerToolEntries,
   controllerToolChildren,
   controllerToolPaths,
@@ -1303,4 +1306,70 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     ),
     text,
   );
+});
+
+void test("fixed source asset preflight bounds real inventory and refuses before dependency or build work", async (t) => {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const)
+    for (const name of controllerToolPlatformProfile(platform).assets)
+      assert.ok(
+        (
+          await readControllerToolFile(
+            path.join(sourceRoot, name),
+            controllerToolSourceAssetMaximumBytes,
+          )
+        ).length > 0,
+        name,
+      );
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-asset-bound-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = path.join(root, "source"),
+    output = path.join(root, "output"),
+    hooks = path.join(root, "hooks");
+  for (const directory of [source, output, hooks]) await mkdir(directory);
+  const git = (args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        source,
+        "-c",
+        `core.hooksPath=${hooks}`,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "core.autocrlf=false",
+        ...args,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    ).trim();
+  git(["init", "--quiet"]);
+  await writeFile(
+    path.join(source, "deny.toml"),
+    Buffer.alloc(controllerToolSourceAssetMaximumBytes + 1, 32),
+  );
+  git(["add", "--all"]);
+  git(["commit", "--quiet", "-m", "fixture"]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  await assert.rejects(
+    buildControllerTools(source, output, expected),
+    /bootstrap refused in source-assets: tool file exceeds regular-file bound/u,
+  );
+  const builds = await readdir(output);
+  assert.equal(builds.length, 1);
+  const failure: unknown = JSON.parse(
+    await readFile(path.join(output, builds[0]!, "failure.json"), "utf8"),
+  );
+  assert.ok(isRecord(failure));
+  assert.equal(failure.phase, "source-assets");
+  assert.equal(failure.failure, "tool file exceeds regular-file bound");
+  assert.deepEqual(failure.source, expected);
+  assert.equal(failure.automatic_retry, false);
+  assert.deepEqual((await readdir(path.join(output, builds[0]!))).sort(), [
+    "failure.json",
+    process.platform === "win32" ? "h" : "home",
+  ]);
 });

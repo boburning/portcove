@@ -7,6 +7,7 @@ import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
+export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
 export const controllerToolEntries = Object.freeze([
