@@ -290,10 +290,12 @@ fn variant_port() -> PortDefinition {
 #[tokio::test]
 async fn observed_native_archive_layouts_resolve_successors_without_definition_changes() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("diegodedios-alienrerecomp").unwrap();
     // Observed names/sizes/digests; controlled HTTP replay, no artifact execution.
-    for (platform, packages) in [
+    for (id, old_tag, new_tag, platform, packages) in [
         (
+            "diegodedios-alienrerecomp",
+            "v0.1.7",
+            "v0.1.8",
             Platform::WindowsX86_64,
             [
                 (
@@ -309,6 +311,9 @@ async fn observed_native_archive_layouts_resolve_successors_without_definition_c
             ],
         ),
         (
+            "diegodedios-alienrerecomp",
+            "v0.1.7",
+            "v0.1.8",
             Platform::LinuxX86_64,
             [
                 (
@@ -323,15 +328,52 @@ async fn observed_native_archive_layouts_resolve_successors_without_definition_c
                 ),
             ],
         ),
+        (
+            "mr-finster-stunts-hd",
+            "v1.5.21",
+            "v1.5.22",
+            Platform::WindowsX86_64,
+            [
+                (
+                    "Stunts-HD-win-x64.zip",
+                    "866b95cb379e1f49da69f324d07372800328bb4641c4df7a8857732e1cabc392",
+                    111_603_100,
+                ),
+                (
+                    "Stunts-HD-win-x64.zip",
+                    "118f0598916966bb8d79f3786016e94c8cb8dce57b7e97c02240c41c8d52aaf5",
+                    111_604_171,
+                ),
+            ],
+        ),
+        (
+            "mr-finster-stunts-hd",
+            "v1.5.21",
+            "v1.5.22",
+            Platform::LinuxX86_64,
+            [
+                (
+                    "Stunts-HD-linux-x64.tar.gz",
+                    "d465c2949157a1ae6baae8859e942cf3009cb4cbe8126bc1e0618e2050ed2f46",
+                    102_788_078,
+                ),
+                (
+                    "Stunts-HD-linux-x64.tar.gz",
+                    "693ab6cc4c8d96df57752c28df0e0f65a5bb56635a8d08eec57098da83c48543",
+                    102_789_136,
+                ),
+            ],
+        ),
     ] {
+        let port = catalog.port(id).unwrap();
         let [old_asset, new_asset] = packages.map(|(name, digest, size)| {
             let mut value = asset(name, None);
             value["digest"] = format!("sha256:{digest}").into();
             value["size"] = size.into();
             value
         });
-        let old = release("v0.1.7", vec![old_asset]);
-        let current = [release("v0.1.8", vec![new_asset]), old.clone()];
+        let old = release(old_tag, vec![old_asset]);
+        let current = [release(new_tag, vec![new_asset]), old.clone()];
         let (root, requests, server) = serve_http(vec![
             metadata(),
             releases(&[old]),
@@ -364,9 +406,9 @@ async fn observed_native_archive_layouts_resolve_successors_without_definition_c
             .await
             .unwrap();
         for (resolved, (name, digest, size), version) in [
-            (&baseline, packages[0], "v0.1.7"),
-            (&successor, packages[1], "v0.1.8"),
-            (&fresh, packages[1], "v0.1.8"),
+            (&baseline, packages[0], old_tag),
+            (&successor, packages[1], new_tag),
+            (&fresh, packages[1], new_tag),
         ] {
             assert_eq!(resolved.version, version);
             assert_eq!(resolved.asset.name, name);

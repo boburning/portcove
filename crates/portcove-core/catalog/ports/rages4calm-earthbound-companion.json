@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "rages4calm-earthbound-companion",
+    "name": "EarthBound Companion",
+    "original_game_title": "EarthBound",
+    "summary": "Use a permitted existing Companion launcher with your own clean USA EarthBound ROM.",
+    "project_url": "https://github.com/rages4calm/earthbound-companion",
+    "issue_number": 2861,
+    "availability": "packages",
+    "setup_url": "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the Companion launcher you are permitted to use",
+          "instruction": "Select EarthBound Companion.exe with its own folder as the working directory, then choose Play explicitly. Use its guided setup with your own clean USA EarthBound ROM. The launcher builds native game data and optional supported Redux content; Portcove does not run its helpers during discovery. This is a distinct implementation from nickclyde/EarthBoundRecomp and does not change that integration or retained contracts. If your existing launcher uses a custom data root, retain its --data-root argument and chosen directory when registering: enter --data-root and the directory as two separate argument lines. Otherwise it opens the default profile instead."
+        },
+        {
+          "title": "Keep each edition and seed’s data together",
+          "instruction": "The ordinary Windows build uses the launcher folder as its data root; portable/preview builds can use %LOCALAPPDATA%/EarthBoundCompanionPreview instead. Keep the complete actual Companion data root, including Game, Profiles, UserData, msu, settings, supported mods and generated content, backed up with the game closed. Original, Redux and generated seeds have separate save namespaces. Make a normal in-game phone save before changing versions: quick states are build-specific, and runtime rollback does not restore earlier saves or guarantee older compatibility. Use the launcher’s own supported backup/restore and migration controls; retain original ROMs and working runtimes separately."
+        },
+        {
+          "title": "Retain upstream ownership",
+          "instruction": "The launcher and its helpers own preparation, version-specific content generation and replacement. Registration leaves every external file untouched and does not promise Portcove-managed update, backup, restore or rollback. Fresh foundation redistribution/GPL qualification remains unresolved; a conditional existing-copy guide is not binary-distribution clearance."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md"
+    },
+    "platforms": ["windows-x86-64"],
+    "download_block_reason": "Fresh runtime acquisition remains held under upstream’s explicit native-foundation redistribution/GPL qualification boundary. Reconsider when exact foundation source, combined distribution terms and release artifacts are accepted. The launcher’s own-code license and original-ROM requirement do not alone resolve that boundary.",
+    "artwork": {
+      "game_id": 2899,
+      "cover_id": 320119,
+      "image_id": "co6v07",
+      "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
+      "game_slug": "earthbound",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "rages4calm-earthbound-companion",
+    "origin": {
+      "project_url": "https://github.com/rages4calm/earthbound-companion",
+      "repository": {
+        "host": "github.com",
+        "id": "1404543852"
+      }
+    },
+    "decisions": []
+  }
+}

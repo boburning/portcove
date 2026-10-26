@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "lodilorenzo-cybermage-darklight-re-awakening",
+    "name": "CyberMage: Darklight Re-Awakening",
+    "original_game_title": "CyberMage: Darklight Awakening",
+    "summary": "Use a permitted existing CyberMage player with your own DOS game files.",
+    "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening",
+    "issue_number": 2836,
+    "availability": "packages",
+    "setup_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use a permitted existing Windows player",
+          "instruction": "If you already have a permitted Windows copy, select cybermage.exe with its containing folder as the working directory. Choose Play explicitly. The player runs the original x86 code through an interpreter with native services; this does not prevent useful existing-copy registration."
+        },
+        {
+          "title": "Supply the original once in the game",
+          "instruction": "The game accepts your own CyberMage DOS v1.01F ISO 9660 .iso or CM_HI.EXE from its CYBERMAG folder. BIN/CUE and other executable versions are outside this input contract. Its first-Play picker verifies and copies required files to iso/CYBERMAG beside the player without changing the original. It does not import original DOS saves/settings or require optional SC-55 firmware."
+        },
+        {
+          "title": "Keep the working folder and its data",
+          "instruction": "The upstream player owns runtime replacement and setup. Keep iso/CYBERMAG, run and NATIVE.CNF backed up with the application closed; a custom --root uses that chosen data root instead. Existing imported destinations are not overwritten automatically; retain a working folder before following upstream repair instructions. Portcove registration leaves all files external and provides no managed update, backup or rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md"
+    },
+    "platforms": ["windows-x86-64"],
+    "download_block_reason": "Fresh acquisition remains held pending clarification or a clean official package for the embedded commercial Darklight icon. Upstream THIRD_PARTY_NOTICE.md explicitly excludes it from the MIT grant and supplies no redistribution permission. This does not classify the interpreted player as unsupported or transfer rights to an existing copy.",
+    "artwork": {
+      "game_id": 18998,
+      "cover_id": 137555,
+      "image_id": "co2y4z",
+      "image_sha256": "3bc779f0ac8a658c115ce6723605ae5d5a30172c2d61c495e42ae1cb2ea18dd4",
+      "game_slug": "cybermage-darklight-awakening",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "lodilorenzo-cybermage-darklight-re-awakening",
+    "origin": {
+      "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening",
+      "repository": {
+        "host": "github.com",
+        "id": "1414550706"
+      }
+    },
+    "decisions": []
+  }
+}

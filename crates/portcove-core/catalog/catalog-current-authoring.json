@@ -23372,6 +23372,74 @@
       }
     },
     {
+      "id": "mr-finster-stunts-hd",
+      "name": "Stunts HD",
+      "summary": "Play Stunts 1.1 using your own original files in the desktop player.",
+      "project_url": "https://github.com/mr-finster/stunts-hd",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "mr-finster/stunts-hd",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Stunts-HD-win-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Stunts-HD-linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Stunts HD.exe"
+        ],
+        "linux-x86-64": [
+          "stunts-hd"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied. Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup. For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed. The desktop carrier is Electron 33.2.1; original x86 game code is translated to JavaScript on a modeled PC, not statically compiled to native game code. Reviewed ordinary writers do not alter package files, and no runtime self-updater was found. Compatible Portcove runtime replacement leaves the external profile in place. Native execution, Linux sandbox/GPU requirements, gameplay and real-save restoration remain unqualified.",
+        "original_game_title": "Stunts",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original files on Play",
+              "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied."
+            },
+            {
+              "title": "Keep a separate profile backup",
+              "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
+            },
+            {
+              "title": "Keep useful alternatives and recovery limits",
+              "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
+        },
+        "artwork": {
+          "game_id": 11630,
+          "cover_id": 100218,
+          "image_id": "co25bu",
+          "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
+          "game_slug": "stunts",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "mstan-dragonballzbuusfuryrecomp",
       "name": "Dragon Ball Z: Buu's Fury / Dragon Ball Z: Buu's Fury Recomp (mstan)",
       "summary": "Explore Dragon Ball Z: Buu's Fury / Dragon Ball Z: Buu's Fury Recomp (mstan) and follow the upstream project for requirements, downloads and setup.",

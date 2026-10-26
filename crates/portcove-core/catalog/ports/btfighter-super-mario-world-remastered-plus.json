@@ -1,0 +1,53 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "btfighter-super-mario-world-remastered-plus",
+    "name": "Super Mario World Remastered Plus",
+    "original_game_title": "Super Mario World",
+    "summary": "Use a permitted existing Remastered Plus player with your own recognized SNES ROM.",
+    "project_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus",
+    "issue_number": 2841,
+    "availability": "packages",
+    "setup_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the maintained fork distinct",
+          "instruction": "This is BTFighter’s Godot fork of JHDev2006 Super Mario World Remastered, not a native 65816 recompilation. Use an existing copy you are permitted to use and select its exported game executable, with that game folder as the working directory. Keep its companion data files together. Current releases are RAR archives; Portcove does not extract RAR. Older ZIP releases do not resolve the separate bundled-artwork question."
+        },
+        {
+          "title": "Use your own recognized Super Mario World ROM",
+          "instruction": "Place your own baserom.sfc in the SuperMarioWorldRemastered user-data folder shown by the game’s ROM screen. Its checker accepts specific USA, Japanese and European SNES hashes, including some headered variants; an additional accepted hash has no independently established edition here. This gate checks the ROM but does not extract or establish permission for the already bundled sprites/music. Use upstream’s exact recognized edition; no Core original-file receipt is claimed."
+        },
+        {
+          "title": "Preserve the shared profile before switching forks",
+          "instruction": "Both this fork and its archived parent configure the same SuperMarioWorldRemastered user-data directory. Back up that actual Godot profile with both games closed before switching, and keep each working runtime; save compatibility between forks is unqualified. The game normally uses %APPDATA%/SuperMarioWorldRemastered on Windows and $XDG_DATA_HOME/SuperMarioWorldRemastered or ~/.local/share/SuperMarioWorldRemastered on Linux. Updates and backups remain yours; registration neither migrates the parent nor provides managed rollback."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md"
+    },
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "download_block_reason": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+    "artwork": {
+      "game_id": 1070,
+      "cover_id": 401336,
+      "image_id": "co8lo8",
+      "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
+      "game_slug": "super-mario-world",
+      "match_kind": "underlying-game"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "btfighter-super-mario-world-remastered-plus",
+    "origin": {
+      "project_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus",
+      "repository": {
+        "host": "github.com",
+        "id": "1007465321"
+      }
+    },
+    "decisions": []
+  }
+}

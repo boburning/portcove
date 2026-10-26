@@ -2724,6 +2724,47 @@
       "issue_number": 2813
     },
     {
+      "id": "abuse-abuse-2025",
+      "name": "Abuse 2025",
+      "original_game_title": "Abuse",
+      "summary": "Use a permitted existing Abuse player with its compatible game data.",
+      "project_url": "https://github.com/apancik/Abuse_2025",
+      "issue_number": 2913,
+      "availability": "packages",
+      "setup_url": "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the permitted working player and data together",
+            "instruction": "For an existing copy you are permitted to use, select abuse.exe on Windows or abuse on Linux with its game folder as the working directory. Keep its compatible data and libraries together; ABUSE_PATH overrides the asset root. The current release offers Windows and macOS packages; Linux here describes an already prepared native copy, not an offered Linux archive or a Portcove build. macOS uses the upstream application through the OS, not a private bundle binary."
+          },
+          {
+            "title": "Back up the actual save directory",
+            "instruction": "The reviewed SDL code normally uses SDL_GetPrefPath(\"abuse\", \"data\") for saves/settings: %APPDATA%/abuse/data on Windows, or $XDG_DATA_HOME/abuse/data (normally ~/.local/share/abuse/data) on Linux. ABUSE_SAVE_PATH overrides it; if preference-path creation fails upstream falls back to the current working directory. Preserve that actual location, custom levels/mods and the working data folder with the game closed. The local_save flag alone is not proof that saves are beside the executable."
+          },
+          {
+            "title": "Retain upstream replacement and data ownership",
+            "instruction": "Registration leaves the external files untouched. You and upstream own updates and backups; Portcove supplies no managed backup or rollback. Upstream mentions a public-domain data subset, but its exact clean subset and compatibility with this release still need acceptance. Do not automatically replace mixed bundled assets or claim that a root code license covers music and soundfonts."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",
+      "artwork": {
+        "game_id": 586,
+        "cover_id": 130164,
+        "image_id": "co2sfo",
+        "image_sha256": "e4ffa1a3537f7174634208e1084335e6cda41c597c80f08a4e23d92242a3c0e4",
+        "game_slug": "abuse",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "ac1recomp-neonlightning-armored-core",
       "name": "Armored Core — AC1Recomp (NeonLightning)",
       "original_game_title": "Armored Core",
@@ -9808,6 +9849,47 @@
         "image_id": "co3r52",
         "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
         "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "btfighter-super-mario-world-remastered-plus",
+      "name": "Super Mario World Remastered Plus",
+      "original_game_title": "Super Mario World",
+      "summary": "Use a permitted existing Remastered Plus player with your own recognized SNES ROM.",
+      "project_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus",
+      "issue_number": 2841,
+      "availability": "packages",
+      "setup_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the maintained fork distinct",
+            "instruction": "This is BTFighter’s Godot fork of JHDev2006 Super Mario World Remastered, not a native 65816 recompilation. Use an existing copy you are permitted to use and select its exported game executable, with that game folder as the working directory. Keep its companion data files together. Current releases are RAR archives; Portcove does not extract RAR. Older ZIP releases do not resolve the separate bundled-artwork question."
+          },
+          {
+            "title": "Use your own recognized Super Mario World ROM",
+            "instruction": "Place your own baserom.sfc in the SuperMarioWorldRemastered user-data folder shown by the game’s ROM screen. Its checker accepts specific USA, Japanese and European SNES hashes, including some headered variants; an additional accepted hash has no independently established edition here. This gate checks the ROM but does not extract or establish permission for the already bundled sprites/music. Use upstream’s exact recognized edition; no Core original-file receipt is claimed."
+          },
+          {
+            "title": "Preserve the shared profile before switching forks",
+            "instruction": "Both this fork and its archived parent configure the same SuperMarioWorldRemastered user-data directory. Back up that actual Godot profile with both games closed before switching, and keep each working runtime; save compatibility between forks is unqualified. The game normally uses %APPDATA%/SuperMarioWorldRemastered on Windows and $XDG_DATA_HOME/SuperMarioWorldRemastered or ~/.local/share/SuperMarioWorldRemastered on Linux. Updates and backups remain yours; registration neither migrates the parent nor provides managed rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/BTFighter/Super-Mario-World-Remastered-Plus/blob/91b704d088d81cbef96b9ebbd0f859fcd73e1a56/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+      "artwork": {
+        "game_id": 1070,
+        "cover_id": 401336,
+        "image_id": "co8lo8",
+        "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
+        "game_slug": "super-mario-world",
         "match_kind": "underlying-game"
       }
     },
@@ -17485,6 +17567,88 @@
       "issue_number": 3522
     },
     {
+      "id": "gta-iii-re3",
+      "name": "Grand Theft Auto III / re3",
+      "original_game_title": "Grand Theft Auto III",
+      "summary": "Use a permitted existing re3 player with your own original PC game data.",
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "issue_number": 2852,
+      "availability": "packages",
+      "setup_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your existing player for this game",
+            "instruction": "Use an existing re3 copy you are permitted to use with your own original PC Grand Theft Auto III assets. Select re3.exe on Windows or the native re3 executable on Linux and use that game’s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game’s executable, console originals and Definitive Edition are not substitutes."
+          },
+          {
+            "title": "Keep saves and settings with the working copy",
+            "instruction": "This game-specific re3_v1.0 README places user files (saves and settings) in the game root and uses re3.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback."
+          },
+          {
+            "title": "Preserve the archived implementation identity",
+            "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "artwork": {
+        "game_id": 730,
+        "cover_id": 120932,
+        "image_id": "co2lb8",
+        "image_sha256": "5f64f7a41034ea93cb44c3cd3c5b7167d680f647e9952967e167e452dd8e447c",
+        "game_slug": "grand-theft-auto-iii",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "gta-vice-city-revc",
+      "name": "Grand Theft Auto: Vice City / reVC",
+      "original_game_title": "Grand Theft Auto: Vice City",
+      "summary": "Use a permitted existing reVC player with your own original PC game data.",
+      "project_url": "https://github.com/leanndroguedes/re3-19feb21",
+      "issue_number": 2853,
+      "availability": "packages",
+      "setup_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your existing player for this game",
+            "instruction": "Use an existing reVC copy you are permitted to use with your own original PC Grand Theft Auto: Vice City assets. Select reVC.exe on Windows or the native reVC executable on Linux and use that game’s root folder as its working directory. Keep its renderer/audio dependencies and data together. The other game’s executable, console originals and Definitive Edition are not substitutes."
+          },
+          {
+            "title": "Keep saves and settings with the working copy",
+            "instruction": "This game-specific reVC_1.0 README places user files (saves and settings) in the game root and uses reVC.ini. Back up the complete working game folder and any custom user-file location before an upstream update or modification. Do not assume compatibility with original-game or other fork saves. Portcove preserves external ownership and supplies no managed update, backup or rollback."
+          },
+          {
+            "title": "Preserve the archived implementation identity",
+            "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/leanndroguedes/re3-19feb21/blob/e604be65d9b7845ee7ca975545fc9277c662bc11/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "artwork": {
+        "game_id": 733,
+        "cover_id": 120935,
+        "image_id": "co2lbb",
+        "image_sha256": "a3d322aebc6ce090b7b5053b2dc5fc4b2724ed5d00fb6ba9116ff6de78d0ae65",
+        "game_slug": "grand-theft-auto-vice-city",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "gtteancum-openjam",
       "name": "NBA JAM: On Fire Edition (OpenJam)",
       "summary": "Upstream route: UpstreamWindowsrelease includes game/runtime plus NBAJAMModManager.exe. Unzip beside own signedXBLAcontainer; manager extracts game, sets folders, converts optionalPS3modpackages and launches. This is runtime+data/modsetup, not demonstrated player compilation. Limits: Upstream only: Upstream says it runs/plays and converts PS3 mods. Complete-game, multiplayer and all-mod compatibility unverified here. Windows win64 release only, setup generates game code. Distinct from NBA Jam arcade and other editions; upstream plays claim without full-game validation here. Upstream platforms: Windows game/mod manager documented; win64 asset observed. Other native OS routes Unknown despite framework portability. Original data: Xbox360 XBLA NBA JAM OnFireEdition own signed console package. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
@@ -20918,6 +21082,46 @@
       "issue_number": 3381
     },
     {
+      "id": "lodilorenzo-cybermage-darklight-re-awakening",
+      "name": "CyberMage: Darklight Re-Awakening",
+      "original_game_title": "CyberMage: Darklight Awakening",
+      "summary": "Use a permitted existing CyberMage player with your own DOS game files.",
+      "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening",
+      "issue_number": 2836,
+      "availability": "packages",
+      "setup_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use a permitted existing Windows player",
+            "instruction": "If you already have a permitted Windows copy, select cybermage.exe with its containing folder as the working directory. Choose Play explicitly. The player runs the original x86 code through an interpreter with native services; this does not prevent useful existing-copy registration."
+          },
+          {
+            "title": "Supply the original once in the game",
+            "instruction": "The game accepts your own CyberMage DOS v1.01F ISO 9660 .iso or CM_HI.EXE from its CYBERMAG folder. BIN/CUE and other executable versions are outside this input contract. Its first-Play picker verifies and copies required files to iso/CYBERMAG beside the player without changing the original. It does not import original DOS saves/settings or require optional SC-55 firmware."
+          },
+          {
+            "title": "Keep the working folder and its data",
+            "instruction": "The upstream player owns runtime replacement and setup. Keep iso/CYBERMAG, run and NATIVE.CNF backed up with the application closed; a custom --root uses that chosen data root instead. Existing imported destinations are not overwritten automatically; retain a working folder before following upstream repair instructions. Portcove registration leaves all files external and provides no managed update, backup or rollback."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_block_reason": "Fresh acquisition remains held pending clarification or a clean official package for the embedded commercial Darklight icon. Upstream THIRD_PARTY_NOTICE.md explicitly excludes it from the MIT grant and supplies no redistribution permission. This does not classify the interpreted player as unsupported or transfer rights to an existing copy.",
+      "artwork": {
+        "game_id": 18998,
+        "cover_id": 137555,
+        "image_id": "co2y4z",
+        "image_sha256": "3bc779f0ac8a658c115ce6723605ae5d5a30172c2d61c495e42ae1cb2ea18dd4",
+        "game_slug": "cybermage-darklight-awakening",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
       "id": "lollipop-chainsaw-re-cherry",
       "name": "Lollipop Chainsaw / Re-Cherry",
       "summary": "Explore Lollipop Chainsaw / Re-Cherry and follow the upstream project for requirements, downloads and setup.",
@@ -22866,6 +23070,48 @@
       "availability": "unknown",
       "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
       "issue_number": 2596
+    },
+    {
+      "id": "mr-finster-stunts-hd",
+      "name": "Stunts HD",
+      "original_game_title": "Stunts",
+      "summary": "Play Stunts 1.1 using your own original files in the desktop player.",
+      "project_url": "https://github.com/mr-finster/stunts-hd",
+      "issue_number": 2862,
+      "availability": "packages",
+      "setup_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your original files on Play",
+            "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied."
+          },
+          {
+            "title": "Keep a separate profile backup",
+            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
+          },
+          {
+            "title": "Keep useful alternatives and recovery limits",
+            "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
+      },
+      "release_url": "https://github.com/mr-finster/stunts-hd/releases",
+      "recommended_download_channel": "stable",
+      "artwork": {
+        "game_id": 11630,
+        "cover_id": 100218,
+        "image_id": "co25bu",
+        "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
+        "game_slug": "stunts",
+        "match_kind": "underlying-game"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "mr-finster-vf1-recomp",
@@ -28236,6 +28482,46 @@
         "image_id": "co8ap8",
         "image_sha256": "216e38aac33db9621d62e2c78ff04fd92edfec104a8922006028c30fdd9012d8",
         "game_slug": "rage-racer",
+        "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "rages4calm-earthbound-companion",
+      "name": "EarthBound Companion",
+      "original_game_title": "EarthBound",
+      "summary": "Use a permitted existing Companion launcher with your own clean USA EarthBound ROM.",
+      "project_url": "https://github.com/rages4calm/earthbound-companion",
+      "issue_number": 2861,
+      "availability": "packages",
+      "setup_url": "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the Companion launcher you are permitted to use",
+            "instruction": "Select EarthBound Companion.exe with its own folder as the working directory, then choose Play explicitly. Use its guided setup with your own clean USA EarthBound ROM. The launcher builds native game data and optional supported Redux content; Portcove does not run its helpers during discovery. This is a distinct implementation from nickclyde/EarthBoundRecomp and does not change that integration or retained contracts. If your existing launcher uses a custom data root, retain its --data-root argument and chosen directory when registering: enter --data-root and the directory as two separate argument lines. Otherwise it opens the default profile instead."
+          },
+          {
+            "title": "Keep each edition and seed’s data together",
+            "instruction": "The ordinary Windows build uses the launcher folder as its data root; portable/preview builds can use %LOCALAPPDATA%/EarthBoundCompanionPreview instead. Keep the complete actual Companion data root, including Game, Profiles, UserData, msu, settings, supported mods and generated content, backed up with the game closed. Original, Redux and generated seeds have separate save namespaces. Make a normal in-game phone save before changing versions: quick states are build-specific, and runtime rollback does not restore earlier saves or guarantee older compatibility. Use the launcher’s own supported backup/restore and migration controls; retain original ROMs and working runtimes separately."
+          },
+          {
+            "title": "Retain upstream ownership",
+            "instruction": "The launcher and its helpers own preparation, version-specific content generation and replacement. Registration leaves every external file untouched and does not promise Portcove-managed update, backup, restore or rollback. Fresh foundation redistribution/GPL qualification remains unresolved; a conditional existing-copy guide is not binary-distribution clearance."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/rages4calm/earthbound-companion/blob/5b147f42bfd17bc0aa97226beea70e5811b7c373/README.md"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "download_block_reason": "Fresh runtime acquisition remains held under upstream’s explicit native-foundation redistribution/GPL qualification boundary. Reconsider when exact foundation source, combined distribution terms and release artifacts are accepted. The launcher’s own-code license and original-ROM requirement do not alone resolve that boundary.",
+      "artwork": {
+        "game_id": 2899,
+        "cover_id": 320119,
+        "image_id": "co6v07",
+        "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
+        "game_slug": "earthbound",
         "match_kind": "underlying-game"
       }
     },
