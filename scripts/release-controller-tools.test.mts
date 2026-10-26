@@ -492,12 +492,26 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(site.status, 1, site.stderr);
   assert.match(site.stderr, /fixed site upload bridge refused/);
   assert.doesNotMatch(site.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
-  assert.equal(
-    (
-      await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
-    ).includes("semver"),
-    true,
+  const semantic = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+      import assert from 'node:assert/strict';
+      try { import.meta.resolve('semver'); throw Error('unexpected package visibility'); }
+      catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }
+      const bundle = await import(${JSON.stringify(pathToFileURL(path.join(root, "scripts/release-coordinator-driver.bundle.mjs")).href)});
+      const latest = {draft:false, tag_name:'v1.0.0-beta.10', published_at:'2026-10-20T00:00:00.000Z'};
+      const older = {draft:false, tag_name:'v1.0.0-beta.9', published_at:'2026-10-19T00:00:00.000Z'};
+      assert.deepEqual(bundle.selectCoordinatorPublicationBaseline([older, latest], ['1.0.0-beta.9', '1.0.0-beta.10']), {release:latest,version:'1.0.0-beta.10'});
+      process.stdout.write('semantic-version-compared');
+    `,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
   );
+  assert.equal(semantic.status, 0, semantic.stderr);
+  assert.equal(semantic.stdout, "semantic-version-compared");
   const driver = spawnSync(
     process.execPath,
     [path.join(root, "scripts/release-coordinator-driver.bundle.mjs")],
