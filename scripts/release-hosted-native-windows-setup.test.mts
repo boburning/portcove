@@ -362,7 +362,7 @@ if($capture.ToString().Trim() -cne 'inert-registry:identity-begin'){throw 'Expli
 
 void test(
   "real Windows observer waits for an owned visible responsive inert form",
-  { skip: process.platform !== "win32" },
+  { skip: process.platform !== "win32", timeout: 100000 },
   (t) => {
     const root = mkdtempSync(path.join(homedir(), ".portcove-observer-test-"));
     t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -380,13 +380,14 @@ $ErrorActionPreference='Stop'
 Add-Type -TypeDefinition ([IO.File]::ReadAllText('${quote(launcher)}')+[Environment]::NewLine+[IO.File]::ReadAllText('${quote(probe)}'))
 [Portcove.NativeQualification.DesktopObserverProbe]::Run('${quote(root)}')|ConvertTo-Json -Depth 4 -Compress
 `,
-        30000,
+        90000,
       ),
     ) as Record<string, unknown>;
     assert.equal(result.failure, undefined, JSON.stringify(result));
     assert.equal(result.cleanup_failure, undefined, JSON.stringify(result));
     assert.equal(result.observer_drain_failure, undefined, JSON.stringify(result));
     assert.equal(result.dispose_failure, undefined, JSON.stringify(result));
+    assert.equal(result.capture_failure, undefined, JSON.stringify(result));
     assert.equal(result.thread_restore_failure, undefined, JSON.stringify(result));
     assert.equal(result.desktop_close_failure, undefined, JSON.stringify(result));
     assert.equal(result.owned_visible_responsive, true, JSON.stringify(result));

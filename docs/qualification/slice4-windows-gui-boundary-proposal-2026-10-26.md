@@ -114,3 +114,31 @@ does not complete #534.
 is unset, production is held and Slice 5 is excluded. D1/D2/D3, single-owner
 recovery, the account-wide $0/resource stop, Unknown capacity/headroom and no
 reservation or paid fallback remain unchanged.
+
+## Actual inert acceptance and regression-harness calibration
+
+The approved dedicated-account fixture passed `40366111230/1`, Windows job
+`121724167707`, at source `9a59fa17701c01786fb643fc4a7f603b4722afcf`.
+Artifact `12671395591` is 26,839 bytes, SHA256
+`3c6ead09265f0907b7956a4d514dddd83df15ddebc38124218d2ce3164533393`.
+Independent review confirmed owned HWND `131222`, visibility and response,
+isolated HKCU/profile, descendant membership and complete cleanup. Exact root
+creation identity is the retained string `134375083358790534`; numeric member
+creation times were rounded by collection and are not exact generation evidence.
+Desktop DACL bytes match, while Windows-supplied group data differs in the full
+descriptor. No broader native/protected/production acceptance follows.
+
+CI `40366111197/1` separately failed the current-token observer regression at its
+12-second startup limit; cleanup passed. The actual hosted fixture took about
+40 seconds from root creation to descendant creation. This contradicts the test
+budget, without proving which startup component consumed the time. The local
+regression now permits 60 seconds, bounded by 90-second PowerShell and 100-second
+Node case limits, and retains bounded output/exit diagnostics. Product/hosted
+110-second limits and all acceptance predicates remain unchanged. A later pass
+is under this calibrated harness, not a causal startup repair.
+
+This follow-up changes only the regression harness and dated evidence. Reuse
+actual acceptance only at its original source/run and unchanged packaged-helper
+scope after exact hash comparison. Do not relabel that tool archive as a final-head
+execution or production artifact. Required CI must pass on the final head; the
+already completed dedicated-account qualification need not be executed again.

@@ -45,16 +45,24 @@ namespace Portcove.NativeQualification {
                 if (Native.ResumeThread(info.thread) != 1) throw new System.InvalidOperationException("Unexpected observer regression suspend count");
                 Native.CloseHandle(outputWrite); outputWrite=System.IntPtr.Zero; Native.CloseHandle(errorWrite); errorWrite=System.IntPtr.Zero;
                 bool observed=false; var clock=System.Diagnostics.Stopwatch.StartNew();
-                while (!child.HasExited && clock.ElapsedMilliseconds < 12000) { child.RequireAliveGeneration(); child.RefuseFaultedCapture(); if (child.HostedResponding) { observed=true; break; } System.Threading.Thread.Sleep(100); }
-                result["owned_visible_responsive"]=observed; result["window_inspection"]=child.LastWindowInspection; result["response_inspection"]=child.LastResponseInspection;
+                while (!child.HasExited && clock.ElapsedMilliseconds < 60000) { child.RequireAliveGeneration(); child.RefuseFaultedCapture(); if (child.HostedResponding) { observed=true; break; } System.Threading.Thread.Sleep(100); }
+                result["observation_elapsed_ms"]=clock.ElapsedMilliseconds; result["owned_visible_responsive"]=observed; result["window_inspection"]=child.LastWindowInspection; result["response_inspection"]=child.LastResponseInspection;
             } catch (System.Exception error) { result["failure"]=error.ToString(); }
             finally {
                 if (child != null) {
-                    try { var stop=child.StopAndObserve(5000); result["root_exited"]=stop.RootExited; result["job_empty"]=stop.JobEmpty; }
+                    try { var stop=child.StopAndObserve(5000); result["root_exited"]=stop.RootExited; result["job_empty"]=stop.JobEmpty; result["exit_code"]=stop.ExitCode; }
                     catch (System.Exception error) { result["cleanup_failure"]=error.ToString(); }
                     try { result["observer_drained"]=child.DrainHostedObserver(5000); }
                     catch (System.Exception error) { result["observer_drain_failure"]=error.ToString(); }
-                    finally { try { child.Dispose(); } catch (System.Exception error) { result["dispose_failure"]=error.ToString(); } }
+                    finally {
+                        try {
+                            var stdout=child.OutputCapture.Snapshot(); var stderr=child.ErrorCapture.Snapshot();
+                            result["stdout_bytes"]=stdout.Length; result["stderr_bytes"]=stderr.Length;
+                            result["stdout_prefix"]=System.Text.Encoding.UTF8.GetString(stdout,0,System.Math.Min(stdout.Length,4096));
+                            result["stderr_prefix"]=System.Text.Encoding.UTF8.GetString(stderr,0,System.Math.Min(stderr.Length,4096));
+                        } catch (System.Exception error) { result["capture_failure"]=error.ToString(); }
+                        try { child.Dispose(); } catch (System.Exception error) { result["dispose_failure"]=error.ToString(); }
+                    }
                 } else {
                     if (info.process != System.IntPtr.Zero) { bool terminated=Native.TerminateProcess(info.process,125); uint wait=Native.WaitForSingleObject(info.process,5000); result["unreturned_termination"]=terminated; result["unreturned_wait"]=wait; if(wait != 0) result["cleanup_failure"]="Unreturned root exit unverified"; Native.CloseHandle(info.process); }
                     if (job != System.IntPtr.Zero) Native.CloseHandle(job);
