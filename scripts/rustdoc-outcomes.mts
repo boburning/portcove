@@ -38,6 +38,26 @@ function startSuite(event: Record<string, unknown>, state: State) {
   state.active = { count: event.test_count, started: new Set(), terminals: new Map() };
 }
 
+function terminalCase(event: Record<string, unknown>, name: string): Case {
+  if (typeof event.event !== "string" || !["ok", "failed", "ignored"].includes(event.event))
+    throw new Error("Unknown rustdoc test outcome");
+  const skipped = event.event === "ignored";
+  if (!skipped && !seconds(event.exec_time))
+    throw new Error("Rustdoc executed case has no finite native duration");
+  if (
+    (event.stdout !== undefined && typeof event.stdout !== "string") ||
+    (event.message !== undefined && typeof event.message !== "string")
+  )
+    throw new Error("Invalid rustdoc failure or skip detail");
+  return {
+    identity: name,
+    outcome: skipped ? "skipped" : event.event === "ok" ? "passed" : "failed",
+    duration_ms: seconds(event.exec_time) && !skipped ? event.exec_time * 1000 : null,
+    skip_reason: skipped && typeof event.message === "string" ? event.message : null,
+    failure: event.event === "failed" && typeof event.stdout === "string" ? event.stdout : null,
+  };
+}
+
 function observeTest(event: Record<string, unknown>, state: State) {
   const suite = state.active;
   const name = event.name;
@@ -57,23 +77,7 @@ function observeTest(event: Record<string, unknown>, state: State) {
   }
   if (!suite.started.has(name) || suite.terminals.has(name))
     throw new Error("Rustdoc terminal has no unique start");
-  if (!["ok", "failed", "ignored"].includes(String(event.event)))
-    throw new Error("Unknown rustdoc test outcome");
-  const skipped = event.event === "ignored";
-  if (!skipped && !seconds(event.exec_time))
-    throw new Error("Rustdoc executed case has no finite native duration");
-  if (
-    (event.stdout !== undefined && typeof event.stdout !== "string") ||
-    (event.message !== undefined && typeof event.message !== "string")
-  )
-    throw new Error("Invalid rustdoc failure or skip detail");
-  const entry: Case = {
-    identity: name,
-    outcome: skipped ? "skipped" : event.event === "ok" ? "passed" : "failed",
-    duration_ms: seconds(event.exec_time) && !skipped ? event.exec_time * 1000 : null,
-    skip_reason: skipped && typeof event.message === "string" ? event.message : null,
-    failure: event.event === "failed" && typeof event.stdout === "string" ? event.stdout : null,
-  };
+  const entry = terminalCase(event, name);
   suite.terminals.set(name, entry);
   state.cases.push(entry);
 }

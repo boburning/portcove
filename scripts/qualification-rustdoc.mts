@@ -178,6 +178,26 @@ function documentationRequest(
   };
 }
 
+function invocationOutcome(
+  result: Awaited<ReturnType<typeof executeCargo>>,
+  observation: ReturnType<typeof parseRustdocOutcomes>,
+) {
+  const reportingFailure =
+    result.stdout.failure ??
+    result.stderr.failure ??
+    (result.missing_stream ? "Documentation stream unavailable" : null);
+  const contradictorySuccess = result.status === 0 && observation.failed > 0;
+  const scopeComplete =
+    observation.complete &&
+    result.status === 0 &&
+    !result.signal &&
+    !reportingFailure &&
+    !result.process_error &&
+    !contradictorySuccess;
+  const nativeStatus = result.process_error ? 1 : (result.status ?? 1);
+  return { reportingFailure, contradictorySuccess, scopeComplete, nativeStatus };
+}
+
 export async function runQualificationRustdoc(
   mode: string,
   dependencies: {
@@ -216,20 +236,11 @@ export async function runQualificationRustdoc(
     dependencies.publishRaw ?? writeSync,
   );
   const observation = parseRustdocOutcomes(result.stdout.raw);
-  const reportingFailure =
-    result.stdout.failure ??
-    result.stderr.failure ??
-    (result.missing_stream ? "Documentation stream unavailable" : null);
-  const contradictorySuccess = result.status === 0 && observation.failed > 0;
-  const scopeComplete =
-    observation.complete &&
-    result.status === 0 &&
-    !result.signal &&
-    !reportingFailure &&
-    !result.process_error &&
-    !contradictorySuccess;
+  const { reportingFailure, contradictorySuccess, scopeComplete, nativeStatus } = invocationOutcome(
+    result,
+    observation,
+  );
   let complete = scopeComplete;
-  const nativeStatus = result.process_error ? 1 : (result.status ?? 1);
   let receiptFailure: string | null = null;
   try {
     (dependencies.publishReceipt ?? ((file, text) => writeFileSync(file, text, { flag: "wx" })))(

@@ -111,6 +111,12 @@ void test("duplicate document names across merged suites and ordinary libtest na
   );
 });
 
+void test("non-string outcome tags cannot impersonate native libtest events", () => {
+  const malformed = records(failed);
+  malformed.find((row) => row.type === "test" && row.event === "failed")!.event = ["failed"];
+  assert.equal(parseRustdocOutcomes(encode(malformed)).complete, false);
+});
+
 void test("missing, contradictory, unbounded and unknown protocol observations remain incomplete", () => {
   const mutations: ((rows: Record<string, unknown>[]) => void)[] = [
     (rows) => {
