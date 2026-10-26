@@ -1,6 +1,12 @@
 import { portDefinition } from "../test-fixtures";
 import { vi } from "vite-plus/test";
-import type { InstallRecord, PortDefinition } from "../types";
+import type {
+  InstallRecord,
+  PortDefinition,
+  SourceImportPlan,
+  SourceImportResult,
+  UpdateCheckOutcome,
+} from "../types";
 import type { DetailActions } from "./DetailPanel";
 
 export const port: PortDefinition = {
@@ -104,3 +110,68 @@ export const runtimeIdentity = {
   origin: "verified_download",
   target_directory: bundledRuntime.target_directory,
 } satisfies NonNullable<InstallRecord["runtime"]>;
+
+export function sourceImportFixtures() {
+  const source = {
+    profile_id: "owned",
+    path: "D:/Owned/game.iso",
+    sha256: "a".repeat(64),
+    size: 64,
+    storage_sha256: "a".repeat(64),
+    storage_size: 64,
+    updated_at: 1,
+  };
+  const plan = (mode: SourceImportPlan["mode"]): SourceImportPlan => ({
+    schema_version: 1,
+    profile_id: source.profile_id,
+    mode,
+    source,
+    admission_mode: "structural_checks",
+    destination: "D:/Library/source-inbox/owned/game.iso",
+    destination_exists: false,
+    existing_registration: null,
+    reuse_existing: false,
+    required_bytes: 64,
+    source_guard_sha256: "b".repeat(64),
+    plan_sha256: "c".repeat(64),
+  });
+  const result = (outcome: SourceImportResult["outcome"]): SourceImportResult => ({
+    import_id: "owned-import",
+    profile_id: source.profile_id,
+    mode: outcome === "moved" ? "move" : "copy",
+    outcome,
+    registered: source,
+    copied: true,
+    original_deleted: outcome === "moved",
+    original_retained: outcome !== "moved",
+    retained_original_path: outcome === "moved" ? null : source.path,
+    recovered: false,
+  });
+  return { source, plan, result };
+}
+
+export function updateCenterFixtures() {
+  const port = { ...portDefinition(), name: "Sample Port" };
+  const priorResult: NonNullable<UpdateCheckOutcome["result"]> = {
+    port_id: port.id,
+    channel: "stable",
+    installed_version: "1.0",
+    installed_artifact: installRecord().artifact,
+    installed_runtime: null,
+    required_runtime: null,
+    update_available: true,
+    release: {
+      published_at: null,
+      version: "2.0",
+      channel: "stable",
+      asset: {
+        name: "sample-2.zip",
+        url: "https://example.com/sample-2.zip",
+        size: 2,
+        sha256: "a".repeat(64),
+      },
+    },
+  };
+
+  return { port, priorResult };
+}

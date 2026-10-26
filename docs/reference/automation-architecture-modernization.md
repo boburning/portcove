@@ -453,3 +453,126 @@ configuration net zero, documentation +245; net +317 maintained lines. No whole
 files or dependencies were added or removed; no new domain module or compatibility
 wrapper was introduced. The smaller production surface and faster feedback are
 separate from the expanded historical evidence record.
+
+## Phase 2 continuation: browser work and early failure feedback
+
+### Prior delivery readback
+
+[PR #3668](https://github.com/boburning/portcove/pull/3668) merged as
+`ea62405bf8d08f21055ff7381d90a6882379efee`, from reviewed source
+`79bbb6382f00f8ee918ca94f937a0fbaf9edb164`. [Required CI run
+40266447605, attempt 1](https://github.com/boburning/portcove/actions/runs/40266447605)
+passed `catalog`, `dependency-review`, `frontend`, `rust`, and `rust-quality`
+for that source. Hosted frontend produced 2,411 passes and two explicit skips:
+unit 29.13 s, browser 347.97 s. Its producer job took 433 s and the observed
+required-job critical path was 496 s. These hosted observations are separate
+from the earlier local measurements and do not establish native acceptance.
+
+### Native browser lifecycle experiments
+
+The continuation profiled native Vitest 5.0.5 / Playwright 1.64.1 lifecycle
+phases through public reporter/provider APIs, retaining the original installed
+bytes, source identity, configuration, case outcomes and rejected experiments.
+The costly passing-test trace-export path offered promising prototype timings,
+but both attempted reductions failed important diagnostic guarantees:
+
+- Deferring passing exports reduced one 1,477-case run from 225.24 to 127.07 s.
+  A real SIGTERM at the deferred boundary lost the trace ZIP; the original
+  export timing retained a valid ZIP. The entire patch and dependency changes
+  were removed. Provider-close success alone was insufficient qualification.
+- Resetting trace sessions per file passed 1,477 cases in 162.65 s and retained
+  a SIGTERM trace, but the second file lost a cached font resource that the
+  original trace retained. This patch was also removed. A separate attempted
+  CSS-body check failed under both implementations and was not used as proof.
+- Eight-worker execution was not qualified. With fixed file seed 1104, four
+  workers passed the 1,477-case browser inventory in 290.31 s; eight workers
+  finished in 242.13 s with three visual/interaction failures. Its summed
+  process-tree RSS peak was 6,206 MiB versus 4,845 MiB for four workers; these
+  RSS sums include shared pages. Load ranges differed (3.94–13.80 versus
+  2.05–7.98), so neither successful speedup nor capacity safety is inferred.
+  Four workers remain authoritative. No assertions, deadlines or retries changed.
+
+Native experimental `browser.traceView` uses a different replay/artifact model
+and does not preserve the required original image/resource bytes equivalently.
+It was not substituted for Playwright trace diagnostics. The original browser
+provider/client, dependency graph, failure exports and interruption behavior
+remain in use; no experimental patch, scheduler or cache survives.
+
+### Implemented ownership changes
+
+Fifty SSR/text-policy cases now execute freshly in the existing Node unit
+project. Source-import presentation has one unit file; its three real DOM Apply
+cases join the existing source-discovery browser file, retiring that browser
+entrypoint. Failure-presentation SSR cases join the existing App unit file;
+update-center SSR cases have a unit file beside the hook/domain owner. Remaining
+DOM, clipboard, accessibility, focus, hooks and state-transition cases stay in
+Chromium. Shared immutable fixture facts use fresh factories in the existing
+rendered-test fixture module; the existing identical install-record helper
+replaces its duplicate.
+
+The move exposed a real harness bug: a `beforeEach` expression returned
+`mockReset()`'s mock function, which Vitest treated as teardown and invoked as a
+native picker. A block body preserves reset behavior without registering that
+unintended teardown. The failed run is retained; no picker failure was suppressed.
+Independent non-writing implementation review at `6ee8581537f578affdb09cf3a037eaff583414ca`
+compared complete moved bodies, parameter vectors, fixture values, remaining DOM
+bodies and existing destination cases against `1ea12818bf18e5a9cb79da1d48642305bb5a32cb`.
+It found no blocking change.
+
+### Comparable affected-file observations
+
+| Observation                                           |    Before |          After |
+| ----------------------------------------------------- | --------: | -------------: |
+| Fresh test identities/outcomes                        | 86 passes | Same 86 passes |
+| Node / browser case placement                         |    7 / 79 |        57 / 29 |
+| Native browser trace exports                          |        79 |             29 |
+| Successful native execution                           |    8.64 s |         8.90 s |
+| Successful guarded outer wall                         |  11.942 s |       12.602 s |
+| Same controlled markup failure: first reporter result |   6.418 s |        0.586 s |
+| Same controlled failure: final guarded outer wall     |   9.388 s |        3.571 s |
+
+The successful runs show no overall wall-time improvement. The controlled
+failure uses an ignored, reversible module-alias fixture returning invalid
+markup; both lanes fail the same actual assertion expecting the game name.
+Only that case is selected in the negative control; filtered cases are explicit
+skips. These are focused observations, not full-suite time-to-failure claims.
+All 86 positive-run names and outcomes reconcile, including existing destination
+cases. The full unit-first/browser-second production task remains unchanged.
+
+### Vite+ and command admission
+
+Supported shallow dependency includes pre-bundle actual Base UI, Tauri and
+frontend runtime imports. A cold wider-worker experiment exposed optimizer
+reloads that split active Vitest module identity; the includes avoid those
+reloads without disabling discovery or changing isolation. Recursive package
+wildcards were rejected because internal optional adapters require dependencies
+Portcove does not use. This uses Vite's optimizer, not a second dependency registry.
+
+Exact standalone `test`, `check`, and `lint` help flags now delegate directly to
+the pinned CLI without heavyweight admission. Option operands, literal filenames
+and mixed commands retain their existing admission. The resource coordinator
+loads only for guarded execution. Native help controls passed and wrapper help
+completed while another browser lease was held. Seven fresh-process import
+samples observed median module initialization 76.776 to 52.005 ms and process
+wall 105.024 to 78.704 ms; this is startup evidence, not a full-suite gain.
+No task-result cache, new dependency or competing runner was introduced. The
+previous deterministic-cache rejection and native/release boundaries still apply.
+
+### Continuation qualification
+
+At source `6ee8581537f578affdb09cf3a037eaff583414ca`, the actual production
+`frontend:tests` task passed 985 unit cases plus one explicit skip in 31.63 s,
+then 1,426 browser cases plus one explicit skip in 346.01 s. The complete total
+remains 2,411 passes and two skips. Guarded phases took 34.354 and 349.652 s,
+each with 6 ms admission queueing. Runner execution totals 377.64 s; it is
+not a comparable whole-suite speedup against earlier contended measurements.
+All 28 selected orchestration contracts passed. Strict native Vite+ checking
+covered 1,351 files with zero warnings, lint errors or type errors (11.5 s
+checker, 13.965 s guarded). These source/fixture results do not qualify native,
+installed-app, signing, publication or release acceptance.
+
+[#1104](https://github.com/boburning/portcove/issues/1104) retains the broader
+feedback owner; #2420 retains canonical testing recommendations. The separate
+finite [#3700](https://github.com/boburning/portcove/issues/3700) owns removal of
+the demonstrated Roadmap CLI/scoped-policy runtime import cycle. It creates no
+beta prerequisite and does not expand #1667 or reopen #3662.
