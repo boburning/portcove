@@ -173,7 +173,7 @@ type QualificationPlatformFields = Pick<
 >;
 export type QualificationPortObservation = Pick<PortDefinition, "id"> & {
   [K in keyof QualificationPlatformFields]?: readonly string[];
-} & { support_tier?: unknown };
+} & { support_tier?: unknown; project_url?: unknown };
 export interface QualificationCatalogObservation {
   ports?: readonly QualificationPortObservation[] | null;
   source_catalog?: { qualification?: readonly unknown[] | null } | null;
