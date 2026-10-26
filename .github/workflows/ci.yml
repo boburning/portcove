@@ -1078,8 +1078,8 @@ jobs:
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Install Linux desktop prerequisites
         if: runner.os == 'Linux'
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
+        timeout-minutes: 30
+        run: ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
