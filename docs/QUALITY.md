@@ -131,7 +131,9 @@ keeps a fixed absolute observation deadline and never retries automatically.
 ## Test latency and reliability
 
 Native Desktop scenario records retain monotonic `duration_ms` for the scenario
-action, excluding diagnostics and screenshots (`duration_scope: scenario-action`).
+action (`duration_scope: scenario-action`). This excludes the observer's
+post-action diagnostics and terminal screenshot; captures inside the action
+remain included.
 An unmet prerequisite records `not-run` with a null duration. These observations
 retain the existing execution and acceptance boundaries.
 

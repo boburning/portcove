@@ -52,6 +52,7 @@ import {
   stat,
 } from "node:fs/promises";
 import os from "node:os";
+import { stripTypeScriptTypes } from "node:module";
 import path from "node:path";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { ownedFixtureCommand } from "../apps/desktop/scripts/desktop-scenario-state.mts";
@@ -228,6 +229,20 @@ void test("shared review presentation preserves native visual acceptance thresho
     observation = { ...valid, [key]: value };
     await assert.rejects(Promise.resolve(invokePresentation(browser, field, label, dialog)));
   }
+});
+
+void test("the native entrypoint awaits its imported scenario observer", async () => {
+  const caller = stripTypeScriptTypes(
+    await readFile(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  const imported = caller.match(
+    /import\s*\{([^}]+)\}\s*from\s*["']\.\/desktop-scenario-outcomes\.mts["']/u,
+  );
+  const observer = imported?.[1]?.match(/\bobserveDesktopScenario\b(?:\s+as\s+([$\w]+))?/u);
+  assert.ok(observer, "The actual native entrypoint must import its observation owner");
+  const binding = observer[1] ?? "observeDesktopScenario";
+  assert.match(caller, new RegExp(`\\bawait\\s+${binding.replaceAll("$", "\\$")}\\s*\\(`, "u"));
 });
 
 void test("untrustworthy probe cleanup retains the primary error and reaches outer teardown", async () => {

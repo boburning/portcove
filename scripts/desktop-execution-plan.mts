@@ -10,6 +10,7 @@ import type { DesktopSelection } from "./desktop-scenarios.mts";
 // Package/lock files are reproduction inputs, never claims of executed source.
 export const nativeTransportReceiptSources = Object.freeze([
   "apps/desktop/scripts/desktop-scenario-state.mts",
+  "apps/desktop/scripts/desktop-scenario-outcomes.mts",
   "apps/desktop/scripts/desktop-review-presentation.mts",
   "apps/desktop/scripts/desktop-staged-layout.mts",
   "apps/desktop/scripts/transport-values.mts",
