@@ -147,32 +147,76 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     fastRustTests,
     /- name: Retain runtime diagnostics acceptance and latency evidence\n\s+if: always\(\)/u,
   );
-  const linuxFixture = requiredFixture(
-    requiredFixture(
-      fastRustQuality.split(
-        "      - name: Test typed runtime diagnostics and frontend admission on Linux",
-      )[1],
-    ).split("      - name: Retain Linux runtime diagnostics acceptance evidence")[0],
+  const linuxFixture = workflowStep(
+    "fast_rust_quality",
+    "Test typed runtime diagnostics and frontend admission on Linux",
   );
-  assert.match(
-    linuxFixture,
-    /if: contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
+  assert.equal(
+    linuxFixture.if,
+    "contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'",
   );
-  assert.match(linuxFixture, /shell: bash/u); // Bash's pipefail preserves a failed test before tee.
-  assert.match(
-    linuxFixture,
-    /node scripts\/run-rust-tests\.mts --guard-command cargo test --locked -p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics -- --test-threads=1 --nocapture/u,
+  assert.equal(linuxFixture.shell, "bash"); // Bash's pipefail preserves a failed test before tee.
+  const diagnosticCommands = executableLines(linuxFixture.run).filter((line) =>
+    line.startsWith("node scripts/run-rust-tests.mts "),
   );
-  assert.match(linuxFixture, /--test-threads=1 --nocapture 2>&1 \| tee/u);
-  assert.doesNotMatch(linuxFixture, /rustc --edition|--workspace|tauri build|continue-on-error/u);
-  assert.match(linuxFixture, /\/runtime-tests\.txt/u);
-  assert.match(
-    linuxFixture,
-    /cargo test --locked -p portcove-diagnostics -- --test-threads=1 --nocapture/u,
+  assert.equal(diagnosticCommands.length, 3);
+  for (const command of diagnosticCommands) {
+    assert.match(command, /--locked -p portcove-(?:diagnostics|cli|core)/u);
+    assert.match(
+      command,
+      /--test-threads=1 --success-output immediate --failure-output immediate 2>&1 \| tee/u,
+    );
+    assert.doesNotMatch(
+      command,
+      /--guard-command|cargo test|--workspace|--nocapture|continue-on-error/u,
+    );
+  }
+  assert.ok(
+    diagnosticCommands.some(
+      (line) =>
+        line.includes("-p portcove-diagnostics ") && line.endsWith('/shared-host-tests.txt"'),
+    ),
   );
-  assert.match(
-    linuxFixture,
-    /cargo test --locked -p portcove-core support_bundle_export -- --test-threads=1 --nocapture/u,
+  assert.ok(
+    diagnosticCommands.some(
+      (line) =>
+        line.includes(
+          "-p portcove-cli --test runtime_diagnostics --test host_diagnostics --test desktop_host_diagnostics ",
+        ) && line.endsWith('/runtime-tests.txt"'),
+    ),
+  );
+  assert.ok(
+    diagnosticCommands.some(
+      (line) =>
+        line.includes("-p portcove-core -E 'test(support_bundle_export)' ") &&
+        line.endsWith('/support-export-tests.txt"'),
+    ),
+  );
+  const setup = workflowStep("fast_rust_quality", "Read pinned Linux diagnostic test runner");
+  assert.equal(setup.if, linuxFixture.if);
+  assert.match(setup.run, /Get-Content \.github\/quality-tools\.json/u);
+  assert.match(setup.run, /Where-Object id -eq "cargo-nextest"/u);
+  const owner = workflowJob("fast_rust_quality");
+  assert.ok(Array.isArray(owner.steps));
+  const steps: unknown[] = owner.steps;
+  const installer = steps.find(
+    (step) => isRecord(step) && step.name === "Install pinned Linux diagnostic test runner",
+  );
+  assert.ok(isRecord(installer));
+  assert.equal(installer.if, linuxFixture.if);
+  assert.equal(installer.uses, "taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91");
+  assert.deepEqual(installer.with, {
+    tool: "${{ steps.linux-diagnostic-test-runner.outputs.spec }}",
+  });
+  const inventories = steps.find(
+    (step) => isRecord(step) && step.name === "Retain Linux diagnostic nextest inventories",
+  );
+  assert.ok(isRecord(inventories) && isRecord(inventories.with));
+  assert.equal(inventories.if, "always() && " + linuxFixture.if);
+  assert.equal(inventories.with.path, "work/nextest-default-outcomes/");
+  assert.equal(
+    inventories.with.name,
+    "runtime-diagnostics-nextest-linux-${{ github.run_id }}-${{ github.run_attempt }}",
   );
   for (const lane of [fastRustTests, fastRustQuality]) {
     assert.match(lane, /checked-git\.mts rev-parse HEAD/u);
