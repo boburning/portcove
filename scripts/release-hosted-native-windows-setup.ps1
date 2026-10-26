@@ -101,8 +101,8 @@ function Read-HostedStartupSettlement {
     $result=[ordered]@{status='unknown';teardown=$null;failure=$null}
     try {
         if($Startup.Output.IsFaulted -or $Startup.ErrorOutput.IsFaulted -or $Startup.LastTeardown){throw 'Startup stop already attempted or capture faulted; counter skipped without retry'}
-        $result.teardown=$Startup.StopAndObserve(5000)
-        $observed=$result.teardown
+        $observed=$Startup.StopAndObserve(5000)
+        $result.teardown=[ordered]@{RootPid=$observed.RootPid;RootCreatedFileTime=$observed.RootCreatedFileTime.ToString([Globalization.CultureInfo]::InvariantCulture);ExitCode=$observed.ExitCode;RootExited=$observed.RootExited;JobEmpty=$observed.JobEmpty;RemainingPids=@($observed.RemainingPids);ObservedAt=$observed.ObservedAt}
         if($observed.RootPid -ne $Startup.Pid -or $observed.RootCreatedFileTime -ne $Startup.CreatedFileTime -or
             -not $observed.RootExited -or -not $observed.JobEmpty -or @($observed.RemainingPids).Count -ne 0){throw 'Startup per-root settlement unavailable or identity differs'}
         if(@($Group.RemainingPids()).Count -ne 0){throw 'Original shared job is occupied; counter skipped'}

@@ -1042,28 +1042,69 @@ $function=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDef
 $write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
 $initialize=$ast.Find({param($n)$n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -ceq '$guiRuntime'},$true)
 $receipt=$ast.Find({param($n)$n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -ceq 'Write-HostedNativeSetupRecord' -and $n.Extent.Text.Contains("'gui-counter.json'")},$true)
+if(-not $env:SystemRoot){$env:SystemRoot='${root.replaceAll("'", "''")}'} # Synthetic platform input for the nonexecuting source initializer.
 Set-StrictMode -Version Latest
 foreach($case in @('settled','faulted','prior-stop','stop','pid','created','root','members','empty-flag','original','query')){
  $script:stops=0;$script:queries=0
- $startup=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123;Output=[pscustomobject]@{IsFaulted=$case -ceq 'faulted'};ErrorOutput=[pscustomobject]@{IsFaulted=$false};LastTeardown=$(if($case -ceq 'prior-stop'){@{prior=$true}}else{$null})}
+ $startup=[pscustomobject]@{Pid=42;CreatedFileTime=[long]134374669087322706;Output=[pscustomobject]@{IsFaulted=$case -ceq 'faulted'};ErrorOutput=[pscustomobject]@{IsFaulted=$false};LastTeardown=$(if($case -ceq 'prior-stop'){@{prior=$true}}else{$null})}
  $startup|Add-Member ScriptMethod StopAndObserve {param($ms)
   $script:stops++;if($ms -ne 5000){throw 'Budget differs'};if($case -ceq 'stop'){throw 'controlled stop refusal'}
-  return [pscustomobject]@{RootPid=$(if($case -ceq 'pid'){43}else{42});RootCreatedFileTime=$(if($case -ceq 'created'){124}else{123});RootExited=$case -cne 'root';JobEmpty=$case -cne 'empty-flag';RemainingPids=$(if($case -ceq 'members'){@(43)}else{@()})}
+  return [pscustomobject]@{RootPid=$(if($case -ceq 'pid'){43}else{42});RootCreatedFileTime=$(if($case -ceq 'created'){[long]134374669087322707}else{[long]134374669087322706});ExitCode=125;ObservedAt='controlled';RootExited=$case -cne 'root';JobEmpty=$case -cne 'empty-flag';RemainingPids=$(if($case -ceq 'members'){@(43)}else{@()})}
  }
  $group=[pscustomobject]@{};$group|Add-Member ScriptMethod RemainingPids {$script:queries++;if($case -ceq 'query'){throw 'controlled group query refusal'};if($case -ceq 'original'){return @(43)};return @()}
  $result=Read-HostedStartupSettlement $startup $group
  if(($result.status -ceq 'settled') -ne ($case -ceq 'settled') -or $script:stops -ne $(if($case -in @('faulted','prior-stop')){0}else{1})){throw ('Serialization or stop retry differs: '+$case)}
  if($case -notin @('settled','faulted','prior-stop','stop') -and $null -eq $result.teardown){throw 'Failed validation lost settlement receipt'}
  if($case -ne 'settled' -and -not $result.failure){throw 'Unknown settlement lost cause'}
+ if($result.teardown -and $case -cne 'created' -and $result.teardown.RootCreatedFileTime -cne '134374669087322706'){throw 'Native creation identity was rounded before retention'}
  $context=@{};$capture=Join-Path '${root.replaceAll("'", "''")}' $case;[IO.Directory]::CreateDirectory($capture)|Out-Null;$guiControl=$null;$guiControlObservation=@{status='unknown'};$guiStartupSettlement=$result
  $group|Add-Member NoteProperty LastLaunchInspection (@{runtime_path='whoami.exe'})
  . ([scriptblock]::Create($initialize.Extent.Text))
  . ([scriptblock]::Create($receipt.Extent.Text))
  $retained=Get-Content -LiteralPath (Join-Path $capture 'gui-counter.json') -Raw|ConvertFrom-Json
+ if($result.teardown -and ($retained.startup_settlement.teardown.RootCreatedFileTime -isnot [string] -or $retained.startup_settlement.teardown.RootCreatedFileTime -cne $result.teardown.RootCreatedFileTime)){throw '64bit identity did not survive actual JSON receipt'}
  if($retained.startup_settlement.status -cne $result.status -or $retained.startup_settlement.failure -cne $result.failure -or $null -ne $retained.last_launch){throw 'Actual counter receipt lost unknown settlement under strict mode'}
 
 }
 'actual GUI serialization passed eleven controlled cases; no account effects or GUI acceptance'
 `);
   assert.match(result, /serialization passed eleven controlled cases/u);
+});
+
+void test("native teardown waits for root signal and empty membership in either order within its original budget", () => {
+  const launcher = fileURLToPath(new URL("./native-qualification-account.cs.txt", import.meta.url));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$text=[IO.File]::ReadAllText('${launcher.replaceAll("'", "''")}')
+$start=$text.IndexOf('        public TeardownObservation ReadTeardown(int milliseconds)');$end=$text.IndexOf('        public void Dispose()',$start);$method=$text.Substring($start,$end-$start)
+$start=$text.IndexOf('    public sealed class TeardownObservation');$end=$text.IndexOf('    public sealed class AccountProcessIdentity',$start);$observation=$text.Substring($start,$end-$start)
+$harness=@'
+using System;using System.Diagnostics;using System.Threading;
+__OBSERVATION__
+static class Native {
+ internal static int Mode,Queries,Waits;
+ internal static uint[] JobPids(IntPtr j){Queries++;if(Mode==4)throw Error("job read");return Mode==1&&Queries<3?new uint[]{42}:new uint[0];}
+ internal static uint WaitForSingleObject(IntPtr p,uint ms){Waits++;return Mode==3?0xffffffff:Mode==2||Mode==0&&Waits<3?258u:0u;}
+ internal static bool GetExitCodeProcess(IntPtr p,out uint c){c=Mode==2?259u:125u;return Mode!=5;}
+ internal static Exception Error(string s){return new InvalidOperationException(s+" controlled native failure");}
+}
+public class Control {
+ IntPtr job=(IntPtr)42,process=(IntPtr)7;uint pid=42;long created=134374669087322706;
+ public TeardownObservation LastTeardown;
+ __METHOD__
+ public static void Run(){
+  for(int mode=0;mode<=5;mode++){
+   Native.Mode=mode;Native.Queries=Native.Waits=0;bool refused=false;TeardownObservation result=null;
+   try{result=new Control().ReadTeardown(mode==2?40:200);}catch(InvalidOperationException){refused=true;}
+   if(refused!=(mode>=3))throw new Exception("native refusal differs: "+mode);
+   if(mode<2&&(!result.RootExited||!result.JobEmpty||Native.Queries<3||result.RootCreatedFileTime!=134374669087322706))throw new Exception("early teardown or identity loss: "+mode);
+   if(mode==2&&(result.RootExited||result.JobEmpty||Native.Waits<2))throw new Exception("timeout credited as settlement");
+  }
+ }
+}
+'@
+Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method).Replace('__OBSERVATION__',$observation)
+[Control]::Run()
+'actual native teardown passed six controlled completion/failure modes; no process launched'
+`);
+  assert.match(result, /teardown passed six controlled/u);
 });

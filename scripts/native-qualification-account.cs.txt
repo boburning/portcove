@@ -422,13 +422,15 @@ namespace Portcove.NativeQualification {
         public TeardownObservation ReadTeardown(int milliseconds) {
             if (milliseconds < 1 || milliseconds > 30000) throw new ArgumentOutOfRangeException("milliseconds");
             Stopwatch clock = Stopwatch.StartNew();
-            uint[] remaining;
+            uint[] remaining;bool exited=false;
             do {
                 remaining = Native.JobPids(job);
-                if (remaining.Length == 0) break;
+                uint waited=Native.WaitForSingleObject(process,0);
+                if(waited==0xffffffff)throw Native.Error("Read teardown root wait");
+                exited=waited==0;
+                if (remaining.Length == 0 && exited) break;
                 Thread.Sleep(25);
             } while (clock.ElapsedMilliseconds < milliseconds);
-            bool exited = Native.WaitForSingleObject(process, 0) == 0;
             uint exit;
             if (!Native.GetExitCodeProcess(process, out exit)) throw Native.Error("GetExitCodeProcess");
             LastTeardown = new TeardownObservation {
