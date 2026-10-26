@@ -248,7 +248,7 @@ export default defineConfig({
         cache: false,
       },
       "frontend:tests": {
-        command: "node scripts/run-viteplus.mts test",
+        command: ["vp run frontend:unit", "vp run frontend:browser"],
         cache: false,
       },
       "frontend:build": { command: "node apps/desktop/scripts/build-frontend.mts", cache: false },

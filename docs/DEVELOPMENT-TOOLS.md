@@ -383,7 +383,9 @@ release is in the pnpm catalog. Inspect the resolved bundle with `pnpm exec vp
 toolchain`; upgrade the release as a unit using the documented migrator.
 
 Full frontend selection and `frontend:runtime` use `frontend:tests` to execute
-all maintained Vitest projects in one fresh runner. Focused unit/browser and
+the existing fresh unit task followed by the fresh browser task. A unit failure
+skips browser execution; successful execution retains every maintained project.
+Browser concurrency is bounded at four workers, with two unit workers. Focused unit/browser and
 literal/related commands retain their existing scopes. Ordinary native TypeScript
 syntax checks share bounded batches; receipt fingerprints include every selected
 file's domains. Roadmap issue identity lives in `scripts/roadmap-issue.mts`, so

@@ -120,32 +120,6 @@ function git(args: string[], options: { encoding?: "buffer" | "utf8" } = {}): st
     : runCheckedGit(args, { cwd: projectRoot });
 }
 
-export function parseNameStatus(buffer: Buffer): LocalChange[] {
-  const tokens = buffer.toString("utf8").split("\0");
-  if (tokens.at(-1) === "") tokens.pop();
-  const changes = [];
-  for (let index = 0; index < tokens.length;) {
-    let status = tokens[index++];
-    let embeddedPath = null;
-    if (status?.includes("\t")) {
-      [status, embeddedPath] = status.split("\t", 2);
-    }
-    if (!status) throw new Error("empty git name-status record");
-    if (/^[RC]/.test(status)) {
-      const previousPath = embeddedPath ?? tokens[index++];
-      const currentPath = tokens[index++];
-      if (!previousPath || !currentPath)
-        throw new Error(`incomplete git rename/copy record: ${status}`);
-      changes.push({ status, path: currentPath, previousPath });
-    } else {
-      const currentPath = embeddedPath ?? tokens[index++];
-      if (!currentPath) throw new Error(`incomplete git change record: ${status}`);
-      changes.push({ status, path: currentPath });
-    }
-  }
-  return changes;
-}
-
 export function localChangesFromRaw(buffer: Buffer): DiscoveredLocalChange[] {
   return parseRawDiff(buffer).map((change) => ({
     status: change.status,

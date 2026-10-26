@@ -678,3 +678,75 @@ void test("head checkout uses its branch delta; non-PR runs remain full", async 
       "full",
     );
 });
+void test("scope selection validates both complete inventories before a full fallback", async () => {
+  const invalid: [unknown, RegExp][] = [
+    [null, /Catalog ports must be an array/u],
+    [{ ports: [null] }, /Catalog requires unique stable port IDs/u],
+    [{ ports: [port("Bad")] }, /Catalog requires unique stable port IDs/u],
+    [{ ports: [port("game"), port("game")] }, /Catalog requires unique stable port IDs/u],
+    [
+      { ports: [port("game"), { ...port("other"), project_url: 42 }] },
+      /Unsupported original upstream location/u,
+    ],
+    [
+      { ports: [{ ...port("game"), automated_tested_platforms: ["plan9"] }] },
+      /Unsupported catalog platform/u,
+    ],
+    [
+      { ports: [{ ...port("game"), release: { repository: "../escape" } }] },
+      /Unsupported hosted catalog repository/u,
+    ],
+    [
+      { ports: [{ ...port("game"), release: { provider: "direct-manifest" } }] },
+      /Direct manifest requires explicit artifact locations/u,
+    ],
+    [
+      {
+        ports: [
+          {
+            ...port("game"),
+            release: {
+              provider: "direct-manifest",
+              direct: {
+                "windows-x86-64": {
+                  url: "http://localhost/file",
+                  version: "v1",
+                  size: 1,
+                  sha256: "a".repeat(64),
+                },
+              },
+            },
+          },
+        ],
+      },
+      /Direct manifest requires a safe exact artifact identity/u,
+    ],
+    [{ ...catalog(), source_catalog: [] }, /Invalid source catalog/u],
+    [
+      {
+        ...catalog(),
+        source_catalog: {
+          qualification: [
+            { scope: { port_id: "game", upstream_ref: "v1", artifact_sha256: "bad" } },
+          ],
+        },
+      },
+      /Qualification requires an exact historical release identity/u,
+    ],
+  ];
+  for (const [input, error] of invalid) {
+    await assert.rejects(selectUpstreamHealthScope(input, catalog(), null), error);
+    await assert.rejects(selectUpstreamHealthScope(catalog(), input, null), error);
+  }
+  for (const input of [
+    { ...catalog(), ignored: 1n },
+    { ...catalog(), ports: [{ ...port("game"), presentation: { ignored: 1n } }] },
+  ]) {
+    await assert.rejects(selectUpstreamHealthScope(input, catalog(), null), TypeError);
+    await assert.rejects(selectUpstreamHealthScope(catalog(), input, null), TypeError);
+  }
+  const cyclic = { ...catalog(), ignored: {} };
+  cyclic.ignored = cyclic;
+  await assert.rejects(selectUpstreamHealthScope(cyclic, catalog(), null), RangeError);
+  await assert.rejects(selectUpstreamHealthScope(catalog(), cyclic, null), RangeError);
+});
