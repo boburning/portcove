@@ -259,6 +259,13 @@ impl PortcoveService {
                 .as_deref()
                 .unwrap_or(&pending.listing.name),
         );
+        let project = reqwest::Url::parse(&pending.listing.project_url)
+            .ok()
+            .and_then(|url| {
+                let mut segments = url.path_segments()?;
+                segments.rfind(|segment| !segment.is_empty()).map(identity)
+            })
+            .unwrap_or_default();
         let convincing = plausible
             .iter()
             .filter(|target| {
@@ -276,6 +283,7 @@ impl PortcoveService {
                         .to_string_lossy(),
                 );
                 reviewed_hint
+                    || (project.len() >= 4 && name == project)
                     || [&id, &title].iter().any(|key| {
                         key.len() >= 4 && (name == **key || name.starts_with(key.as_str()))
                     })

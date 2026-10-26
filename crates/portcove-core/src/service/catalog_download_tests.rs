@@ -186,6 +186,101 @@ async fn downloaded_win32_game_is_distinguished_from_converter_without_running_e
     assert!(ambiguous.recommended_executable.is_none());
 }
 
+#[tokio::test]
+async fn downloaded_project_named_player_is_suggested_without_overriding_safety_or_progress() {
+    let (temporary, mut service, request) = fixture();
+    let mut listings = service.catalog.listing_document().clone();
+    listings.listings[0].name = "Classic Title / Community Reimplementation".into();
+    listings.listings[0].original_game_title = Some("Classic Title".into());
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(listings)
+        .unwrap();
+    let github = GithubFixture::new(archive(), None, None);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    let probe_root = temporary.path().join("native-fixture");
+    fs::create_dir(&probe_root).unwrap();
+    let probe = crate::test_fixture::build_probe(&probe_root);
+    let filename = if cfg!(windows) { "Game.exe" } else { "Game" };
+    let player_root = pending.path.join("player/bin");
+    fs::create_dir_all(&player_root).unwrap();
+    let player = player_root.join(filename);
+    fs::copy(&probe, &player).unwrap();
+    let helper = player_root.join(if cfg!(windows) {
+        "Game-updater.exe"
+    } else {
+        "Game-updater"
+    });
+    fs::copy(&probe, &helper).unwrap();
+    let before = serde_json::to_value(service.pending_setups().unwrap()).unwrap();
+    let targets = service
+        .discover_setup_launch_targets(&request.port_id, &pending.id)
+        .unwrap();
+    assert!(targets.complete);
+    assert_eq!(targets.recommended_executable, Some(player.clone()));
+    assert_eq!(targets.candidates.len(), 2);
+    assert!(targets.candidates.iter().any(|candidate| {
+        candidate.executable == player && candidate.working_directory == player_root
+    }));
+    assert!(
+        targets
+            .candidates
+            .iter()
+            .any(|candidate| { candidate.executable == helper && candidate.supporting_program })
+    );
+    let recommend = || {
+        service
+            .discover_setup_launch_targets(&request.port_id, &pending.id)
+            .unwrap()
+            .recommended_executable
+    };
+
+    let other_root = pending.path.join("alternate");
+    fs::create_dir(&other_root).unwrap();
+    let duplicate = other_root.join(filename);
+    fs::copy(&probe, &duplicate).unwrap();
+    assert!(recommend().is_none());
+    fs::remove_file(duplicate).unwrap();
+    let raw_package = pending.path.join(&pending.artifact.name);
+    fs::write(&raw_package, b"retained raw package").unwrap();
+    assert!(recommend().is_none());
+    fs::remove_file(raw_package).unwrap();
+    fs::remove_file(&player).unwrap();
+    let prefix_only = player_root.join(if cfg!(windows) {
+        "GameEditor.exe"
+    } else {
+        "GameEditor"
+    });
+    fs::copy(&probe, &prefix_only).unwrap();
+    assert!(recommend().is_none());
+    assert_eq!(
+        serde_json::to_value(service.pending_setups().unwrap()).unwrap(),
+        before
+    );
+    assert!(service.library.all_installs().unwrap().is_empty());
+    assert!(
+        service
+            .library
+            .status(&request.port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .external_runtime
+            .is_none()
+    );
+}
+
 #[test]
 fn retained_restricted_registration_survives_removal_from_the_current_directory() {
     let (_temporary, mut service, request) = fixture();
