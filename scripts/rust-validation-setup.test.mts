@@ -461,6 +461,17 @@ function node {
   }
 });
 
+function windowsTemporaryStorageScript(setup: string) {
+  const action: unknown = parseDocument(setup).toJS();
+  assert.ok(isRecord(action) && isRecord(action.runs) && Array.isArray(action.runs.steps));
+  const steps: unknown[] = action.runs.steps;
+  const step = steps.find(
+    (value: unknown) => isRecord(value) && value.name === "Select Windows test temporary storage",
+  );
+  assert.ok(isRecord(step) && typeof step.run === "string");
+  return step.run;
+}
+
 void test("Windows fixture setup selects runner-owned temporary storage before compilation", async () => {
   const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
@@ -468,6 +479,9 @@ void test("Windows fixture setup selects runner-owned temporary storage before c
   const selection = setup.indexOf("name: Select Windows test temporary storage");
   assert.ok(selection >= 0 && selection < setup.indexOf("name: Read repository toolchain"));
   assert.match(setup, /if: runner\.os == 'Windows' && inputs\.test-fixtures == 'true'/);
+  const script = windowsTemporaryStorageScript(setup);
+  assert.match(script, /RUNNER_TEMP/);
+  assert.match(script, /GITHUB_ENV/);
   assert.match(windowsStorage, /scripts\/ci-workflow\.test\.mts/);
 });
 
@@ -482,11 +496,7 @@ void test(
     const setup = await readWorkflow(
       new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
     );
-    const body = setup.match(
-      /- name: Select Windows test temporary storage[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- name:)/,
-    )?.[1];
-    assert.ok(body);
-    const script = body.replace(/^ {8}/gm, "");
+    const script = windowsTemporaryStorageScript(setup);
     const base = path.resolve(tmpdir());
     const directory = await mkdtemp(path.join(base, "portcove-ci-temp-"));
     try {

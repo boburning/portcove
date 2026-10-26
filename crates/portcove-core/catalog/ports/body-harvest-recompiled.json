@@ -3,12 +3,12 @@
   "listing": {
     "id": "body-harvest-recompiled",
     "name": "Body Harvest: Recompiled",
-    "summary": "Explore Body Harvest: Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a permitted Body Harvest player and select your own North American cartridge dump on first Play.",
     "project_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
     "issue_number": 1448,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
     "artwork": {
       "game_id": 3426,
       "cover_id": 258206,
@@ -16,6 +16,35 @@
       "image_sha256": "c14ab273e1271bb4fdee7feebc3bc6e9a34e7835e9fc42754f547fbbd853324a",
       "game_slug": "body-harvest",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases",
+    "original_game_title": "Body Harvest",
+    "download_asset_hints": {
+      "windows-x86-64": ["BodyHarvestRecompiled-", "-Windows.zip"],
+      "linux-x86-64": ["BodyHarvestRecompiled-", "-Linux-X64.tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a complete permitted player",
+          "instruction": "On Windows, select BodyHarvestRecompiled.exe in your existing permitted copy; on native Linux x64, select BodyHarvestRecompiled. Keep its complete extracted folder and supplied assets/libraries together as the working directory. macOS uses the upstream application bundle. Linux ARM64 and Flatpak are separate upstream packages and preparation routes; Windows launch details do not apply to them."
+        },
+        {
+          "title": "Select your original game on first Play",
+          "instruction": "Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
+        },
+        {
+          "title": "Preserve the actual profile and working copy",
+          "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+        },
+        {
+          "title": "Keep Flatpak data with the actual profile",
+          "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+    },
+    "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
   }
 }
