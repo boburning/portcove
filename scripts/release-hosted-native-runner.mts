@@ -424,7 +424,9 @@ export async function prepareConfiguredHostedWindowsRuntime(
   await requireActualHostedNativeParentSource(parent);
   active();
   recheckNativeRuntimeCustody(evidenceFiles, evidenceCustody);
-  return Object.freeze({ tools, parent, runtime });
+  active();
+  original.recheck();
+  return Object.freeze({ tools, parent, runtime, deadline: Math.min(deadline, original.deadline) });
 }
 
 /** Fixed caller entry. The bootstrap must supply its original cross-process

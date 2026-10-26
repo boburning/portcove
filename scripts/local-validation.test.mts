@@ -488,6 +488,7 @@ void test("disposable fixture helper changes retain every cleanup consumer acros
     "scripts/release-hosted-native-proof-producer.test.mts",
     "scripts/release-hosted-native-job.test.mts",
     "scripts/release-hosted-native-runner.test.mts",
+    "scripts/release-hosted-native-windows-bootstrap.test.mts",
     "scripts/release-routing-marker.test.mts",
     "scripts/release-native-pre-sign-report.test.mts",
     "scripts/release-native-source-provider.test.mts",

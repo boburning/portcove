@@ -368,7 +368,7 @@ export async function prepareFixedHostedWindowsNativeRuntime() {
       root: string,
       deadline: number,
       entry: string,
-    ): Promise<unknown>;
+    ): Promise<{ deadline: number }>;
   };
   active();
   recheckNativeRuntimeCustody(custodyFiles, custody);
@@ -384,6 +384,13 @@ export async function prepareFixedHostedWindowsNativeRuntime() {
   recheckNativeRuntimeCustody(custodyFiles, custody);
   assert.ok((await readProductionControllerWorkflowBytes()).equals(scope.workflow));
   await verifiedControllerToolPaths(receipt);
+  active();
+  assert.ok(
+    Number.isFinite(prepared.deadline) &&
+      prepared.deadline <= providerDeadline &&
+      performance.now() < prepared.deadline,
+    "original Windows issuer/runtime preparation expired",
+  );
   return prepared;
 }
 
