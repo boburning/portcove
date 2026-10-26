@@ -224,15 +224,20 @@ fn sequence(fault: TransferPhase, initial: Model, script: u8) {
             assert_eq!(result.unwrap_err().code, crate::ErrorCode::Conflict);
         }
         model = next;
-        check(step * 3 + 1, model, &payload);
+        check(step * 4 + 1, model, &payload);
         if matches!(model, Model::Activated | Model::Complete) {
             payload = format!("new player save at step {step}").into_bytes();
             fs::write(destination.join("user/starship/data.bin"), &payload).unwrap();
-            check(step * 3 + 2, model, &payload);
+            check(step * 4 + 2, model, &payload);
         }
-        // A different, absent source cannot grant authority or change either copy.
-        assert!(PortcoveService::resume_library_move(&temporary.path().join("unrelated")).is_err());
-        check(step * 3 + 3, model, &payload);
+        // Observe each wrong-root command separately so a later command cannot hide an effect.
+        let unrelated = temporary.path().join("unrelated");
+        assert!(PortcoveService::resume_library_move(&unrelated).is_err());
+        assert!(!unrelated.exists());
+        check(step * 4 + 3, model, &payload);
+        assert!(PortcoveService::abort_library_move(&unrelated).is_err());
+        assert!(!unrelated.exists());
+        check(step * 4 + 4, model, &payload);
     }
 }
 
