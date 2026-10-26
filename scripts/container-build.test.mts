@@ -214,6 +214,7 @@ void test("builder modes are closed and isolated from browser resources", async 
   assert.throws(() => createContainerHost("arbitrary"), /Unknown/u);
   assert.equal(budgets.timeout_ms, 90 * 60000);
   assert.equal(budgets.setup_ms, 120 * 60000);
+  assert.equal(budgets.bundle_ms, 45 * 60000);
   for (const mode of ["suite", "probe", "exact", "arbitrary"])
     // @ts-expect-error Missing commit is deliberate: reject an unsupported mode before source discovery.
     await assert.rejects(browser({ mode }), /Use check or package/u);

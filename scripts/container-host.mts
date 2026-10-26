@@ -357,6 +357,7 @@ export function createContainerHost(profile: string) {
   const budgets = Object.freeze({
     timeout_ms: (builder ? 90 : 30) * 60_000,
     setup_ms: (builder ? 120 : 30) * 60_000,
+    ...(builder ? { bundle_ms: 45 * 60_000 } : {}),
     cpus: 4,
     memory: "6g",
     shm: "1g",
@@ -1363,7 +1364,7 @@ export function createContainerHost(profile: string) {
         if (reservation.registerExternal) await reservation.registerExternal(external);
         const cancellation = new EventEmitter();
         const cancel = () => cancellation.emit("SIGTERM");
-        const timer = setTimeout(cancel, setupTimeout(builder ? 600_000 : 300_000));
+        const timer = setTimeout(cancel, setupTimeout(budgets.bundle_ms ?? 300_000));
         abort.signal.addEventListener("abort", cancel, { once: true });
         const bundleLease = reservation;
         if (!bundleLease) throw new Error("Owned bundle preparation has no capacity reservation");
