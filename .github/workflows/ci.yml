@@ -434,7 +434,15 @@ jobs:
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: |
           rustc --edition 2024 --test apps/desktop/src-tauri/src/application_update_process_environment.rs -o "$RUNNER_TEMP/portcove-update-environment-tests"
-          "$RUNNER_TEMP/portcove-update-environment-tests"
+          node scripts/standalone-rust-tests.mts "$RUNNER_TEMP/portcove-update-environment-tests"
+      - name: Retain standalone Linux test outcomes
+        if: always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: standalone-rust-outcomes-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/standalone-rust-tests
+          retention-days: 7
+          if-no-files-found: error
       - name: Read pinned Linux diagnostic test runner
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
         id: linux-diagnostic-test-runner

@@ -470,45 +470,52 @@ void test("bootstrap binds actual clean Git inventories and refuses out-of-scope
       }),
     /inventory differs/,
   );
-  await t.test("bootstrap rejects changes confined to extracted audit authority", async () => {
-    const originalBranch = git(source, ["branch", "--show-current"]);
-    git(source, ["checkout", "--quiet", "-b", "extracted-authority-control"]);
-    write("scripts/validation-evidence.mts", "changed receipt authority\n");
-    git(source, ["add", "."]);
-    git(source, ["commit", "--quiet", "-m", "changed extracted audit authority"]);
-    const altered = git(source, ["rev-parse", "HEAD"]);
-    git(controller, ["fetch", "--quiet", "origin"]);
-    git(controller, ["checkout", "--quiet", "--detach", altered]);
-    const alteredInventory = git(source, ["diff", "--name-only", "--no-renames", base, altered])
-      .split("\n")
-      .map((name) => ({
-        path: name,
-        base: git(source, ["ls-tree", base, "--", name]),
-        source: git(source, ["ls-tree", altered, "--", name]),
-      }));
-    const alteredRaw = JSON.stringify({
-      ...spec,
-      source: altered,
-      controller: altered,
-      inventory_sha256: bindingDigest(JSON.stringify(alteredInventory)),
+  for (const [label, file] of [
+    ["extracted-authority", "scripts/validation-evidence.mts"],
+    ["standalone-reporter", "scripts/standalone-rust-tests.mts"],
+    ["binary-identity", "scripts/development-evidence.mts"],
+  ])
+    await t.test("bootstrap preserves " + label, async () => {
+      const originalBranch = git(source, ["branch", "--show-current"]);
+      git(source, ["checkout", "--quiet", "-b", label + "-control"]);
+      write(file!, "changed receipt authority\n");
+      git(source, ["add", "."]);
+      git(source, ["commit", "--quiet", "-m", "changed extracted audit authority"]);
+      const altered = git(source, ["rev-parse", "HEAD"]);
+      git(controller, ["fetch", "--quiet", "origin"]);
+      git(controller, ["checkout", "--quiet", "--detach", altered]);
+      const alteredInventory = git(source, ["diff", "--name-only", "--no-renames", base, altered])
+        .split("\n")
+        .map((name) => ({
+          path: name,
+          base: git(source, ["ls-tree", base, "--", name]),
+          source: git(source, ["ls-tree", altered, "--", name]),
+        }));
+      const alteredRaw = JSON.stringify({
+        ...spec,
+        source: altered,
+        controller: altered,
+        inventory_sha256: bindingDigest(JSON.stringify(alteredInventory)),
+      });
+      await assert.rejects(
+        () =>
+          runHostedValidation("prepare", {
+            ...options,
+            environment: {
+              ...environment,
+              GITHUB_SHA: altered,
+              GITHUB_WORKFLOW_SHA: altered,
+              PORTCOVE_LOCAL_BINDING: alteredRaw,
+              PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(alteredRaw),
+            },
+          }),
+        file === "scripts/validation-evidence.mts"
+          ? /preserved recipes, pins, resources or containment/
+          : /independently admitted fifteen-path scope/,
+      );
+      git(source, ["checkout", "--quiet", originalBranch]);
+      git(controller, ["checkout", "--quiet", "--detach", head]);
     });
-    await assert.rejects(
-      () =>
-        runHostedValidation("prepare", {
-          ...options,
-          environment: {
-            ...environment,
-            GITHUB_SHA: altered,
-            GITHUB_WORKFLOW_SHA: altered,
-            PORTCOVE_LOCAL_BINDING: alteredRaw,
-            PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(alteredRaw),
-          },
-        }),
-      /preserved recipes, pins, resources or containment/,
-    );
-    git(source, ["checkout", "--quiet", originalBranch]);
-    git(controller, ["checkout", "--quiet", "--detach", head]);
-  });
   write(".github/workflows/unadmitted.yml", "outside scope\n");
   git(source, ["add", "."]);
   git(source, ["commit", "--quiet", "-m", "unadmitted workflow"]);
@@ -694,6 +701,8 @@ void test("preflight and controller share the exact hosted script authority boun
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/workflow-provenance.mts"), false);
   for (const file of [
     "scripts/nextest-outcomes-cli.mts",
+    "scripts/standalone-rust-tests.mts",
+    "scripts/development-evidence.mts",
     "scripts/bounded-summary.mts",
     "scripts/fallow-summary.mts",
     "scripts/node-platform-skips.mts",

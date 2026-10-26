@@ -1,0 +1,8 @@
+{ "type": "suite", "event": "started", "test_count": 3 }
+{ "type": "test", "event": "started", "name": "retained_conditional_failure" }
+{ "type": "test", "event": "started", "name": "retained_ignored" }
+{ "type": "test", "event": "started", "name": "retained_pass" }
+{ "type": "test", "name": "retained_ignored", "event": "ignored", "message": "owned opt-in control" }
+{ "type": "test", "name": "retained_conditional_failure", "event": "ok", "exec_time": 0.00000139 }
+{ "type": "test", "name": "retained_pass", "event": "ok", "exec_time": 0.00000039 }
+{ "type": "suite", "event": "ok", "passed": 2, "failed": 0, "ignored": 1, "measured": 0, "filtered_out": 0, "exec_time": 0.00040612 }
