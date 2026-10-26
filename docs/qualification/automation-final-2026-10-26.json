@@ -1,0 +1,1165 @@
+{
+  "format_version": 1,
+  "baseline_source": "089aafd213dbe7f04db43df768d85d5a804504e0",
+  "environment": {
+    "platform": "linux-x64",
+    "node": "v24.22.1",
+    "viteplus": "1.3.0",
+    "vitest": "5.0.5",
+    "playwright": "1.64.1"
+  },
+  "fixture_import": {
+    "before": [
+      {
+        "wall_ms": 1587.8460060048383,
+        "exit": 0
+      },
+      {
+        "wall_ms": 1470.0175809994107,
+        "exit": 0
+      },
+      {
+        "wall_ms": 1487.938878010027,
+        "exit": 0
+      },
+      {
+        "wall_ms": 1209.7231410007225,
+        "exit": 0
+      },
+      {
+        "wall_ms": 1265.6709769944428,
+        "exit": 0
+      }
+    ],
+    "after": [
+      {
+        "wall_ms": 132.9854250070639,
+        "exit": 0
+      },
+      {
+        "wall_ms": 136.228392002522,
+        "exit": 0
+      },
+      {
+        "wall_ms": 143.71892000781372,
+        "exit": 0
+      },
+      {
+        "wall_ms": 130.43710599595215,
+        "exit": 0
+      },
+      {
+        "wall_ms": 133.10933898901567,
+        "exit": 0
+      }
+    ],
+    "ordering": "five before then five after; not interleaved, not hosted CI; final alias-compatible samples after independent review",
+    "reviewed_after": [
+      {
+        "wall_ms": 142.50863299821503,
+        "exit": 0
+      },
+      {
+        "wall_ms": 138.82526100496762,
+        "exit": 0
+      },
+      {
+        "wall_ms": 136.8569160113111,
+        "exit": 0
+      },
+      {
+        "wall_ms": 138.76085399533622,
+        "exit": 0
+      },
+      {
+        "wall_ms": 141.40984800178558,
+        "exit": 0
+      }
+    ]
+  },
+  "frontend": {
+    "before": [
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "does not turn current bytes or missing legacy assessment into confirmed compatibility",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "does not inherit managed source requirements for a user-selected installation",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > uses a stable fallback for an unknown operation identity",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > does not re-truncate core-protected attention and recovery activities",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > indexes statuses and restricts the library to installed ports",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > combines declared platform and installation method in one query",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > retains search and sorting while using explicit selected-library query context",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > uses one selected library snapshot for membership, visibility and sorting",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > combines channel and text filters",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps catalog order by default and sorts names or installed ports with stable ties",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > searches the visible installation method without indexing the internal adapter id",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > distinguishes playable installs from missing-source setup",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps damaged installations visible in the needs-setup filter",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps an unchanged source with incompatible representation in source setup",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > treats changed and unreadable registered bytes as setup blockers",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps one-time upstream setup separate from missing sources",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > selects Continue from successful launch history only",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > uses only update snapshots that still describe the active version and channel",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > groups missing source and BIOS requirements for installed ports only",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > normalizes structured and primitive errors",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+        "name": "desktop components > distinguishes never-loaded and stale recovery diagnostics from a healthy empty report",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "keeps unavailable information distinct from an empty recorded repair list",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "puts paths behind a collapsed review and omits raw errors and execution controls",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "uses a neutral label for future_kind",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "uses a neutral label for constructor",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "uses a neutral label for __proto__",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "retains every recorded item and full long names and paths",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps byte health and clean process history separate from compatibility: confirmed=false",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "inspects exact retained facts without deleting, then refreshes the bound plan for separate cleanup",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "explains that journal-only cleanup has no private entries to remove",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps byte health and clean process history separate from compatibility: confirmed=true",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer card or Continue launch from contradictory blocker claims",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer card or Continue launch from contradictory action claims",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps managed detail setup unknown without an assessment (case 0)",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps managed detail setup unknown without an assessment (case 1)",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps managed detail setup unknown without an assessment (case 2)",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an assessed eligible, untested managed route available to install",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves known missing inputs when managed setup has no action assessment",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves external runtime preparation without a managed setup assessment",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "shows a core-held managed setup reason before installation review",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "explains a retained launch hold without presenting it as missing game files",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an installed game out of Ready when the core assessment is undefined",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an installed game out of Ready when the core assessment is null",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves a core launch refusal without recognized blockers: []",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves a core launch refusal without recognized blockers: [ 'future_blocker' ]",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer Play for a missing assessment with source requirement true",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer Play for a missing assessment with source requirement false",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "routes Continue to review without a positive core launch decision: undefined",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "routes Continue to review without a positive core launch decision: null",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "routes Continue to review without a positive core launch decision: { launchable: false, \u2026(2) }",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "restores Continue only after a new positive core assessment without changing the records",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "restores managed installation review only after an allowed snapshot",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps review of newly selected input available for core waiting reason missing_source",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps review of newly selected input available for core waiting reason missing_bios",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps malformed current setup availability from opening an installation review",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "explains an unoffered managed platform without asking for game files",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "lets a held existing review be dismissed before an allowed snapshot returns",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "passes no click event when cancelling an ordinary installation review",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an owned installation cancellation reachable when setup becomes held",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      }
+    ],
+    "after": [
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "does not turn current bytes or missing legacy assessment into confirmed compatibility",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "does not inherit managed source requirements for a user-selected installation",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > uses a stable fallback for an unknown operation identity",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > does not re-truncate core-protected attention and recovery activities",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > indexes statuses and restricts the library to installed ports",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > combines declared platform and installation method in one query",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > retains search and sorting while using explicit selected-library query context",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > uses one selected library snapshot for membership, visibility and sorting",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > combines channel and text filters",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps catalog order by default and sorts names or installed ports with stable ties",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > searches the visible installation method without indexing the internal adapter id",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > distinguishes playable installs from missing-source setup",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps damaged installations visible in the needs-setup filter",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps an unchanged source with incompatible representation in source setup",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > treats changed and unreadable registered bytes as setup blockers",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > keeps one-time upstream setup separate from missing sources",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > selects Continue from successful launch history only",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > uses only update snapshots that still describe the active version and channel",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > groups missing source and BIOS requirements for installed ports only",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/view-model.test.ts",
+        "name": "catalog view model > normalizes structured and primitive errors",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+        "name": "desktop components > distinguishes never-loaded and stale recovery diagnostics from a healthy empty report",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+        "name": "keeps unavailable information distinct from an empty recorded repair list",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+        "name": "uses a neutral label for future_kind",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+        "name": "uses a neutral label for constructor",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+        "name": "uses a neutral label for __proto__",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "unit",
+        "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+        "name": "retains every recorded item and full long names and paths",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "puts paths behind a collapsed review and omits raw errors and execution controls",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "inspects exact retained facts without deleting, then refreshes the bound plan for separate cleanup",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+        "name": "explains that journal-only cleanup has no private entries to remove",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps byte health and clean process history separate from compatibility: confirmed=false",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps byte health and clean process history separate from compatibility: confirmed=true",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer card or Continue launch from contradictory blocker claims",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer card or Continue launch from contradictory action claims",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps managed detail setup unknown without an assessment (case 0)",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps managed detail setup unknown without an assessment (case 1)",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps managed detail setup unknown without an assessment (case 2)",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an assessed eligible, untested managed route available to install",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves known missing inputs when managed setup has no action assessment",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves external runtime preparation without a managed setup assessment",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "shows a core-held managed setup reason before installation review",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "explains a retained launch hold without presenting it as missing game files",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an installed game out of Ready when the core assessment is undefined",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an installed game out of Ready when the core assessment is null",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves a core launch refusal without recognized blockers: []",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "preserves a core launch refusal without recognized blockers: [ 'future_blocker' ]",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer Play for a missing assessment with source requirement true",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "does not offer Play for a missing assessment with source requirement false",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "routes Continue to review without a positive core launch decision: undefined",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "routes Continue to review without a positive core launch decision: null",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "routes Continue to review without a positive core launch decision: { launchable: false, \u2026(2) }",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "restores Continue only after a new positive core assessment without changing the records",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "restores managed installation review only after an allowed snapshot",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps review of newly selected input available for core waiting reason missing_source",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps review of newly selected input available for core waiting reason missing_bios",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps malformed current setup availability from opening an installation review",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "explains an unoffered managed platform without asking for game files",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "lets a held existing review be dismissed before an allowed snapshot returns",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "passes no click event when cancelling an ordinary installation review",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      },
+      {
+        "project": "browser (chromium)",
+        "file": "apps/desktop/src/launch-readiness.browser.test.tsx",
+        "name": "keeps an owned installation cancellation reachable when setup becomes held",
+        "outcome": "passed",
+        "retry_count": 0,
+        "repeat_count": 0
+      }
+    ],
+    "moved": [
+      {
+        "name": "keeps unavailable information distinct from an empty recorded repair list",
+        "before": {
+          "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+          "project": "browser (chromium)"
+        },
+        "after": {
+          "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+          "project": "unit"
+        }
+      },
+      {
+        "name": "uses a neutral label for future_kind",
+        "before": {
+          "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+          "project": "browser (chromium)"
+        },
+        "after": {
+          "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+          "project": "unit"
+        }
+      },
+      {
+        "name": "uses a neutral label for constructor",
+        "before": {
+          "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+          "project": "browser (chromium)"
+        },
+        "after": {
+          "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+          "project": "unit"
+        }
+      },
+      {
+        "name": "uses a neutral label for __proto__",
+        "before": {
+          "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+          "project": "browser (chromium)"
+        },
+        "after": {
+          "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+          "project": "unit"
+        }
+      },
+      {
+        "name": "retains every recorded item and full long names and paths",
+        "before": {
+          "file": "apps/desktop/src/components/RecoveryReview.browser.test.tsx",
+          "project": "browser (chromium)"
+        },
+        "after": {
+          "file": "apps/desktop/src/components/RecoveryReview.rendered.test.tsx",
+          "project": "unit"
+        }
+      }
+    ],
+    "before_runner_seconds": 6.05,
+    "after_runner_seconds": 4.98,
+    "before_guarded_ms": 7781,
+    "after_guarded_ms": 6641,
+    "before_queue_ms": 6,
+    "after_queue_ms": 7,
+    "limits": "One positive pair, warmed after baseline. No whole-suite speedup claim."
+  },
+  "controlled_failure": {
+    "mutation": "unknown recovery label only",
+    "restored_sha256": {
+      "apps/desktop/src/components/RecoveryReview.browser.test.tsx": "cf780209a32a20bb87cc86fd9b478832577c48b39b6c32ca1bdb7441b52471f9",
+      "apps/desktop/src/components/RecoveryReview.rendered.test.tsx": "d0b96a6f350f8723362a4a338def8109f87a3f3cad032e285a60c0775cb2e6c5",
+      "apps/desktop/src/components/RecoveryReview.tsx": "9f594657f1e891b669368d6a77e3b81ab471f58f1cf7542035cac572b20a58e9"
+    },
+    "observations": [
+      {
+        "variant": "before",
+        "exit": 1,
+        "first_failure_ms": 4676.902864011936,
+        "outer_wall_ms": 5378.319231007481
+      },
+      {
+        "variant": "after",
+        "exit": 1,
+        "first_failure_ms": 2317.5702820008155,
+        "outer_wall_ms": 4309.372866002377
+      }
+    ]
+  },
+  "evidence_sha256": {
+    "workflow-reviewed.log": "1282637d4483f69c201211b06e6c0fd67cc8b3fe3d01e6b58e7f40d93162c6eb",
+    "recovery-failure-after.log": "02e462aa03a3b1a260e9f311c8d8b5a8ef4795c0ae713844618a269472a3d92e",
+    "cache-long-path-uncached.log": "dd56eea202fa5507d48f601b8527df1ad73d8da22f3f28c4beb3f0bd0bad32d4",
+    "recovery-failure-before.log": "09296959df6f28a0127bb515d1e6c6f71c2d50941b53115566b42a78d4541268",
+    "final-plan.log": "0729cbb5dddd7031847ff9f26278b569b45575e4f06fd93886a882d1a4086fd5",
+    "cache-long-path.log": "a4b0be9b6af1153b47c58d7a91a5bf806e3036a993389eb86c943dc0bf49a086",
+    "cache-details.log": "415e44a06232ce5cbc5c0b23700c459640f01eb5e5c136787a0ca46cf42f5412",
+    "workflow-final.log": "66094d85ddaf314259ebf17ee567cbfe4125de69c6fbc3390df5eeb05c471543",
+    "cache-probe.log": "5a714163cbd980c6136d295bc255e34822a390ba8b8133b41b7b916152e2e7bf",
+    "static.log": "eb7774c8b35dae32126ffb06c67145cff4b43bd5ccdac2c9fa74fea10edcce8e",
+    "complete-diff-plan.log": "600be34c1b1ca8115ccf84706397de70270fba3829e558f5970415e44e66816e",
+    "validation-contracts.log": "6dc5845ec8a06a1de2acbe54089e3b84be020213435216ae6369f9e87c32c286",
+    "browser-after.log": "01010e7036cb3c288dc97da299a460d82a921a8af187bc29e2e661c3621239c1",
+    "workflow-after.log": "e8cc293de34d0d2c121c3d1d384c1bec28694aff1835730daac3c81160b9a611",
+    "browser-before.log": "174efe725ed56614c7f86f48ab5fb4eda3921672035f272ac54cbe3c1d2b091a",
+    "workflow-before.log": "349c1bf51d709187aafcdf78f0c62c5ed2943da3fe1f41e6823af88ac6a02aad",
+    "browser-bootstrap.log": "88fbd48511c7adbbd269028319d827b8fb06042b344c1c9f5f79874ec9eee108",
+    "local-check-isolated.log": "aab5c717cffcac49da9b3ffffe53fd1cd9eb047dc717f1338ac9706c5feb2155",
+    "task-isolation-negative.log": "b64ed037fc89c49d5b30370bd4afb83a9416cdcf9f4cea8bd4013f4162df5b37",
+    "task-gate-adversarial.log": "fc46c01d475b3a2a1bd474b1f4dbb893fa2d53b06f76673a64a07bbc761b053e",
+    "task-gate-isolated.log": "5b5a27859b84d552b7bd74e7267f5fed4ed55fe286a0e237d394f9dfbb98fc0d",
+    "local-check-calibrated.log": "2439f0962fdcba0aa5d77619e39892396dbdd30d6441146ed1a33ecaf13b4460",
+    "local-check-frozen.log": "0a978d378d72a90195ad1a07f8add58960f5f1bfbefbfb307ae8557103cae926",
+    "windows-failed-partition.log": "f9b467cae163aceedb26675d3226d6e451e88f0af0773cb6fe34cb230ef08925",
+    "local-check.log": "229fd798fc4fb6738c7c51f5ad24e2196b1f6b2723c65709d23cef91ca81a55f"
+  },
+  "task_isolation": {
+    "original_timeout_ms": 15021.143045,
+    "rejected_budget_experiment_ms": 30020.815508,
+    "final_child_budget_ms": 15000,
+    "storage_wrapped_fixed_outer_ms": 1620.835956,
+    "adversarial_parent_fixed_outer_ms": 1968.19848,
+    "removed_child_workspace_marker": {
+      "exit": 1,
+      "outer_ms": 1317.7916160057066
+    },
+    "owned_leaked_processes_verified_absent": [1701218, 1701286, 1701287, 1701294, 1701305],
+    "interpretation": "Explicit fixture workspace repairs ancestor workspace discovery; budgets unchanged."
+  },
+  "final_local_plan": {
+    "seconds": 41.4,
+    "requested_node_files": 17,
+    "passed": 353,
+    "skipped": 1,
+    "failed": 0,
+    "affected_frontend_files": 2,
+    "frontend_passed": 9
+  }
+}

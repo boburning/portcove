@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   requiredFixture,
   workflowJob,
+  workflowJobSource,
   workflowStep,
   executableLines,
   nativeDesignCompatibilityWorkflow,
@@ -44,9 +45,7 @@ void test("reviewed hosted phases retain independent allocations, fixed commands
     ["hosted_compiled", 120, "compiled"],
     ["hosted_history", 45, "native"],
   ] as const) {
-    const section = requiredFixture(
-      requiredFixture(source.split(`\n  ${name}:`)[1])?.split(/\n  [a-z_]+:\n/)[0],
-    );
+    const section = workflowJobSource(source, name);
     assert.ok(section);
     assert.match(section, new RegExp(`timeout-minutes: ${limit}`));
     assert.match(section, /runs-on: ubuntu-24\.04/);
@@ -63,11 +62,7 @@ void test("reviewed hosted phases retain independent allocations, fixed commands
 });
 
 void test("hosted selected setup prepares the provider observed by preflight and used by selected recipes", () => {
-  const selected = requiredFixture(
-    requiredFixture(nativeDesignCompatibilityWorkflow.split("\n  hosted_selected:")[1]).split(
-      "\n  hosted_audit:",
-    )[0],
-  );
+  const selected = workflowJobSource(nativeDesignCompatibilityWorkflow, "hosted_selected");
   const install = selected.indexOf("run: corepack pnpm install --frozen-lockfile");
   const preflight = selected.indexOf("hosted-validation provision");
   assert.ok(install >= 0 && install < preflight);
@@ -96,9 +91,7 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.match(source, /merge_head = \(git rev-parse HEAD\)/);
   assert.match(source, /merge_parents = \(git show -s --format=%P HEAD\)/);
   assert.match(source, /just desktop-verify --scenario native-backup-delete-focus --require-clean/);
-  const windows = requiredFixture(
-    requiredFixture(source.split("  backup_focus:\n")[1])?.split("\n  edge_driver_proof:")[0],
-  );
+  const windows = workflowJobSource(source, "backup_focus");
   assert.ok(windows);
   assert.doesNotMatch(
     windows,

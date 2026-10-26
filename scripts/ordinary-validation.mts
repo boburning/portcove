@@ -248,6 +248,10 @@ const platformSkipConsumers = [
 ];
 const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/node-platform-skips.mts", platformSkipConsumers],
+  [
+    "scripts/repository-path.mts",
+    [...selectionContractTests, "scripts/validation-evidence.test.mts"],
+  ],
   ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
   [
     "scripts/fixtures/rscheck-qualification-regression-literals.json",
