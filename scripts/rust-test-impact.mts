@@ -587,8 +587,7 @@ export function selectWorkspaceRustImpact(
       reason: "complete typed runtime diagnostics, frontend report and Core/CLI outcome fixture",
     });
   }
-  // Definition publication consumes the index and repository policy through Core;
-  // retain the complete CLI package for production definition changes beyond capabilities.
+  // Offline publication and capability rendering have both unit and compiled CLI consumers.
   if (
     plan.changes.some((change) =>
       [change.oldPath, change.newPath].some(
@@ -600,35 +599,18 @@ export function selectWorkspaceRustImpact(
     !selected.some(
       (group) => group.packageName === "portcove-cli" && group.filter === "package(=portcove-cli)",
     )
-  ) {
-    const group = map?.packages?.["portcove-cli"]?.groups.find(
-      (entry) => entry.id === "definition-capability-fixtures",
-    );
-    const certain =
-      group &&
-      !selected.some((entry) => entry.filter === "package(=portcove-core)") &&
-      plan.changes.every(
-        (change) => change.oldPath === change.newPath && ["A", "M"].includes(change.status),
-      ) &&
-      !plan.changes.some((change) =>
-        [change.oldPath, change.newPath].some(
-          (file) =>
-            definitionImplementation(file) &&
-            file !== "crates/portcove-core/src/definition_capabilities.rs",
-        ),
-      );
-    if (
-      !certain ||
-      !selected.some((entry) => entry.id === "portcove-cli:definition-capability-fixtures")
-    )
-      selected.push({
+  )
+    return [
+      ...selected.filter((group) => group.packageName !== "portcove-cli"),
+      {
         id: "portcove-cli:definition-capability-consumer",
         packageName: "portcove-cli",
-        filter: certain ? `package(=portcove-cli) & (${group.filter})` : "package(=portcove-cli)",
+        filter: "package(=portcove-cli)",
         reason:
-          "compiled CLI capability and offline publication consumers, including Core index and policy",
-      });
-  }
+          "complete compiled CLI capability and publication consumers, including unit renderers",
+      },
+    ];
+
   return selected;
 }
 

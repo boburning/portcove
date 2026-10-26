@@ -1495,7 +1495,7 @@ void test("local Rust planning and shared Windows/CI selection retain workspace 
     );
 });
 
-void test("Core capability inputs retain their actual CLI consumer with shared and rename fallback", () => {
+void test("Core definition inputs retain complete CLI consumers while private CLI fixtures stay focused", () => {
   const capability = "crates/portcove-core/src/definition_capabilities.rs";
   const cliFixture = "crates/portcove-cli/tests/machine_contract/definition_capabilities.rs";
   const single = (status: string, oldPath: string, newPath = oldPath) => ({
@@ -1504,6 +1504,7 @@ void test("Core capability inputs retain their actual CLI consumer with shared a
     newPath,
   });
   for (const [changes, focused] of [
+    [[single("M", cliFixture)], true],
     ...[
       "definition_index.rs",
       "definition_repository.rs",
@@ -1520,8 +1521,8 @@ void test("Core capability inputs retain their actual CLI consumer with shared a
         [[single("M", file), single("M", cliFixture)], false],
       ] as const;
     }),
-    [[single("A", capability)], true],
-    [[single("M", capability)], true],
+    [[single("A", capability)], false],
+    [[single("M", capability)], false],
     [[single("D", capability)], false],
     [[single("R100", capability, "crates/portcove-core/src/old_capabilities.rs")], false],
     [[single("R100", "crates/portcove-core/src/old_capabilities.rs", capability)], false],
@@ -1535,7 +1536,7 @@ void test("Core capability inputs retain their actual CLI consumer with shared a
     ...["types.rs", "lib.rs"].map(
       (file) => [[single("M", `crates/portcove-core/src/${file}`)], false] as const,
     ),
-    [[single("M", capability), single("M", cliFixture)], true],
+    [[single("M", capability), single("M", cliFixture)], false],
     [
       [
         single("M", capability),
@@ -1606,11 +1607,7 @@ void test("unrelated CLI fixtures cannot suppress artwork or advertised capabili
   const groups = selectWorkspaceRustImpact(workspacePlan([capability, artwork, retained]), map);
   assert.deepEqual(
     groups.filter((entry) => entry.packageName === "portcove-cli").map((entry) => entry.id),
-    [
-      "portcove-cli:retained-build-fixtures",
-      "portcove-cli:artwork-consumer",
-      "portcove-cli:definition-capability-consumer",
-    ],
+    ["portcove-cli:definition-capability-consumer"],
   );
   const ownArtwork = selectWorkspaceRustImpact(
     workspacePlan([artwork, "crates/portcove-cli/tests/machine_contract/artwork.rs"]),
