@@ -1171,6 +1171,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/precommit-check.test.mts",
     ],
   ],
+  [".config/nextest.toml", ["scripts/ci-rust-workflow.test.mts"]],
   ...["scripts/qualification-rustdoc.mts", "scripts/rustdoc-outcomes.mts"].map(
     (file): [string, string[]] => [
       file,
