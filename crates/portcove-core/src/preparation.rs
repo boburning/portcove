@@ -12,7 +12,7 @@ pub(crate) mod source;
 pub(crate) use execution::recover;
 pub(crate) use manual::{has_manual_marker, require_manual_setup, validate_manual_marker};
 pub(crate) use readiness::managed;
-pub(crate) use readiness::managed_install;
+pub(crate) use readiness::{managed_install, managed_mode};
 pub(crate) const RECEIPT_FILE: &str = ".portcove-preparation.json";
 use std::path::PathBuf;
 

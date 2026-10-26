@@ -250,6 +250,7 @@ impl PortcoveService {
             launchable: blockers.is_empty(),
             blockers,
             pending_setup: false,
+            preparation_mode: None,
             required_source_extension: None,
             source: None,
             bios: None,

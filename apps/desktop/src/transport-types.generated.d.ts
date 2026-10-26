@@ -226,6 +226,10 @@ export type LaunchBlocker =
   | "shared_preferences_review_required"
   | "shared_preferences_unavailable"
   | "invalid_installation";
+/**
+ * This family currently exposes the catalog's reviewed defaults only.
+ */
+export type PreparationMode = "default" | "ghostship200_legacy" | "source_only";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ArtworkImageFormat = "png" | "jpeg";
 export type OutputArtworkAssets = LocalArtworkAsset[];
@@ -1117,6 +1121,10 @@ export interface LaunchReadiness {
   blockers: LaunchBlocker[];
   launchable: boolean;
   pending_setup: boolean;
+  /**
+   * Core-owned managed preparation route for the retained active installation.
+   */
+  preparation_mode?: PreparationMode | null;
   /**
    * Original file representation required by the effective runtime contract.
    * This is independent of source identity health and uses the retained

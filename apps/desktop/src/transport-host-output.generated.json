@@ -10019,6 +10019,17 @@
           "pending_setup": {
             "type": "boolean"
           },
+          "preparation_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparationMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Core-owned managed preparation route for the retained active installation."
+          },
           "required_source_extension": {
             "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
             "type": [
@@ -11323,6 +11334,27 @@
           "successful_launches"
         ],
         "type": "object"
+      },
+      "PreparationMode": {
+        "description": "This family currently exposes the catalog's reviewed defaults only.",
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
+            "type": "string"
+          }
+        ]
       },
       "PreparedRuntimeSettingsContract": {
         "description": "Catalog-accepted identity for a runtime the player prepares outside Portcove.\nPortcove never downloads or owns this package through this route.",

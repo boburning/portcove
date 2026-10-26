@@ -1635,6 +1635,7 @@ impl PortcoveService {
                     launchable: false,
                     blockers: vec![LaunchBlocker::InvalidInstallation],
                     pending_setup: false,
+                    preparation_mode: None,
                     required_source_extension: None,
                     source: None,
                     bios: None,
@@ -1853,6 +1854,10 @@ impl PortcoveService {
             launchable: installed && blockers.is_empty(),
             blockers,
             pending_setup,
+            preparation_mode: status
+                .active
+                .as_ref()
+                .and_then(|active| crate::preparation::managed_mode(port, active)),
             required_source_extension,
             source,
             bios,
@@ -14824,6 +14829,10 @@ fn main() {
                 assert_eq!(single.blockers, batched.blockers);
                 assert!(!single.launchable);
                 assert!(single.pending_setup);
+                assert_eq!(
+                    single.preparation_mode,
+                    Some(crate::PreparationMode::SourceOnly)
+                );
                 assert!(
                     single
                         .blockers

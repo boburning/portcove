@@ -13,11 +13,23 @@ pub(crate) fn managed(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn managed_install(port: &PortDefinition, install: &InstallRecord) -> bool {
-    managed(port)
-        || super::source::eligible(port)
-        || (port.id == "ghostship"
-            && install.version == "2.0.0"
-            && matches!(Platform::current(), Ok(Platform::WindowsX86_64)))
+    managed_mode(port, install).is_some()
+}
+
+pub(crate) fn managed_mode(
+    port: &PortDefinition,
+    install: &InstallRecord,
+) -> Option<super::PreparationMode> {
+    if super::source::eligible(port) {
+        Some(super::PreparationMode::SourceOnly)
+    } else if port.id == "ghostship"
+        && install.version == "2.0.0"
+        && matches!(Platform::current(), Ok(Platform::WindowsX86_64))
+    {
+        Some(super::PreparationMode::Ghostship200Legacy)
+    } else {
+        managed(port).then_some(super::PreparationMode::Default)
+    }
 }
 
 impl PortcoveService {

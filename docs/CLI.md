@@ -1093,7 +1093,8 @@ The plan reports the resolved release and asset size, current platform and chann
 
 ### Review and recover preparation
 
-API schema 82 adds source-only preparation format 3. For staged originals that
+API schema 82 adds source-only preparation format 3 and the optional retained
+`LaunchReadiness.preparation_mode` route. For staged originals that
 have no existing mutable-data or setup owner, new installs materialize registered
 sources before sealing the immutable manifest. Previously launched generations
 with only declared source outputs added can be reviewed and prepared into a new

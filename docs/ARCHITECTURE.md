@@ -127,6 +127,11 @@ them. Publication and registration revalidate source/definition/host/plan identi
 uncertain tool failure retains private output. Existing mutable-source routes and
 their historical readers keep their original ownership.
 
+Core exposes the retained active installation's `LaunchReadiness.preparation_mode`
+so Desktop can offer source-only repair without inferring runtime ownership from
+adapter names. `not_checked` source metadata permits review or a Core-guarded trial;
+it does not establish original-byte identity or compatibility.
+
 ## Discovery listings and user-owned setup
 
 `catalog/ports/<id>.json` is the authored authority for one stable project
