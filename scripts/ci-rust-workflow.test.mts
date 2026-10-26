@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
 import { qualificationNextestRecipe } from "./qualification-nextest.mts";
 
-import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
+import { executableNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
 
@@ -962,7 +962,7 @@ void test("Windows qualification serializes machine-global registry fixtures wit
   const registry = parseNodeTestSuites(
     await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
-  const commands = annotatedNodeCommands(wrapper, registry);
+  const commands = executableNodeCommands(wrapper, registry);
   assert.equal(commands.length, 1);
   assert.equal(commands[0]!.id, "mutex-owned-payload");
   assert.deepEqual(commands[0]!.arguments, [

@@ -10,7 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { checkStagedNodeTestInventory, requireNodeTestInventory } from "./node-test-inventory.mts";
 import {
-  annotatedNodeCommands,
+  executableNodeCommands,
   commandTokens,
   generateNodeCommands,
   parseNodeTestSuites,
@@ -99,6 +99,19 @@ void test("equivalent qualification expressions preserve executable routes in th
   const files = [...new Set(Object.values(registry.suites).flatMap((suite) => suite.files))].filter(
     (file) => nodeTestPath.test(file),
   );
+  const stripMarkers = (source: string) => source.replace(/^[ \t]*# node-suite:[^\n]*\n/gmu, "");
+  for (const source of [workflow, local, runner])
+    assert.deepEqual(
+      executableNodeCommands(stripMarkers(source), registry),
+      executableNodeCommands(source, registry),
+    );
+  requireNodeTestInventory(
+    files,
+    stripMarkers(workflow),
+    stripMarkers(local),
+    stripMarkers(runner),
+    registryText,
+  );
   for (const condition of [
     "needs.classify.outputs.mode\n == 'qualification'",
     "${{\n needs.classify.outputs.mode\n == 'qualification'\n}}",
@@ -130,9 +143,9 @@ void test("unstaged registrations cannot hide an incomplete indexed test additio
   );
   assert.equal(git("diff"), before);
   git("add", ".github/workflows/ci.yml");
-  assert.throws(() => checkStagedNodeTestInventory(root), /generated command differs/);
+  assert.throws(() => checkStagedNodeTestInventory(root), /executable command differs/);
   git("add", "scripts/node-test-suites.json");
-  assert.throws(() => checkStagedNodeTestInventory(root), /generated command differs/);
+  assert.throws(() => checkStagedNodeTestInventory(root), /executable command differs/);
   // Updating the local generated consumer completes the independently staged migration.
   git("add", "justfile");
   assert.deepEqual(checkStagedNodeTestInventory(root), { checked: true, files: 2 });
@@ -302,13 +315,13 @@ void test("generation preserves literal quoting, wrappers and exact ordered argu
   ]);
   const registry = parseNodeTestSuites(surfaces().registry);
   const source = "    # node-suite: contracts\n    {{storage}} node --test scripts/old.test.mts\n";
-  assert.throws(() => annotatedNodeCommands(source, registry), /differs/);
+  assert.throws(() => executableNodeCommands(source, registry), /differs/);
   const generated = generateNodeCommands(source, registry);
   assert.match(
     generated,
     /\{\{storage\}\} node --test --test-timeout=30000 scripts\/first.test.mts/u,
   );
-  assert.equal(annotatedNodeCommands(generated, registry).length, 1);
+  assert.equal(executableNodeCommands(generated, registry).length, 1);
   assert.equal(generateNodeCommands(generated, registry), generated);
   assert.throws(
     () => generateNodeCommands("# node-suite: contracts\n# disabled", registry),
@@ -319,6 +332,39 @@ void test("generation preserves literal quoting, wrappers and exact ordered argu
       parseNodeTestSuites(surfaces().registry.replace("--test-timeout=30000", "--test-force-exit")),
     /Unsupported/,
   );
+});
+
+void test("executable signatures refuse ambiguity and suppression without requiring markers", () => {
+  const registry = parseNodeTestSuites(surfaces().registry);
+  const command = "node --test --test-timeout=30000 scripts/first.test.mts";
+  assert.equal(executableNodeCommands(command, registry)[0]?.id, "contracts");
+  assert.deepEqual(executableNodeCommands("# " + command, registry), []);
+  assert.deepEqual(executableNodeCommands("# node-suite: contracts", registry), []);
+  for (const suffix of [" || true", " ; exit 0", " --test-name-pattern=some-case"])
+    assert.throws(() => executableNodeCommands(command + suffix, registry), /Nonliteral|differs/);
+  assert.throws(
+    () =>
+      executableNodeCommands(command, {
+        ...registry,
+        suites: { ...registry.suites, alias: registry.suites.contracts! },
+      }),
+    /Ambiguous/,
+  );
+});
+
+void test("per-file ownership retains and validates Desktop provisioning prerequisites", () => {
+  const value = ownedRegistry();
+  const text = (flag: unknown) =>
+    JSON.stringify({
+      ...value,
+      tests: value.tests.map((entry, index) =>
+        index ? entry : { ...entry, desktop_dependencies: flag },
+      ),
+    });
+  assert.deepEqual(parseNodeTestSuites(text(true)).desktopDependencies, [first]);
+  assert.equal(parseNodeTestSuites(JSON.stringify(value)).desktopDependencies, undefined);
+  for (const flag of [false, "true", null, [], {}])
+    assert.throws(() => parseNodeTestSuites(text(flag)), /Invalid Desktop dependency ownership/);
 });
 
 function ownedRegistry() {
@@ -521,6 +567,11 @@ void test("the ownership parser and registry retain independent inventory and wo
         JSON.stringify(change),
       );
       assert.ok(selected.nodeTests.has("scripts/ci-workflow.test.mts"), JSON.stringify(change));
+      assert.ok(selected.nodeTests.has("scripts/ci-baseline.test.mts"), JSON.stringify(change));
+      assert.ok(
+        selected.nodeTests.has("scripts/local-validation.test.mts"),
+        JSON.stringify(change),
+      );
     }
   }
 });
@@ -530,7 +581,7 @@ void test("exclusive platform ownership requires a complete reachable producer d
     format_version: 2,
     suites: {
       contracts: { arguments: ["--test", "--test-timeout=30000"] },
-      windows: { arguments: ["--test", "--test-timeout=30000"] },
+      windows: { arguments: ["--test", "--test-timeout=30000", "--test-concurrency=1"] },
     },
     tests: [
       {
@@ -731,7 +782,7 @@ void test("all native helpers use one explicit reported family in both CI owners
         (step) =>
           isRecord(step) &&
           typeof step.run === "string" &&
-          annotatedNodeCommands(step.run, registry).some(
+          executableNodeCommands(step.run, registry).some(
             (command) => command.id === "native-tools",
           ),
       );
