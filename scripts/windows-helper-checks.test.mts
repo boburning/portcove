@@ -546,7 +546,7 @@ Write-ObservationRecord (Join-Path $root 'privilege-observation-recovery-intent.
 
 void test(
   "suspended storage preflight refuses unknown access and always reverts a verified entry",
-  { skip: process.platform !== "win32" },
+  { skip: process.platform !== "win32", timeout: 90000 },
   async () => {
     const { execFileSync } = await import("node:child_process");
     const { fileURLToPath } = await import("node:url");
@@ -625,7 +625,8 @@ foreach($kind in @('pass','bad-path','oversized','prepare-failed','enter-failed'
         "-EncodedCommand",
         Buffer.from(script, "utf16le").toString("base64"),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+      // Hosted execution exceeded the former 20-second fixture budget.
+      { encoding: "utf8", windowsHide: true, timeout: 60000 },
     );
     assert.deepEqual(JSON.parse(output), { cases: 26, native_processes: 0, storage_operations: 0 });
   },

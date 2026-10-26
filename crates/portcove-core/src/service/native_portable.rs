@@ -3752,7 +3752,7 @@ mod tests {
         .unwrap();
         library.register_install(&first, false).unwrap();
         let mut operation = LifecycleOperation::new(
-            &Uuid::new_v4().to_string(),
+            Uuid::new_v4().to_string(),
             LifecycleOperationKind::Activate,
             "portable-fixture",
         );

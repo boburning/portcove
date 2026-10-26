@@ -1,3 +1,4 @@
+import { recordField } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +6,7 @@ import {
   planPortStageReconciliation,
   qualifiedPlatforms,
   validatePortStageSemantics,
-} from "./roadmap.mts";
+} from "./roadmap-qualification.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
 
 import { fixtureFind, fixtureElement, fixtureObject } from "./fixtures/roadmap-fixtures.mts";
@@ -481,4 +482,10 @@ void test("Supported reconciliation planning uses exact automated and hands-on r
       ["auto", "Automated qualification"],
     ],
   );
+});
+
+void test("qualification field lookup rejects primitives and arrays with named fields", () => {
+  assert.equal(recordField({ kind: "hands_on" }, "kind"), "hands_on");
+  for (const value of [null, undefined, 7, "hands_on", {}, Object.assign([], { kind: "hands_on" })])
+    assert.equal(recordField(value, "kind"), undefined);
 });

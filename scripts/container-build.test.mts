@@ -17,7 +17,24 @@ import {
   browser,
   command,
 } from "./container-build.mts";
-import { createContainerHost, completedContainerPreparation } from "./container-host.mts";
+import {
+  createContainerHost,
+  completedContainerPreparation,
+  validateNativeBuilder,
+} from "./container-host.mts";
+void test("preparation builder is native and bound to the validated local context", () => {
+  validateNativeBuilder("Driver: docker\r\nEndpoint: desktop-linux\r\n");
+  for (const inspection of [
+    "Driver: docker-container\nEndpoint: desktop-linux\n",
+    "Driver: docker\nEndpoint: tcp://remote:2376\n",
+    "Driver: docker\nEndpoint: desktop-linux\nEndpoint: remote\n",
+    "Driver: docker\nEndpoint: desktop-linux\n  Endpoint: remote\n",
+    "Driver: docker\nDriver: docker-container\nEndpoint: desktop-linux\n",
+    "Driver: docker\n",
+    "Endpoint: desktop-linux\n",
+  ])
+    assert.throws(() => validateNativeBuilder(inspection), /native Docker builder/u);
+});
 void test("missing package tools preserve the failed executable and arguments", async () => {
   const missing = path.join(os.tmpdir(), "portcove-missing-tool-parent-does-not-exist", "rpm");
   assert(!existsSync(missing));
@@ -214,6 +231,7 @@ void test("builder modes are closed and isolated from browser resources", async 
   assert.throws(() => createContainerHost("arbitrary"), /Unknown/u);
   assert.equal(budgets.timeout_ms, 90 * 60000);
   assert.equal(budgets.setup_ms, 120 * 60000);
+  assert.equal(budgets.bundle_ms, 45 * 60000);
   for (const mode of ["suite", "probe", "exact", "arbitrary"])
     // @ts-expect-error Missing commit is deliberate: reject an unsupported mode before source discovery.
     await assert.rejects(browser({ mode }), /Use check or package/u);
