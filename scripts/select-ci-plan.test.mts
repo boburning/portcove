@@ -545,3 +545,26 @@ void test("hosted output provisions desktop dependencies for native source consu
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+void test("raw Git and plan admission share strict changed-path policy", () => {
+  const header = ":100644 100644 aaaaaaa bbbbbbb M";
+  for (const file of [
+    "",
+    "../outside",
+    "nested/../outside",
+    "/absolute",
+    "dir\\file",
+    "nul\0path",
+  ]) {
+    assert.throws(() => parseRawDiff(Buffer.from(`${header}\0${file}\0`)));
+    assert.throws(() =>
+      buildValidationPlan({
+        eventName: "pull_request",
+        checkout: sha("a"),
+        changes: [{ status: "M", path: file }],
+      }),
+    );
+  }
+  const file = "docs/name with spaces.md";
+  assert.equal(parseRawDiff(Buffer.from(`${header}\0${file}\0`))[0]?.newPath, file);
+});

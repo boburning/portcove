@@ -20,6 +20,7 @@ import {
   requiredFixture,
   workflow,
   workflowJob,
+  workflowJobSource,
   workflowStep,
   executableLines,
   qualificationWorkflow,
@@ -1060,7 +1061,7 @@ void test("release qualification profile connects bounded matrices and skips onl
       body,
       /if: needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\)/,
     );
-  const portability = workflow.split("  frontend_portability:")[1] ?? "";
+  const portability = workflowJobSource(workflow, "frontend_portability");
   assert.match(
     portability,
     /if: \(needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-aarch64'\)\)/,
