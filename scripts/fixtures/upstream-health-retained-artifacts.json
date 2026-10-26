@@ -361,6 +361,30 @@
         "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
         "published_at": "2026-08-26T16:01:04Z"
       }
+    },
+    {
+      "port_id": "road-rash-64-recompiled",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v1.4.3",
+        "url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
+        "size": 47276827,
+        "sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
+        "published_at": "2026-10-02T05:47:21Z"
+      }
+    },
+    {
+      "port_id": "sonic-3-and-knuckles-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.5.3",
+        "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
+        "size": 16694619,
+        "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+        "published_at": "2026-10-18T14:30:37Z"
+      }
     }
   ]
 }
