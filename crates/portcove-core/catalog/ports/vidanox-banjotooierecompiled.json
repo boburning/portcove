@@ -36,7 +36,7 @@
         },
         {
           "title": "Keep your actual profile when updating",
-          "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. Flatpak instead uses ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled/config/BanjoTooieRecompiled. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these external files, rewind saves or guarantee older-runtime readability."
+          "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
         }
       ],
       "warnings": [

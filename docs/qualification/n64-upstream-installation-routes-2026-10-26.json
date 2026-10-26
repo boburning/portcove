@@ -3,7 +3,7 @@
   "kind": "dated source-bound evidence, not a live registry/backlog",
   "owners": [2510, 2926],
   "source_commit": "d8ef4a218082fce12e961c0611b3df189d9b34bc",
-  "observed_at": "2026-10-26T21:56:01.106Z",
+  "observed_at": "2026-10-26T22:05:38.529Z",
   "scope": "Five remaining known N64 listing identities; no managed addition or new Core/UI/lifecycle abstraction.",
   "ports": [
     {
@@ -47,6 +47,7 @@
         }
       ],
       "platform_scope": "Published Windows, Linux x64/ARM64 and macOS packages reviewed separately as metadata; Core has no Linux ARM64 host enum. No native header/runtime acceptance claimed.",
+      "recommended_download_channel": "stable",
       "current_route": "Generic listing-only upstream link",
       "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
       "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
@@ -61,7 +62,11 @@
         },
         {
           "title": "Preserve your actual profile when updating",
-          "instruction": "You or upstream provide updates. Keep the working copy and its full profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. A portable.txt beside the executable instead keeps saves, settings and mods beside the player. Preserve that selected location and original ROM; these external files are outside Portcove backup and rollback."
+          "instruction": "You or upstream provide updates. Keep the working copy and actual profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. On Windows/native Linux, portable.txt in the working folder stores data there; on macOS the marker belongs beside the application bundle and data stays there. Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback."
+        },
+        {
+          "title": "Keep Flatpak data alongside the actual profile",
+          "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
         }
       ],
       "condition": "The released player links cdlewis/RecompFrontend at fa4f0ca42ba2efaca631203ef1e0753f2be78985, whose applicable grant remains unestablished. The parent game-project GPL does not settle that separate component. Keep an existing copy you are permitted to use. Reconsider acquisition with an attributable compatible grant or a reviewed replacement component/package.",
@@ -113,6 +118,7 @@
         }
       ],
       "platform_scope": "Only published player archive is Windows ZIP without expected digest; source Linux instructions remain unqualified.",
+      "recommended_download_channel": "stable",
       "current_route": "Generic listing-only upstream link",
       "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
       "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
@@ -184,6 +190,7 @@
         }
       ],
       "platform_scope": "Selected Windows x64 alpha player; debug-symbols archive is not a player. No Linux package inherited from source.",
+      "recommended_download_channel": "beta",
       "current_route": "Generic listing-only upstream link",
       "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
       "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
@@ -260,6 +267,7 @@
         }
       ],
       "platform_scope": "Windows/Linux x64 player packages plus a distinct Flatpak route; Linux working-folder/portal prerequisites remain.",
+      "recommended_download_channel": "stable",
       "current_route": "Generic listing-only upstream link",
       "selected_route": "Useful conditional permitted-existing-copy setup; precise fresh-acquisition condition retained",
       "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",
@@ -274,7 +282,7 @@
         },
         {
           "title": "Keep your actual profile when updating",
-          "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. Flatpak instead uses ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled/config/BanjoTooieRecompiled. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these external files, rewind saves or guarantee older-runtime readability."
+          "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
         }
       ],
       "condition": "The v1.0.1 source/package recipe links N64Recomp/RecompFrontend without an established applicable grant and includes Suplexmentary Comic NC.ttf, which upstream expressly identifies as carrying no license and an all-rights-reserved notice. The project GPL does not settle those separate works. Keep a permitted existing copy. Reconsider with attributable compatible grants or a released package replacing the affected components.",
@@ -325,6 +333,7 @@
       "selected_release": null,
       "assets": [],
       "platform_scope": "Source/renderer prototype; no release, playable-player or new qualified registration route.",
+      "recommended_download_channel": null,
       "current_route": "Generic listing-only upstream link",
       "selected_route": "Accurate source/prototype discovery and retained-development-copy guidance; existing useful-output hold preserved",
       "runtime_update_owner": "player/upstream; non-owning registration grants no runtime or player-data ownership",

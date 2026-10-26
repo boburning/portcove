@@ -32,7 +32,17 @@ installer, lifecycle engine or per-game code added.
 `2ac83a8af625acf7da92d5610b25f2693bff7c91`. Its
 [README](https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md)
 describes North American input validation, normal profile locations and portable
-mode. The exact [submodule pointer](https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/.gitmodules)
+mode. Windows/native Linux use a marker in the working folder; macOS checks
+beside its application bundle. The pinned
+[Flatpak manifest](https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/flatpak/io.github.snowboardkidsrecomp.snowboardkidsrecomp.json)
+uses app ID io.github.snowboardkidsrecomp.snowboardkidsrecomp. Its main changes
+the working directory to /var/data for writable mods, while the
+[frontend resolver](https://github.com/cdlewis/RecompFrontend/blob/fa4f0ca42ba2efaca631203ef1e0753f2be78985/recompui/src/util/file.cpp)
+still uses HOME/.config plus the program ID, or APP_FOLDER_PATH/portable mode; it
+does not consume XDG_CONFIG_HOME. Preserve the whole Flatpak app directory
+alongside that actual profile. [Flatpak conventions](https://docs.flatpak.org/en/latest/conventions.html)
+describe the per-app writable directory; no sandbox-config destination is
+guessed from another title. The exact [submodule pointer](https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/.gitmodules)
 resolves RecompFrontend to `fa4f0ca42ba2efaca631203ef1e0753f2be78985` in repository
 1291620990. Its complete tree and
 [own README](https://github.com/cdlewis/RecompFrontend/blob/fa4f0ca42ba2efaca631203ef1e0753f2be78985/README.md)
@@ -63,7 +73,10 @@ Linux package is inferred from the inherited guide. Existing Blocked state stays
 **Beetle Adventure Racing.** v0.4.2-alpha resolves to
 `974596dfa0493fe2c7c2446b3f5165dd11237020`. The
 [release](https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases/tag/v0.4.2-alpha)
-offers a Windows x64 player separately from debug symbols; the advertised input
+offers a Windows x64 player separately from debug symbols. All six observed
+tags contain -alpha, which Core classifies as Beta despite GitHub prerelease=false;
+the recommendation therefore uses Preview/Beta. This grants no new acquisition
+permission. The advertised input
 is the own USA ROM with SHA-1 `e5ab4d226c08d22f68a2edcc48870203e67454b8`.
 Its [license analysis](https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/THIRD_PARTY_NOTICES.md)
 retains separately authored vendored components and does not establish the
@@ -87,8 +100,12 @@ frontend pointer is `b1a1477c6556aeb7ed45defbfb5924f721efebc1` in repository
 these component facts. Reconsider with attributable compatible grants or an
 appropriately replaced released package. The Linux wrapper only selects its
 working directory before exec; retain that directory and the documented Vulkan,
-library and file-dialog portal prerequisites. Default and Flatpak profiles are
-different. The native loader requires the own USA 32 MiB big-endian Z64 (SHA-1
+library and file-dialog portal prerequisites. The upstream Flatpak guide describes a sandbox-config location, but the pinned
+frontend resolver is the same HOME/.config implementation as Snowboard and the
+manifest supplies no APP_FOLDER_PATH override. Preserve the whole
+[Flatpak app directory](https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/flatpak/io.github.Vidanox.BanjoTooieRecompiled.json)
+alongside the actual profile/custom/portable location; no exact sandbox-profile
+claim is made from the README alone. The native loader requires the own USA 32 MiB big-endian Z64 (SHA-1
 `af1a89e12b638b8d82cc4c085c8e01d4cba03fb3`); no original input was obtained.
 
 **Wave Race.** Current source is still

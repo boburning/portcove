@@ -19,7 +19,7 @@
     },
     "original_game_title": "Beetle Adventure Racing!",
     "release_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases",
-    "recommended_download_channel": "stable",
+    "recommended_download_channel": "beta",
     "download_asset_hints": {
       "windows-x86-64": ["beetle-adventure-racing-recomp-", "windows-x64.zip"]
     },

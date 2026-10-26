@@ -36,7 +36,11 @@
         },
         {
           "title": "Preserve your actual profile when updating",
-          "instruction": "You or upstream provide updates. Keep the working copy and its full profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. A portable.txt beside the executable instead keeps saves, settings and mods beside the player. Preserve that selected location and original ROM; these external files are outside Portcove backup and rollback."
+          "instruction": "You or upstream provide updates. Keep the working copy and actual profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. On Windows/native Linux, portable.txt in the working folder stores data there; on macOS the marker belongs beside the application bundle and data stays there. Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback."
+        },
+        {
+          "title": "Keep Flatpak data alongside the actual profile",
+          "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
         }
       ],
       "warnings": [
