@@ -234,6 +234,22 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
         "release",
       ],
     ],
+    ...["scripts/standalone-rust-tests.mts", "scripts/development-evidence.mts"].map(
+      (file): [string, ValidationDomain[]] => [
+        file,
+        [
+          "repository",
+          "development",
+          "roadmap",
+          "format",
+          "ui",
+          "rust",
+          "rscheck",
+          "lint",
+          "release",
+        ],
+      ],
+    ),
     ["scripts/unclassified-helper.mts", ["development", "release", "repository"]],
     ["scripts/retained-package.mts", ["development", "release"]],
     ["scripts/retained-evidence.mts", ["development", "release"]],
@@ -296,6 +312,8 @@ void test("default nextest inventory retention dependencies invalidate Rust rece
   for (const file of [
     "scripts/nextest-outcomes.mts",
     "scripts/nextest-outcomes-cli.mts",
+    "scripts/standalone-rust-tests.mts",
+    "scripts/development-evidence.mts",
     "scripts/report-summary.mts",
     "scripts/bounded-summary.mts",
     "scripts/fallow-summary.mts",

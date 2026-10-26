@@ -202,6 +202,8 @@ export function domainsForPath(input: string) {
       "scripts/bounded-summary.mts",
       "scripts/fallow-summary.mts",
       "scripts/qualification-rustdoc.mts",
+      "scripts/standalone-rust-tests.mts",
+      "scripts/development-evidence.mts",
       "scripts/rustdoc-outcomes.mts",
     ].includes(file) ||
     file === ".config/rust-test-impact.json" ||

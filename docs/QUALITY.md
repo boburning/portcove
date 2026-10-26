@@ -304,6 +304,24 @@ This adapter supports doctests only. Ordinary Cargo test binaries can reuse the
 same case name without carrying a binary identity in this JSON dialect; their
 formatted console output is not used to invent an identity.
 
+The maintained Linux `rustc --test` environment route separately uses
+`standalone-rust-tests.mts`. It preserves compilation, unfiltered selection and
+native concurrency, then captures libtest JSON through the same bounded stream
+collector. Each packet binds the exact ordinary binary's SHA256 and size before
+and after execution. This is compiled-binary provenance; a checkout or target
+that produced it is not inferred. The observed host and CI run/attempt/job are
+separate fields. Runtime formatting sets only the child bootstrap to `-1` and
+refuses inherited overrides.
+
+Packets under `work/standalone-rust-tests` retain raw streams, ordered command,
+case identities, native durations, ignore reasons and original failure details.
+Discovery/selection counts come from the complete unfiltered native suite, not
+source attributes; executed, skipped and failed counts remain separate. Empty,
+contradictory, partial or over-limit output cannot establish completion. Original
+nonzero native status remains primary over reporting refusal. The CI artifact
+is retained after failure as well as success. These unit-binary observations are
+separate from native GUI, package or release acceptance.
+
 ### Declared platform skips
 
 The existing Node ownership record may declare `platform_skips`: intended platform,

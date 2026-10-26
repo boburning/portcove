@@ -6,7 +6,8 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { parseRustdocOutcomes } from "./rustdoc-outcomes.mts";
+import { parseRustdocOutcomes, parseStandaloneLibtestOutcomes } from "./rustdoc-outcomes.mts";
+import { runStandaloneRustTests } from "./standalone-rust-tests.mts";
 import { qualificationRustdocRecipe, runQualificationRustdoc } from "./qualification-rustdoc.mts";
 
 const fixture = (name: string) =>
@@ -394,4 +395,94 @@ void test("a process observation error cannot replace a known original native fa
   assert.equal(ctx.receipt().native_status, 101);
   assert.equal(ctx.receipt().complete, false);
   assert.match(String(ctx.receipt().process_error), /injected process observation failure/u);
+});
+
+void test("standalone native identities and ignored cases remain separate from Rustdoc", () => {
+  const raw = fixture("standalone");
+  const result = parseStandaloneLibtestOutcomes(raw);
+  assert.equal(result.complete, true);
+  assert.equal(result.discovered, 3);
+  assert.equal(result.selected, 3);
+  assert.equal(result.executed, 2);
+  assert.equal(result.skipped, 1);
+  assert.equal(
+    result.cases.find((entry) => entry.outcome === "skipped")?.skip_reason,
+    "owned opt-in control",
+  );
+  assert.equal(parseRustdocOutcomes(raw).complete, false);
+  assert.equal(parseStandaloneLibtestOutcomes(zero).complete, false);
+  assert.equal(parseStandaloneLibtestOutcomes(raw + raw).complete, false);
+  assert.equal(
+    parseStandaloneLibtestOutcomes(raw + raw.replaceAll("retained_", "another_")).complete,
+    false,
+  );
+  assert.equal(
+    parseStandaloneLibtestOutcomes(raw.replace('"filtered_out": 0', '"filtered_out": 1')).complete,
+    false,
+  );
+
+  assert.equal(
+    parseStandaloneLibtestOutcomes(raw.replace('"passed": 2', '"passed": 3')).complete,
+    false,
+  );
+  assert.equal(
+    parseStandaloneLibtestOutcomes(raw.slice(0, raw.lastIndexOf('{ "type": "suite"'))).complete,
+    false,
+  );
+});
+
+void test("standalone receipts preserve native failure, raw output and reporting refusal", async (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "pcv-standalone-outcomes-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const binary = path.join(directory, "compiled-test-fixture");
+  writeFileSync(binary, "immutable compiled fixture");
+  for (const nativeFailure of [false, true]) {
+    for (const reportingFailure of [false, true]) {
+      const rows = records(fixture("standalone"));
+      if (nativeFailure) {
+        const terminal = rows.find(
+          (row) => row.name === "retained_conditional_failure" && row.event === "ok",
+        )!;
+        terminal.event = "failed";
+        terminal.stdout = "retained original native failure";
+        Object.assign(rows.at(-1)!, { event: "failed", passed: 1, failed: 1 });
+      }
+      const raw = encode(rows);
+      let receipt: Record<string, unknown> | undefined;
+      const status = await runStandaloneRustTests(binary, {
+        cwd: directory,
+        environment: { ...process.env, RUSTC_BOOTSTRAP: "-1" },
+        spawn(command, args, options) {
+          assert.equal(command, binary);
+          assert.deepEqual(args, ["--format=json", "-Zunstable-options", "--report-time"]);
+          assert.equal(options.env?.RUSTC_BOOTSTRAP, "-1");
+          return spawn(
+            process.execPath,
+            [
+              "-e",
+              `process.stdout.write(${JSON.stringify(raw)});process.exitCode=${nativeFailure ? 101 : 0}`,
+            ],
+            options,
+          );
+        },
+        publishRaw() {},
+        publishReceipt(file, text) {
+          assert.equal(readFileSync(path.join(path.dirname(file), "stdout.jsonl"), "utf8"), raw);
+          receipt = JSON.parse(text) as Record<string, unknown>;
+          if (reportingFailure) throw new Error("controlled standalone receipt refusal");
+        },
+      });
+      assert.equal(status, nativeFailure ? 101 : reportingFailure ? 1 : 0);
+      assert.ok(receipt);
+      const outcome = receipt.observation as ReturnType<typeof parseStandaloneLibtestOutcomes>;
+      assert.equal(outcome.executed, 2);
+      assert.equal(outcome.skipped, 1);
+      assert.equal(outcome.failed, nativeFailure ? 1 : 0);
+      if (nativeFailure)
+        assert.equal(
+          outcome.cases.find((entry) => entry.outcome === "failed")?.failure,
+          "retained original native failure",
+        );
+    }
+  }
 });
