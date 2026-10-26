@@ -1658,7 +1658,7 @@ explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
   "scripts/release-coordinator-state.test.mts",
 ]);
 
-export const coordinatorStateContractTests = [
+const coordinatorStateContractTests = [
   "scripts/release-coordinator-state.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-coordinator-remote.test.mts",
