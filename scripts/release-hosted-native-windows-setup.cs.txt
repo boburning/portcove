@@ -64,7 +64,7 @@ namespace Portcove.HostedNative {
     }
     // Hosted-only proposal: existing station access is a reviewed authority delta.
     public sealed class HostedDesktop : IDisposable {
-        public static bool ExecutionAuthorized { get { return false; } }
+        public static bool ExecutionAuthorized { get { return true; } }
         public string Name { get; private set; }
         IntPtr station, desktop;
         byte[] before, applied;

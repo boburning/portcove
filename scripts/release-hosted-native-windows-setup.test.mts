@@ -519,9 +519,9 @@ for($i=0;$i -lt 2;$i++){
  if([Convert]::ToBase64String($a) -cne [Convert]::ToBase64String($b)){throw 'Unrelated ACE changed'}
 }
 $refused=$false;try{[Portcove.HostedNative.HostedDesktop]::StationProposal($proposed,$sid)|Out-Null}catch{$refused=$true}
-if(-not $refused -or [Portcove.HostedNative.HostedDesktop]::ExecutionAuthorized){throw 'Existing candidate adopted or disabled hosted proposal gate changed'}
-$refused=$false;try{[Portcove.HostedNative.HostedDesktop]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'Hosted station execution proposal awaits owner authority'}
-if(-not $refused){throw 'Inactive station mutation entry point did not refuse before effects'}
+if(-not $refused -or -not [Portcove.HostedNative.HostedDesktop]::ExecutionAuthorized){throw 'Existing candidate adopted or approved hosted gate disabled'}
+$refused=$false;try{[Portcove.HostedNative.HostedDesktop]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'Distinct actual owner required'}
+if(-not $refused){throw 'Invalid owner did not refuse before effects'}
 $near=[Security.AccessControl.RawSecurityDescriptor]::new('O:SYG:SYD:')
 $near.DiscretionaryAcl=[Security.AccessControl.RawAcl]::new(2,420)
 $everyone=[Security.Principal.SecurityIdentifier]::new('S-1-1-0')

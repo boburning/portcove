@@ -1,6 +1,6 @@
 # Hosted Windows GUI execution proposal — October 26
 
-This is a disabled engineering proposal for [#534](https://github.com/boburning/portcove/issues/534)
+This is an owner-approved inert qualification boundary for [#534](https://github.com/boburning/portcove/issues/534)
 and draft [#3559](https://github.com/boburning/portcove/pull/3559), prepared from
 retained source `6ea7e12264a7f2e9505825d4d941d9bb93237e29`. The
 [owning receipt](https://github.com/boburning/portcove/issues/534#issuecomment-6404962768)
@@ -83,8 +83,11 @@ existing job UI limits caused startup failure.
 
 ## Execution and recovery gate
 
-Both the PowerShell entry point and `HostedDesktop.Prepare` refuse the disabled
-proposal before account or station effects. The consumed privileged access-audit
+The owner explicitly approved station `0x20062` for the fixed inert fixture on
+disposable hosted VMs and one reviewed hosted qualification after the disabled
+proposal was completed and independently reviewed. This includes the stated
+owner-logoff and interrupted-cleanup risk. The PowerShell entry point and
+`HostedDesktop.Prepare` now enable that bounded scope. The consumed privileged access-audit
 grant is separately disabled; ordinary GUI qualification no longer calls its
 preparation. No SeSecurityPrivilege adjustment, Security-log dependency or audit
 policy/SACL mutation is required by the proposed normal path. Prior audit code,
@@ -96,8 +99,8 @@ Foreign edits are refused. Original-job cleanup and account disabling remain
 independent attempts, including failed launch paths. This proposal introduces no
 new workstation recovery or owner setup step.
 
-After separate nonwriting review and resolution of the explicit execution-right
-scope, refresh target interactions, freeze the enabled source, pass all five
+After final nonwriting review, refresh target interactions, freeze the enabled
+source, pass all five
 exact-head contexts and make one meaningful hosted qualification. Actual acceptance
 still requires the dedicated root's owned visible responsive window, isolated
 HKCU/profile, inert descendant, complete tree teardown, account disablement and

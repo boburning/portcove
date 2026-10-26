@@ -1610,11 +1610,13 @@ All existing issue, capacity, custody, recovery and production holds remain.
 
 ### Local Windows GUI execution proposal — October 26
 
-The [disabled execution-right proposal](slice4-windows-gui-boundary-proposal-2026-10-26.md)
+The [owner-approved inert execution boundary](slice4-windows-gui-boundary-proposal-2026-10-26.md)
 records a real Windows observer-race repair and a bounded owned-station startup
 model. Its proposed `0x20062` station grant includes global atoms and
-WINSTA_EXITWINDOWS; that capability must remain explicit. The proposal is disabled,
-the consumed privileged-audit grant is disabled, and no new execution authority or
-actual hosted GUI acceptance is established. All earlier failures and production,
+WINSTA_EXITWINDOWS; that capability and owner-logoff/interrupted-cleanup risk remain
+explicit. After completed preparation and independent review, the owner approved
+this fixed inert disposable-host scope and one reviewed qualification. The GUI
+gate is enabled; the consumed privileged-audit grant stays disabled. Actual hosted
+GUI acceptance is not yet established; no protected or production authority follows. All earlier failures and production,
 protected acceptance, resource and issue holds remain. No workstation setup,
 password or administrator step is requested.
