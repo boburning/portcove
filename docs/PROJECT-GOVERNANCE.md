@@ -113,6 +113,12 @@ IDs, keys, punctuation-normalized titles, and upstream/target identities,
 reconciles one marker set, ensures one Project item, sets Work type to Port,
 and fills neutral values only where fields are unset. Both intake paths preserve
 existing parent relationships and leave unparented issues unparented.
+When a researched port is later admitted to the operational catalog, rerunning
+`normalize-port` links its existing key only when both the exact catalog ID and
+normalized direct upstream match. Listing-only keys, other games sharing an
+upstream and unreviewed upstream changes remain research identities. This does
+not promote Project qualification or change support. Normalization refuses a
+changed issue preimage before publishing its marker update.
 Normalization is repeatable and never changes catalog support.
 
 A port issue owns its direct upstream,
