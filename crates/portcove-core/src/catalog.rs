@@ -3889,6 +3889,8 @@ mod tests {
 
     #[test]
     fn upstream_maintenance_status_does_not_reinterpret_existing_port_contracts() {
+        let started = std::time::Instant::now();
+        eprintln!("catalog maintenance matrix: start");
         let baseline = Catalog::embedded().unwrap();
         let retained = baseline
             .ports()
@@ -3907,6 +3909,10 @@ mod tests {
             crate::UpstreamStatus::Superseded,
             crate::UpstreamStatus::Abandoned,
         ] {
+            eprintln!(
+                "catalog maintenance {status:?}: start after {:?}",
+                started.elapsed()
+            );
             let mut document = baseline.document().clone();
             for port in &mut document.ports {
                 port.upstream_status = status;
@@ -3977,6 +3983,10 @@ mod tests {
                     before.id
                 );
             }
+            eprintln!(
+                "catalog maintenance {status:?}: complete after {:?}",
+                started.elapsed()
+            );
         }
     }
 

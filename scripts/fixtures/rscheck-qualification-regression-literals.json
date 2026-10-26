@@ -1,0 +1,22 @@
+{
+  "source": "7ced436ac4ee79b4c1a8c7cacdc48f96d94aa2b5",
+  "observed_run": 40344060360,
+  "observed_attempt": 1,
+  "observed_job": 121646334375,
+  "observed_blocking_findings": 3,
+  "scopes": [
+    {
+      "file": "crates/portcove-core/src/gitlab.rs",
+      "kind": "URL path comparisons, not host filesystem paths",
+      "values": [
+        "/packages/generic/",
+        "/projects/other%2Fproject/packages/generic/game/1.0.0/game-windows-x64.zip"
+      ]
+    },
+    {
+      "file": "crates/portcove-core/src/adapter.rs",
+      "kind": "Unix-only non-mutating failure fixture",
+      "values": ["/usr/bin/false"]
+    }
+  ]
+}

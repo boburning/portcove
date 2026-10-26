@@ -21,6 +21,7 @@ afterEach(async () => {
   document.documentElement.style.removeProperty("font-size");
 });
 
+// macOS qualification 40344060360/a1 exhausted 15s during the final navigation.
 it("keeps another port's retained cleanup identity through cancelled review and a separate completed preparation", async () => {
   await page.viewport(1366, 768);
   localStorage.clear();
@@ -216,4 +217,4 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     await keep.click();
     expect(remove).not.toHaveBeenCalled();
   }
-});
+}, 30_000);
