@@ -23,6 +23,9 @@ import { qualifyNativePnpmRuntime } from "./release-pnpm-runtime.mts";
 import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
+  inspectWindowsSourceSystemCustody,
+  recheckWindowsSourceSystemCustody,
+  windowsSourceSystemExecutables,
 } from "./release-native-runtime-custody.mts";
 import { readCatalogCoreMachineEnvelope } from "./release-catalog-inspection.mts";
 import {
@@ -613,9 +616,27 @@ async function main() {
       }),
       { flag: "wx", flush: true },
     );
-    const osGit = "C:\\Program Files\\Git\\cmd\\git.exe",
-      sourceFiles = [sourcePlan, osGit, "C:\\Program Files\\PowerShell\\7\\pwsh.exe"],
+    const osGit = windowsSourceSystemExecutables.git,
+      sourceFiles = [sourcePlan],
       sourceCustody = inspectNativeRuntimeCustody(sourceFiles);
+    await record("source-system-inputs.json", {
+      authority: "none",
+      scope: "host-image path/type/link metadata only",
+      files: await Promise.all(
+        Object.values(windowsSourceSystemExecutables).map(async (filename) => {
+          const stat = await lstat(filename, { bigint: true });
+          return {
+            path: filename,
+            file: stat.isFile(),
+            linked: stat.isSymbolicLink(),
+            links: String(stat.nlink),
+            device: String(stat.dev),
+            inode: String(stat.ino),
+          };
+        }),
+      ),
+    });
+    const sourceSystemCustody = inspectWindowsSourceSystemCustody();
     const observedGit = createHash("sha256")
       .update(await readControllerToolFile(osGit))
       .digest("hex");
@@ -681,6 +702,7 @@ async function main() {
       () => assert.ok(performance.now() < sourceDeadline),
     );
     recheckNativeRuntimeCustody(sourceFiles, sourceCustody);
+    recheckWindowsSourceSystemCustody(sourceSystemCustody);
     assert.equal(
       createHash("sha256")
         .update(await readControllerToolFile(osGit))

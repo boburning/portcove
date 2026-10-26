@@ -1422,3 +1422,28 @@ remain. No Windows job/CLI route or protected execution is activated. Account
 qualification stays disabled, privileged audit false/zero and original inert
 approval scoped to its original source/run. Existing signing/publication/setup,
 resource/recovery/$0/Unknown availability/headroom and production holds remain.
+
+### Source component first hosted failures and scoped repair
+
+At `ed1cab862dd61714b88a16e18feefb18ca735ab6`, CI40400506550/1 failed
+only catalog: the existing cleanup-control PowerShell child reached its30-second
+harness timeout;70other observed Windows helper cases passed. Its assertions and
+mocked cleanup providers remain, with child/case budgets now60/90seconds.
+
+Ordinary tools40400506919/1 passed Linux but failed Windows before launching the
+source helper. Artifact12689151753 (13361bytes, SHA256
+`580826e52cec85ec311b4f1b5b5cec468f5d6efbec9a64161f42d55603d8cb39`)
+passed byte/digest/ZIP/CRC verification. It retains the generic single-link
+refusal over intent/system inputs; its exact offending path/cause is unknown.
+
+Controller/intent/source/attested files keep strict single-link enforcement. A
+separate no-caller-path observer covers only the fixed Git and PowerShell
+host-image executables, preserving owner, file-writer/replacement ACL, ancestry,
+exact link-count/identity/timestamps/SDDL and drift checks. It permits host-image
+hardlinks at those two paths only. NTFS hardlinks share the underlying file's
+security descriptor ([Microsoft contract](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createhardlinkw)); this does not permit alias writers.
+Diagnostics now identify exact path/type/link count and retain system metadata
+before custody checks. This is filesystem evidence, not full Git helper/DLL
+attestation or acceptance. Controlled checks preserve default hardlink refusal
+and reject system identity/ACL drift; actual Windows readback remains required.
+No account, GUI, protected authority or production/source deadline changes.

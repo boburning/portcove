@@ -797,12 +797,20 @@ for (const [file, tests] of [
   ],
   ...[
     "scripts/release-hosted-native-runtime.mts",
-    "scripts/release-native-runtime-custody.mts",
     "scripts/release-native-runtime-support.mts",
   ].map((file): [string, string[]] => [
     file,
     ["scripts/release-hosted-native-runner.test.mts", "scripts/release-controller-tools.test.mts"],
   ]),
+  [
+    "scripts/release-native-runtime-custody.mts",
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-controller-tools.test.mts",
+      "scripts/release-native-runtime-custody.test.mts",
+      "scripts/release-hosted-native-windows-source.test.mts",
+    ],
+  ],
   [
     "scripts/release-routing-marker.mts",
     [

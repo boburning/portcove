@@ -29,6 +29,9 @@ import {
 import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
+  inspectWindowsSourceSystemCustody,
+  recheckWindowsSourceSystemCustody,
+  windowsSourceSystemExecutables,
 } from "./release-native-runtime-custody.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
@@ -36,8 +39,7 @@ import { readNativeCapturedStream } from "./release-native-capture-files.mts";
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import { isRecord } from "./runtime-values.mts";
 
-const git = "C:\\Program Files\\Git\\cmd\\git.exe";
-const powershell = "C:\\Program Files\\PowerShell\\7\\pwsh.exe";
+const { git, powershell } = windowsSourceSystemExecutables;
 const harness = "apps/desktop/scripts/desktop-test.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Entry = Readonly<{ path: string; bytes: number; object: string }>;
@@ -505,8 +507,9 @@ export async function prepareActualHostedWindowsSource(
   };
   const planFile = path.join(parent.directory, "windows-source-intent.json");
   await writeFile(planFile, JSON.stringify(plan), { flag: "wx", mode: 0o600, flush: true });
-  const files = [planFile, git, powershell, setup, entry, tools.node],
+  const files = [planFile, setup, entry, tools.node],
     custody = inspectNativeRuntimeCustody(files);
+  const systemCustody = inspectWindowsSourceSystemCustody();
   const observedGit = hash(await readControllerToolFile(git));
   const support = await hostedNativeSupportDependencies(
     runtimeReceipt,
@@ -550,6 +553,7 @@ export async function prepareActualHostedWindowsSource(
             spawn: (command, childArgs, childOptions) => {
               active();
               recheckNativeRuntimeCustody(files, custody);
+              recheckWindowsSourceSystemCustody(systemCustody);
               active();
               const child = spawn(command, [...childArgs], {
                 ...childOptions,
@@ -606,6 +610,7 @@ export async function prepareActualHostedWindowsSource(
     sourceRoot = path.join(root, "source");
   verifyWindowsNativeSourceFiles(sourceRoot, entries, plan.harness_sha256, active);
   recheckNativeRuntimeCustody(files, custody);
+  recheckWindowsSourceSystemCustody(systemCustody);
   assert.equal(hash(await readControllerToolFile(git)), observedGit);
   await requireHostedNativeRuntime(runtimeReceipt, parentReceipt);
   await requireActualHostedNativeParentSource(parentReceipt);

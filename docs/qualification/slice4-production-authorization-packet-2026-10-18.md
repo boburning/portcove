@@ -1676,3 +1676,10 @@ authorize arbitrary/protected candidates. Account/audit disables, D1/D2/D3,
 single-owner recovery, $0 stop, Unknown capacity/availability, no paid fallback/
 reservation, final source/resource-policy/grant reconciliation and protected/
 production holds remain. No owner decision is requested by this component.
+
+The first source-component CI/source-smoke failures at `ed1cab86` are retained in
+the hosted observations. The repair separates fixed OS-image custody from strict
+controller single-link custody and calibrates only a mocked cleanup harness. It
+adds no caller-selected path/relaxation option, account/GUI operation, native
+acceptance, extra source/job allowance or owner authority. Exact repaired-source
+CI and actual Windows source-only readback are still required.

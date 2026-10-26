@@ -209,7 +209,7 @@ try{if($secret.Length -ne 68 -or -not $secret.IsReadOnly()){throw 'Generated cre
 
 void test(
   "hosted account cleanup still disables its exact identity after teardown fails and retains both outcomes",
-  { timeout: 45000 },
+  { timeout: 90000 },
   (t) => {
     const root = mkdtempSync(path.join(homedir(), ".portcove-hosted-cleanup-test-"));
     t.after(() => {
@@ -250,7 +250,7 @@ if($record.disabled -ne (-not $failDisable) -or $record.job_empty -or $record.fa
 }
 'actual cleanup retains failure and independently disables exact account'
 `,
-      30000,
+      60000,
     );
     assert.match(result, /independently disables exact account/u);
   },

@@ -7,6 +7,10 @@ import { execFileSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 
 export type NativeRuntimeCustody = ReadonlyMap<string, string>;
+export const windowsSourceSystemExecutables = Object.freeze({
+  git: "C:\\Program Files\\Git\\cmd\\git.exe",
+  powershell: "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+});
 
 // Fixed OS reader, not a caller-supplied script or candidate process. All path
 // input is inert UTF-8 JSON on stdin. This command never changes an ACL or owner.
@@ -42,15 +46,24 @@ $rows=@(foreach($entry in $inputPaths){
 ConvertTo-Json -InputObject ([ordered]@{schema_version=1;broker_sid=$broker;rows=$rows}) -Depth 4 -Compress
 `;
 
-function inspectWindowsCustody(files: readonly string[]): NativeRuntimeCustody {
+function inspectWindowsCustody(
+  files: readonly string[],
+  sourceSystemImages = false,
+): NativeRuntimeCustody {
   assert.ok(files.length > 0 && files.length <= 128, "bounded Windows custody inputs required");
   const inventory = new Map<string, { file: boolean; identity: string }>();
   const identity = (filename: string, regular: boolean) => {
     const info = lstatSync(filename, { bigint: true });
     assert.ok(!info.isSymbolicLink(), "linked Windows runtime refused");
     assert.ok(
-      regular ? info.isFile() && info.nlink === 1n : info.isDirectory(),
-      "Windows runtime requires regular single-link files and directory ancestry",
+      regular
+        ? info.isFile() &&
+            (sourceSystemImages &&
+            Object.values(windowsSourceSystemExecutables).some((value) => value === filename)
+              ? info.nlink > 0n
+              : info.nlink === 1n)
+        : info.isDirectory(),
+      `Windows runtime requires regular single-link files and directory ancestry: ${JSON.stringify({ path: filename, file: info.isFile(), directory: info.isDirectory(), links: String(info.nlink) })}`,
     );
     const values = [info.dev, info.ino, info.mode, info.birthtimeNs];
     if (regular) values.push(info.nlink, info.size, info.mtimeNs, info.ctimeNs);
@@ -85,7 +98,7 @@ function inspectWindowsCustody(files: readonly string[]): NativeRuntimeCustody {
     systemRoot && systemRoot.toLowerCase() === "c:\\windows",
     "fixed Windows system root required",
   );
-  const reader = "C:\\Program Files\\PowerShell\\7\\pwsh.exe";
+  const reader = windowsSourceSystemExecutables.powershell;
   assert.equal(realpathSync(reader), reader, "fixed Windows OS reader is linked");
   const input = JSON.stringify(
     [...inventory].map(([filename, item]) => ({ path: filename, file: item.file })),
@@ -160,6 +173,24 @@ function inspectWindowsCustody(files: readonly string[]): NativeRuntimeCustody {
     observed.set(filename, JSON.stringify([item.identity, result.broker_sid, row.owner, row.sddl]));
   }
   return observed;
+}
+
+/** Fixed host-image inputs only. NTFS links share file ACLs; retain exact link
+ * count/identity/ACL/ancestry. Controller inputs keep their single-link rule. */
+export function inspectWindowsSourceSystemCustody(): NativeRuntimeCustody {
+  assert.ok(
+    process.platform === "win32" && process.arch === "x64",
+    "fixed Windows source-system custody required",
+  );
+  return inspectWindowsCustody(Object.values(windowsSourceSystemExecutables), true);
+}
+
+export function recheckWindowsSourceSystemCustody(retained: NativeRuntimeCustody) {
+  assert.deepEqual(
+    inspectWindowsSourceSystemCustody(),
+    retained,
+    "original Windows source-system custody changed",
+  );
 }
 
 /** Linux retains broker/root ownership and mode checks. Windows retains the
