@@ -98,10 +98,47 @@ namespace Portcove.NativeQualification {
             BrokerSid = config.BrokerSid; AccountSid = config.AccountSid;
             Handle = Native.CreateBoundedJob();
         }
+        public Dictionary<string,string> LastLaunchInspection { get; private set; }
+        internal void BeginLaunch(AccountConfiguration config, string executable) {
+            if (Handle == IntPtr.Zero || Volatile.Read(ref stopped) != 0 || config.BrokerSid != BrokerSid || config.AccountSid != AccountSid)
+                throw new InvalidOperationException("Closed or mismatched native attempt group");
+            LastLaunchInspection = new Dictionary<string,string> { {"runtime_path",executable}, {"admission","not-created"}, {"handle_returned","False"} };
+        }
         internal void Assign(AccountConfiguration config, IntPtr process) {
             if (Handle == IntPtr.Zero || Volatile.Read(ref stopped) != 0 || config.BrokerSid != BrokerSid || config.AccountSid != AccountSid)
                 throw new InvalidOperationException("Closed or mismatched native attempt group");
-            if (!Native.AssignProcessToJobObject(Handle, process)) throw Native.Error("Assign shared native attempt job");
+            var data=LastLaunchInspection;
+            if(data==null)throw new InvalidOperationException("Native launch inspection was not initialized");
+            uint pid=Native.GetProcessId(process);if(pid==0)throw Native.Error("Read created job root PID");
+            data["admission"]="created-unqualified";data["root_pid"]=pid.ToString();
+            long created,exited,kernel,user;
+            if(!Native.GetProcessTimes(process,out created,out exited,out kernel,out user))throw Native.Error("Read created job root identity");
+            data["root_created_filetime"]=created.ToString();
+            uint length=32768;var path=new StringBuilder((int)length);
+            if(!Native.QueryFullProcessImageNameW(process,0,path,ref length))throw Native.Error("Read created job root image");
+            data["actual_image"]=path.ToString();
+            if(Native.WaitForSingleObject(process,0)!=0x102)throw new InvalidOperationException("Created job root is not live before admission");
+            bool any,exact;
+            if(!Native.IsProcessInJob(process,IntPtr.Zero,out any) || !Native.IsProcessInJob(process,Handle,out exact))throw Native.Error("Query exact original job admission");
+            data["any_job_before"]=any.ToString();data["original_job_before"]=exact.ToString();
+            if(exact && !any)throw new InvalidOperationException("Contradictory original job membership");
+            if(!exact && !Native.AssignProcessToJobObject(Handle,process)) {
+                Exception failure=Native.Error("Assign shared native attempt job");data["admission"]="refused";data["failure"]=failure.Message;throw failure;
+            }
+            bool after;
+            if(!Native.IsProcessInJob(process,Handle,out after) || !after || Native.WaitForSingleObject(process,0)!=0x102)throw new InvalidOperationException("Exact original job admission readback unavailable");
+            data["original_job_after"]=after.ToString();data["admission"]=exact?"inherited-exact-original":"assigned-exact-original";
+        }
+        internal void RetainFailedRoot(IntPtr process,uint pid,string executable,uint before,bool attempted,bool terminated,uint waited,int beforeError,int terminateError,int waitError) {
+            try {
+                var data=LastLaunchInspection;
+                if(data==null || data["runtime_path"]!=executable)return;
+                data["root_pid"]=pid.ToString();long created,exited,kernel,user;
+                if(Native.GetProcessTimes(process,out created,out exited,out kernel,out user))data["root_created_filetime"]=created.ToString();
+                data["failed_root_wait_before"]=before.ToString();data["failed_root_terminate_attempted"]=attempted.ToString();data["failed_root_terminate_returned"]=terminated.ToString();data["failed_root_wait_after"]=waited.ToString();
+                data["failed_root_initial_wait_error"]=beforeError.ToString();data["failed_root_terminate_error"]=terminateError.ToString();data["failed_root_final_wait_error"]=waitError.ToString();
+                uint code;if(waited==0){if(Native.GetExitCodeProcess(process,out code))data["failed_root_exit_code"]="0x"+code.ToString("x8");else data["failed_root_exit_query_error"]=Marshal.GetLastWin32Error().ToString();}
+            } catch { /* Inspection must not replace the original launch refusal. */ }
         }
         public uint[] RemainingPids() {
             if (Handle == IntPtr.Zero) throw new ObjectDisposedException("AccountGroup");
@@ -572,6 +609,7 @@ namespace Portcove.NativeQualification {
         static uint CreationFlags(string hostedDesktop) { return 0x4 | 0x400 | (hostedDesktop == null ? 0u : 0x08000000u); }
         static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256, string hostedDesktop = null, bool showWithoutActivation = false) {
             Validate(config, executable, arguments, directory, environment);
+            if(group!=null)group.BeginLaunch(config,executable);
             string commandText = nsis ? NsisCommandLine(executable, arguments, config.WorkRoot) : String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
             if (password == null || password.Length < 1) throw new ArgumentException("Fixed owner-held account credential unavailable");
             IntPtr job = IntPtr.Zero, secret = IntPtr.Zero, block = IntPtr.Zero;
@@ -634,6 +672,7 @@ namespace Portcove.NativeQualification {
                 if (session.InitialSuspendCount == 0xffffffff) throw Native.Error("ResumeThread");
                 if (hostedDesktop != null && session.InitialSuspendCount != 1) throw new InvalidOperationException("Unexpected hosted initial suspend count: " + session.InitialSuspendCount);
                 if (hostedDesktop != null) { session.HostedInitialThreadHandle = info.thread; info.thread = IntPtr.Zero; }
+                if(group!=null)group.LastLaunchInspection["handle_returned"]="True";
                 transferred = true; return session;
             } finally {
                 if (executableCustody != null) executableCustody.Dispose();
@@ -643,7 +682,13 @@ namespace Portcove.NativeQualification {
                 foreach (IntPtr handle in new [] { outputRead, errorRead, outputWrite, errorWrite, input })
                     if (handle != IntPtr.Zero && handle != new IntPtr(-1)) Native.CloseHandle(handle);
                 if (!transferred) {
-                    if (info.process != IntPtr.Zero) { Native.TerminateProcess(info.process, 125); Native.WaitForSingleObject(info.process, 30000); Native.CloseHandle(info.process); }
+                    if (info.process != IntPtr.Zero) {
+                        uint before=Native.WaitForSingleObject(info.process,0);int beforeError=before==0xffffffff?Marshal.GetLastWin32Error():0;
+                        bool attempted=before!=0;bool terminated=attempted && Native.TerminateProcess(info.process,125);int terminateError=attempted && !terminated?Marshal.GetLastWin32Error():0;
+                        uint waited=Native.WaitForSingleObject(info.process,30000);int waitError=waited==0xffffffff?Marshal.GetLastWin32Error():0;
+                        if(group!=null)group.RetainFailedRoot(info.process,info.pid,executable,before,attempted,terminated,waited,beforeError,terminateError,waitError);
+                        Native.CloseHandle(info.process);
+                    }
                     if (job != IntPtr.Zero) Native.CloseHandle(job);
                     if (desktop != IntPtr.Zero) Native.CloseDesktop(desktop);
                     if (station != IntPtr.Zero) Native.CloseWindowStation(station);
@@ -698,6 +743,8 @@ namespace Portcove.NativeQualification {
         [DllImport("kernel32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr CreateFileW(string name, uint access, uint share, ref SecurityAttributes attributes, uint disposition, uint flags, IntPtr template);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool SetInformationJobObject(IntPtr job, int kind, ref ExtendedLimitInformation limits, uint size);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool QueryInformationJobObject(IntPtr job, int kind, IntPtr buffer, uint size, out uint returned);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool IsProcessInJob(IntPtr process,IntPtr job,out bool member);
+        [DllImport("kernel32", SetLastError=true)] internal static extern uint GetProcessId(IntPtr process);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool TerminateJobObject(IntPtr job, uint exit);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool TerminateProcess(IntPtr process, uint exit);

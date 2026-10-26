@@ -61,7 +61,7 @@ void test("hosted account command accepts empty stderr and preserves operation f
   assert.equal(oversized.resource_error, "original timeout");
   assert.equal(oversized.stderr.observation, "refused");
 });
-function powershell(program: string) {
+function powershell(program: string, timeout = 15000) {
   const result = spawnSync(
     "pwsh",
     [
@@ -73,7 +73,7 @@ function powershell(program: string) {
     ],
     {
       encoding: "utf8",
-      timeout: 15000,
+      timeout,
       maxBuffer: 65536,
       env: {
         PATH: process.env.PATH,
@@ -207,13 +207,17 @@ try{if($secret.Length -ne 68 -or -not $secret.IsReadOnly()){throw 'Generated cre
   },
 );
 
-void test("hosted account cleanup still disables its exact identity after teardown fails and retains both outcomes", (t) => {
-  const root = mkdtempSync(path.join(homedir(), ".portcove-hosted-cleanup-test-"));
-  t.after(() => {
-    assert.ok(path.resolve(root).startsWith(path.resolve(homedir()) + path.sep));
-    rmSync(root, { recursive: true, force: true });
-  });
-  const result = powershell(String.raw`
+void test(
+  "hosted account cleanup still disables its exact identity after teardown fails and retains both outcomes",
+  { timeout: 45000 },
+  (t) => {
+    const root = mkdtempSync(path.join(homedir(), ".portcove-hosted-cleanup-test-"));
+    t.after(() => {
+      assert.ok(path.resolve(root).startsWith(path.resolve(homedir()) + path.sep));
+      rmSync(root, { recursive: true, force: true });
+    });
+    const result = powershell(
+      String.raw`
 $ErrorActionPreference='Stop'
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
@@ -244,9 +248,12 @@ if($record.disabled -ne (-not $failDisable) -or $record.job_empty -or $record.fa
 }
 }
 'actual cleanup retains failure and independently disables exact account'
-`);
-  assert.match(result, /independently disables exact account/u);
-});
+`,
+      30000,
+    );
+    assert.match(result, /independently disables exact account/u);
+  },
+);
 
 void test(
   "hosted setup checks original parent generation and deadline before its first directory effect",
@@ -942,21 +949,84 @@ $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'"
 $write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
 $main=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]})
 $base='${root.replaceAll("'", "''")}';$nativeProfile='inert';$context=@{fixture='controlled GUI cleanup'}
-foreach($case in @('settled','stop','root','observer')){
+foreach($case in @('settled','stop','root','observer','unreturned-settled','unreturned-timeout','unreturned-unknown')){
  $root=Join-Path $base $case;[IO.Directory]::CreateDirectory($root)|Out-Null
  $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'};Description='owned';Enabled=$true}
  $script:stops=0;$script:drains=0
  $group=[pscustomobject]@{};$group|Add-Member ScriptMethod StopAndObserve {param($timeout)$script:stops++;if($case -ceq 'stop'){throw 'controlled original-group stop failure'};return @()};$group|Add-Member ScriptMethod Dispose {}
  $guiControl=[pscustomobject]@{};$guiControl|Add-Member ScriptMethod WaitForExit {param($timeout)return $case -cne 'root'};$guiControl|Add-Member ScriptMethod DrainHostedObserver {param($timeout)$script:drains++;return $case -cne 'observer'};$guiControl|Add-Member ScriptMethod Dispose {}
+ if($case -like 'unreturned-*'){
+  $guiControl=$null;$launch=[Collections.Generic.Dictionary[string,string]]::new();$launch['root_pid']='7';$launch['root_created_filetime']='123';$launch['handle_returned']='False'
+  if($case -cne 'unreturned-unknown'){$launch['failed_root_wait_after']=$(if($case -ceq 'unreturned-settled'){'0'}else{'258'})}
+  $group|Add-Member NoteProperty LastLaunchInspection $launch
+ }
+
  $child=$null;$startup=$null;$password=$null;$hostedDesktop=$null;$actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null;$probeCapture=$null;$startupCapture=$null;$startupRootExited=$null;$stationRestored=$null;$observerDrained=$null
  $guiControlObservation=@{scope='diagnostic only'};$guiControlRootExited=$null;$guiControlObserverDrained=$null;$failure='original startup refusal';$observation=$null;$disabled=$false;$settled=$false;$cleanupFailures=[Collections.Generic.List[string]]::new()
  function Get-LocalUser {param($SID)return $account};function Disable-LocalUser {param($SID)$account.Enabled=$false}
  . ([scriptblock]::Create(($main[0].Finally.Statements.Extent.Text -join [Environment]::NewLine)))
  $record=Get-Content -LiteralPath (Join-Path $root 'result.json') -Raw|ConvertFrom-Json
- if(-not $record.disabled -or $record.failure -cne 'original startup refusal' -or $script:stops -ne 1 -or $script:drains -ne 1 -or $record.job_empty -ne ($case -in @('settled','observer')) -or $record.gui_counter_observer_drained -ne ($case -cne 'observer')){throw ('Counter cleanup independence differs: '+$case)}
+ if(-not $record.disabled -or $record.failure -cne 'original startup refusal' -or $script:stops -ne 1 -or $script:drains -ne $(if($case -like 'unreturned-*'){0}else{1}) -or $record.job_empty -ne ($case -in @('settled','observer','unreturned-settled','unreturned-timeout','unreturned-unknown')) -or $record.gui_counter_observer_drained -ne $(if($case -like 'unreturned-*'){$null}else{$case -cne 'observer'})){throw ('Counter cleanup independence differs: '+$case)}
  if($case -ceq 'settled' -and ($record.gui_counter_root_exited -ne $true -or @($record.cleanup_failures).Count)){throw 'Settled counter root was not positively read back'}
+ if($case -like 'unreturned-*'){
+  if($record.last_launch.root_pid -cne '7' -or @($record.cleanup_failures).Count -ne $(if($case -ceq 'unreturned-settled'){0}else{1})){throw 'Unreturned root settlement lost or silently credited'}
+ }
+
 }
-'actual GUI counter cleanup passed four controlled outcomes; no account effects'
+'actual GUI counter cleanup passed seven controlled outcomes; no account effects'
 `);
-  assert.match(result, /cleanup passed four controlled outcomes/u);
+  assert.match(result, /cleanup passed seven controlled outcomes/u);
+});
+
+void test("original job admission accepts only exact membership and preserves failed root cleanup", () => {
+  const launcher = fileURLToPath(new URL("./native-qualification-account.cs.txt", import.meta.url));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$text=[IO.File]::ReadAllText('${launcher.replaceAll("'", "''")}')
+$start=$text.IndexOf('    public sealed class AccountGroup');$end=$text.IndexOf('    // Raw evidence',$start)
+$group=$text.Substring($start,$end-$start)
+$harness=@'
+using System;using System.Collections.Generic;using System.Diagnostics;using System.Text;using System.Threading;using System.Runtime.InteropServices;
+public class AccountConfiguration {public string BrokerSid="broker",AccountSid="candidate";}
+__GROUP__
+static class Native {
+ internal static int Mode,Assignments,Queries;internal static bool Exact;
+ internal static IntPtr CreateBoundedJob(){return (IntPtr)42;}
+ internal static uint GetProcessId(IntPtr p){return 7;}
+ internal static bool GetProcessTimes(IntPtr p,out long c,out long e,out long k,out long u){c=123;e=k=u=0;return true;}
+ internal static bool QueryFullProcessImageNameW(IntPtr p,uint flags,StringBuilder b,ref uint len){b.Append("fixed.exe");return true;}
+ internal static uint WaitForSingleObject(IntPtr p,uint ms){return Mode==4?0u:258u;}
+ internal static bool IsProcessInJob(IntPtr p,IntPtr j,out bool member){Queries++;member=j==IntPtr.Zero?(Mode==1||Mode==2||Exact):Exact;return Mode!=3;}
+ internal static bool AssignProcessToJobObject(IntPtr j,IntPtr p){if(j!=(IntPtr)42)throw new Exception("wrong original handle");Assignments++;Exact=Mode!=5;return Mode!=2;}
+ internal static Exception Error(string s){return new InvalidOperationException(s+": controlled native failure");}
+ internal static bool GetExitCodeProcess(IntPtr p,out uint code){code=125;return true;}
+ internal static bool TerminateJobObject(IntPtr j,uint c){return true;}
+ internal static uint[] JobPids(IntPtr j){return new uint[0];}
+ internal static bool CloseHandle(IntPtr p){return true;}
+}
+public static class Control {
+ public static void Run(){
+  var config=new AccountConfiguration();
+  for(int mode=0;mode<=5;mode++){
+   Native.Mode=mode;Native.Exact=mode==1;Native.Assignments=Native.Queries=0;
+   using(var group=new AccountGroup(config)){
+    group.BeginLaunch(config,"fixed.exe");bool refused=false;
+    try{group.Assign(config,(IntPtr)7);}catch{refused=true;}
+    if(refused!=(mode>=2))throw new Exception("admission differs: "+mode);
+    if(Native.Assignments!=((mode==0||mode==2||mode==5)?1:0))throw new Exception("assignment was bypassed or repeated: "+mode);
+    if(mode<2 && group.LastLaunchInspection["original_job_after"]!="True")throw new Exception("missing exact readback");
+    group.RetainFailedRoot((IntPtr)7,7,"fixed.exe",258,true,true,0,0,0,0);
+    if(group.LastLaunchInspection["failed_root_exit_code"]!="0x0000007d"||group.LastLaunchInspection["root_created_filetime"]!="123")throw new Exception("failed root identity/cleanup lost");
+    group.BeginLaunch(config,"next.exe");if(group.LastLaunchInspection.ContainsKey("root_pid"))throw new Exception("stale launch reused");
+    group.StopAndObserve(1);try{group.Assign(config,(IntPtr)7);throw new Exception("stopped group admitted");}catch(InvalidOperationException){}
+   }
+  }
+ }
+}
+'@
+Add-Type -TypeDefinition $harness.Replace('__GROUP__',$group)
+[Control]::Run()
+'actual exact-job admission and failed-root retention passed six controlled modes; no process launched'
+`);
+  assert.match(result, /passed six controlled modes/u);
 });
