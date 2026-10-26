@@ -471,8 +471,8 @@ $proposed=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)
 $actual=[Security.AccessControl.RawSecurityDescriptor]::new($proposed,0)
 if($actual.Owner.Value -cne $original.Owner.Value -or $actual.Group.Value -cne $original.Group.Value -or $actual.DiscretionaryAcl.Count -ne 4){throw 'Original identity or ACEs lost'}
 $deny=$actual.DiscretionaryAcl[0];$allow=$actual.DiscretionaryAcl[1]
-if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd027c -or $deny.AceFlags -ne 'None' -or
-   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20103 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
+if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd025c -or $deny.AceFlags -ne 'None' -or
+   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20123 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
 for($i=0;$i -lt 2;$i++){
   $a=[byte[]]::new($actual.DiscretionaryAcl[$i+2].BinaryLength);$b=[byte[]]::new($original.DiscretionaryAcl[$i].BinaryLength)
  $actual.DiscretionaryAcl[$i+2].GetBinaryForm($a,0);$original.DiscretionaryAcl[$i].GetBinaryForm($b,0)
@@ -584,7 +584,7 @@ try{
   $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($sddl);$bytes=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($bytes,0)
   if($station){$bytes=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)}
   $granted=$check.Invoke($null,[object[]]@($bytes,$token,$station))
-  if($granted -ne $(if($station){0x20103}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
+  if($granted -ne $(if($station){0x20123}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
  }
  foreach($case in @('no-access','forbidden-switch')){
   $sddl=if($case -ceq 'no-access'){'O:SYG:SYD:'}else{'O:SYG:SYD:P(A;;0x201c7;;;'+$sid+')'}
