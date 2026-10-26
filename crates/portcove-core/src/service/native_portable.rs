@@ -3033,6 +3033,19 @@ mod tests {
         );
         crate::definition_candidate::selection::trust_catalog_selection_for_test(
             &library,
+            &original_catalog,
+            ID,
+        );
+        service.replace_catalog_for_test(original_catalog.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
+        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::write(first.path.join("settings.ini"), b"before first Play").unwrap();
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            &library,
             &expanded_catalog,
             ID,
         );
@@ -3043,14 +3056,6 @@ mod tests {
                 "previous",
             )
             .unwrap();
-        service.replace_catalog_for_test(original_catalog);
-        let first = service
-            .install(ID, None, None, None, true, |_| {})
-            .await
-            .unwrap();
-        let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
-        let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
-        fs::write(first.path.join("settings.ini"), b"before first Play").unwrap();
         service.replace_catalog_for_test(expanded_catalog.clone());
         *provider.0.lock().unwrap() = server.release("v2", 2);
         let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
