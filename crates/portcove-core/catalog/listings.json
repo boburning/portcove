@@ -8002,12 +8002,12 @@
     {
       "id": "arcanum-community-edition",
       "name": "Arcanum Community Edition",
-      "summary": "Explore Arcanum Community Edition and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a prepared Arcanum Community Edition runtime with a separate copy of your own Arcanum game files.",
       "project_url": "https://github.com/alexbatalov/arcanum-ce",
       "issue_number": 828,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/alexbatalov/arcanum-ce",
+      "availability": "source-only",
+      "setup_url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md",
       "artwork": {
         "game_id": 255,
         "cover_id": 101605,
@@ -8015,6 +8015,27 @@
         "image_sha256": "5cc28e6a2310bad18bcfc73e511408f174d13a0a1a4ac8d769649bfe162cb7b0",
         "game_slug": "arcanum-of-steamworks-and-magick-obscura",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Arcanum: Of Steamworks and Magick Obscura",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare a separate Arcanum copy",
+            "instruction": "Upstream has no published GitHub release package. If you already have a permitted Community Edition build, use a separate copy of your own GOG or Steam Arcanum folder, including arcanum1.dat through arcanum4.dat, tig.dat and the required modules. Keep your original installation available. Follow the upstream guide if you need to prepare a build."
+          },
+          {
+            "title": "Choose your prepared player",
+            "instruction": "On Windows, select arcanum-ce.exe inside that copied game folder and use the folder as its working directory. Linux uses the native arcanum-ce in the copied folder. For the macOS app bundle, retain the upstream application and its documented folder layout. Saving launch details never starts the game; Play is a separate action."
+          },
+          {
+            "title": "Keep the working copy and its data",
+            "instruction": "You manage runtime updates, saves, settings and mods in this external copy. Back up the whole working folder before replacing files, and keep the current copy until the replacement is ready. Portcove does not build the engine, run a game installer or extractor, or back up, roll back or delete these external files."
+          }
+        ],
+        "warnings": [
+          "Upstream describes this as a technology preview. The existing upstream dependency remains: no managed release or complete original-data/persistence contract is established."
+        ],
+        "help_url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md"
       }
     },
     {
@@ -10391,12 +10412,12 @@
     {
       "id": "c7-game-openciv3",
       "name": "Civilization III / OpenCiv3 (C7-Game)",
-      "summary": "Explore Civilization III / OpenCiv3 (C7-Game) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare a permitted OpenCiv3 player and choose your own Civilization III files or permitted standalone content.",
       "project_url": "https://github.com/C7-Game/OpenCiv3",
       "issue_number": 1850,
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/C7-Game/OpenCiv3",
+      "availability": "packages",
+      "setup_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
       "artwork": {
         "game_id": 310,
         "cover_id": 119071,
@@ -10404,7 +10425,28 @@
         "image_sha256": "d93e0f29120c8816eec38230c1fa57e4901217cc32692d715a384944238b23da",
         "game_slug": "sid-meier-s-civilization-iii",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/C7-Game/OpenCiv3/releases",
+      "original_game_title": "Civilization III",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a permitted player and its companions",
+            "instruction": "For an existing permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep OpenCiv3.pck, data_C7_windows_x86_64, Assets and Text together. Linux and macOS packages are published separately; follow their upstream preparation instructions rather than reusing Windows launch details."
+          },
+          {
+            "title": "Choose game content on first Play",
+            "instruction": "The early pre-alpha player can use your own Civilization III Conquests or Complete files. Select your original game folder in the player, or choose standalone mode only when you have permission for its bundled placeholder assets. The original Civilization III executable does not need to run."
+          },
+          {
+            "title": "Preserve your working copy and saves",
+            "instruction": "You or upstream provide runtime updates. Keep the current copy, C7.ini, Text, Assets and your chosen save locations before replacing it; the save dialog can write to your original Civ3 folder. Portcove saves launch details without adopting or deleting external files and offers no managed backup or runtime rollback for this copy."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md"
+      },
+      "download_block_reason": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them."
     },
     {
       "id": "call-of-duty-3-cod3recomp",
@@ -10506,12 +10548,14 @@
     {
       "id": "cannonball-dx-outrun",
       "name": "CannonBall DX OutRun",
-      "summary": "Explore CannonBall DX OutRun and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted CannonBall DX player with your own compatible OutRun arcade ROM data.",
       "project_url": "https://github.com/Endprodukt/cannonball-dx",
       "issue_number": 1132,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Endprodukt/cannonball-dx",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md",
       "artwork": {
         "game_id": 2051,
         "cover_id": 125104,
@@ -10519,7 +10563,28 @@
         "image_sha256": "b73e8678bba802ebed6776d5130fa0e5330cd413880507fa7f7c0115bc42ff1e",
         "game_slug": "outrun",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/Endprodukt/cannonball-dx/releases",
+      "original_game_title": "OutRun",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your permitted Windows player",
+            "instruction": "Select cannonball-dx.exe in your existing permitted copy and keep its folder as the working directory. Keep res and the supplied runtime libraries together. The DX fork targets Windows 10 or 11 x64; other CannonBall projects do not establish support for DX on another platform. Review the included engine and third-party terms."
+          },
+          {
+            "title": "Keep your original ROM data beside it",
+            "instruction": "The player requires your own compatible OutRun Revision B data in roms. Upstream supports traditional loose ROM files or a suitable merged outrun.zip; it checks component CRCs and sizes rather than trusting the ZIP filename. Keep optional music and your controller configuration with this copy."
+          },
+          {
+            "title": "Keep your data when updating",
+            "instruction": "You or upstream manage runtime updates. Back up the complete working folder, including settings, scores, ROMs and custom music, before replacing it; retain the current copy until ready. Portcove records launch details without starting the player, adopting its files or promising managed backup, rollback or deletion."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md"
+      },
+      "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data."
     },
     {
       "id": "cannonball-outrun",
@@ -25585,12 +25650,47 @@
     {
       "id": "openra-openra",
       "name": "Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA)",
-      "summary": "Explore Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Choose Red Alert, Tiberian Dawn or Dune 2000, then let OpenRA prepare the game content on first Play.",
       "project_url": "https://github.com/OpenRA/OpenRA",
       "issue_number": 1852,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenRA/OpenRA"
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+      "release_url": "https://github.com/OpenRA/OpenRA/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "OpenRA-",
+          "x64-winportable.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose the game you want to play",
+            "instruction": "The Windows portable ZIP contains three different players: RedAlert.exe, TiberianDawn.exe and Dune2000.exe. Extract the complete ZIP, then select the player for your chosen game and keep its folder as the working directory. The installer is an alternative; run it deliberately and select the installed player afterward. Server and utility tools are not game players."
+          },
+          {
+            "title": "Finish content setup on first Play",
+            "instruction": "Choose Play explicitly to open that game’s own content screen. OpenRA can import your original media or offer its minimal content download; review that choice in OpenRA. No content installer or helper is started by discovery or by saving launch details."
+          },
+          {
+            "title": "Keep your upstream profile and update route",
+            "instruction": "OpenRA or you provide updates. Preserve the actual profile: normally %APPDATA%\\OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. A local Support folder, an older profile or a custom override can change it. Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
+          },
+          {
+            "title": "Use the native upstream launcher on other systems",
+            "instruction": "On Linux, choose the AppImage for the game you want and prepare it using upstream instructions; retain the game-specific launcher. On macOS, install the desired game application from the disk image and retain its application bundle. These formats use upstream setup; Portcove does not extract or execute an AppImage, disk image, installer or shell helper automatically."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md"
+      }
     },
     {
       "id": "openrac-openrac-ratchet-clank",

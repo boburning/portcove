@@ -3,12 +3,12 @@
   "listing": {
     "id": "c7-game-openciv3",
     "name": "Civilization III / OpenCiv3 (C7-Game)",
-    "summary": "Explore Civilization III / OpenCiv3 (C7-Game) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Prepare a permitted OpenCiv3 player and choose your own Civilization III files or permitted standalone content.",
     "project_url": "https://github.com/C7-Game/OpenCiv3",
     "issue_number": 1850,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/C7-Game/OpenCiv3",
+    "availability": "packages",
+    "setup_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
     "artwork": {
       "game_id": 310,
       "cover_id": 119071,
@@ -16,6 +16,27 @@
       "image_sha256": "d93e0f29120c8816eec38230c1fa57e4901217cc32692d715a384944238b23da",
       "game_slug": "sid-meier-s-civilization-iii",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/C7-Game/OpenCiv3/releases",
+    "original_game_title": "Civilization III",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a permitted player and its companions",
+          "instruction": "For an existing permitted Windows copy, select OpenCiv3.exe with its folder as the working directory. Keep OpenCiv3.pck, data_C7_windows_x86_64, Assets and Text together. Linux and macOS packages are published separately; follow their upstream preparation instructions rather than reusing Windows launch details."
+        },
+        {
+          "title": "Choose game content on first Play",
+          "instruction": "The early pre-alpha player can use your own Civilization III Conquests or Complete files. Select your original game folder in the player, or choose standalone mode only when you have permission for its bundled placeholder assets. The original Civilization III executable does not need to run."
+        },
+        {
+          "title": "Preserve your working copy and saves",
+          "instruction": "You or upstream provide runtime updates. Keep the current copy, C7.ini, Text, Assets and your chosen save locations before replacing it; the save dialog can write to your original Civ3 folder. Portcove saves launch details without adopting or deleting external files and offers no managed backup or runtime rollback for this copy."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md"
+    },
+    "download_block_reason": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them."
   }
 }

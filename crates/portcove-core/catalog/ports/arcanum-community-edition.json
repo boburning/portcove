@@ -3,12 +3,12 @@
   "listing": {
     "id": "arcanum-community-edition",
     "name": "Arcanum Community Edition",
-    "summary": "Explore Arcanum Community Edition and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use a prepared Arcanum Community Edition runtime with a separate copy of your own Arcanum game files.",
     "project_url": "https://github.com/alexbatalov/arcanum-ce",
     "issue_number": 828,
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/alexbatalov/arcanum-ce",
+    "availability": "source-only",
+    "setup_url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md",
     "artwork": {
       "game_id": 255,
       "cover_id": 101605,
@@ -16,6 +16,27 @@
       "image_sha256": "5cc28e6a2310bad18bcfc73e511408f174d13a0a1a4ac8d769649bfe162cb7b0",
       "game_slug": "arcanum-of-steamworks-and-magick-obscura",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Arcanum: Of Steamworks and Magick Obscura",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a separate Arcanum copy",
+          "instruction": "Upstream has no published GitHub release package. If you already have a permitted Community Edition build, use a separate copy of your own GOG or Steam Arcanum folder, including arcanum1.dat through arcanum4.dat, tig.dat and the required modules. Keep your original installation available. Follow the upstream guide if you need to prepare a build."
+        },
+        {
+          "title": "Choose your prepared player",
+          "instruction": "On Windows, select arcanum-ce.exe inside that copied game folder and use the folder as its working directory. Linux uses the native arcanum-ce in the copied folder. For the macOS app bundle, retain the upstream application and its documented folder layout. Saving launch details never starts the game; Play is a separate action."
+        },
+        {
+          "title": "Keep the working copy and its data",
+          "instruction": "You manage runtime updates, saves, settings and mods in this external copy. Back up the whole working folder before replacing files, and keep the current copy until the replacement is ready. Portcove does not build the engine, run a game installer or extractor, or back up, roll back or delete these external files."
+        }
+      ],
+      "warnings": [
+        "Upstream describes this as a technology preview. The existing upstream dependency remains: no managed release or complete original-data/persistence contract is established."
+      ],
+      "help_url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md"
     }
   }
 }
