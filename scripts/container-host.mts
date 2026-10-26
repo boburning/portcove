@@ -333,10 +333,10 @@ export function completedContainerPreparation(records: readonly unknown[], name:
 
 export function validateNativeBuilder(inspection: string): void {
   const drivers = [...inspection.matchAll(/^[ \t]*Driver:[ \t]+([^\r\n]+)$/gmu)].map((match) =>
-    match[1].trim(),
+    match[1]?.trim(),
   );
   const endpoints = [...inspection.matchAll(/^[ \t]*Endpoint:[ \t]+([^\r\n]+)$/gmu)].map((match) =>
-    match[1].trim(),
+    match[1]?.trim(),
   );
   if (
     drivers.length !== 1 ||
