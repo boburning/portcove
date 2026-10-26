@@ -55,7 +55,7 @@ try {
     }
     [Console]::Out.WriteLine(($observation | ConvertTo-Json -Depth 8 -Compress))
     [Console]::Error.WriteLine('inert-probe:message-loop')
-    # The isolated window station is non-interactive; a modal dialog refuses it.
+    # Use the same modeless primitive on either prepared private desktop route.
     # Consume native startup show state explicitly before showing this own private form.
     $form.Show()
     [void][InertProbeWindow]::ShowWindow($form.Handle, 0)

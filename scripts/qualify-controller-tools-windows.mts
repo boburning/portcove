@@ -305,6 +305,7 @@ async function main() {
       "account-created.json",
       "result.json",
       "capture/observed.json",
+      "capture/station-recovery.json",
     ]) {
       const filename = path.join("C:\\ProgramData\\PortcoveHostedNativeQualification", name);
       try {
@@ -349,6 +350,10 @@ async function main() {
     assert.deepEqual(account.context, context);
     assert.equal(account.disabled, true);
     assert.equal(account.job_empty, true);
+    assert.equal(account.station_restored, true);
+    assert.equal(account.observer_drained, true);
+    assert.match(String(account.hosted_desktop), /^PortcoveHosted_[0-9a-f]{32}$/u);
+    assert.match(String(account.response_inspection), /^[1-9][0-9]*:[1-9][0-9]*:[0-9]+$/u);
     assert.equal(account.root_exited, true);
     assert.deepEqual(account.remaining_pids, []);
     assert.deepEqual(account.cleanup_failures, []);

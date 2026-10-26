@@ -171,6 +171,7 @@ namespace Portcove.NativeQualification {
         public NativePipeCapture OutputCapture { get; private set; }
         public NativePipeCapture ErrorCapture { get; private set; }
         int stopAttempted;
+        Thread hostedObserver;
         internal AccountProcess(IntPtr jobHandle, IntPtr processHandle, uint processId, IntPtr stationHandle, IntPtr desktopHandle, string executablePath, IntPtr outputRead, IntPtr errorRead) {
             job = jobHandle; process = processHandle; pid = processId;
             station = stationHandle; desktop = desktopHandle;
@@ -266,6 +267,39 @@ namespace Portcove.NativeQualification {
                 return response != IntPtr.Zero;
             }
         }
+        public bool HostedResponding {
+            get {
+                if (hostedObserver != null && hostedObserver.IsAlive) throw new InvalidOperationException("Previous observer has not drained");
+                bool response = false; Exception failure = null;
+                var observer = new Thread(() => {
+                    try {
+                        if (!Native.SetThreadDesktop(desktop)) throw Native.Error("SetThreadDesktop(observer)");
+                        Native.RequireNonInputDesktop(desktop);
+                        IntPtr window = FindWindow(pid);
+                        if (window != IntPtr.Zero && !HasExited) {
+                            uint owner; Native.GetWindowThreadProcessId(window, out owner);
+                            if (owner != pid) throw new InvalidOperationException("Observed HWND owner changed");
+                            UIntPtr result;
+                            IntPtr acknowledged = Native.SendMessageTimeoutW(window, 0, UIntPtr.Zero, IntPtr.Zero, 0x23, 1000, out result);
+                            int error = Marshal.GetLastWin32Error();
+                            LastResponseInspection = window.ToString() + ":" + acknowledged.ToString() + ":" + error;
+                            Native.GetWindowThreadProcessId(window, out owner);
+                            response = acknowledged != IntPtr.Zero && owner == pid && !HasExited && Native.IsWindowVisible(window);
+                        }
+                        Native.RequireNonInputDesktop(desktop);
+                    } catch (Exception error) { failure = error; }
+                });
+                // Never close its desktop while this dedicated no-window thread is alive.
+                observer.IsBackground = true; hostedObserver = observer; observer.Start();
+                if (!observer.Join(2000)) throw new TimeoutException("Trusted desktop observer exceeded two seconds; drain after job stop");
+                if (failure != null) throw new InvalidOperationException("Trusted desktop observation refused", failure);
+                return response;
+            }
+        }
+        public bool DrainHostedObserver(int milliseconds) {
+            if (milliseconds < 1 || milliseconds > 5000) throw new ArgumentOutOfRangeException("milliseconds");
+            return hostedObserver == null || hostedObserver.Join(milliseconds);
+        }
         public bool CloseMainWindow() {
             IntPtr window = FindWindow(pid);
             return window != IntPtr.Zero && Native.PostMessageW(window, 0x10, UIntPtr.Zero, IntPtr.Zero);
@@ -350,7 +384,7 @@ namespace Portcove.NativeQualification {
             // Kill-on-close is a last resort, never a positive teardown assertion.
             if (job != IntPtr.Zero) { Native.CloseHandle(job); job = IntPtr.Zero; }
             if (process != IntPtr.Zero) { Native.CloseHandle(process); process = IntPtr.Zero; }
-            if (desktop != IntPtr.Zero) { Native.CloseDesktop(desktop); desktop = IntPtr.Zero; }
+            if (desktop != IntPtr.Zero && (hostedObserver == null || !hostedObserver.IsAlive)) { Native.CloseDesktop(desktop); desktop = IntPtr.Zero; }
             if (station != IntPtr.Zero) { Native.CloseWindowStation(station); station = IntPtr.Zero; }
         }
     }
@@ -489,7 +523,19 @@ namespace Portcove.NativeQualification {
             if (group == null || expectedSha256 == null || !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$")) throw new ArgumentException("Shared group and exact executable hash required");
             return StartCore(config, password, executable, arguments, directory, environment, nsis, group, expectedSha256);
         }
-        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256) {
+        // Source-prepared hosted proposal only; ordinary/protected callers retain the private station.
+        public static AccountProcess StartHostedVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, string desktopName) {
+            string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");
+            if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
+                Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" ||
+                workflow == null || !System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/\\.github/workflows/controller-tool-build-fixture\\.yml@(?:refs/pull/[1-9][0-9]*/merge|refs/heads/main)$") ||
+                config.UserName != "PortcoveNativeQual" || group == null || expectedSha256 == null ||
+                !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$") ||
+                desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))
+                throw new ArgumentException("Fixed ordinary hosted GUI boundary required");
+            return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName);
+        }
+        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256, string hostedDesktop = null) {
             Validate(config, executable, arguments, directory, environment);
             string commandText = nsis ? NsisCommandLine(executable, arguments, config.WorkRoot) : String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
             if (password == null || password.Length < 1) throw new ArgumentException("Fixed owner-held account credential unavailable");
@@ -510,9 +556,9 @@ namespace Portcove.NativeQualification {
                         if (observed != expectedSha256) throw new IOException("Native executable bytes changed before launch");
                     }
                 }
-                // This fixed helper must run in its own noninteractive owner process:
-                // SetProcessWindowStation is process-wide and never targets WinSta0.
-                Native.CreatePrivateDesktop(config, out station, out desktop);
+                // Station selection is process-wide; keep this fixed owner helper separate.
+                if (hostedDesktop == null) Native.CreatePrivateDesktop(config, out station, out desktop);
+                else Native.OpenHostedDesktop(hostedDesktop, out station, out desktop);
                 job = Native.CreateBoundedJob();
                 var pipeAttributes = new Native.SecurityAttributes { length = (uint)Marshal.SizeOf(typeof(Native.SecurityAttributes)), inherit = 1 };
                 if (!Native.CreatePipe(out outputRead, out outputWrite, ref pipeAttributes, 0) || !Native.SetHandleInformation(outputRead, 1, 0)) throw Native.Error("stdout pipe");
@@ -523,7 +569,7 @@ namespace Portcove.NativeQualification {
                 string environmentBlock = String.Join("\0", environment.OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase).Select(item => item.Key + "=" + item.Value)) + "\0\0";
                 block = Marshal.StringToHGlobalUni(environmentBlock);
                 var startup = new Native.StartupInfo(); startup.cb = (uint)Marshal.SizeOf(startup);
-                startup.desktop = config.PrivateDesktop; startup.flags = 1 | 0x100; startup.showWindow = 0;
+                startup.desktop = hostedDesktop == null ? config.PrivateDesktop : "WinSta0\\" + hostedDesktop; startup.flags = 1 | 0x100; startup.showWindow = 0;
                 startup.input = input; startup.output = outputWrite; startup.error = errorWrite;
                 var command = new StringBuilder(commandText);
                 if (!Native.CreateProcessWithLogonW(config.UserName, ".", secret, 1, executable, command, 0x4 | 0x400, block, directory, ref startup, out info)) throw Native.Error("CreateProcessWithLogonW");
@@ -531,8 +577,9 @@ namespace Portcove.NativeQualification {
                 if (group != null) group.Assign(config, info.process);
                 if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("AssignProcessToJobObject");
                 IntPtr token;
-                if (!Native.OpenProcessToken(info.process, 8, out token)) throw Native.Error("OpenProcessToken");
+                if (!Native.OpenProcessToken(info.process, hostedDesktop == null ? 8u : 10u, out token)) throw Native.Error("OpenProcessToken");
                 try {
+                    if (hostedDesktop != null) Native.VerifyHostedToken(token, station, desktop);
                     using (var identity = new WindowsIdentity(token)) {
                         if (!identity.User.Equals(new SecurityIdentifier(config.AccountSid))) throw new InvalidOperationException("Launched account SID mismatch");
                         if (identity.Groups.Any(group => group.Equals(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null)))) throw new InvalidOperationException("Administrator account refused, including filtered administrator tokens");
@@ -650,6 +697,68 @@ namespace Portcove.NativeQualification {
                     if (!SetProcessWindowStation(previous)) throw Error("SetProcessWindowStation(restore)");
                 }
             } finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
+        }
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr OpenWindowStationW(string name, bool inherit, uint access);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr OpenDesktopW(string name, uint flags, bool inherit, uint access);
+        [DllImport("user32", SetLastError=true)] internal static extern bool SetThreadDesktop(IntPtr desktop);
+        [DllImport("user32", SetLastError=true)] internal static extern bool GetUserObjectInformationW(IntPtr handle, int index, out int value, uint length, out uint needed);
+        [StructLayout(LayoutKind.Sequential)] struct GenericMapping { public uint read, write, execute, all; }
+        [DllImport("advapi32", SetLastError=true)] static extern bool DuplicateToken(IntPtr token, int level, out IntPtr duplicate);
+        [DllImport("advapi32")] static extern void MapGenericMask(ref uint access, ref GenericMapping mapping);
+        [DllImport("advapi32", SetLastError=true)] static extern bool AccessCheck(byte[] descriptor, IntPtr token, uint access, ref GenericMapping mapping, byte[] privileges, ref uint privilegeLength, out uint granted, out bool allowed);
+        [DllImport("user32", SetLastError=true)] static extern bool GetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor, uint length, out uint needed);
+        [DllImport("user32", SetLastError=true)] static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint access);
+        static uint GrantedDesktopRights(IntPtr handle, IntPtr token, bool station) {
+            uint information = 7, needed;
+            GetUserObjectSecurity(handle, ref information, null, 0, out needed);
+            if (needed < 20 || needed > 65536) throw new InvalidOperationException("Bounded object security required");
+            byte[] descriptor = new byte[needed];
+            if (!GetUserObjectSecurity(handle, ref information, descriptor, needed, out needed)) throw Error("Read hosted object security");
+            return GrantedRights(descriptor, token, station);
+        }
+        static uint GrantedRights(byte[] descriptor, IntPtr token, bool station) {
+            var mapping = station ? new GenericMapping {read=0x20303,write=0x2001c,execute=0x20060,all=0xf037f} : new GenericMapping {read=0x20041,write=0x200be,execute=0x20100,all=0xf01ff};
+            var security = new System.Security.AccessControl.RawSecurityDescriptor(descriptor, 0);
+            if (security.DiscretionaryAcl == null) throw new InvalidOperationException("Null object DACL refused");
+            foreach (System.Security.AccessControl.GenericAce entry in security.DiscretionaryAcl) {
+                var ace = entry as System.Security.AccessControl.KnownAce;
+                if (ace != null) { uint mask = unchecked((uint)ace.AccessMask); MapGenericMask(ref mask, ref mapping); ace.AccessMask = unchecked((int)mask); }
+            }
+            descriptor = new byte[security.BinaryLength]; security.GetBinaryForm(descriptor, 0);
+            byte[] privileges = new byte[65536]; uint length = (uint)privileges.Length, granted; bool allowed;
+            if (!AccessCheck(descriptor, token, 0x02000000, ref mapping, privileges, ref length, out granted, out allowed)) throw Error("Check suspended candidate object access");
+            return allowed ? granted : 0;
+        }
+        internal static void VerifyHostedToken(IntPtr primary, IntPtr station, IntPtr desktop) {
+            IntPtr token;
+            if (!DuplicateToken(primary, 2, out token)) throw Error("Duplicate suspended token for access check");
+            try {
+                if (GrantedDesktopRights(station, token, true) != 0x20002 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
+                    throw new InvalidOperationException("Effective hosted station/private-desktop rights differ");
+                IntPtr input = OpenInputDesktop(0, false, 0x20081);
+                if (input == IntPtr.Zero) throw Error("Inspect actual input desktop access");
+                try { if ((GrantedDesktopRights(input, token, false) & 0x1ff) != 0) throw new InvalidOperationException("Candidate has input desktop access"); }
+                finally { CloseDesktop(input); }
+                IntPtr original = OpenDesktopW("Default", 0, false, 0x20081);
+                if (original == IntPtr.Zero) throw Error("Inspect Default desktop access");
+                try { if ((GrantedDesktopRights(original, token, false) & 0x1ff) != 0) throw new InvalidOperationException("Candidate has Default desktop access"); }
+                finally { CloseDesktop(original); }
+            } finally { CloseHandle(token); }
+        }
+        internal static void RequireNonInputDesktop(IntPtr desktop) {
+            int input; uint needed;
+            if (!GetUserObjectInformationW(desktop, 6, out input, 4, out needed) || input != 0) throw new InvalidOperationException("Private desktop input status unavailable or active");
+        }
+        internal static void OpenHostedDesktop(string name, out IntPtr station, out IntPtr desktop) {
+            station = OpenWindowStationW("WinSta0", false, 0x00020002); desktop = IntPtr.Zero;
+            if (station == IntPtr.Zero) throw Error("Open existing interactive station");
+            IntPtr previous = GetProcessWindowStation();
+            if (previous == IntPtr.Zero || !SetProcessWindowStation(station)) throw Error("Select existing interactive station");
+            try {
+                desktop = OpenDesktopW(name, 0, false, 0x000200c1);
+                if (desktop == IntPtr.Zero) throw Error("Open prepared hosted private desktop");
+                RequireNonInputDesktop(desktop);
+            } finally { if (!SetProcessWindowStation(previous)) throw Error("Restore original station"); }
         }
         internal static uint[] JobPids(IntPtr job) {
             int size = 8 + 64 * IntPtr.Size; IntPtr buffer = Marshal.AllocHGlobal(size);

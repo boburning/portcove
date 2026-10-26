@@ -75,6 +75,7 @@ Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'nat
 if($env:SystemRoot -ine [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows) -or $env:SystemDrive -ine 'C:'){
     throw 'Fixed hosted Windows system paths differ'
 }
+if(-not [Portcove.HostedNative.HostedDesktop]::ExecutionAuthorized){throw 'Hosted WinSta0 proposal awaits owner authority; no account or station effects'}
 $root='C:\ProgramData\PortcoveHostedNativeQualification'
 $nativeProfile='C:\Users\PortcoveNativeQual'
 if(@(Get-LocalUser|Where-Object Name -IEQ 'PortcoveNativeQual').Count -or (Test-Path -LiteralPath $nativeProfile) -or
@@ -86,7 +87,7 @@ Write-HostedNativeSetupRecord (Join-Path $root 'intent.json') ([ordered]@{schema
 $account=$null;$password=$null;$group=$null;$child=$null;$disabled=$false;$settled=$false;$failure=$null;$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
-$probeCapture=$null
+$probeCapture=$null;$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null
 try {
     Assert-OriginalHostedSetup
     $password=[Portcove.HostedNative.Setup]::Password()
@@ -130,14 +131,16 @@ try {
     Assert-OriginalHostedSetup
     Enable-LocalUser -SID $account.SID
     Assert-HostedNativeAccount $account $true
+    $hostedDesktop=[Portcove.HostedNative.HostedDesktop]::Prepare($owner.User.Value,$account.SID.Value,$capture)
     $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($configuration)
     $arguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $source 'scripts\fixtures\native-account-gui-probe.ps1'),'-Invocation',$context.binding)
-    $child=[Portcove.NativeQualification.AccountLauncher]::StartVerifiedInGroup($group,$configuration,$password,$runtime,$runtimeSha,$arguments,$attemptWork,$environment,$false)
+    $child=[Portcove.NativeQualification.AccountLauncher]::StartHostedVerifiedInGroup($group,$configuration,$password,$runtime,$runtimeSha,$arguments,$attemptWork,$environment,$hostedDesktop.Name)
     $gui=$false
     while(-not $child.HasExited -and $clock.Elapsed.TotalSeconds -lt 110){
         Assert-OriginalHostedSetup
         $child.RefuseFaultedCapture()
-        if($child.MainWindowHandle -ne [IntPtr]::Zero -and $child.Responding){$gui=$true;break}
+        $hostedDesktop.AssertNonInput()
+        if($child.HostedResponding){$gui=$true;break}
         Start-Sleep -Milliseconds 100
     }
     if(-not $gui){throw 'Actual private-desktop inert GUI unavailable'}
@@ -158,7 +161,7 @@ try {
     }
     $members=@($child.SnapshotOwnedJob())
     if(@($members|Where-Object Pid -EQ $observation.child_pid).Count -ne 1){throw 'Inert descendant absent from original job'}
-    Write-HostedNativeSetupRecord (Join-Path $capture 'observed.json') ([ordered]@{context=$context;observation=$observation;root_pid=$child.Pid;root_created_filetime=$child.CreatedFileTime.ToString();members=$members;private_gui=$gui;runtime_sha256=$runtimeSha;authority='none'})
+    Write-HostedNativeSetupRecord (Join-Path $capture 'observed.json') ([ordered]@{context=$context;observation=$observation;root_pid=$child.Pid;root_created_filetime=$child.CreatedFileTime.ToString();members=$members;hosted_desktop=$hostedDesktop.Name;private_gui=$gui;runtime_sha256=$runtimeSha;authority='none'})
 } catch {$failure=$_.Exception.Message;throw}
 finally {
     try {
@@ -169,6 +172,7 @@ finally {
             $settled=$true
         }
     } catch {$cleanupFailures.Add($_.Exception.Message)}
+    try {if($child){$observerDrained=$child.DrainHostedObserver(5000);if(-not $observerDrained){throw 'Trusted hosted observer did not drain; retained handle closes only with bounded owner exit'}}} catch {$cleanupFailures.Add($_.Exception.Message)}
     # Disabling the exact created identity is independent of process settlement.
     # It prevents further logons but never claims to terminate existing children.
     try {
@@ -185,9 +189,21 @@ finally {
             try {$probeCapture=@{stdout=(Read-HostedNativeProbeStream $child.OutputCapture);stderr=(Read-HostedNativeProbeStream $child.ErrorCapture);exit_code=$(if($rootExited){$child.ExitCode}else{$null})}}
             catch {$probeCapture=@{error=$_.Exception.Message}}
         }
+        try {if($hostedDesktop){$hostedDesktop.Dispose();$stationRestored=$hostedDesktop.Restored}} catch {$cleanupFailures.Add($_.Exception.Message)}
+        try {
+            $recovery=[ordered]@{context=$context;station='WinSta0';session_id=[Diagnostics.Process]::GetCurrentProcess().SessionId;original_base64=$null;proposed_base64=$null;automatic_retry=$false}
+            foreach($entry in @{original_base64='station-dacl-before.bin';proposed_base64='station-dacl-proposed.bin'}.GetEnumerator()){
+                $file=Join-Path (Join-Path $root 'capture') $entry.Value
+                if(Test-Path -LiteralPath $file){
+                    if((Get-Item -LiteralPath $file).Length -gt 8192){throw 'Station recovery ACL exceeds bound'}
+                    $recovery[$entry.Key]=[Convert]::ToBase64String([IO.File]::ReadAllBytes($file))
+                }
+            }
+            if($recovery.original_base64 -or $recovery.proposed_base64){Write-HostedNativeSetupRecord (Join-Path (Join-Path $root 'capture') 'station-recovery.json') $recovery}
+        } catch {$cleanupFailures.Add($_.Exception.Message)}
         if($child){$child.Dispose()};if($group){$group.Dispose()};if($password){$password.Dispose()}
         if(-not $failure -and $cleanupFailures.Count){$failure='Hosted cleanup refused; retained details require recovery'}
-        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
+        Write-HostedNativeSetupRecord (Join-Path $root 'result.json') ([ordered]@{schema_version=1;context=$context;account_sid=$(if($account){$account.SID.Value}else{$null});profile=$nativeProfile;actual_profile=$actualProfile;registered_profile=$registeredProfile;root_identity=$(if($child){@{pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString()}}else{$null});root_exited=$rootExited;remaining_pids=$remaining;disabled=$disabled;job_empty=$settled;hosted_desktop=$(if($hostedDesktop){$hostedDesktop.Name}else{$null});station_restored=$stationRestored;observer_drained=$observerDrained;failure=$failure;cleanup_failures=@($cleanupFailures.ToArray());probe_capture=$probeCapture;window_inspection=$(if($child){$child.LastWindowInspection}else{$null});response_inspection=$(if($child){$child.LastResponseInspection}else{$null});saw_visible_window=$(if($child){$child.SawVisibleWindow}else{$null});observed=$observation;automatic_retry=$false;authority='none';scope='inert hosted account/profile/private GUI/job primitive only; no package or native acceptance'})
     }
 }
 if(-not $disabled -or -not $settled -or $failure){throw 'Hosted inert account setup did not complete'}

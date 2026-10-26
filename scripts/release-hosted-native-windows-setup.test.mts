@@ -116,7 +116,7 @@ $roaming=Join-Path $attemptWork 'roaming';$local=Join-Path $attemptWork 'local';
 foreach($directory in @($work,$attemptWork,$roaming,$local)){[IO.Directory]::CreateDirectory($directory)|Out-Null}
 $owner=[Security.Principal.WindowsIdentity]::GetCurrent();$account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'}}
 . ([scriptblock]::Create(($statements[$begin..$end].Extent.Text -join [Environment]::NewLine)))
-$launch=$ast.Find({param($n)$n -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $n.Member.Extent.Text -ceq 'StartVerifiedInGroup'},$true)
+$launch=$ast.Find({param($n)$n -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $n.Member.Extent.Text -ceq 'StartHostedVerifiedInGroup'},$true)
 if($launch.Arguments.Count -ne 9){throw 'Existing launcher ABI differs'}
 . ([scriptblock]::Create('$actualDirectory='+$launch.Arguments[6].Extent.Text))
 $runtime=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
@@ -227,8 +227,8 @@ $root=Join-Path $base ([string]$failDisable);[IO.Directory]::CreateDirectory($ro
 $account=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value='S-1-5-21-1-2-3-1001'};Description='owned diagnostic';Enabled=$true}
 $group=[pscustomobject]@{};$group|Add-Member ScriptMethod StopAndObserve {param($timeout)throw 'controlled group teardown failure'}
 $group|Add-Member ScriptMethod Dispose {}
-$child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123};$child|Add-Member ScriptMethod Dispose {}
-$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
+$child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123};$child|Add-Member ScriptMethod Dispose {}; $child|Add-Member ScriptMethod DrainHostedObserver {param($milliseconds)return $true}
+$hostedDesktop=$null;$stationRestored=$null;$observerDrained=$null;$password=$null;$disabled=$false;$settled=$false;$failure='original observation refusal';$observation=$null
 $actualProfile=$null;$registeredProfile=$null;$remaining=$null;$rootExited=$null
 $cleanupFailures=[Collections.Generic.List[string]]::new()
 function Get-LocalUser {param($SID)if($SID.Value -cne $account.SID.Value){throw 'Wrong cleanup SID'};return $account}
@@ -361,7 +361,7 @@ $end=$source.IndexOf('        public IntPtr MainWindowHandle', $begin)
 if($begin -lt 0 -or $end -le $begin){throw 'Actual lookup boundary differs'}
 $method=$source.Substring($begin,$end-$begin)
 $responseBegin=$source.IndexOf('        public bool Responding {')
-$responseEnd=$source.IndexOf('        public bool CloseMainWindow', $responseBegin)
+$responseEnd=$source.IndexOf('        public bool HostedResponding', $responseBegin)
 if($responseBegin -lt 0 -or $responseEnd -le $responseBegin){throw 'Actual response boundary differs'}
 $response=$source.Substring($responseBegin,$responseEnd-$responseBegin)
 $harness=@'
@@ -448,3 +448,176 @@ if([InertProbeWindow]::Calls -ne 4){throw 'Native hide/show sequence incomplete'
     assert.match(result, /own-window show and refusal passed/u);
   },
 );
+
+void test(
+  "hosted proposal preserves station ACEs and restricts the exact candidate SID without inheritance",
+  { skip: process.platform !== "win32" },
+  () => {
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
+$original=[Security.AccessControl.RawSecurityDescriptor]::new('O:SYG:SYD:(A;;GA;;;SY)(A;;GA;;;BU)')
+$bytes=[byte[]]::new($original.BinaryLength);$original.GetBinaryForm($bytes,0)
+$sid='S-1-5-21-1-2-3-1001'
+$proposed=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)
+$actual=[Security.AccessControl.RawSecurityDescriptor]::new($proposed,0)
+if($actual.Owner.Value -cne $original.Owner.Value -or $actual.Group.Value -cne $original.Group.Value -or $actual.DiscretionaryAcl.Count -ne 4){throw 'Original identity or ACEs lost'}
+$deny=$actual.DiscretionaryAcl[0];$allow=$actual.DiscretionaryAcl[1]
+if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd037d -or $deny.AceFlags -ne 'None' -or
+   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20002 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
+for($i=0;$i -lt 2;$i++){
+  $a=[byte[]]::new($actual.DiscretionaryAcl[$i+2].BinaryLength);$b=[byte[]]::new($original.DiscretionaryAcl[$i].BinaryLength)
+ $actual.DiscretionaryAcl[$i+2].GetBinaryForm($a,0);$original.DiscretionaryAcl[$i].GetBinaryForm($b,0)
+ if([Convert]::ToBase64String($a) -cne [Convert]::ToBase64String($b)){throw 'Unrelated ACE changed'}
+}
+$refused=$false;try{[Portcove.HostedNative.HostedDesktop]::StationProposal($proposed,$sid)|Out-Null}catch{$refused=$true}
+if(-not $refused -or [Portcove.HostedNative.HostedDesktop]::ExecutionAuthorized){throw 'Existing candidate adopted or execution authority enabled'}
+$near=[Security.AccessControl.RawSecurityDescriptor]::new('O:SYG:SYD:')
+$near.DiscretionaryAcl=[Security.AccessControl.RawAcl]::new(2,420)
+$everyone=[Security.Principal.SecurityIdentifier]::new('S-1-1-0')
+while($near.BinaryLength+20 -le 8192){$near.DiscretionaryAcl.InsertAce($near.DiscretionaryAcl.Count,[Security.AccessControl.CommonAce]::new([Security.AccessControl.AceFlags]::None,[Security.AccessControl.AceQualifier]::AccessAllowed,0x20002,$everyone,$false,$null))}
+$large=[byte[]]::new($near.BinaryLength);$near.GetBinaryForm($large,0)
+$refused=$false;try{[Portcove.HostedNative.HostedDesktop]::StationProposal($large,$sid)|Out-Null}catch{if($_.Exception.ToString() -notmatch 'proposal exceeds recovery bound'){throw};$refused=$true}
+if(-not $refused){throw 'Oversized postimage admitted before station write'}
+'actual in-memory station proposal passed; no desktop/account/ACL mutation'
+`);
+    assert.match(result, /actual in-memory station proposal passed/u);
+  },
+);
+
+void test("trusted hosted observer attaches a dedicated thread and refuses hidden, unresponsive or replaced windows", () => {
+  const launcher = fileURLToPath(new URL("./native-qualification-account.cs.txt", import.meta.url));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$source=[IO.File]::ReadAllText('${launcher.replaceAll("'", "''")}')
+$begin=$source.IndexOf('        public bool HostedResponding {')
+$end=$source.IndexOf('        public bool CloseMainWindow()', $begin)
+if($begin -lt 0 -or $end -le $begin){throw 'Actual observer boundary missing'}
+$method=$source.Substring($begin,$end-$begin)
+$harness=@'
+using System;
+using System.Threading;
+using System.Runtime.InteropServices;
+public static class Native {
+ public static int ObserverThread, CallerThread;
+ public static bool Hidden, Silent, Replaced, Input, Slow, Attached=true;
+ public static bool SetThreadDesktop(IntPtr desktop){ObserverThread=Thread.CurrentThread.ManagedThreadId;return Attached;}
+ public static void RequireNonInputDesktop(IntPtr desktop){if(Input)throw new Exception("input desktop");}
+ public static void GetWindowThreadProcessId(IntPtr window,out uint pid){pid=Replaced?8u:7u;}
+ public static bool IsWindowVisible(IntPtr window){return !Hidden;}
+ public static Exception Error(string operation){return new Exception(operation);}
+ public static IntPtr SendMessageTimeoutW(IntPtr window,uint message,UIntPtr first,IntPtr second,uint flags,uint timeout,out UIntPtr result){
+  if(ObserverThread==CallerThread || message!=0 || flags!=0x23 || timeout!=1000)throw new Exception("Observer/message boundary differs");
+  if(Slow)Thread.Sleep(2300);
+  result=UIntPtr.Zero;return Silent?IntPtr.Zero:new IntPtr(1);
+ }
+}
+public class Observer {
+ IntPtr desktop=new IntPtr(99); uint pid=7; Thread hostedObserver;
+ public bool HasExited;
+ public string LastResponseInspection;
+ IntPtr FindWindow(uint target){return Native.Hidden?IntPtr.Zero:new IntPtr(42);}
+__METHOD__
+}
+'@
+Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method)
+[Native]::CallerThread=[Threading.Thread]::CurrentThread.ManagedThreadId
+$observer=[Observer]::new()
+if(-not $observer.HostedResponding -or $observer.LastResponseInspection -notmatch '^42:1:'){throw 'Actual observer positive control failed'}
+[Native]::Slow=$true;$refused=$false
+try{[Observer].GetProperty('HostedResponding').GetValue($observer)|Out-Null}catch{if($_.Exception.ToString() -notmatch 'exceeded two seconds'){throw};$refused=$true}
+if(-not $refused -or -not $observer.DrainHostedObserver(5000)){throw 'Observer deadline/drain was not enforced'}
+[Native]::Slow=$false
+foreach($flag in @('Hidden','Silent','Replaced')){
+ [Native].GetField($flag).SetValue($null,$true)
+ if($observer.HostedResponding){throw 'Invalid window accepted'}
+ [Native].GetField($flag).SetValue($null,$false)
+}
+$observer.HasExited=$true;if($observer.HostedResponding){throw 'Exited root accepted'};$observer.HasExited=$false
+[Native]::Input=$true;$refused=$false;try{[Observer].GetProperty('HostedResponding').GetValue($observer)|Out-Null}catch{$refused=$true}
+if(-not $refused){throw 'Input desktop accepted'}
+[Native]::Input=$false;[Native]::Attached=$false;$refused=$false;try{[Observer].GetProperty('HostedResponding').GetValue($observer)|Out-Null}catch{$refused=$true}
+if(-not $refused){throw 'Failed thread attachment accepted'}
+'actual dedicated observer controlled outcomes passed; no actual GUI acceptance'
+`);
+  assert.match(result, /actual dedicated observer controlled outcomes passed/u);
+});
+
+void test(
+  "actual Windows access check enforces candidate deny against generic group grants",
+  { skip: process.platform !== "win32" },
+  () => {
+    const launcher = fileURLToPath(
+      new URL("./native-qualification-account.cs.txt", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${launcher.replaceAll("'", "''")}'))
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}'))
+$type=[Portcove.NativeQualification.AccountLauncher].Assembly.GetType('Portcove.NativeQualification.Native')
+$flags=[Reflection.BindingFlags]'NonPublic,Static'
+$duplicate=$type.GetMethod('DuplicateToken',$flags);$check=$type.GetMethod('GrantedRights',$flags);$close=$type.GetMethod('CloseHandle',$flags)
+$identity=[Security.Principal.WindowsIdentity]::GetCurrent();$sid=$identity.User.Value
+$arguments=[object[]]@($identity.Token,2,[IntPtr]::Zero)
+if(-not $duplicate.Invoke($null,$arguments)){throw 'Actual token duplication failed'}
+$token=$arguments[2]
+try{
+ foreach($station in @($true,$false)){
+  $sddl=if($station){'O:SYG:SYD:(A;;GA;;;WD)'}else{'O:SYG:SYD:P(A;;0x200c7;;;'+$sid+')'}
+  $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($sddl);$bytes=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($bytes,0)
+  if($station){$bytes=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)}
+  $granted=$check.Invoke($null,[object[]]@($bytes,$token,$station))
+  if($granted -ne $(if($station){0x20002}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
+ }
+}finally{$close.Invoke($null,@($token))|Out-Null;$identity.Dispose()}
+'actual AccessCheck synthetic-descriptor controls passed; no object mutation'
+`);
+    assert.match(result, /actual AccessCheck synthetic-descriptor controls passed/u);
+  },
+);
+
+void test("actual station recovery refuses concurrent drift and retains failed restoration outcomes", () => {
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+$source=[IO.File]::ReadAllText('${primitive.replaceAll("'", "''")}')
+$source=$source.Replace('[DllImport("user32", SetLastError=true)] static extern bool GetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor, uint length, out uint needed);',@'
+public static byte[] TestAcl;
+public static int Writes, WriteFailure;
+public static bool ReadbackDrift;
+static bool GetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor, uint length, out uint needed) {
+ needed=(uint)TestAcl.Length;
+ if(descriptor==null)return false;
+ Array.Copy(TestAcl,descriptor,TestAcl.Length);
+ if(ReadbackDrift && Writes>0)descriptor[0]=9;
+ return true;
+}
+'@)
+$source=$source.Replace('[DllImport("user32", SetLastError=true)] static extern bool SetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor);',@'
+static bool SetUserObjectSecurity(IntPtr handle, ref uint information, byte[] descriptor) {
+ Writes++;
+ if(WriteFailure==1)return false;
+ TestAcl=(byte[])descriptor.Clone();
+ return WriteFailure!=2;
+}
+'@)
+$source=$source.Replace('[DllImport("user32", SetLastError=true)] static extern bool CloseWindowStation(IntPtr station);','static bool CloseWindowStation(IntPtr station){return true;}')
+Add-Type -TypeDefinition $source
+$flags=[Reflection.BindingFlags]'NonPublic,Instance'
+$before=[byte[]]::new(20);$before[0]=1;$applied=[byte[]]::new(20);$applied[0]=2;$drift=[byte[]]::new(20);$drift[0]=3
+foreach($case in @('unchanged','restore','drift','write-before','write-after','readback')){
+ $value=[Portcove.HostedNative.HostedDesktop]::new();$type=$value.GetType()
+ foreach($entry in @{station=[IntPtr]42;before=$before;applied=$applied;changed=$true}.GetEnumerator()){$type.GetField($entry.Key,$flags).SetValue($value,$entry.Value)}
+ [Portcove.HostedNative.HostedDesktop]::TestAcl=if($case -ceq 'unchanged'){$before}elseif($case -ceq 'drift'){$drift}else{$applied}
+ [Portcove.HostedNative.HostedDesktop]::Writes=0
+ [Portcove.HostedNative.HostedDesktop]::WriteFailure=if($case -ceq 'write-before'){1}elseif($case -ceq 'write-after'){2}else{0}
+ [Portcove.HostedNative.HostedDesktop]::ReadbackDrift=$case -ceq 'readback'
+ $refused=$false;try{$value.Dispose()}catch{$refused=$true}
+ $success=$case -in @('unchanged','restore')
+ if($refused -eq $success -or $value.Restored -ne $success){throw ('False restoration status: '+$case)}
+ if($case -in @('unchanged','drift') -and [Portcove.HostedNative.HostedDesktop]::Writes -ne 0){throw 'Unexpected station write'}
+ if($case -ceq 'drift' -and [Portcove.HostedNative.HostedDesktop]::TestAcl[0] -ne 3){throw 'Concurrent ACL overwritten'}
+}
+'actual restoration logic controlled outcomes passed; native object calls replaced'
+`);
+  assert.match(result, /actual restoration logic controlled outcomes passed/u);
+});
