@@ -1,3 +1,4 @@
+import { validateChangedPath as normalizePath } from "./repository-path.mts";
 import type { ExecFileSyncOptions } from "node:child_process";
 import type {
   ValidationChange,
@@ -34,20 +35,6 @@ const fullSha = /^[a-f0-9]{40}$/u;
 export { isInformationalPath };
 export { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
 import { fastPlatformMatrix, qualificationMatrices } from "./validation-platforms.mts";
-
-function normalizePath(value: unknown) {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.includes("\0") ||
-    value.includes("\\") ||
-    value.startsWith("/") ||
-    value.split("/").includes("..")
-  ) {
-    throw new Error(`unsafe changed path: ${JSON.stringify(value)}`);
-  }
-  return value;
-}
 
 export function parseRawDiff(buffer: unknown): (ValidationChange & { score: string | null })[] {
   if (!Buffer.isBuffer(buffer)) throw new Error("raw diff must be a Buffer");

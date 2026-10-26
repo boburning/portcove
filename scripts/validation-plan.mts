@@ -1,3 +1,4 @@
+import { validateChangedPath as normalizedPath } from "./repository-path.mts";
 import { gzipSync, gunzipSync } from "node:zlib";
 import type { NextestProof } from "./nextest-equivalence.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
@@ -215,6 +216,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/select-ci-plan.mts",
   "scripts/validation-plan.mts",
+  "scripts/repository-path.mts",
   "scripts/workflow-provenance.mts",
 ]);
 
@@ -626,20 +628,6 @@ function explicitPlatformOwnership(file: string) {
   if (/(?:^|[/_.-])macos(?:[/_.-]|$)|\.dmg$/u.test(file))
     platforms.push("macos-aarch64", "macos-x86_64");
   return platforms;
-}
-
-function normalizedPath(value: unknown) {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.includes("\0") ||
-    value.includes("\\") ||
-    value.startsWith("/") ||
-    value.split("/").includes("..")
-  ) {
-    throw new Error(`unsafe changed path: ${JSON.stringify(value)}`);
-  }
-  return value;
 }
 
 function add<Value>(target: Set<Value>, ...values: readonly Value[]) {

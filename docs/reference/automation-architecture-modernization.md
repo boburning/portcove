@@ -749,3 +749,146 @@ Just temporary environment; a supported native task/socket fix must precede a
 new full invalidation experiment. Existing Windows Rust profiling stays with
 #3661. These are bounded resume conditions, not a new cleanup campaign or beta gate.
 #1104 and #2420 retain their broader scopes; #1667 and completed #3662 are unchanged.
+
+## Final consolidation pass, October 26, 2026
+
+This pass starts at refreshed main `089aafd213dbe7f04db43df768d85d5a804504e0`.
+[#1104](https://github.com/boburning/portcove/issues/1104) owns the bounded
+feedback/ownership delivery; [#2420](https://github.com/boburning/portcove/issues/2420)
+continues to own the testing audit. Neither broader issue is completed by this
+pass. The existing completed owners and frozen #1667 scope are unchanged.
+
+### Completion matrix
+
+| Workstream                               | Outcome                                                                   | Evidence and stopping condition                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser trace/context/resource lifecycle | Retained after evidence-based evaluation                                  | Installed Vite+ 1.3.0, Vitest 5.0.5 and Playwright 1.64.1 retain the existing per-case chunk export. The installed provider still calls `tracing.stopChunk({ path })`; supported [trace options](https://vitest.dev/config/browser/trace) do not establish a replacement satisfying the prior SIGTERM and cached-font controls. Preserve four workers, isolation and all diagnostics. Revisit only a concrete upstream-supported replacement passing both controls. |
+| Remaining browser-only cost              | Implemented                                                               | Five expanded recovery-review SSR cases join the existing feature-owned Node file. Real disclosure, refresh, cleanup and interaction cases stay in Chromium. Complete selected name/outcome reconciliation and a controlled wrong-label failure survive.                                                                                                                                                                                                            |
+| Script decision duplication              | Implemented                                                               | One strict changed-path admission in existing `repository-path.mts` replaces identical implementations in CI raw-Git parsing and the validation planner; every caller keeps the same error/return behavior. Permissive local spelling normalization stays separate.                                                                                                                                                                                                 |
+| Workflow test machinery                  | Implemented                                                               | One parsed immutable CI document replaces repeated full parses. Existing `workflowJobSource` replaces 19 independently spelled job-selection slices across integration/frontend/native/Rust contracts. Fresh projections, aliases, malformed/duplicate YAML and exact owner boundaries retain controls. No new runner or cache is introduced.                                                                                                                       |
+| Nested task-gate execution               | Implemented                                                               | The existing real Vite control now declares an isolated workspace and always runs beneath an adversarial parent. This prevents storage-owned temp paths from launching the real frontend suite; missing-marker counterexample fails.                                                                                                                                                                                                                                |
+| Workflow megasuite ownership             | Already satisfied by existing work, with bounded consolidation above      | Five existing integration/frontend/Rust/native/release files already separate responsibilities. Their assertions and registry/CI/Just routes remain. This does not complete all Audit 28 recommendations.                                                                                                                                                                                                                                                           |
+| Source-sliced native/release tests       | Retained after evidence-based evaluation                                  | Real browser-script serialization, fixed controller wiring, process cleanup and custody tests exercise different boundaries. No equivalent importable replacement was demonstrated in this bounded pass. Audits 31/32 retain their acceptance.                                                                                                                                                                                                                      |
+| Ordinary/local/hosted validation         | Retained after evidence-based evaluation                                  | `validation-plan` owns coarse impact, protected/audit inputs and conservative fallback; `ordinary-validation` adds exact executable/test obligations; `local-validation` owns discovery/preflight and receipts; `ci-baseline` consumes these for hosted execution. Their similar lists and launch lines do not establish equivalent authorities. Receipt execution additionally invalidates stale receipts and rehashes source before success.                      |
+| Catalog health and release controllers   | Retained after evidence-based evaluation                                  | Health inventory, request accounting and retained history differ from admission. PR delivery already uses the shared GitHub client; remaining checks bind exact PR/check/job identities. Native/coordinator launch closures have different command allowlists, controller identities and original/continuation deadlines. No demonstrated equivalent protection is collapsed.                                                                                       |
+| Roadmap compatibility exports            | Retained after evidence-based evaluation                                  | Actual authoring, provenance, discovery and test consumers still use CLI exports. The earlier runtime cycle remains removed; retiring public bindings merely to change counts would discard compatibility.                                                                                                                                                                                                                                                          |
+| Rust/CI feedback and reservations        | Retained after evidence-based evaluation                                  | Reuse #3661 and existing one-build/disjoint eight-worker archives. The inspected newer Windows run has a failed execution partition, so it is unsuitable for a safe rebalance claim; Audits 17/24 retain stable-baseline, repeated timing and causal contention prerequisites. No new build, reservation, capacity or orchestrator.                                                                                                                                 |
+| Static caching / final framework choice  | Retained after evidence-based evaluation                                  | The installed native cache tracker still fails at a supported long storage-temp path with `path must be shorter than SUN_LEN`, while the same uncached command succeeds. A shorter-path probe runs but refuses reuse because it read/wrote its own IPC socket. Keep static checks uncached; require a native fix and complete invalidation/Just evidence before reconsideration. Earlier framework decisions stand.                                                 |
+| Reporting, skip routes and coverage      | Already satisfied at existing bounded scopes; broader acceptance retained | Existing actual Node/frontend observations and selected/executed reconciliation are reused, with explicit skips. This pass adds no second inventory and does not claim Audits 12/58/59/63 complete.                                                                                                                                                                                                                                                                 |
+
+### Architecture before and after
+
+```text
+Before                                    After
+CI raw paths -> strict validator A         CI raw paths ---+
+Plan paths   -> strict validator B         Plan paths ------+-> repository-path.validateChangedPath
+Workflow fixtures -> repeated YAML parse  Workflow fixtures -> one immutable parsed document
+Job tests -> independent string slices    Job tests -> existing AST-bounded job selector
+Recovery markup -> per-case browser trace Recovery markup -> existing fresh Node project
+Recovery interactions -> Chromium         Recovery interactions -> Chromium
+```
+
+The retired machinery is the duplicate strict path implementation, 19 bespoke
+job-selection expressions and repeated full-document parse/conversion work.
+No implementation was relocated into a new module. The shared path authority
+retains protected-policy impact and the complete existing selection/receipt
+regressions. Missing, changed, deleted, mixed/shared/unknown and both rename sides
+continue through the existing conservative selector tests.
+
+One immutable workflow source owns both source ranges and parsed values. Every
+job value is cloned before exposing it to a test, so mutation in one test cannot
+alter another's oracle. Independent review caught nested/whole-job YAML alias
+regressions in the first node-projection implementation; the repair retains
+whole-document alias resolution and adds both compatibility controls. Original
+review findings are credited; passing current main alone would not detect them.
+
+### Net simplification
+
+The refreshed baseline has 930 tracked root `scripts/` files, 168 Desktop script
+files and 387 root release-prefixed files. Counts include tests and fixtures and
+are not independent responsibilities. This pass removes/adds **zero maintained
+implementation files**, dependencies, workflows, package commands or frameworks.
+It consolidates two strict path implementations into one existing module and
+retires repeated YAML/job-selection machinery. No compatibility CLI is retired
+and no additional dependency cycle is claimed removed. The earlier Roadmap cycle
+removal remains credited separately.
+
+Five tests move between two existing files with unchanged expanded names,
+assertions and fixture values. File/project-derived IDs intentionally change;
+case names/outcomes reconcile exactly. The only added file is the dated
+[structured evidence](../qualification/automation-final-2026-10-26.json), separate
+from maintained automation. Detailed production/test/documentation line deltas
+and final remote delivery identities belong to the bounded PR receipt; a smaller
+file or changed task graph is not treated as runtime evidence.
+
+### Performance and validation
+
+The structured packet records five fresh-process workflow-fixture imports before
+and after, the complete four-file frontend case union, and the controlled failure
+with original observation limits. Initial import medians were 1,470.018 ms before
+and 133.109 ms after; these initial post-change samples precede the reviewed alias
+repair. Final repaired samples have a 138.825 ms median and are separately recorded in the packet. Sequential
+before/after sampling is not an interleaved host-contention experiment. The same
+five workflow suites observed 10.435 s before and 9.080 s initially after, including
+one existing platform skip and one new projection-isolation control. A single
+pair does not establish hosted CI improvement.
+
+Four selected frontend files retain **59 passes, zero skips**. Runner duration
+was 6.05 s before versus 4.98 s after; guarded duration was 7.781 versus 6.641 s,
+with 6/7 ms queueing. This warmed single pair does not isolate successful full-suite
+savings. Moving five pure SSR cases retires five browser trace exports, not five
+assertions or a browser-specific obligation.
+
+A reversible wrong unknown-recovery-label mutation fails the same three expanded
+neutral-label assertions in both placements. First failed case observation was
+4.677 s before versus 2.318 s after; guarded outer wall was 5.378 versus 4.309 s.
+Both commands exit 1 and all modified source/test bytes are restored exactly.
+These failures are intentional counterexamples, not suppressed test failures or
+universal time-to-failure guarantees. Original failure diagnostics remain retained.
+
+The current hosted inspection uses [CI 40375581507 attempt 1](https://github.com/boburning/portcove/actions/runs/40375581507),
+source `c7a89e8eb9588b4808d3c409587cd6b1e87b21d1`: workspace compile/archive step
+178 s, independent transport job 221 s; successful Windows execution steps include
+168 s and 312 s, while partition 3 failed after 332 s. These are distinct step/job
+observations from another source, not a current-main baseline or a comparable
+speedup. The failed run stays failed. The existing #3661 cold/warm experiment,
+cache ownership, required contexts and #2420's baseline prerequisites stand.
+
+The full assignment stops at these concrete implementations and retained
+boundaries. Further browser trace changes need an upstream-supported solution
+passing both historical negative controls; Rust rebalance/reservation changes
+need a stable passing baseline and comparable causal evidence. Broad audit,
+installed/native, release, signing and publication acceptance remain separate.
+
+The first complete local plan correctly refused a syntax receipt when the evidence
+sidecar changed during execution. That source-stability failure remains retained;
+finish evidence edits before the frozen rerun. It is not a product or test-assertion
+failure, and the refused receipt supplies no validation credit.
+
+The frozen complete selected run retained 352 passes, one existing platform skip
+and one real task-gate fixture timeout at 15.021 s. A finite 30 s child experiment
+also timed out at 30.021 s; increasing budgets did not repair the cause and all
+experimental budget changes were removed. Storage-owned `TMPDIR` put the fixture
+inside the repository. Vite discovered the parent workspace and executed actual
+Portcove unit/browser tasks instead of the injected tiny fixture tasks. The owned
+leaked browser root was cancelled after exact PID/start/cwd/command verification;
+its wrapper, supervisor, reaper and browser descendants disappeared.
+
+The fixture now declares its own empty workspace. Its existing three real Vite
+scenarios always nest inside a disposable adversarial parent workspace, preventing
+a benign external temp directory from hiding this regression. All stage/order/exit
+assertions and the original 15 s child deadline remain. The actual storage-wrapped
+control passes in 1.621 s; the adversarial-parent variant passes in 1.968 s.
+Removing only the child workspace marker makes the existing assertion fail quickly
+against the inert parent's exit-97 task, without launching product tests. The
+counterexample restores the test bytes exactly. This is a demonstrated isolation
+repair and avoided accidental full execution, not a new test scheduler or a
+whole-suite performance claim.
+
+The final frozen complete local plan passes in 41.4 s: 17 selected Node files
+reconcile to 353 passes and one existing platform skip, followed by content checks,
+production build and both affected frontend files (nine passes, zero skips).
+Strict checks cover 1,360 files with no warnings/lint/type errors. Independent
+non-writing review cleared the final isolation repair, aliases, path policy,
+assertion/identity preservation and report. These local results do not replace
+exact-head hosted checks or guarded merge/readback.

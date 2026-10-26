@@ -5,3 +5,18 @@ export function normalizeRepositoryPath(value: string) {
     throw new Error(`unsafe repository path: ${value}`);
   return normalized;
 }
+
+/** Strict Git/plan path admission; do not normalize untrusted changed paths. */
+export function validateChangedPath(value: unknown) {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.includes("\0") ||
+    value.includes("\\") ||
+    value.startsWith("/") ||
+    value.split("/").includes("..")
+  ) {
+    throw new Error(`unsafe changed path: ${JSON.stringify(value)}`);
+  }
+  return value;
+}

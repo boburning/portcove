@@ -13,12 +13,21 @@ export const workflow = await readFile(
   "utf8",
 );
 
-export function workflowJob(job: string) {
-  const settings: unknown = parseDocument(workflow, { uniqueKeys: true }).toJS();
+function parseWorkflow(source: string) {
+  const document = parseDocument(source, { uniqueKeys: true });
+  assert.equal(document.errors.length, 0, "workflow YAML must parse without errors");
+  assert.ok(isMap(document.get("jobs", true)), "workflow jobs must be a mapping");
+  return document;
+}
+const workflowDocument = parseWorkflow(workflow);
+const workflowSettings: unknown = workflowDocument.toJS();
+
+export function workflowJob(job: string, source = workflow) {
+  const settings: unknown = source === workflow ? workflowSettings : parseWorkflow(source).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.jobs));
   const owner = settings.jobs[job];
   assert.ok(isRecord(owner) && Array.isArray(owner.steps));
-  return owner;
+  return structuredClone(owner);
 }
 export function workflowStep(job: string, name: string) {
   const owner = workflowJob(job);
@@ -76,9 +85,7 @@ export const windowsQualificationRunner = await readFile(
 );
 
 export function workflowJobSource(source: string, name: string) {
-  const document = parseDocument(source, { uniqueKeys: true });
-  assert.equal(document.errors.length, 0, "workflow YAML must parse without errors");
-  assert.ok(isMap(document.get("jobs", true)), "workflow jobs must be a mapping");
+  const document = source === workflow ? workflowDocument : parseWorkflow(source);
   const job = document.getIn(["jobs", name], true);
   if (job === undefined) return "";
   assert.ok(isMap(job) && job.range, `workflow job must be a mapping: ${name}`);

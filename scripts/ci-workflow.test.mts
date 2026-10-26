@@ -79,6 +79,32 @@ void test("workflow job selection rejects malformed or duplicate YAML", () => {
     assert.throws(() => workflowJobSource(source, "owner"));
 });
 
+void test("workflow job projections preserve anchored step and job aliases", () => {
+  for (const source of [
+    "steps: &steps [{run: protected-check}]\njobs: {owner: {steps: *steps}}",
+    "template: &template {steps: [{run: protected-check}]}\njobs: {owner: *template}",
+  ]) {
+    const expected = { steps: [{ run: "protected-check" }] };
+    assert.deepEqual(workflowJob("owner", source), expected);
+    const changed = workflowJob("owner", source);
+    assert.ok(Array.isArray(changed.steps));
+    changed.steps.length = 0;
+    assert.deepEqual(workflowJob("owner", source), expected);
+  }
+});
+
+void test("workflow projections cannot mutate another contract's fixture", () => {
+  const first = workflowJob("catalog_full");
+  assert.ok(Array.isArray(first.steps));
+  const expected = structuredClone(first);
+  first.steps.length = 0;
+  assert.deepEqual(workflowJob("catalog_full"), expected);
+  assert.match(
+    workflowJobSource(workflow, "catalog_full"),
+    /Verify repository and release contracts/u,
+  );
+});
+
 void test("missing retired jobs remain absent", () => {
   assert.equal(workflowJobSource("jobs: {owner: {steps: []}}", "retired"), "");
   assert.equal(fastPlatform, "");
@@ -119,9 +145,7 @@ void test("every CI job has a finite envelope above its declared step limits", (
 
 void test("dependency lanes run actual security review without a custom age audit", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
-    const block = requiredFixture(
-      requiredFixture(workflow.split("  " + name + ":")[1]).split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0],
-    );
+    const block = workflowJobSource(workflow, name);
     assert.match(block, /actions\/dependency-review-action@/u);
     assert.match(block, /fail-on-severity: high/u);
     assert.doesNotMatch(
@@ -161,9 +185,7 @@ void test("application release records run after the maintained SemVer dependenc
 });
 
 void test("selected contracts install their desktop-owned dependencies before fast contract execution", () => {
-  const block = requiredFixture(
-    requiredFixture(workflow.split("  fast_catalog:")[1]).split(/\n  [a-z_]+:/u)[0],
-  );
+  const block = workflowJobSource(workflow, "fast_catalog");
   const setup = block.indexOf(
     "pnpm --filter portcove-desktop-ui install --frozen-lockfile --ignore-scripts",
   );
@@ -506,7 +528,7 @@ void test("ordinary tooling contracts select the workflow contract and full CI r
     checkout: "b".repeat(40),
   });
   assert.ok(baselineContractTests(p).includes("scripts/ci-workflow.test.mts"));
-  assert.match(requiredFixture(workflow.split("  catalog_full:")[1]), /ci-workflow\.test\.mts/);
+  assert.match(workflowJobSource(workflow, "catalog_full"), /ci-workflow\.test\.mts/);
 });
 
 void test("native repository contracts provision pinned Rust before metadata or containment execution", () => {
@@ -526,7 +548,7 @@ void test("extracted validation evidence suite remains in hosted and repository 
     /scripts\/validation-evidence\.test\.mts/u,
   );
   assert.match(
-    requiredFixture(workflow.split("  catalog_full:")[1]),
+    workflowJobSource(workflow, "catalog_full"),
     /scripts\/validation-evidence\.test\.mts/u,
   );
   assert.match(

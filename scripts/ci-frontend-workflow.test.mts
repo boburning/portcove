@@ -22,6 +22,7 @@ import {
   requiredFixture,
   workflow,
   workflowJob,
+  workflowJobSource,
   rustQuality,
   frontend,
   dependencyReview,
@@ -244,9 +245,7 @@ void test("maintained first-party sources default to checked TypeScript", () => 
 });
 
 void test("selected full Fallow runs once before browser work and retains successful evidence", async () => {
-  const full = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split("  frontend:")[0],
-  );
+  const full = workflowJobSource(workflow, "frontend_full");
   assert.equal(full.match(/run: node scripts\/run-fallow\.mts/g)?.length, 1);
   assert.ok(full.indexOf("run-fallow.mts") < full.indexOf("pnpm browser:bootstrap"));
   assert.match(full, /name: Retain original Fallow reports\n +if: always\(\)/);
@@ -276,9 +275,7 @@ void test("manual Fallow assistance is isolated from exhaustive audit and retain
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
-  const selected = requiredFixture(
-    requiredFixture(deep.split("  fallow_analysis:")[1]).split("  audit:")[0],
-  );
+  const selected = workflowJobSource(deep, "fallow_analysis");
   assert.match(selected, /if: inputs.operation == 'fallow'/);
   assert.match(selected, /fetch-depth: 0/);
   assert.match(selected, /node scripts\/run-fallow\.mts review "\$COMPARISON_BASE"/);
@@ -294,9 +291,7 @@ void test("manual Fallow assistance is isolated from exhaustive audit and retain
 });
 
 void test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
-  const block = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0],
-  );
+  const block = workflowJobSource(workflow, "frontend_full");
   assert.match(block, /runs-on: ubuntu-22\.04/u);
   assert.match(
     block,
@@ -311,12 +306,8 @@ void test("native frontend harness retains the qualified Linux target and a fail
 });
 
 void test("full frontend qualification retains native scenario contracts; ordinary CI uses selected units", () => {
-  const full = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split("  frontend:")[0],
-  );
-  const fast = requiredFixture(
-    requiredFixture(workflow.split("  fast_frontend:")[1]).split("  fast_catalog:")[0],
-  );
+  const full = workflowJobSource(workflow, "frontend_full");
+  const fast = workflowJobSource(workflow, "fast_frontend");
   assert.match(full, /desktop-scenarios\.test\.mts/);
   assert.match(full, /--context-preflight/);
   assert.match(fast, /ci-baseline\.mts frontend/);
@@ -324,9 +315,7 @@ void test("full frontend qualification retains native scenario contracts; ordina
 });
 
 void test("ordinary formatting and lint have one quality owner; deep analyzers stay in qualification", () => {
-  const formatting = requiredFixture(
-    requiredFixture(workflow.split("  fast_rust_quality:")[1]).split("  fast_frontend:")[0],
-  );
+  const formatting = workflowJobSource(workflow, "fast_rust_quality");
   assert.match(formatting, /frontend_tools == 'true'/);
   assert.doesNotMatch(formatting, /format:check/);
   assert.match(formatting, /cargo fmt/);
@@ -335,9 +324,7 @@ void test("ordinary formatting and lint have one quality owner; deep analyzers s
   assert.match(formatting, /PORTCOVE_CI_METRICS_DIR:/);
   assert.match(formatting, /ci-metrics\.mts summarize/);
   assert.doesNotMatch(formatting, /cargo clippy|lint:oxlint|run-fallow/);
-  const frontend = requiredFixture(
-    requiredFixture(workflow.split("  fast_frontend:")[1]).split("  fast_catalog:")[0],
-  );
+  const frontend = workflowJobSource(workflow, "fast_frontend");
   assert.doesNotMatch(frontend, /format:check|pnpm lint/);
 });
 
@@ -365,22 +352,15 @@ void test("frontend keeps deterministic product gates and delegates vulnerabilit
 });
 
 void test("full frontend qualification provisions browser artifacts before composition", async () => {
-  const full = requiredFixture(
-    requiredFixture(workflow.split("  frontend_full:")[1]).split("  frontend:")[0],
-  );
+  const full = workflowJobSource(workflow, "frontend_full");
   const provision = full.indexOf("pnpm browser:bootstrap"),
     run = full.indexOf("run frontend:verify");
   assert.ok(provision >= 0 && run > provision);
   assert.match(full, /browser-traces-full/);
   assert.doesNotMatch(full, /work\/browser-traces/);
-  const jobBoundary = /\n {2}[a-zA-Z][a-zA-Z_-]*:/u;
-  const fast = requiredFixture(
-    requiredFixture(workflow.split("  fast_frontend:")[1]).split(jobBoundary)[0],
-  );
+  const fast = workflowJobSource(workflow, "fast_frontend");
   assert.match(fast, /browser-runtime.mts bootstrap/);
-  const contributor = requiredFixture(
-    requiredFixture(workflow.split("  frontend_portability:")[1]).split(jobBoundary)[0],
-  );
+  const contributor = workflowJobSource(workflow, "frontend_portability");
   const contributorProvision = contributor.indexOf("pnpm --dir apps/desktop browser:bootstrap");
   assert.ok(contributorProvision >= 0);
   assert.ok(contributor.indexOf("pnpm verify:frontend") > contributorProvision);
@@ -390,9 +370,7 @@ void test("full frontend qualification provisions browser artifacts before compo
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
-  const audit = requiredFixture(
-    requiredFixture(deep.split("  audit:")[1]).split("  local_check:")[0],
-  );
+  const audit = workflowJobSource(deep, "audit");
   const install = audit.indexOf("run: pnpm install --frozen-lockfile");
   const auditGates = audit.indexOf("name: Run deterministic gates and structural audit");
   assert.ok(install >= 0 && auditGates > install);
@@ -662,9 +640,23 @@ void test("routine checks retain architecture enforcement but make cycles option
 
 void test("full frontend tasks stop after a failed unit stage and propagate browser failures", async (t) => {
   const { default: configuration } = await import("../vite.config.ts");
-  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-frontend-task-gate-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  // A synthetic parent catches accidental execution of a contributor's real tasks.
+  await writeFile(path.join(parent, "package.json"), '{"private":true,"type":"module"}');
+  await writeFile(path.join(parent, "pnpm-workspace.yaml"), "packages: []\n");
+  await writeFile(path.join(parent, "foreign.mjs"), "process.exit(97);\n");
+  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
+  await writeFile(
+    path.join(parent, "vite.config.ts"),
+    `export default ${JSON.stringify({
+      run: { tasks: { "frontend:tests": { command: `${executable} foreign.mjs`, cache: false } } },
+    })}`,
+  );
+  const root = path.join(parent, "fixture");
+  await mkdir(root);
   await writeFile(path.join(root, "package.json"), '{"private":true,"type":"module"}');
+  await writeFile(path.join(root, "pnpm-workspace.yaml"), "packages: []\n");
   await writeFile(
     path.join(root, "leaf.mjs"),
     `
@@ -674,7 +666,6 @@ void test("full frontend tasks stop after a failed unit stage and propagate brow
     process.exit(readFileSync("failure.txt", "utf8") === stage ? 17 : 0);
   `,
   );
-  const executable = JSON.stringify(process.execPath.replaceAll("\\", "/"));
   await writeFile(
     path.join(root, "vite.config.ts"),
     `export default ${JSON.stringify({
