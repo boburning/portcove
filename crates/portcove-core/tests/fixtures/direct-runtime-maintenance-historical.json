@@ -1,0 +1,208 @@
+{
+  "format_version": 1,
+  "source_commit": "521b39921ec1a85fca9f497bc55a1b059b828761",
+  "scope": "Immutable historical Direct definitions before the Road Rash/Sonic3K maintenance batch. Compatibility and old manifest tests only; current release tests must use current authored rules.",
+  "ports": [
+    {
+      "id": "road-rash-64-recompiled",
+      "name": "Road Rash 64 Recompiled",
+      "summary": "Native Road Rash 64 recompilation.",
+      "project_url": "https://github.com/linkssy2/RoadRash64Recompiled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v1.4.3",
+            "url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
+            "size": 47276827,
+            "sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
+            "published_at": "2026-10-02T05:47:21Z"
+          }
+        }
+      },
+      "source_profile": "road-rash-64",
+      "executable_hints": {
+        "windows-x86-64": [
+          "RoadRash64Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "RoadRash64Recompiled-v1.4.3-Win64/general.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/general.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/general.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/controls.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/sound.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods",
+        "RoadRash64Recompiled-v1.4.3-Win64/mod_config",
+        "RoadRash64Recompiled-v1.4.3-Win64/saves",
+        "RoadRash64Recompiled-v1.4.3-Win64/achievements.txt",
+        "RoadRash64Recompiled-v1.4.3-Win64/local-race-options.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/thrash-race-options.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/mk64-item-options.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg.tmp",
+        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg.tmp",
+        "RoadRash64Recompiled-v1.4.3-Win64/imgui.ini",
+        "RoadRash64Recompiled-v1.4.3-Win64/music",
+        "RoadRash64Recompiled-v1.4.3-Win64/race-packs",
+        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/rr64.n64.us.1.0.z64"
+      ],
+      "runtime_subdirectory": "RoadRash64Recompiled-v1.4.3-Win64",
+      "runtime_source_filename": "rr64.n64.us.1.0.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "runtime_source_hashes": {
+        "rr64.n64.us.1.0.z64": "74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73"
+      },
+      "launch_arguments": [
+        "--auto-rom",
+        "rr64.n64.us.1.0.z64",
+        "--skip-launcher"
+      ],
+      "runtime_mutable_paths": [
+        "RoadRash64Recompiled-runtime.log",
+        "traffic-events.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "road-rash-64",
+            "label": "Road Rash 64 (USA v1.0, 32 MiB) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy.",
+        "original_game_title": "Road Rash 64",
+        "artwork": {
+          "game_id": 3589,
+          "cover_id": 77133,
+          "image_id": "co1nil",
+          "image_sha256": "14e7330f273952c61a0dd9be209c2357ed9163e522eb55f4080bc5211241ed5d",
+          "game_slug": "road-rash-64",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "sonic-3-and-knuckles-recomp",
+      "name": "Sonic3KRecomp",
+      "summary": "Native Sonic & Knuckles + Sonic the Hedgehog 3 recompilation.",
+      "project_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.5.3",
+            "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
+            "size": 16694619,
+            "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+            "published_at": "2026-10-18T14:30:37Z"
+          }
+        }
+      },
+      "source_profile": "sonic-3-and-knuckles-genesis-usa-lockon",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Sonic3KRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+            "label": "Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted.",
+        "original_game_title": "Sonic 3 & Knuckles",
+        "variant_label": "Combined Sonic 3 + Sonic & Knuckles",
+        "artwork": {
+          "game_id": 11219,
+          "cover_id": 342176,
+          "image_id": "co7c0w",
+          "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
+          "game_slug": "sonic-the-hedgehog-3-and-knuckles",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "game.bin"
+      ],
+      "runtime_source_filename": "game.bin",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.bin": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "game.bin",
+        "settings.ini",
+        "rom-Sonic3K.cfg",
+        "game.srm",
+        "sonic3k-mods.ini",
+        "sonic3k-mods.ini.tmp",
+        "native_save_1.bin",
+        "native_save_2.bin",
+        "native_save_3.bin",
+        "native_save_4.bin",
+        "native_save_5.bin",
+        "native_save_6.bin",
+        "native_save_7.bin",
+        "native_save_8.bin",
+        "native_save_9.bin"
+      ],
+      "runtime_mutable_paths": [
+        "dispatch_misses.toml",
+        "floor_coverage.toml",
+        "yield_log_native.log",
+        "floor_unsafe.log",
+        "interior_label_misses.log",
+        "ramdump_native.bin",
+        "last_error.log"
+      ]
+    }
+  ]
+}

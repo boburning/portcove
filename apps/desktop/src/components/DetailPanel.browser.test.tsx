@@ -1,13 +1,125 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
 import { currentCatalogPort } from "../catalog-test-fixtures";
-import { portDefinition, portStatus } from "../test-fixtures";
+import { portDefinition, portStatus, sourceProfile, fixtureValue } from "../test-fixtures";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
+import { actions as detailActions, installRecord } from "./rendered-test-fixtures";
+import type { ReadinessBlocker, SourceHealth } from "../types";
 import "../styles/index.css";
 
 afterEach(cleanup);
+
+function installedSourceDetail(
+  id: string,
+  health: SourceHealth,
+  blockers: ReadinessBlocker[] = [],
+) {
+  const port = currentCatalogPort(id);
+  const profile = { ...sourceProfile(), id: fixtureValue(port.source_profile, "original profile") };
+  const source = {
+    profile_id: profile.id,
+    path: "C:/Player/original.bin",
+    sha256: "a".repeat(64),
+    size: 32,
+    storage_sha256: "a".repeat(64),
+    storage_size: 32,
+    updated_at: 1,
+  };
+  return {
+    port,
+    source,
+    sourceProfile: profile,
+    sourcePath: source.path,
+    setSourcePath: vi.fn(),
+    inspectSource: vi.fn(),
+    actions: { ...detailActions, launch: vi.fn() },
+    status: {
+      ...portStatus(),
+      port_id: port.id,
+      active: installRecord({ port_id: port.id }),
+      readiness: {
+        source: health,
+        launchable: blockers.length === 0,
+        pending_setup: false,
+        blockers,
+      },
+    },
+  };
+}
+
+for (const id of ["road-rash-64-recompiled", "sonic-3-and-knuckles-recomp"]) {
+  for (const width of [480, 1100]) {
+    it(`keeps explicit Play for metadata-only registered originals: ${id} at ${width}px`, async () => {
+      await page.viewport(width, 780);
+      const props = installedSourceDetail(id, "not_checked");
+      await render(<DetailPanel {...props} />);
+      expect(props.actions.launch).not.toHaveBeenCalled();
+      expect(props.inspectSource).not.toHaveBeenCalled();
+      expect(
+        page.getByRole("button", { name: "Locate game files", exact: true }).query(),
+      ).toBeNull();
+      const play = document.querySelector<HTMLButtonElement>("[data-launch-action]");
+      expect(play).not.toBeNull();
+      expect(play!.disabled).toBe(false);
+      expect(play!.textContent?.trim()).toMatch(/^(Play|Try launch)$/);
+      if (width === 1100) {
+        play!.focus();
+        await userEvent.keyboard("{Enter}");
+      } else await userEvent.click(play!);
+      expect(props.actions.launch).toHaveBeenCalledOnce();
+      expect(props.inspectSource).not.toHaveBeenCalled();
+    });
+  }
+}
+
+it.each([
+  ["missing", "missing_source"],
+  ["unreadable", "unreadable_source"],
+  ["changed", "changed_source"],
+  ["not_checked", "incompatible_source"],
+] as const)("preserves Core's %s original refusal", async (health, blocker) => {
+  const props = installedSourceDetail("road-rash-64-recompiled", health, [blocker]);
+  await render(<DetailPanel {...props} />);
+  expect(document.querySelector("[data-launch-action]:not(:disabled)")).toBeNull();
+  await expect
+    .element(page.getByRole("button", { name: "Locate game files", exact: true }))
+    .toBeVisible();
+  expect(props.actions.launch).not.toHaveBeenCalled();
+});
+
+it("asks only for missing BIOS when the registered game has metadata-only health", async () => {
+  const props = installedSourceDetail("mortal-kombat-4-recompiled", "not_checked", [
+    "missing_bios",
+  ]);
+  await render(
+    <DetailPanel
+      {...props}
+      status={{ ...props.status, readiness: { ...props.status.readiness, bios: "missing" } }}
+      biosProfile={{
+        ...sourceProfile(),
+        id: fixtureValue(props.port.bios_source_profile, "BIOS profile"),
+      }}
+      biosPath=""
+      setBiosPath={vi.fn()}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Locate required BIOS", exact: true }))
+    .toBeVisible();
+  expect(page.getByRole("button", { name: "Locate game files", exact: true }).query()).toBeNull();
+  expect(document.querySelector("[data-launch-action]:not(:disabled)")).toBeNull();
+});
+
+it("keeps Core's allowed launch while source-record readback is pending", async () => {
+  const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+  await render(<DetailPanel {...props} source={undefined} sourcePath="" />);
+  expect(document.querySelector("[data-launch-action]:not(:disabled)")).not.toBeNull();
+  expect(page.getByRole("button", { name: "Locate game files", exact: true }).query()).toBeNull();
+  expect(props.actions.launch).not.toHaveBeenCalled();
+  expect(props.inspectSource).not.toHaveBeenCalled();
+});
 
 it("keeps an unknown external installation's folder and maintenance facts distinct from readiness", async () => {
   await page.viewport(960, 640);

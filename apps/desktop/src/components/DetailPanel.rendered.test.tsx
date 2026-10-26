@@ -712,30 +712,43 @@ describe("desktop components", () => {
       expect(ready).toContain("First-time setup required");
       expect(ready).not.toContain(">Play</button>");
 
+      const metadataOnly = renderToStaticMarkup(
+        <DetailPanel
+          {...props}
+          status={{
+            ...status,
+            readiness: {
+              ...status.readiness!,
+              source: "not_checked",
+              source_assessment: null,
+            },
+          }}
+        />,
+      );
+      const metadataReview = metadataOnly.match(
+        /<button\b[^>]*>Review game preparation<\/button>/,
+      )?.[0];
+      expect(metadataReview).toBeDefined();
+      expect(metadataReview).not.toMatch(/\sdisabled(?:\s|=|>)/);
+      expect(props.prepare).not.toHaveBeenCalled();
+
       const blocked = [
         { ...props, busy: "prepare" },
         { ...props, prepare: undefined },
-        ...(
-          [
-            "unregistered",
-            "missing",
-            "unreadable",
-            "changed",
-            "not_checked",
-            "not_baselined",
-          ] as const
-        ).flatMap((health) => [
-          {
-            ...props,
-            status: { ...status, readiness: { ...status.readiness!, source: health } },
-          },
-          {
-            ...props,
-            // These explicit refusal fixtures add a BIOS contract; the embedded ports do not.
-            port: { ...definition, bios_source_profile: "required-test-bios" },
-            status: { ...status, readiness: { ...status.readiness!, bios: health } },
-          },
-        ]),
+        ...(["unregistered", "missing", "unreadable", "changed", "not_baselined"] as const).flatMap(
+          (health) => [
+            {
+              ...props,
+              status: { ...status, readiness: { ...status.readiness!, source: health } },
+            },
+            {
+              ...props,
+              // These explicit refusal fixtures add a BIOS contract; the embedded ports do not.
+              port: { ...definition, bios_source_profile: "required-test-bios" },
+              status: { ...status, readiness: { ...status.readiness!, bios: health } },
+            },
+          ],
+        ),
       ];
       for (const refusal of blocked.slice(0, 2)) {
         const html = renderToStaticMarkup(<DetailPanel {...refusal} />);

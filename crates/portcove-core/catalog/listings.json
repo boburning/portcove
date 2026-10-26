@@ -1782,6 +1782,26 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 1113,
+      "setup_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+      "release_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases",
+      "manual_setup": {
+        "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Use the complete Windows package",
+            "instruction": "The managed Windows route keeps RoadRash64Recompiled.exe with its official assets, libraries and importer tools, and prepares your matching USA v1.0 original through Core. Linux experimental AppImage packages have different storage and upstream installation instructions; the Windows contract does not establish their managed support or native qualification."
+          },
+          {
+            "title": "Keep optional setup with the game",
+            "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically. Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+          },
+          {
+            "title": "Keep your current copy while changing routes",
+            "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable. For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately. Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -2224,6 +2244,26 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 154,
+      "setup_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
+      "release_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases",
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Choose the managed base game or the upstream launcher",
+            "instruction": "The managed Windows route uses your matching Sonic 3 & Knuckles raw Genesis original and starts the combined base game directly. Portcove manages its declared local saves, settings and quickstate thumbnails. For the full launcher and optional imported campaigns, extract the complete official Sonic3KRecomp package into a separate folder you control, keep that folder stable across upstream updates, and select your own matching ROM there. Sonic3Recomp and SonicAndKnucklesRecomp are different game variants."
+          },
+          {
+            "title": "Keep optional campaign preparation with upstream",
+            "instruction": "The optional Sonic CD, Sonic 1/2 and Megamix campaigns and Mighty/Shadow are experimental and off by default. Follow the included upstream guides and supply the extra originals only if you choose those features. Sonic CD import needs Python 3.11+ and Pillow, and records absolute paths under sonic-cd-imports beside that copy’s settings. Use that importer in your stable external copy, not a managed version folder that will change after updates. Portcove never runs the converter during discovery. Register the external player or launcher deliberately, save launch details, then choose Play separately."
+          },
+          {
+            "title": "Keep current progress and the creating build for quickstates",
+            "instruction": "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs. Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility. Upstream or you update the external copy, which has no Portcove-managed Backup or Rollback. An older managed v0.5.3 installation keeps its retained definition; changed data coordinates remain held until a supported transition is available. Keep that working version and its data rather than deleting it to get the newer copy."
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],
