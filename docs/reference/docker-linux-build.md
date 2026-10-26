@@ -33,6 +33,10 @@ pushing, committing dirty work or synchronizing another development tree.
 
 ## Preparation and fresh execution
 
+Image preparation explicitly selects the native `desktop-linux` builder, verifies
+its endpoint against that validated local context, and loads the result into the
+engine. It does not depend on an implicit builder or cache-only export default.
+
 The recipe pins Ubuntu 22.04, the Vite+ tool stage and Rust tool stage by digest.
 Rust and Vite+ versions must match the selected source pins. Copied tools must
 actually execute against Ubuntu's glibc during preparation. PowerShell's official
