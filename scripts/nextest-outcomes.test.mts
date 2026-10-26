@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { isRecord } from "./runtime-values.mts";
+import {
+  nextestSkipRouteInventory,
+  parseNextestSkipRoutes,
+  readNextestSkipRoutes,
+} from "./nextest-skip-routes.mts";
 import baseline from "./fixtures/nextest-inventory-baseline.json" with { type: "json" };
 import { runnableWorkspaceImpactTests } from "./rust-test-impact.mts";
 import {
@@ -615,5 +620,119 @@ void test("default diagnostic and inventory refusal preserve native failures and
         spawnSync: () => ({ status: null, error: failure }),
       }),
     (error) => error === failure,
+  );
+});
+
+void test("Rust ignored declarations retain actual reasons, platforms and inspectable execution routes", () => {
+  const routes = readNextestSkipRoutes();
+  assert.ok(routes.length > 0);
+  for (const route of routes) {
+    const source = readFileSync(new URL("../" + route.source, import.meta.url), "utf8");
+    const fn = source.indexOf("fn " + route.test + "(");
+    assert.ok(fn >= 0, route.source + ": " + route.test);
+    const ignore = "#[ignore = " + JSON.stringify(route.reason) + "]";
+    const at = source.lastIndexOf(ignore, fn);
+    assert.ok(at >= 0, "original ignore reason changed: " + route.test);
+    assert.ok(["", "async"].includes(source.slice(at + ignore.length, fn).trim()), route.test);
+    for (const parent of route.parents ?? [])
+      assert.ok(source.includes("fn " + parent + "("), "parent source disappeared: " + parent);
+  }
+  for (const changed of [
+    [],
+    [...routes, routes[0]],
+    [{ ...routes[0], reason: "" }],
+    [{ ...routes[0], platforms: ["darwin", "darwin"] }],
+    [{ ...routes[0], source: "crates/../outside.rs" }],
+    [{ ...routes[0], category: "supervised-parent", parents: [] }],
+  ])
+    assert.throws(() => parseNextestSkipRoutes(changed));
+});
+
+void test("Rust skip inventories detect new skips, parent disappearance, platform drift and ambiguous identities", () => {
+  const routes = parseNextestSkipRoutes([
+    {
+      package: "portcove-nextest-protocol",
+      test: "ignored",
+      source: "crates/portcove-nextest-protocol/src/lib.rs",
+      reason: "owned fixture",
+      platforms: ["linux"],
+      category: "supervised-parent",
+      parents: ["passed"],
+    },
+  ]);
+  const inventory = () => JSON.parse(fixture("inventory.json")) as unknown;
+  const base = nextestSkipRouteInventory(inventory(), routes, { platform: "linux" });
+  assert.deepEqual(base.errors, []);
+  assert.equal(base.contracts[0]?.observation, "declared_ignored");
+  assert.equal(base.contracts[0]?.intended_parents.length, 1);
+  assert.ok(
+    nextestSkipRouteInventory(inventory(), [], { platform: "linux" }).errors.some((e) =>
+      e.includes("Unregistered"),
+    ),
+  );
+  assert.ok(
+    nextestSkipRouteInventory(inventory(), routes, { platform: "win32" }).errors.some((e) =>
+      e.includes("outside"),
+    ),
+  );
+  const absent = { "test-count": 0, "rust-suites": {} };
+  assert.ok(
+    nextestSkipRouteInventory(absent, routes).errors.some((e) =>
+      e.includes("package scope disappeared"),
+    ),
+  );
+  const excluded = routes.map((route) => ({ ...route, package: "portcove-core" }));
+  assert.deepEqual(nextestSkipRouteInventory(absent, excluded, { excludeCore: true }).errors, []);
+  for (const mutation of [
+    "missing-child",
+    "runnable-child",
+    "missing-parent",
+    "ignored-parent",
+    "ambiguous-child",
+  ]) {
+    const value = inventory();
+    assert.ok(isRecord(value) && isRecord(value["rust-suites"]));
+    const suite = Object.values(value["rust-suites"])[0];
+    assert.ok(isRecord(suite) && isRecord(suite.testcases));
+    const cases = suite.testcases;
+    if (mutation === "missing-child") {
+      delete cases.ignored;
+      value["test-count"] = 2;
+    }
+    if (mutation === "runnable-child") {
+      assert.ok(isRecord(cases.ignored));
+      cases.ignored.ignored = false;
+    }
+    if (mutation === "missing-parent") {
+      delete cases.passed;
+      value["test-count"] = 2;
+    }
+    if (mutation === "ignored-parent") {
+      assert.ok(isRecord(cases.passed));
+      cases.passed.ignored = true;
+    }
+    if (mutation === "ambiguous-child") {
+      cases["other::ignored"] = structuredClone(cases.ignored);
+      value["test-count"] = 4;
+    }
+    assert.ok(
+      nextestSkipRouteInventory(value, routes, { platform: "linux" }).errors.length,
+      mutation,
+    );
+  }
+  const conditional = parseNextestSkipRoutes([
+    {
+      ...routes[0],
+      test: "feature_only",
+      category: "explicit-acceptance",
+      parents: undefined,
+      requires_qualification_fixtures: true,
+    },
+  ]);
+  const unknown = nextestSkipRouteInventory(inventory(), conditional, { platform: "linux" });
+  assert.equal(unknown.contracts[0]?.observation, "not_evaluated_feature");
+  assert.ok(
+    unknown.errors.some((e) => e.includes("Unregistered")),
+    "a conditional declaration must not excuse another ignored case",
   );
 });
