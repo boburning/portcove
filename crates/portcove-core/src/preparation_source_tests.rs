@@ -174,6 +174,14 @@ impl Fixture {
         let bytes = writer.finish().unwrap().into_inner();
         let digest = crate::signed_catalog::digest(&bytes);
         let size = bytes.len() as u64;
+        let mut qualification =
+            InstallQualification::from_catalog(self.service.catalog(), self.port_id, host).unwrap();
+        eprintln!("source install: qualification");
+        if seal {
+            qualification = qualification
+                .with_runtime_source(Some(&self.source))
+                .unwrap();
+        }
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let address = listener.local_addr().unwrap();
@@ -203,14 +211,6 @@ impl Fixture {
             .unwrap();
             stream.write_all(&bytes).unwrap();
         });
-        let mut qualification =
-            InstallQualification::from_catalog(self.service.catalog(), self.port_id, host).unwrap();
-        eprintln!("source install: qualification");
-        if seal {
-            qualification = qualification
-                .with_runtime_source(Some(&self.source))
-                .unwrap();
-        }
         eprintln!("source install: execute");
         let result = Installer::with_faults(self.service.library().clone(), faults)
             .unwrap()
@@ -573,4 +573,31 @@ async fn source_only_fresh_install_rechecks_original_before_registration() {
         crate::operation::LifecycleFaultPoint::InstallPublished,
     )
     .await;
+}
+
+#[test]
+fn source_only_owner_refuses_executable_metadata_and_overlapping_outputs() {
+    let catalog = Catalog::embedded().unwrap();
+    let original = catalog.port(PORT).unwrap();
+    assert!(eligible(original));
+    for target in [
+        "GAME.EXE",
+        "bin",
+        ".portcove-manifest.json",
+        RECEIPT,
+        "baserom.us.rev0.z64.portcove-source.json",
+        "baserom.translated.ek.ndd",
+    ] {
+        let mut port = original.clone();
+        port.executable_hints.insert(
+            Platform::current().unwrap(),
+            vec!["game.exe".into(), "bin/game.exe".into()],
+        );
+        port.runtime_source_set[0].destination = target.into();
+        assert!(!eligible(&port), "source ownership must refuse {target}");
+    }
+    let mut port = original.clone();
+    port.runtime_mutable_paths
+        .push(original.runtime_source_set[0].destination.clone());
+    assert!(!eligible(&port));
 }

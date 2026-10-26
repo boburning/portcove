@@ -36,13 +36,33 @@ pub(crate) fn eligible(port: &PortDefinition) -> bool {
         return false;
     }
     let outputs = outputs(port);
+    let Ok(metadata) = crate::adapter::generated_metadata(port) else {
+        return false;
+    };
     !outputs.is_empty()
-        && outputs.iter().all(|output| {
-            !port
-                .persistent_paths
-                .iter()
-                .chain(&port.runtime_mutable_paths)
-                .any(|mutable| crate::runtime::overlaps(output, mutable))
+        && outputs.iter().enumerate().all(|(index, output)| {
+            !crate::path::is_portcove_metadata(Path::new(output))
+                && !metadata
+                    .iter()
+                    .any(|path| crate::runtime::overlaps(output, path))
+                && !outputs[..index]
+                    .iter()
+                    .any(|prior| crate::runtime::overlaps(output, prior))
+                && !port
+                    .persistent_paths
+                    .iter()
+                    .chain(&port.runtime_mutable_paths)
+                    .any(|path| crate::runtime::overlaps(output, path))
+                && !port
+                    .executable_hints
+                    .values()
+                    .chain(port.setup_executable_hints.values())
+                    .flatten()
+                    .any(|path| crate::runtime::overlaps(output, path))
+                && !port
+                    .bundled_runtime
+                    .values()
+                    .any(|runtime| crate::runtime::overlaps(output, &runtime.target_directory))
         })
 }
 
