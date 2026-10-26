@@ -294,10 +294,12 @@ namespace Portcove.NativeQualification {
                 }
                 return true;
             };
+            Native.SetLastError(0);
             bool enumerated = Native.EnumDesktopWindows(desktop, callback, IntPtr.Zero);
             int enumerationError = Marshal.GetLastWin32Error();
             LastWindowInspection = String.Join(",", inspected);
-            if (!enumerated && found == IntPtr.Zero) throw new Win32Exception(enumerationError, "EnumDesktopWindows failed: win32=" + enumerationError);
+            // FALSE without an extended error remains pending; only an owned visible HWND can pass.
+            if (!enumerated && found == IntPtr.Zero && enumerationError != 0) throw new Win32Exception(enumerationError, "EnumDesktopWindows failed: win32=" + enumerationError);
             GC.KeepAlive(callback);
             return found;
         }
@@ -716,6 +718,7 @@ namespace Portcove.NativeQualification {
         [DllImport("advapi32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(string text, uint revision, out IntPtr descriptor, out uint size);
         [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr CreateWindowStationW(string name, uint flags, uint access, ref SecurityAttributes attributes);
         [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr CreateDesktopW(string name, IntPtr device, IntPtr mode, uint flags, uint access, ref SecurityAttributes attributes);
+        [DllImport("kernel32")] internal static extern void SetLastError(uint error);
         [DllImport("user32", SetLastError=true)] internal static extern IntPtr GetProcessWindowStation();
         [DllImport("user32", SetLastError=true)] internal static extern bool SetProcessWindowStation(IntPtr station);
         [DllImport("user32", SetLastError=true)] internal static extern bool CloseWindowStation(IntPtr station);
@@ -834,7 +837,7 @@ namespace Portcove.NativeQualification {
             }
         }
         internal static void VerifyHostedToken(IntPtr token, IntPtr station, IntPtr desktop) {
-            if (GrantedDesktopRights(station, token, true) != 0x20002 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
+            if (GrantedDesktopRights(station, token, true) != 0x20062 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
                 throw new InvalidOperationException("Effective hosted station/private-desktop rights differ");
             IntPtr input = OpenInputDesktop(0, false, 0x20081);
             if (input == IntPtr.Zero) throw Error("Inspect actual input desktop access");

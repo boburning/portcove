@@ -1607,3 +1607,14 @@ acceptance. Actual hosted results belong to its delivery receipt. Protected
 Windows producer/candidate/source/runtime/capture/proof joins and resource fit
 remain unfinished engineering; no production job or execution authority is added.
 All existing issue, capacity, custody, recovery and production holds remain.
+
+### Local Windows GUI execution proposal — October 26
+
+The [disabled execution-right proposal](slice4-windows-gui-boundary-proposal-2026-10-26.md)
+records a real Windows observer-race repair and a bounded owned-station startup
+model. Its proposed `0x20062` station grant includes global atoms and
+WINSTA_EXITWINDOWS; that capability must remain explicit. The proposal is disabled,
+the consumed privileged-audit grant is disabled, and no new execution authority or
+actual hosted GUI acceptance is established. All earlier failures and production,
+protected acceptance, resource and issue holds remain. No workstation setup,
+password or administrator step is requested.

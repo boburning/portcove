@@ -14,7 +14,7 @@ using System.Xml;
 
 namespace Portcove.HostedNative {
  public sealed class AccessAudit : IDisposable {
-  public static bool ExecutionAuthorized { get { return true; } }
+  public static bool ExecutionAuthorized { get { return false; } }
   static int started;
   static readonly Guid KernelObjects=new Guid("0cce921f-69ae-11d9-bed3-505054503030");
   readonly List<AuditObject> objects=new List<AuditObject>();

@@ -360,6 +360,42 @@ if($capture.ToString().Trim() -cne 'inert-registry:identity-begin'){throw 'Expli
   assert.match(result, /actual default and opt-in registry marker binding passed/u);
 });
 
+void test(
+  "real Windows observer waits for an owned visible responsive inert form",
+  { skip: process.platform !== "win32" || process.env.PORTCOVE_NATIVE_OBSERVER_TEST !== "1" },
+  (t) => {
+    const root = mkdtempSync(path.join(homedir(), ".portcove-observer-test-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const launcher = fileURLToPath(
+      new URL("./native-qualification-account.cs.txt", import.meta.url),
+    );
+    const probe = fileURLToPath(
+      new URL("./fixtures/native-desktop-observer.cs.txt", import.meta.url),
+    );
+    const quote = (value: string) => value.replaceAll("'", "''");
+    const result = JSON.parse(
+      powershell(
+        `
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${quote(launcher)}')+[Environment]::NewLine+[IO.File]::ReadAllText('${quote(probe)}'))
+[Portcove.NativeQualification.DesktopObserverProbe]::Run('${quote(root)}')|ConvertTo-Json -Depth 4 -Compress
+`,
+        30000,
+      ),
+    ) as Record<string, unknown>;
+    assert.equal(result.failure, undefined, JSON.stringify(result));
+    assert.equal(result.cleanup_failure, undefined, JSON.stringify(result));
+    assert.equal(result.observer_drain_failure, undefined, JSON.stringify(result));
+    assert.equal(result.dispose_failure, undefined, JSON.stringify(result));
+    assert.equal(result.thread_restore_failure, undefined, JSON.stringify(result));
+    assert.equal(result.desktop_close_failure, undefined, JSON.stringify(result));
+    assert.equal(result.owned_visible_responsive, true, JSON.stringify(result));
+    assert.equal(result.root_exited, true, JSON.stringify(result));
+    assert.equal(result.job_empty, true, JSON.stringify(result));
+    assert.equal(result.observer_drained, true, JSON.stringify(result));
+  },
+);
+
 void test("actual private-window lookup refuses enumeration failure without rejecting a found callback stop", () => {
   const launcher = fileURLToPath(new URL("./native-qualification-account.cs.txt", import.meta.url));
   const result = powershell(String.raw`
@@ -381,9 +417,11 @@ using System.Runtime.InteropServices;
 public static class Native {
  public delegate bool DesktopWindowCallback(IntPtr window, IntPtr unused);
  public static bool Fails, HasWindow, Responds;
+ public static void SetLastError(uint error){Marshal.SetLastPInvokeError((int)error);}
  public static bool EnumDesktopWindows(IntPtr desktop, DesktopWindowCallback callback, IntPtr ignored) {
   if(HasWindow) return callback(new IntPtr(42), IntPtr.Zero);
-  return !Fails;
+  if(Fails) Marshal.SetLastPInvokeError(5);
+  return false;
  }
  public static void GetWindowThreadProcessId(IntPtr window, out uint owner) { owner=7; }
  public static bool IsWindowVisible(IntPtr window) {return true;}
@@ -404,6 +442,7 @@ __RESPONSE__
 '@
 Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method).Replace('__RESPONSE__',$response)
 $lookup=[Lookup]::new()
+[Runtime.InteropServices.Marshal]::SetLastPInvokeError(5)
 if($lookup.Observe() -ne [IntPtr]::Zero){throw 'Empty desktop was not empty'}
 [Native]::Fails=$true
 $refused=$false;try{$lookup.Observe()|Out-Null}catch{if($_.Exception.ToString() -notmatch 'EnumDesktopWindows failed: win32='){throw};$refused=$true}
@@ -472,15 +511,17 @@ $proposed=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)
 $actual=[Security.AccessControl.RawSecurityDescriptor]::new($proposed,0)
 if($actual.Owner.Value -cne $original.Owner.Value -or $actual.Group.Value -cne $original.Group.Value -or $actual.DiscretionaryAcl.Count -ne 4){throw 'Original identity or ACEs lost'}
 $deny=$actual.DiscretionaryAcl[0];$allow=$actual.DiscretionaryAcl[1]
-if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd037d -or $deny.AceFlags -ne 'None' -or
-   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20002 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
+if($deny.SecurityIdentifier.Value -cne $sid -or $deny.AceQualifier -ne 'AccessDenied' -or $deny.AccessMask -ne 0xd031d -or $deny.AceFlags -ne 'None' -or
+   $allow.SecurityIdentifier.Value -cne $sid -or $allow.AceQualifier -ne 'AccessAllowed' -or $allow.AccessMask -ne 0x20062 -or $allow.AceFlags -ne 'None'){throw 'Candidate station restriction differs'}
 for($i=0;$i -lt 2;$i++){
   $a=[byte[]]::new($actual.DiscretionaryAcl[$i+2].BinaryLength);$b=[byte[]]::new($original.DiscretionaryAcl[$i].BinaryLength)
  $actual.DiscretionaryAcl[$i+2].GetBinaryForm($a,0);$original.DiscretionaryAcl[$i].GetBinaryForm($b,0)
  if([Convert]::ToBase64String($a) -cne [Convert]::ToBase64String($b)){throw 'Unrelated ACE changed'}
 }
 $refused=$false;try{[Portcove.HostedNative.HostedDesktop]::StationProposal($proposed,$sid)|Out-Null}catch{$refused=$true}
-if(-not $refused -or -not [Portcove.HostedNative.HostedDesktop]::ExecutionAuthorized){throw 'Existing candidate adopted or authorized hosted gate disabled'}
+if(-not $refused -or [Portcove.HostedNative.HostedDesktop]::ExecutionAuthorized){throw 'Existing candidate adopted or disabled hosted proposal gate changed'}
+$refused=$false;try{[Portcove.HostedNative.HostedDesktop]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'Hosted station execution proposal awaits owner authority'}
+if(-not $refused){throw 'Inactive station mutation entry point did not refuse before effects'}
 $near=[Security.AccessControl.RawSecurityDescriptor]::new('O:SYG:SYD:')
 $near.DiscretionaryAcl=[Security.AccessControl.RawAcl]::new(2,420)
 $everyone=[Security.Principal.SecurityIdentifier]::new('S-1-1-0')
@@ -585,7 +626,7 @@ try{
   $descriptor=[Security.AccessControl.RawSecurityDescriptor]::new($sddl);$bytes=[byte[]]::new($descriptor.BinaryLength);$descriptor.GetBinaryForm($bytes,0)
   if($station){$bytes=[Portcove.HostedNative.HostedDesktop]::StationProposal($bytes,$sid)}
   $granted=$check.Invoke($null,[object[]]@($bytes,$token,$station))
-  if($granted -ne $(if($station){0x20002}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
+  if($granted -ne $(if($station){0x20062}else{0x200c7})){throw ('Effective rights differ: '+$granted)}
  }
  foreach($case in @('no-access','forbidden-switch')){
   $sddl=if($case -ceq 'no-access'){'O:SYG:SYD:'}else{'O:SYG:SYD:P(A;;0x201c7;;;'+$sid+')'}
@@ -1034,8 +1075,8 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Diagnostics.EventLog
 $references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
 Add-Type -ReferencedAssemblies $references -TypeDefinition ([IO.File]::ReadAllText('${audit.replaceAll("'", "''")}'))
-$refused=$false;try{[Portcove.HostedNative.AccessAudit]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'Fixed ordinary hosted audit required'}
-if(-not $refused -or -not [Portcove.HostedNative.AccessAudit]::ExecutionAuthorized){throw 'Hosted audit gate allowed invalid context or lost owner grant'}
+$refused=$false;try{[Portcove.HostedNative.AccessAudit]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'Targeted access audit authority not granted'}
+if(-not $refused -or [Portcove.HostedNative.AccessAudit]::ExecutionAuthorized){throw 'Hosted audit gate allowed invalid context or reactivated consumed owner grant'}
 $sid='S-1-5-21-1-2-3-1001';$before=[Security.AccessControl.RawSecurityDescriptor]::new('O:SYG:SYD:P(A;;GA;;;SY)S:(ML;;NW;;;LW)')
 $bytes=[byte[]]::new($before.BinaryLength);$before.GetBinaryForm($bytes,0)
 $changed=[Security.AccessControl.RawSecurityDescriptor]::new([Portcove.HostedNative.AccessAudit]::Propose($bytes,$sid,0xf037f),0)
@@ -1133,20 +1174,21 @@ void test(
     );
     const result = powershell(String.raw`
 $ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${script.replaceAll("'", "''")}')
-$block=[regex]::Match($source,'(?s)(        \$auditRecord=\$null.*?)(?=        try\{\$position=)').Groups[1].Value
+$block=[regex]::Match($source,'(?s)(        \$auditRecord=.*?)(?=        try\{\$position=)').Groups[1].Value
 if(-not $block){throw 'Actual audit catch retention block missing'}
-foreach($mode in @('read','unknown')){
+foreach($mode in @('read','unknown','inactive')){
  $cleanupFailures=[Collections.Generic.List[string]]::new();$primaryError=[Exception]::new('original GUI failure');$capture='C:\bounded';$context=@{};$runtime='fixed';$observedMode=$mode
  $child=[pscustomobject]@{Pid=42;CreatedFileTime=[long]1;HostedTokenObservation=[pscustomobject]@{AuthenticationId='0x1'}}
  $child|Add-Member ScriptMethod RequireAliveGeneration {}
- $audit=[pscustomobject]@{};$audit|Add-Member ScriptMethod Observe {if($observedMode -ceq 'unknown'){throw 'controlled observer refusal'};return @()}
- function Write-HostedNativeSetupRecord {throw 'controlled record I/O refusal'}
+ $audit=[pscustomobject]@{};$audit|Add-Member ScriptMethod Observe {if($observedMode -ceq 'unknown'){throw 'controlled observer refusal'};return @()};if($mode -ceq 'inactive'){$audit=$null}
+ function Write-HostedNativeSetupRecord {$script:lastAuditRecord=$args[1];throw 'controlled record I/O refusal'}
  try{& ([scriptblock]::Create($block));throw $primaryError}catch{if($_.Exception.Message -cne 'original GUI failure'){throw 'Diagnostic replaced primary error'}}
+ if($mode -ceq 'inactive' -and $script:lastAuditRecord.status -cne 'not_attempted'){throw 'Inactive audit was not retained as unattempted'}
  if($cleanupFailures.Count -ne 1 -or $cleanupFailures[0] -notmatch '^Audit diagnostic retention failed:'){throw 'Retention failure not isolated'}
 }
-'actual audit catch keeps primary failure in both controlled I/O modes'
+'actual audit catch keeps primary failure in all controlled I/O modes'
 `);
-    assert.match(result, /keeps primary failure in both controlled I\/O modes/u);
+    assert.match(result, /keeps primary failure in all controlled I\/O modes/u);
   },
 );
 

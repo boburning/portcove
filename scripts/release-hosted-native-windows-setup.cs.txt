@@ -64,7 +64,7 @@ namespace Portcove.HostedNative {
     }
     // Hosted-only proposal: existing station access is a reviewed authority delta.
     public sealed class HostedDesktop : IDisposable {
-        public const bool ExecutionAuthorized = true;
+        public static bool ExecutionAuthorized { get { return false; } }
         public string Name { get; private set; }
         IntPtr station, desktop;
         byte[] before, applied;
@@ -129,13 +129,14 @@ namespace Portcove.HostedNative {
                 var known = ace as KnownAce;
                 if (known != null && known.SecurityIdentifier.Equals(sid)) throw new InvalidOperationException("Existing candidate station ACE refused");
             }
-            // Deny all other station/standard rights even through Users/Everyone.
-            descriptor.DiscretionaryAcl.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x000d037d, sid, false, null));
-            descriptor.DiscretionaryAcl.InsertAce(1, new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, 0x00020002, sid, false, null));
+            // READATTRIBUTES plus GENERIC_EXECUTE; all other rights remain denied.
+            descriptor.DiscretionaryAcl.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x000d031d, sid, false, null));
+            descriptor.DiscretionaryAcl.InsertAce(1, new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, 0x00020062, sid, false, null));
             if (descriptor.BinaryLength > 8192) throw new InvalidOperationException("Station ACL proposal exceeds recovery bound");
             byte[] result = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(result, 0); return result;
         }
         public static HostedDesktop Prepare(string owner, string candidate, string recoveryDirectory) {
+            if (!ExecutionAuthorized) throw new InvalidOperationException("Hosted station execution proposal awaits owner authority");
             FailedPreparationRestored = null;
             var value = new HostedDesktop();
             try {

@@ -119,7 +119,6 @@ Add-Type -AssemblyName System.Diagnostics.EventLog
 $auditReferences=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
 if($auditReferences.Count -gt 256){throw 'Audit compiler reference inventory exceeds bound'}
 Add-Type -ReferencedAssemblies $auditReferences -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'release-hosted-native-windows-audit.cs.txt') -Raw)
-[Portcove.HostedNative.AccessAudit]::RequireAuthority()
 if($env:SystemRoot -ine [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows) -or $env:SystemDrive -ine 'C:'){
     throw 'Fixed hosted Windows system paths differ'
 }
@@ -185,7 +184,7 @@ try {
     try{$brokerToken=[Portcove.NativeQualification.AccountLauncher]::ObserveBrokerToken()}catch{$brokerFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
     Write-HostedNativeSetupRecord (Join-Path $capture 'security-before-launch.json') ([ordered]@{context=$context;labels=$labelObservation;label_query_failure=$labelFailure;broker_token=$brokerToken;broker_token_status=$(if($brokerFailure){'unknown'}else{'read'});broker_query_failure=$brokerFailure;scope='read-only mandatory-label/token diagnostics; no GUI acceptance';authority='none'})
     if($labelFailure -or $brokerFailure -or $labelObservation.station_status -cne 'read' -or $labelObservation.desktop_status -cne 'read'){throw 'Mandatory security diagnostics unavailable; retained observations remain Unknown'}
-    $audit=[Portcove.HostedNative.AccessAudit]::Prepare($account.SID.Value,$hostedDesktop.Name,$capture)
+    # The finite privileged-audit grant is consumed; ordinary GUI qualification does not audit.
     $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($configuration)
     Assert-OriginalHostedSetup
     $arguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $source 'scripts\fixtures\native-account-gui-probe.ps1'),'-Invocation',$context.binding)
@@ -227,8 +226,8 @@ try {
     }
     foreach($problem in [Portcove.HostedNative.AccessAudit]::LastPreparationRecoveryFailures){$cleanupFailures.Add('Audit preparation recovery: '+$problem)}
     if($child){
-        $auditRecord=$null
-        try{$child.RequireAliveGeneration();$events=@($audit.Observe($child.Pid,$child.CreatedFileTime,$runtime,$child.HostedTokenObservation.AuthenticationId));$child.RequireAliveGeneration();$auditRecord=[ordered]@{context=$context;root_pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString();events=$events;scope='exact root/SID/logon/object/time requested-access failures only; not initialization cause or GUI acceptance'}}catch{$auditRecord=[ordered]@{context=$context;status='unknown';failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}}
+        $auditRecord=[ordered]@{context=$context;status='not_attempted';reason='Finite privileged-audit grant consumed; no audit operations'}
+        if($audit){try{$child.RequireAliveGeneration();$events=@($audit.Observe($child.Pid,$child.CreatedFileTime,$runtime,$child.HostedTokenObservation.AuthenticationId));$child.RequireAliveGeneration();$auditRecord=[ordered]@{context=$context;root_pid=$child.Pid;created_filetime=$child.CreatedFileTime.ToString();events=$events;scope='exact root/SID/logon/object/time requested-access failures only; not initialization cause or GUI acceptance'}}catch{$auditRecord=[ordered]@{context=$context;status='unknown';failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}}}
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'access-audit.json') $auditRecord}catch{$cleanupFailures.Add('Audit diagnostic retention failed: '+$_.Exception.Message)}
         try{$position=[Portcove.HostedNative.HostedStartupContext]::Observe($child.Handle,$child.HostedInitialThreadHandle,$child.Pid,$child.CreatedFileTime);Write-HostedNativeSetupRecord (Join-Path $capture 'startup-position.json') ([ordered]@{context=$context;root_pid=$child.Pid;root_created_filetime=$child.CreatedFileTime.ToString();position=$position;scope='temporary owned-thread suspension; mapped instruction/export hints only, not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup position retention failed: '+$_.Exception.Message)}
         $popup=$null
