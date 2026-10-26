@@ -1618,7 +1618,6 @@ for (const manifest of ["package.json", "apps/desktop/package.json"]) {
       assert.ok(selection.nodeTests.has("scripts/dependency-automation.test.mts"));
       assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mts"));
       assert.ok(!ids(plan).includes("fallow"));
-    } else {
     }
   });
 }
@@ -2713,6 +2712,24 @@ void test("syntax batch receipts bind the domains of earlier files as well as th
       receiptRuntime,
     ),
   );
+});
+
+void test("large syntax selections retain every file within the existing native argv budget", () => {
+  const files = readdirSync(new URL("./", import.meta.url))
+    .filter((file) => file.endsWith(".mts") && !file.includes(".test."))
+    .map((file) => `scripts/${file}`);
+  const { plan, selection } = planFor(files);
+  const batches = plan.filter((entry) => entry.id.startsWith("node-syntax:"));
+  assert.ok(batches.length > 1);
+  assert.equal(new Set(batches.map((entry) => entry.id)).size, batches.length);
+  assert.deepEqual(
+    batches.flatMap((entry) => entry.args.slice(1)),
+    [...selection.nodeSyntax].sort((left, right) => left.localeCompare(right)),
+  );
+  for (const batch of batches)
+    assert.ok(
+      batch.args.slice(1).reduce((size, file) => size + JSON.stringify(file).length + 1, 0) <= 6000,
+    );
 });
 void test("a successful payload cannot mint a reusable receipt after source changes", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-source-change-"));

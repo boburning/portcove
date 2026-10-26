@@ -112,7 +112,7 @@ catalog, release, shared, unknown, rename and deletion changes before edits.
   acquisition consumes the surviving all-project obligation; it cannot disappear
   with the retired separate browser stage.
 - Native TypeScript syntax selection batches literal files through the existing
-  checker. JavaScript early-error subprocesses, transformation refusal,
+  checker and reuses the existing 6,000-character native argument budget. JavaScript early-error subprocesses, transformation refusal,
   fail-fast behavior, missing/deleted-file handling and storage scope remain.
   Receipts union every selected file's domains and retain complete argument
   identity and source-change refusal. One old per-file receipt cannot satisfy
@@ -198,3 +198,15 @@ behavior, and target demonstrated repeated startup or test cost. This does not
 create a new cleanup backlog or a beta prerequisite. Further release reshaping
 requires a concrete equivalence/dependency benefit and a frozen adversarial
 oracle; file length alone does not justify it.
+
+### Independent review repairs
+
+Separate non-writing reviews found two issues in the first candidate. The extracted
+leaf now appears in both the Roadmap health workflow trigger and its substantial
+change selector, with an isolated leaf-change regression. Large syntax selections
+now reuse the existing native argument batching helper with distinct stage IDs;
+a whole-implementation-inventory regression proves bounded, complete, unique
+batches. The ten-file timing sample remains one batch. Reviews also checked the
+unchanged function bodies, receipt/domain union, all-project selection and both
+hosted browser prerequisite consumers. These reviews do not supply hosted or native
+qualification.

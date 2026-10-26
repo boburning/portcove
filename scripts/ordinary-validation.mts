@@ -14,6 +14,7 @@ import {
 } from "./native-helper-dependencies.mts";
 import { ordinaryOwnershipForPath } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
+import { stagedFileBatches } from "./viteplus-cli.mts";
 export interface LocalChange extends ValidationChangeInput {
   path: string;
 }
@@ -1420,6 +1421,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/roadmap-issue.mts",
     [
       ...roadmapContractTests,
+      "scripts/roadmap-scoped.test.mts",
       "scripts/source-provenance-audit.test.mts",
       "scripts/discovery-reconciliation.test.mts",
       "scripts/discovery-intake.test.mts",
@@ -2433,13 +2435,13 @@ export function buildPlan(
     existsSync(path.join(projectRoot, file)),
   );
   const typescript = syntaxFiles.filter((file) => /\.[cm]?ts$/u.test(file));
-  if (typescript.length)
+  for (const [index, batch] of stagedFileBatches(typescript).entries())
     commands.push(
       command(
-        `node-syntax:${typescript.length === 1 ? typescript[0] : "typescript"}`,
+        `node-syntax:${typescript.length === 1 ? typescript[0] : `typescript:${index + 1}`}`,
         "changed native TypeScript syntax",
         process.execPath,
-        ["scripts/check-node-source.mts", ...typescript],
+        ["scripts/check-node-source.mts", ...batch],
       ),
     );
   for (const file of syntaxFiles.filter((file) => !/\.[cm]?ts$/u.test(file)))

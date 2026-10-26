@@ -385,7 +385,7 @@ toolchain`; upgrade the release as a unit using the documented migrator.
 Full frontend selection and `frontend:runtime` use `frontend:tests` to execute
 all maintained Vitest projects in one fresh runner. Focused unit/browser and
 literal/related commands retain their existing scopes. Ordinary native TypeScript
-syntax checks share one invocation; receipt fingerprints include every selected
+syntax checks share bounded batches; receipt fingerprints include every selected
 file's domains. Roadmap issue identity lives in `scripts/roadmap-issue.mts`, so
 discovery can consume it without initializing live API and mutation tooling.
 The [automation architecture record](reference/automation-architecture-modernization.md)
