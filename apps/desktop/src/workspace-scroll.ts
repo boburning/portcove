@@ -56,37 +56,13 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
         anchor = undefined;
         return;
       }
-      const workspaceBounds = element.getBoundingClientRect();
-      const visible = (item: HTMLElement) => {
-        const rect = item.getBoundingClientRect();
-        return (
-          rect.height > 0 &&
-          rect.bottom > Math.max(0, workspaceBounds.top) &&
-          rect.top < Math.min(innerHeight, workspaceBounds.bottom)
-        );
-      };
-      const active = document.activeElement;
-      const libraryCard =
-        active instanceof HTMLElement && element.contains(active)
-          ? active.closest<HTMLElement>(".collection-entry")
-          : null;
+      const { libraryCard, reading } = readingPosition(element, event);
       if (libraryCard !== focusedCard) {
         cardObserver.disconnect();
         focusedCard = libraryCard;
         cardHeight = focusedCard?.getBoundingClientRect().height;
         if (focusedCard) cardObserver.observe(focusedCard);
       }
-      const focused =
-        active instanceof HTMLElement &&
-        element.contains(active) &&
-        (visible(active) || (event?.type === "focusin" && libraryCard))
-          ? active
-          : undefined;
-      const reading =
-        focused ??
-        [...element.querySelectorAll<HTMLElement>("[data-detail-origin], h1, h2, h3")].find(
-          visible,
-        );
       anchor = reading
         ? { element: reading, top: reading.getBoundingClientRect().top, scope: scope() }
         : undefined;
@@ -190,4 +166,31 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
       document.removeEventListener("keydown", scrollKey, true);
     };
   }, [workspace]);
+}
+
+function readingPosition(element: HTMLElement, event?: Event) {
+  const workspaceBounds = element.getBoundingClientRect();
+  const visible = (item: HTMLElement) => {
+    const rect = item.getBoundingClientRect();
+    return (
+      rect.height > 0 &&
+      rect.bottom > Math.max(0, workspaceBounds.top) &&
+      rect.top < Math.min(innerHeight, workspaceBounds.bottom)
+    );
+  };
+  const active = document.activeElement;
+  const libraryCard =
+    active instanceof HTMLElement && element.contains(active)
+      ? active.closest<HTMLElement>(".collection-entry")
+      : null;
+  const focused =
+    active instanceof HTMLElement &&
+    element.contains(active) &&
+    (visible(active) || (event?.type === "focusin" && libraryCard))
+      ? active
+      : undefined;
+  const reading =
+    focused ??
+    [...element.querySelectorAll<HTMLElement>("[data-detail-origin], h1, h2, h3")].find(visible);
+  return { libraryCard, reading };
 }

@@ -154,90 +154,7 @@ it.for([
       }
       window.scrollTo(0, 0);
       await document.fonts.ready;
-      const frames = [...document.querySelectorAll<HTMLElement>(".card-art")].map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          width: rect.width,
-          height: rect.height,
-          metadataTop: element.nextElementSibling!.getBoundingClientRect().top,
-          bottom: rect.bottom,
-        };
-      });
-      console.log(JSON.stringify({ view, theme, viewport: [width, height], frames }));
-      for (const frame of frames) {
-        expect(frame.height / frame.width).toBeCloseTo(1.5, 2);
-        expect(frame.metadataTop).toBeGreaterThanOrEqual(frame.bottom - 0.5);
-      }
-      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
-      const projectRows = [...document.querySelectorAll<HTMLElement>(".collection-project")];
-      expect(projectRows).toHaveLength(5);
-      const variants = projectRows;
-      const variantText = projectRows.map((row) => row.textContent).join(" | ");
-      expect(variantText).toContain("Fictional edition");
-      expect(variantText).toContain("Fictional prototype with a long edition label");
-      for (const variant of variants) {
-        expect(variant.scrollWidth).toBeLessThanOrEqual(variant.clientWidth + 1);
-        expect(variant.scrollHeight).toBeLessThanOrEqual(variant.clientHeight + 1);
-      }
-      const alignmentErrors: number[] = [];
-      if (view === "library" && width >= 1280) {
-        const alignedRows = new Map<number, number>();
-        for (const row of projectRows) {
-          const artworkTop = Math.round(
-            (view === "library"
-              ? row.closest("article")!
-              : row.parentElement!.previousElementSibling!
-            ).getBoundingClientRect().top,
-          );
-          const projectTop =
-            view === "library"
-              ? row.closest("article")!.querySelector(".collection-art")!.getBoundingClientRect()
-                  .bottom
-              : row.getBoundingClientRect().top;
-          if (!alignedRows.has(artworkTop)) alignedRows.set(artworkTop, projectTop);
-          alignmentErrors.push(Math.abs(projectTop - alignedRows.get(artworkTop)!));
-        }
-      }
-      expect(Math.max(0, ...alignmentErrors)).toBeLessThan(1);
-      const identitySpacing =
-        view === "catalog"
-          ? projectRows.map((project) => ({
-              gap:
-                project.getBoundingClientRect().top -
-                project.parentElement!.querySelector("h2")!.getBoundingClientRect().bottom,
-              maximumGap: parseFloat(getComputedStyle(project).fontSize) * 1.5,
-            }))
-          : [];
-      expect(identitySpacing.filter(({ gap, maximumGap }) => gap < 0 || gap > maximumGap)).toEqual(
-        [],
-      );
-      const fallback = document.querySelectorAll<HTMLElement>(".card-art")[4]!;
-      expect(fallback.querySelector("img")).toBeNull();
-      const palette = getComputedStyle(fallback).getPropertyValue("--art-color");
-      const control = document.createElement("div");
-      control.style.backgroundColor = palette;
-      document.body.append(control);
-      expect(getComputedStyle(fallback).backgroundColor).toBe(
-        getComputedStyle(control).backgroundColor,
-      );
-      control.remove();
-      for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^="Favorite "]')) {
-        const card = favorite.closest("article") ?? favorite.parentElement!;
-        expect(favorite.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-          card.querySelector(".card-art")!.getBoundingClientRect().bottom,
-        );
-        expect(favorite.closest("button button")).toBeNull();
-        for (const action of card.querySelectorAll<HTMLElement>(
-          ".collection-actions button, .card-content button",
-        )) {
-          if (action === favorite) continue;
-          const a = favorite.getBoundingClientRect();
-          const b = action.getBoundingClientRect();
-          expect(
-            a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom,
-          ).toBe(true);
-        }
-      }
+      const { frames, fallback } = assertPortraitLayout(view, theme, width, height);
       await page.screenshot({
         path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,
       });
@@ -518,3 +435,93 @@ it.each([
     await frame();
   },
 );
+
+function assertPortraitLayout(
+  view: "library" | "catalog",
+  theme: string,
+  width: number,
+  height: number,
+) {
+  const frames = [...document.querySelectorAll<HTMLElement>(".card-art")].map((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      width: rect.width,
+      height: rect.height,
+      metadataTop: element.nextElementSibling!.getBoundingClientRect().top,
+      bottom: rect.bottom,
+    };
+  });
+  console.log(JSON.stringify({ view, theme, viewport: [width, height], frames }));
+  for (const frame of frames) {
+    expect(frame.height / frame.width).toBeCloseTo(1.5, 2);
+    expect(frame.metadataTop).toBeGreaterThanOrEqual(frame.bottom - 0.5);
+  }
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+  const projectRows = [...document.querySelectorAll<HTMLElement>(".collection-project")];
+  expect(projectRows).toHaveLength(5);
+  const variants = projectRows;
+  const variantText = projectRows.map((row) => row.textContent).join(" | ");
+  expect(variantText).toContain("Fictional edition");
+  expect(variantText).toContain("Fictional prototype with a long edition label");
+  for (const variant of variants) {
+    expect(variant.scrollWidth).toBeLessThanOrEqual(variant.clientWidth + 1);
+    expect(variant.scrollHeight).toBeLessThanOrEqual(variant.clientHeight + 1);
+  }
+  const alignmentErrors: number[] = [];
+  if (view === "library" && width >= 1280) {
+    const alignedRows = new Map<number, number>();
+    for (const row of projectRows) {
+      const artworkTop = Math.round(
+        (view === "library"
+          ? row.closest("article")!
+          : row.parentElement!.previousElementSibling!
+        ).getBoundingClientRect().top,
+      );
+      const projectTop =
+        view === "library"
+          ? row.closest("article")!.querySelector(".collection-art")!.getBoundingClientRect().bottom
+          : row.getBoundingClientRect().top;
+      if (!alignedRows.has(artworkTop)) alignedRows.set(artworkTop, projectTop);
+      alignmentErrors.push(Math.abs(projectTop - alignedRows.get(artworkTop)!));
+    }
+  }
+  expect(Math.max(0, ...alignmentErrors)).toBeLessThan(1);
+  const identitySpacing =
+    view === "catalog"
+      ? projectRows.map((project) => ({
+          gap:
+            project.getBoundingClientRect().top -
+            project.parentElement!.querySelector("h2")!.getBoundingClientRect().bottom,
+          maximumGap: parseFloat(getComputedStyle(project).fontSize) * 1.5,
+        }))
+      : [];
+  expect(identitySpacing.filter(({ gap, maximumGap }) => gap < 0 || gap > maximumGap)).toEqual([]);
+  const fallback = document.querySelectorAll<HTMLElement>(".card-art")[4]!;
+  expect(fallback.querySelector("img")).toBeNull();
+  const palette = getComputedStyle(fallback).getPropertyValue("--art-color");
+  const control = document.createElement("div");
+  control.style.backgroundColor = palette;
+  document.body.append(control);
+  expect(getComputedStyle(fallback).backgroundColor).toBe(
+    getComputedStyle(control).backgroundColor,
+  );
+  control.remove();
+  for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^="Favorite "]')) {
+    const card = favorite.closest("article") ?? favorite.parentElement!;
+    expect(favorite.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      card.querySelector(".card-art")!.getBoundingClientRect().bottom,
+    );
+    expect(favorite.closest("button button")).toBeNull();
+    for (const action of card.querySelectorAll<HTMLElement>(
+      ".collection-actions button, .card-content button",
+    )) {
+      if (action === favorite) continue;
+      const a = favorite.getBoundingClientRect();
+      const b = action.getBoundingClientRect();
+      expect(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom).toBe(
+        true,
+      );
+    }
+  }
+  return { frames, fallback };
+}

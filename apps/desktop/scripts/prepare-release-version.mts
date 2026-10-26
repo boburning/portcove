@@ -260,39 +260,11 @@ export function inspectPreparedReleaseVersionObjects(
     git(["rev-parse", `${candidate.prepared_commit}^{tree}`]).trim() !== candidate.prepared_tree
   )
     throw new Error("prepared export tree identity differs");
-  const date = git(["show", "-s", "--format=%cI", candidate.source_commit]).trim();
-  const offset = date.endsWith("Z") ? "+0000" : date.slice(-6).replace(":", "");
-  if (!/^[+-][0-9]{4}$/u.test(offset) || !Number.isSafeInteger(Date.parse(date) / 1000))
-    throw new Error("preparation date cannot be represented exactly");
-  const actor = `Portcove version preparation <version-preparation@portcove.invalid> ${Date.parse(date) / 1000} ${offset}`;
-  const raw = git(["cat-file", "commit", candidate.prepared_commit]);
-  const rawBytes = Buffer.from(raw);
-  if (
-    rawBytes.length > 128 * 1024 ||
-    createHash("sha1").update(`commit ${rawBytes.length}\0`).update(rawBytes).digest("hex") !==
-      candidate.prepared_commit
-  )
-    throw new Error("prepared raw commit bytes differ or exceed bound");
-  const prefix = `tree ${candidate.prepared_tree}\nparent ${candidate.source_commit}\nauthor ${actor}\ncommitter ${actor}\n\nPrepare application ${candidate.version}\n\nPortcove-Preparation-SHA256: ${candidate.intent_sha256}\n`;
-  if (!raw.startsWith(prefix) || !raw.endsWith("\n"))
-    throw new Error("prepared commit metadata or parent differs");
-  const intentBytes = raw.slice(prefix.length, -1);
-  if (createHash("sha256").update(intentBytes).digest("hex") !== candidate.intent_sha256)
-    throw new Error("prepared intent bytes differ");
-  const intent: unknown = JSON.parse(intentBytes);
-  if (
-    !isRecord(intent) ||
-    !isRecord(intent.proposal) ||
-    JSON.stringify(intent) !== intentBytes ||
-    intent.proposal.source_commit !== candidate.source_commit ||
-    intent.proposal.version !== candidate.version ||
-    typeof intent.proposal.base_version !== "string"
-  )
-    throw new Error("prepared proposal differs");
+  const { date, raw, baseVersion } = readPreparedIntent(git, candidate);
   const files = versionedFiles(git, {
     source_commit: candidate.source_commit,
     version: candidate.version,
-    base_version: intent.proposal.base_version,
+    base_version: baseVersion,
   });
   const changed = git([
     "diff-tree",
@@ -471,3 +443,36 @@ void settleDirectCli().catch((error: unknown) => {
   console.error(error);
   process.exitCode = 1;
 });
+
+function readPreparedIntent(git: Git, candidate: PreparedVersionIdentity) {
+  const date = git(["show", "-s", "--format=%cI", candidate.source_commit]).trim();
+  const offset = date.endsWith("Z") ? "+0000" : date.slice(-6).replace(":", "");
+  if (!/^[+-][0-9]{4}$/u.test(offset) || !Number.isSafeInteger(Date.parse(date) / 1000))
+    throw new Error("preparation date cannot be represented exactly");
+  const actor = `Portcove version preparation <version-preparation@portcove.invalid> ${Date.parse(date) / 1000} ${offset}`;
+  const raw = git(["cat-file", "commit", candidate.prepared_commit]);
+  const rawBytes = Buffer.from(raw);
+  if (
+    rawBytes.length > 128 * 1024 ||
+    createHash("sha1").update(`commit ${rawBytes.length}\0`).update(rawBytes).digest("hex") !==
+      candidate.prepared_commit
+  )
+    throw new Error("prepared raw commit bytes differ or exceed bound");
+  const prefix = `tree ${candidate.prepared_tree}\nparent ${candidate.source_commit}\nauthor ${actor}\ncommitter ${actor}\n\nPrepare application ${candidate.version}\n\nPortcove-Preparation-SHA256: ${candidate.intent_sha256}\n`;
+  if (!raw.startsWith(prefix) || !raw.endsWith("\n"))
+    throw new Error("prepared commit metadata or parent differs");
+  const intentBytes = raw.slice(prefix.length, -1);
+  if (createHash("sha256").update(intentBytes).digest("hex") !== candidate.intent_sha256)
+    throw new Error("prepared intent bytes differ");
+  const intent: unknown = JSON.parse(intentBytes);
+  if (
+    !isRecord(intent) ||
+    !isRecord(intent.proposal) ||
+    JSON.stringify(intent) !== intentBytes ||
+    intent.proposal.source_commit !== candidate.source_commit ||
+    intent.proposal.version !== candidate.version ||
+    typeof intent.proposal.base_version !== "string"
+  )
+    throw new Error("prepared proposal differs");
+  return { date, raw, baseVersion: intent.proposal.base_version };
+}

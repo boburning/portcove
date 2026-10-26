@@ -392,22 +392,23 @@ async function runLinuxPublicUpdateJourney(
   let beforeState: PublicUserState | undefined;
   try {
     report.initial_installation = await seedInitialImage(binding, deadline);
-    if (binding.parked) {
+
+    async function continueParkedLinuxJourney(parked: NonNullable<typeof binding.parked>) {
       report.restoration = await restoreParkedPublicUpdateCapture(
-        binding.parked.wire_path,
+        parked.wire_path,
         {
-          invocation_id: binding.parked.invocation_id,
-          wire_sha256: binding.parked.wire_sha256,
-          manifest_sha256: binding.parked.manifest_sha256,
+          invocation_id: parked.invocation_id,
+          wire_sha256: parked.wire_sha256,
+          manifest_sha256: parked.manifest_sha256,
         },
-        binding.parked.retained_directory,
+        parked.retained_directory,
         binding.state,
         deadline,
       );
       const oldReport: unknown = JSON.parse(
         new TextDecoder("utf-8", { fatal: true }).decode(
           await readBoundedPublicUpdateBytes(
-            `${binding.parked.retained_directory}/public-journey/public-update-journey.json`,
+            `${parked.retained_directory}/public-journey/public-update-journey.json`,
             4 * 1024 * 1024,
             deadline,
           ),
@@ -422,10 +423,10 @@ async function runLinuxPublicUpdateJourney(
       beforeState = inspectRetainedLinuxPublicState(oldReport.parked_user_state);
       assert.equal(beforeState.application_version, versions.prior);
       assert.ok(isRecord(oldReport.parked_status) && isRecord(oldReport.parked_status.staged));
-      assert.equal(oldReport.parked_status.staged.version, binding.parked.version);
+      assert.equal(oldReport.parked_status.staged.version, parked.version);
       assert.equal(
         (await readPublicUpdateFile(`${binding.state}/staging/candidate-installer.exe`)).sha256,
-        binding.parked.package.sha256,
+        parked.package.sha256,
       );
       let current = await connect(versions.prior);
       assertLinuxPublicUserStatePreserved(beforeState, await readState());
@@ -507,7 +508,9 @@ async function runLinuxPublicUpdateJourney(
       report.old_restart_scope =
         "V0 application relaunched with unchanged installed bytes and pre-native request; failure subtype remains unclassified";
       await stop();
-    } else {
+    }
+
+    async function startLinuxJourney() {
       let current = await connect(versions.prior);
       report.favorite_port = await seedPublicFavorite(current, "linux");
       await selectPublicLightTheme(current);
@@ -599,6 +602,11 @@ async function runLinuxPublicUpdateJourney(
           recovery.push({ area, original, fault, result, retained, cleanup });
         }
       }
+    }
+    if (binding.parked) {
+      await continueParkedLinuxJourney(binding.parked);
+    } else {
+      await startLinuxJourney();
     }
     report.retained_profile = await retainPublicUpdateProfile(
       binding.state,

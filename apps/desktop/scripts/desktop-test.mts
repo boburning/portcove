@@ -2095,6 +2095,43 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     await verifyApplicationMediaInputs(inputs, admission);
   } else await admission.verify(custody?.inputs ?? []);
   const launchStarted = Date.now();
+  await launchDriverProcess(childEnvironment);
+  const spawnedDriver = required(driver);
+  let spawnError: Error | undefined;
+  if (!(spawnedDriver instanceof AccountDriverView)) {
+    spawnedDriver.on("error", (error) => {
+      spawnError = error;
+    });
+  }
+  for (const stream of [spawnedDriver.stdout, spawnedDriver.stderr]) {
+    if (!stream) throw new Error("Owned driver capture stream is missing");
+    stream.on("data", (chunk: Buffer) => {
+      driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
+    });
+  }
+  if (linuxSelectedSession) await required(linuxLaunch).ready();
+  if (linuxPackagedInspector) return;
+  try {
+    await captureSelectedDriverLaunch(launchStarted);
+    if (historySession)
+      historyInventory = await captureHistoryDriver(required(spawnedDriver.pid), driverPath);
+    for (let attempt = 0; attempt < 40; attempt++) {
+      if (spawnError) throw spawnError;
+      if (spawnedDriver.exitCode !== null)
+        throw new Error(`tauri-driver exited: ${spawnedDriver.exitCode}`);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (await driverReady()) return;
+    }
+    throw new Error("tauri-driver did not become ready within ten seconds");
+  } catch (error) {
+    // A later startup observation must not strand the newly captured spawnedDriver.
+    // Without positive launch identity, retain the failure and refuse PID-only cleanup.
+    await cleanupFailedDriverLaunch();
+    throw error;
+  }
+}
+
+async function launchDriverProcess(childEnvironment: NodeJS.ProcessEnv) {
   const arguments_ = [
     "--port",
     String(port),
@@ -2159,48 +2196,6 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       stdio: ["ignore", "pipe", "pipe"],
       env: driverEnvironment(childEnvironment),
     });
-  }
-  let spawnError: Error | undefined;
-  if (!(driver instanceof AccountDriverView)) {
-    driver.on("error", (error) => {
-      spawnError = error;
-    });
-  }
-  for (const stream of [driver.stdout, driver.stderr]) {
-    if (!stream) throw new Error("Owned driver capture stream is missing");
-    stream.on("data", (chunk: Buffer) => {
-      driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
-    });
-  }
-  if (linuxSelectedSession) await required(linuxLaunch).ready();
-  if (linuxPackagedInspector) return;
-  try {
-    await captureSelectedDriverLaunch(launchStarted);
-    if (historySession)
-      historyInventory = await captureHistoryDriver(required(driver.pid), driverPath);
-    for (let attempt = 0; attempt < 40; attempt++) {
-      if (spawnError) throw spawnError;
-      if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      if (await driverReady()) return;
-    }
-    throw new Error("tauri-driver did not become ready within ten seconds");
-  } catch (error) {
-    // A later startup observation must not strand the newly captured driver.
-    // Without positive launch identity, retain the failure and refuse PID-only cleanup.
-    if (identityBoundSession && ownedSession.driver && driver?.pid) {
-      try {
-        await stopDriver();
-      } catch (cleanupError) {
-        checks.push({
-          scenario: "native-driver-launch-cleanup",
-          outcome: "failed",
-          message: errorMessage(cleanupError),
-        });
-        process.exitCode = 1;
-      }
-    }
-    throw error;
   }
 }
 
@@ -4882,5 +4877,20 @@ try {
       }
     }
     await releaseNativeResources();
+  }
+}
+
+async function cleanupFailedDriverLaunch() {
+  if (identityBoundSession && ownedSession.driver && driver?.pid) {
+    try {
+      await stopDriver();
+    } catch (cleanupError) {
+      checks.push({
+        scenario: "native-driver-launch-cleanup",
+        outcome: "failed",
+        message: errorMessage(cleanupError),
+      });
+      process.exitCode = 1;
+    }
   }
 }
