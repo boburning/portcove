@@ -1199,22 +1199,29 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   [".config/nextest.toml", ["scripts/ci-rust-workflow.test.mts"]],
-  ...["scripts/qualification-rustdoc.mts", "scripts/rustdoc-outcomes.mts"].map(
-    (file): [string, string[]] => [
-      file,
-      [
-        "scripts/qualification-rustdoc.test.mts",
-        "scripts/qualification-coverage.test.mts",
-        "scripts/ci-rust-workflow.test.mts",
-        "scripts/dev-storage.test.mts",
-        "scripts/audit.test.mts",
-        "scripts/precommit-check.test.mts",
-        "scripts/local-validation.test.mts",
-        "scripts/node-test-inventory.test.mts",
-      ],
+  ...[
+    "scripts/qualification-rustdoc.mts",
+    "scripts/rustdoc-outcomes.mts",
+    "scripts/standalone-rust-tests.mts",
+    "scripts/development-evidence.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    [
+      "scripts/qualification-rustdoc.test.mts",
+      "scripts/development-evidence.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/validation-evidence.test.mts",
+      "scripts/workflow-provenance.test.mts",
+      "scripts/qualification-coverage.test.mts",
+      "scripts/ci-rust-workflow.test.mts",
+      "scripts/dev-storage.test.mts",
+      "scripts/audit.test.mts",
+      "scripts/precommit-check.test.mts",
+      "scripts/local-validation.test.mts",
+      "scripts/node-test-inventory.test.mts",
     ],
-  ),
-  ...["merged", "failed"].map((name): [string, string[]] => [
+  ]),
+  ...["merged", "failed", "standalone"].map((name): [string, string[]] => [
     "scripts/fixtures/rustdoc-outcomes/" + name + ".jsonl",
     ["scripts/qualification-rustdoc.test.mts"],
   ]),

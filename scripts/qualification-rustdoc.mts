@@ -72,7 +72,8 @@ function captureStream(
   };
 }
 
-async function executeCargo(
+export async function executeLibtestProcess(
+  command: string,
   args: string[],
   cwd: string,
   environment: NodeJS.ProcessEnv,
@@ -83,7 +84,7 @@ async function executeCargo(
   const stdout = captureStream(path.join(packet, "stdout.jsonl"), 1, publish);
   const stderr = captureStream(path.join(packet, "stderr.txt"), 2, publish);
   const started = performance.now();
-  const child = start("cargo", args, {
+  const child = start(command, args, {
     cwd,
     env: environment,
     stdio: ["inherit", "pipe", "pipe"],
@@ -179,7 +180,7 @@ function documentationRequest(
 }
 
 function invocationOutcome(
-  result: Awaited<ReturnType<typeof executeCargo>>,
+  result: Awaited<ReturnType<typeof executeLibtestProcess>>,
   observation: ReturnType<typeof parseRustdocOutcomes>,
 ) {
   const reportingFailure =
@@ -227,7 +228,8 @@ export async function runQualificationRustdoc(
     flag: "wx",
   });
   // -1 keeps compilation stable; pinned libtest currently admits experimental runtime formatting.
-  const result = await executeCargo(
+  const result = await executeLibtestProcess(
+    "cargo",
     args,
     cwd,
     { ...environment, RUSTC_BOOTSTRAP: "-1" },
