@@ -331,6 +331,22 @@ export function completedContainerPreparation(records: readonly unknown[], name:
     : null;
 }
 
+export function validateNativeBuilder(inspection: string): void {
+  const drivers = [...inspection.matchAll(/^[ \t]*Driver:[ \t]+([^\r\n]+)$/gmu)].map((match) =>
+    match[1]?.trim(),
+  );
+  const endpoints = [...inspection.matchAll(/^[ \t]*Endpoint:[ \t]+([^\r\n]+)$/gmu)].map((match) =>
+    match[1]?.trim(),
+  );
+  if (
+    drivers.length !== 1 ||
+    drivers[0] !== "docker" ||
+    endpoints.length !== 1 ||
+    endpoints[0] !== "desktop-linux"
+  )
+    throw new Error("Use the native Docker builder bound to the local desktop-linux context");
+}
+
 // Shared Windows transport; profiles are selected only by repository-owned adapters.
 export function createContainerHost(profile: string) {
   if (!["browser", "build"].includes(profile)) throw new Error("Unknown container profile");
@@ -357,6 +373,7 @@ export function createContainerHost(profile: string) {
   const budgets = Object.freeze({
     timeout_ms: (builder ? 90 : 30) * 60_000,
     setup_ms: (builder ? 120 : 30) * 60_000,
+    ...(builder ? { bundle_ms: 45 * 60_000 } : {}),
     cpus: 4,
     memory: "6g",
     shm: "1g",
@@ -1363,7 +1380,7 @@ export function createContainerHost(profile: string) {
         if (reservation.registerExternal) await reservation.registerExternal(external);
         const cancellation = new EventEmitter();
         const cancel = () => cancellation.emit("SIGTERM");
-        const timer = setTimeout(cancel, setupTimeout(builder ? 600_000 : 300_000));
+        const timer = setTimeout(cancel, setupTimeout(budgets.bundle_ms ?? 300_000));
         abort.signal.addEventListener("abort", cancel, { once: true });
         const bundleLease = reservation;
         if (!bundleLease) throw new Error("Owned bundle preparation has no capacity reservation");
@@ -1426,14 +1443,22 @@ export function createContainerHost(profile: string) {
         );
         if (size(stageRoot) > budgets.staging_bytes)
           throw new Error("Owned staging exceeds its 10 GiB budget");
-        const buildTimeout = setupTimeout();
         abort.signal.throwIfAborted();
+        const builderInspection = await docker(["buildx", "inspect", "desktop-linux"], {
+          timeout: setupTimeout(15_000),
+          signal: abort.signal,
+        });
+        validateNativeBuilder(builderInspection.stdout);
+        writeFileSync(path.join(directory, "builder-inspection.log"), builderInspection.stdout);
         state.capacity_phase = "image-build";
         state.build_name = `${prefix}-${run}`;
         save();
         const build = await docker(
           [
             "build",
+            "--builder",
+            "desktop-linux",
+            "--load",
             "--platform",
             "linux/amd64",
             "--progress=plain",
@@ -1461,7 +1486,7 @@ export function createContainerHost(profile: string) {
             ].flatMap((key) => ["--build-arg", `${key}=`]),
             directory,
           ],
-          { timeout: buildTimeout, signal: abort.signal },
+          { timeout: setupTimeout(), signal: abort.signal },
         );
         state.capacity_phase = "prepared";
         save();
