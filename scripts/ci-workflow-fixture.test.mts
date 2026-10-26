@@ -48,6 +48,12 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 const { parseDocument, stringify } = createRequire(__REQUIRE_FROM__)("yaml");
 const { default: originalDefault, ...originalNamed } = fs;
+const isCiWorkflow = value => /[\\/]workflows[\\/]ci\.yml$/.test(value);
+for (const separator of ["/", "\\"]) {
+  assert.equal(isCiWorkflow(["checkout", ".github", "workflows", "ci.yml"].join(separator)), true);
+  assert.equal(isCiWorkflow(["checkout", ".github", "actions", "ci.yml"].join(separator)), false);
+}
+
 async function readFile(...args) {
   const original = await fs.readFile(...args);
   const path = args[0] instanceof URL ? fileURLToPath(args[0]) : String(args[0]);
@@ -55,7 +61,7 @@ async function readFile(...args) {
   const document = parseDocument(original.toString(), { uniqueKeys: true });
   assert.equal(document.errors.length, 0);
   const settings = document.toJS();
-  if (path.endsWith("/ci.yml")) {
+  if (isCiWorkflow(path)) {
     const jobs = settings.jobs;
     switch (process.env.PORTCOVE_WORKFLOW_CONTRACT_MODE) {
       case "gate": delete jobs.rust; break;
