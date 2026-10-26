@@ -1121,7 +1121,8 @@
       "file": "scripts/qualification-coverage.test.mts",
       "memberships": [
         ["catalog-full-2", 6300],
-        ["repository-tools-2", 1800]
+        ["repository-tools-2", 1800],
+        ["windows-storage-3", 1000004]
       ]
     },
     {
@@ -2514,7 +2515,8 @@
       "file": "scripts/select-ci-plan.test.mts",
       "memberships": [
         ["catalog-full-2", 5800],
-        ["repository-tools-2", 1400]
+        ["repository-tools-2", 1400],
+        ["windows-storage-3", 1000005]
       ]
     },
     {
@@ -2891,6 +2893,22 @@
       "memberships": [
         ["catalog-full-3", 200],
         ["development-tools", 5300]
+      ]
+    },
+    {
+      "file": "scripts/rust-validation-setup.test.mts",
+      "memberships": [
+        ["windows-storage-3", 1000002],
+        ["catalog-full-2", 1000003],
+        ["repository-tools-2", 1000002]
+      ]
+    },
+    {
+      "file": "scripts/ci-workflow-fixture.test.mts",
+      "memberships": [
+        ["windows-storage-3", 1000003],
+        ["catalog-full-2", 1000004],
+        ["repository-tools-2", 1000003]
       ]
     }
   ]
