@@ -248,10 +248,13 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     assert.match(lane, /name: runtime-diagnostics-(?:windows|linux)-/u);
     assert.match(lane, /path:\s*(?:\|\s*)?work\/runtime-diagnostics\/(?:windows|linux)\//u);
   }
-  assert.match(
-    fastRustQuality,
-    /- name: Retain Linux runtime diagnostics acceptance evidence\n\s+if: always\(\) && contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'rust'\) && needs\.classify\.outputs\.linux_diagnostics != 'false'/u,
+  const retained = steps.find(
+    (step) =>
+      isRecord(step) && step.name === "Retain Linux runtime diagnostics acceptance evidence",
   );
+  assert.ok(isRecord(retained) && isRecord(retained.with));
+  assert.equal(retained.if, "always() && " + linuxFixture.if);
+  assert.equal(retained.with.path, "work/runtime-diagnostics/linux/");
   const outputs = workflowJob("classify").outputs;
   assert.ok(isRecord(outputs));
   assert.equal(outputs.linux_diagnostics, "${{ steps.plan.outputs.linux_diagnostics }}");
