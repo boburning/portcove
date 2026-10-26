@@ -1,4 +1,4 @@
-import { transportValues } from "./transport-values.mts";
+import { transportValue, transportValues } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import type { PortStatus } from "../src/transport-types.generated.js";
 interface ProcessOptions {
@@ -104,14 +104,23 @@ function run(
   });
 }
 
-export function parseCliStatuses(stdout: string) {
+export function parseCliStatuses(stdout: string, expectedSchema: number) {
+  assert(
+    Number.isSafeInteger(expectedSchema) && expectedSchema > 0,
+    "CLI schema expectation must be a positive integer",
+  );
   const response: unknown = JSON.parse(stdout);
   assert(isRecord(response), "CLI status response must be an object");
+  assert.equal(
+    response.schema_version,
+    expectedSchema,
+    "CLI status schema must match the compiled capability document",
+  );
   assert.equal(response.ok, true, "CLI status response must succeed");
+  assert.equal(response.error, null, "Successful CLI status must not carry an error");
   assert.equal(response.command, "status", "CLI must identify the status command");
   assert.ok(Array.isArray(response.data), "CLI status response must contain an array");
-  const statuses: unknown[] = response.data;
-  return statuses;
+  return transportValues("status", response.data);
 }
 
 export function compareStatusSnapshots(
@@ -203,6 +212,7 @@ async function main() {
     PORTCOVE_PREFERENCES: path.join(workspace, "preferences.json"),
     PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
   };
+
   const stages: {
     stage: string;
     status_count: number;
@@ -235,11 +245,25 @@ async function main() {
         },
       },
     );
-  const readStatuses = async (stage: string) => {
-    const cliStatuses = transportValues(
-      "status",
+  const readStatuses = async (stage: string, schemaVersion: number) => {
+    const cliOutput = await run(
+      cli,
+      ["--library", library, "--json", "--non-interactive", "status"],
+      { env },
+    );
+    const cliStatuses = parseCliStatuses(cliOutput, schemaVersion);
+    const envelope: unknown = JSON.parse(cliOutput);
+    assert(isRecord(envelope));
+    assert.throws(() =>
       parseCliStatuses(
-        await run(cli, ["--library", library, "--json", "--non-interactive", "status"], { env }),
+        JSON.stringify({ ...envelope, schema_version: schemaVersion + 1 }),
+        schemaVersion,
+      ),
+    );
+    assert.throws(() =>
+      parseCliStatuses(
+        JSON.stringify({ ...envelope, data: [{ ...cliStatuses[0], port_id: null }] }),
+        schemaVersion,
       ),
     );
     const desktopRaw: unknown = JSON.parse(
@@ -261,8 +285,22 @@ async function main() {
   };
 
   try {
+    const capabilitiesResponse: unknown = JSON.parse(
+      await run(cli, ["--json", "--non-interactive", "capabilities"], { env }),
+    );
+    assert(isRecord(capabilitiesResponse), "CLI capabilities must be an object");
+    assert.equal(capabilitiesResponse.ok, true);
+    assert.equal(capabilitiesResponse.command, "capabilities");
+    assert.equal(capabilitiesResponse.error, null);
+    const capabilities = transportValue("capabilities", capabilitiesResponse.data);
+    assert.equal(
+      capabilitiesResponse.schema_version,
+      capabilities.schema_version,
+      "CLI capability envelope and payload schemas must agree",
+    );
+
     setDefinitionState("select");
-    const initial = await readStatuses("fresh-library");
+    const initial = await readStatuses("fresh-library", capabilities.schema_version);
     assert.equal(initial.fixture.active, null);
     assert(initial.fixture.readiness);
     assert.equal(initial.fixture.readiness.launchable, false);
@@ -280,13 +318,16 @@ async function main() {
     );
     assert(isRecord(installed));
     assert.equal(installed.ok, true, "qualification fixture installation must succeed");
-    const ready = await readStatuses("installed");
+    const ready = await readStatuses("installed", capabilities.schema_version);
     assert.ok(ready.fixture.active, "installed fixture must have an active installation");
     assert(ready.fixture.readiness);
     assert.equal(ready.fixture.readiness.launchable, true);
 
     setDefinitionState("install");
-    const retained = await readStatuses("successor-definition-installed");
+    const retained = await readStatuses(
+      "successor-definition-installed",
+      capabilities.schema_version,
+    );
     assert.ok(retained.definition.active, "successor definition must have an active installation");
     assertDefinitionOperation(retained.definition, "install", {
       eligibility: { outcome: "eligible", reason: "mandatory_checks_passed" },
@@ -299,7 +340,7 @@ async function main() {
       });
 
     setDefinitionState("revoke");
-    const revoked = await readStatuses("successor-definition-revoked");
+    const revoked = await readStatuses("successor-definition-revoked", capabilities.schema_version);
     for (const operation of ["prepare", "launch"] as const)
       assertDefinitionOperation(revoked.definition, operation, {
         eligibility: { outcome: "hold", reason: "publisher_revoked" },
@@ -347,7 +388,7 @@ async function main() {
       path.join(ready.fixture.active.path, ".portcove-manifest.json"),
       "owned invalid installation manifest",
     );
-    const stale = await readStatuses("invalid-installation-manifest");
+    const stale = await readStatuses("invalid-installation-manifest", capabilities.schema_version);
     assert(stale.fixture.readiness);
     assert.equal(stale.fixture.readiness.launchable, false);
     assert.ok(
@@ -358,11 +399,14 @@ async function main() {
     const report = {
       schema_version: 3,
       consumer_sha256: builtConsumers,
+      api_schema_version: capabilities.schema_version,
       managed_consumers: managedConsumers,
       fixture_port_id: INSTALL_FIXTURE_PORT_ID,
       definition_fixture_port_id: DEFINITION_FIXTURE_PORT_ID,
       assertions: {
         complete_status_parity: true,
+        serialized_wrong_schema_rejected: true,
+        serialized_required_field_mutation_rejected: true,
         successor_install_assessment_observed: true,
         retained_prepare_and_launch_assessments_observed: true,
         revoked_definition_hold_reason_observed: true,
