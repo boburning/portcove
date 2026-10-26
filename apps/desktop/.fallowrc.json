@@ -53,6 +53,15 @@
           "members": ["signalCode", "stdout", "stderr"]
         }
       ]
+    },
+    {
+      "name": "portcove-fixed-controller-bundle-adapter",
+      "detection": {
+        "type": "fileExists",
+        "pattern": "scripts/release-version-bundled-runtime.mts"
+      },
+      "entryPoints": ["scripts/release-version-bundled-runtime.mts"],
+      "entryPointRole": "support"
     }
   ],
   "boundaries": {
