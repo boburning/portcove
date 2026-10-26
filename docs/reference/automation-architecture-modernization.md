@@ -892,3 +892,135 @@ Strict checks cover 1,360 files with no warnings/lint/type errors. Independent
 non-writing review cleared the final isolation repair, aliases, path policy,
 assertion/identity preservation and report. These local results do not replace
 exact-head hosted checks or guarded merge/readback.
+
+## Feature ownership and impact completion pass — October 26, 2026
+
+This pass implements the remaining demonstrated ownership defects under
+[#1104](https://github.com/boburning/portcove/issues/1104). It consumes the delivered
+foundations above and [#2420](https://github.com/boburning/portcove/issues/2420),
+which retains its independent testing-audit acceptance and scheduling.
+
+### Ownership and consumer repair
+
+The ordinary input-to-test map contained repeated keys. JavaScript Map construction
+silently replaced earlier consumers, including Linux isolated-plan/session,
+public-plan, HTTP/init and account-session contracts, and the release recovery
+worker's behavioral suite. Unique registrations now fail visibly on a duplicate.
+Equivalent repeated declarations are removed; shared native custody obligations
+supplement each helper's feature tests rather than replacing them.
+
+The existing `nativeHelperFiles` dependency closure carries each root's lifecycle
+consumers to its declared inputs. Shared isolated/account runtimes retain the
+existing complete release-contract fallback and Linux/Windows public-update Node
+contracts. Registry edits select the union. This fixes omissions; it does not
+claim faster native validation or new native observations. No planner, dependency
+registry, execution profile, package pin or required context is added.
+
+Independent review compared before/after selections for all 4,114 tracked paths:
+13 selections changed, and no prior Node-test consumer was lost. Positive and
+negative local/hosted controls cover direct and shared consumers, additions,
+deletions, both rename directions, mixed edits and unrelated frontend/prose.
+Existing unsafe/incomplete discovery refusal, unknown fallback, Rust inventory
+union checks and mandatory aggregate contracts remain. A copied real module
+closure imports successfully; adding a repeated input makes import fail with
+`Duplicate Node test input owner` before selection can succeed.
+
+### Feature-owned frontend cases and measured limits
+
+Four expanded readiness markup cases move into `launch-readiness.test.tsx`;
+four pure readiness-model cases join `view-model.test.ts`. The installed-status
+builder moves into the existing shared fixture module, and the existing action
+fixture replaces another identical mock list. All DOM, lifecycle, keyboard,
+accessibility, navigation and native-selector cases remain in Chromium.
+
+The affected union preserves all **50 expanded names and outcomes**, with no
+skips: Node 20→28, Chromium 30→22. Inputs, parameter vectors and assertions remain;
+only intended file/project ownership changes. A controlled replacement of both
+DetailPanel `Ready to play` titles fails the same `confirmed=true` assertion
+before and after; the production bytes are restored exactly.
+
+Linux x64, Node24.22.1, Vite+1.3.0, Vitest5.0.5 and Chromium156.0.8078.4 were used.
+These are warm/dependency-provisioned, single-pair local observations:
+
+| Observation                                           |   Before |   After |
+| ----------------------------------------------------- | -------: | ------: |
+| Successful affected-file runner                       |    5.59s |   4.70s |
+| Successful guarded command, including setup/admission |   7.793s |  6.683s |
+| Controlled failing case execution                     | 230.10ms | 27.07ms |
+| Controlled failure guarded completion                 |   6.296s |  5.908s |
+
+The successful commands queued10/6ms; failing commands queued6/6ms. Outer results
+include supervisor setup, runner import/discovery, transforms, execution, reporting
+and cleanup. Those phases were not independently timed in these samples; time to
+first visible actionable failure was not captured. There is no cold-cache,
+whole-suite, hosted or universal feedback-time improvement claim. The source
+baseline is `509876a05e786ab154268e5028ac1423a8e05390`; original and changed input
+bytes, observations and controls remain in the delivering checkout's ignored
+`work/1104-evidence/` directory.
+
+Representative current plan observations retain frontend static/content/build
+and related tests; focused source-inspection Rust families and their conversion
+consumers; broad Core coverage for shared conversion/persistence implementations;
+catalog checks and real-catalog consumers; artwork consumer checks; cheap prose
+contracts; and broad mixed/shared/unknown fallback. Required Windows workspace
+compilation, other explicit platform qualification, complete embedded Rust test
+families, receipt fingerprints and five exact-head contexts are unchanged.
+Prior #2420 warm Rust measurements remain8m59s/9m24s with their original provenance,
+not new cold/runtime evidence from this pass.
+
+### Conditional use and retained failures
+
+The recent real private-import edit (#2391) also changed shared Core/CLI/transport
+inputs, so it correctly retains broad Rust coverage; it cannot prove isolated
+private-family speedup. Recent native changes such as #3663 retain their original
+review, exact-head CI and explicitly limited native evidence. The last release
+handbook edit (#2497) also changed protected release implementation/workflows;
+it cannot establish compatible handbook-only Rust/UI receipt reuse. The last
+media change (#1365) includes prose and a PNG and retains its documentation
+consumer boundary. These histories are not manufactured new executions.
+
+The real candidate's first named-ref preflight correctly refused its dirty source.
+Frozen preflight then refused the candidate's change to trusted local-check
+selection authority: fixed transport cannot qualify itself. Both controls retain
+source/base/controller/ref identities; neither is an eligible dispatch or a claim
+of hosted execution. Future #1309/#1324/#1362/#1380/#1351
+use still requires the relevant real change, exact inputs, compatible claims and
+actual execution when required. Reuse never supplies fresh CI or native/release
+acceptance.
+
+The historical Windows initialization, Intel interrupted import, backup replay,
+release-output EPERM, catalog timing and PowerShell/browser incidents retain
+[#1104's exact original evidence and resume conditions](https://github.com/boburning/portcove/issues/1104).
+No later passing run is a causal repair. Audit57 visual comparison stays under
+#2420: require a demonstrated repeated visual-only escape before adding a small
+pinned baseline; existing semantic/geometry/focus/contrast/layout coverage remains.
+
+This pass also retains two new local observations. A supervisor registration
+failed before Vitest launch; the retained registration and quiescent cleanup
+receipt exist. A small instrumented `/tmp` probe subsequently registered in about
+31ms, without identifying the original cause. A storage-root probe was cancelled
+while waiting for another owner's Rust capacity; no payload started. Resume with
+exact storage-root spawn/publication/read timing on another qualifying failure,
+including process identity and cleanup, rather than treating the `/tmp` pass as
+repair or increasing a deadline without evidence.
+
+The broader selected frontend run completed **1,720 cases:1,704 passes and16
+timeout failures** in499.152s (guarded frontend command,7ms admission queue).
+Strict checks,209 selected Node contracts, content policy and the production
+build passed before it. Preserve all failed cases, traces and screenshots. During
+failure the observed memory full-stall avg60 was17.67% and I/O full-stall avg60
+11.92%; traces show ordinary clicks and frame attachment taking seconds. This is
+association, not causal attribution or a product repair. One unchanged affected-
+file discriminator passes all61cases in the nine failed files in56.862s
+(guarded command56.491s, including10.030s admission queue). It neither repairs
+nor explains the original16timeouts. Fresh hosted CI remains required.
+Do not repeat the full local suite merely to obtain green. Resume a timing repair
+only with a discriminating reproduction that isolates setup/actionability,
+screenshot/export, host pressure or an actual product assertion. No reservation,
+worker count, timeout, retry, assertion or diagnostic-retention policy changes.
+
+A/B/C's demonstrated source gaps are addressed by this implementation. D remains
+evidence-bounded: preserve the original failures and conditional obligations;
+#1104 closure requires its owning acceptance decision after delivery, and #2420
+remains open at its independent scope. This report establishes no installed,
+gameplay, signing, publication, release or global-health acceptance.
