@@ -1,4 +1,4 @@
-// Disabled owner-side diagnostic proposal. Never loaded by the candidate.
+// Owner-authorized bounded hosted diagnostic. Never loaded by the candidate.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,7 +14,7 @@ using System.Xml;
 
 namespace Portcove.HostedNative {
  public sealed class AccessAudit : IDisposable {
-  public static bool ExecutionAuthorized { get { return false; } }
+  public static bool ExecutionAuthorized { get { return true; } }
   static int started;
   static readonly Guid KernelObjects=new Guid("0cce921f-69ae-11d9-bed3-505054503030");
   readonly List<AuditObject> objects=new List<AuditObject>();
@@ -66,7 +66,7 @@ namespace Portcove.HostedNative {
    RequireAuthority();
    if(Interlocked.CompareExchange(ref started,1,0)!=0)throw new InvalidOperationException("Audit attempt is one-shot; no automatic retry");
    LastPreparationRecoveryFailures=new string[0];
-   if(Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted"||Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true"||Environment.GetEnvironmentVariable("GITHUB_REPOSITORY")!="boburning/portcove"||Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT")!="1"||!System.Text.RegularExpressions.Regex.IsMatch(Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF")??"","^boburning/portcove/\\.github/workflows/controller-tool-build-fixture\\.yml@(?:refs/pull/[1-9][0-9]*/merge|refs/heads/main)$")||!System.Text.RegularExpressions.Regex.IsMatch(desktop??"","^PortcoveHosted_[0-9a-f]{32}$"))throw new InvalidOperationException("Fixed ordinary hosted audit required");
+   if(Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT")!="github-hosted"||Environment.GetEnvironmentVariable("GITHUB_ACTIONS")!="true"||Environment.GetEnvironmentVariable("GITHUB_REPOSITORY")!="boburning/portcove"||Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT")!="1"||!System.Text.RegularExpressions.Regex.IsMatch(Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF")??"","^boburning/portcove/\\.github/workflows/controller-tool-build-fixture\\.yml@refs/pull/3559/merge$")||!System.Text.RegularExpressions.Regex.IsMatch(desktop??"","^PortcoveHosted_[0-9a-f]{32}$"))throw new InvalidOperationException("Fixed ordinary hosted audit required");
    if(!Path.IsPathFullyQualified(capture)||!Directory.Exists(capture))throw new ArgumentException("Existing private audit capture required");
    for(string cursor=Path.GetFullPath(capture);!String.IsNullOrEmpty(cursor);cursor=Path.GetDirectoryName(cursor))if((File.GetAttributes(cursor)&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("Audit capture reparse ancestry refused");
    var value=new AccessAudit{subject=new SecurityIdentifier(candidate).Value,directory=capture,session=Process.GetCurrentProcess().SessionId};

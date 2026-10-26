@@ -1023,7 +1023,7 @@ foreach($case in @('settled','stop','root','observer','unreturned-settled','unre
 });
 
 void test(
-  "disabled access audit preserves SACL labels and rejects unrelated or overbound Security records",
+  "hosted-only access audit preserves SACL labels and rejects unrelated or overbound Security records",
   { skip: process.platform !== "win32" },
   () => {
     const audit = fileURLToPath(
@@ -1034,8 +1034,8 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Diagnostics.EventLog
 $references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
 Add-Type -ReferencedAssemblies $references -TypeDefinition ([IO.File]::ReadAllText('${audit.replaceAll("'", "''")}'))
-$refused=$false;try{[Portcove.HostedNative.AccessAudit]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'authority not granted'}
-if(-not $refused -or [Portcove.HostedNative.AccessAudit]::ExecutionAuthorized){throw 'Audit gate allowed a privileged path'}
+$refused=$false;try{[Portcove.HostedNative.AccessAudit]::Prepare('invalid','invalid','invalid')|Out-Null}catch{$refused=$_.Exception.Message -match 'Fixed ordinary hosted audit required'}
+if(-not $refused -or -not [Portcove.HostedNative.AccessAudit]::ExecutionAuthorized){throw 'Hosted audit gate allowed invalid context or lost owner grant'}
 $sid='S-1-5-21-1-2-3-1001';$before=[Security.AccessControl.RawSecurityDescriptor]::new('O:SYG:SYD:P(A;;GA;;;SY)S:(ML;;NW;;;LW)')
 $bytes=[byte[]]::new($before.BinaryLength);$before.GetBinaryForm($bytes,0)
 $changed=[Security.AccessControl.RawSecurityDescriptor]::new([Portcove.HostedNative.AccessAudit]::Propose($bytes,$sid,0xf037f),0)
