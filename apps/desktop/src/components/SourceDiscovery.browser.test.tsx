@@ -1,11 +1,20 @@
 import { render as renderComponent, cleanup } from "vitest-browser-react";
 import { page, userEvent } from "vite-plus/test/browser";
-import { beforeEach, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { SourceDiscoveryReport, SourceImportPlan, SourceProfile } from "../types";
-import { SourceDiscoveryButton } from "./SourceDiscovery";
-beforeEach(() => vi.mocked(picker.pickInstallFolder).mockReset());
+import {
+  SourceDiscoveryButton,
+  SourceImportReview,
+  sourceImportModePresentation,
+} from "./SourceDiscovery";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { sourceImportFixtures } from "./rendered-test-fixtures";
+beforeEach(() => {
+  vi.mocked(picker.pickInstallFolder).mockReset();
+});
 
 it("opens and scans the Inbox, then applies the exact reviewed import", async () => {
   const profile: SourceProfile = {
@@ -354,3 +363,38 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
 });
 
 vi.mock("../file-picker", { spy: true });
+
+const { plan } = sourceImportFixtures();
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+it.each(["copy", "move", "use_current_location"] as const)(
+  "keeps the known %s review actionable",
+  async (mode) => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    const apply = vi.fn().mockResolvedValue(undefined);
+    try {
+      await act(async () =>
+        root.render(
+          <SourceImportReview plan={plan(mode)} busy={false} onApply={apply} onCancel={vi.fn()} />,
+        ),
+      );
+      expect(host.textContent).toContain(sourceImportModePresentation(mode).explanation);
+      expect(host.textContent).toContain(plan(mode).destination);
+      expect(host.textContent).toContain(
+        mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder",
+      );
+      const action = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent === sourceImportModePresentation(mode).label,
+      );
+      expect(action?.dataset.variant).toBe(mode === "move" ? "destructive" : "primary");
+      await act(async () => action!.click());
+      expect(apply).toHaveBeenCalledOnce();
+    } finally {
+      await act(async () => root.unmount());
+    }
+  },
+);
