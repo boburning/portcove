@@ -1296,3 +1296,39 @@ Response diagnostic source `c7668d0aadd65341c7412340b55ce2177f9dcf1f` passed req
 Explicit-show source `f43c5d77db44585918a605e1a97851767fe08e87` passed required CI `40243534656/1` and Linux fixture, but Windows job `121320227280` in fixture `40243534641/1` failed the new own-window check with `Inert own form remains hidden`, exit 1. Broker visibility remained false and response unattempted. Complete profile/HKCU/descendant output and positive root/job/disable cleanup survive. Artifact `12618161295`, 14046 bytes, SHA-256 `555e75f00cd8c7479281014b501e52a0aa6d106d6f7f0cacb23b70c7f387385b`, passed provider byte/digest and bounded ZIP/CRC checks. The fixture now makes both native calls explicit: own-window SW_HIDE to consume startup state, then SW_SHOW; it no longer assumes managed Show already consumed the first native call. The controlled regression requires that exact handle and 0→5 sequence in both refusal and continuation cases. Actual broker window/response acceptance is unchanged and remains required.
 
 Native-sequence source `ff47f255edef85854ffbd429a4484eb841c9ed7e` passed required CI `40244108300/1`; Windows fixture `40244108301/1`, job `121321941721`, again failed own visibility after explicit native 0→5 calls. Profile/HKCU/descendant output and positive root/job/disable cleanup are retained. Artifact `12618480282`, 14089 bytes, SHA-256 `7f8c731912ecf99c7bb307ee9e61abeebd68ef4e6ee974596cec192c6348ef99`, passed provider byte/digest and bounded ZIP/CRC checks. This disproves the proposed show-sequence repair at its tested scope. The next diagnostic retains only own HWND/style, immediate parent HWND/style and desktop HWND/style immediately before the unchanged refusal. IsWindowVisible checks window ancestry; a deliberately noninteractive station cannot provide human display. Neither a hidden ancestor nor absent own WS_VISIBLE is inferred until those immediate observations exist. No station/desktop access or acceptance policy changes.
+
+## Held Windows tool producer wiring October 26
+
+The held controller now declares the existing Windows tool build and a separate
+checkout-free attester. Its fixed Windows 2022 producer identity, immutable artifact
+ID/digest, exact source/tree/run/attempt, platform-specific manifest subject and
+predicate, and normalized bundle member match the existing authenticated Windows
+receiver. Compilation clears inherited GitHub tokens; only subsequent provider
+readback receives the read token. The attester has no checkout, dependency
+installation or role credentials. Both jobs are application-only; catalog routing
+and Linux consumers remain unchanged. This adds no Windows native invocation or
+protected execution grant, and does not establish an actual protected tool artifact.
+
+The trusted-workflow reader/admission bound is now 96 KiB (previously 64 KiB), using
+the same finite growth probe and exact workflow digest checks. Closed asset and
+archive bounds remain unchanged. Windows failure/manifest diagnostics follow the
+builder's actual short private-home path. Two diagnostic artifacts are added
+(11→13). The complete mirrored workflow and resource-policy digest must be
+reconciled into final runnable grants before use; old ratification cannot cover them.
+
+Declared application use is 91 job-minutes (85 plus Windows build 4/attestation 2),
+with catalog 40 as the mutually exclusive alternative and the unchanged hard 100
+ceiling. Adding the still-missing ten-minute Windows native job would total 101,
+so whole-job fit remains unresolved. These are declared bounds, not observed
+preparation/attestation timing, available headroom or a reservation. No timeout
+is reduced to manufacture fit, and no paid fallback is introduced.
+
+The generic Windows tool fixture now source-disables automatic dedicated-account
+execution: its one reviewed qualification was consumed in 40366111230/1. It retains
+the old execution controls, source staging, packaged-byte comparison, ordinary
+tool/custody smoke and all historical receipts. New results explicitly record
+`account_execution: not_requested`; source comparison cannot imply new GUI
+acceptance. There is no environment or CLI option to renew that grant. The
+accepted inert primitive remains attributed to its original source/run; new
+candidate/source/runtime/capture/report/proof/upload and client-minimum/protected
+observations remain unfinished. Production stays held; no owner setup is requested.

@@ -510,7 +510,7 @@ void test("bounded eligibility never claims availability, headroom or reservatio
   assert.equal(result.authority, "none");
   assert.equal(result.resource_estimate.total_job_minutes, 100);
   assert.equal(result.resource_estimate.input_receipts, 163);
-  assert.equal(result.resource_estimate.declared_job_minutes, 85);
+  assert.equal(result.resource_estimate.declared_job_minutes, 91);
   assert.equal(result.resource_estimate.retention_days, 7);
 });
 void test("changed account, stop, budget, visibility, runner or resource policy refuses even a rehashed observation", () => {
@@ -565,7 +565,7 @@ void test("complete held controller policy replaces historical pins without appo
       ...slice4CapacityResources.input_job_minutes,
       ...slice4CapacityResources.wake_job_minutes,
     ].reduce((a, b) => a + b, 0),
-    85,
+    91,
   );
   const historical = capacityFixture();
   historical.ratification.resource_policy_sha256 = "1".repeat(64);

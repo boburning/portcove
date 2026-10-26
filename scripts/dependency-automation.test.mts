@@ -58,8 +58,14 @@ void test("Rust Node and pnpm authorities and isolated runtime representations s
     assert.doesNotMatch(workflow, /uses: pnpm\/action-setup@[\s\S]{0,160}\n\s+version:/u);
   }
   for (const [filename, jobs] of [
-    [".github/workflows/application-update-production.yml", ["tool_attest", "attest"]],
-    ["docs/qualification/application-update-production.complete.yml", ["tool_attest", "attest"]],
+    [
+      ".github/workflows/application-update-production.yml",
+      ["tool_attest", "tool_attest_windows", "attest"],
+    ],
+    [
+      "docs/qualification/application-update-production.complete.yml",
+      ["tool_attest", "tool_attest_windows", "attest"],
+    ],
     ["docs/qualification/application-update-production.controller-tools.yml", ["tool_attest"]],
   ] as const) {
     const document = parseDocument(await read(filename), { uniqueKeys: true });
@@ -644,8 +650,8 @@ void test("Node proposals update every maintained isolated pin without rewriting
   for (const [filename, count] of [
     [".node-version", 1],
     ["scripts/controller-node-runtime.mts", 1],
-    [".github/workflows/application-update-production.yml", 1],
-    ["docs/qualification/application-update-production.complete.yml", 1],
+    [".github/workflows/application-update-production.yml", 2],
+    ["docs/qualification/application-update-production.complete.yml", 2],
     ["docs/qualification/application-update-production.controller-tools.yml", 1],
   ] as const) {
     assert.equal(owns(filename), true, filename);
@@ -683,7 +689,7 @@ void test("Node proposals update every maintained isolated pin without rewriting
             }
           }
         }
-        assert.equal(isolatedPins, filename.endsWith("controller-tools.yml") ? 1 : 2, filename);
+        assert.equal(isolatedPins, filename.endsWith("controller-tools.yml") ? 1 : 3, filename);
       }
     }
   }

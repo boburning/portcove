@@ -1620,3 +1620,24 @@ gate is enabled; the consumed privileged-audit grant stays disabled. Actual host
 GUI acceptance is not yet established; no protected or production authority follows. All earlier failures and production,
 protected acceptance, resource and issue holds remain. No workstation setup,
 password or administrator step is requested.
+
+### Held Windows tool producer — October 26
+
+The [Windows producer preparation](slice4-hosted-observations-2026-10-22.md#held-windows-tool-producer-wiring-october-26)
+connects the existing Windows builder/receiver to separate application-only build
+and isolated attestation jobs in the held workflow. Exact source/artifact/issuer
+bindings remain required; this is preparation, not a protected artifact or native
+acceptance. The trusted workflow input budget is 96 KiB with unchanged exact-digest
+admission. Current declared application/catalog alternatives are 91/40 job-minutes,
+hard 100 unchanged. A future Windows 10 native allocation would total 101 and remains
+an unresolved resource-fit prerequisite. No existing limit is shortened to claim fit.
+
+Automatic dedicated-account qualification is source-disabled after its consumed
+one-shot grant. Tool fixtures retain source comparison and ordinary build/custody
+checks, explicitly marking account execution not_requested. Historical inert
+acceptance and all failures remain at their original scope. Protected Windows
+capture/report/proof/upload, client-minimum and actual producer/protected evidence,
+whole-job fit and final runnable source/resource-policy/grant reconciliation stay
+pending. D1/D2/D3, single-owner recovery, $0 stop, Unknown headroom/availability,
+no reservation/paid fallback, #254 Done, #315/#534/#246 acceptance pending,
+Chameleon protected acceptance unset, production hold and Slice 5 exclusion remain.

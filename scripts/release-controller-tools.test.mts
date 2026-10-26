@@ -1463,3 +1463,113 @@ void test("source-only Windows account inputs retain exact source bytes and neve
   );
   assert.deepEqual(await readdir(rejected), []);
 });
+
+void test("held Windows producer joins the exact platform artifact to an isolated application-only attester", async () => {
+  const record = (value: unknown) => {
+    assert.ok(isRecord(value));
+    return value;
+  };
+  const document = parseDocument(
+    await readFile(
+      new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+      "utf8",
+    ),
+    { uniqueKeys: true },
+  );
+  assert.deepEqual(document.errors, []);
+  const jobs = record(record(document.toJS()).jobs);
+  const producer = record(jobs.tool_bootstrap_windows);
+  const attester = record(jobs.tool_attest_windows);
+  for (const job of [producer, attester]) {
+    assert.equal(job.if, "${{ needs.admission.outputs.publication_purpose == 'application' }}");
+    assert.doesNotMatch(
+      JSON.stringify(job),
+      /secrets\.|actions\/cache@|permission-administration|release-native|windows-setup/,
+    );
+  }
+  const profile = controllerToolBootstrapProfile("windows-x86_64");
+  assert.equal(producer.name, profile.job);
+  assert.deepEqual([producer["runs-on"]], profile.labels);
+  assert.equal(producer["timeout-minutes"], 4);
+  assert.deepEqual(producer.permissions, {
+    contents: "read",
+    actions: "read",
+    "id-token": "write",
+    checks: "read",
+  });
+  assert.ok(Array.isArray(producer.steps));
+  const producerSteps: Record<string, unknown>[] = producer.steps.map(record);
+  const build = record(producerSteps.find((step) => step.id === "build"));
+  assert.equal(record(build.env).GH_TOKEN, "");
+  assert.equal(record(build.env).GITHUB_TOKEN, "");
+  assert.equal(build.run, "node scripts/release-controller-tool-bootstrap.mts build");
+  const upload = record(record(producerSteps.find((step) => step.id === "upload")).with);
+  assert.equal(
+    upload.name,
+    "trusted-controller-tools-windows-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+  assert.equal(upload.path, "${{ steps.build.outputs.tools }}/");
+  const bind = record(producerSteps.find((step) => step.id === "bind"));
+  assert.equal(bind.run, "node scripts/release-controller-tool-bootstrap.mts bind-upload");
+  assert.equal(record(bind.env).GH_TOKEN, "${{ github.token }}");
+  assert.equal(
+    record(bind.env).PORTCOVE_TOOL_ARTIFACT_ID,
+    "${{ steps.upload.outputs.artifact-id }}",
+  );
+  const diagnostics = record(record(producerSteps.at(-1)).with);
+  assert.ok(typeof diagnostics.path === "string");
+  assert.match(diagnostics.path, /~\/\.pct-\*\/ct-\*\/failure\.json/u);
+  assert.match(diagnostics.path, /controller-tools-windows-predicate\.json/u);
+  assert.deepEqual(attester.needs, ["admission", "tool_bootstrap_windows"]);
+  assert.equal(attester["timeout-minutes"], 2);
+  assert.deepEqual(attester.permissions, {
+    contents: "read",
+    "id-token": "write",
+    attestations: "write",
+  });
+  assert.doesNotMatch(JSON.stringify(attester), /pnpm|cargo|checkout@/);
+  assert.ok(Array.isArray(attester.steps));
+  const attesterSteps: Record<string, unknown>[] = attester.steps.map(record);
+  const predicate = record(
+    attesterSteps.find((step) => isRecord(step.env) && step.env.PORTCOVE_PREDICATE),
+  );
+  assert.equal(
+    record(predicate.env).PORTCOVE_PREDICATE,
+    "${{ needs.tool_bootstrap_windows.outputs.predicate }}",
+  );
+  const attest = record(record(attesterSteps.find((step) => step.id === "attest")).with);
+  assert.equal(attest["subject-name"], "controller-tools-windows-manifest");
+  assert.equal(attest["predicate-type"], windowsControllerToolPredicateType);
+  assert.equal(
+    attest["subject-digest"],
+    "${{ format('sha256:{0}', needs.tool_bootstrap_windows.outputs.manifest_sha256) }}",
+  );
+  const bundle = record(record(attesterSteps.find((step) => step.id === "bundle")).with);
+  assert.equal(
+    bundle.name,
+    "trusted-controller-tools-windows-attestation-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+  assert.equal(bundle.path, "${{ runner.temp }}/controller-tools-windows-attestation.json");
+  assert.match(JSON.stringify(attesterSteps), /controller-tools-windows-attestation\.json/u);
+  assert.equal(jobs.native_windows, undefined);
+  const { hostedWindowsAccountQualificationEnabled } =
+    await import("./qualify-controller-tools-windows.mts");
+  assert.equal(hostedWindowsAccountQualificationEnabled, false);
+  const source = await readFile(
+    new URL("./qualify-controller-tools-windows.mts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /export const hostedWindowsAccountQualificationEnabled = false;/u);
+  const gated = source.slice(
+    source.indexOf("if (hostedWindowsAccountQualificationEnabled) {"),
+    source.indexOf('phase = "actual-Windows-build"'),
+  );
+  assert.match(gated, /readProcessIdentity\(process\.pid\)/u);
+  assert.match(gated, /accountStatus = await runResourceCommand\(/u);
+  assert.match(gated, /status: "not_requested"/u);
+  assert.equal(
+    source.split('path.join(primitiveTools, "scripts/release-hosted-native-windows-setup.ps1")')
+      .length,
+    2,
+  );
+});
