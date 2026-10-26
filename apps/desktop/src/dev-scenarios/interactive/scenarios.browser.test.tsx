@@ -52,7 +52,7 @@ async function click(label: string) {
   await act(async () => button!.click());
 }
 
-it("gives every disposable detail route four real tabs and binds external Play to its exact ID", async () => {
+it("gives every disposable detail route five real tabs and binds external Play to its exact ID", async () => {
   await mount("details");
   const launch = vi.spyOn(desktopApi, "launch");
   await page
@@ -66,7 +66,7 @@ it("gives every disposable detail route four real tabs and binds external Play t
     .toHaveAttribute("aria-selected", "true");
   await page.getByRole("button", { name: "Play", exact: true }).click();
   expect(launch.mock.calls[0]).toEqual(["details-external", "", 1]);
-  for (const label of ["Files", "Saved data", "Versions", "Overview"]) {
+  for (const label of ["Game files", "Saves", "Versions & updates", "Manage", "Overview"]) {
     await page.getByRole("tab", { name: label, exact: true }).click();
     await expect.element(page.getByRole("tabpanel", { name: label, exact: true })).toBeVisible();
   }
@@ -78,7 +78,7 @@ it("gives every disposable detail route four real tabs and binds external Play t
     })
     .click();
   await expect
-    .element(page.getByRole("tab", { name: "Files", exact: true }))
+    .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   await expect
     .element(page.getByRole("button", { name: "Play", exact: true }))
@@ -88,7 +88,9 @@ it("gives every disposable detail route four real tabs and binds external Play t
   );
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
   await page.getByRole("button", { name: "Review downloaded update", exact: true }).click();
-  await expect.element(page.getByRole("heading", { name: "Versions", exact: true })).toHaveFocus();
+  await expect
+    .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
+    .toHaveFocus();
   await expect
     .element(page.getByRole("button", { name: "Use update · 1.3", exact: true }))
     .toBeVisible();
@@ -114,7 +116,7 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   const input = page.getByRole("textbox", { name: "Folder for future installs", exact: true });
   await expect.element(input).not.toBeInTheDocument();
   expect(document.querySelector(".detail-artwork")).toBeNull();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Manage", exact: true }).click();
   await folder.click();
   await expect.element(input).toBeVisible();
   await input.fill("fixture/future-draft");
@@ -122,8 +124,8 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   await expect.element(input).not.toBeInTheDocument();
   await folder.click();
   await expect.element(input).toHaveValue("fixture/future-draft");
-  await page.getByRole("tab", { name: "Versions", exact: true }).click();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Manage", exact: true }).click();
   await expect.element(input).toHaveValue("fixture/future-draft");
   await page.getByText("Change artwork", { exact: true }).click();
   await expect
@@ -323,7 +325,7 @@ it("opens the Updates category before focusing an application-update notice", as
 it("opens application updates from Activity without entering custom catalog settings", async () => {
   await mount("library");
   await navigateTo("Activity");
-  await page.getByRole("tab", { name: "Updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Game updates", exact: true }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
     .element(

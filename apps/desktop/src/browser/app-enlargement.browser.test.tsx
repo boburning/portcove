@@ -83,7 +83,7 @@ it.for(["dark", "light"] as const)(
     document.querySelector<HTMLElement>(".scenario-fixture-actions")!.hidden = true;
     await userEvent.click(
       page.getByRole("button", {
-        name: "View details for Harbor Adventure Port: Harbor Adventure",
+        name: "View details for Harbor Adventure Harbor Adventure",
         exact: true,
       }),
     );

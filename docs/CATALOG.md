@@ -147,7 +147,7 @@ to another project does not settle a separately authored component's permission.
 Retain a named acquisition condition at its exact operation scope. When fresh
 self-service acquisition is held, the authored listing can set
 `download_block_reason` to a bounded practical explanation and reconsideration
-condition. The generator emits listing format 2; Core refuses download options,
+condition. This restriction requires listing format 2 or later; Core refuses download options,
 preview and mutation before contacting the provider. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
@@ -1607,6 +1607,43 @@ facts remain in `integration`; the listing projection derives them. A listing
 without an integration carries no managed operation or qualification claim.
 Shared source identities, contracts, validators, evidence and qualification stay
 in `catalog-shared.json`, preserving their existing order and scope.
+
+Optional listing `original_game` is a version-1 descriptive identity: an explicitly
+reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
+`source_editions`. Each edition has its own stable `id`, descriptive `title`,
+optional original `system` slug and evidence URLs. For example `nintendo-64` and
+`xbox-360` identify source systems, independently of the port's Windows/Linux/macOS
+targets. Multiple required or accepted editions remain explicit. An absent game
+identity never groups entries by title similarity; absent editions/system mean
+**Not specified**, never PC. Shared game IDs group presentation only and never
+replace port, installed, pending-setup, source-contract or path identities.
+
+The same optional object projects into operational `presentation.original_game`.
+Descriptive directories containing it use listing format 3; current readers retain
+formats 1 and 2. Earlier accepted records without metadata stay valid. Authoring
+checks bound identifiers, text, edition counts and HTTPS provenance; Core validates
+the projected fields without granting installation, execution or media rights.
+Game and edition IDs are maintained explicitly, not inferred from project names,
+artwork mappings or a frozen prototype registry. Unknown editions remain unknown
+until their own upstream evidence has been reviewed.
+
+Optional authored `media` carries at most one `header` and eight `screenshot`
+assets through the same listing and operational presentation projection. Every
+asset declares its exact port or authored original-game plus source-edition ID,
+caption, digest, dimensions, image/source URLs, attribution, a supported license
+identifier and `rights_url` evidence. Reviewers inspect the source and rights
+evidence; metadata admission validates shape and bounds, not a legal grant. A
+parent project license alone is not distribution consent. No third-party files
+are copied merely to fill a gallery.
+
+Directories containing media require format 3. Legacy strict presentation with
+no `media` field may use reviewed directory media for the same exact identity;
+an explicit empty array clears it. An existing local artwork override takes
+precedence for the header, including its unavailable state; screenshots remain
+authored read-only media. Image retrieval accepts only pinned raw GitHub commit
+URLs, the IGDB image CDN and Wikimedia Commons, with no redirects, URL queries or
+credentials. Cached `.image` originals share the existing disposable 64 MiB
+artwork cache and bounded decoding work; local overrides remain separate.
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
 `catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.

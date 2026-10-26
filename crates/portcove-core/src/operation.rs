@@ -37,6 +37,7 @@ pub(crate) fn all_read_count() -> usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleOperationKind {
     Install,
+    AcquireUpdate,
     Prepare,
     Adopt,
     Remove,
@@ -52,6 +53,7 @@ impl fmt::Display for LifecycleOperationKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Install => "install",
+            Self::AcquireUpdate => "acquire_update",
             Self::Prepare => "prepare",
             Self::Adopt => "adopt",
             Self::Remove => "remove",
@@ -71,6 +73,7 @@ impl FromStr for LifecycleOperationKind {
     fn from_str(value: &str) -> Result<Self> {
         let kind = match value {
             "install" => Some(Self::Install),
+            "acquire_update" => Some(Self::AcquireUpdate),
             "prepare" => Some(Self::Prepare),
             "adopt" => Some(Self::Adopt),
             "remove" => Some(Self::Remove),
@@ -141,6 +144,7 @@ pub(crate) struct LifecycleOperation {
     pub phase: LifecyclePhase,
     pub paths: LifecyclePaths,
     pub install: Option<InstallRecord>,
+    pub update_acquisition: Option<crate::service::game_update_acquisition::AcquisitionJournal>,
     pub relocation: Option<OutputRelocationPlan>,
     pub source_import: Option<SourceImportPlan>,
     pub preparation: Option<crate::PreparationPlan>,
@@ -177,6 +181,7 @@ impl LifecycleOperation {
                 quarantine: None,
             },
             install: None,
+            update_acquisition: None,
             relocation: None,
             source_import: None,
             preparation: None,
@@ -215,6 +220,7 @@ impl OperationStore {
             operation.ghostship_recovery.is_some(),
             operation.backup_deletion.is_some(),
         )?;
+        crate::service::game_update_acquisition::validate_journal(&self.library, operation)?;
         operation.updated_at = Library::now();
         for path in operation
             .paths
@@ -257,15 +263,28 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
+        let update_acquisition_json = operation
+            .update_acquisition
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
         let mut connection = database::connect(self.library.root())?;
-        let transaction = connection.transaction()?;
-        crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        crate::service::game_update_acquisition::require_capacity(
+            &transaction,
+            operation,
+            update_acquisition_json.as_deref(),
+        )?;
+        if operation.kind != LifecycleOperationKind::AcquireUpdate {
+            crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;
+        }
         transaction.execute(
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
+               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -282,6 +301,7 @@ impl OperationStore {
                ghostship_recovery_json=excluded.ghostship_recovery_json,
                backup_deletion_json=excluded.backup_deletion_json,
                external_registration_sha256=excluded.external_registration_sha256,
+               update_acquisition_json=excluded.update_acquisition_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -306,6 +326,7 @@ impl OperationStore {
                 ghostship_recovery_json,
                 backup_deletion_json,
                 operation.external_registration_sha256,
+                update_acquisition_json,
             ],
         )?;
         transaction.commit()?;
@@ -338,7 +359,7 @@ impl OperationStore {
         let mut statement = connection.prepare(&format!(
             "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                     install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256
+                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json
              FROM lifecycle_operations
              {where_or_order}"
         ))?;
@@ -364,6 +385,7 @@ impl OperationStore {
                 row.get::<_, Option<String>>(17)?,
                 row.get::<_, Option<String>>(18)?,
                 row.get::<_, Option<String>>(19)?,
+                row.get::<_, Option<String>>(20)?,
             ))
         })?;
         rows.map(|row| {
@@ -388,6 +410,7 @@ impl OperationStore {
                 ghostship_recovery_json,
                 backup_deletion_json,
                 external_registration_sha256,
+                update_acquisition_json,
             ) = row?;
             let kind = kind.parse()?;
             validate_external_replacement(
@@ -401,7 +424,7 @@ impl OperationStore {
                 ghostship_recovery_json.is_some(),
                 backup_deletion_json.is_some(),
             )?;
-            Ok(LifecycleOperation {
+            let operation = LifecycleOperation {
                 id,
                 kind,
                 port_id,
@@ -426,6 +449,9 @@ impl OperationStore {
                     .transpose()?,
                 preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
                 external_registration_sha256,
+                update_acquisition: crate::service::game_update_acquisition::decode_journal(
+                    update_acquisition_json.as_deref(),
+                )?,
                 ghostship_recovery: ghostship_recovery_json
                     .map(|value| serde_json::from_str(&value))
                     .transpose()?,
@@ -436,7 +462,9 @@ impl OperationStore {
                 last_error,
                 created_at,
                 updated_at,
-            })
+            };
+            crate::service::game_update_acquisition::validate_journal(&self.library, &operation)?;
+            Ok(operation)
         })
         .collect()
     }
@@ -515,6 +543,7 @@ pub(crate) enum LifecycleFaultPoint {
     LaunchCollecting,
     InstallPrepared,
     InstallReadyToPublish,
+    UpdateArchiveCopyStarted,
     InstallPrivateCleanup,
     InstallPrivateCleanupJournalRemoval,
     InstallPublished,

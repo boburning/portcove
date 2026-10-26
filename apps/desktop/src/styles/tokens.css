@@ -107,6 +107,13 @@
     --n64-white: #f5f3ee;
     --n64-controller-blue: #4958a7;
 
+    --color-theme-preview-dark-bg: var(--n64-gray-950);
+    --color-theme-preview-dark-nav: var(--n64-gray-900);
+    --color-theme-preview-dark-block: var(--n64-gray-800);
+    --color-theme-preview-light-bg: var(--n64-gray-50);
+    --color-theme-preview-light-nav: var(--n64-gray-100);
+    --color-theme-preview-light-block: var(--n64-gray-200);
+
     /* Geist ships with the desktop. Script-aware system fallbacks remain offline. */
     --font-ui: "Geist Variable", "Aptos", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
     --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -162,13 +169,14 @@
     --icon-md: 1rem;
     --icon-lg: 1.25rem;
     --layer-floating: 10;
-    --layout-sidebar: 216px;
+    --layout-sidebar: 192px;
     --layout-sidebar-compact: 76px;
     --layout-detail: 32rem;
     --layout-content-max: 100rem;
 
     /* Neutral foundation */
     --color-bg: var(--n64-black);
+    --color-bg-navigation: #111418;
     --color-bg-elevated: var(--n64-graphite);
     --color-bg-raised: var(--n64-gray-800);
     --color-bg-hover: var(--n64-gray-800);
@@ -268,6 +276,7 @@
 
     /* Warm controller-plastic surfaces with graphite typography. */
     --color-bg: var(--n64-white);
+    --color-bg-navigation: var(--n64-gray-50);
     --color-bg-elevated: var(--n64-gray-100);
     --color-bg-raised: var(--n64-gray-200);
     --color-bg-hover: var(--n64-gray-200);

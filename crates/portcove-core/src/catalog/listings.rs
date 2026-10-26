@@ -16,6 +16,7 @@ impl From<&PortDefinition> for PortListing {
             summary: port.summary.clone(),
             project_url: port.project_url.clone(),
             original_game_title: presentation.and_then(|value| value.original_game_title.clone()),
+            original_game: presentation.and_then(|value| value.original_game.clone()),
             variant_label: presentation.and_then(|value| value.variant_label.clone()),
             issue_number: None,
             platforms: port.platforms.clone(),
@@ -29,6 +30,9 @@ impl From<&PortDefinition> for PortListing {
                 .and_then(|guide| guide.help_url.clone()),
             manual_setup: presentation.and_then(|value| value.manual_setup.clone()),
             artwork: presentation.and_then(|value| value.artwork.clone()),
+            media: presentation
+                .and_then(|value| value.media.clone())
+                .unwrap_or_default(),
         }
     }
 }
@@ -55,7 +59,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1 | 2) {
+        if !matches!(self.format_version, 1 | 2 | 3) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -69,6 +73,16 @@ impl CatalogListingDocument {
         {
             return Err(PortcoveError::unsupported(
                 "listing download restrictions require format 2",
+            ));
+        }
+        if self.format_version < 3
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.original_game.is_some() || !listing.media.is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "original game identity and media require listing format 3",
             ));
         }
         if self.listings.len() > 10_000 {
@@ -106,8 +120,57 @@ fn valid_url(value: &str) -> bool {
         })
 }
 
+impl crate::OriginalGameIdentity {
+    pub(crate) fn validate(&self) -> Result<()> {
+        fn stable_id(value: &str) -> bool {
+            !value.is_empty()
+                && value.len() <= 128
+                && value.split('-').all(|part| {
+                    !part.is_empty()
+                        && part
+                            .bytes()
+                            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+                })
+        }
+        fn evidence(urls: &[String]) -> bool {
+            let mut unique = HashSet::new();
+            (1..=8).contains(&urls.len())
+                && urls.iter().all(|url| valid_url(url) && unique.insert(url))
+        }
+        let mut editions = HashSet::new();
+        if self.format_version != 1
+            || !stable_id(&self.id)
+            || !evidence(&self.evidence_urls)
+            || self.source_editions.len() > 16
+            || self.source_editions.iter().any(|edition| {
+                !stable_id(&edition.id)
+                    || !editions.insert(&edition.id)
+                    || !valid_text(&edition.title, 512)
+                    || edition
+                        .system
+                        .as_ref()
+                        .is_some_and(|system| !stable_id(system))
+                    || !evidence(&edition.evidence_urls)
+            })
+        {
+            return Err(PortcoveError::usage(
+                "invalid original game or source edition identity",
+            ));
+        }
+        Ok(())
+    }
+}
+
 impl PortListing {
     pub fn validate(&self) -> Result<()> {
+        if let Some(game) = &self.original_game {
+            game.validate()?;
+        }
+        crate::catalog_media::validate_catalog_media(
+            &self.id,
+            self.original_game.as_ref(),
+            &self.media,
+        )?;
         if self.id.is_empty()
             || self.id.len() > 128
             || !self
@@ -251,6 +314,14 @@ impl Catalog {
         {
             document.format_version = 2;
         }
+        if matches!(document.format_version, 1 | 2)
+            && document
+                .listings
+                .iter()
+                .any(|listing| listing.original_game.is_some() || !listing.media.is_empty())
+        {
+            document.format_version = 3;
+        }
         document.validate_identity_set()?;
         for port in self.ports() {
             if !document
@@ -281,6 +352,30 @@ impl Catalog {
                 // reaching their current consumers. Preserve only the directory
                 // facts absent from the strict format while projecting its
                 // accepted display fields, including artwork, as before.
+                let original_game = projected
+                    .original_game
+                    .clone()
+                    .or(listing.original_game.clone());
+                let media = port
+                    .presentation
+                    .as_ref()
+                    .and_then(|value| value.media.clone())
+                    .unwrap_or_else(|| {
+                        // A corrected strict identity cannot inherit another edition's images.
+                        listing
+                            .media
+                            .iter()
+                            .filter(|asset| {
+                                crate::catalog_media::validate_catalog_media(
+                                    &port.id,
+                                    original_game.as_ref(),
+                                    std::slice::from_ref(*asset),
+                                )
+                                .is_ok()
+                            })
+                            .cloned()
+                            .collect()
+                    });
                 let issue_number = listing.issue_number;
                 let availability = listing.availability;
                 let download_block_reason = listing.download_block_reason.clone();
@@ -289,6 +384,8 @@ impl Catalog {
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
                 *listing = PortListing {
+                    original_game,
+                    media,
                     issue_number,
                     availability,
                     download_block_reason,
@@ -311,7 +408,9 @@ impl Catalog {
         listing.validate()?;
         let mut catalog =
             Self::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#)?;
-        if listing.download_block_reason.is_some() {
+        if listing.original_game.is_some() || !listing.media.is_empty() {
+            Arc::make_mut(&mut catalog.listings).format_version = 3;
+        } else if listing.download_block_reason.is_some() {
             Arc::make_mut(&mut catalog.listings).format_version = 2;
         }
         Arc::make_mut(&mut catalog.listings).listings.push(listing);
@@ -338,6 +437,74 @@ mod tests {
             "summary":"Known project; package and platform availability are unknown.",
             "project_url":"https://example.com/project", "availability":"source-only"
         })
+    }
+
+    #[test]
+    fn original_game_identity_requires_versioned_descriptive_provenance() {
+        let game = json!({
+            "format_version": 1, "id": "example-game", "evidence_urls": ["https://example.com/game"],
+            "source_editions": [
+                {"id":"console-edition", "title":"Console edition", "system":"nintendo-64", "evidence_urls":["https://example.com/console"]},
+                {"id":"other-edition", "title":"Other edition", "evidence_urls":["https://example.com/other"]}
+            ]
+        });
+        let mut value = listing();
+        value["original_game"] = game.clone();
+        let document = CatalogListingDocument::from_json(
+            &json!({"format_version":3,"listings":[value.clone()]}).to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            document.listings[0]
+                .original_game
+                .as_ref()
+                .unwrap()
+                .source_editions
+                .len(),
+            2
+        );
+        let catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(document)
+            .unwrap();
+        assert!(catalog.ports().is_empty());
+        assert_eq!(
+            serde_json::to_value(catalog.listing_document()).unwrap()["listings"][0]["original_game"],
+            game
+        );
+        let retained = Catalog::for_user_selected_listing(catalog.listings()[0].clone()).unwrap();
+        assert_eq!(retained.listing_document().format_version, 3);
+        assert!(retained.ports().is_empty());
+        for version in [1, 2] {
+            assert!(
+                CatalogListingDocument::from_json(
+                    &json!({"format_version":version,"listings":[value.clone()]}).to_string()
+                )
+                .is_err()
+            );
+        }
+        for (field, invalid) in [
+            ("format_version", json!(2)),
+            ("id", json!("title has spaces")),
+            ("evidence_urls", json!([])),
+            ("evidence_urls", json!(["http://example.com/unsafe"])),
+        ] {
+            let mut invalid_game = game.clone();
+            invalid_game[field] = invalid;
+            let mut invalid_listing = listing();
+            invalid_listing["original_game"] = invalid_game;
+            assert!(
+                CatalogListingDocument::from_json(
+                    &json!({"format_version":3,"listings":[invalid_listing]}).to_string()
+                )
+                .is_err()
+            );
+        }
+        let legacy = CatalogListingDocument::from_json(
+            &json!({"format_version":1,"listings":[listing()]}).to_string(),
+        )
+        .unwrap();
+        assert!(legacy.listings[0].original_game.is_none());
     }
 
     #[test]
@@ -517,6 +684,61 @@ mod tests {
         assert_eq!(listing.summary, "Accepted presentation correction.");
         assert!(listing.artwork.is_none());
         assert!(catalog.listings().len() >= catalog.ports().len());
+    }
+
+    #[test]
+    fn legacy_media_absence_and_reviewed_empty_media_remain_distinct() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut port = catalog.port("beetle-recomp").unwrap().clone();
+        assert!(port.presentation.as_ref().unwrap().media.is_none());
+        assert!(
+            serde_json::to_value(&port).unwrap()["presentation"]
+                .get("media")
+                .is_none()
+        );
+        port.presentation.as_mut().unwrap().media = Some(vec![]);
+        let serialized = serde_json::to_value(&port).unwrap();
+        assert_eq!(serialized["presentation"]["media"], json!([]));
+        let restored: PortDefinition = serde_json::from_value(serialized).unwrap();
+        assert_eq!(restored.presentation.as_ref().unwrap().media, Some(vec![]));
+        assert!(PortListing::from(&restored).media.is_empty());
+    }
+
+    #[test]
+    fn old_accepted_ports_retain_reviewed_directory_game_identity() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "beetle-recomp")
+            .unwrap()
+            .presentation
+            .as_mut()
+            .unwrap()
+            .original_game = None;
+        let accepted = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let projected = accepted.with_embedded_listings().unwrap();
+        assert!(
+            projected
+                .port("beetle-recomp")
+                .unwrap()
+                .presentation
+                .as_ref()
+                .unwrap()
+                .original_game
+                .is_none()
+        );
+        assert_eq!(
+            projected
+                .listing("beetle-recomp")
+                .unwrap()
+                .original_game
+                .as_ref()
+                .unwrap()
+                .id,
+            "beetle-adventure-racing"
+        );
+        assert_eq!(projected.listing_document().format_version, 3);
     }
 
     #[test]

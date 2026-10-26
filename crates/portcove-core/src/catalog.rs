@@ -536,6 +536,14 @@ impl Catalog {
                 }
             }
             if let Some(presentation) = &port.presentation {
+                if let Some(game) = &presentation.original_game {
+                    game.validate()?;
+                }
+                crate::catalog_media::validate_catalog_media(
+                    &port.id,
+                    presentation.original_game.as_ref(),
+                    presentation.media.as_deref().unwrap_or_default(),
+                )?;
                 for (name, value) in [
                     ("original game title", &presentation.original_game_title),
                     ("variant label", &presentation.variant_label),

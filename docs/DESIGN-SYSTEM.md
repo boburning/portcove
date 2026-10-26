@@ -48,17 +48,22 @@ thumbnail alignment indentation; its separate column has no indentation. Below
 28em actions follow readiness. Artwork loading, stale/failed notices and user
 precedence remain with the existing artwork owner.
 
-Find games keeps its actual catalog filters, sorting and route semantics. Cards
-show game/project identity, meaningful readiness/attention, concise platform and
-neutral release-channel facts, then their local details affordance. Summaries
-and detailed project facts remain in Detail; the distinguishing variant is not
-repeated as another badge. Whole-card activation uses the lean visible
-identity, readiness, platform/channel and action text as its natural accessible
-name. Do not replace that label with a shorter conflicting aria-label. Visually
-hidden setup/input explanations are linked as descriptions rather than repeated
-inside the name. Legacy records without a separate original-game identity show
-the project name once. Exact-port navigation/return is preserved. Decorative
-artwork is not part of the name. A channel is not a support or readiness rating.
+Discover groups only explicitly authored original-game IDs. Unknown identities
+remain separate projects; result labels distinguish reviewed game groups,
+ungrouped projects and matching independent ports. All accepted definitions,
+listings and pending setups remain searchable, including Library-hidden ports.
+A group with one matching port opens that exact port; comparison retains all
+separate projects and marks those outside current filters. Library entries,
+installations, favorites and operation targets keep their independent port IDs.
+
+One expandable Filters panel owns original system, target OS, all offered
+channels, total Single/Multiple port options and library membership. Advanced
+setup, attention, updates and observed file controls retain their existing query
+owners and unavailable states. OR within facets and AND across facets must match
+one eligible port/context. Clear filters preserves search; Escape and Done return
+focus to Filters. Source systems without reviewed metadata say Not specified.
+Identity chips use the v58 decorative Lucide/palette mappings; semantic readiness,
+warning, failure, selection and focus retain their own tokens.
 
 Geist, semantic tokens, the existing controls and the one persisted/native sizing
 authority remain shared. Enlarged text may wrap and scroll; it never authorizes
@@ -67,30 +72,32 @@ shrinking essential text, hiding consequences or replacing the domain projection
 ## Game details
 
 Managed games, registered external installations and catalog/self-service entries
-use one 70rem detail composition. The complete game title uses the existing large
+use one responsive detail composition, bounded at 97.5rem. The complete game title uses the existing large
 heading token. Project and variant, observed readiness, a natural-width primary
 action and adjacent overflow follow it. Green readiness and direct red Play retain
 their existing authoritative projections. The installation fact is independently
 observed: managed version, registered external installation, downloaded setup or
 not installed. Readiness never establishes ownership.
 
-The whole-image cover frame is fixed independently of title length: 240 by 360 CSS
-pixels on ordinary tall desktops, 160 by 240 in short/compact or text-enlarged
-compositions, and 144 by 216 in narrow stacked layouts. Header columns have 32px
-separation. The title wraps fully. Existing artwork precedence, cache/provenance,
-overrides and quiet fallback remain with Artwork; both artwork slots are accessible
-through Change artwork in Files. No crop or provider mapping is inferred.
+The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
+ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
+containers. Narrow layouts omit the cover and retain the complete identity and
+actions. The illustrated hero uses flat semantic tonal overlays; controls and
+focus retain production semantic colors. Existing artwork precedence,
+cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
+slots are accessible through Change artwork in Manage. No cover crop or provider
+mapping is inferred.
 
-Four permanent sections use Base UI manual-activation tabs. Arrow keys and
+Five permanent sections use Base UI manual-activation tabs. Arrow keys and
 Home/End move focus; Enter/Space select. Narrow tab lists wrap with visible labels.
 Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
-compatibility qualifications and recorded checks have named disclosures. Files owns
-setup, source/BIOS/tool and installation/location/artwork/Steam/CLI/verification/removal
-tools. Saved data owns coverage, unknowns, backup history, recovery and reviews.
-Versions owns checks, candidate decisions, staged activation, rollback and future
-preferences. Unsupported routes state their actual limits and keep upstream links.
+compatibility qualifications and recorded checks have named disclosures. Game files owns setup, source/BIOS/tool and file observations. Saves owns
+coverage, unknowns, backup history, recovery and reviews. Versions & updates owns
+checks, candidate decisions, staged activation, rollback, future preferences and
+private notice choices. Manage owns installation/location/artwork/Steam/CLI,
+verification/removal and the existing reviewed managed-route transition. Unsupported routes state their actual limits and keep upstream links.
 
 A concise attention strip exposes relevant exceptions and running work; its action
 opens the owning section. An available update does not change the current playable
@@ -136,7 +143,7 @@ the remaining measured displacement, not a saved launch scroll offset. New user
 input, navigation, library/detail changes and modal interaction take precedence;
 feedback changes never take focus or reveal a control the player left behind.
 
-Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.
+Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record.
 
 Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement.
 
@@ -338,8 +345,8 @@ shown and distinguish that preview from the history loaded by core. Put
 interruption guidance inline, and describe older diagnostic availability as
 possible when retention is not known.
 
-Use **Activity** for the combined workspace, opening to **Tasks & history** with
-a separate **Updates** section. An available or saved update opens the existing
+Use **Activity** for the combined workspace, opening to **Tasks** with
+separate **Game updates** and **History** sections. An available or saved update opens the existing
 fresh Core review directly from its row.
 Play is independent and uses the current version when Core permits launch.
 Reviewing an immediate update defaults to installation; keeping it for later
@@ -506,8 +513,8 @@ card into a setup runbook.
 Game details place title, readiness and the primary action in one compact summary.
 Routine installed Play sits beside the title when space permits; setup and repair
 keep the space required for their controls. File and filter diagnostics are an
-optional disclosure below the primary action. Catalog filters start with platform,
-channel and membership; advanced groups and their interpretation are disclosed on
+optional disclosure below the primary action. Discover filters start with original
+system, target OS, channel, port options and membership; advanced groups are disclosed on
 request. Expansion is independent of filter selection, so clearing the last
 advanced choice does not hide the focused control. Back restores the exact opener,
 or the same game's stable title when successful repair replaces that opener.
@@ -589,7 +596,7 @@ compact count and state line, shows setup and downloaded-update counts only when
 actionable, and leaves game cards and their Play or Details actions as the main
 visual targets.
 
-Keep the sidebar stable and quiet: identity plus Library, Find games, Activity,
+Keep the sidebar stable and quiet: identity plus Library, Discover, Activity,
 and Settings are primary. Contextual Library actions such as copying an existing
 installation need not occupy permanent navigation chrome. Shortcut hints remain
 discoverable without dominating every visit. Repeated page headers should be
@@ -745,7 +752,7 @@ unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.
 
-### Find games artwork and identity
+### Discover artwork and identity
 
 Catalog cards retain their own browsing filters, sort and route semantics. Whole
 cover images use Library's centered 2:3 frame and semantic neutral padding.
@@ -794,7 +801,7 @@ Restore review inventories the supplied content and destination; an existing emp
 
 ## Task composition and navigation
 
-The four persistent destinations are Library, Find games, Activity and Settings.
+The four persistent destinations are Library, Discover, Activity and Settings.
 Add games owns the game/port, folder-search and existing-installation intentions;
 copy is an explicit action inside the last route. About remains a Settings
 category. Commands and its shortcut remain a quiet secondary control. Navigation

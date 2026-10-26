@@ -4,7 +4,7 @@ This contract supersedes the earlier staged UI delivery proposal. The owner requ
 
 ## Product decisions
 
-- Keep four destinations: Library, Find games, Activity and Settings. Add games is a contextual task. Keep Commands and its shortcut discoverable with quiet secondary treatment; place installation copy with Add games and About/help with Settings rather than competing permanent sidebar actions. Preserve shortcuts, navigation regions and valid return focus.
+- Keep four destinations: Library, Discover, Activity and Settings. Add games is a contextual task. Keep Commands and its shortcut discoverable with quiet secondary treatment; place installation copy with Add games and About/help with Settings rather than competing permanent sidebar actions. Preserve shortcuts, navigation regions and valid return focus.
 - Identity and the current next action lead. Separate games, stable port IDs and variants. Keep red Play, quiet green checked readiness, blue selection and gold keyboard focus. Keep graphite/warm-light tokens, bundled Geist, Lucide controls and the approved crab assets.
 - Keep whole-image 2:3 collection frames, metadata outside artwork, compact wrapping rows and bounded detail/task artwork. Do not infer ownership, readiness, image crops or eligibility from appearance. Unclassified artwork retains its complete source image.
 - Use the existing workspace scroll owner and native sizing preference. Constrain reading/forms within the available workspace; never constrain its scrollbar to a stale width. Reflow navigation and task actions with no lost functionality at enlargement.
@@ -131,3 +131,37 @@ small labeled demo desk. `embed=1` hides that desk for a comparison whose parent
 must label the simulation; reset and journey changes preserve embedded mode.
 Static previews remain inert. Browser fixtures do not establish native, packaged,
 real-game, screen-reader or physical-controller acceptance.
+
+## v58 presentation and identity
+
+Discover uses explicit reviewed original-game IDs; absent or ambiguous metadata
+keeps projects separate. Counts distinguish known game groups from ungrouped
+projects and matching ports. Source-edition systems and target operating systems
+are independent facets, joined with every offered Stable/Beta/Rolling channel on
+the same eligible port/context. Preview remains the Beta display label.
+
+One Filters panel preserves advanced production predicates, active removable
+chips and search-preserving Clear. Library keeps exact installation identities,
+one compact recent-play strip, existing favorites and host-persisted collections,
+hiding and Saved choices. Hiding affects Library; Discover retains the complete
+accepted catalog/listing/pending union. Organization writes preserve unknown
+records, use canonical library identity and compare revisions within the existing
+atomic 64 KiB host preference boundary.
+
+Details retain mounted Game files, Saves, Versions & updates and Manage owners
+alongside Overview. Manage exposes existing artwork, Steam, CLI, output,
+verification, removal and reviewed managed-route controls. First-launch setup
+statements bind the exact managed/external installation and do not grant Core
+launch permission. Notice choices affect Library/sidebar update notices; manual
+update review and staged activation remain available.
+
+The recent strip uses actual successful launch history and Core launch eligibility.
+Dedicated immutable update acquisition owns a bounded archive journal and can
+coexist with an eligible launch. Generic update/preparation, Apply and other file
+work retain their exclusive Core locks. Downloaded archive, prepared staged
+runtime and active installation remain separate; later preparation or Apply needs
+a fresh review. React compatibility tags identify the permanent acquisition API,
+never an inferred progress phase. The reviewed external-to-managed transition
+creates and activates through its existing atomic owner; no pretend prepared-copy
+or return transition is displayed. Native, browser and real-file acceptance remain
+distinct, and live integration completion/evidence belongs to #3725.

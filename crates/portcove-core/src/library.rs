@@ -860,6 +860,17 @@ impl Library {
         Ok(PortOperationGuard { file })
     }
 
+    /// Serializes immutable update-byte ownership, independently of runtime mutation/launch.
+    pub(crate) fn try_lock_update_acquisition(&self, port_id: &str) -> Result<PortOperationGuard> {
+        let key = format!(
+            "update-acquisition-{}",
+            hex::encode(Sha256::digest(port_id.as_bytes()))
+        );
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(&key, port_id, "acquire-update-bytes")?,
+        })
+    }
+
     pub(crate) fn try_lock_activity(&self, id: &str) -> Result<PortOperationGuard> {
         let key = format!("activity-{}", hex::encode(Sha256::digest(id.as_bytes())));
         Ok(PortOperationGuard {
@@ -1215,7 +1226,8 @@ impl Library {
                     a.failure_json,
                     a.status = 'running' AS is_current,
                     a.status = 'failed' AS needs_attention,
-                    EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id)
+                    EXISTS(SELECT 1 FROM lifecycle_operations AS lifecycle WHERE lifecycle.id = a.id
+                      AND (lifecycle.kind <> 'acquire_update' OR json_extract(lifecycle.update_acquisition_json,'$.view.phase') <> 'acquired'))
                       AS recovery_required
              FROM activity_history AS a
              WHERE a.status = 'running'
@@ -2735,6 +2747,8 @@ impl Library {
             }
         }
 
+        metrics.record_query();
+        let acquisitions = crate::service::game_update_acquisition::views_from(connection)?;
         let statuses = ports
             .iter()
             .map(|(port_id, default_channel)| {
@@ -2758,6 +2772,7 @@ impl Library {
                 let staged = staged.get(port_id).and_then(|id| installs.get(id)).cloned();
                 let history = launch_history.get(port_id).copied();
                 Ok(PortStatus {
+                    acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
                     channel,
@@ -3780,7 +3795,7 @@ mod tests {
             assert_eq!(statuses.len(), record_count);
             assert_eq!(
                 metrics.sqlite_query_count,
-                5 * record_count.div_ceil(status_ports_per_query(&transaction).unwrap())
+                5 * record_count.div_ceil(status_ports_per_query(&transaction).unwrap()) + 1
             );
             assert_eq!(metrics.settings_row_count, record_count);
             assert_eq!(metrics.install_row_count, 0);
@@ -3822,7 +3837,7 @@ mod tests {
             .statuses_from_with_metrics(&connection, &ports)
             .unwrap();
 
-        assert_eq!(metrics.sqlite_query_count, 20);
+        assert_eq!(metrics.sqlite_query_count, 21);
         assert_eq!(statuses.len(), 10);
         assert_eq!(statuses[0].port_id, "port-09");
         assert_eq!(statuses[9].port_id, "port-00");
@@ -3933,7 +3948,7 @@ mod tests {
             assert_eq!(statuses.len(), 1);
             assert_eq!(statuses[0].active.as_ref().unwrap().id, "target-install");
             assert_eq!(statuses[0].successful_launches, 3);
-            assert_eq!(metrics.sqlite_query_count, 5);
+            assert_eq!(metrics.sqlite_query_count, 6);
             assert_eq!(metrics.settings_row_count, 1);
             assert_eq!(metrics.install_row_count, 1);
             assert_eq!(metrics.launch_history_row_count, 1);

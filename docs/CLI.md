@@ -998,6 +998,17 @@ application updater.
 
 Destructive or copying operations require `--yes` under `--non-interactive`; after confirmation, core issues a five-minute, one-use authorization bound to the action, target, and reviewed state and consumes it only under the operation lock. Adoption prints a content-hashed copy plan and every skipped symlink or special entry before confirmation.
 
+Desktop's separate immutable acquisition API returns a typed archive identity,
+not an installed version. It can transfer and verify bytes while the current
+verified managed runtime runs. A later Prepare for later or Apply obtains a fresh
+`game_update_plan` and consent under the normal exclusive mutation lock; acquired
+archives never imply staged or active state. The existing CLI `update --stage`,
+`reconcile`, and `activate` contracts are unchanged. Acquisition interruptions
+remain explicit attention-required records with an exact-ID private-archive
+discard route; they never automatically prepare or activate on restart. The
+[Core acquisition contract](ARCHITECTURE.md#immutable-game-update-acquisition)
+owns retention, concurrency and recovery bounds.
+
 #### Launch and retained observation
 
 `exec` is intentionally network-free and GUI-free: it resolves the active executable, working directory, source reference, adapter arguments, and Portcove environment, then inherits standard input/output/error. Because the launched game owns those streams and its process exit code, `exec` rejects `--json` and `--jsonl` with a structured usage error before starting a child; external frontends should use machine mode for management and plain `exec` for launch.

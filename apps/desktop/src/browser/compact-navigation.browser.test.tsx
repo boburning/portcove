@@ -65,20 +65,18 @@ for (const width of [320, 576]) {
       await userEvent.keyboard("{Escape}");
       await expect.element(navigation).toHaveFocus();
       await navigation.click();
-      await dialog.getByRole("button", { name: "Find games", exact: true }).click();
-      await expect
-        .element(page.getByRole("heading", { name: "Find games", level: 1 }))
-        .toBeVisible();
+      await dialog.getByRole("button", { name: "Discover", exact: true }).click();
+      await expect.element(page.getByRole("heading", { name: "Discover", level: 1 })).toBeVisible();
       await expect.element(navigation).toHaveFocus();
       await navigation.click();
       await expect
-        .element(dialog.getByRole("button", { name: "Find games", exact: true }))
+        .element(dialog.getByRole("button", { name: "Discover", exact: true }))
         .toHaveFocus();
       await page.viewport(1280, 900);
       await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull();
       const desktopDestination = page
         .getByRole("navigation", { name: "Primary navigation" })
-        .getByRole("button", { name: "Find games", exact: true });
+        .getByRole("button", { name: "Discover", exact: true });
       await expect.element(desktopDestination).toBeVisible();
       await expect.element(desktopDestination).toHaveFocus();
     }, 45_000);
@@ -126,7 +124,7 @@ it.each([320, 576])(
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     };
     pressed = [5];
-    await expect.element(page.getByRole("heading", { name: "Find games", level: 1 })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Discover", level: 1 })).toBeVisible();
     await expect.element(navigation).toHaveFocus();
     await release();
     pressed = [4];

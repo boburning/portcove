@@ -49,10 +49,12 @@ it("does not replay a cancelled reveal control when its tab is selected later", 
       (page.getByRole("button", { name: "Review setup" }).element() as HTMLElement).click(),
     );
     await act(async () =>
-      (page.getByRole("tab", { name: "Versions", exact: true }).element() as HTMLElement).click(),
+      (
+        page.getByRole("tab", { name: "Versions & updates", exact: true }).element() as HTMLElement
+      ).click(),
     );
     await act(async () =>
-      (page.getByRole("tab", { name: "Files", exact: true }).element() as HTMLElement).click(),
+      (page.getByRole("tab", { name: "Game files", exact: true }).element() as HTMLElement).click(),
     );
     for (const callback of frames.values()) callback(performance.now());
     expect(invoke).not.toHaveBeenCalled();
@@ -102,7 +104,7 @@ function Fixture({
 it("uses manual keyboard activation and retains the source draft in a mounted inert panel", async () => {
   await render(<Fixture />);
   const overview = page.getByRole("tab", { name: "Overview", exact: true });
-  const files = page.getByRole("tab", { name: "Files", exact: true });
+  const files = page.getByRole("tab", { name: "Game files", exact: true });
   overview.element().focus();
   await userEvent.keyboard("{ArrowRight}");
   await expect.element(files).toHaveFocus();
@@ -111,7 +113,7 @@ it("uses manual keyboard activation and retains the source draft in a mounted in
   const folder = page.getByRole("textbox", { name: "Game folder" });
   await folder.fill("C:/Player/Retained draft");
   const input = folder.element();
-  await page.getByRole("tab", { name: "Versions", exact: true }).click();
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   expect(input.isConnected).toBe(true);
   expect(input.closest("[inert][hidden]")).not.toBeNull();
   expect(focusableControls()).not.toContain(input);
@@ -121,11 +123,13 @@ it("uses manual keyboard activation and retains the source draft in a mounted in
   expect(folder.element()).toBe(input);
   await expect.element(folder).toHaveValue("C:/Player/Retained draft");
   await userEvent.keyboard("{End}");
-  await expect.element(page.getByRole("tab", { name: "Versions", exact: true })).toHaveFocus();
+  await expect
+    .element(page.getByRole("tab", { name: "Versions & updates", exact: true }))
+    .toHaveFocus();
   await expect.element(files).toHaveAttribute("aria-selected", "true");
   await userEvent.keyboard(" ");
   await expect
-    .element(page.getByRole("tab", { name: "Versions", exact: true }))
+    .element(page.getByRole("tab", { name: "Versions & updates", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   await userEvent.keyboard("{Home}");
   await expect.element(overview).toHaveFocus();
@@ -134,23 +138,23 @@ it("uses manual keyboard activation and retains the source draft in a mounted in
 it("retains manual selection across refreshes and reevaluates a new opening", async () => {
   const result = await render(<Fixture opening={{ token: 1 }} />);
   await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toHaveFocus();
-  await page.getByRole("tab", { name: "Files", exact: true }).click();
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
   await result.rerender(
     <Fixture opening={{ token: 1 }} initial="versions" notice="Update available" />,
   );
   await expect
-    .element(page.getByRole("tab", { name: "Files", exact: true }))
+    .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
-  await expect.element(page.getByRole("tab", { name: "Files", exact: true })).toHaveFocus();
+  await expect.element(page.getByRole("tab", { name: "Game files", exact: true })).toHaveFocus();
   await result.rerender(<Fixture opening={{ token: 2 }} initial="versions" />);
   await expect
-    .element(page.getByRole("tab", { name: "Versions", exact: true }))
+    .element(page.getByRole("tab", { name: "Versions & updates", exact: true }))
     .toHaveAttribute("aria-selected", "true");
 });
 
 it.each([
-  ["updates", "versions", "Versions"],
-  ["saves", "saves", "Saved data"],
+  ["updates", "versions", "Versions & updates"],
+  ["saves", "saves", "Saves"],
 ] as const)(
   "reveals incoming %s before focusing its heading",
   async (destination, initial, heading) => {
@@ -163,9 +167,7 @@ it.each([
 it("reveals an internal backup destination before focusing it", async () => {
   await render(<Fixture />);
   await page.getByRole("button", { name: "Inspect backups" }).click();
-  await expect
-    .element(page.getByRole("heading", { name: "Saved data", exact: true }))
-    .toHaveFocus();
+  await expect.element(page.getByRole("heading", { name: "Saves", exact: true })).toHaveFocus();
   await expect.element(page.getByRole("button", { name: "Restore selected backup" })).toBeVisible();
 });
 
@@ -178,4 +180,107 @@ it("keeps every label and control within 320 CSS pixels", async () => {
     expect(rect.right).toBeLessThanOrEqual(320);
   }
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
+});
+
+it("reveals real management controls through the header and preserves their mounted draft", async () => {
+  await render(
+    <DetailLayout
+      port={portDefinition()}
+      initialSection="overview"
+      readiness="Ready"
+      installation="Managed installation"
+      close={vi.fn()}
+      action={() => <button>Play</button>}
+    >
+      {() => ({
+        overview: null,
+        files: null,
+        saves: null,
+        versions: null,
+        manage: (
+          <div id="detail-artwork" tabIndex={-1}>
+            <label>
+              Retained choice
+              <input defaultValue="draft" />
+            </label>
+          </div>
+        ),
+      })}
+    </DetailLayout>,
+  );
+  await page.getByRole("button", { name: /^More actions for/ }).click();
+  await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
+  const manage = page.getByRole("tab", { name: "Manage", exact: true });
+  await expect.element(manage).toHaveAttribute("aria-selected", "true");
+  const choice = page.getByRole("textbox", { name: "Retained choice" });
+  await choice.fill("saved input");
+  const input = choice.element();
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
+  expect(input.isConnected).toBe(true);
+  expect(input.closest("[hidden][inert]")).not.toBeNull();
+  await manage.click();
+  await expect.element(choice).toHaveValue("saved input");
+});
+
+it("keeps unknown original systems explicit and shows every offered release channel", async () => {
+  const port = { ...portDefinition(), channels: ["stable", "beta", "rolling"] as const };
+  await render(
+    <DetailLayout
+      port={{ ...port, channels: [...port.channels] }}
+      initialSection="overview"
+      readiness="Ready"
+      installation="Not installed"
+      close={vi.fn()}
+      action={() => null}
+    >
+      {() => ({ overview: null, files: null, saves: null, versions: null })}
+    </DetailLayout>,
+  );
+  const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
+  for (const label of ["Not specified", "Stable", "Preview", "Rolling"])
+    await expect.element(identity.getByText(label, { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("tab", { name: "Manage", exact: true }))
+    .not.toBeInTheDocument();
+  expect(document.querySelector(".detail-header-artwork")).toBeNull();
+});
+
+it("composes About beside authored requirements and support without reserving absent media", async () => {
+  await page.viewport(1280, 900);
+  await render(
+    <DetailLayout
+      port={portDefinition()}
+      projectUrl="https://github.com/example/project"
+      openSupport={vi.fn()}
+      overviewRequirements={<p>Player-supplied original files</p>}
+      initialSection="overview"
+      readiness="Ready"
+      installation="Managed installation"
+      close={vi.fn()}
+      action={() => <button>Play</button>}
+    >
+      {() => ({
+        overview: (
+          <section>
+            <h3>About</h3>
+            <p>Upstream project description</p>
+          </section>
+        ),
+        files: null,
+        saves: null,
+        versions: null,
+      })}
+    </DetailLayout>,
+  );
+  const about = page.getByRole("heading", { name: "About", exact: true });
+  const requirements = page.getByRole("heading", { name: "Requirements", exact: true });
+  expect(about.element().closest(".detail-overview-main")).not.toBeNull();
+  expect(requirements.element().closest(".detail-overview-support")).not.toBeNull();
+  expect(requirements.element().getBoundingClientRect().left).toBeGreaterThan(
+    about.element().getBoundingClientRect().right,
+  );
+  await expect.element(page.getByRole("link", { name: "Open upstream project" })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Create support report" })).toBeVisible();
+  expect(document.querySelector(".media-gallery")).toBeNull();
+  expect(document.querySelector(".detail-header-artwork")).toBeNull();
 });

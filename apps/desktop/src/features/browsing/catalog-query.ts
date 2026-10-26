@@ -1,9 +1,11 @@
+import { canonicalIdentityId } from "../identity/identity-style";
 import type {
   PortDefinition,
   PortStatus,
   CatalogBrowsingSnapshot,
   CatalogBrowsingContext,
 } from "../../types";
+import { originalSystems, gameGroupId, groupCatalog } from "./original-game";
 import { observedUpdateCandidate } from "./update-query-context";
 import type { GameFileFilterContext } from "./game-file-query-context";
 import type { CatalogEntry } from "./catalog-entry";
@@ -12,6 +14,8 @@ import type { CatalogEntry } from "./catalog-entry";
 const catalogQueryOptions = {
   platforms: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64", "this-device"],
   channels: ["stable", "beta", "rolling"],
+  originalSystems: [] as readonly string[],
+  portOptions: ["single", "multiple"],
   installationMethods: [
     "portable-package",
     "portable-recompilation",
@@ -38,6 +42,10 @@ type Group = keyof typeof catalogQueryOptions;
 export type CatalogQuery = { version: number } & Partial<Record<Group, readonly string[]>>;
 
 export interface CatalogQueryContext {
+  /** Full accepted union for total port counts when a caller narrows candidates. */
+  catalogUniverse?: readonly CatalogEntry[];
+  /** Derived afresh by the evaluator. */
+  groupPortCounts?: ReadonlyMap<string, number>;
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   /** A supplied Core snapshot for this selected library; absent is not empty. */
   library?: { id: string; statuses: ReadonlyMap<string, PortStatus> };
@@ -61,6 +69,20 @@ export interface CatalogQueryResult {
 
 const groups = Object.keys(catalogQueryOptions) as Group[];
 
+export function sourceSystemOptions(ports: readonly CatalogEntry[], query?: unknown): string[] {
+  const restored = supportedQuery(query) ? (query.originalSystems ?? []) : [];
+  return [...new Set(["not-specified", ...ports.flatMap(originalSystems), ...restored])].sort();
+}
+function optionsFor(
+  group: Group,
+  ports: readonly CatalogEntry[],
+  query: unknown,
+): readonly string[] {
+  return group === "originalSystems"
+    ? sourceSystemOptions(ports, query)
+    : catalogQueryOptions[group];
+}
+
 function supportedQuery(value: unknown): value is CatalogQuery {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
@@ -68,6 +90,13 @@ function supportedQuery(value: unknown): value is CatalogQuery {
   return Object.entries(record).every(([key, values]) => {
     if (key === "version") return true;
     if (!Object.hasOwn(catalogQueryOptions, key) || !Array.isArray(values)) return false;
+    if (key === "originalSystems")
+      return (
+        values.length <= 64 &&
+        values.every(
+          (value) => typeof value === "string" && /^[a-z0-9][a-z0-9-]{0,127}$/u.test(value),
+        )
+      );
     const options: readonly string[] = catalogQueryOptions[key as Group];
     return values.every((value) => typeof value === "string" && options.includes(value));
   });
@@ -145,6 +174,12 @@ function matches(
   context: CatalogQueryContext,
 ): boolean {
   switch (group) {
+    case "portOptions":
+      return value === "multiple"
+        ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
+        : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
+    case "originalSystems":
+      return originalSystems(port).includes(canonicalIdentityId(value));
     case "gameFiles":
       return context.gameFiles?.byPort.get(port.id)?.state === value;
     case "updates": {
@@ -232,6 +267,12 @@ function contextMatches(
   context: CatalogQueryContext,
 ): Match {
   switch (group) {
+    case "portOptions":
+      return value === "multiple"
+        ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
+        : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
+    case "originalSystems":
+      return originalSystems(port).includes(canonicalIdentityId(value));
     case "platforms":
       return fact.platform === null
         ? undefined
@@ -275,6 +316,12 @@ function listingMatch(
 ): Match {
   const status = context.library?.statuses.get(port.id);
   switch (group) {
+    case "portOptions":
+      return value === "multiple"
+        ? (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) > 1
+        : (context.groupPortCounts?.get(gameGroupId(port)) ?? 1) === 1;
+    case "originalSystems":
+      return originalSystems(port).includes(canonicalIdentityId(value));
     case "platforms": {
       return listingPlatformMatch(port, value, context, status);
     }
@@ -303,6 +350,12 @@ export function evaluateCatalogQuery(
   query: unknown,
   context: CatalogQueryContext = {},
 ): CatalogQueryResult {
+  context = {
+    ...context,
+    groupPortCounts: new Map(
+      groupCatalog(context.catalogUniverse ?? ports).map((group) => [group.id, group.ports.length]),
+    ),
+  };
   const selfService = (port: CatalogEntry) =>
     Boolean(
       (port.listing && !port.release) ||
@@ -332,9 +385,9 @@ export function evaluateCatalogQuery(
     Record<string, number>
   >;
   for (const group of groups) {
-    for (const value of catalogQueryOptions[group]) {
+    for (const value of optionsFor(group, ports, query)) {
       const outcomes = listings.map((port) => match(port, [group, value]));
-      const count = result.counts[group][value];
+      const count = Object.hasOwn(result.counts[group], value) ? result.counts[group][value] : 0;
       unknownCounts[group][value] = outcomes.filter((outcome) => outcome === undefined).length;
       result.counts[group][value] =
         count == null ? null : count + outcomes.filter((outcome) => outcome === true).length;
@@ -368,7 +421,7 @@ function evaluateIntegrationQuery(
   const counts = Object.fromEntries(
     groups.map((group) => [
       group,
-      Object.fromEntries(catalogQueryOptions[group].map((value) => [value, null])),
+      Object.fromEntries(optionsFor(group, ports, query).map((value) => [value, null])),
     ]),
   ) as CatalogQueryResult["counts"];
   const empty = (state: "unresolved" | "unavailable") => emptyQueryResult(state, query, counts);
@@ -477,7 +530,7 @@ function evaluateCoherentQuery(
 ): CatalogQueryResult {
   const matching = coherentMatcher(query, context, browsing);
   for (const group of groups) {
-    for (const value of catalogQueryOptions[group]) {
+    for (const value of optionsFor(group, unique, query)) {
       if (!available(group, value, context, gameFilesAvailable)) continue;
       const outcomes = unique.map((port) =>
         any(matching(port, [group, value]).map((entry) => entry.match)),
@@ -518,7 +571,7 @@ function evaluateDeclaredQuery(
     const otherMatches = unique.filter((port) =>
       groups.every((other) => other === group || groupMatches(port, other)),
     );
-    for (const value of catalogQueryOptions[group]) {
+    for (const value of optionsFor(group, unique, query)) {
       counts[group][value] =
         !facetRequiresContexts && available(group, value, context, gameFilesAvailable)
           ? otherMatches.filter((port) => matches(port, group, value, context)).length

@@ -83,6 +83,7 @@ describe("update center presentation", () => {
     const renderHistory = (activityFeed: ActivityFeed, displayRecords = records) =>
       renderToStaticMarkup(
         <UpdateCenter
+          section="history"
           generation={1}
           ports={[port]}
           statuses={new Map()}
@@ -157,7 +158,7 @@ describe("update center presentation", () => {
       );
     for (const [policy, label] of [
       ["notify", "Notify me"],
-      ["stage", "Download for later"],
+      ["stage", "Keep update for later"],
       ["automatic", "Install when I run updates"],
     ] as const) {
       expect(render({ ...status, update_policy: policy })).toContain(`Stable · ${label}`);
@@ -429,7 +430,8 @@ describe("update center presentation", () => {
       "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here.",
     );
     expect(html).toContain("Activity from the CLI and desktop appears here.");
-    expect(html).toContain("No task records yet");
+    expect(html).toContain("No current tasks in these records");
+    expect(html).toContain("Finished records are in History");
     expect(html).toContain(
       "Installs, updates, verification, restored versions, copied installations, and failures will appear here.",
     );

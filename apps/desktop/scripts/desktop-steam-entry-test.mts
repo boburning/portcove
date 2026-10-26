@@ -80,13 +80,8 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     const shortcuts = path.join(config, "shortcuts.vdf");
     await mkdir(config, { recursive: true });
     await open(port, false);
-    await revealDetailSection(browser, "Files");
+    await revealDetailSection(browser, "Manage");
     const { button, click } = reviewControls(browser);
-    await click(
-      By.css(
-        ".detail-tab-panel:not([hidden]) > details.advanced-settings > summary.advanced-summary",
-      ),
-    );
     await click(button("Steam shortcut"));
     const dialog = By.css('[aria-labelledby="steam-entry-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
@@ -201,12 +196,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     assert.deepEqual(await fileIdentity(shortcuts), added);
     await openCatalogPortAfterRefresh(browser, port, port.name);
-    await revealDetailSection(browser, "Files");
-    await click(
-      By.xpath(
-        '//section[contains(@class,"detail-panel")]//summary[contains(@class,"advanced-summary") and starts-with(normalize-space(.),"Technical details")]',
-      ),
-    );
+    await revealDetailSection(browser, "Manage");
     await click(button("Steam shortcut"));
     assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);

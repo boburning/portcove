@@ -140,6 +140,7 @@ import {
   clickVisible,
   chooseGameUpdateDisposition,
   selectPrimaryNavigation,
+  selectCatalogPort,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
@@ -276,10 +277,13 @@ async function openUpdateTheme(browser: WebDriver, theme: string) {
     theme,
   );
   await selectPrimaryNavigation(browser, "Activity");
-  await selectActivitySection(browser, "Updates");
+  await selectActivitySection(browser, "Game updates");
 }
 
-async function selectActivitySection(browser: WebDriver, label: "Updates" | "Tasks & history") {
+async function selectActivitySection(
+  browser: WebDriver,
+  label: "Game updates" | "Tasks" | "History",
+) {
   const button = await browser.findElement(
     By.xpath(
       `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="${label}"]`,
@@ -731,7 +735,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
-        await chooseGameUpdateDisposition(browser, "download");
+        await chooseGameUpdateDisposition(browser, "prepare");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         await browser.wait(async () => (await review.getText()).includes(explanation), 5_000);
@@ -739,7 +743,7 @@ async function assertReviewedUpdateOutcomes({
           (
             await review.findElements(
               By.xpath(
-                './/button[contains(., "for later") or contains(., "install update") or normalize-space(.)="Use saved update"]',
+                './/button[normalize-space(.)="Download archive for later" or normalize-space(.)="Prepare update for later" or normalize-space(.)="Keep saved update for later" or normalize-space(.)="Download and install update" or normalize-space(.)="Update now" or normalize-space(.)="Use saved update"]',
               ),
             )
           ).length,
@@ -800,7 +804,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
-        await chooseGameUpdateDisposition(browser, "download");
+        await chooseGameUpdateDisposition(browser, "prepare");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         const applyAction = await waitForReviewedUpdateAction(
@@ -867,7 +871,7 @@ async function assertReviewedUpdateOutcomes({
           path.join(output, `reviewed-update-outcome-${mutation}-accessibility.json`),
           artifacts,
         );
-        await chooseGameUpdateDisposition(browser, "download");
+        await chooseGameUpdateDisposition(browser, "prepare");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         await browser.wait(until.elementLocated(dialog), 5_000);
         await clickVisible(browser, await browser.findElement(button("Cancel review")));
@@ -901,7 +905,7 @@ async function assertReviewedUpdateOutcomes({
       assert.equal(observation.channels, 1);
       assert.equal(observation.restored, true);
     }
-    await chooseGameUpdateDisposition(browser, "download");
+    await chooseGameUpdateDisposition(browser, "prepare");
     await clickVisible(browser, await browser.findElement(button("Review game update")));
     await browser.wait(until.elementLocated(dialog), 5_000);
     await clickVisible(browser, await browser.findElement(button("Cancel review")));
@@ -947,7 +951,7 @@ export function assertPreparedLibrarySummary(
     assert.equal(item.readiness?.launchable, true, `${item.port_id} must be ready`);
     assert.equal(required(item.readiness).pending_setup, false);
     assert.deepEqual(required(item.readiness).blockers, []);
-    assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
+    assert.ok(!item.staged, `${item.port_id} must have no prepared update`);
   }
   assert.equal(
     text.replace(/\s+/gu, " ").trim(),
@@ -1091,7 +1095,7 @@ export async function preparationScenarios({
     await browser.wait(until.elementLocated(card), 15_000);
     await clickVisible(browser, await browser.findElement(card));
     if (waitForPreparation) {
-      await revealDetailSection(browser, "Files");
+      await revealDetailSection(browser, "Game files");
       await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
     }
   }
@@ -2194,7 +2198,13 @@ export async function preparationScenarios({
           assert.equal(hierarchy.portId, port.id);
           assert.equal(hierarchy.actionInHero, true);
           assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
-          assert.deepEqual(hierarchy.groups, ["Overview", "Files", "Saved data", "Versions"]);
+          assert.deepEqual(hierarchy.groups, [
+            "Overview",
+            "Game files",
+            "Saves",
+            "Versions & updates",
+            "Manage",
+          ]);
           assert.equal(hierarchy.horizontalOverflow, false);
           assert.ok(
             hierarchy.action.top >= 0 &&
@@ -2203,7 +2213,7 @@ export async function preparationScenarios({
               hierarchy.action.right <= hierarchy.viewport.width,
             `Trial launch must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
-          await revealDetailSection(browser, "Versions");
+          await revealDetailSection(browser, "Versions & updates");
           const facts = await executeBrowserScript(browser, () => {
             const strip = document.querySelector(".installation-facts");
             strip?.scrollIntoView({ block: "center", behavior: "instant" });
@@ -2426,7 +2436,7 @@ export async function preparationScenarios({
   await scenario("native-game-update-review", async () => {
     const { port } = await seed("opengoal-jak1", "success");
     await open(port, false);
-    await revealDetailSection(browser, "Versions");
+    await revealDetailSection(browser, "Versions & updates");
     await clickVisible(browser, await browser.findElement(button("Check for updates")));
     const updateControl = await browser.wait(
       until.elementLocated(By.css('section[aria-label="Review game update"]')),
@@ -2449,7 +2459,7 @@ export async function preparationScenarios({
     );
     // The immediate disposition is explicit; changing it requests a new bound plan.
     const initialReviewText = await review.getText();
-    const keepForLater = await review.findElements(button("Review download for later"));
+    const keepForLater = await review.findElements(button("Review prepare for later"));
     if (keepForLater.length) {
       assert.ok(initialReviewText.includes("Confirm the release"));
       await clickVisible(browser, keepForLater[0]!);
@@ -2470,7 +2480,7 @@ export async function preparationScenarios({
     if (["download", "use_staged", "reuse_retained"].includes(candidate.plan.action))
       assert.ok(
         reviewText.includes(
-          "This keeps the verified update for later. Your current version stays unchanged.",
+          "This keeps the prepared update for later. Your current version stays unchanged.",
         ),
       );
     assert.ok(
@@ -2572,7 +2582,7 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(comparisonScreenshot);
-          await selectActivitySection(browser, "Tasks & history");
+          await selectActivitySection(browser, "History");
           await assertActivityLabelSeparation(browser, width);
           const historyScreenshot = path.join(
             output,
@@ -2583,7 +2593,7 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(historyScreenshot);
-          await selectActivitySection(browser, "Updates");
+          await selectActivitySection(browser, "Game updates");
         }
       }
       await assertIndividualUpdateFailure({ browser, port, command, output, artifacts });
@@ -2736,7 +2746,7 @@ export async function preparationScenarios({
       sources,
     };
     async function rollbackButton() {
-      await revealDetailSection(browser, "Versions");
+      await revealDetailSection(browser, "Versions & updates");
       const target = await browser.findElement(button("Restore previous version"));
       await browser.wait(until.elementIsVisible(target), 5_000);
       return target;
@@ -3164,15 +3174,13 @@ export async function preparationScenarios({
         // Reload discards renderer continuations, but the same Core preparation
         // remains running. Perform a real unrelated native UI verification.
         await open(other.port, false);
-        await revealDetailSection(browser, "Files");
+        await revealDetailSection(browser, "Manage");
         const verify = await browser.findElement(button("Verify installation"));
-        if (!(await verify.isDisplayed()))
-          await clickVisible(
-            browser,
-            await browser.findElement(
-              By.xpath('//summary[contains(., "Commands and maintenance")]'),
-            ),
-          );
+        assert.equal(
+          await verify.isDisplayed(),
+          true,
+          "Manage must expose installation verification",
+        );
         await browser.wait(until.elementIsEnabled(verify), 5000);
         const otherActiveBefore = required((await status(other.port.id)).active).id;
         const previousActivityIds = new Set((await activities()).map((item) => item.id));
@@ -3517,7 +3525,7 @@ export async function preparationScenarios({
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
-    await revealDetailSection(browser, "Versions");
+    await revealDetailSection(browser, "Versions & updates");
 
     await clickVisible(
       browser,
@@ -3612,7 +3620,7 @@ export async function preparationScenarios({
   });
   await scenario("native-release-channel-selection-and-restart", async () => {
     await browser.findElement(By.css(".detail-back")).click();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const openCatalogPort = async (id: string) => {
       const port = transportValue("port", command(["catalog", "show", id]));
       const search = await browser.findElement(By.id("port-search"));
@@ -3626,10 +3634,8 @@ export async function preparationScenarios({
         5_000,
         `catalog search did not settle on ${port.name}`,
       );
-      const card = By.xpath(`//button[@data-detail-origin="catalog:card:${port.id}"]`);
-      await browser.wait(until.elementLocated(card), 15_000, `${port.name} card did not appear`);
-      await browser.findElement(card).click();
-      await revealDetailSection(browser, "Versions");
+      await selectCatalogPort(browser, port.id);
+      await revealDetailSection(browser, "Versions & updates");
 
       await clickVisible(
         browser,
@@ -3737,7 +3743,7 @@ export async function preparationScenarios({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const restarted = await openCatalogPort("re-blue");
     assert.ok((await restarted.getText()).includes("Rolling"));
     await executeBrowserScript(

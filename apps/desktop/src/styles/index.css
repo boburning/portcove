@@ -8,6 +8,8 @@
 @import "./adaptive.css";
 @import "./collection.css";
 @import "./details.css";
+@import "./activity.css";
+@import "./identity.css";
 
 @source "../";
 @source not "../**/*.test.{ts,tsx,js,mjs}";

@@ -19,7 +19,7 @@ import {
 } from "react";
 import {
   AlertTriangle,
-  Boxes,
+  Compass,
   Check,
   CheckCircle2,
   CircleMinus,
@@ -31,6 +31,11 @@ import {
   LoaderCircle,
   Menu as MenuIcon,
   Settings,
+  Search,
+  Palette,
+  FolderOpen,
+  Plug,
+  Info,
   ShieldCheck,
   Wrench,
   X,
@@ -69,7 +74,7 @@ import {
 } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import type { SourceInspectionReadState } from "../features/source-health/use-source-health";
-import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
+import { BrandAvatar, BrandMascot } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
@@ -110,7 +115,7 @@ export function Sidebar({
   const desktopNavigation = useRef<HTMLElement>(null);
   const sheetNavigation = useRef<HTMLElement>(null);
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 48rem)");
+    const desktop = window.matchMedia("(min-width: 42rem)");
     const closeOnDesktop = () => {
       if (desktop.matches) setNavigationOpen(false);
     };
@@ -119,7 +124,7 @@ export function Sidebar({
   }, []);
   const items = [
     { view: "library", label: "Library", icon: Library, shortcut: "1" },
-    { view: "catalog", label: "Find games", icon: Boxes, shortcut: "2" },
+    { view: "catalog", label: "Discover", icon: Compass, shortcut: "2" },
     { view: "updates", label: "Activity", icon: Download, shortcut: "3" },
     { view: "settings", label: "Settings", icon: Settings, shortcut: "4" },
   ] satisfies Array<{
@@ -168,7 +173,7 @@ export function Sidebar({
   );
   return (
     <aside
-      className="sidebar flex min-h-0 flex-col overflow-y-auto bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
+      className="sidebar flex min-h-0 flex-col overflow-y-auto bg-[var(--color-bg-navigation)] p-[var(--space-6)_var(--space-3)_var(--space-4)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
       data-focus-region="sidebar"
     >
       <div className="sidebar-compact-header items-center gap-3">
@@ -215,7 +220,7 @@ export function Sidebar({
             sheetNavigation.current?.querySelector<HTMLElement>('[aria-current="page"]') ?? false
           }
           finalFocus={() =>
-            window.matchMedia("(min-width: 48rem)").matches
+            window.matchMedia("(min-width: 42rem)").matches
               ? (desktopNavigation.current?.querySelector<HTMLElement>('[aria-current="page"]') ??
                 false)
               : navigationTrigger.current
@@ -310,23 +315,72 @@ export function PageHeader({
         data-focus-group
       >
         {view === "catalog" && <PortSearch query={query} setQuery={setQuery} />}
-        <Tooltip label={`Commands · ${commandShortcut("K")}`}>
-          <Button
-            data-focusable
-            data-detail-origin={`command-trigger:${view}`}
-            variant="ghost"
-            size="sm"
-            className="command-trigger whitespace-nowrap text-pc-muted-foreground max-[48rem]:size-9 max-[48rem]:shrink-0 max-[48rem]:p-0"
-            onClick={onOpenCommands}
-            aria-label={`Commands ${commandShortcut("K")}: open command palette`}
-          >
-            <Icon glyph={Command} />
-            <span className="max-[65rem]:hidden">Commands </span>
-            <span className="ms-1 text-xs max-[48rem]:hidden">{commandShortcut("K")}</span>
-          </Button>
-        </Tooltip>
+        {onOpenCommands && (
+          <Tooltip label={`Commands · ${commandShortcut("K")}`}>
+            <Button
+              data-focusable
+              data-detail-origin={`command-trigger:${view}`}
+              variant="ghost"
+              size="sm"
+              className="command-trigger whitespace-nowrap text-pc-muted-foreground max-[48rem]:size-9 max-[48rem]:shrink-0 max-[48rem]:p-0"
+              onClick={onOpenCommands}
+              aria-label={`Commands ${commandShortcut("K")}: open command palette`}
+            >
+              <Icon glyph={Command} />
+              <span className="max-[65rem]:hidden">Commands </span>
+              <span className="ms-1 text-xs max-[48rem]:hidden">{commandShortcut("K")}</span>
+            </Button>
+          </Tooltip>
+        )}
       </div>
     </header>
+  );
+}
+
+export function WorkspaceToolbar({
+  view,
+  detailTitle,
+  onOpenCommands,
+}: {
+  view: View;
+  detailTitle?: string | undefined;
+  onOpenCommands: () => void;
+}) {
+  const label = {
+    library: "Library",
+    catalog: "Discover",
+    updates: "Activity",
+    settings: "Settings",
+  }[view];
+  return (
+    <div className="workspace-toolbar flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
+      <div className="flex min-w-0 items-center gap-3" aria-label="Current location">
+        <span className="max-[42rem]:hidden">Portcove</span>
+        <span className="max-[42rem]:hidden" aria-hidden="true">
+          /
+        </span>
+        <span>{label}</span>
+        {detailTitle && (
+          <>
+            <span aria-hidden="true">/</span>
+            <span className="truncate">{detailTitle}</span>
+          </>
+        )}
+      </div>
+      <Button
+        data-focusable
+        data-detail-origin={`command-trigger:${view}`}
+        variant="outline"
+        size="sm"
+        className="command-trigger shrink-0 gap-2 text-pc-muted-foreground"
+        onClick={onOpenCommands}
+        aria-label={`Commands ${commandShortcut("K")}: open command palette`}
+      >
+        <Icon glyph={Search} />
+        <span className="max-[65rem]:hidden">Commands </span>{" "}
+        <Shortcut className="max-[42rem]:hidden">{commandShortcut("K")}</Shortcut>
+      </Button>
+    </div>
   );
 }
 
@@ -336,7 +390,7 @@ function pageCopy(view: View, portCount: number) {
       title: "Your library",
     },
     catalog: {
-      title: "Find games",
+      title: "Discover",
       description: `Browse ${portCount} native game ${portCount === 1 ? "port" : "ports"}.`,
     },
     updates: {
@@ -1350,7 +1404,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
         onValueChange={(value) => {
           if (options.includes(value)) appearance?.setPreference(value);
         }}
-        className="appearance-options grid w-full max-w-sm grid-cols-1 gap-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-1 @min-[22rem]/row:grid-cols-3"
+        className="appearance-options grid w-full max-w-xl grid-cols-1 gap-3 @min-[22rem]/row:grid-cols-3"
         aria-label="Color theme"
       >
         {options.map((option) => (
@@ -1365,13 +1419,12 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
 function AboutCard() {
   return (
     <SettingsRow
-      className="about-card grid min-h-0 grid-cols-1 items-center gap-6 @min-[40rem]/section:grid-cols-[minmax(11rem,0.45fr)_minmax(0,1fr)]"
+      className="about-card grid min-h-0 grid-cols-1 items-center gap-6 @min-[40rem]/section:grid-cols-[8rem_minmax(0,1fr)]"
       data-focus-group
     >
-      <div className="about-art grid min-w-0 grid-rows-[auto_minmax(0,1fr)] items-end gap-3 rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)] p-3 shadow-(--shadow-control)">
-        <BrandWordmark className="block max-w-[100%] bg-[var(--color-brand-stage)] object-contain" />
+      <div className="about-art flex min-w-0 items-center justify-center">
         <BrandMascot
-          className="block max-w-[100%] bg-[var(--color-brand-stage)] object-contain"
+          className="block max-h-40 max-w-[100%] bg-transparent object-contain"
           decorative
         />
       </div>
@@ -1473,12 +1526,22 @@ function ThemeOption({ option }: { option: ThemePreference }) {
     <Radio.Root
       data-focusable
       value={option}
-      className={`flex min-h-(--control-height-md) cursor-pointer items-center justify-center gap-1 rounded-pc-sm px-2 py-2 text-sm font-semibold text-pc-muted-foreground data-checked:bg-pc-selection data-checked:text-pc-selection-foreground ${controlFocus}`}
+      className={`theme-option grid min-w-0 cursor-pointer justify-items-start gap-2 rounded-pc-md border border-pc-border p-2 text-sm font-semibold text-pc-muted-foreground data-checked:border-pc-ring data-checked:bg-pc-selection data-checked:text-pc-selection-foreground ${controlFocus}`}
     >
-      <Radio.Indicator>
-        <Icon glyph={Check} size="sm" />
-      </Radio.Indicator>
-      {option.charAt(0).toUpperCase() + option.slice(1)}
+      <span className="theme-preview" data-preview={option} aria-hidden="true">
+        <i />
+        <span>
+          <b />
+          <b />
+          <b />
+        </span>
+      </span>
+      <span className="flex items-center gap-2">
+        <Radio.Indicator>
+          <Icon glyph={Check} size="sm" />
+        </Radio.Indicator>
+        {option.charAt(0).toUpperCase() + option.slice(1)}
+      </span>
     </Radio.Root>
   );
 }
@@ -1599,6 +1662,19 @@ export function SettingsView(props: SettingsViewProps) {
             jumpToSettingsSection(id);
           }}
         >
+          <Icon
+            glyph={
+              {
+                appearance: Palette,
+                "library-storage": HardDrive,
+                "game-files": FolderOpen,
+                updates: Download,
+                integrations: Plug,
+                advanced: Wrench,
+                about: Info,
+              }[id]
+            }
+          />
           {label}
         </Button>
       ))}

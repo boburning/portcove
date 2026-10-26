@@ -4,6 +4,7 @@ import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
+import { discoverGroupForPort } from "./discover-test-helpers";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
@@ -43,6 +44,22 @@ async function mount(theme = "dark", journey: "collection" | "collection-large" 
     .poll(() => document.querySelectorAll(".collection-entry").length)
     .toBe(journey === "collection-large" ? 60 : 12);
   document.documentElement.dataset.theme = theme;
+}
+
+function groupedCollectionSnapshot() {
+  const snapshot = workspace("collection");
+  for (const port of snapshot.catalog.ports.slice(0, 2)) {
+    port.presentation = {
+      ...port.presentation!,
+      original_game: {
+        format_version: 1,
+        id: "fixture-super-mario-64",
+        evidence_urls: ["https://example.com/fixture/super-mario-64"],
+        source_editions: [],
+      },
+    };
+  }
+  return snapshot;
 }
 
 it("groups retrieval, preserves independent duplicate-port launch targets and states the Steam selection scope", async () => {
@@ -88,7 +105,7 @@ it("plays the distinct duplicate port from details and returns to its filtered r
   const origin = document.querySelectorAll<HTMLElement>(".collection-identity")[1]!;
   const originId = origin.getAttribute("data-detail-origin");
   await page
-    .getByRole("button", { name: /View details for Super Mario 64 Port: Mario modern port/ })
+    .getByRole("button", { name: /View details for Super Mario 64 Mario modern port/ })
     .click();
   const detail = page.getByRole("region", { name: "Super Mario 64", exact: true });
   await expect
@@ -104,23 +121,38 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .toBe(originId);
 });
 
-it("names discovery cards from their visible distinguishing identity and readiness", async () => {
+it("names exact port choices from their visible identity and readiness inside grouped Discover", async () => {
   await page.viewport(1366, 768);
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
   await mount();
-  await page.getByRole("button", { name: "Find games", exact: true }).click();
-  const card = page.getByRole("button", {
-    name: /^Super Mario 64 Mario modern port · Modern renderer Ready to play/,
-  });
-  await expect.element(card).toHaveAccessibleName(/Ready to play.*Stable/);
-  const element = card.element();
-  expect(element.textContent?.match(/Modern renderer/g)).toHaveLength(1);
-  expect(
-    element.querySelector(".collection-actions")!.getBoundingClientRect().bottom,
-  ).toBeLessThanOrEqual(innerHeight);
-  await card.click();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  const group = discoverGroupForPort("collection-1");
+  expect(JSON.parse(group.dataset.discoverPortIds!)).toEqual(["collection-0", "collection-1"]);
+  expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(11);
+  await expect
+    .element(page.getByRole("status", { name: "Search results", exact: true }))
+    .toHaveTextContent("1 game + 10 ungrouped projects · 12 matching ports");
+  await userEvent.click(group.querySelector<HTMLButtonElement>(".discover-game-identity")!);
+  const dialog = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
+  await expect.element(dialog).toBeVisible();
+  const choice = document.querySelector<HTMLButtonElement>(
+    '[data-discover-port-id="collection-1"]',
+  )!;
+  const row = choice.closest("article")!;
+  await expect
+    .element(row)
+    .toHaveAccessibleName(/Super Mario 64.*Mario modern port.*Ready to play/);
+  expect(row.textContent?.match(/Modern renderer/g)).toHaveLength(1);
+  await expect.element(row).toMatchTextContent("Stable");
+  choice.scrollIntoView({ block: "nearest" });
+  expect(choice.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
+  await userEvent.click(choice);
   await expect
     .element(page.getByText("Port project: Mario modern port · Modern renderer", { exact: true }))
     .toBeVisible();
+  expect(document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id")).toBe(
+    "collection-1",
+  );
 });
 
 it("keeps Favorites in the entry menu and restores filter focus when its last result disappears", async () => {
@@ -170,7 +202,7 @@ it("keeps compatibility facts visible while disclosing project history on detail
   await page.viewport(1366, 768);
   await mount();
   await page
-    .getByRole("button", { name: "View details for Super Mario 64 Port: sm64-port", exact: true })
+    .getByRole("button", { name: "View details for Super Mario 64 sm64-port", exact: true })
     .click();
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
   const disclosure = page.getByText("Project status and release information", { exact: true });
@@ -182,19 +214,20 @@ it("keeps compatibility facts visible while disclosing project history on detail
   expect(document.body.textContent).not.toContain("No current check");
 });
 
-it("reopens Last played and restores its exact details trigger after Back", async () => {
+it("opens Continue playing details and restores its exact trigger after Back", async () => {
   await page.viewport(1366, 768);
   const snapshot = workspace("collection");
   snapshot.statuses[0]!.last_launched_at = 1;
+  snapshot.statuses[0]!.successful_launches = 1;
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount();
-  await page.getByText("Last played", { exact: true }).first().click();
+  await expect.element(page.getByText("Continue playing", { exact: true })).toBeVisible();
   const origin = '[data-detail-origin="library:continue-details:collection-0"]';
   await page.getByRole("button", { name: "View details", exact: true }).click();
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
   await expect.poll(() => document.activeElement?.matches(origin)).toBe(true);
   const target = document.querySelector<HTMLElement>(origin)!;
-  expect(target.closest("details")?.open).toBe(true);
+  expect(target.closest(".continue-card")).not.toBeNull();
   expect(target.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
 });
 
@@ -297,43 +330,51 @@ it("keeps an unknown external record distinct from managed readiness and reviews
 });
 
 for (const theme of ["dark", "light"]) {
-  it(`keeps enlarged ${theme} catalog artwork bounded with visible distinguishing identity`, async () => {
+  it(`keeps enlarged ${theme} grouped Discover artwork bounded and exact port identity reachable`, async () => {
     await page.viewport(1366, 768);
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
     await mount(theme);
-    await page.getByRole("button", { name: "Find games", exact: true }).click();
-    await expect.poll(() => document.querySelectorAll(".card-art").length).toBe(12);
-    const artwork = document.querySelector<HTMLElement>(".card-art")!;
+    await page.getByRole("button", { name: "Discover", exact: true }).click();
+    await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
+    const group = discoverGroupForPort("collection-1");
+    const artwork = group.querySelector<HTMLElement>(".collection-art")!;
     const ordinary = artwork.getBoundingClientRect();
     document.documentElement.style.fontSize = "32px";
     await expect
       .poll(() => artwork.getBoundingClientRect().width)
       .toBeLessThanOrEqual(ordinary.width);
-    const enlarged = artwork.getBoundingClientRect();
-    expect(enlarged.height / enlarged.width).toBeCloseTo(1.5);
-    const card = artwork.closest<HTMLButtonElement>(".port-card")!;
-    const workspace = card.closest<HTMLElement>("main")!;
-    // Header and filter controls may wrap; reveal the card in its scrolling workspace.
-    card.scrollIntoView({ block: "start", inline: "nearest" });
+    expect(
+      artwork.getBoundingClientRect().height / artwork.getBoundingClientRect().width,
+    ).toBeCloseTo(1.5);
+    const identity = group.querySelector<HTMLButtonElement>(".discover-game-identity")!;
+    const workspace = group.closest<HTMLElement>("main")!;
+    identity.scrollIntoView({ block: "start", inline: "nearest" });
     const viewport = workspace.getBoundingClientRect();
     const visibleTop = Math.max(0, viewport.top);
     const visibleBottom = Math.min(innerHeight, viewport.bottom);
-    const title = card.querySelector("h2")!;
-    const project = card.querySelector<HTMLElement>(".card-content > p")!;
-    for (const identity of [title, project]) {
-      const bounds = identity.getBoundingClientRect();
+    const title = identity.querySelector(".collection-title")!;
+    const project = identity.querySelector<HTMLElement>(".collection-project")!;
+    for (const item of [title, project]) {
+      const bounds = item.getBoundingClientRect();
       expect(bounds.top).toBeGreaterThanOrEqual(visibleTop);
       expect(bounds.bottom).toBeLessThanOrEqual(visibleBottom);
     }
-    expect(project.textContent).toContain("sm64-port");
+    expect(project.textContent).toContain("2 separate port projects");
+    expect(identity.textContent).toContain("Super Mario 64");
+    expect(identity.querySelectorAll("button")).toHaveLength(0);
     expect(workspace.scrollWidth).toBeLessThanOrEqual(workspace.clientWidth + 1);
-    expect(card.textContent).toContain("Super Mario 64");
-    expect(card.textContent).toContain("sm64-port");
-    expect(card.querySelectorAll("button")).toHaveLength(0);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
-    const otherPort = [...document.querySelectorAll<HTMLButtonElement>("button.port-card")].find(
-      (button) => button.textContent?.includes("Mario modern port"),
-    )!;
-    otherPort.focus();
+    identity.focus();
+    await userEvent.keyboard("{Enter}");
+    const comparison = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
+    await expect.element(comparison).toBeVisible();
+    const exactPort = comparison
+      .element()
+      .querySelector<HTMLButtonElement>('[data-discover-port-id="collection-1"]')!;
+    expect(exactPort.closest("article")?.textContent).toContain(
+      "Mario modern port · Modern renderer",
+    );
+    exactPort.focus();
     await userEvent.keyboard("{Enter}");
     await expect
       .poll(() =>
@@ -341,9 +382,8 @@ for (const theme of ["dark", "light"]) {
       )
       .toBe("collection-1");
     await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
-    await expect.poll(() => document.activeElement?.textContent).toContain("Mario modern port");
-    expect(document.activeElement?.getAttribute("data-detail-origin")).toBe(
-      "catalog:card:collection-1",
-    );
+    await expect
+      .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
+      .toBe("catalog:card:collection-0");
   });
 }

@@ -22,7 +22,7 @@ import { isRecord } from "../../../scripts/runtime-values.mts";
 function offscreenReviewControl(mode: "normal" | "hidden" | "disabled" | "occluded") {
   const state = { scrolled: false, clicks: 0, visibilityChecks: 0, enabledChecks: 0, hits: 0 };
   const control = {
-    outerHTML: '<button role="tab">Tasks &amp; history</button>',
+    outerHTML: '<button role="tab">Tasks</button>',
     parentElement: null,
     closest: () => null,
     getAnimations: () => [],

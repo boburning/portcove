@@ -197,9 +197,7 @@ it("retains a session-only layout through the real details unmount and return", 
   await mount("dark");
   await page.getByRole("button", { name: "Compact rows", exact: true }).click();
   expect(localStorage.getItem(key)).toBeNull();
-  await page
-    .getByRole("button", { name: /^View details for Super Mario 64 Port: sm64-port$/ })
-    .click();
+  await page.getByRole("button", { name: /^View details for Super Mario 64 sm64-port$/ }).click();
   expect(document.querySelector(".collection-rows")).toBeNull();
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
   await expect
@@ -296,9 +294,7 @@ for (const theme of ["dark", "light"]) {
       .getByRole("textbox", { name: "Search your library", exact: true })
       .fill("Super Mario 64");
     await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
-    await page
-      .getByRole("button", { name: /^View details for Super Mario 64 Port: sm64-port$/ })
-      .click();
+    await page.getByRole("button", { name: /^View details for Super Mario 64 sm64-port$/ }).click();
     await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
     await expect
       .element(page.getByRole("textbox", { name: "Search your library", exact: true }))
@@ -359,7 +355,7 @@ it("keeps failed artwork feedback outside the details action name", async () => 
   expect(labels.violations).toEqual([]);
 });
 
-it("keeps the lean visible Find games label in its natural name when artwork fails", async () => {
+it("keeps the lean visible Discover label in its natural name when artwork fails", async () => {
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => ({
     ...artworkState(id, slot),
     availability: "unavailable",
@@ -368,11 +364,9 @@ it("keeps the lean visible Find games label in its natural name when artwork fai
   await mount("dark");
   await page
     .getByRole("navigation", { name: "Primary navigation" })
-    .getByRole("button", { name: /^Find games/ })
+    .getByRole("button", { name: /^Discover/ })
     .click();
-  await expect
-    .poll(() => document.querySelectorAll('[data-detail-origin^="catalog:card:"]').length)
-    .toBe(12);
+  await expect.poll(() => document.querySelectorAll("[data-discover-port-ids]").length).toBe(12);
   await expect
     .poll(() => document.querySelector(".artwork-image-note")?.textContent)
     .toContain("Image unavailable");

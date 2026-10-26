@@ -98,6 +98,8 @@ std::thread_local! {
 
 #[path = "game_install_review.rs"]
 mod game_install_review;
+#[path = "game_update_acquisition.rs"]
+pub(crate) mod game_update_acquisition;
 #[path = "game_update_review.rs"]
 mod game_update_review;
 
@@ -260,6 +262,7 @@ pub struct InstallOverrides<'a> {
 struct ReleaseIntent {
     activate: bool,
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
+    acquired: Option<game_update_acquisition::AcquiredInputs>,
 }
 
 fn enum_value(value: impl Serialize) -> Result<String> {
@@ -573,6 +576,10 @@ impl PortcoveService {
     fn recover_lifecycle_operations(&self) -> Result<()> {
         let store = OperationStore::new(self.library.clone());
         for candidate in store.all()? {
+            if candidate.kind == LifecycleOperationKind::AcquireUpdate {
+                self.recover_game_update_acquisition(&store, &candidate)?;
+                continue;
+            }
             #[cfg(test)]
             self.faults
                 .check(LifecycleFaultPoint::RecoveryInventoried)?;
@@ -709,6 +716,9 @@ impl PortcoveService {
         operation: &mut LifecycleOperation,
     ) -> Result<Option<String>> {
         match operation.kind {
+            LifecycleOperationKind::AcquireUpdate => Err(PortcoveError::state(
+                "acquisition requires its activity-owner recovery route",
+            )),
             LifecycleOperationKind::Prepare => {
                 crate::preparation::recover(self, store, operation).map(|()| None)
             }
@@ -2942,6 +2952,7 @@ impl PortcoveService {
             ReleaseIntent {
                 activate,
                 shared_preferences: None,
+                acquired: None,
             },
             reporter,
         )
@@ -2963,6 +2974,7 @@ impl PortcoveService {
         let ReleaseIntent {
             activate,
             shared_preferences,
+            acquired,
         } = intent;
         let output_location = self.output_location(&port.id, overrides.output_directory)?;
         crate::runtime_path_policy::check_output_root(
@@ -3134,7 +3146,7 @@ impl PortcoveService {
         let staged_activation = port.adapter == AdapterKind::NativePortable
             || crate::persistence::requires_restore_receipt(port);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
-            .install(
+            .install_acquired(
                 InstallRequest {
                     port_id: port.id.clone(),
                     release,
@@ -3145,6 +3157,7 @@ impl PortcoveService {
                     managed,
                     qualification,
                 },
+                acquired.as_ref(),
                 reporter.operation,
                 &mut *reporter.emit,
             )

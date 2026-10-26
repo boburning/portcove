@@ -130,7 +130,10 @@ pub struct ArtworkCacheClear {
 }
 
 impl PortcoveService {
-    fn artwork_port(&self, port_id: &str) -> Result<std::borrow::Cow<'_, crate::PortListing>> {
+    pub(crate) fn artwork_port(
+        &self,
+        port_id: &str,
+    ) -> Result<std::borrow::Cow<'_, crate::PortListing>> {
         let unknown = match self.catalog().listing(port_id) {
             Ok(listing) => return Ok(std::borrow::Cow::Borrowed(listing)),
             Err(unknown) => unknown,
@@ -558,7 +561,7 @@ fn publish_thumbnail_file(library: &Library, id: &str, bytes: &[u8]) -> Result<(
     )
 }
 
-fn publish_cache_file(
+pub(crate) fn publish_cache_file(
     library: &Library,
     path: &Path,
     pending_name: &str,
@@ -766,6 +769,11 @@ fn cached_igdb_thumbnail(
     Ok(None)
 }
 
+pub(crate) fn admit_image_work() -> Result<igdb_cache::WorkPermit<'static>> {
+    static WORK: igdb_cache::WorkBudget = igdb_cache::WorkBudget::new();
+    WORK.try_acquire()
+}
+
 pub(super) fn igdb_thumbnail_with_fetch(
     library: &Library,
     artwork: &crate::IgdbArtwork,
@@ -781,8 +789,7 @@ pub(super) fn igdb_thumbnail_with_fetch(
         .map_err(|_| PortcoveError::state("cover request state is unavailable"))?;
     // Admit before allocating the original or converting it, including warm
     // reads. Core never queues a blocking worker behind unrelated cover work.
-    static WORK: igdb_cache::WorkBudget = igdb_cache::WorkBudget::new();
-    let _permit = WORK.try_acquire()?;
+    let _permit = admit_image_work()?;
     if let Some(thumbnail) = cached_igdb_thumbnail(library, artwork, revision, &key, &state)? {
         *retry = None;
         return Ok(thumbnail);
@@ -842,7 +849,8 @@ fn fetch_igdb_original(
     read_igdb_response(response)
 }
 
-fn igdb_http_client() -> std::result::Result<&'static reqwest::blocking::Client, IgdbFetchFailure> {
+pub(crate) fn igdb_http_client()
+-> std::result::Result<&'static reqwest::blocking::Client, IgdbFetchFailure> {
     static CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
     if let Some(client) = CLIENT.get() {
         return Ok(client);
@@ -967,21 +975,24 @@ fn cache_files(library: &Library) -> Result<Vec<(PathBuf, u64)>> {
             .ok_or_else(|| PortcoveError::verification("unexpected artwork cache entry"))?;
         let name = path.file_name().and_then(|name| name.to_str());
         let pending_thumbnail = name == Some("pending-thumbnail");
-        let pending_original = name == Some("pending-igdb-original");
+        let pending_original = matches!(
+            name,
+            Some("pending-igdb-original" | "pending-catalog-media-original")
+        );
         let pending = pending_thumbnail || pending_original;
         if !pending {
             crate::artwork_store::validate_hash(stem)?;
         }
         let metadata = fs::symlink_metadata(&path)?;
         let extension = path.extension().and_then(|extension| extension.to_str());
-        let too_large = if pending_original || extension == Some("jpg") {
+        let too_large = if pending_original || matches!(extension, Some("jpg" | "image")) {
             metadata.len() > crate::artwork_image::MAX_ORIGINAL_BYTES
         } else if pending_thumbnail || extension == Some("png") {
             metadata.len() > crate::artwork_image::MAX_THUMBNAIL_BYTES
         } else {
             false
         };
-        if (!pending && !matches!(extension, Some("png" | "jpg")))
+        if (!pending && !matches!(extension, Some("png" | "jpg" | "image")))
             || !metadata.is_file()
             || metadata.file_type().is_symlink()
             || too_large

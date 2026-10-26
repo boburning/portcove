@@ -103,6 +103,11 @@ import {
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
+  reviewControls,
+  selectCatalogPort,
+  openCatalogFilters,
+  clearCatalogFilters,
+  catalogResultPortIds,
 } from "./desktop-review-controls.mts";
 import { createInstallFixture } from "./desktop-install-fixture.mts";
 import {
@@ -929,7 +934,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
 
 async function verifyLongTitleCatalogDetail(theme: string) {
   const browser = driverBrowser();
-  await browser.findElement(By.css('[data-detail-origin="catalog:card:cvlod-recomp"]')).click();
+  await selectCatalogPort(browser, "cvlod-recomp");
   await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
   await browser.wait(
     () =>
@@ -2906,11 +2911,11 @@ try {
     assert.ok(status.ok);
     assert.equal(status.value.filter((item) => item.active).length, 0);
     const firstCatalog = await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Find games"]')),
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Discover"]')),
       15_000,
     );
     assert.equal(await firstCatalog.isDisplayed(), true);
-    assert.ok((await browser.findElements(By.css("button.port-card-selectable"))).length > 0);
+    assert.ok((await browser.findElements(By.css("button.discover-game-identity"))).length > 0);
     const connection = await browser.findElement(
       By.css('[aria-label="Connect your game files"] button'),
     );
@@ -2944,7 +2949,7 @@ try {
         typeof entryState.right === "number",
     );
     assert.ok(typeof viewport.height === "number" && typeof viewport.width === "number");
-    assert.equal(entryState.title, "Find games");
+    assert.equal(entryState.title, "Discover");
     assert.ok(entryState.top >= 0 && entryState.bottom <= viewport.height);
     assert.ok(entryState.left >= 0 && entryState.right <= viewport.width);
     const entryArtifact = path.join(output, "first-use-port-catalog-state.json");
@@ -3167,40 +3172,42 @@ try {
     assert.equal(path.resolve(required(original.library_root)), library);
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    const catalog = await invoke("get_catalog");
-    assert.ok(catalog.ok);
-    const channelButton = (channel: string) =>
-      browser.findElement(
+    const workspace = transportValue(
+      "desktop_workspace_snapshot",
+      success(await invoke("get_workspace_snapshot", { generation: original.generation })),
+    );
+    const allPortIds = [
+      ...new Set([
+        ...workspace.catalog.ports.map((port) => port.id),
+        ...(workspace.listing_catalog?.listings.map((listing) => listing.id) ?? []),
+        ...(workspace.pending_setups?.map((setup) => setup.port_id) ?? []),
+      ]),
+    ].sort();
+    const channelButton = async (channel: string) => {
+      const panel = await openCatalogFilters(browser);
+      const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
+      return panel.findElement(
         By.xpath(
-          `//div[@aria-label="Release channel filters"]//button[normalize-space(.)="${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"}"]`,
+          `.//fieldset[legend[normalize-space(.)="Release channels"]]//button[contains(normalize-space(.),"${label}")]`,
         ),
       );
+    };
     const expectChannels = async (channels: string[]) => {
-      const expected = catalog.value.ports
-        .filter(
-          (port) =>
-            channels.length === 0 || port.channels.some((channel) => channels.includes(channel)),
-        )
-        .map((port) => port.id)
-        .sort();
+      const expected =
+        channels.length === 0
+          ? allPortIds
+          : workspace.catalog.ports
+              .filter((port) => port.channels.some((channel) => channels.includes(channel)))
+              .map((port) => port.id)
+              .sort();
       assert.ok(expected.length > 0, "Channel fixture must contain matching ports");
       await browser.wait(
-        async () => {
-          const ids = await executeBrowserScript(browser, () =>
-            [...document.querySelectorAll('[data-detail-origin^="catalog:card:"]')]
-              .map((card) => {
-                const origin = card.getAttribute("data-detail-origin");
-                if (origin === null) throw new Error("Catalog card lost its origin identity");
-                return origin.slice("catalog:card:".length);
-              })
-              .sort(),
-          );
-          return JSON.stringify(ids) === JSON.stringify(expected);
-        },
+        async () =>
+          JSON.stringify(await catalogResultPortIds(browser)) === JSON.stringify(expected),
         5_000,
-        `Catalog did not display the exact ${channels.join("+") || "All"} union once`,
+        `Discover did not display the exact ${channels.join("+") || "All"} matching-port union once`,
       );
       for (const channel of ["stable", "beta", "rolling"])
         assert.equal(
@@ -3208,51 +3215,54 @@ try {
           String(channels.includes(channel)),
         );
     };
+    await clearCatalogFilters(browser);
     await (await channelButton("stable")).click();
     await expectChannels(["stable"]);
-    const beta = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
-        ),
-      ),
-      15_000,
-    );
-    await beta.click();
+    await (await channelButton("beta")).click();
     await expectChannels(["stable", "beta"]);
     await (await channelButton("stable")).click();
     await expectChannels(["beta"]);
-    await beta.click();
+    await (await channelButton("beta")).click();
     await expectChannels([]);
     await (await channelButton("rolling")).click();
     await expectChannels(["rolling"]);
-    await (await channelButton("All")).click();
+    await clearCatalogFilters(browser);
     await expectChannels([]);
     await (await channelButton("stable")).click();
-    await beta.click();
+    await (await channelButton("beta")).click();
     await expectChannels(["stable", "beta"]);
     await search.sendKeys("zelda");
-    await browser.wait(
-      async () =>
-        (await browser.findElements(By.css('[data-detail-origin^="catalog:card:"]'))).length > 0,
-      5_000,
+    await reviewControls(browser).click(
+      By.xpath('//section[@aria-label="Filter options"]//button[normalize-space(.)="Done"]'),
     );
+    await browser.wait(async () => (await catalogResultPortIds(browser)).length > 0, 5_000);
     const sort = By.xpath('//button[@role="combobox"][contains(., "Sort")]');
     await browser.findElement(sort).click();
     await browser
       .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Name A–Z")]')), 5_000)
       .click();
-    const card = await browser.findElement(By.css('[data-detail-origin^="catalog:card:"]'));
+    const card = await browser.findElement(By.css(".discover-game-identity"));
     await executeBrowserScript(browser, "arguments[0].scrollIntoView({block:'center'});", card);
     const origin = await executeBrowserScript(
       browser,
-      (card) => ({
-        key: card.getAttribute("data-detail-origin"),
-        scroll: document.querySelector("main")?.scrollTop,
-      }),
+      (card) => {
+        const ids: unknown = JSON.parse(
+          card.closest(".discover-game")?.getAttribute("data-discover-matching-port-ids") ?? "[]",
+        );
+        if (!Array.isArray(ids)) throw new Error("Discover group lost its matching identities");
+        const candidates: unknown[] = ids;
+        const portId = candidates[0];
+        if (typeof portId !== "string" || !portId.length)
+          throw new Error("Discover group lost its first matching port identity");
+        return {
+          key: card.getAttribute("data-detail-origin"),
+          portId,
+          scroll: document.querySelector("main")?.scrollTop,
+        };
+      },
       card,
     );
-    await card.click();
+    await selectCatalogPort(browser, origin.portId);
     await browser.wait(until.elementLocated(By.css(".detail-back")), 15_000).click();
     await browser.wait(
       () =>
@@ -3389,26 +3399,23 @@ try {
       );
     };
     await switchTo(alternate, "library-picker-select-alternate", original.generation);
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
-    const alternateBeta = await browser.findElement(
-      By.xpath(
-        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
-      ),
-    );
+    const alternateBeta = await channelButton("beta");
     assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await restoredSearch.getAttribute("value"), "zelda");
-    const restoredBeta = await browser.findElement(
-      By.xpath(
-        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
-      ),
+    await browser.wait(
+      () => executeBrowserScript(browser, "return document.activeElement.id === 'port-search'"),
+      5_000,
+      "Saved catalog focus did not return after library data loaded",
     );
+    const restoredBeta = await channelButton("beta");
     assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");
     assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
@@ -3417,11 +3424,6 @@ try {
       async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
       15_000,
       "Restored catalog did not finish loading",
-    );
-    await browser.wait(
-      () => executeBrowserScript(browser, "return document.activeElement.id === 'port-search'"),
-      5_000,
-      "Saved catalog focus did not return after library data loaded",
     );
     await executeBrowserScript(
       browser,
@@ -3477,7 +3479,7 @@ try {
       );
       assert.deepEqual(
         labels.map((label) => label.text),
-        ["Library", "Find games", "Activity", "Settings"],
+        ["Library", "Discover", "Activity", "Settings"],
       );
       assert.ok(
         labels.every(
@@ -3678,7 +3680,7 @@ try {
       "Application update settings did not receive focus",
     );
 
-    await selectPrimaryNavigation(browser, "Find games");
+    await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
@@ -3691,24 +3693,20 @@ try {
     assert.equal(await search.getAttribute("value"), "prior catalog query");
     await search.sendKeys(selectAll, "a", Key.NULL, Key.BACK_SPACE);
     await browser.wait(async () => (await search.getAttribute("value")) === "", 5_000);
-    const allChannels = await browser.findElement(
-      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]'),
-    );
-    await allChannels.click();
-    assert.equal(await allChannels.getAttribute("aria-pressed"), "true");
+    await clearCatalogFilters(browser);
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
     assert.equal(await search.getAttribute("value"), "Ghostship");
     await browser.wait(
       () =>
         executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".port-card")].some((card) =>
+          [...document.querySelectorAll(".discover-game-identity")].some((card) =>
             card.textContent?.includes("Ghostship"),
           ),
         ),
       15_000,
     );
     const origin = await executeBrowserScript(browser, () => {
-      const cards = [...document.querySelectorAll(".port-card")];
+      const cards = [...document.querySelectorAll(".discover-game-identity")];
       const card = cards.find((item) => item.textContent?.includes("Ghostship"));
       if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
       card.scrollIntoView({ block: "center", inline: "nearest" });
@@ -3745,7 +3743,7 @@ try {
       "Detail navigation did not focus the game heading",
     );
     const verifyDetailActionHierarchy = async () => {
-      await revealDetailSection(browser, "Files");
+      await revealDetailSection(browser, "Game files");
       const hierarchy = await executeBrowserScript(browser, () => {
         document
           .querySelector(".detail-hero")
@@ -3791,15 +3789,21 @@ try {
         /Choose the required game files before reviewing installation/u,
       );
       assert.match(required(hierarchy.requirement), /Super Mario 64 \(US\) source/u);
-      assert.deepEqual(hierarchy.tabs, ["Overview", "Files", "Saved data", "Versions"]);
-      assert.equal(hierarchy.selected, "Files");
+      assert.deepEqual(hierarchy.tabs, [
+        "Overview",
+        "Game files",
+        "Saves",
+        "Versions & updates",
+        "Manage",
+      ]);
+      assert.equal(hierarchy.selected, "Game files");
       assert.equal(hierarchy.action, "Set up game");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);
       assert.equal(hierarchy.actionVisible, true);
       assert.equal(hierarchy.horizontalOverflow, false);
-      assert.ok([144, 160, 240].includes(hierarchy.artwork.width));
+      assert.ok([0, 96, 128, 148].includes(hierarchy.artwork.width));
       assert.equal(hierarchy.artwork.height, hierarchy.artwork.width * 1.5);
       assert.deepEqual(hierarchy.futureChoices, [
         { title: "Folder for a future install", open: false },
@@ -3810,7 +3814,7 @@ try {
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
-    await revealDetailSection(browser, "Files");
+    await revealDetailSection(browser, "Manage");
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();
@@ -3895,7 +3899,7 @@ try {
       .findElement(By.id("port-search"))
       .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
     await browser.wait(
-      async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+      async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
       15_000,
     );
 
@@ -3954,19 +3958,19 @@ try {
           }
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
-        await selectPrimaryNavigation(browser, "Find games");
+        await selectPrimaryNavigation(browser, "Discover");
         await browser.wait(
-          async () => (await browser.findElements(By.css(".port-card"))).length > 2,
+          async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
           15_000,
         );
         const descriptions = await executeBrowserScript(browser, () => {
-          const cards = [...document.querySelectorAll(".port-card-selectable")].slice(0, 3);
+          const cards = [...document.querySelectorAll(".discover-game")].slice(0, 3);
           cards[0]?.scrollIntoView({ block: "center" });
           return {
             documentOverflow:
               document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
             items: cards.map((card) => {
-              const description = card.querySelector(".card-content > p.line-clamp-2");
+              const description = card.querySelector(".collection-title");
               const rect = description?.getBoundingClientRect();
               const style = description ? getComputedStyle(description) : null;
               return {
@@ -3982,14 +3986,13 @@ try {
         assert.equal(descriptions.items.length, 3);
         assert.ok(
           descriptions.items.every(
-            ({ text, visible, clamp, cardOverflow }) =>
-              text && visible && clamp === "2" && !cardOverflow,
+            ({ text, visible, cardOverflow }) => text && visible && !cardOverflow,
           ),
         );
         await captureScenarioScreenshot(`catalog-short-window-${theme}`);
 
         const themedOrigin = await executeBrowserScript(browser, () => {
-          const card = [...document.querySelectorAll(".port-card")].find((item) =>
+          const card = [...document.querySelectorAll(".discover-game-identity")].find((item) =>
             item.textContent?.includes("Ghostship"),
           );
           if (!(card instanceof HTMLElement)) throw new Error("Ghostship card is missing");
@@ -4014,6 +4017,7 @@ try {
             `game-details-missing-source-${theme}-${size.width}`,
             true,
           );
+          await revealDetailSection(browser, "Manage");
           const folderChoices = await browser.findElement(futureFolderSummary);
           await folderChoices.click();
           await captureOutputDestinationReview(`game-details-${theme}-${size.width}`);

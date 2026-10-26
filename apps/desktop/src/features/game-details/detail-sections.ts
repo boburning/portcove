@@ -1,11 +1,15 @@
 import type { DetailDestination } from "../../view-model";
 
-export const detailSections = ["overview", "files", "saves", "versions"] as const;
+export const detailSections = ["overview", "files", "saves", "versions", "manage"] as const;
 export type DetailSection = (typeof detailSections)[number];
 export type DetailOpening = { token: number; destination?: DetailDestination | undefined };
 
 /** Existing operation names identify their presentation home; this grants no action. */
 export function detailWorkSection(operation: string): DetailSection {
+  if (
+    ["verify", "remove", "storage location", "Steam shortcut", "change artwork"].includes(operation)
+  )
+    return "manage";
   if (["back up data", "delete backup", "restore backup", "open data folder"].includes(operation))
     return "saves";
   if (

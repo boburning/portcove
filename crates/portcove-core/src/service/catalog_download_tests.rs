@@ -376,6 +376,36 @@ fn retained_restricted_registration_survives_removal_from_the_current_directory(
             .id,
         registered.id
     );
+    let retained_url = projected
+        .listing(&request.port_id)
+        .unwrap()
+        .project_url
+        .clone();
+    assert!(service.is_reviewed_resource_url(&retained_url).unwrap());
+    let mut current_listing = projected.listing(&request.port_id).unwrap().clone();
+    current_listing.project_url = "https://github.com/owner/current-project".into();
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(crate::CatalogListingDocument {
+            format_version: 2,
+            listings: vec![current_listing],
+        })
+        .unwrap();
+    assert!(!service.is_reviewed_resource_url(&retained_url).unwrap());
+    assert!(
+        service
+            .is_reviewed_resource_url("https://github.com/owner/current-project")
+            .unwrap()
+    );
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+    let removal = service.preview_external_removal(&request.port_id).unwrap();
+    let authorization = service
+        .authorize_external_removal(&request.port_id, &removal.preview_sha256)
+        .unwrap();
+    service
+        .remove_external_runtime(&request.port_id, &authorization.token)
+        .unwrap();
+    assert!(!service.is_reviewed_resource_url(&retained_url).unwrap());
     assert!(executable.exists());
 }
 
@@ -405,6 +435,39 @@ fn retained_restricted_pending_setup_survives_a_legacy_current_directory() {
         pending.listing.download_block_reason
     );
     assert_eq!(service.listing_statuses().unwrap().len(), 1);
+    assert!(
+        service
+            .is_reviewed_resource_url(&pending.listing.project_url)
+            .unwrap()
+    );
+    let mut current_listing = pending.listing.clone();
+    current_listing.project_url = "https://github.com/owner/current-project".into();
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(crate::CatalogListingDocument {
+            format_version: 2,
+            listings: vec![current_listing],
+        })
+        .unwrap();
+    assert!(
+        !service
+            .is_reviewed_resource_url(&pending.listing.project_url)
+            .unwrap()
+    );
+    assert!(
+        service
+            .is_reviewed_resource_url("https://github.com/owner/current-project")
+            .unwrap()
+    );
+    service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+    service
+        .forget_pending_setup(&pending.port_id, &pending.id)
+        .unwrap();
+    assert!(
+        !service
+            .is_reviewed_resource_url(&pending.listing.project_url)
+            .unwrap()
+    );
 }
 
 #[tokio::test]

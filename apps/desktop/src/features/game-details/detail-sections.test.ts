@@ -23,6 +23,9 @@ it.each([
   ["run reviewed game update", "versions"],
   ["activate staged update", "versions"],
   ["prepare game data", "files"],
+  ["verify", "manage"],
+  ["remove", "manage"],
+  ["storage location", "manage"],
 ] as const)("routes %s work to its owner in %s", (operation, expected) => {
   expect(detailWorkSection(operation)).toBe(expected);
 });

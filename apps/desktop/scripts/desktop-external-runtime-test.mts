@@ -1,3 +1,4 @@
+import { selectCatalogPort } from "./desktop-review-controls.mts";
 import type { WebDriver, By, Key, until } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 import type { FailureReport, PortStatus } from "../src/transport-types.generated.d.ts";
@@ -143,14 +144,10 @@ export async function externalRuntimePickerObservation({
   Key,
   until,
 }: PickerContext) {
-  await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, fixture.port.name);
-  const card = By.xpath(
-    `//button[contains(@class,"port-card") and starts-with(@aria-label,"${fixture.port.name}.")]`,
-  );
-  await browser.wait(until.elementLocated(card), 15_000);
-  await browser.findElement(card).click();
+  await selectCatalogPort(browser, fixture.port.id);
   const choose = By.xpath('//button[normalize-space(.)="Choose game folder"]');
   await browser.wait(until.elementLocated(choose), 15_000);
   await browser.findElement(choose).click();
@@ -275,11 +272,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     // Reachable ordinary context transition after dismissal; no forced navigation
     // through a native modal or claim about delayed A-B-A picker responses.
     await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')).click();
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${fixture.port.name}.")]`,
-    );
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await selectCatalogPort(browser, fixture.port.id);
     assert.equal((await browser.findElements(dialogFor("register"))).length, 0);
     report.steps.push("ordinary-workspace-return-has-no-old-review");
     review = await selectFolder("external-runtime-native-cancel-picker");

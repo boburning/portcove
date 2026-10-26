@@ -275,7 +275,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     await chooseReadiness("Ready (1)");
     await expect.element(button("Remove Preview filter")).toBeInTheDocument();
-    await userEvent.click(button("View details for Linux game Port: Linux game"));
+    await userEvent.click(button("View details for Linux game Linux game"));
     await userEvent.click(button("Back to library"));
     await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
     await userEvent.click(button("Switch section"));
@@ -426,7 +426,7 @@ it("retains specific attention with independent Library readiness, zero counts a
   await expect.element(button("Missing game files (0)")).toHaveAttribute("aria-pressed", "true");
   await closeFilters();
   await chooseReadiness("Needs attention (1)");
-  await userEvent.click(button("View details for Both game Port: Both game"));
+  await userEvent.click(button("View details for Both game Both game"));
   await userEvent.click(button("Back to library"));
   await expect.element(button("Remove Missing game files filter")).toBeInTheDocument();
   await userEvent.click(button("Toggle snapshot"));
@@ -451,7 +451,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await closeFilters();
   await expect.element(readiness()).toHaveAccessibleName("Readiness Ready (1)");
   await expectReadinessOption("Needs attention (0)");
-  await userEvent.click(button("View details for Windows game Port: Windows game"));
+  await userEvent.click(button("View details for Windows game Windows game"));
   await userEvent.click(button("Back to library"));
   await openAdvancedFilters("Filters (1)");
   await userEvent.click(button("Available at last check (1)"));

@@ -29,7 +29,7 @@ export type CatalogEntry = Pick<PortDefinition, "id" | "name" | "summary" | "pla
     pendingSetup?: PendingSetupRecord;
   };
 
-/** One card per stable identity. Strict integrations keep their existing metadata. */
+/** One entry per stable port identity; grouping is a separate display projection. */
 export function catalogEntries(
   catalog: CatalogDocument | undefined,
   directory: CatalogListingDocument | undefined,
@@ -64,6 +64,8 @@ export function catalogEntries(
       summary: identity.summary,
       platforms: identity.platforms ?? [],
       presentation: {
+        ...(identity.original_game ? { original_game: identity.original_game } : {}),
+        ...(identity.media ? { media: identity.media } : {}),
         ...(identity.original_game_title
           ? { original_game_title: identity.original_game_title }
           : {}),

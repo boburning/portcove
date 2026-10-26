@@ -1,5 +1,4 @@
-import { fixtureValue } from "../test-fixtures";
-import type { CatalogQuery } from "../features/browsing/catalog-query";
+import { evaluateCatalogQuery, type CatalogQuery } from "../features/browsing/catalog-query";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
 import { flushSync } from "react-dom";
@@ -35,7 +34,8 @@ function Fixture({ generation = 1, renamed = false }: { generation?: number; ren
         ) : (
           <PortBrowser
             view={view}
-            ports={filter === "stable" ? [fixtureValue(ports[0], "ports[0]")] : ports}
+            ports={filter === "all" ? ports : evaluateCatalogQuery(ports, filter).ports}
+            catalogFilterCandidates={ports}
             statuses={new Map()}
             overview={{ installed: 2, ready: 0, needsSetup: 2, staged: 0 }}
             filter={filter}
@@ -94,15 +94,29 @@ it.each(["dark", "light"])(
     await expect
       .element(page.getByRole("button", { name: "Favorite Two independent port", exact: true }))
       .not.toBeInTheDocument();
-    await userEvent.click(page.getByRole("button", { name: "All ports", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Filters (0)", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Stable (1)", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
+    await expect
+      .element(page.getByRole("button", { name: "Remove Stable filter", exact: true }))
+      .toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Filters (1)", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Clear filters", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
+    await expect
+      .element(page.getByRole("button", { name: "Remove Stable filter", exact: true }))
+      .not.toBeInTheDocument();
     await expect
       .element(page.getByRole("button", { name: "Favorites (1)", exact: true }))
       .toHaveAttribute("aria-pressed", "true");
     const details = page.getByRole("button").filter({
       has: page.getByRole("heading", { name: "One independent port", exact: true }),
     });
-    await expect.element(details).toHaveAccessibleName(/^One independent port.*Setup/);
+    await expect.element(details).toHaveAccessibleName(/^One independent port/);
     await expect.element(details).toHaveAccessibleDescription(/Setup/);
+    await expect
+      .element(details.element().closest("article")!)
+      .toHaveAccessibleName(/^One independent port.*Setup/);
     await userEvent.click(details);
     await userEvent.click(page.getByRole("button", { name: "Back to ports", exact: true }));
     await expect

@@ -3,7 +3,7 @@ import {
   restoreCacheAfterObservation,
   type WithheldCover,
 } from "./desktop-cover-observations.mts";
-import { revealDetailSection } from "./desktop-review-controls.mts";
+import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
 import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
 import type { IRectangle } from "selenium-webdriver";
 import type { PortDefinition, CatalogDocument } from "../src/transport-types.generated.d.ts";
@@ -177,10 +177,10 @@ export async function defaultCoverScenario({
           } catch (error) {
             let diagnostics;
             try {
-              if (selector.includes(".card-art")) {
-                await browser.findElement(By.css(selector.replace(" .card-art", ""))).click();
+              if (selector.includes(".collection-art")) {
+                await browser.findElement(By.css(selector.replace(" .collection-art", ""))).click();
               }
-              await revealDetailSection(browser, "Files");
+              await revealDetailSection(browser, "Manage");
               const controls = await browser.wait(
                 until.elementLocated(By.css(".artwork-controls > summary")),
                 5_000,
@@ -372,7 +372,7 @@ async function missingCacheNegativeControl({
     },
     offlineEnvironment,
   );
-  await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+  await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
   await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
@@ -387,7 +387,7 @@ async function missingCacheNegativeControl({
       executeBrowserScript(
         browser,
         (selector) => {
-          const frame = document.querySelector<HTMLElement>(`${selector} .card-art`);
+          const frame = document.querySelector<HTMLElement>(`${selector} .collection-art`);
           return (
             frame?.dataset.artworkSource === "generated_fallback" &&
             !frame.querySelector("img") &&
@@ -439,19 +439,19 @@ async function inspectCoverPass({
   for (const id of ids) {
     const port = ports.find((port) => port.id === id);
     assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
     await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
     const started = performance.now();
     const selector = `[data-detail-origin="catalog:card:${id}"]`;
     const card = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
     await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
-    const cardImage = await image(`${selector} .card-art`);
+    const cardImage = await image(`${selector} .collection-art`);
     const cardMs = performance.now() - started;
     await captureSettled(`default-cover-${id}-${pass}-catalog`, selector);
     let detailImage = null;
     if (detailIds.has(id)) {
-      await card.click();
+      await selectCatalogPort(browser, id);
       await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
       detailImage = await image(".detail-cover");
       await captureSettled(`default-cover-${id}-${pass}-details`, "[data-detail-workspace]");

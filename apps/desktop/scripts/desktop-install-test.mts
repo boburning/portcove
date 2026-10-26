@@ -61,7 +61,11 @@ import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { copyFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { revealDetailSection, chooseGameUpdateDisposition } from "./desktop-review-controls.mts";
+import {
+  revealDetailSection,
+  chooseGameUpdateDisposition,
+  selectCatalogPort,
+} from "./desktop-review-controls.mts";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import {
@@ -121,16 +125,14 @@ export async function installScenarios({
   const buttonStarting = (label: string) =>
     By.xpath(`//button[starts-with(normalize-space(.),"${label}")]`);
   const openFixture = async (port: FixturePort, installed = false) => {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     const search = await browser.findElement(By.id("port-search"));
     await search.sendKeys(
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
       Key.BACK_SPACE,
       port.name,
     );
-    const card = By.xpath(`//button[@data-detail-origin="catalog:card:${port.id}"]`);
-    await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await selectCatalogPort(browser, port.id);
     if (!installed) await browser.wait(until.elementLocated(button("Review installation")), 15_000);
   };
   const reviewAndStart = async ({ inspect = false } = {}) => {
@@ -576,7 +578,7 @@ export async function installScenarios({
           { width: 1280, height: 800 },
         ]) {
           await browser.manage().window().setRect({ width, height });
-          await revealDetailSection(browser, "Versions");
+          await revealDetailSection(browser, "Versions & updates");
           const layout = await executeBrowserScript(browser, readStagedLayout, version);
           const geometry = path.join(
             output,
@@ -658,16 +660,16 @@ export async function installScenarios({
     );
 
     await openFixture(port, true);
-    await revealDetailSection(browser, "Versions");
+    await revealDetailSection(browser, "Versions & updates");
     await browser.findElement(button("Check for updates")).click();
     const updateControl = By.css('section[aria-label="Review game update"]');
     await browser.wait(until.elementLocated(updateControl), 15_000);
-    await chooseGameUpdateDisposition(browser, "download");
+    await chooseGameUpdateDisposition(browser, "prepare");
     await browser.findElement(button("Review game update")).click();
     const review = By.css("[data-game-update-review]");
     await browser.wait(until.elementLocated(review), 15_000);
     assert.match(await browser.findElement(review).getText(), /current version stays unchanged/i);
-    await browser.findElement(button("Download update for later")).click();
+    await browser.findElement(button("Prepare update for later")).click();
     const staged = await browser.wait(async () => {
       const result = object(await invoke("get_statuses"));
       if (!result.ok) return false;

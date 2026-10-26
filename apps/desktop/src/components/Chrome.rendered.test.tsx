@@ -1,3 +1,4 @@
+import desktopPackage from "../../package.json";
 import { failureReport, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -7,7 +8,7 @@ import type {
   OperationEvent,
   SourceInspectionReport,
 } from "../types";
-import { PageHeader, SettingsView, Sidebar, StatusLayer } from "./Chrome";
+import { PageHeader, SettingsView, Sidebar, StatusLayer, WorkspaceToolbar } from "./Chrome";
 import { applyOperationEvent, mostRecentOperation } from "../features/operations/operation-state";
 import { commandShortcut } from "../keyboard-shortcuts";
 import { port } from "./rendered-test-fixtures";
@@ -85,6 +86,7 @@ describe("desktop components", () => {
           activities={[]}
         />,
       ),
+      renderToStaticMarkup(<WorkspaceToolbar view="catalog" onOpenCommands={vi.fn()} />),
       renderToStaticMarkup(<PageHeader view="catalog" query="sample" setQuery={vi.fn()} />),
       renderToStaticMarkup(
         <StatusLayer
@@ -115,12 +117,12 @@ describe("desktop components", () => {
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
     expect(html).toMatch(
       new RegExp(
-        `<button[^>]*data-variant="ghost"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `<button[^>]*data-variant="outline"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
         "u",
       ),
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
-    expect(html).toContain("Find games");
+    expect(html).toContain("Discover");
     expect(html).toMatch(/<span[^>]*>Activity<\/span>/u);
     expect(html).toContain('aria-label="2 in library"');
     expect(html).toContain("Problem");
@@ -129,7 +131,9 @@ describe("desktop components", () => {
     expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
-    expect(html).toContain("/brand/logo/portcove-logo-v2-transparent.png");
+    expect(html).toContain("/brand/mascot/portcove-mascot-v2-front.png");
+    expect(html).toContain(">Version</dt>");
+    expect(html).toContain(desktopPackage.version);
   });
 
   it("keeps page introductions concise without losing catalog count or controls", () => {
@@ -151,16 +155,23 @@ describe("desktop components", () => {
     expect(library).toContain('<h1 tabindex="-1">Your library</h1>');
     expect(emptyCatalog).toContain("Browse 0 native game ports.");
     expect(onePort).toContain("Browse 1 native game port.");
-    expect(catalog).toContain('<h1 tabindex="-1">Find games</h1>');
+    expect(catalog).toContain('<h1 tabindex="-1">Discover</h1>');
     expect(catalog).toContain("Browse 61 native game ports.");
     expect(catalog).toContain('id="port-search"');
     expect(updates).toContain('<h1 tabindex="-1">Activity</h1>');
     expect(settings).toContain('<h1 tabindex="-1">Settings</h1>');
     for (const header of [library, catalog, updates, settings]) {
       expect(header).not.toContain('class="eyebrow"');
-      expect(header).toContain(
+      expect(header).not.toContain('aria-label="Commands ');
+    }
+    for (const view of ["library", "catalog", "updates", "settings"] as const) {
+      const toolbar = renderToStaticMarkup(
+        <WorkspaceToolbar view={view} onOpenCommands={vi.fn()} />,
+      );
+      expect(toolbar).toContain(
         `aria-label="Commands ${commandShortcut("K")}: open command palette"`,
       );
+      expect(toolbar).toContain('aria-label="Current location"');
     }
     for (const header of [library, updates, settings])
       expect(header).not.toContain('class="page-description"');

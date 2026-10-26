@@ -1,0 +1,101 @@
+import {
+  Grid2X2,
+  Terminal,
+  Command,
+  Gamepad,
+  Gamepad2,
+  Joystick,
+  Box,
+  MousePointer2,
+  MonitorSmartphone,
+  Tablet,
+  Smartphone,
+  BookOpen,
+  Glasses,
+  Disc3,
+  Puzzle,
+  Orbit,
+  Aperture,
+  RotateCw,
+  ShieldCheck,
+  FlaskConical,
+  RefreshCw,
+  Monitor,
+  type LucideIcon,
+} from "lucide-react";
+import { identityLabel } from "./identity-style";
+const systemIcons: Record<string, LucideIcon> = {
+  Windows: Grid2X2,
+  Linux: Terminal,
+  macOS: Command,
+  NES: Gamepad,
+  "Super Nintendo": Gamepad2,
+  "Nintendo 64": Joystick,
+  GameCube: Box,
+  Wii: MousePointer2,
+  "Wii U": MonitorSmartphone,
+  "Nintendo Switch": Tablet,
+  "Nintendo Switch 2": Tablet,
+  "Game Boy": Smartphone,
+  "Game Boy Color": Smartphone,
+  "Game Boy Advance": Gamepad2,
+  "Nintendo DS": BookOpen,
+  "Nintendo 3DS": BookOpen,
+  "Virtual Boy": Glasses,
+  "Master System": Gamepad,
+  "Mega Drive / Genesis": Gamepad2,
+  "Sega CD": Disc3,
+  "Sega 32X": Puzzle,
+  "Sega Saturn": Orbit,
+  Dreamcast: Aperture,
+  "Game Gear": Smartphone,
+  "Genesis Nomad": Gamepad2,
+  PlayStation: Disc3,
+  "PlayStation 2": Gamepad2,
+  "PlayStation 3": Disc3,
+  "PlayStation 4": Gamepad2,
+  "PlayStation 5": Gamepad2,
+  "PlayStation Portable": Gamepad2,
+  "PlayStation Vita": Gamepad2,
+  Xbox: Gamepad2,
+  "Xbox 360": Gamepad2,
+  "Xbox One": Gamepad2,
+  "Xbox Series X / S": Gamepad2,
+  "Atari 7800": Gamepad,
+  "Atari Lynx": Gamepad2,
+  "Atari Jaguar": Gamepad2,
+  "TurboGrafx-16 / PC Engine": Gamepad,
+  "TurboGrafx-CD": Disc3,
+  TurboExpress: Smartphone,
+  "Neo Geo AES / MVS": Joystick,
+  "Neo Geo CD": Disc3,
+  "Neo Geo Pocket": Smartphone,
+  "Neo Geo Pocket Color": Smartphone,
+  WonderSwan: Smartphone,
+  "WonderSwan Color": Smartphone,
+  "3DO": Disc3,
+  "Philips CD-i": Disc3,
+  Playdate: RotateCw,
+  "Steam Deck": Gamepad2,
+  "ASUS ROG Ally / Xbox Ally": Gamepad2,
+  "Lenovo Legion Go": Gamepad2,
+  PC: Monitor,
+  Mobile: Smartphone,
+};
+const channels: Record<string, LucideIcon> = {
+  stable: ShieldCheck,
+  beta: FlaskConical,
+  rolling: RefreshCw,
+};
+export function IdentityIcon({ name, channel = false }: { name: string; channel?: boolean }) {
+  const Icon = channel ? channels[name] : systemIcons[identityLabel(name)];
+  return Icon ? (
+    <Icon
+      className="identity-icon"
+      size={13}
+      strokeWidth={1.8}
+      aria-hidden="true"
+      focusable="false"
+    />
+  ) : null;
+}
