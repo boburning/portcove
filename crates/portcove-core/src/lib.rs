@@ -298,7 +298,8 @@ pub use types::*;
 // initialization/data policies. Unknown trust and capability semantics refuse.
 // Public81 adds separately reviewed external-to-managed copy transitions.
 // Existing response meanings and operation-event schema3 remain unchanged.
-pub const API_SCHEMA_VERSION: u32 = 81;
+// Public82 adds source-only preparation format3 with no setup executable.
+pub const API_SCHEMA_VERSION: u32 = 82;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

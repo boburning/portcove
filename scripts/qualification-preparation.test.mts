@@ -53,7 +53,7 @@ async function fixture(t: TestContext) {
       source: { profile_id: "original", sha256: "b".repeat(64), observed_identity: null },
       source_inspection: { schema_version: 1, state_code: "not_checked" },
       host: "fixture-platform",
-      options: { target: "fixture-platform" },
+      options: { target: "fixture-platform", mode: "default" },
       setup_tool: { path: "/before/setup", sha256: "c".repeat(64), size: 4 },
       conversion_tool: null,
     },
@@ -228,4 +228,36 @@ void test("an external-only runtime has no managed preparation qualification seq
     /did not succeed/,
   );
   assert.equal(f.calls.length, 0);
+});
+
+void test("source-only qualification preserves absent setup tools and refuses crossed formats", async (t) => {
+  const f = await fixture(t);
+  for (const plan of [f.plan, f.after]) {
+    plan.format_version = 3;
+    plan.inputs.options.mode = "source_only";
+    Reflect.deleteProperty(plan.inputs, "setup_tool");
+  }
+  await f.save();
+  assert.equal((await f.run()).result, "passed");
+  assert.equal(
+    Object.hasOwn(object((await readReport(f.output)).operation_inputs), "setup_tool"),
+    false,
+  );
+  for (const [format, mode, tool] of [
+    [1, "default", undefined],
+    [2, "ghostship200_legacy", undefined],
+    [3, "default", undefined],
+    [1, "source_only", undefined],
+    [3, "source_only", {}],
+    [4, "source_only", undefined],
+  ] as const) {
+    const invalid = await fixture(t);
+    invalid.plan.format_version = format;
+    invalid.plan.inputs.options.mode = mode;
+    Reflect.deleteProperty(invalid.plan.inputs, "setup_tool");
+    if (tool) Object.assign(invalid.plan.inputs, { setup_tool: tool });
+    await invalid.save();
+    await assert.rejects(invalid.run(), /incomplete operation inputs/);
+    assert.deepEqual(invalid.calls, []);
+  }
 });

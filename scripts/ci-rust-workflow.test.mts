@@ -1186,6 +1186,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & test(/^service::runtime_tests::psx_progression::(unchanged_psx_definition_completes_provider_install_and_update_with_registered_inputs|retained_direct_psx_runtime_updates_through_current_provider_without_rewriting_contract)$/)";
   const namedSaveRestoreFilter =
     "package(portcove-core) & test(/^service::runtime_tests::named_save_restore_updates_every_version_and_preserves_import_policy$/)";
+  const sourcePreparationFilter =
+    "package(portcove-core) & (test(/^preparation::source::tests::source_only_fresh_install_rechecks_original_before_rename$/) | test(/^preparation::source::tests::source_only_fresh_install_rechecks_original_before_registration$/) | test(/^preparation::source::tests::source_only_gamecube_install_seals_the_nested_iso$/) | test(/^preparation::source::tests::source_only_directory_install_survives_two_launches_and_full_verify$/) | test(/^preparation::source::tests::source_only_zip_install_survives_two_launches_and_full_verify$/) | test(/^preparation::source::tests::source_only_review_repairs_historical_extras_but_refuses_unrelated_changes$/) | test(/^preparation::source::tests::source_only_recovery_refuses_original_changes_before_publication$/))";
   const publicationFilters = [
     {
       filter:
@@ -1207,6 +1209,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     [
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       ...publicationFilters,
+      { filter: sourcePreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
@@ -1218,6 +1221,15 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       .map(outputIdentity)
       .sort(),
   );
+  const sourcePreparation = overrideFor(sourcePreparationFilter);
+  assert.deepEqual(sourcePreparation["slow-timeout"], {
+    period: "5s",
+    "terminate-after": 18,
+    "grace-period": "0s",
+  });
+  assert.equal(sourcePreparation["success-output"], "immediate");
+  for (const field of ["platform", "retries", "threads-required", "priority", "default-filter"])
+    assert.equal(sourcePreparation[field], undefined);
   const linuxLifecycle = overrideFor(linuxLifecycleFilter, "x86_64-unknown-linux-gnu");
   assert.deepEqual(linuxLifecycle["slow-timeout"], {
     period: "5s",

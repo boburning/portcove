@@ -288,6 +288,12 @@ fn require_install_publication_authority(
     operation: &LifecycleOperation,
     install: &InstallRecord,
 ) -> Result<()> {
+    crate::preparation::source::require_publication(
+        &service.library,
+        install,
+        operation.preparation.as_ref(),
+    )?;
+
     if !matches!(
         operation.kind,
         LifecycleOperationKind::Install

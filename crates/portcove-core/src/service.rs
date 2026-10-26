@@ -1635,6 +1635,7 @@ impl PortcoveService {
                     launchable: false,
                     blockers: vec![LaunchBlocker::InvalidInstallation],
                     pending_setup: false,
+                    preparation_mode: None,
                     required_source_extension: None,
                     source: None,
                     bios: None,
@@ -1853,6 +1854,10 @@ impl PortcoveService {
             launchable: installed && blockers.is_empty(),
             blockers,
             pending_setup,
+            preparation_mode: status
+                .active
+                .as_ref()
+                .and_then(|active| crate::preparation::managed_mode(port, active)),
             required_source_extension,
             source,
             bios,
@@ -3028,7 +3033,9 @@ impl PortcoveService {
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
-        let qualification = qualification.with_cartridge_build_source(source.as_ref())?;
+        let qualification = qualification
+            .with_cartridge_build_source(source.as_ref())?
+            .with_runtime_source(source.as_ref())?;
         let managed = self
             .managed_preparation(
                 port,
@@ -14820,7 +14827,17 @@ fn main() {
                     "batch {id}; reversed={reverse}"
                 );
                 assert_eq!(single.blockers, batched.blockers);
-                assert!(single.launchable);
+                assert!(!single.launchable);
+                assert!(single.pending_setup);
+                assert_eq!(
+                    single.preparation_mode,
+                    Some(crate::PreparationMode::SourceOnly)
+                );
+                assert!(
+                    single
+                        .blockers
+                        .contains(&LaunchBlocker::PreparationRequired)
+                );
             }
         }
         assert_eq!(

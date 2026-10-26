@@ -114,6 +114,24 @@ scope; they do not certify later builds.
 
 ## Subsystem contracts
 
+Source-only preparation belongs to Core's existing private derivative publisher.
+It applies only to declared immutable staged-source outputs with no other setup,
+mutable-data, shared-preference or initialization owner. Registered originals are
+materialized before new-install manifest sealing. Older affected generations use
+the reviewed copy/journal/activation flow; every recorded immutable member must
+still verify, and only declared source extras are admitted for repair. Format-3
+plans have no setup executable; released format-1/2 serialization remains stable.
+Installed interpretation 9 authenticates a separate source-input receipt and marks
+source outputs critical. Launch checks those sealed bytes and skips rematerializing
+them. Publication and registration revalidate source/definition/host/plan identity;
+uncertain tool failure retains private output. Existing mutable-source routes and
+their historical readers keep their original ownership.
+
+Core exposes the retained active installation's `LaunchReadiness.preparation_mode`
+so Desktop can offer source-only repair without inferring runtime ownership from
+adapter names. `not_checked` source metadata permits review or a Core-guarded trial;
+it does not establish original-byte identity or compatibility.
+
 ## Discovery listings and user-owned setup
 
 `catalog/ports/<id>.json` is the authored authority for one stable project

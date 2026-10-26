@@ -444,7 +444,7 @@ function DetailBody({
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
-  const managedPreparation = needsManagedPreparation(port, installed);
+  const managedPreparation = needsManagedPreparation(port, installed, status);
   const external = usesExternalRuntimeRoute(port, status);
   const directInstall = !installed && !status?.staged && !external && sourceReady && biosReady;
   const initialSection = initialDetailSection({
@@ -3213,10 +3213,15 @@ function backupCreateExplanation(
     : unavailable;
 }
 
-function needsManagedPreparation(port: PortDefinition, installed: boolean) {
+function needsManagedPreparation(
+  port: PortDefinition,
+  installed: boolean,
+  status: PortStatus | undefined,
+) {
   return Boolean(
     installed &&
-    (port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
-    port.setup_output_paths.length,
+    (status?.readiness?.preparation_mode != null ||
+      ((port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
+        port.setup_output_paths.length)),
   );
 }

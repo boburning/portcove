@@ -178,7 +178,9 @@ impl PortcoveService {
         let admitted = self.installed_port(&plan.inputs.install)?;
         let port = super::execution_contract(&plan, &admitted)?;
         let result = (|| -> Result<InstallRecord> {
-            if !supports_single_source_setup_layout(&port) {
+            if plan.inputs.options.mode != super::PreparationMode::SourceOnly
+                && !supports_single_source_setup_layout(&port)
+            {
                 return Err(PortcoveError::unsupported(
                     "this preparation operation requires a reviewed single-source setup layout",
                 ));
@@ -245,11 +247,21 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::state("installed preparation has no managed parent"))?;
         let admitted = self.installed_port(original)?;
         let port = super::execution_contract(plan, &admitted)?;
-        let required = preparation_capacity_bytes(
-            plan.copy.total_bytes,
-            plan.inputs.source.storage_size,
-            port.runtime_source_materialization,
-        )?;
+        let required = if plan.inputs.options.mode == super::PreparationMode::SourceOnly {
+            let catalog = self.installed_catalog(original)?;
+            let inputs =
+                super::source::plan(&catalog, &port, &plan.inputs.source, plan.inputs.host)?;
+            plan.copy
+                .total_bytes
+                .checked_add(super::source::capacity(&inputs, &port)?)
+                .ok_or_else(|| PortcoveError::state("source preparation capacity overflowed"))?
+        } else {
+            preparation_capacity_bytes(
+                plan.copy.total_bytes,
+                plan.inputs.source.storage_size,
+                port.runtime_source_materialization,
+            )?
+        };
         let prepared = crate::output_root::prepare_for_install(
             self.library(),
             &plan.port_id,
@@ -380,6 +392,38 @@ impl PortcoveService {
     ) -> Result<()> {
         let admitted = self.installed_port(&plan.inputs.install)?;
         let port = super::execution_contract(plan, &admitted)?;
+        if plan.inputs.options.mode == super::PreparationMode::SourceOnly {
+            let catalog = self.installed_catalog(&plan.inputs.install)?;
+            let inputs =
+                super::source::plan(&catalog, &port, &plan.inputs.source, plan.inputs.host)?;
+            if inputs.conversion_tool != plan.inputs.conversion_tool {
+                return Err(PortcoveError::verification(
+                    "source conversion tool changed after review",
+                ));
+            }
+            let working = crate::adapter::launch_working_directory(
+                port.adapter,
+                &port,
+                payload,
+                &payload.join(&plan.inputs.install.selected_executable),
+            )?;
+            let quiesced = std::cell::Cell::new(true);
+            if inputs.conversion_tool.is_some() {
+                record_preparation_process_quiescence(self, operation.operation_id(), false)?;
+            }
+            emit(operation.message("info", "Materializing the reviewed runtime originals"));
+            let result = super::source::materialize(
+                &catalog,
+                &port,
+                &inputs,
+                payload,
+                &working,
+                &|| operation.checkpoint(),
+                &quiesced,
+            );
+            record_preparation_process_quiescence(self, operation.operation_id(), quiesced.get())?;
+            return result;
+        }
         let legacy = plan.inputs.options.mode == super::PreparationMode::Ghostship200Legacy;
         let qualification = InstallQualification::from_port(&admitted, plan.inputs.host)?;
         let copied = InstallRecord {
@@ -516,9 +560,10 @@ impl PortcoveService {
             },
         )
         .map_err(|error| error.during("preparation.extract"))?;
-        let setup_relative = plan
-            .inputs
-            .setup_tool
+        let setup_tool = plan.inputs.setup_tool.as_ref().ok_or_else(|| {
+            PortcoveError::verification("managed setup plan has no setup executable")
+        })?;
+        let setup_relative = setup_tool
             .path
             .strip_prefix(&plan.inputs.install.path)
             .map_err(|_| {
@@ -526,9 +571,7 @@ impl PortcoveService {
             })?;
         let setup = payload.join(setup_relative);
         let actual = tool_identity(setup.clone(), ChildProcessClass::UpstreamSetup)?;
-        if actual.sha256 != plan.inputs.setup_tool.sha256
-            || actual.size != plan.inputs.setup_tool.size
-        {
+        if actual.sha256 != setup_tool.sha256 || actual.size != setup_tool.size {
             return Err(PortcoveError::verification(
                 "private setup executable differs from the reviewed tool",
             ));
@@ -820,7 +863,7 @@ pub(super) fn copy_setup_outputs(
     Ok(())
 }
 
-fn validate_outputs(
+pub(super) fn validate_outputs(
     port: &PortDefinition,
     root: &Path,
     before: &AdoptionCopyPlan,

@@ -2023,3 +2023,67 @@ describe("desktop components", () => {
     expect(html).not.toContain("9.9-stale");
   });
 });
+
+it.each(["g-diffuser", "animal-crossing-pc-port", "openpete"])(
+  "offers Core-owned source-only repair for metadata-observed %s originals",
+  (id) => {
+    const definition = currentCatalogPort(id);
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: id,
+      active: installRecord({ port_id: id }),
+      readiness: {
+        launchable: false,
+        blockers: ["preparation_required"],
+        pending_setup: true,
+        preparation_mode: "source_only",
+        source: "not_checked",
+      },
+    };
+    const prepare = vi.fn();
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={definition}
+        status={status}
+        sourcePath="registered-original"
+        setSourcePath={vi.fn()}
+        prepare={prepare}
+        actions={actions}
+      />,
+    );
+    const review = html.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+    expect(review).toBeDefined();
+    expect(review).not.toMatch(/\sdisabled(?:\s|=|>)/);
+    expect(html).not.toContain(">Start setup</button>");
+    expect(prepare).not.toHaveBeenCalled();
+  },
+);
+
+it("keeps Core-permitted launch available while original bytes await an explicit check", () => {
+  const definition = currentCatalogPort("g-diffuser");
+  const html = renderToStaticMarkup(
+    <DetailPanel
+      port={definition}
+      status={{
+        ...portStatus(),
+        port_id: definition.id,
+        active: installRecord({ port_id: definition.id }),
+        readiness: {
+          launchable: true,
+          blockers: [],
+          pending_setup: false,
+          preparation_mode: "source_only",
+          source: "not_checked",
+        },
+      }}
+      sourceProfile={{ ...sourceProfile(), id: definition.source_profile! }}
+      sourcePath="registered-original"
+      setSourcePath={vi.fn()}
+      prepare={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(html).toContain(">Try launch</button>");
+  expect(html).not.toContain("Locate game files");
+  expect(html).not.toContain("Review game preparation");
+});

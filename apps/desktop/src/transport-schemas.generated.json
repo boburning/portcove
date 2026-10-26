@@ -1348,6 +1348,17 @@
           "pending_setup": {
             "type": "boolean"
           },
+          "preparation_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparationMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Core-owned managed preparation route for the retained active installation."
+          },
           "required_source_extension": {
             "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
             "type": [
@@ -1605,6 +1616,27 @@
           "successful_launches"
         ],
         "type": "object"
+      },
+      "PreparationMode": {
+        "description": "This family currently exposes the catalog's reviewed defaults only.",
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
+            "type": "string"
+          }
+        ]
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
@@ -17086,6 +17118,17 @@
           "pending_setup": {
             "type": "boolean"
           },
+          "preparation_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparationMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Core-owned managed preparation route for the retained active installation."
+          },
           "required_source_extension": {
             "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
             "type": [
@@ -17385,6 +17428,27 @@
           "successful_launches"
         ],
         "type": "object"
+      },
+      "PreparationMode": {
+        "description": "This family currently exposes the catalog's reviewed defaults only.",
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
+            "type": "string"
+          }
+        ]
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
@@ -22059,6 +22123,11 @@
             "const": "ghostship200_legacy",
             "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
             "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
+            "type": "string"
           }
         ]
       }
@@ -22600,7 +22669,14 @@
             "$ref": "#/$defs/PreparationOptions"
           },
           "setup_tool": {
-            "$ref": "#/$defs/PreparationTool"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparationTool"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "source": {
             "$ref": "#/$defs/SourceRecord"
@@ -22614,7 +22690,6 @@
           "definition_sha256",
           "source",
           "source_inspection",
-          "setup_tool",
           "conversion_tool",
           "host",
           "options"
@@ -22633,6 +22708,11 @@
           {
             "const": "ghostship200_legacy",
             "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
             "type": "string"
           }
         ]
@@ -41654,6 +41734,17 @@
           "pending_setup": {
             "type": "boolean"
           },
+          "preparation_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparationMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Core-owned managed preparation route for the retained active installation."
+          },
           "required_source_extension": {
             "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
             "type": [
@@ -41783,6 +41874,27 @@
           "assessment_incomplete"
         ],
         "type": "string"
+      },
+      "PreparationMode": {
+        "description": "This family currently exposes the catalog's reviewed defaults only.",
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
+            "type": "string"
+          }
+        ]
       },
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",

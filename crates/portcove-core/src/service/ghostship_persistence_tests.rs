@@ -323,11 +323,11 @@ fn ghostship_staged_preparation_requires_exact_ownership_before_absent_archive_s
             source_inspection: service
                 .inspect_source_report("ghostship-source", &source_path)
                 .unwrap(),
-            setup_tool: PreparationTool {
+            setup_tool: Some(PreparationTool {
                 path: prepared.path.join("Ghostship.exe"),
                 sha256: "0".repeat(64),
                 size: 16,
-            },
+            }),
             conversion_tool: None,
             host: Platform::WindowsX86_64,
             options: PreparationOptions {

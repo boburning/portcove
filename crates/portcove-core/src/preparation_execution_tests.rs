@@ -2022,3 +2022,54 @@ fn generic_preparation_manifest_retains_its_complete_independent_graph() {
         port.source_profile
     );
 }
+
+#[test]
+fn legacy_preparation_receipt_requires_its_recorded_setup_tool() {
+    let fixture = Fixture::generic_native("success");
+    let prepared = fixture.run(|_| {}).unwrap();
+    let library = fixture.service.library();
+    let source = library.source("preparation-fixture-disc").unwrap().unwrap();
+    let catalog = fixture.service.installed_catalog(&prepared).unwrap();
+    fixture
+        .service
+        .validate_preparation_receipt_in_retained_catalog(&catalog, &prepared, Some(&source), None)
+        .unwrap();
+    let path = prepared.path.join(RECEIPT_FILE);
+    let mut receipt: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert!(
+        receipt["inputs"]
+            .as_object_mut()
+            .unwrap()
+            .remove("setup_tool")
+            .is_some()
+    );
+    fs::write(&path, serde_json::to_vec(&receipt).unwrap()).unwrap();
+    // Reseal the fixture to reach content interpretation after member authentication.
+    let qualification = preparation_qualification(
+        &catalog,
+        catalog.port(PORT).unwrap(),
+        Platform::current().unwrap(),
+    )
+    .unwrap();
+    let resealed = Installer::new(library.clone())
+        .unwrap()
+        .create_prepared_manifest(
+            &prepared,
+            "missing-tool-fixture",
+            &qualification,
+            PreparationMode::Default,
+            &prepared.path,
+        )
+        .unwrap();
+    assert!(
+        fixture
+            .service
+            .validate_preparation_receipt_in_retained_catalog(
+                &catalog,
+                &resealed,
+                Some(&source),
+                None
+            )
+            .is_err()
+    );
+}
