@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, readdir, mkdir, copyFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, readdir, mkdir, writeFile } from "node:fs/promises";
 import { execFileSync, spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import {
@@ -19,6 +20,23 @@ import {
 } from "./production-aggregate-steps.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+
+function assertLiveControllerKeepsHeldAggregateOut(source: string) {
+  const document = parseDocument(source, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const value: unknown = document.toJS();
+  assert.ok(isRecord(value) && isRecord(value.jobs));
+  assert.deepEqual(value.permissions, { contents: "read" });
+  for (const job of Object.values(value.jobs)) {
+    assert.ok(isRecord(job));
+    if (!Array.isArray(job.steps)) continue;
+    for (const step of job.steps) {
+      assert.ok(isRecord(step));
+      if (typeof step.run === "string")
+        assert.doesNotMatch(step.run, /production-aggregate-steps/u);
+    }
+  }
+}
 
 void test("promoting GET-only association requires exact source/run and retained publishing/promoting locators without admitting an aggregate", async (t) => {
   const { request } = await trustedAssemblyFixture(t);
@@ -95,17 +113,23 @@ void test("trusted assembler imports from a clean fixed source with no installed
   t.after(() => rm(root, { recursive: true, force: true }));
   const directory = path.join(root, "scripts");
   await mkdir(directory);
-  for (const entry of await readdir(new URL(".", import.meta.url), { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".mts"))
-      await copyFile(new URL(entry.name, import.meta.url), path.join(directory, entry.name));
+  for (const module of readFixtureModuleClosure(
+    fileURLToPath(new URL("../", import.meta.url)),
+    ["scripts/production-aggregate-steps.mts"],
+    { includeDynamicImports: false },
+  ).modules) {
+    const target = path.join(root, module.path);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, module.bytes);
   }
   execFileSync(
     process.execPath,
     [
       "--input-type=module",
       "-e",
-      `try { import.meta.resolve('semver'); throw Error('unexpected package visibility'); } catch(error) { if(error.code!=='ERR_MODULE_NOT_FOUND') throw error; } await import(process.argv[1]);`,
+      `try { import.meta.resolve('semver'); throw Error('unexpected package visibility'); } catch(error) { if(error.code!=='ERR_MODULE_NOT_FOUND') throw error; } await import(process.argv[1]); const policy=await import(process.argv[2]); try { policy.classifyApplicationVersion('1.2.3',false); throw Error('missing dependency must refuse version logic'); } catch(error) { if(error.code!=='ERR_MODULE_NOT_FOUND') throw error; }`,
       pathToFileURL(path.join(directory, "production-aggregate-steps.mts")).href,
+      pathToFileURL(path.join(root, "apps/desktop/scripts/release-version-policy.mts")).href,
     ],
     { cwd: root, timeout: 15000, encoding: "utf8", windowsHide: true, stdio: "pipe" },
   );
@@ -328,7 +352,17 @@ void test("held full workflow preserves privilege separation and refuses unavail
     "utf8",
   );
   assert.deepEqual(parseDocument(template, { uniqueKeys: true }).errors, []);
-  assert.doesNotMatch(live, /: write|production-aggregate-steps/u);
+  assertLiveControllerKeepsHeldAggregateOut(live);
+  assertLiveControllerKeepsHeldAggregateOut(parseDocument(live).toString({ indent: 4 }));
+  const escalated = parseDocument(live);
+  escalated.setIn(["permissions", "contents"], "write");
+  assert.throws(() => assertLiveControllerKeepsHeldAggregateOut(escalated.toString()));
+  const enabled = parseDocument(live);
+  enabled.setIn(["jobs", "held_aggregate_probe"], {
+    "runs-on": "ubuntu-latest",
+    steps: [{ run: "node scripts/production-aggregate-steps.mts assemble" }],
+  });
+  assert.throws(() => assertLiveControllerKeepsHeldAggregateOut(enabled.toString()));
   for (const job of ["independent_admission", "aggregate", "attest", "verify"])
     assert.match(
       template,

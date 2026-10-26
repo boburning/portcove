@@ -109,6 +109,58 @@ void test("bootstrap identity covers the complete statically loaded module closu
   ).modules.map((module) => module.path);
   assert.deepEqual([...new Set(bound)].sort(), loaded.sort());
 });
+void test("metadata fetch skips inherited graph writing and automatic maintenance", (t) => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  mkdirSync(path.join(root, "work"), { recursive: true });
+  const state = mkdtempSync(path.join(root, "work/discovery-fetch-fixture-"));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  const upstream = path.join(state, "upstream");
+  const checkout = path.join(state, "checkout");
+  mkdirSync(upstream);
+  mkdirSync(checkout);
+  const emptyConfig = path.join(state, "empty-config");
+  writeFileSync(emptyConfig, "");
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: emptyConfig,
+    GIT_AUTHOR_NAME: "Fixture",
+    GIT_AUTHOR_EMAIL: "fixture@example.invalid",
+    GIT_COMMITTER_NAME: "Fixture",
+    GIT_COMMITTER_EMAIL: "fixture@example.invalid",
+  };
+  const git = (cwd: string, args: string[], extra: NodeJS.ProcessEnv = {}) => {
+    const result = spawnSync("git", args, {
+      cwd,
+      env: { ...env, ...extra },
+      encoding: "utf8",
+      timeout: 10000,
+      windowsHide: true,
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git(upstream, ["init", "--initial-branch=main"]);
+  git(upstream, ["commit", "--allow-empty", "-m", "fixture"]);
+  git(checkout, ["init", "--initial-branch=main"]);
+  git(checkout, ["remote", "add", "origin", upstream]);
+  git(checkout, ["config", "fetch.writeCommitGraph", "true"]);
+  git(checkout, ["config", "maintenance.auto", "true"]);
+  // Execute the literal production call so a removed flag exercises real Git again.
+  const source = readFileSync(new URL("./daily-discovery.mts", import.meta.url), "utf8");
+  const call = source.match(/^      git\((\[[^\]]*"fetch"[^\]]*\])\);/mu);
+  assert.ok(call, "production fetch remains a literal argument array");
+  const args: unknown = JSON.parse(call[1]!.replace(/,\s*\]/u, "]"));
+  assert.ok(Array.isArray(args) && args.every((arg: unknown) => typeof arg === "string"));
+  const trace = path.join(state, "fetch-trace.jsonl");
+  git(checkout, args, { GIT_TRACE2_EVENT: trace });
+  assert.equal(git(checkout, ["rev-parse", "origin/main"]), git(upstream, ["rev-parse", "HEAD"]));
+  const events = readFileSync(trace, "utf8");
+  assert.doesNotMatch(events, /"label":"write-commit-graph"/u);
+  assert.doesNotMatch(events, /"argv":\["git","maintenance"/u);
+  assert.equal(git(checkout, ["config", "fetch.writeCommitGraph"]), "true");
+});
 void test("noninteractive run refuses before Git, credentials, inventory or lock acquisition", (t) => {
   const root = fileURLToPath(new URL("../", import.meta.url));
   mkdirSync(path.join(root, "work"), { recursive: true });

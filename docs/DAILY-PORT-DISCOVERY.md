@@ -381,8 +381,14 @@ a successful delivery are separate receipt fields.
 revision and body hash. Every use enumerates live thin issue revisions and
 explicit active/archived Project membership. Only the maintained collector can
 produce the in-process validated inventory accepted by capture/normalization
-and doctor. Changed bodies are fetched once and shared by opaque identity;
-the active-item policy scope is preserved. Ordinary delivery evaluates the
+and doctor. A cold rebuild uses the maintained complete body-bearing issue listing (fifty
+issues per page), retaining each body with its validated identity and revision;
+it does not list thin revisions and then separately hydrate every body. Warm
+reads and the single revision reconciliation retain complete thin enumeration
+and fetch only changed bodies. Foreign Project content still receives its own
+bounded hydration. All pages retain the existing streamed response cap and
+zero failed-request retries. Bodies are shared by opaque identity; the active-item
+policy scope is preserved. Ordinary delivery evaluates the
 affected issues rather than unrelated global planning. Unchanged finishes retain
 complete final collection guards but record doctor `not_run` with scope `none`.
 Full doctor is reserved for substantial Roadmap changes or release readiness.
@@ -440,8 +446,12 @@ HTTP response bodies, redirects and failed attempts share the same ledger.
 The bounded worker streams at most 2 MiB into retained response buffers and
 drains before the foreground process can finish. Provider backoff is persisted.
 An uncertain worker failure receives a conservative charge. Git fetch is a
-separate metadata Git operation with a finite timeout; its time counts in the
-session deadline, while its transport bytes are outside the API-body ledger.
+separate metadata Git operation with a finite 60-second timeout; its time counts
+in the session deadline, while its transport bytes are outside the API-body
+ledger. Its command disables commit-graph writing and automatic maintenance,
+including inherited settings: shared-repository housekeeping must not consume
+the discovery fetch budget. Existing graphs remain available for reads, and
+this command does not change Git configuration or schedule maintenance.
 Final receipts disclose actual charged requests/bytes and gaps. Fixture tests,
 manual runs and actual scheduled runs are different evidence scopes. Keep
 #2100 validating until three actual scheduled receipts have been evaluated.

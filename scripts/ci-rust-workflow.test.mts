@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import qualificationOracle from "./fixtures/windows-qualification-selection.json" with { type: "json" };
 import { qualificationNextestRecipe } from "./qualification-nextest.mts";
 
-import { annotatedNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
+import { executableNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
 
@@ -962,7 +962,7 @@ void test("Windows qualification serializes machine-global registry fixtures wit
   const registry = parseNodeTestSuites(
     await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
   );
-  const commands = annotatedNodeCommands(wrapper, registry);
+  const commands = executableNodeCommands(wrapper, registry);
   assert.equal(commands.length, 1);
   assert.equal(commands[0]!.id, "mutex-owned-payload");
   assert.deepEqual(commands[0]!.arguments, [
@@ -1270,6 +1270,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   // inventory also rejects duplicates without a separately maintained count.
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
+  const intelRecoveryFilter =
+    "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation)_intent$/) | test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/))";
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
@@ -1278,6 +1280,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       { filter: sourcePreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
+      { platform: "x86_64-apple-darwin", filter: intelRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
@@ -1291,6 +1294,12 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   assert.deepEqual(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: curatedInstalledWithdrawalFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.deepEqual(overrideFor(intelRecoveryFilter, "x86_64-apple-darwin"), {
+    platform: "x86_64-apple-darwin",
+    filter: intelRecoveryFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });

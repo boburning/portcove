@@ -374,7 +374,8 @@ async function checkReviewedExternal(
   const blocked = await status();
   assert.ok(blocked.readiness, "external fixture must expose readiness");
   assert.ok(blocked.port_actions, "external fixture must expose port actions");
-  assert.equal(blocked.readiness.source, "current");
+  // Extension readiness does not qualify uninstalled source content.
+  assert.equal(blocked.readiness.source, "not_checked");
   assert.equal(blocked.readiness.required_source_extension, "z64");
   assert.equal(blocked.readiness.launchable, false);
   assert.deepEqual(blocked.readiness.blockers, ["incompatible_source"]);

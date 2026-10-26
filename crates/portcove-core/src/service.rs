@@ -3012,6 +3012,10 @@ impl PortcoveService {
         {
             self.require_installed_shared_preferences(&existing)?;
             self.managed_install_root(&port.id, &existing.path)?;
+            if let Some(active) = &status.active {
+                // Reuse publishes the target's retained contract, not today's definition.
+                self.require_portable_transition(active, &self.installed_port(&existing)?)?;
+            }
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
             reporter.operation.begin_publication()?;

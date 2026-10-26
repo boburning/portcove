@@ -87,13 +87,14 @@ export function collectRoadmapInventory(
   repositoryIdentity = before.id;
   if (cache?.repository_node_id && cache.repository_node_id !== before.id)
     throw new Error("Repository provider identity changed; preserve the historical baseline");
-  const enumerate = () => {
-    const inventory = collectRepositoryIssueInventory(client, { bodies: false });
+  const enumerate = (bodies = false) => {
+    const inventory = collectRepositoryIssueInventory(client, { bodies });
     if (inventory.repository_node_id !== repositoryIdentity)
       throw new Error("Repository provider identity changed during inventory collection");
     return inventory.issues.map((row): RoadmapIssueItem => ({ ...row }));
   };
-  let rows = enumerate();
+  // Cold inventories already need every body; use the validated body-bearing listing once.
+  let rows = enumerate(!cache);
   const cached = new Map<string, RoadmapIssueItem>();
   const sameRevision = (a: RoadmapIssueItem, b: RoadmapIssueItem) =>
     a.id === b.id &&
@@ -114,6 +115,7 @@ export function collectRoadmapInventory(
   }
   const repositoryPrefix = `https://github.com/${repository.toLowerCase()}/issues/`;
   const needs: RoadmapIssueItem[] = [];
+  let bodyReads = 0;
   for (const row of rows) {
     if (
       typeof row.id !== "string" ||
@@ -124,6 +126,10 @@ export function collectRoadmapInventory(
       row.url.toLowerCase() !== `${repositoryPrefix}${row.number}`
     )
       throw new Error("Malformed repository issue revision or binding");
+    if (typeof row.body === "string") {
+      bodyReads++;
+      continue;
+    }
     const old = cached.get(row.id);
     // GitHub timestamps have second precision: a cache observed in that same second
     // cannot distinguish two edits. Rehydrate that boundary instead of trusting it.
@@ -135,7 +141,6 @@ export function collectRoadmapInventory(
       row.body = old.body;
     else needs.push(row);
   }
-  let bodyReads = 0;
   let hydrationMoved = false;
   const hydrate = (wanted: RoadmapIssueItem[], reconcile = false) => {
     for (let offset = 0; offset < wanted.length; offset += 10) {

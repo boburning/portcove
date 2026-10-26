@@ -320,6 +320,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   ".agents/skills/portcove-release-validation/SKILL.md",
   "apps/desktop/scripts/prepare-release-version.mts",
   "apps/desktop/scripts/release-version-policy.mts",
+  "apps/desktop/scripts/release-version-runtime.mts",
+  "apps/desktop/scripts/release-version-bundled-runtime.mts",
   "crates/portcove-core/src/catalog_store.rs",
   "crates/portcove-core/src/catalog_update.rs",
   "crates/portcove-core/src/signed_catalog.rs",

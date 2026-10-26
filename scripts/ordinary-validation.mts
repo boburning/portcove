@@ -234,6 +234,9 @@ const workflowFeatureTests = [
   "scripts/windows-rust-tests.test.mts",
 ];
 const workflowContractTests = ["scripts/ci-workflow.test.mts", ...workflowFeatureTests];
+export const nodeTestOwnership = parseNodeTestSuites(
+  readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+);
 const platformSkipConsumers = [
   "scripts/node-platform-skips.test.mts",
   "scripts/required-node-test-reporter.test.mts",
@@ -241,14 +244,15 @@ const platformSkipConsumers = [
   "scripts/ui-test-selection.test.mts",
   "scripts/validation-evidence.test.mts",
   "scripts/audit.test.mts",
-  ...Object.keys(
-    parseNodeTestSuites(readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"))
-      .platformSkips ?? {},
-  ),
+  ...Object.keys(nodeTestOwnership.platformSkips ?? {}),
 ];
 const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/node-platform-skips.mts", platformSkipConsumers],
   ["scripts/fixtures/rscheck-portability-baseline.json", ["scripts/run-rscheck.test.mts"]],
+  [
+    "scripts/fixtures/rscheck-qualification-regression-literals.json",
+    ["scripts/run-rscheck.test.mts"],
+  ],
   ["scripts/ci-job-timeout-probe.mts", ["scripts/ci-job-timeout-probe.test.mts"]],
   [".github/workflows/job-timeout-rehearsal.yml", ["scripts/ci-job-timeout-probe.test.mts"]],
   ...[
@@ -1125,7 +1129,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...["scripts/node-test-suites.mts", "scripts/node-test-suites.json"].map(
     (file): [string, string[]] => [
       file,
-      [...platformSkipConsumers, "scripts/ci-workflow.test.mts"],
+      [
+        ...platformSkipConsumers,
+        "scripts/ci-workflow.test.mts",
+        "scripts/ci-baseline.test.mts",
+        "scripts/local-validation.test.mts",
+      ],
     ],
   ),
   [
@@ -1565,6 +1574,21 @@ explicitNodeTests.set("scripts/nextest-outcomes-cli.mts", [
   ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
 ]);
 for (const file of [
+  "apps/desktop/scripts/release-version-policy.mts",
+  "apps/desktop/scripts/release-version-runtime.mts",
+  "apps/desktop/scripts/release-version-bundled-runtime.mts",
+  "scripts/release-controller-tool-build.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/production-aggregate-steps.test.mts",
+    "scripts/release-controller-tools.test.mts",
+  ]);
+explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
+  ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/production-aggregate-steps.test.mts",
+]);
+for (const file of [
   "scripts/report-summary.mts",
   "scripts/bounded-summary.mts",
   "scripts/fallow-summary.mts",
@@ -1638,7 +1662,7 @@ explicitNodeTests.set("scripts/fixtures/coordinator-fixture-phases.mts", [
   "scripts/release-coordinator-state.test.mts",
 ]);
 
-export const coordinatorStateContractTests = [
+const coordinatorStateContractTests = [
   "scripts/release-coordinator-state.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-coordinator-remote.test.mts",

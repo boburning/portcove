@@ -2031,7 +2031,21 @@ existing callers and fixtures.
 
 Add, rename or remove the ownership record, then run `node scripts/node-test-suites.mts --write`
 to update its annotated direct commands in CI, Just recipes and the Windows
-qualification wrapper. `--check` verifies the generated commands without writing.
+qualification wrapper. `--check` verifies actual executable arguments without writing.
+Verification resolves complete ordered executable arguments against unique family
+signatures; removing authoring comments preserves the same routes and invocation
+multiplicities. Labels alone cannot establish execution. Present labels must
+remain consistent with their commands so later regeneration cannot silently
+change a route. Surrounding conditions, platform owners, filters, error handling
+and the Windows mutex envelope remain independent eligibility checks.
+
+A file that imports Desktop-owned version policy may declare
+`desktop_dependencies: true` in its ownership record. Hosted ordinary selection
+uses those records to provision Desktop packages for the actual selected consumers;
+qualification and release-security provisioning remain explicit. Membership and
+this prerequisite change together in the same record, rather than separate
+filename allowlists. Legacy records without the optional prerequisite are unchanged.
+
 The `native-tools` family owns every `apps/desktop/scripts/*.native.test.mts` file.
 Both direct Windows CI steps render its explicit files and required structured reporter;
 the actual Vite `native:tools` task resolves the same registry at configuration load.

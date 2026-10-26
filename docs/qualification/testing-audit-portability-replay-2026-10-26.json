@@ -1,0 +1,488 @@
+{
+  "format_version": 1,
+  "audit": 21,
+  "disposition": "retain-current-replay-no-reuse",
+  "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+  "run": {
+    "id": 40312434217,
+    "attempt": 1,
+    "event": "schedule",
+    "conclusion": "failure",
+    "url": "https://github.com/boburning/portcove/actions/runs/40312434217"
+  },
+  "job": {
+    "id": 121536772932,
+    "name": "qualify / frontend-no-global (macos-arm64)",
+    "conclusion": "success",
+    "started_at": "2026-10-26T11:05:52Z",
+    "completed_at": "2026-10-26T11:16:09Z",
+    "html_url": "https://github.com/boburning/portcove/actions/runs/40312434217/job/121536772932"
+  },
+  "steps": [
+    {
+      "name": "Set up job",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:05:53Z",
+      "completed_at": "2026-10-26T11:05:54Z"
+    },
+    {
+      "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:05:54Z",
+      "completed_at": "2026-10-26T11:05:59Z"
+    },
+    {
+      "name": "Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:05:59Z",
+      "completed_at": "2026-10-26T11:06:03Z"
+    },
+    {
+      "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:06:03Z",
+      "completed_at": "2026-10-26T11:06:04Z"
+    },
+    {
+      "name": "Verify the contributor route has no global Vite+",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:06:04Z",
+      "completed_at": "2026-10-26T11:06:04Z"
+    },
+    {
+      "name": "Run pnpm install --frozen-lockfile",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:06:04Z",
+      "completed_at": "2026-10-26T11:06:16Z"
+    },
+    {
+      "name": "Run pnpm exec vp toolchain",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:06:16Z",
+      "completed_at": "2026-10-26T11:06:16Z"
+    },
+    {
+      "name": "Run pnpm --dir apps/desktop browser:bootstrap",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:06:16Z",
+      "completed_at": "2026-10-26T11:06:26Z"
+    },
+    {
+      "name": "Run pnpm verify:frontend",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:06:26Z",
+      "completed_at": "2026-10-26T11:15:59Z"
+    },
+    {
+      "name": "Retain browser bootstrap timings",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:15:59Z",
+      "completed_at": "2026-10-26T11:16:00Z"
+    },
+    {
+      "name": "Retain failed contributor browser diagnostics",
+      "conclusion": "skipped",
+      "started_at": "2026-10-26T11:16:00Z",
+      "completed_at": "2026-10-26T11:16:00Z"
+    },
+    {
+      "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:16:00Z",
+      "completed_at": "2026-10-26T11:16:00Z"
+    },
+    {
+      "name": "Post Run pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:16:00Z",
+      "completed_at": "2026-10-26T11:16:01Z"
+    },
+    {
+      "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:16:01Z",
+      "completed_at": "2026-10-26T11:16:02Z"
+    },
+    {
+      "name": "Complete job",
+      "conclusion": "success",
+      "started_at": "2026-10-26T11:16:02Z",
+      "completed_at": "2026-10-26T11:16:08Z"
+    }
+  ],
+  "artifact": {
+    "id": 12646080805,
+    "name": "browser-bootstrap-contributor-40312434217-1",
+    "sha256": "271e27b47d060de904a9d367bd9fa173ff240926e4925fb0f65189e8e570b2a3",
+    "records": [
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "checkout": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "run": "40312434217",
+          "attempt": "1",
+          "job": "frontend_portability",
+          "runner": "macOS-ARM64",
+          "mode": "qualification"
+        },
+        "phase": "browser-bootstrap:install",
+        "recorded_at": "2026-10-26T11:06:25.613Z",
+        "process_elapsed_ms": 8051,
+        "elapsed_ms": 8045,
+        "outcome": "completed"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "checkout": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "run": "40312434217",
+          "attempt": "1",
+          "job": "frontend_portability",
+          "runner": "macOS-ARM64",
+          "mode": "qualification"
+        },
+        "phase": "browser-bootstrap:cache",
+        "recorded_at": "2026-10-26T11:06:17.566Z",
+        "process_elapsed_ms": 4,
+        "cache_outcome": "executable-absent",
+        "fingerprint": "313d23ce667d93962d3a1ab4be80908cefe840e4d9e48f1cd5863b91f65e8e39",
+        "groups": [
+          "playwright=1.64.1",
+          "executable=chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+        ]
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "checkout": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "run": "40312434217",
+          "attempt": "1",
+          "job": "frontend_portability",
+          "runner": "macOS-ARM64",
+          "mode": "qualification"
+        },
+        "phase": "browser-bootstrap:close",
+        "recorded_at": "2026-10-26T11:06:26.452Z",
+        "process_elapsed_ms": 8890,
+        "elapsed_ms": 59,
+        "outcome": "completed"
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "checkout": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "run": "40312434217",
+          "attempt": "1",
+          "job": "frontend_portability",
+          "runner": "macOS-ARM64",
+          "mode": "qualification"
+        },
+        "phase": "browser-bootstrap:ready",
+        "recorded_at": "2026-10-26T11:06:26.392Z",
+        "process_elapsed_ms": 8830,
+        "groups": ["chromium=156.0.8078.4"]
+      },
+      {
+        "format": 1,
+        "kind": "ci-timing",
+        "context": {
+          "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "checkout": "efc42c654972d9094fef2b94337fc560c80d436a",
+          "run": "40312434217",
+          "attempt": "1",
+          "job": "frontend_portability",
+          "runner": "macOS-ARM64",
+          "mode": "qualification"
+        },
+        "phase": "browser-bootstrap:launch",
+        "recorded_at": "2026-10-26T11:06:26.392Z",
+        "process_elapsed_ms": 8830,
+        "elapsed_ms": 777,
+        "outcome": "completed"
+      }
+    ]
+  },
+  "log_sha256": "c20ec688b253b897182424c48466fff1c2d5f69c28cdc350dda7bfcf7d3706ff",
+  "contexts": [
+    {
+      "format_version": 1,
+      "invocation_id": "d640d5f4-0486-4383-b41a-65394390ec09",
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+      "checkout": "efc42c654972d9094fef2b94337fc560c80d436a",
+      "run": "40312434217",
+      "attempt": "1",
+      "reason": "passed",
+      "observed": 1069,
+      "invalid": 0,
+      "omitted": 0,
+      "bytes": 660321,
+      "unhandled_errors": 0,
+      "original_unhandled_errors": [],
+      "omitted_unhandled_errors": 0
+    },
+    {
+      "format_version": 1,
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "node": "v24.22.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "source": "efc42c654972d9094fef2b94337fc560c80d436a",
+      "checkout": "efc42c654972d9094fef2b94337fc560c80d436a",
+      "run": "40312434217",
+      "attempt": "1",
+      "reason": "passed",
+      "observed": 1651,
+      "invalid": 0,
+      "omitted": 0,
+      "bytes": 1050221,
+      "unhandled_errors": 0,
+      "original_unhandled_errors": [],
+      "omitted_unhandled_errors": 0
+    }
+  ],
+  "case_counts": [
+    {
+      "project": "browser (chromium)",
+      "outcome": "passed",
+      "count": 1466
+    },
+    {
+      "project": "browser (chromium)",
+      "outcome": "skipped",
+      "count": 1
+    },
+    {
+      "project": "browser-forced-colors (chromium)",
+      "outcome": "passed",
+      "count": 6
+    },
+    {
+      "project": "browser-locale (chromium)",
+      "outcome": "passed",
+      "count": 4
+    },
+    {
+      "project": "unit",
+      "outcome": "passed",
+      "count": 943
+    },
+    {
+      "project": "unit",
+      "outcome": "skipped",
+      "count": 1
+    }
+  ],
+  "case_identity": "invocation_id + runner_id; definition_id alone can repeat for parameterized cases",
+  "witness_cases": [
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1022824542_0",
+      "definition_id": "2eb557fb53801da5ee3a8328bcf09102302660f82a508be6c1e25b85bf8ff061",
+      "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+      "name": "exposes games and deliberate modal navigation at 320px in light",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1022824542_1",
+      "definition_id": "0b417575f827e67560af30cc0172f6dee9f9ece831f32a18e4c36acf2983734a",
+      "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+      "name": "exposes games and deliberate modal navigation at 320px in dark",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1022824542_2",
+      "definition_id": "4c64048ddb6c1946276e4e329784e7a003f004224806ae4b12e14900efd89c5f",
+      "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+      "name": "exposes games and deliberate modal navigation at 576px in light",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1022824542_3",
+      "definition_id": "0ab4f476f4120241b6303b93d5539b2f47bacd7562f3dfb80c5e0c8e31933d0f",
+      "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+      "name": "exposes games and deliberate modal navigation at 576px in dark",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1022824542_4",
+      "definition_id": "396dba3b291aaff3f8d7b09057378bc29d34879164d8144c1ca69a4aa7d5355c",
+      "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+      "name": "keeps narrow 320px Back and shoulder navigation on visible controls",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1022824542_5",
+      "definition_id": "5ea3c9544b8bc184da54feffce8f7983e6688e5591ab7bd89ff982eddd7c11e7",
+      "file": "apps/desktop/src/browser/compact-navigation.browser.test.tsx",
+      "name": "keeps narrow 576px Back and shoulder navigation on visible controls",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_0",
+      "definition_id": "1ce24d680fcc842c1274c6444de0c96f49ec2afdf3928da187fbe06fe082e8e2",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "includes the visible command shortcut in the accessible name on Win32 at 960px",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_1",
+      "definition_id": "001d4adc86480747de15441bdce6b0fe016691040123449ddacd61ff2c009642",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "includes the visible command shortcut in the accessible name on Win32 at 1280px",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_2",
+      "definition_id": "71534e7f1c50aa890df9b7f8d2a3284ac2f0989c9fab5c935569c84cf20883a8",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "includes the visible command shortcut in the accessible name on MacIntel at 960px",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_3",
+      "definition_id": "0cd613b48412bf749ddc98e3afe37556e3399bbfb87800e557b0b1c82fae14d8",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "includes the visible command shortcut in the accessible name on MacIntel at 1280px",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_4",
+      "definition_id": "f31af783096e6657a2d9cf24d367b936e271569da80be07d657ec56429fffb6f",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "keeps primary destinations reachable without task tools competing in the sidebar at 960px in dark",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_5",
+      "definition_id": "9f4cfd6bf0637a51f1ff8406dc647667b42302232148932830e6d760a469531e",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "keeps primary destinations reachable without task tools competing in the sidebar at 960px in light",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_6",
+      "definition_id": "ba98b1d977366c466b3d1fc65bff2ec6236269df4cb1b373c965dc44c98caaee",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "keeps primary destinations reachable without task tools competing in the sidebar at 1280px in dark",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_7",
+      "definition_id": "f2083132d89cdbd5e3b4870e9676b15ae242dff6bc1a8bd4285187e626d07b20",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "keeps primary destinations reachable without task tools competing in the sidebar at 1280px in light",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "156461028_0",
+      "definition_id": "8bbe2c737e55e74921d9151a5b95444a7f975f7b9534641068a0f7a56704d1e2",
+      "file": "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+      "name": "keeps recovery reachable at 1280 pixels (enlarged false, long false)",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "-1462978150_8",
+      "definition_id": "e53ca1fa02b282f0010db8cd607c670781543a9fe57e76e4c89aa9ac33acbaca",
+      "file": "apps/desktop/src/components/Chrome.browser.test.tsx",
+      "name": "visual capture accepts decorative art, rejects hidden and clipped ancestors, and reveals nested targets",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "156461028_1",
+      "definition_id": "91c5282f0a17472a16fb2f9333a445db8ec2cf6f7b203887a941be1cc399dc2b",
+      "file": "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+      "name": "keeps recovery reachable at 1280 pixels (enlarged false, long true)",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "156461028_2",
+      "definition_id": "c2dbed439a0eb27f8af247d07aad28cff7837fbd16682f557891c0631b789a9d",
+      "file": "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+      "name": "keeps recovery reachable at 576 pixels (enlarged false, long true)",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "156461028_3",
+      "definition_id": "08619c749d9242d65450706eca247fca8fbc04b8e7c563c77651abc8a10531d0",
+      "file": "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+      "name": "keeps recovery reachable at 320 pixels (enlarged false, long true)",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    },
+    {
+      "invocation_id": "5bf8773b-49e5-4aa7-807f-bee5806b4afd",
+      "runner_id": "156461028_4",
+      "definition_id": "c52e2830c76e9800113bef8013ab97ad1f0aa09d65d8446f1be9d12f92e4ef74",
+      "file": "apps/desktop/src/browser/display-recovery.browser.test.tsx",
+      "name": "keeps recovery reachable at 320 pixels (enlarged true, long true)",
+      "project": "browser (chromium)",
+      "outcome": "passed"
+    }
+  ],
+  "timing_seconds": {
+    "verify_frontend_step_whole_seconds": 573,
+    "unit_runner": 34.61,
+    "browser_runner": 498.98,
+    "reported_build": 1.64,
+    "approximate_residual": 39.41
+  },
+  "timing_limits": [
+    "GitHub step timestamps have whole-second precision",
+    "Residual includes content generation, process orchestration, waits and other unisolated work; it is not measured static cost or an attributable saving",
+    "No CPU, disk or network-only attribution",
+    "No cross-platform deterministic result reuse is adopted; compatible input/tool/environment/provenance proof remains absent"
+  ],
+  "acceptance_limits": [
+    "Whole scheduled run failed",
+    "Two intentional skips remain skips",
+    "Real browser execution on a macOS host is distinct from installed Tauri or native UI acceptance",
+    "No speedup or cross-platform equivalence claim"
+  ]
+}

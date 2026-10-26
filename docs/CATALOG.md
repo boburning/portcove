@@ -109,6 +109,12 @@ for a new runtime; it never rewrites an installed contract. Changing or removing
 an existing marker needs a supported transition. First-Play file pickers remain
 Play and need no artificial completion marker.
 
+When an active installation exists, activation checks the destination's actual
+retained data contract, including artifact reuse and pending activation recovery.
+Today's recommended definition cannot authorize an incompatible retained target.
+A failed pre-commit check preserves the active version and all player data;
+already committed recovery finishes with the authoritative committed version.
+
 Assess preparation separately on each platform. A Windows first-Play picker
 does not establish a Linux picker or a manual completion record. Keep a useful
 upstream setup/non-owning route for a platform whose preparation cannot be

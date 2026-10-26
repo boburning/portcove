@@ -747,7 +747,6 @@ pub(crate) fn recover_activation(
     let mut activation = ActivationOperation::decode(service, operation)?;
     let install = activation.install.clone();
     if activation.is_preparing() {
-        let port = service.installed_port(&install)?;
         let qualification = service.installed_mutability_qualification(&install)?;
         Installer::new(service.library.clone())?.verify_critical(&install, &qualification)?;
         let status = service
@@ -764,9 +763,7 @@ pub(crate) fn recover_activation(
                 status.active.as_ref().map(|active| active.version.as_str()),
             )?;
             let commit = activation.prepare_commit(service, operation)?;
-            service.collect_active_user_data_if_launched(&install.port_id)?;
-            service.restore_user_data_to(&port, &install.path)?;
-            Installer::new(service.library.clone())?.verify_critical(&install, &qualification)?;
+            service.prepare_recovered_psx_activation(&install)?;
             service.library.activate_staged(&install.port_id)?;
             commit.persist(store)?;
         } else {
