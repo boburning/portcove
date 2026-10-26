@@ -3,12 +3,12 @@
   "listing": {
     "id": "blizz127-parasite-eve-decomp-port",
     "name": "Parasite Eve / parasite-eve-decomp-port (Blizz127)",
-    "summary": "Explore Parasite Eve / parasite-eve-decomp-port (Blizz127) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Explore the experimental Linux Parasite Eve port and its original-disc setup requirements.",
     "project_url": "https://github.com/Blizz127/parasite-eve-decomp-port",
     "issue_number": 1865,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Blizz127/parasite-eve-decomp-port",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
     "artwork": {
       "game_id": 7357,
       "cover_id": 220129,
@@ -16,6 +16,29 @@
       "image_sha256": "4e777e5888466d303dbabfc8c0ef863b8a842d7dac977f0c09b47dbca412980b",
       "game_slug": "parasite-eve",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/Blizz127/parasite-eve-decomp-port/releases",
+    "original_game_title": "Parasite Eve",
+    "download_asset_hints": {
+      "linux-x86-64": ["parasite-eve-", "linux-x64", ".tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your own disc",
+          "instruction": "A permitted existing Linux copy requires Parasite Eve USA SLUS-00662 Disc 1 as the raw BIN/CUE set; the documented Disc 1 BIN is 495531120 bytes. Keep all referenced tracks together. ISO and CHD are not direct equivalents. Newer native-only builds also describe Disc 2 support; use the selected release instructions rather than treating the old Day 1 build as the current runtime."
+        },
+        {
+          "title": "Keep the upstream launcher and profile",
+          "instruction": "For an existing copy you are permitted to use, launch its parasite-eve wrapper with your disc folder, BIN or CUE using the selected release guide. The wrapper can remember disc1 in ~/.config/parasite-eve-port/config; the documented card is ~/.local/share/parasite-eve-port/memcard1.mcd. Preserve any customized XDG profile. Keep using the OS shortcut when the wrapper is required; Portcove does not register a shell script or assume its private binary has equivalent arguments. No files are adopted or replaced."
+        }
+      ],
+      "warnings": [
+        "The prebuilt route identifies imported upstream functions outside the project MIT grant. Resolve the applicable component permission before obtaining or building a copy. Experimental route coverage and upstream test claims are not Portcove gameplay qualification.",
+        "Updates and profile preservation remain with you/upstream; Portcove makes no external backup, rollback or file-removal promise."
+      ],
+      "help_url": "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md"
+    },
+    "download_block_reason": "The published port identifies compiled upstream function bodies whose originating project has no published license; the parent MIT grant excludes those components. Portcove has no established acquisition basis for that scope. Reconsider with attributable permission or a reviewed released package that replaces the affected code. Permitted existing copies keep their non-owning setup route."
   }
 }
