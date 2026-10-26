@@ -1,0 +1,69 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "diegodedios-alienrerecomp",
+    "name": "Alien Resurrection / AlienReRecomp",
+    "original_game_title": "Alien Resurrection",
+    "summary": "Play Alien Resurrection with your own USA PlayStation disc image and a separate managed save profile.",
+    "project_url": "https://github.com/DiegoDeDios/AlienReRecomp",
+    "issue_number": 2746,
+    "availability": "packages",
+    "release_url": "https://github.com/DiegoDeDios/AlienReRecomp/releases",
+    "setup_url": "https://github.com/DiegoDeDios/AlienReRecomp#plug-and-play",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your existing upstream player",
+          "instruction": "For an existing copy, select AlienResurrection.exe on Windows or AlienResurrection on Linux with its containing folder."
+        },
+        {
+          "title": "Choose your original disc on Play",
+          "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+        },
+        {
+          "title": "Preserve the profile before changing versions",
+          "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
+        }
+      ],
+      "warnings": [
+        "Existing external copies and their profiles stay upstream/player-owned. Runtime rollback does not rewind saves or guarantee older-version compatibility."
+      ],
+      "help_url": "https://github.com/DiegoDeDios/AlienReRecomp#quick-save"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "DiegoDeDios/AlienReRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["AlienResurrection-", "-windows-x64.zip"],
+        "linux-x86-64": ["AlienResurrection-", "-linux-x86_64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["AlienResurrection.exe"],
+      "linux-x86-64": ["AlienResurrection"]
+    },
+    "launch_arguments": ["--save-dir", "saves"],
+    "persistent_paths": ["saves"],
+    "persistent_file_patterns": [
+      {
+        "prefix": "shot_",
+        "suffix": ".png"
+      },
+      {
+        "prefix": "vram_",
+        "suffix": ".png"
+      }
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On first Play, choose your own USA PlayStation Alien Resurrection disc image (SLUS-00633). This separate managed copy uses its saves folder for settings, memory cards, quick save and logs. Portcove also preserves runtime-folder shot_*.png screenshots and vram_*.png captures. Original disc files, external-copy profiles, custom save paths and custom debug destinations stay external. Make a memory-card save in game BEFORE updating, switching runtime versions or rolling back. Quick saves are version-specific and have one slot; retain the old runtime if your latest progress exists only in its quick save. Runtime rollback carries current declared data, not earlier saves or guaranteed older-version compatibility. Linux needs glibc 2.35+ and a working Vulkan environment; other platforms need separate review."
+    }
+  }
+}

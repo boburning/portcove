@@ -89,6 +89,11 @@ restart. Choosing a game-data folder does not prove that the running process
 also changed its save folder; preserve every actual managed write coordinate
 before promising updates or backup. Keep a useful upstream-owned route when
 that coordinate requires upstream repair or supported preparation.
+For ordinary captures written beside the executable, reuse reviewed
+`persistent_file_patterns` with literal filename prefixes and suffixes. These
+files remain player data through collection, backup, replacement and rollback;
+do not exempt them as disposable runtime output or widen ownership to unrelated
+files. A save-directory argument alone does not prove that capture writers use it.
 
 For manual preparation that must finish before Play, `native-portable` may
 declare a `setup_marker` pointing to an upstream completion JSON record beneath

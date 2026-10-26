@@ -317,7 +317,7 @@ mod tests {
         }
     }
     fn catalog() -> Catalog {
-        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[{"id":"portable-fixture","name":"Portable fixture","summary":"Generic upstream setup","project_url":"https://github.com/example/game","support_tier":"beta","channels":["stable","beta"],"platforms":["windows-x86-64"],"adapter":"native-portable","release":{"repository":"example/game","asset_hints":{"windows-x86-64":["windows","x64"]}},"executable_hints":{"windows-x86-64":["game.exe"]},"persistent_paths":["data","saves","mods","settings.ini"]}]}"#).unwrap()
+        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[{"id":"portable-fixture","name":"Portable fixture","summary":"Generic upstream setup","project_url":"https://github.com/example/game","support_tier":"beta","channels":["stable","beta"],"platforms":["windows-x86-64"],"adapter":"native-portable","release":{"repository":"example/game","asset_hints":{"windows-x86-64":["windows","x64"]}},"executable_hints":{"windows-x86-64":["game.exe"]},"persistent_paths":["data","saves","mods","settings.ini"],"persistent_file_patterns":[{"prefix":"shot_","suffix":".png"},{"prefix":"vram_","suffix":".png"}]}]}"#).unwrap()
     }
     fn build_service(library: Library, provider: Arc<Provider>) -> PortcoveService {
         let mut service = PortcoveService::with_provider(library, provider).unwrap();
@@ -2453,6 +2453,7 @@ mod tests {
             b"prelaunch data",
         )
         .unwrap();
+        fs::write(install.path.join("shot_00001.png"), b"prelaunch capture").unwrap();
         let spec = service
             .prepare_launch_for_install(
                 service.catalog.port("portable-fixture").unwrap(),
@@ -2480,6 +2481,10 @@ mod tests {
             b"prelaunch data"
         );
         assert!(!install.path.join(LAUNCH_MARKER).exists());
+        assert_eq!(
+            fs::read(library.user_dir("portable-fixture").join("shot_00001.png")).unwrap(),
+            b"prelaunch capture"
+        );
     }
 
     #[tokio::test]
@@ -2498,12 +2503,21 @@ mod tests {
             ("saves/progress.sav", b"progress"),
             ("mods/player.mod", b"mod"),
             ("settings.ini", b"settings"),
+            ("shot_00001.png", b"screenshot"),
+            ("vram_00001.png", b"VRAM capture"),
         ] {
             let destination = first.path.join(path);
             fs::create_dir_all(destination.parent().unwrap()).unwrap();
             fs::write(destination, content).unwrap();
         }
         assert!(!first.path.join(LAUNCH_MARKER).exists());
+        let backup = service.create_backup("portable-fixture").unwrap();
+        for name in ["shot_00001.png", "vram_00001.png"] {
+            assert_eq!(
+                fs::read(backup.path.join("data").join(name)).unwrap(),
+                fs::read(first.path.join(name)).unwrap()
+            );
+        }
         *provider.0.lock().unwrap() = server.release("v2", 2);
         assert!(
             service
@@ -2523,12 +2537,15 @@ mod tests {
             "saves/progress.sav",
             "mods/player.mod",
             "settings.ini",
+            "shot_00001.png",
+            "vram_00001.png",
         ] {
             assert_eq!(
                 fs::read(first.path.join(path)).unwrap(),
                 fs::read(second.path.join(path)).unwrap()
             );
         }
+        fs::write(second.path.join("shot_00002.png"), b"current capture").unwrap();
         // Rebuilt tag: changed archive identity is an update even without a new version string.
         *provider.0.lock().unwrap() = server.release("v2", 3);
         assert!(
@@ -2560,6 +2577,14 @@ mod tests {
             fs::read(restored.path.join("saves/progress.sav")).unwrap(),
             b"progress"
         );
+        for (name, expected) in [
+            ("shot_00001.png", b"screenshot".as_slice()),
+            ("vram_00001.png", b"VRAM capture"),
+            ("shot_00002.png", b"current capture"),
+        ] {
+            assert_eq!(fs::read(active.path.join(name)).unwrap(), expected);
+            assert_eq!(fs::read(restored.path.join(name)).unwrap(), expected);
+        }
         assert_eq!(
             service.status("portable-fixture").unwrap().update_policy,
             UpdatePolicy::Notify

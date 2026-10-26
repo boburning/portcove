@@ -1,0 +1,418 @@
+{
+  "format_version": 1,
+  "source_commit": "495381f6c3f2be94dfb2fa511813a7a11b039a6c",
+  "initial_workset_source": "1bc820eb24e2cbe9c54daaedf85d5a14347c4cae",
+  "initial_workset_cutoff": "2026-10-26T06:43:21.714598+00:00",
+  "observation_cutoff": "2026-10-26T07:43:39.926270+00:00",
+  "inventory_sources": [
+    "First six sorted original19 remaining joins, frozen before source changes; scoped against delivered main3f98",
+    "Complete repository1919 and active1918+archived1 Project traversal at2026-10-26T05:46:52.826Z; identity accounting only, not universal fit approval",
+    "Six canonical Roadmap contexts and complete primary release pagination/recursive pinned source trees",
+    "Current+previous Alien official Windows/Linux packages; actual uHexen2/BBLIT offered prereleases; retained named acquisition holds"
+  ],
+  "coverage": {
+    "distinct_identities": 6,
+    "authored_additions": 4,
+    "managed_additions": [2746],
+    "conditional_existing_copy": [2729],
+    "upstream_guides": [2747, 2751],
+    "existing_holds_retained": [2728, 2744],
+    "managed_fit_unfinished": [2728, 2729, 2747],
+    "original_roadmap_now_authored": 7,
+    "original_roadmap_remaining_unlisted": 15,
+    "unresolved_identity_joins_in_batch": [],
+    "duplicate_mappings_added": [],
+    "existing_authored_records_preserved": 1410,
+    "existing_operational_definitions_preserved": 163,
+    "candidate_authored_count": 1414,
+    "candidate_operational_count": 164,
+    "all_inventory_fit_or_implementation_complete": false
+  },
+  "original_commitment": {
+    "parent": 2510,
+    "rollout_owner": 2926,
+    "original_identities": 524,
+    "affected_additions": 312,
+    "original_roadmap_joins": 22,
+    "full_acceptance_satisfied": false,
+    "historical_1422_cohort_expanded": false,
+    "separate_acceptance_owners": [2225, 47, 48],
+    "separate_publication_owners": [534, 246]
+  },
+  "compatibility": "Four new stable canonical IDs, no old record/name/artwork/qualification/source changes. One reviewed operational-additions fixture append; frozen legacy fixtures unchanged. Native retained guard compares args, data paths and patterns; no silent external adoption. Stable compatible releases resolve from unchanged platform/package hints and publisher identities; no per-release definition edit required.",
+  "archive_safety": "Bounded raw ZIP metadata preflight before semantic member parsing; bounded gzip decode/raw tar header-extension admission before tarfile/PAX preprocessing. Tar self-check rejects oversized PAX before semantic parse. No extraction, game execution or product safety-budget changes.",
+  "evidence_boundary": "Dated batch evidence, not a second live backlog. Artifact inspection/source/fixtures/native execution/packaged Desktop/real-save acceptance remain distinct. Existing holds are unchanged; unfinished managed decisions stay open.",
+  "ports": [
+    {
+      "id": "xgcmodding-platinum",
+      "canonical_issue": 2728,
+      "previous_route": "Original22 roadmap-only canonical identity; no prior authored listing",
+      "platform_scope": ["Windows/Linux/macOS research; existing hold"],
+      "official_upstream": {
+        "repository": "xgcModding/platinum",
+        "repository_id": 1385055528,
+        "node_id": "R_kgDOUo5FKA",
+        "source": "403f49e7835035edfe9ea2d8a8c027940953c19a",
+        "tag": "0.2",
+        "release_inventory_complete": true,
+        "releases_observed": 2,
+        "pinned_source_tree_complete": true
+      },
+      "selected_route": "Retain the existing roadmap acquisition/setup hold; no new listing or payload acquisition.",
+      "update_owner": "upstream/player; no operational route authored",
+      "setup_data": "Own Platinum NDS ROM. Pinned importer checks the title/CPU header and bounds; it generates/repairs a local firmware.bin settings placeholder. These observations do not establish exact accepted ROM revisions or the complete build/provenance contract.",
+      "disposition": "existing-source-provenance-hold-retained",
+      "next_action": "Resolve the named original-decompilation provenance, source/input identity and build contract in #2728 before offering acquisition. Do not ask players for an unestablished BIOS merely because the old research record was unknown.",
+      "evidence_paths": ["README.md", "src/port/rom_import.cpp"],
+      "evidence": [
+        "https://github.com/xgcModding/platinum/blob/403f49e7835035edfe9ea2d8a8c027940953c19a/README.md",
+        "https://github.com/xgcModding/platinum/blob/403f49e7835035edfe9ea2d8a8c027940953c19a/src/port/rom_import.cpp"
+      ],
+      "actual_artifacts": [],
+      "authored": null,
+      "validation_scope": "Bounded pinned source/package observations and maintained authoring validation. No game/helper/installer/native execution or original data acquired. Source candidate; final exact-head CI and independent review are recorded on the PR.",
+      "delivery_status": "Source-bound candidate evidence; canonical issue/PR owns delivered state, not this dated snapshot."
+    },
+    {
+      "id": "meteo-dream-mf-community-edition",
+      "canonical_issue": 2729,
+      "previous_route": "Original22 roadmap-only canonical identity; no prior authored listing",
+      "platform_scope": ["Windows x64/Linux x64 conditional existing player"],
+      "official_upstream": {
+        "repository": "meteo-dream/mf-community-edition",
+        "repository_id": 779579664,
+        "node_id": "R_kgDOLndxEA",
+        "source": "969fb2871075a3d9d81f20b04e476e9dfecc9611",
+        "tag": "v2.2.2",
+        "release_inventory_complete": true,
+        "releases_observed": 2,
+        "pinned_source_tree_complete": true
+      },
+      "selected_route": "Add a conditional, non-owning permitted-existing-copy guide; hold fresh download while bundled third-party asset permission remains unresolved.",
+      "update_owner": "upstream/player",
+      "setup_data": "Self-contained native Godot remake of the existing Mario Forever fangame, not a commercial Super Mario ROM port. Tagged export presets identify Windows/Linux x64 players; user-selected registration checks the actual native executable. Project custom user directory is MeteoDream/Mario Forever Community Edition. No original ROM is requested; external profiles stay external.",
+      "disposition": "existing-copy-guide; managed-fit-unfinished",
+      "next_action": "Establish attributable distribution terms for the exact bundled Nintendo/Buziol/other derivative assets and component package before fresh acquisition or managed admission. Then inspect actual archive, writer/default/fallback behavior and compatible replacement. This is a precise acquisition prerequisite, not a global Unsupported classification or product deferral.",
+      "evidence_paths": ["README.md", "LICENSE.txt", "project.godot", "export_presets.cfg"],
+      "evidence": [
+        "https://github.com/meteo-dream/mf-community-edition/blob/969fb2871075a3d9d81f20b04e476e9dfecc9611/README.md",
+        "https://github.com/meteo-dream/mf-community-edition/blob/969fb2871075a3d9d81f20b04e476e9dfecc9611/LICENSE.txt",
+        "https://github.com/meteo-dream/mf-community-edition/blob/969fb2871075a3d9d81f20b04e476e9dfecc9611/project.godot",
+        "https://github.com/meteo-dream/mf-community-edition/blob/969fb2871075a3d9d81f20b04e476e9dfecc9611/export_presets.cfg"
+      ],
+      "actual_artifacts": [],
+      "authored": {
+        "path": "crates/portcove-core/catalog/ports/meteo-dream-mf-community-edition.json",
+        "sha256": "f0d6985e6e987b5ac081a22470e53d0de8ccaef317dc9859e8f67ea384ebc219",
+        "preimage": "absent",
+        "lineage": "legacy-unassessed",
+        "operational_changed": false,
+        "record_matches_maintained_preparation": true,
+        "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package\u2019s distribution terms are established.",
+        "native_contract": null
+      },
+      "validation_scope": "Bounded pinned source/package observations and maintained authoring validation. No game/helper/installer/native execution or original data acquired. Source candidate; final exact-head CI and independent review are recorded on the PR.",
+      "delivery_status": "Source-bound candidate evidence; canonical issue/PR owns delivered state, not this dated snapshot."
+    },
+    {
+      "id": "sirdankz-undead-neighbor-eaters-droid",
+      "canonical_issue": 2744,
+      "previous_route": "Original22 roadmap-only canonical identity; no prior authored listing",
+      "platform_scope": ["Android ARM64 research only"],
+      "official_upstream": {
+        "repository": "sirdankz/Undead-Neighbor-Eaters-Droid",
+        "repository_id": 1421539318,
+        "node_id": "R_kgDOVLr39g",
+        "source": "74927eff9ccd7b309a645a4475a32f43f4c74803",
+        "tag": "DROID",
+        "release_inventory_complete": true,
+        "releases_observed": 1,
+        "pinned_source_tree_complete": true
+      },
+      "selected_route": "Retain the existing Android provenance/distribution hold; no Desktop APK operation or new listing authored.",
+      "update_owner": "upstream/player; no Desktop runtime offered",
+      "setup_data": "Android ARM64/API23+ app uses its own ROM picker. Original USA Zombies Ate My Neighbors SNES ROM remains player-supplied. Existing component MPL/MIT/zlib notices explicitly do not establish permission for all translated logic or the complete APK; the Xbox companion remains distinct.",
+      "disposition": "existing-upstream-permission-hold-retained",
+      "next_action": "Upstream must establish the named project-wide translated-code/APK distribution basis and compatible original-input facts. Android APK handling additionally needs an applicable supported operation; current Desktop Native archives do not install APKs. Public APK/hash is not resolution; none acquired.",
+      "evidence_paths": [
+        "README.md",
+        "LICENSING.md",
+        "RELEASE_READINESS.md",
+        "THIRD_PARTY_NOTICES.md"
+      ],
+      "evidence": [
+        "https://github.com/sirdankz/Undead-Neighbor-Eaters-Droid/blob/74927eff9ccd7b309a645a4475a32f43f4c74803/README.md",
+        "https://github.com/sirdankz/Undead-Neighbor-Eaters-Droid/blob/74927eff9ccd7b309a645a4475a32f43f4c74803/LICENSING.md",
+        "https://github.com/sirdankz/Undead-Neighbor-Eaters-Droid/blob/74927eff9ccd7b309a645a4475a32f43f4c74803/RELEASE_READINESS.md",
+        "https://github.com/sirdankz/Undead-Neighbor-Eaters-Droid/blob/74927eff9ccd7b309a645a4475a32f43f4c74803/THIRD_PARTY_NOTICES.md"
+      ],
+      "actual_artifacts": [],
+      "authored": null,
+      "validation_scope": "Bounded pinned source/package observations and maintained authoring validation. No game/helper/installer/native execution or original data acquired. Source candidate; final exact-head CI and independent review are recorded on the PR.",
+      "delivery_status": "Source-bound candidate evidence; canonical issue/PR owns delivered state, not this dated snapshot."
+    },
+    {
+      "id": "diegodedios-alienrerecomp",
+      "canonical_issue": 2746,
+      "previous_route": "Original22 roadmap-only canonical identity; no prior authored listing",
+      "platform_scope": ["Windows x64 managed", "Linux x64 managed", "macOS app not qualified"],
+      "official_upstream": {
+        "repository": "DiegoDeDios/AlienReRecomp",
+        "repository_id": 1423158357,
+        "node_id": "R_kgDOVNOsVQ",
+        "source": "15bcbab40702fe17fac4757f278efc44eb69056a",
+        "tag": "v0.1.8",
+        "release_inventory_complete": true,
+        "releases_observed": 9,
+        "pinned_source_tree_complete": true
+      },
+      "selected_route": "Add native-portable managed Windows x64 ZIP and Linux x64 tar.gz, retaining a non-owning existing-copy guide.",
+      "update_owner": "Portcove replaces managed runtime; upstream performs first-Play disc selection; external copies remain player/upstream-owned",
+      "setup_data": "ROM-free interpreter packages, separate from static recompilation. Own USA SLUS-00633 disc is selected/validated by upstream launcher on explicit Play. Existing --save-dir saves is parsed before profile/log setup. Declare saves plus root shot_*.png/vram_*.png as player data; F12 captures do not obey --save-dir. Originals, external profiles and custom debug destinations remain outside backup. Quickstates reject another port version before load; make an in-game memory-card save BEFORE updating or rolling back. Runtime rollback carries current data, not earlier saves or guaranteed compatibility.",
+      "disposition": "managed-adoption",
+      "next_action": "Deliver selected exact-source checks/review/guarded merge; preserve separate native/gameplay/packaged/real-save acceptance. macOS app bundles require their own route/platform qualification and are not established by the Windows/Linux evidence.",
+      "evidence_paths": [
+        "README.md",
+        "LICENSE",
+        "src/platform/main.c",
+        "src/platform/discinfo.c",
+        "src/runtime/savestate.c",
+        "src/runtime/memcard.c",
+        "third_party/imgui/LICENSE.txt"
+      ],
+      "evidence": [
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/15bcbab40702fe17fac4757f278efc44eb69056a/README.md",
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/15bcbab40702fe17fac4757f278efc44eb69056a/LICENSE",
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/15bcbab40702fe17fac4757f278efc44eb69056a/src/platform/main.c",
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/15bcbab40702fe17fac4757f278efc44eb69056a/src/platform/discinfo.c",
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/15bcbab40702fe17fac4757f278efc44eb69056a/src/runtime/savestate.c",
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/15bcbab40702fe17fac4757f278efc44eb69056a/src/runtime/memcard.c",
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/15bcbab40702fe17fac4757f278efc44eb69056a/third_party/imgui/LICENSE.txt"
+      ],
+      "actual_artifacts": [
+        {
+          "tag": "v0.1.8",
+          "source": "15bcbab40702fe17fac4757f278efc44eb69056a",
+          "asset_id": 673875217,
+          "url": "https://github.com/DiegoDeDios/AlienReRecomp/releases/download/v0.1.8/AlienResurrection-0.1.8-windows-x64.zip",
+          "bytes": 2763454,
+          "publisher_expected_digest": "sha256:ec74b39e6d3827f62f2dd2cfe73cc582721834da6ebc1b03b36417d1ee40e48f",
+          "actual_sha256": "ec74b39e6d3827f62f2dd2cfe73cc582721834da6ebc1b03b36417d1ee40e48f",
+          "executable_headers": [
+            {
+              "path": "AlienResurrection-0.1.8-windows-x64/AlienResurrection.exe",
+              "bytes": 1457664,
+              "machine": "0x8664"
+            }
+          ]
+        },
+        {
+          "tag": "v0.1.8",
+          "source": "15bcbab40702fe17fac4757f278efc44eb69056a",
+          "asset_id": 673875226,
+          "url": "https://github.com/DiegoDeDios/AlienReRecomp/releases/download/v0.1.8/AlienResurrection-0.1.8-linux-x86_64.tar.gz",
+          "bytes": 2564673,
+          "publisher_expected_digest": "sha256:12c5790d50dee8a64ed03b5f7780f14e4a75612773b6dbc5b252d0f0545b007d",
+          "actual_sha256": "12c5790d50dee8a64ed03b5f7780f14e4a75612773b6dbc5b252d0f0545b007d",
+          "executable_headers": [
+            {
+              "path": "AlienResurrection-0.1.8-linux-x86_64/AlienResurrection",
+              "bytes": 1424440,
+              "class_bits": 64,
+              "machine": 62
+            }
+          ]
+        },
+        {
+          "tag": "v0.1.7",
+          "source": "a6bff6d86249a1685c9339a590b6c4903960146d",
+          "asset_id": 673845100,
+          "url": "https://github.com/DiegoDeDios/AlienReRecomp/releases/download/v0.1.7/AlienResurrection-0.1.7-windows-x64.zip",
+          "bytes": 2763329,
+          "publisher_expected_digest": "sha256:67c9a5c7cba0bcd7a888226041f788e19470c9cabf7626ab537dcc75e9da657b",
+          "actual_sha256": "67c9a5c7cba0bcd7a888226041f788e19470c9cabf7626ab537dcc75e9da657b",
+          "executable_headers": [
+            {
+              "path": "AlienResurrection-0.1.7-windows-x64/AlienResurrection.exe",
+              "bytes": 1457664,
+              "machine": "0x8664"
+            }
+          ]
+        },
+        {
+          "tag": "v0.1.7",
+          "source": "a6bff6d86249a1685c9339a590b6c4903960146d",
+          "asset_id": 673845099,
+          "url": "https://github.com/DiegoDeDios/AlienReRecomp/releases/download/v0.1.7/AlienResurrection-0.1.7-linux-x86_64.tar.gz",
+          "bytes": 2564446,
+          "publisher_expected_digest": "sha256:ace1b401ac8643b59c12486cca2f646201792f5b92af024b90cea7132dff4773",
+          "actual_sha256": "ace1b401ac8643b59c12486cca2f646201792f5b92af024b90cea7132dff4773",
+          "executable_headers": [
+            {
+              "path": "AlienResurrection-0.1.7-linux-x86_64/AlienResurrection",
+              "bytes": 1424440,
+              "class_bits": 64,
+              "machine": 62
+            }
+          ]
+        }
+      ],
+      "authored": {
+        "path": "crates/portcove-core/catalog/ports/diegodedios-alienrerecomp.json",
+        "sha256": "8d814850773996e9743b93ef66e691fbada01e38a5c05f397a68cb1685edf1d3",
+        "preimage": "absent",
+        "lineage": "legacy-unassessed",
+        "operational_changed": true,
+        "record_matches_maintained_preparation": true,
+        "download_block_reason": null,
+        "native_contract": {
+          "support_tier": "beta",
+          "channels": ["stable"],
+          "platforms": ["windows-x86-64", "linux-x86-64"],
+          "adapter": "native-portable",
+          "release": {
+            "repository": "DiegoDeDios/AlienReRecomp",
+            "asset_hints": {
+              "windows-x86-64": ["AlienResurrection-", "-windows-x64.zip"],
+              "linux-x86-64": ["AlienResurrection-", "-linux-x86_64.tar.gz"]
+            }
+          },
+          "executable_hints": {
+            "windows-x86-64": ["AlienResurrection.exe"],
+            "linux-x86-64": ["AlienResurrection"]
+          },
+          "launch_arguments": ["--save-dir", "saves"],
+          "persistent_paths": ["saves"],
+          "persistent_file_patterns": [
+            {
+              "prefix": "shot_",
+              "suffix": ".png"
+            },
+            {
+              "prefix": "vram_",
+              "suffix": ".png"
+            }
+          ],
+          "presentation": {
+            "installation_method": "portable-package",
+            "source_requirements": [],
+            "saves_and_settings": "portcove-managed",
+            "manual_preparation": "On first Play, choose your own USA PlayStation Alien Resurrection disc image (SLUS-00633). This separate managed copy uses its saves folder for settings, memory cards, quick save and logs. Portcove also preserves runtime-folder shot_*.png screenshots and vram_*.png captures. Original disc files, external-copy profiles, custom save paths and custom debug destinations stay external. Make a memory-card save in game BEFORE updating, switching runtime versions or rolling back. Quick saves are version-specific and have one slot; retain the old runtime if your latest progress exists only in its quick save. Runtime rollback carries current declared data, not earlier saves or guaranteed older-version compatibility. Linux needs glibc 2.35+ and a working Vulkan environment; other platforms need separate review."
+          }
+        }
+      },
+      "validation_scope": "Bounded pinned source/package observations and maintained authoring validation. No game/helper/installer/native execution or original data acquired. Source candidate; final exact-head CI and independent review are recorded on the PR.",
+      "delivery_status": "Source-bound candidate evidence; canonical issue/PR owns delivered state, not this dated snapshot."
+    },
+    {
+      "id": "tdrrmk2-uhexen2-tweaked",
+      "canonical_issue": 2747,
+      "previous_route": "Original22 roadmap-only canonical identity; no prior authored listing",
+      "platform_scope": ["Win32 player on Windows host"],
+      "official_upstream": {
+        "repository": "TDRRmk2/uhexen2-tweaked",
+        "repository_id": 1194976697,
+        "node_id": "R_kgDORznluQ",
+        "source": "b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41",
+        "tag": "test-1",
+        "release_inventory_complete": true,
+        "releases_observed": 1,
+        "pinned_source_tree_complete": true
+      },
+      "selected_route": "Add the distinct upstream-owned Win32 OpenGL preview route with recommended Preview channel and native player glh2.exe.",
+      "update_owner": "upstream/player",
+      "setup_data": "test-1 release notes establish lighting, filtering, viewmodel-FOV and HUD changes; explicitly not HexenWorld. Actual ZIP supplies glh2.exe+DLLs only. Use a separate prepared Hexen II working copy, normally retail1.11 data1/pak0.pak+pak1.pak. Windows base/userdir is cwd; config, save slots/info.dat, .gip, screenshots/demos use data1 or selected portals/custom game directory. Optional mission pack requires its own portals/pak3.pak and -portals; source support is not execution qualification.",
+      "disposition": "upstream-guide; managed-fit-unfinished",
+      "next_action": "Establish supported original-data preparation/readiness, full mutable-vs-original contract and component grants/notices before managed replacement. Optional full-game observations do not block the useful non-owning route.",
+      "evidence_paths": ["README.txt", "engine/hexen2/sys_win.c", "engine/h2shared/quakefs.c"],
+      "evidence": [
+        "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/README.txt",
+        "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/engine/hexen2/sys_win.c",
+        "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/engine/h2shared/quakefs.c"
+      ],
+      "actual_artifacts": [
+        {
+          "tag": "test-1",
+          "source": "b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41",
+          "asset_id": 384287276,
+          "url": "https://github.com/TDRRmk2/uhexen2-tweaked/releases/download/test-1/H2HoT-Tweaked-Test1-win32.zip",
+          "bytes": 1590928,
+          "publisher_expected_digest": "sha256:634cb153185fca7c85f59827a7154de6ab519e5d9ce4f86c874ac71850094875",
+          "actual_sha256": "634cb153185fca7c85f59827a7154de6ab519e5d9ce4f86c874ac71850094875",
+          "executable_headers": [
+            {
+              "path": "glh2.exe",
+              "bytes": 1239552,
+              "machine": "0x14c"
+            }
+          ]
+        }
+      ],
+      "authored": {
+        "path": "crates/portcove-core/catalog/ports/tdrrmk2-uhexen2-tweaked.json",
+        "sha256": "4f6d3a22308be2fe8a9852979ba267518ebb072a4c9444ba9719deb2a588171e",
+        "preimage": "absent",
+        "lineage": "legacy-unassessed",
+        "operational_changed": false,
+        "record_matches_maintained_preparation": true,
+        "download_block_reason": null,
+        "native_contract": null
+      },
+      "validation_scope": "Bounded pinned source/package observations and maintained authoring validation. No game/helper/installer/native execution or original data acquired. Source candidate; final exact-head CI and independent review are recorded on the PR.",
+      "delivery_status": "Source-bound candidate evidence; canonical issue/PR owns delivered state, not this dated snapshot."
+    },
+    {
+      "id": "inliner495-bblit-remaster",
+      "canonical_issue": 2751,
+      "previous_route": "Original22 roadmap-only canonical identity; no prior authored listing",
+      "platform_scope": [
+        "Windows original PC game plus enhancement",
+        "Proton upstream-only observation"
+      ],
+      "official_upstream": {
+        "repository": "InLineR495/BBLIT-Remaster",
+        "repository_id": 1423131254,
+        "node_id": "R_kgDOVNNCdg",
+        "source": "4b8f5fa34e6bcd70ddcc5cd50f06325674489765",
+        "tag": "v1.0-beta2",
+        "release_inventory_complete": true,
+        "releases_observed": 2,
+        "pinned_source_tree_complete": true
+      },
+      "selected_route": "Add an upstream-owned renderer-enhancement handoff with Preview download, preserving the original game as runtime owner.",
+      "update_owner": "player/upstream for original runtime and separately selected enhancement; no Portcove replacement",
+      "setup_data": "Actual beta2 ZIP contains BIN/ddraw.dll+remaster.ini and docs, no game executable. Copy into a recoverable permitted original PC game after preserving conflicting wrappers/config. Select BIN/bugs.exe, cwd BIN, with five separate args /opengl /win /b0 /x800 /y600; not BugsBunny.exe or a DLL. Upstream recognizes four exact original executable hashes. Preserve BIN saves/settings/logs. Upstream Linux Proton testing is not a native Linux player or managed compatibility layer.",
+      "disposition": "non-owning-enhancement-route; standalone-managed-package-not-applicable",
+      "next_action": "Keep the supported original-executable and launch-argument conditions. No bespoke wrapper/engine or Native managed admission of a DLL-only package. Independent canonical/native acceptance remains open.",
+      "evidence_paths": ["README.md", "LICENSE"],
+      "evidence": [
+        "https://github.com/InLineR495/BBLIT-Remaster/blob/4b8f5fa34e6bcd70ddcc5cd50f06325674489765/README.md",
+        "https://github.com/InLineR495/BBLIT-Remaster/blob/4b8f5fa34e6bcd70ddcc5cd50f06325674489765/LICENSE"
+      ],
+      "actual_artifacts": [
+        {
+          "tag": "v1.0-beta2",
+          "source": "4b8f5fa34e6bcd70ddcc5cd50f06325674489765",
+          "asset_id": 655624320,
+          "url": "https://github.com/InLineR495/BBLIT-Remaster/releases/download/v1.0-beta2/BBLIT-Remaster-1.0-beta2.zip",
+          "bytes": 849913,
+          "publisher_expected_digest": "sha256:f4cfac22af5f28d917e7dade9c1ffce82eb6d9f0fda73c4a3af61d35e14dd7b0",
+          "actual_sha256": "f4cfac22af5f28d917e7dade9c1ffce82eb6d9f0fda73c4a3af61d35e14dd7b0",
+          "executable_headers": []
+        }
+      ],
+      "authored": {
+        "path": "crates/portcove-core/catalog/ports/inliner495-bblit-remaster.json",
+        "sha256": "bc80e00be37c1795055261c36b72fbc2586d9307715bc24f073442c44e8b8d0e",
+        "preimage": "absent",
+        "lineage": "legacy-unassessed",
+        "operational_changed": false,
+        "record_matches_maintained_preparation": true,
+        "download_block_reason": null,
+        "native_contract": null
+      },
+      "validation_scope": "Bounded pinned source/package observations and maintained authoring validation. No game/helper/installer/native execution or original data acquired. Source candidate; final exact-head CI and independent review are recorded on the PR.",
+      "delivery_status": "Source-bound candidate evidence; canonical issue/PR owns delivered state, not this dated snapshot."
+    }
+  ]
+}
