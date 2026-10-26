@@ -40,30 +40,44 @@ export async function sourceRemovalScenario({
   confirmNative,
 }: SourceRemovalContext) {
   await scenario("native-reviewed-source-reference-removal", async () => {
-    assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const { portId, install } = installedPreservationWitness((args) =>
-      transportValue("status", command(args)),
-    );
-    const port = transportValue("port", command(["catalog", "show", portId]));
-    const sources = () => transportValues("source", command(["source", "list"]));
-    const source = sources().find((item) => item.profile_id === port.source_profile);
-    assert.ok(source);
-    const paths = transportValue("port_paths", command(["paths", port.id]));
-    const relative = path.relative(library, paths.user_data_root);
-    assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
-    await mkdir(paths.user_data_root, { recursive: true });
-    const save = path.join(paths.user_data_root, "owned-source-review-save.bin");
-    await writeFile(save, "source removal must preserve this save", {
-      flag: "wx",
-    });
-    const backup = transportValue("backup", command(["backup", "create", port.id]));
-    const preserved = await Promise.all(
-      [source.path, save, path.join(backup.path, "data/owned-source-review-save.bin")].map((file) =>
-        fileIdentity(file),
-      ),
-    );
-    const others = () => sources().filter((item) => item.profile_id !== source.profile_id);
-    const otherSources = others();
+    async function retainSourceRemovalPreimages() {
+      assert.equal(path.resolve(library), path.resolve(output, "library"));
+      const { portId, install } = installedPreservationWitness((args) =>
+        transportValue("status", command(args)),
+      );
+      const port = transportValue("port", command(["catalog", "show", portId]));
+      const sources = () => transportValues("source", command(["source", "list"]));
+      const source = sources().find((item) => item.profile_id === port.source_profile);
+      assert.ok(source);
+      const paths = transportValue("port_paths", command(["paths", port.id]));
+      const relative = path.relative(library, paths.user_data_root);
+      assert.ok(relative && !relative.startsWith("..") && !path.isAbsolute(relative));
+      await mkdir(paths.user_data_root, { recursive: true });
+      const save = path.join(paths.user_data_root, "owned-source-review-save.bin");
+      await writeFile(save, "source removal must preserve this save", {
+        flag: "wx",
+      });
+      const backup = transportValue("backup", command(["backup", "create", port.id]));
+      const preserved = await Promise.all(
+        [source.path, save, path.join(backup.path, "data/owned-source-review-save.bin")].map(
+          (file) => fileIdentity(file),
+        ),
+      );
+      const others = () => sources().filter((item) => item.profile_id !== source.profile_id);
+      const otherSources = others();
+      return {
+        install,
+        port,
+        sources,
+        source,
+        backup,
+        preserved,
+        others,
+        otherSources,
+      };
+    }
+    const { install, port, sources, source, backup, preserved, others, otherSources } =
+      await retainSourceRemovalPreimages();
     await browser.navigate().refresh();
     const updatePreference = await invoke("get_application_update_preferences");
     assert(isRecord(updatePreference));
@@ -92,30 +106,7 @@ export async function sourceRemovalScenario({
       `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Review saved location removal"]`,
     );
     await browser.wait(until.elementLocated(row), 15_000);
-    const rowLayout = await executeBrowserScript(
-      browser,
-      (element) => {
-        const title = element.querySelector("strong");
-        const actions = element.querySelector(".source-health-actions");
-        const bounds = element.getBoundingClientRect();
-        const titleBounds = title?.getBoundingClientRect();
-        const actionBounds = actions?.getBoundingClientRect();
-        return {
-          rowWidth: bounds.width,
-          titleColumnWidth: title?.parentElement?.getBoundingClientRect().width ?? 0,
-          titleHeight: titleBounds?.height ?? 0,
-          actionsTop: actionBounds?.top ?? 0,
-          titleBottom: titleBounds?.bottom ?? 0,
-        };
-      },
-      await browser.findElement(row),
-    );
-    assert.ok(
-      rowLayout.titleColumnWidth > rowLayout.rowWidth * 0.7 &&
-        rowLayout.titleHeight < 80 &&
-        rowLayout.actionsTop >= rowLayout.titleBottom,
-      `saved source title is cramped: ${JSON.stringify(rowLayout)}`,
-    );
+    await assertSavedSourceLayout(browser, row);
     const originalWindow = await browser.manage().window().getRect();
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
@@ -202,12 +193,7 @@ export async function sourceRemovalScenario({
         await browser.findElement(button("Keep location")),
       );
       let text = await browser.findElement(dialog).getText();
-      assert.ok(
-        text.includes(source.path) &&
-          text.includes(port.name) &&
-          text.includes("does not move or delete files at") &&
-          text.includes("If interrupted, reopen Settings"),
-      );
+      assertSourceRemovalExplanation(text, source.path, port.name);
       await click(button("Keep location"));
       assert.deepEqual(
         sources().find((item) => item.profile_id === source.profile_id),
@@ -522,18 +508,21 @@ export async function sourceRemovalScenario({
         throw waitError;
       }
       await enlargedStage("removed-location");
-      assert.ok(!sources().some((item) => item.profile_id === source.profile_id));
-      assert.deepEqual(others(), otherSources);
-      assert.deepEqual(
-        await Promise.all(preserved.map((item) => fileIdentity(item.path))),
-        preserved,
-      );
-      assert.deepEqual(transportValue("status", command(["status", port.id])).active, install);
-      assert.ok(
-        transportValue("backup_inventory", command(["backup", "list", port.id])).backups.some(
-          (item) => item.id === backup.id,
-        ),
-      );
+      async function assertRemovalPreservedData() {
+        assert.ok(!sources().some((item) => item.profile_id === source.profile_id));
+        assert.deepEqual(others(), otherSources);
+        assert.deepEqual(
+          await Promise.all(preserved.map((item) => fileIdentity(item.path))),
+          preserved,
+        );
+        assert.deepEqual(transportValue("status", command(["status", port.id])).active, install);
+        assert.ok(
+          transportValue("backup_inventory", command(["backup", "list", port.id])).backups.some(
+            (item) => item.id === backup.id,
+          ),
+        );
+      }
+      await assertRemovalPreservedData();
       const result = path.join(output, "source-removal-result.json");
       await writeFile(
         result,
@@ -607,4 +596,40 @@ export async function sourceRemovalScenario({
     }
     if (failure) throw failure.error;
   });
+}
+
+async function assertSavedSourceLayout(browser: WebDriver, row: ReturnType<typeof By.css>) {
+  const rowLayout = await executeBrowserScript(
+    browser,
+    (element) => {
+      const title = element.querySelector("strong");
+      const actions = element.querySelector(".source-health-actions");
+      const bounds = element.getBoundingClientRect();
+      const titleBounds = title?.getBoundingClientRect();
+      const actionBounds = actions?.getBoundingClientRect();
+      return {
+        rowWidth: bounds.width,
+        titleColumnWidth: title?.parentElement?.getBoundingClientRect().width ?? 0,
+        titleHeight: titleBounds?.height ?? 0,
+        actionsTop: actionBounds?.top ?? 0,
+        titleBottom: titleBounds?.bottom ?? 0,
+      };
+    },
+    await browser.findElement(row),
+  );
+  assert.ok(
+    rowLayout.titleColumnWidth > rowLayout.rowWidth * 0.7 &&
+      rowLayout.titleHeight < 80 &&
+      rowLayout.actionsTop >= rowLayout.titleBottom,
+    `saved source title is cramped: ${JSON.stringify(rowLayout)}`,
+  );
+}
+
+function assertSourceRemovalExplanation(text: string, sourcePath: string, portName: string) {
+  assert.ok(
+    text.includes(sourcePath) &&
+      text.includes(portName) &&
+      text.includes("does not move or delete files at") &&
+      text.includes("If interrupted, reopen Settings"),
+  );
 }

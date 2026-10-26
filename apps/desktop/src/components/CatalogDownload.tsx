@@ -48,7 +48,7 @@ function assetKey(asset: CatalogDownloadCandidate): string {
   return `${asset.release_id}:${asset.asset_id}`;
 }
 
-function DownloadChoices({
+function useDownloadChoices({
   entry,
   generation,
   busy,
@@ -102,25 +102,11 @@ function DownloadChoices({
     };
   }, []);
 
-  const candidates = result?.allowed ? result.candidates : [];
-  const ordinary = candidates.filter((candidate) =>
-    result?.packages.some(
-      (item) => item.asset_id === candidate.asset_id && item.suitability === "suitable",
-    ),
+  const { candidates, concise, displayed, selected } = downloadSelection(
+    result,
+    selectedKey,
+    showOther,
   );
-  // Keep Core's recommendation and the player's explicit choice visible even
-  // when upstream publishes more packages than fit in the concise list.
-  const preferred = candidates.filter(
-    (candidate) =>
-      candidate.asset_id === result?.recommended_asset_id || assetKey(candidate) === selectedKey,
-  );
-  const concise = [
-    ...preferred,
-    ...ordinary.filter((candidate) => !preferred.includes(candidate)),
-  ].slice(0, 8);
-  const displayed = showOther ? candidates : concise;
-  const matches = candidates.filter((candidate) => assetKey(candidate) === selectedKey);
-  const selected = matches.length === 1 ? matches[0] : undefined;
   const controlsBusy = busy || checking || choosingFolder;
   const loadCandidates = useCallback(
     (releaseId?: number, selectedChannel = "stable", retainedPackage?: string) => {
@@ -195,6 +181,55 @@ function DownloadChoices({
     }
   }, [autoCheck, loadCandidates]);
 
+  return {
+    entry,
+    generation,
+    busy,
+    perform,
+    choiceWarning,
+    extractionId,
+    optionsId,
+    downloadRegion,
+    reviewButton,
+    result,
+    selectedKey,
+    setSelectedKey,
+    releaseChoice,
+    setReleaseChoice,
+    setPackageChoice,
+    channel,
+    setChannel,
+    showOther,
+    setShowOther,
+    optionsOpen,
+    setOptionsOpen,
+    destination,
+    extract,
+    setExtract,
+    remember,
+    checking,
+    error,
+    request,
+    setRequest,
+    candidates,
+    concise,
+    displayed,
+    selected,
+    controlsBusy,
+    check,
+    chooseFolder,
+  };
+}
+
+function DownloadChoices(props: Parameters<typeof useDownloadChoices>[0]) {
+  return <DownloadChoicesView {...useDownloadChoices(props)} />;
+}
+
+function DownloadChoicesView({
+  downloadRegion,
+  reviewButton,
+  ...model
+}: ReturnType<typeof useDownloadChoices>) {
   return (
     <section
       ref={downloadRegion}
@@ -205,197 +240,60 @@ function DownloadChoices({
       <ActionRow>
         <Button
           data-focusable
-          variant={result ? "outline" : "primary"}
-          disabled={controlsBusy}
-          onClick={() => void check(releaseChoice, channel, true)}
+          variant={model.result ? "outline" : "primary"}
+          disabled={model.controlsBusy}
+          onClick={() => void model.check(model.releaseChoice, model.channel, true)}
         >
-          {checking
+          {model.checking
             ? "Checking upstream downloads…"
-            : result
+            : model.result
               ? "Check downloads again"
               : "Check upstream downloads"}
         </Button>
-        {result && <ExternalLink href={result.upstream_url}>View upstream releases</ExternalLink>}
+        {model.result && (
+          <ExternalLink href={model.result.upstream_url}>View upstream releases</ExternalLink>
+        )}
       </ActionRow>
-      <ActionReviewFailure error={error} />
-      {choiceWarning && (
+      <ActionReviewFailure error={model.error} />
+      {model.choiceWarning && (
         <p role="status" className="text-sm">
-          {choiceWarning}
+          {model.choiceWarning}
         </p>
       )}
-      {result && (result.reason || !result.allowed || !candidates.length) && (
-        <p role="status">
-          {result.reason ||
-            "No downloadable package is currently offered here. Check the upstream project for setup instructions."}
-        </p>
-      )}
-      {result?.allowed && (
+      {model.result &&
+        (model.result.reason || !model.result.allowed || !model.candidates.length) && (
+          <p role="status">
+            {model.result.reason ||
+              "No downloadable package is currently offered here. Check the upstream project for setup instructions."}
+          </p>
+        )}
+      {model.result?.allowed && (
         <>
-          {selected && (
-            <section className="grid min-w-0 gap-2" aria-label="Recommended download">
-              <strong>
-                {gameIdentityLabel(entry)} · {selected.release_tag}
-              </strong>
-              <p className="[overflow-wrap:anywhere]">
-                {selected.name} · {formatBytes(selected.size)}
-              </p>
-              {destination && (
-                <p className="text-sm [overflow-wrap:anywhere]">
-                  Download to <code>{destination}</code>
-                </p>
-              )}
-              <p className="text-sm">
-                You or upstream provide runtime updates. Your game files and saves stay outside
-                Portcove's managed backups.
-              </p>
-              {entry.presentation?.manual_setup?.steps[0] && (
-                <p className="text-sm">{entry.presentation.manual_setup.steps[0].instruction}</p>
-              )}
-            </section>
-          )}
+          {<RecommendedDownload {...{ model }} />}
           <Button
             data-focusable
             variant="outline"
-            aria-expanded={optionsOpen || !selected || !destination}
-            aria-controls={optionsId}
-            onClick={() => setOptionsOpen((value) => !value)}
+            aria-expanded={model.optionsOpen || !model.selected || !model.destination}
+            aria-controls={model.optionsId}
+            onClick={() => model.setOptionsOpen((value) => !value)}
           >
             Change download options
           </Button>
-          {(optionsOpen || !selected || !destination) && (
-            <div id={optionsId} className="grid min-w-0 gap-3 pt-2">
-              <ChoiceSelect
-                label="Release channel"
-                value={channel}
-                disabled={controlsBusy}
-                options={[
-                  { value: "stable", label: "Stable" },
-                  { value: "beta", label: "Preview" },
-                ]}
-                onChange={(value) => {
-                  if (value !== "stable" && value !== "beta") return;
-                  remember({ channel: value, release: null, package: "" });
-                  setChannel(value);
-                  setReleaseChoice(undefined);
-                  setPackageChoice("");
-                  void check(undefined, value);
-                }}
-              />
-              {result.releases.length > 0 && (
-                <ChoiceSelect
-                  label="Release"
-                  value={String(result.selected_release_id ?? "")}
-                  disabled={controlsBusy}
-                  options={[
-                    { value: "", label: "Choose a release" },
-                    ...result.releases.map((release) => ({
-                      value: String(release.id),
-                      label: `${release.tag}${release.preview ? " · Preview" : " · Stable"}`,
-                    })),
-                  ]}
-                  onChange={(value) => {
-                    if (value) {
-                      remember({ release: Number(value), package: "" });
-                      setReleaseChoice(Number(value));
-                      setPackageChoice("");
-                      void check(Number(value));
-                    }
-                  }}
-                />
-              )}
-              <p role="status">{result.recommendation_reason}</p>
-              {displayed.length > 0 && (
-                <ChoiceSelect
-                  label="Package"
-                  value={selectedKey}
-                  disabled={controlsBusy}
-                  options={[
-                    { value: "", label: "Choose a file…" },
-                    ...displayed.map((candidate) => ({
-                      value: assetKey(candidate),
-                      label: `${candidate.asset_id === result.recommended_asset_id ? "Recommended · " : ""}${candidate.name} · ${formatBytes(candidate.size)}`,
-                    })),
-                  ]}
-                  onChange={(value) => {
-                    setSelectedKey(value);
-                    setPackageChoice(value);
-                    const packageRelease = candidates.find(
-                      (candidate) => assetKey(candidate) === value,
-                    )?.release_id;
-                    if (packageRelease) setReleaseChoice(packageRelease);
-                    remember({ package: value, release: packageRelease ?? null, extract: true });
-                    setExtract(true);
-                  }}
-                  description="Packages belong to the selected release. Check its notes for setup requirements."
-                />
-              )}
-              {candidates.length > concise.length && (
-                <Button
-                  variant="outline"
-                  disabled={controlsBusy}
-                  aria-expanded={showOther}
-                  onClick={() => setShowOther((value) => !value)}
-                >
-                  {showOther ? "Show recommended packages" : "Other and uncertain downloads"}
-                </Button>
-              )}
-              {selected && (
-                <p className="text-sm">
-                  {result.packages.find((item) => item.asset_id === selected.asset_id)?.reason}
-                </p>
-              )}
-              {selected && (
-                <ExternalLink href={selected.release_url}>
-                  Release notes and requirements
-                </ExternalLink>
-              )}
-              <ActionRow>
-                <Button
-                  data-focusable
-                  variant="outline"
-                  disabled={controlsBusy}
-                  onClick={() => void chooseFolder()}
-                >
-                  {destination ? "Change download folder…" : "Choose download folder…"}
-                </Button>
-                {destination && (
-                  <code className="min-w-0 [overflow-wrap:anywhere]">{destination}</code>
-                )}
-              </ActionRow>
-              <p className="text-sm text-pc-muted-foreground">
-                Choose a folder outside your Portcove library. Portcove will create a new folder for
-                this download without replacing existing files.
-              </p>
-              {selected?.can_extract && (
-                <label htmlFor={extractionId} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    id={extractionId}
-                    checked={extract}
-                    disabled={controlsBusy}
-                    onCheckedChange={(value) => {
-                      setExtract(value);
-                      remember({ extract: value });
-                    }}
-                  />
-                  Extract the archive after downloading
-                </label>
-              )}
-            </div>
-          )}
+          {<DownloadOptions {...model} result={model.result} />}
           <ActionRow>
             <Button
               data-focusable
               variant="primary"
-              disabled={controlsBusy || !selected || !destination}
+              disabled={model.controlsBusy || !model.selected || !model.destination}
               ref={reviewButton}
               onClick={() => {
-                if (!selected || !destination) return;
-                setRequest({
-                  port_id: entry.id,
-                  release_id: selected.release_id,
-                  asset_id: selected.asset_id,
-                  destination_parent: destination,
-                  extract_archive: selected.can_extract && extract,
+                if (!model.selected || !model.destination) return;
+                model.setRequest({
+                  port_id: model.entry.id,
+                  release_id: model.selected.release_id,
+                  asset_id: model.selected.asset_id,
+                  destination_parent: model.destination,
+                  extract_archive: model.selected.can_extract && model.extract,
                 });
               }}
             >
@@ -404,14 +302,14 @@ function DownloadChoices({
           </ActionRow>
         </>
       )}
-      {request && (
+      {model.request && (
         <DownloadReview
-          entry={entry}
-          generation={generation}
-          busy={busy}
-          perform={perform}
-          request={request}
-          close={() => setRequest(undefined)}
+          entry={model.entry}
+          generation={model.generation}
+          busy={model.busy}
+          perform={model.perform}
+          request={model.request}
+          close={() => model.setRequest(undefined)}
           returnFocus={() =>
             reviewButton.current?.disabled ? downloadRegion.current : reviewButton.current
           }
@@ -681,5 +579,215 @@ function PendingActions({
         </Dialog>
       )}
     </>
+  );
+}
+
+function DownloadOptions({
+  selected,
+  ...model
+}: Pick<
+  ReturnType<typeof useDownloadChoices>,
+  | "extractionId"
+  | "optionsId"
+  | "result"
+  | "selectedKey"
+  | "setSelectedKey"
+  | "setReleaseChoice"
+  | "setPackageChoice"
+  | "channel"
+  | "setChannel"
+  | "showOther"
+  | "setShowOther"
+  | "optionsOpen"
+  | "destination"
+  | "extract"
+  | "setExtract"
+  | "remember"
+  | "candidates"
+  | "concise"
+  | "displayed"
+  | "selected"
+  | "controlsBusy"
+  | "check"
+  | "chooseFolder"
+> & { result: CatalogDownloadCandidates }) {
+  return (
+    (model.optionsOpen || !selected || !model.destination) && (
+      <div id={model.optionsId} className="grid min-w-0 gap-3 pt-2">
+        <ChoiceSelect
+          label="Release channel"
+          value={model.channel}
+          disabled={model.controlsBusy}
+          options={[
+            { value: "stable", label: "Stable" },
+            { value: "beta", label: "Preview" },
+          ]}
+          onChange={(value) => {
+            if (value !== "stable" && value !== "beta") return;
+            model.remember({ channel: value, release: null, package: "" });
+            model.setChannel(value);
+            model.setReleaseChoice(undefined);
+            model.setPackageChoice("");
+            void model.check(undefined, value);
+          }}
+        />
+        {model.result.releases.length > 0 && (
+          <ChoiceSelect
+            label="Release"
+            value={String(model.result.selected_release_id ?? "")}
+            disabled={model.controlsBusy}
+            options={[
+              { value: "", label: "Choose a release" },
+              ...model.result.releases.map((release) => ({
+                value: String(release.id),
+                label: `${release.tag}${release.preview ? " · Preview" : " · Stable"}`,
+              })),
+            ]}
+            onChange={(value) => {
+              if (value) {
+                model.remember({ release: Number(value), package: "" });
+                model.setReleaseChoice(Number(value));
+                model.setPackageChoice("");
+                void model.check(Number(value));
+              }
+            }}
+          />
+        )}
+        <p role="status">{model.result.recommendation_reason}</p>
+        {model.displayed.length > 0 && (
+          <ChoiceSelect
+            label="Package"
+            value={model.selectedKey}
+            disabled={model.controlsBusy}
+            options={[
+              { value: "", label: "Choose a file…" },
+              ...model.displayed.map((candidate) => ({
+                value: assetKey(candidate),
+                label: `${candidate.asset_id === model.result.recommended_asset_id ? "Recommended · " : ""}${candidate.name} · ${formatBytes(candidate.size)}`,
+              })),
+            ]}
+            onChange={(value) => {
+              model.setSelectedKey(value);
+              model.setPackageChoice(value);
+              const packageRelease = model.candidates.find(
+                (candidate) => assetKey(candidate) === value,
+              )?.release_id;
+              if (packageRelease) model.setReleaseChoice(packageRelease);
+              model.remember({ package: value, release: packageRelease ?? null, extract: true });
+              model.setExtract(true);
+            }}
+            description="Packages belong to the selected release. Check its notes for setup requirements."
+          />
+        )}
+        {model.candidates.length > model.concise.length && (
+          <Button
+            variant="outline"
+            disabled={model.controlsBusy}
+            aria-expanded={model.showOther}
+            onClick={() => model.setShowOther((value) => !value)}
+          >
+            {model.showOther ? "Show recommended packages" : "Other and uncertain downloads"}
+          </Button>
+        )}
+        {selected && (
+          <p className="text-sm">
+            {model.result.packages.find((item) => item.asset_id === selected.asset_id)?.reason}
+          </p>
+        )}
+        {selected && (
+          <ExternalLink href={selected.release_url}>Release notes and requirements</ExternalLink>
+        )}
+        <ActionRow>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={model.controlsBusy}
+            onClick={() => void model.chooseFolder()}
+          >
+            {model.destination ? "Change download folder…" : "Choose download folder…"}
+          </Button>
+          {model.destination && (
+            <code className="min-w-0 [overflow-wrap:anywhere]">{model.destination}</code>
+          )}
+        </ActionRow>
+        <p className="text-sm text-pc-muted-foreground">
+          Choose a folder outside your Portcove library. Portcove will create a new folder for this
+          download without replacing existing files.
+        </p>
+        {selected?.can_extract && (
+          <label htmlFor={model.extractionId} className="flex items-center gap-2 text-sm">
+            <Checkbox
+              id={model.extractionId}
+              checked={model.extract}
+              disabled={model.controlsBusy}
+              onCheckedChange={(value) => {
+                model.setExtract(value);
+                model.remember({ extract: value });
+              }}
+            />
+            Extract the archive after downloading
+          </label>
+        )}
+      </div>
+    )
+  );
+}
+
+function downloadSelection(
+  result: CatalogDownloadCandidates | undefined,
+  selectedKey: string,
+  showOther: boolean,
+) {
+  const candidates = result?.allowed ? result.candidates : [];
+  const ordinary = candidates.filter((candidate) =>
+    result?.packages.some(
+      (item) => item.asset_id === candidate.asset_id && item.suitability === "suitable",
+    ),
+  );
+  // Keep Core's recommendation and the player's explicit choice visible even
+  // when upstream publishes more packages than fit in the concise list.
+  const preferred = candidates.filter(
+    (candidate) =>
+      candidate.asset_id === result?.recommended_asset_id || assetKey(candidate) === selectedKey,
+  );
+  const concise = [
+    ...preferred,
+    ...ordinary.filter((candidate) => !preferred.includes(candidate)),
+  ].slice(0, 8);
+  const displayed = showOther ? candidates : concise;
+  const matches = candidates.filter((candidate) => assetKey(candidate) === selectedKey);
+  const selected = matches.length === 1 ? matches[0] : undefined;
+  return { candidates, concise, displayed, selected };
+}
+
+function RecommendedDownload({
+  model,
+}: Pick<
+  { model: Omit<ReturnType<typeof useDownloadChoices>, "downloadRegion" | "reviewButton"> },
+  "model"
+>) {
+  return (
+    model.selected && (
+      <section className="grid min-w-0 gap-2" aria-label="Recommended download">
+        <strong>
+          {gameIdentityLabel(model.entry)} · {model.selected.release_tag}
+        </strong>
+        <p className="[overflow-wrap:anywhere]">
+          {model.selected.name} · {formatBytes(model.selected.size)}
+        </p>
+        {model.destination && (
+          <p className="text-sm [overflow-wrap:anywhere]">
+            Download to <code>{model.destination}</code>
+          </p>
+        )}
+        <p className="text-sm">
+          You or upstream provide runtime updates. Your game files and saves stay outside Portcove's
+          managed backups.
+        </p>
+        {model.entry.presentation?.manual_setup?.steps[0] && (
+          <p className="text-sm">{model.entry.presentation.manual_setup.steps[0].instruction}</p>
+        )}
+      </section>
+    )
   );
 }

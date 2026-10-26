@@ -269,12 +269,40 @@ function moveFocus(direction: NavigationDirection) {
   const candidates = focusableControls(region ?? scope).filter(
     (item) => !region || item.closest("[data-focus-region]") === region,
   );
+  if (enterFocusedHeading(origin, region ?? scope, candidates, direction)) return true;
+  const target = spatialTargetIndex(
+    candidates.map((item) => item.getBoundingClientRect()),
+    origin ? candidates.indexOf(origin) : -1,
+    direction,
+    candidates.map((item) => item.closest("[data-focus-group]")),
+  );
+  if (target < 0 && horizontal && region) {
+    if (direction === "left" && region.dataset.focusRegion === "workspace")
+      return focusRegion("sidebar");
+    if (direction === "right" && region.dataset.focusRegion === "sidebar")
+      return focusRegion("workspace");
+  }
+  if (target < 0) return false;
+  focusAndReveal(candidates[target]);
+  return true;
+}
+
+function center(rect: FocusRect) {
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
+
+function enterFocusedHeading(
+  origin: HTMLElement | undefined,
+  scope: Document | HTMLElement,
+  candidates: HTMLElement[],
+  direction: NavigationDirection,
+) {
   // A section heading can receive programmatic focus without joining the Tab
   // order. Keep its position as the arrow origin instead of jumping to index 0.
   if (
     origin &&
     !candidates.includes(origin) &&
-    (region ?? scope).contains(origin) &&
+    scope.contains(origin) &&
     origin.matches("[tabindex]") &&
     !origin.closest("[inert], [hidden], [aria-hidden=true]") &&
     origin.getClientRects().length > 0 &&
@@ -299,23 +327,5 @@ function moveFocus(direction: NavigationDirection) {
     }
     candidates.unshift(origin);
   }
-  const target = spatialTargetIndex(
-    candidates.map((item) => item.getBoundingClientRect()),
-    origin ? candidates.indexOf(origin) : -1,
-    direction,
-    candidates.map((item) => item.closest("[data-focus-group]")),
-  );
-  if (target < 0 && horizontal && region) {
-    if (direction === "left" && region.dataset.focusRegion === "workspace")
-      return focusRegion("sidebar");
-    if (direction === "right" && region.dataset.focusRegion === "sidebar")
-      return focusRegion("workspace");
-  }
-  if (target < 0) return false;
-  focusAndReveal(candidates[target]);
-  return true;
-}
-
-function center(rect: FocusRect) {
-  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  return false;
 }

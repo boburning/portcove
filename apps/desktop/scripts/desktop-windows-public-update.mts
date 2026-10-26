@@ -228,47 +228,7 @@ async function runWindowsPublicUpdateJourney(
   deadline: number,
 ) {
   input = Object.freeze(structuredClone(input));
-  assert.deepEqual(
-    Object.keys(input).sort(),
-    [
-      "application",
-      "binding",
-      "binding_sha256",
-      "candidate_installer_sha256",
-      "candidate_sha256",
-      "candidate_version",
-      "output",
-      "prior_sha256",
-      "prior_version",
-      ...(Object.hasOwn(input, "phase") ? ["phase"] : []),
-      ...(input.phase === "continue-with-v2" ? ["continuation"] : []),
-    ].sort(),
-  );
-  if (Object.hasOwn(input, "phase"))
-    assert.ok(input.phase === "park-v0-with-v1" || input.phase === "continue-with-v2");
-  const continuation =
-    input.phase === "continue-with-v2"
-      ? inspectWindowsPublicContinuationInput(input.continuation)
-      : undefined;
-  for (const name of ["application", "binding", "output"] as const)
-    assert.ok(path.isAbsolute(input[name]));
-  assert.equal(process.platform, "win32");
-  assert.ok(
-    Number.isFinite(deadline) &&
-      deadline > performance.now() &&
-      deadline <= performance.now() + 1750000,
-  );
-  for (const digest of [
-    input.prior_sha256,
-    input.candidate_sha256,
-    input.candidate_installer_sha256,
-    input.binding_sha256,
-  ])
-    assert.match(digest, /^[a-f0-9]{64}$/u);
-  assert.notEqual(input.prior_sha256, input.candidate_sha256);
-  assert.notEqual(input.prior_version, input.candidate_version);
-  assert.match(input.prior_version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u);
-  assert.match(input.candidate_version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u);
+  const continuation = inspectWindowsJourneyInput(input, deadline);
   const session = DesktopNativeAccountSession.open(input.binding, input.binding_sha256);
   const runtime = session.runtimeRoot(input.output);
   const relative = path.relative(path.dirname(runtime), input.application);
@@ -277,6 +237,7 @@ async function runWindowsPublicUpdateJourney(
     "Installed application must belong to this account invocation work root",
   );
   await mkdir(input.output, { recursive: false });
+
   if (continuation) {
     assert.equal(
       path.resolve(runtime).toLowerCase(),
@@ -296,15 +257,14 @@ async function runWindowsPublicUpdateJourney(
     PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(runtime, "update-schedule.json"),
     PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(runtime, "staging"),
   };
-  const { By, until } = await import("selenium-webdriver");
+  const { By } = await import("selenium-webdriver");
   const {
     driveInstalledUpdateToRestart,
     driveInstalledUpdateRecovery,
     driveInstalledForwardRepairToRestart,
     openInstalledUpdateSettings,
   } = await import("./desktop-application-update-journey.mts");
-  const { connectInstalledUpdateDriver, readInstalledUpdateStatus } =
-    await import("./desktop-installed-update-harness.mts");
+  const { readInstalledUpdateStatus } = await import("./desktop-installed-update-harness.mts");
   const actions: string[] = [];
   const report: Record<string, unknown> = {
     schema_version: 1,
@@ -344,48 +304,14 @@ async function runWindowsPublicUpdateJourney(
       runtime,
       environment,
     );
-    const startupDeadline = Math.min(deadline, performance.now() + 10000);
-    let listening = false;
-    for (let attempt = 0; attempt < 20 && performance.now() < startupDeadline; attempt++) {
-      active();
-      assert.equal(view.exitCode, null, "Owned tauri-driver exited before readiness");
-      const left = Math.floor(startupDeadline - performance.now());
-      if (left < 1) break;
-      const response = await fetch("http://127.0.0.1:45770/status", {
-        signal: AbortSignal.timeout(Math.min(500, left)),
-      }).catch(() => null);
-      if (response?.ok) {
-        listening = true;
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    assert.ok(
-      listening,
-      "Owned tauri-driver did not become ready within its bounded startup window",
+    browser = await connectWindowsJourneyBrowser(
+      session,
+      input,
+      environment,
+      view,
+      expectedVersion,
+      deadline,
     );
-    // Pinned Tauri 2.12.4 Windows default: app_local_data_dir(), not a custom WebView profile.
-    const normalProfile = path.join(
-      session.environment({}).USERPROFILE!,
-      "AppData",
-      "Local",
-      "io.github.portcove.portcove",
-    );
-    browser = await connectInstalledUpdateDriver(input.application, normalProfile);
-    await browser.manage().setTimeouts({ script: 15000, pageLoad: 30000, implicit: 0 });
-    await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30000);
-    const actual = await readWindowsPublicUserState(browser);
-    assert.equal(actual.application_version, expectedVersion);
-    assert.equal(
-      path.resolve(actual.library_root).toLowerCase(),
-      path.resolve(environment.PORTCOVE_LIBRARY).toLowerCase(),
-    );
-    assert.equal(
-      path.resolve(actual.app_local_data).toLowerCase(),
-      path.resolve(normalProfile).toLowerCase(),
-      "Actual Known Folder differs from the fixed account ordinary profile",
-    );
-    active();
     return browser;
   };
   const stop = () => {
@@ -413,60 +339,18 @@ async function runWindowsPublicUpdateJourney(
     }
     return close;
   };
-  const observeAutomatic = async (
-    before: NativeProcessSnapshot,
-    expectedSha: string,
-    name: string,
-  ) => {
+  const observeAutomatic = (before: NativeProcessSnapshot, expectedSha: string, name: string) => {
     assert.ok(view);
-    const until = Math.min(deadline, performance.now() + 120000);
-    for (let sequence = 0; sequence < 120; sequence++) {
-      active();
-      assert.ok(performance.now() < until, "Automatic owned application relaunch timed out");
-      const current = session.observeRoot(view);
-      const applications = current.processes.filter(
-        (member) =>
-          path.resolve(member.path).toLowerCase() === path.resolve(input.application).toLowerCase(),
-      );
-      if (
-        applications.length === 1 &&
-        applications[0] &&
-        !before.processes.some((member) => sameProcess(member, applications[0]!))
-      ) {
-        const target = applications[0];
-        const executable = await readWindowsPublicExecutable(input.application);
-        if (executable.sha256 === expectedSha) {
-          const title = session.readOwnedApplicationWindowTitle(target);
-          if (title === "Portcove") {
-            const snapshotFile = path.join(input.output, `${name}-${sequence}.json`);
-            const snapshot = session.observe("Snapshot", snapshotFile, input.application);
-            const selected = selectWindowsPublicRelaunch(before, snapshot, input.application);
-            assert.ok(sameProcess(selected.relaunched, target));
-            assert.deepEqual(await readWindowsPublicExecutable(input.application), executable);
-            // One positively identified GUI application, not the same-image
-            // apply helper. Keep that helper in the full owned group inventory.
-            const closed = session.observe("RequestClose", snapshotFile, input.application);
-            const closeDeadline = Math.min(deadline, performance.now() + 30000);
-            while (
-              session.observeRoot(view).processes.some((member) => sameProcess(member, target))
-            ) {
-              assert.ok(
-                performance.now() < closeDeadline,
-                "Automatic application did not close naturally",
-              );
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-            }
-            return { ...selected, executable, title, closed };
-          }
-        }
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    throw new Error("Automatic relaunch observation budget exhausted");
+    return observeWindowsJourneyRelaunch(session, input, deadline, view, before, expectedSha, name);
   };
   try {
     assert.equal((await readWindowsPublicExecutable(input.application)).sha256, input.prior_sha256);
-    if (continuation) {
+
+    async function continueParkedWindowsJourney(
+      continuation: NonNullable<
+        Parameters<typeof runWindowsPublicUpdateJourney>[0]["continuation"]
+      >,
+    ) {
       // Read the original parent-hashed B report before startup/status can
       // reconcile anything. The current private parent supplied this exact pin.
       const oldIdentity = await readWindowsPublicExecutable(
@@ -632,7 +516,9 @@ async function runWindowsPublicUpdateJourney(
       report.final_close = await closeCurrentApplication("v2-reopen");
       report.final_cleanup = stop();
       report.outcome = "observed";
-    } else {
+    }
+
+    async function startWindowsJourney() {
       let initial = await connect(input.prior_version);
       report.favorite_port = await seedPublicFavorite(initial, "win32");
       await selectPublicLightTheme(initial);
@@ -869,6 +755,11 @@ async function runWindowsPublicUpdateJourney(
         report.outcome = "observed";
       }
     }
+    if (continuation) {
+      await continueParkedWindowsJourney(continuation);
+    } else {
+      await startWindowsJourney();
+    }
   } catch (error) {
     failure =
       error instanceof Error
@@ -990,4 +881,165 @@ export async function runFixedWindowsPublicUpdateConfiguration(
   assert.deepEqual(await readWindowsPublicExecutable(file, 16384), before);
   assert.ok(performance.now() < deadline);
   return runWindowsPublicUpdateJourney(input, deadline);
+}
+
+function inspectWindowsJourneyInput(
+  input: Parameters<typeof runWindowsPublicUpdateJourney>[0],
+  deadline: number,
+) {
+  assert.deepEqual(
+    Object.keys(input).sort(),
+    [
+      "application",
+      "binding",
+      "binding_sha256",
+      "candidate_installer_sha256",
+      "candidate_sha256",
+      "candidate_version",
+      "output",
+      "prior_sha256",
+      "prior_version",
+      ...(Object.hasOwn(input, "phase") ? ["phase"] : []),
+      ...(input.phase === "continue-with-v2" ? ["continuation"] : []),
+    ].sort(),
+  );
+  if (Object.hasOwn(input, "phase"))
+    assert.ok(input.phase === "park-v0-with-v1" || input.phase === "continue-with-v2");
+  const continuation =
+    input.phase === "continue-with-v2"
+      ? inspectWindowsPublicContinuationInput(input.continuation)
+      : undefined;
+  for (const name of ["application", "binding", "output"] as const)
+    assert.ok(path.isAbsolute(input[name]));
+  assert.equal(process.platform, "win32");
+  assert.ok(
+    Number.isFinite(deadline) &&
+      deadline > performance.now() &&
+      deadline <= performance.now() + 1750000,
+  );
+  for (const digest of [
+    input.prior_sha256,
+    input.candidate_sha256,
+    input.candidate_installer_sha256,
+    input.binding_sha256,
+  ])
+    assert.match(digest, /^[a-f0-9]{64}$/u);
+  assert.notEqual(input.prior_sha256, input.candidate_sha256);
+  assert.notEqual(input.prior_version, input.candidate_version);
+  assert.match(input.prior_version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u);
+  assert.match(input.candidate_version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u);
+  return continuation;
+}
+
+async function connectWindowsJourneyBrowser(
+  session: DesktopNativeAccountSession,
+  input: Parameters<typeof runWindowsPublicUpdateJourney>[0],
+  environment: { PORTCOVE_LIBRARY: string },
+  view: AccountDriverView,
+  expectedVersion: string,
+  deadline: number,
+) {
+  const active = () =>
+    assert.ok(performance.now() < deadline, "Original native journey deadline expired");
+  const { By, until } = await import("selenium-webdriver");
+  const { connectInstalledUpdateDriver } = await import("./desktop-installed-update-harness.mts");
+  const startupDeadline = Math.min(deadline, performance.now() + 10000);
+  let listening = false;
+  for (let attempt = 0; attempt < 20 && performance.now() < startupDeadline; attempt++) {
+    active();
+    assert.equal(view.exitCode, null, "Owned tauri-driver exited before readiness");
+    const left = Math.floor(startupDeadline - performance.now());
+    if (left < 1) break;
+    const response = await fetch("http://127.0.0.1:45770/status", {
+      signal: AbortSignal.timeout(Math.min(500, left)),
+    }).catch(() => null);
+    if (response?.ok) {
+      listening = true;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  assert.ok(listening, "Owned tauri-driver did not become ready within its bounded startup window");
+  // Pinned Tauri 2.12.4 Windows default: app_local_data_dir(), not a custom WebView profile.
+  const normalProfile = path.join(
+    session.environment({}).USERPROFILE!,
+    "AppData",
+    "Local",
+    "io.github.portcove.portcove",
+  );
+  const browser = await connectInstalledUpdateDriver(input.application, normalProfile);
+  await browser.manage().setTimeouts({ script: 15000, pageLoad: 30000, implicit: 0 });
+  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 30000);
+  const actual = await readWindowsPublicUserState(browser);
+  assert.equal(actual.application_version, expectedVersion);
+  assert.equal(
+    path.resolve(actual.library_root).toLowerCase(),
+    path.resolve(environment.PORTCOVE_LIBRARY).toLowerCase(),
+  );
+  assert.equal(
+    path.resolve(actual.app_local_data).toLowerCase(),
+    path.resolve(normalProfile).toLowerCase(),
+    "Actual Known Folder differs from the fixed account ordinary profile",
+  );
+  active();
+  return browser;
+}
+
+async function observeWindowsJourneyRelaunch(
+  session: DesktopNativeAccountSession,
+  input: Parameters<typeof runWindowsPublicUpdateJourney>[0],
+  deadline: number,
+  view: AccountDriverView,
+  before: NativeProcessSnapshot,
+  expectedSha: string,
+  name: string,
+) {
+  const active = () =>
+    assert.ok(performance.now() < deadline, "Original native journey deadline expired");
+
+  assert.ok(view);
+  const until = Math.min(deadline, performance.now() + 120000);
+  for (let sequence = 0; sequence < 120; sequence++) {
+    active();
+    assert.ok(performance.now() < until, "Automatic owned application relaunch timed out");
+    const current = session.observeRoot(view);
+    const applications = current.processes.filter(
+      (member) =>
+        path.resolve(member.path).toLowerCase() === path.resolve(input.application).toLowerCase(),
+    );
+    if (
+      applications.length === 1 &&
+      applications[0] &&
+      !before.processes.some((member) => sameProcess(member, applications[0]!))
+    ) {
+      const target = applications[0];
+      const executable = await readWindowsPublicExecutable(input.application);
+      if (executable.sha256 === expectedSha) {
+        const title = session.readOwnedApplicationWindowTitle(target);
+        if (title === "Portcove") {
+          const snapshotFile = path.join(input.output, `${name}-${sequence}.json`);
+          const snapshot = session.observe("Snapshot", snapshotFile, input.application);
+          const selected = selectWindowsPublicRelaunch(before, snapshot, input.application);
+          assert.ok(sameProcess(selected.relaunched, target));
+          assert.deepEqual(await readWindowsPublicExecutable(input.application), executable);
+          // One positively identified GUI application, not the same-image
+          // apply helper. Keep that helper in the full owned group inventory.
+          const closed = session.observe("RequestClose", snapshotFile, input.application);
+          const closeDeadline = Math.min(deadline, performance.now() + 30000);
+          while (
+            session.observeRoot(view).processes.some((member) => sameProcess(member, target))
+          ) {
+            assert.ok(
+              performance.now() < closeDeadline,
+              "Automatic application did not close naturally",
+            );
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+          return { ...selected, executable, title, closed };
+        }
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error("Automatic relaunch observation budget exhausted");
 }

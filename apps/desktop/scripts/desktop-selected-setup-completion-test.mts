@@ -467,7 +467,8 @@ export async function selectedSetupCompletionScenario({
       await enlargedStage("folder-connection");
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
-      if (fixture.nativeConnectionJourney) {
+
+      async function connectSetupFolderWithNativePicker() {
         assert.ok(typeof chooseGameFileFolder === "function");
         assert.deepEqual(await read("get_game_file_roots"), []);
         const connection = By.css('[aria-label="Connect your game files"] button');
@@ -579,6 +580,9 @@ export async function selectedSetupCompletionScenario({
         assert.equal(required(initial.coverage).can_resume, true);
         await screenshot("connected-folder-management");
       }
+      if (fixture.nativeConnectionJourney) {
+        await connectSetupFolderWithNativePicker();
+      }
       {
         await selectPrimaryNavigation(browser, "Library");
         await click(button("Add games"));
@@ -598,22 +602,25 @@ export async function selectedSetupCompletionScenario({
           descriptions.filter((text) => text.split(/\r?\n/u).includes(projectDescription)).length,
           1,
         );
-        let highlightedExactPort = false;
-        for (let index = 0; index <= options.length; index++) {
-          await query.sendKeys(Key.ARROW_DOWN);
-          const activeId = await query.getAttribute("aria-activedescendant");
-          if (!activeId) continue;
-          const active = await browser.findElement(By.id(activeId));
-          if ((await active.getText()).split(/\r?\n/u).includes(projectDescription)) {
-            highlightedExactPort = true;
-            break;
+        async function highlightExactSetupProject() {
+          let highlightedExactPort = false;
+          for (let index = 0; index <= options.length; index++) {
+            await query.sendKeys(Key.ARROW_DOWN);
+            const activeId = await query.getAttribute("aria-activedescendant");
+            if (!activeId) continue;
+            const active = await browser.findElement(By.id(activeId));
+            if ((await active.getText()).split(/\r?\n/u).includes(projectDescription)) {
+              highlightedExactPort = true;
+              break;
+            }
           }
+          assert.equal(
+            highlightedExactPort,
+            true,
+            "Keyboard selection must highlight the exact stable port project",
+          );
         }
-        assert.equal(
-          highlightedExactPort,
-          true,
-          "Keyboard selection must highlight the exact stable port project",
-        );
+        await highlightExactSetupProject();
         await query.sendKeys(Key.ENTER);
         await browser.wait(
           async () => (await query.getAttribute("aria-expanded")) === "false",
@@ -829,7 +836,7 @@ export async function selectedSetupCompletionScenario({
       assert.deepEqual(await status(), beforeReview, "Dismissal must preserve authoritative state");
       assert.equal(fixture.requests.length, 0);
 
-      if (fixture.nativeConnectionJourney) {
+      async function reviewSetupWithController() {
         await openInstall();
         report.observations.controller_review = object(
           await browser.executeAsyncScript(
@@ -853,6 +860,31 @@ export async function selectedSetupCompletionScenario({
                 for (let frame = 0; frame < count; frame++)
                   await new Promise<number>(requestAnimationFrame);
               };
+              function directionBetween(from: DOMRect, to: DOMRect) {
+                const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+                const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+                return Math.abs(dy) > Math.abs(dx)
+                  ? dy > 0
+                    ? "down"
+                    : "up"
+                  : dx > 0
+                    ? "right"
+                    : "left";
+              }
+              function visibleCancel(control: Element, rect: DOMRect) {
+                const hit = document.elementFromPoint(
+                  rect.left + rect.width / 2,
+                  rect.top + rect.height / 2,
+                );
+                return (
+                  document.activeElement === control &&
+                  rect.left >= 0 &&
+                  rect.right <= innerWidth &&
+                  rect.top >= 0 &&
+                  rect.bottom <= innerHeight &&
+                  (hit === control || control.contains(hit))
+                );
+              }
               let observation;
               try {
                 const review = document.querySelector('[aria-labelledby="install-review-title"]');
@@ -887,16 +919,7 @@ export async function selectedSetupCompletionScenario({
                   !review.contains(cancelControl)
                 )
                   throw new Error("Both actual review actions must have layout geometry");
-                const dx = to.left + to.width / 2 - (from.left + from.width / 2);
-                const dy = to.top + to.height / 2 - (from.top + from.height / 2);
-                const direction =
-                  Math.abs(dy) > Math.abs(dx)
-                    ? dy > 0
-                      ? "down"
-                      : "up"
-                    : dx > 0
-                      ? "right"
-                      : "left";
+                const direction = directionBetween(from, to);
                 const directionButton = { up: 12, down: 13, left: 14, right: 15 }[direction];
                 pressed = [directionButton];
                 await frames(2);
@@ -910,17 +933,7 @@ export async function selectedSetupCompletionScenario({
                 let cancelAfter = cancelControl.getBoundingClientRect();
                 for (let frame = 0; frame < 30; frame++) {
                   cancelAfter = cancelControl.getBoundingClientRect();
-                  const hit = document.elementFromPoint(
-                    cancelAfter.left + cancelAfter.width / 2,
-                    cancelAfter.top + cancelAfter.height / 2,
-                  );
-                  cancelRevealed =
-                    document.activeElement === cancelControl &&
-                    cancelAfter.left >= 0 &&
-                    cancelAfter.right <= innerWidth &&
-                    cancelAfter.top >= 0 &&
-                    cancelAfter.bottom <= innerHeight &&
-                    (hit === cancelControl || cancelControl.contains(hit));
+                  cancelRevealed = visibleCancel(cancelControl, cancelAfter);
                   if (cancelRevealed) break;
                   await frames(1);
                 }
@@ -985,6 +998,9 @@ export async function selectedSetupCompletionScenario({
         );
         assert.deepEqual(await status(), beforeReview);
         assert.equal(fixture.requests.length, 0);
+      }
+      if (fixture.nativeConnectionJourney) {
+        await reviewSetupWithController();
       }
 
       await openInstall();
@@ -1509,63 +1525,70 @@ export async function selectedSetupCompletionScenario({
         }
       }
     }
-    if (zoomAttempted) {
-      try {
-        await shortcut("0");
-        await browser.wait(
-          () =>
-            executeBrowserScript(
-              browser,
-              () => localStorage.getItem("portcove.appearance.interface-size") === "100",
-            ),
-          10_000,
-        );
-      } catch (error) {
-        const previous = failure;
-        failure = {
-          error: previous
-            ? new AggregateError(
-                [previous.error, error],
-                "Setup journey and enlargement cleanup failed",
-              )
-            : error,
-        };
-        report.enlargement_cleanup_failure = errorMessage(error);
+    async function restoreSetupViewport() {
+      if (zoomAttempted) {
+        try {
+          await shortcut("0");
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                () => localStorage.getItem("portcove.appearance.interface-size") === "100",
+              ),
+            10_000,
+          );
+        } catch (error) {
+          const previous = failure;
+          failure = {
+            error: previous
+              ? new AggregateError(
+                  [previous.error, error],
+                  "Setup journey and enlargement cleanup failed",
+                )
+              : error,
+          };
+          report.enlargement_cleanup_failure = errorMessage(error);
+        }
+      }
+      if (originalWindow) {
+        try {
+          await browser.manage().window().setRect(originalWindow);
+        } catch (error) {
+          failure = {
+            error: failure
+              ? new AggregateError([failure.error, error], "Setup and window restoration failed")
+              : error,
+          };
+          report.enlargement_cleanup_failure = [
+            report.enlargement_cleanup_failure,
+            errorMessage(error),
+          ]
+            .filter(Boolean)
+            .join("; ");
+        }
       }
     }
-    if (originalWindow) {
+    await restoreSetupViewport();
+    async function checkSetupOriginalsPreserved() {
+      let preservationFailure: { error: unknown } | undefined;
       try {
-        await browser.manage().window().setRect(originalWindow);
+        for (const [actual, original] of [
+          ["gamePath", "gameBefore"],
+          ["biosPath", "biosBefore"],
+        ] as const)
+          assert.deepEqual(
+            await readFile(owned[actual]),
+            await readFile(owned[original]),
+            "Original player inputs must remain unchanged",
+          );
+        report.original_inputs_preserved = true;
       } catch (error) {
-        failure = {
-          error: failure
-            ? new AggregateError([failure.error, error], "Setup and window restoration failed")
-            : error,
-        };
-        report.enlargement_cleanup_failure = [
-          report.enlargement_cleanup_failure,
-          errorMessage(error),
-        ]
-          .filter(Boolean)
-          .join("; ");
+        preservationFailure = { error };
+        report.preservation_failure = errorMessage(error);
       }
+      return preservationFailure;
     }
-    let preservationFailure: { error: unknown } | undefined;
-    try {
-      for (const [actual, original] of [
-        ["gamePath", "gameBefore"],
-        ["biosPath", "biosBefore"],
-      ] as const)
-        assert.deepEqual(
-          await readFile(owned[actual]),
-          await readFile(owned[original]),
-          "Original player inputs must remain unchanged",
-        );
-      report.original_inputs_preserved = true;
-    } catch (error) {
-      preservationFailure = { error };
-      report.preservation_failure = errorMessage(error);
-    }
+    const preservationFailure = await checkSetupOriginalsPreserved();
     const file = path.join(output, "selected-setup-completion.json");
     const primaryFailure = failure ?? preservationFailure;
     await retainCompletionReport({
