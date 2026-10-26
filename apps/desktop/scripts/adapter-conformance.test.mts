@@ -1,4 +1,3 @@
-import { portStatus } from "../src/test-fixtures.js";
 import { errorCode } from "../../../scripts/runtime-values.mts";
 import type { SpawnSyncReturns, SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import assert from "node:assert/strict";
@@ -40,9 +39,14 @@ test("each compiled consumer keeps its pre-publication identity", () => {
 });
 
 const status = {
-  ...portStatus(),
   port_id: "fixture",
+  channel: "stable",
+  update_policy: "notify",
   active: null,
+  previous: null,
+  staged: null,
+  last_launched_at: null,
+  successful_launches: 0,
   readiness: { launchable: false, pending_setup: false, blockers: [] },
   definition_operations: [
     {
