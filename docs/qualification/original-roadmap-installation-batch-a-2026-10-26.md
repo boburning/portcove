@@ -21,6 +21,11 @@ v0.1.8 Windows/Linux packages. Source inspection separates the ROM-free released
 interpreter from the static source-build route. MIT project/ImGui and zlib SDL3
 notices are retained; system fonts are read from the host with an embedded
 default. No original disc, BIOS, game executable, helper or installer was run.
+An existing production-provider fixture replays those observed names, sizes and
+digests on both platforms through N/N+1, cache expiry and fresh installation with
+the unchanged authored definition. HTTP replay remains distinct from artifact
+inspection and native execution; existing Native negative controls retain
+ambiguity, foreign-platform and missing-integrity refusals.
 
 Existing `--save-dir saves` redirects settings, memory cards, quicksave and logs
 before profile initialization. Ordinary F12/Shift+F12 captures instead write
