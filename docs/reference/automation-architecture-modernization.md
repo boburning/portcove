@@ -541,7 +541,7 @@ cases. The full unit-first/browser-second production task remains unchanged.
 
 ### Vite+ and command admission
 
-Supported shallow dependency includes pre-bundle actual Base UI, Tauri and
+The pinned Vite version’s experimental shallow dependency includes pre-bundle actual Base UI, Tauri and
 frontend runtime imports. A cold wider-worker experiment exposed optimizer
 reloads that split active Vitest module identity; the includes avoid those
 reloads without disabling discovery or changing isolation. Recursive package
