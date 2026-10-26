@@ -96,7 +96,7 @@ foreach($name in $names){
     if($entry.Count -ne 1 -or $entry[0].path -isnot [string] -or $entry[0].bytes -isnot [long] -or $entry[0].bytes -lt 1 -or $entry[0].bytes -gt 131072 -or $entry[0].sha256 -cnotmatch '^[a-f0-9]{64}$' -or (Get-Item -LiteralPath $file).Length -ne $entry[0].bytes -or
         (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry[0].sha256){throw 'Fixed hosted setup source changed'}
 }
-function Read-HostedStartupSettlement {
+function Read-HostedRootSettlement {
     param($Startup,$Group)
     $result=[ordered]@{status='unknown';teardown=$null;failure=$null}
     try {
@@ -179,6 +179,30 @@ try {
     Write-HostedNativeSetupRecord (Join-Path $capture 'security-before-launch.json') ([ordered]@{context=$context;labels=$labelObservation;label_query_failure=$labelFailure;broker_token=$brokerToken;broker_token_status=$(if($brokerFailure){'unknown'}else{'read'});broker_query_failure=$brokerFailure;scope='read-only mandatory-label/token diagnostics; no GUI acceptance';authority='none'})
     if($labelFailure -or $brokerFailure -or $labelObservation.station_status -cne 'read' -or $labelObservation.desktop_status -cne 'read'){throw 'Mandatory security diagnostics unavailable; retained observations remain Unknown'}
     $group=[Portcove.NativeQualification.AccountLauncher]::CreateGroup($configuration)
+    $guiRootSettlement=$null
+    $guiRuntime=Join-Path $env:SystemRoot 'System32\winver.exe'
+    $guiControlObservation=[ordered]@{status='unknown';visible_responsive=$false;failure=$null;runtime_path=$guiRuntime;runtime_sha256=$null;pe_subsystem=$null;scope='fixed signed GUI-subsystem countercontrol only; not form/HKCU/descendant or GUI acceptance'}
+    try{
+        $guiSignature=Get-AuthenticodeSignature -LiteralPath $guiRuntime
+        if($guiSignature.Status -ne 'Valid' -or $guiSignature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)'){throw 'Fixed GUI countercontrol signature unavailable; no install or fallback'}
+        [Portcove.HostedNative.HostedStartupContext]::RequireGuiImage($guiRuntime);$guiControlObservation.pe_subsystem=2
+        $guiSha=(Get-FileHash -LiteralPath $guiRuntime -Algorithm SHA256).Hash.ToLowerInvariant();$guiControlObservation.runtime_sha256=$guiSha
+        Assert-OriginalHostedSetup
+        $guiControl=[Portcove.NativeQualification.AccountLauncher]::StartHostedGuiControlVerifiedInGroup($group,$configuration,$password,$guiRuntime,$guiSha,@(),$attemptWork,$environment,$hostedDesktop.Name)
+        $guiClock=[Diagnostics.Stopwatch]::StartNew()
+        while(-not $guiControl.HasExited -and $guiClock.ElapsedMilliseconds -lt 3000){
+            $hostedDesktop.AssertNonInput()
+            if($guiControl.HostedResponding){$guiControlObservation.visible_responsive=$true}
+            $hostedDesktop.AssertNonInput()
+            if($guiControlObservation.visible_responsive){break};Start-Sleep -Milliseconds 50
+        }
+        $guiControlObservation.status=$(if($guiControlObservation.visible_responsive){'observed'}else{'not_observed'})
+    }catch{$guiControlObservation.failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
+    if($guiControl){$guiRootSettlement=Read-HostedRootSettlement $guiControl $group}
+    try{Write-HostedNativeSetupRecord (Join-Path $capture 'gui-counter.json') ([ordered]@{context=$context;phase='first root before original startup/form acceptance';root_settlement=$guiRootSettlement;last_launch=$(if($group.LastLaunchInspection -and $group.LastLaunchInspection['runtime_path'] -ieq $guiRuntime){$group.LastLaunchInspection}else{$null});observation=$guiControlObservation;root_pid=$(if($guiControl){$guiControl.Pid}else{$null});root_created_filetime=$(if($guiControl){$guiControl.CreatedFileTime.ToString()}else{$null});token=$(if($guiControl){$guiControl.HostedTokenObservation}else{$null});window_inspection=$(if($guiControl){$guiControl.LastWindowInspection}else{$null});response_inspection=$(if($guiControl){$guiControl.LastResponseInspection}else{$null});observer_failure=$(if($guiControl){$guiControl.LastHostedObserverFailure}else{$null});authority='none'})}catch{$cleanupFailures.Add('GUI countercontrol retention failed: '+$_.Exception.Message)}
+
+    if($guiControl -and ($guiRootSettlement.status -cne 'settled' -or -not $guiControl.DrainHostedObserver(5000))){throw 'GUI first-root diagnostic did not settle; original probes skipped'}
+    if(-not $guiControl -and $group.LastLaunchInspection -and $group.LastLaunchInspection.ContainsKey('root_pid') -and ($group.LastLaunchInspection['failed_root_wait_after'] -cne '0' -or -not $group.LastLaunchInspection.ContainsKey('root_created_filetime'))){throw 'GUI first-root launch settlement Unknown; original probes skipped'}
     $startupRuntime=Join-Path $env:SystemRoot 'System32\whoami.exe'
     $startupSignature=Get-AuthenticodeSignature -LiteralPath $startupRuntime
     if($startupSignature.Status -ne 'Valid' -or $startupSignature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)'){throw 'Fixed native startup probe lacks valid Microsoft signature'}
@@ -238,28 +262,6 @@ try {
         $threadDiagnostic=$null;$threadFailure=$null
         try{$threadDiagnostic=@(Read-HostedStartupThreads $startup)}catch{$threadFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-threads.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();threads=$threadDiagnostic;query_failure=$threadFailure;scope='bounded exact-generation thread states; not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup diagnostic retention failed: '+$_.Exception.Message)}
-        $guiStartupSettlement=$null
-        $guiRuntime=Join-Path $env:SystemRoot 'System32\winver.exe'
-        $guiControlObservation=[ordered]@{status='unknown';visible_responsive=$false;failure=$null;runtime_path=$guiRuntime;runtime_sha256=$null;pe_subsystem=$null;scope='fixed signed GUI-subsystem countercontrol only; not form/HKCU/descendant or GUI acceptance'}
-        try{
-            $guiStartupSettlement=Read-HostedStartupSettlement $startup $group
-            if($guiStartupSettlement.status -cne 'settled'){throw 'Startup settlement did not permit GUI counter admission'}
-            $guiSignature=Get-AuthenticodeSignature -LiteralPath $guiRuntime
-            if($guiSignature.Status -ne 'Valid' -or $guiSignature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)'){throw 'Fixed GUI countercontrol signature unavailable; no install or fallback'}
-            [Portcove.HostedNative.HostedStartupContext]::RequireGuiImage($guiRuntime);$guiControlObservation.pe_subsystem=2
-            $guiSha=(Get-FileHash -LiteralPath $guiRuntime -Algorithm SHA256).Hash.ToLowerInvariant();$guiControlObservation.runtime_sha256=$guiSha
-            Assert-OriginalHostedSetup
-            $guiControl=[Portcove.NativeQualification.AccountLauncher]::StartHostedGuiControlVerifiedInGroup($group,$configuration,$password,$guiRuntime,$guiSha,@(),$attemptWork,$environment,$hostedDesktop.Name)
-            $guiClock=[Diagnostics.Stopwatch]::StartNew()
-            while(-not $guiControl.HasExited -and $guiClock.ElapsedMilliseconds -lt 3000){
-                $hostedDesktop.AssertNonInput()
-                if($guiControl.HostedResponding){$guiControlObservation.visible_responsive=$true}
-                $hostedDesktop.AssertNonInput()
-                if($guiControlObservation.visible_responsive){break};Start-Sleep -Milliseconds 50
-            }
-            $guiControlObservation.status=$(if($guiControlObservation.visible_responsive){'observed'}else{'not_observed'})
-        }catch{$guiControlObservation.failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
-        try{Write-HostedNativeSetupRecord (Join-Path $capture 'gui-counter.json') ([ordered]@{context=$context;startup_settlement=$guiStartupSettlement;last_launch=$(if($group.LastLaunchInspection -and $group.LastLaunchInspection['runtime_path'] -ieq $guiRuntime){$group.LastLaunchInspection}else{$null});observation=$guiControlObservation;root_pid=$(if($guiControl){$guiControl.Pid}else{$null});root_created_filetime=$(if($guiControl){$guiControl.CreatedFileTime.ToString()}else{$null});token=$(if($guiControl){$guiControl.HostedTokenObservation}else{$null});window_inspection=$(if($guiControl){$guiControl.LastWindowInspection}else{$null});response_inspection=$(if($guiControl){$guiControl.LastResponseInspection}else{$null});observer_failure=$(if($guiControl){$guiControl.LastHostedObserverFailure}else{$null});authority='none'})}catch{$cleanupFailures.Add('GUI countercontrol retention failed: '+$_.Exception.Message)}
 
     }
     throw $primaryError

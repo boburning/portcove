@@ -1037,7 +1037,7 @@ void test("GUI counter serialization requires exact startup settlement and empty
   const result = powershell(String.raw`
 $ErrorActionPreference='Stop';$tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
-$function=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Read-HostedStartupSettlement'},$true)
+$function=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Read-HostedRootSettlement'},$true)
 . ([scriptblock]::Create($function.Extent.Text))
 $write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
 $initialize=$ast.Find({param($n)$n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -ceq '$guiRuntime'},$true)
@@ -1052,18 +1052,18 @@ foreach($case in @('settled','faulted','prior-stop','stop','pid','created','root
   return [pscustomobject]@{RootPid=$(if($case -ceq 'pid'){43}else{42});RootCreatedFileTime=$(if($case -ceq 'created'){[long]134374669087322707}else{[long]134374669087322706});ExitCode=125;ObservedAt='controlled';RootExited=$case -cne 'root';JobEmpty=$case -cne 'empty-flag';RemainingPids=$(if($case -ceq 'members'){@(43)}else{@()})}
  }
  $group=[pscustomobject]@{};$group|Add-Member ScriptMethod RemainingPids {$script:queries++;if($case -ceq 'query'){throw 'controlled group query refusal'};if($case -ceq 'original'){return @(43)};return @()}
- $result=Read-HostedStartupSettlement $startup $group
+ $result=Read-HostedRootSettlement $startup $group
  if(($result.status -ceq 'settled') -ne ($case -ceq 'settled') -or $script:stops -ne $(if($case -in @('faulted','prior-stop')){0}else{1})){throw ('Serialization or stop retry differs: '+$case)}
  if($case -notin @('settled','faulted','prior-stop','stop') -and $null -eq $result.teardown){throw 'Failed validation lost settlement receipt'}
  if($case -ne 'settled' -and -not $result.failure){throw 'Unknown settlement lost cause'}
  if($result.teardown -and $case -cne 'created' -and $result.teardown.RootCreatedFileTime -cne '134374669087322706'){throw 'Native creation identity was rounded before retention'}
- $context=@{};$capture=Join-Path '${root.replaceAll("'", "''")}' $case;[IO.Directory]::CreateDirectory($capture)|Out-Null;$guiControl=$null;$guiControlObservation=@{status='unknown'};$guiStartupSettlement=$result
+ $context=@{};$capture=Join-Path '${root.replaceAll("'", "''")}' $case;[IO.Directory]::CreateDirectory($capture)|Out-Null;$guiControl=$null;$guiControlObservation=@{status='unknown'};$guiRootSettlement=$result
  $group|Add-Member NoteProperty LastLaunchInspection (@{runtime_path='whoami.exe'})
  . ([scriptblock]::Create($initialize.Extent.Text))
  . ([scriptblock]::Create($receipt.Extent.Text))
  $retained=Get-Content -LiteralPath (Join-Path $capture 'gui-counter.json') -Raw|ConvertFrom-Json
- if($result.teardown -and ($retained.startup_settlement.teardown.RootCreatedFileTime -isnot [string] -or $retained.startup_settlement.teardown.RootCreatedFileTime -cne $result.teardown.RootCreatedFileTime)){throw '64bit identity did not survive actual JSON receipt'}
- if($retained.startup_settlement.status -cne $result.status -or $retained.startup_settlement.failure -cne $result.failure -or $null -ne $retained.last_launch){throw 'Actual counter receipt lost unknown settlement under strict mode'}
+ if($result.teardown -and ($retained.root_settlement.teardown.RootCreatedFileTime -isnot [string] -or $retained.root_settlement.teardown.RootCreatedFileTime -cne $result.teardown.RootCreatedFileTime)){throw '64bit identity did not survive actual JSON receipt'}
+ if($retained.root_settlement.status -cne $result.status -or $retained.root_settlement.failure -cne $result.failure -or $null -ne $retained.last_launch){throw 'Actual counter receipt lost unknown settlement under strict mode'}
 
 }
 'actual GUI serialization passed eleven controlled cases; no account effects or GUI acceptance'
@@ -1107,4 +1107,26 @@ Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method).Replace('__OBSER
 'actual native teardown passed six controlled completion/failure modes; no process launched'
 `);
   assert.match(result, /teardown passed six controlled/u);
+});
+
+void test("first GUI diagnostic refuses a later root after unknown unreturned-root settlement", () => {
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$guard=$ast.Find({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text.StartsWith('-not $guiControl -and $group.LastLaunchInspection')},$true)
+if(-not $guard){throw 'Actual first-root settlement guard unavailable'}
+Set-StrictMode -Version Latest
+foreach($case in @('precreation','not-created','settled','missing-wait','timeout','wait-failure','missing-identity','returned')){
+ $data=[Collections.Generic.Dictionary[string,string]]::new()
+ if($case -notin @('precreation','not-created')){
+  $data['root_pid']='7';if($case -cne 'missing-identity'){$data['root_created_filetime']='123'}
+  if($case -cne 'missing-wait'){$data['failed_root_wait_after']=$(switch($case){'timeout'{'258'}'wait-failure'{'4294967295'}default{'0'}})}
+ }
+ $group=[pscustomobject]@{LastLaunchInspection=$(if($case -ceq 'precreation'){$null}else{$data})};$guiControl=$(if($case -ceq 'returned'){@{returned=$true}}else{$null})
+ $refused=$false;try{. ([scriptblock]::Create($guard.Extent.Text))}catch{$refused=$true}
+ if($refused -ne ($case -in @('missing-wait','timeout','wait-failure','missing-identity'))){throw ('First-root admission guard differs: '+$case)}
+}
+'actual first-root settlement guard passed eight controlled cases; no launch or acceptance'
+`);
+  assert.match(result, /guard passed eight controlled cases/u);
 });
