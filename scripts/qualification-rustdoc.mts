@@ -194,7 +194,7 @@ function invocationOutcome(
     !reportingFailure &&
     !result.process_error &&
     !contradictorySuccess;
-  const nativeStatus = result.process_error ? 1 : (result.status ?? 1);
+  const nativeStatus = result.status === null || result.status < 0 ? 1 : result.status;
   return { reportingFailure, contradictorySuccess, scopeComplete, nativeStatus };
 }
 

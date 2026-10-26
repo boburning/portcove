@@ -192,9 +192,11 @@ export function domainsForPath(input: string) {
     file === "scripts/test-duration-reporter.mts" ||
     file === "scripts/required-node-test-reporter.mts" ||
     file === "scripts/node-case-observations.mts" ||
-    file === "scripts/nextest-outcomes.mts" ||
-    file === "scripts/qualification-rustdoc.mts" ||
-    file === "scripts/rustdoc-outcomes.mts" ||
+    [
+      "scripts/nextest-outcomes.mts",
+      "scripts/qualification-rustdoc.mts",
+      "scripts/rustdoc-outcomes.mts",
+    ].includes(file) ||
     file === ".config/rust-test-impact.json" ||
     file === ".github/quality-tools.json" ||
     file === ".config/tool-bootstrap.json" ||

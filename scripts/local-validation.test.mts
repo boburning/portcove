@@ -3385,11 +3385,16 @@ void test("doctest reporting dependencies retain their real consumers across lif
             "node-test-inventory",
           ]
         : ["qualification-rustdoc"];
-      for (const consumer of required)
-        for (const selected of [local.nodeTests, hosted])
-          assert.ok(
-            selected.has("scripts/" + consumer + ".test.mts"),
-            file + "/" + variant + "/" + consumer,
-          );
+      const requiredPaths = required.map((consumer) => "scripts/" + consumer + ".test.mts");
+      assert.deepEqual(
+        requiredPaths.filter((consumer) => !local.nodeTests.has(consumer)),
+        [],
+        file + "/" + variant + "/local",
+      );
+      assert.deepEqual(
+        requiredPaths.filter((consumer) => !hosted.has(consumer)),
+        [],
+        file + "/" + variant + "/hosted",
+      );
     }
 });

@@ -374,3 +374,24 @@ void test("stream caps retain a bounded prefix, drain the child and preserve its
   assert.equal(statSync(path.join(ctx.packet(), "stdout.jsonl")).size, 32 * 1024 * 1024);
   assert.match(String(report.reporting_failure), /byte limit/u);
 });
+
+void test("a process observation error cannot replace a known original native failure", async (t) => {
+  const ctx = context(t, failed, 101);
+  const start = ctx.dependencies.spawn;
+  assert.equal(
+    await runQualificationRustdoc("workspace", {
+      ...ctx.dependencies,
+      spawn(command, args, options) {
+        const child = start(command, args, options);
+        queueMicrotask(() =>
+          child.emit("error", new Error("injected process observation failure")),
+        );
+        return child;
+      },
+    }),
+    101,
+  );
+  assert.equal(ctx.receipt().native_status, 101);
+  assert.equal(ctx.receipt().complete, false);
+  assert.match(String(ctx.receipt().process_error), /injected process observation failure/u);
+});
