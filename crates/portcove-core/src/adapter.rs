@@ -430,9 +430,11 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::N64RecompPortable || port.portable_marker {
             std::fs::write(working_directory.join("portable.txt"), b"")?;
         }
+        let sealed_source = crate::preparation::source::sealed(library, port, install_root)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
+            && !sealed_source
             && !retained_setup_is_current
             && !crate::preparation::managed(port)
             && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
@@ -516,7 +518,7 @@ impl Adapter for StandardAdapter {
                 ));
             }
             crate::relative_file_set::materialize(port, record, &working_directory, checkpoint)?;
-        } else if let Some(source) = source {
+        } else if !sealed_source && let Some(source) = source {
             for target in &port.runtime_source_set {
                 let destination = working_directory.join(&target.destination);
                 if let Some(parent) = destination.parent() {
@@ -971,7 +973,7 @@ fn runtime_source_marker(
     })
 }
 
-fn prepare_runtime_source_set_member(
+pub(crate) fn prepare_runtime_source_set_member(
     source_root: &Path,
     accepted_filenames: &[String],
     destination: &Path,
@@ -990,14 +992,16 @@ fn prepare_runtime_source_set_member(
     }
     if !matches!(
         materialization,
-        RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc
+        RuntimeSourceMaterialization::Copy
+            | RuntimeSourceMaterialization::RegaidenGbc
+            | RuntimeSourceMaterialization::N64BigEndian
     ) || source_root
         .extension()
         .and_then(|value| value.to_str())
         .is_none_or(|extension| !extension.eq_ignore_ascii_case("zip"))
     {
         return Err(PortcoveError::source(format!(
-            "file-set archives only support copied ZIP members: {}",
+            "file-set archives require a supported ZIP member materialization: {}",
             source_root.display()
         )));
     }
@@ -1038,7 +1042,12 @@ fn prepare_runtime_source_set_member(
         )));
     }
     let size = entry.size();
-    copy_runtime_reader(entry, destination, size, checkpoint)?;
+    if materialization == RuntimeSourceMaterialization::N64BigEndian {
+        let rom = read_runtime_bytes(entry, 512 * 1024 * 1024, checkpoint)?;
+        write_n64_big_endian(rom, destination, checkpoint)?;
+    } else {
+        copy_runtime_reader(entry, destination, size, checkpoint)?;
+    }
     atomic_write_json(&marker_path, &expected)
 }
 
@@ -4030,7 +4039,7 @@ mod tests {
         let file = File::create(&source).unwrap();
         let mut archive = zip::ZipWriter::new(file);
         archive
-            .start_file("nested/game.z64", zip::write::SimpleFileOptions::default())
+            .start_file("game.z64", zip::write::SimpleFileOptions::default())
             .unwrap();
         archive.write_all(&rom).unwrap();
         archive.finish().unwrap();
@@ -5334,6 +5343,59 @@ mod tests {
             std::fs::read(install.join("data/audio.rom")).unwrap(),
             b"audio"
         );
+    }
+
+    #[test]
+    fn file_set_zip_normalizes_only_the_uniquely_selected_n64_member() {
+        let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        for order in ["big", "swapped", "little"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let source = temporary.path().join("set.zip");
+            let destination = temporary.path().join("runtime/game.z64");
+            std::fs::create_dir(destination.parent().unwrap()).unwrap();
+            let mut rom = canonical;
+            if order == "swapped" {
+                for pair in rom.chunks_exact_mut(2) {
+                    pair.swap(0, 1);
+                }
+            }
+            if order == "little" {
+                for word in rom.chunks_exact_mut(4) {
+                    word.reverse();
+                }
+            }
+            let mut writer = zip::ZipWriter::new(File::create(&source).unwrap());
+            writer
+                .start_file("game.z64", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(&rom).unwrap();
+            writer
+                .start_file("another.z64", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(b"unselected member").unwrap();
+            writer.finish().unwrap();
+
+            prepare_runtime_source_set_member(
+                &source,
+                &["game.z64".into()],
+                &destination,
+                RuntimeSourceMaterialization::N64BigEndian,
+                &|| Ok(()),
+            )
+            .unwrap();
+            assert_eq!(std::fs::read(&destination).unwrap(), canonical, "{order}");
+            assert!(
+                prepare_runtime_source_set_member(
+                    &source,
+                    &["game.z64".into(), "another.z64".into()],
+                    &destination,
+                    RuntimeSourceMaterialization::N64BigEndian,
+                    &|| Ok(())
+                )
+                .is_err()
+            );
+            assert_eq!(std::fs::read(destination).unwrap(), canonical);
+        }
     }
 
     #[test]

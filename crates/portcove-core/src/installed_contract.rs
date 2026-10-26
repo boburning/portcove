@@ -108,6 +108,7 @@ impl InstalledContract {
                 format
             }
             (6 | 7 | 8, Some(format @ 1..=3), None, None) => format,
+            (9, Some(format @ 1..=3), Some(crate::PreparationMode::SourceOnly), None) => format,
             _ => {
                 return Err(PortcoveError::verification(
                     "retained preparation interpretation is unsupported or malformed",
@@ -146,7 +147,7 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if matches!(self.format, 4..=8) {
+        if matches!(self.format, 4..=9) {
             cache_key = serde_json::to_string(&(
                 self.original_format,
                 self.preparation_mode,
@@ -210,6 +211,11 @@ impl InstalledContract {
     }
 
     fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
+        if self.format == 9 && !crate::preparation::source::eligible(catalog.port(&self.port_id)?) {
+            return Err(PortcoveError::verification(
+                "source-only retained interpretation has no matching source owner",
+            ));
+        }
         if (self.format == 8)
             != catalog
                 .port(&self.port_id)?
@@ -254,6 +260,29 @@ impl InstalledContract {
         prepared.preparation_mode = Some(crate::PreparationMode::Ghostship200Legacy);
         prepared.format = 4;
         prepared.catalog("ghostship")?;
+        Ok(prepared)
+    }
+
+    pub(crate) fn for_source_only_preparation(&self) -> Result<Self> {
+        let catalog = self.catalog(&self.port_id)?;
+        if !crate::preparation::source::eligible(catalog.port(&self.port_id)?) {
+            return Err(PortcoveError::unsupported(
+                "retained definition has no source-only preparation owner",
+            ));
+        }
+        if self.format == 9 {
+            return Ok(self.clone());
+        }
+        if !matches!(self.format, 1..=3) {
+            return Err(PortcoveError::verification(
+                "source-only preparation cannot wrap another interpretation",
+            ));
+        }
+        let mut prepared = self.clone();
+        prepared.original_format = Some(self.format);
+        prepared.preparation_mode = Some(crate::PreparationMode::SourceOnly);
+        prepared.format = 9;
+        prepared.catalog(&self.port_id)?;
         Ok(prepared)
     }
 

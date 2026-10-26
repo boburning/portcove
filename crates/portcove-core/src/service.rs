@@ -3028,7 +3028,9 @@ impl PortcoveService {
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
-        let qualification = qualification.with_cartridge_build_source(source.as_ref())?;
+        let qualification = qualification
+            .with_cartridge_build_source(source.as_ref())?
+            .with_runtime_source(source.as_ref())?;
         let managed = self
             .managed_preparation(
                 port,

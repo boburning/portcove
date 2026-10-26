@@ -22059,6 +22059,11 @@
             "const": "ghostship200_legacy",
             "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
             "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
+            "type": "string"
           }
         ]
       }
@@ -22600,7 +22605,14 @@
             "$ref": "#/$defs/PreparationOptions"
           },
           "setup_tool": {
-            "$ref": "#/$defs/PreparationTool"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparationTool"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "source": {
             "$ref": "#/$defs/SourceRecord"
@@ -22614,7 +22626,6 @@
           "definition_sha256",
           "source",
           "source_inspection",
-          "setup_tool",
           "conversion_tool",
           "host",
           "options"
@@ -22633,6 +22644,11 @@
           {
             "const": "ghostship200_legacy",
             "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
             "type": "string"
           }
         ]

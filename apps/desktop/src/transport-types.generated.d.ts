@@ -2763,7 +2763,7 @@ export interface PreparationOptions {
   /**
    * This family currently exposes the catalog's reviewed defaults only.
    */
-  mode: "default" | "ghostship200_legacy";
+  mode: "default" | "ghostship200_legacy" | "source_only";
   target: Platform;
 }
 export interface OutputPreparationPlan {
@@ -2793,7 +2793,7 @@ export interface PreparationInputs {
   host: Platform;
   install: InstallRecord;
   options: PreparationOptions;
-  setup_tool: PreparationTool;
+  setup_tool?: PreparationTool | null;
   source: SourceRecord;
   source_inspection: SourceInspectionReport;
   [k: string]: unknown;

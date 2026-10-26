@@ -210,7 +210,10 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
                 requirements.to_str().unwrap(),
             ],
         ));
-        assert_eq!(negotiated["schema_version"], 81);
+        assert_eq!(
+            negotiated["schema_version"],
+            portcove_core::API_SCHEMA_VERSION
+        );
         assert_eq!(negotiated["data"]["compatible"], compatible);
         assert_eq!(
             negotiated["data"]["checks"][0]["installed_version"],

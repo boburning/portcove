@@ -1778,7 +1778,11 @@ pub(crate) fn preparation_plan(
         clean(&plan.inputs.install.version),
         clean(&plan.inputs.source.path.display().to_string()),
         clean(&plan.inputs.source_inspection.summary),
-        clean(&plan.inputs.setup_tool.path.display().to_string()),
+        plan.inputs
+            .setup_tool
+            .as_ref()
+            .map(|tool| clean(&tool.path.display().to_string()))
+            .unwrap_or_else(|| "None (source materialization only)".into()),
         format_bytes(plan.copy.total_bytes),
         plan.copy.total_bytes,
         clean(&plan.plan_sha256),

@@ -139,8 +139,11 @@ pub(super) fn validate_plan(
         || plan.inputs.options.mode != super::PreparationMode::Ghostship200Legacy
         || plan.port_id != port.id
         || plan.inputs.options.target != plan.inputs.host
-        || plan.inputs.setup_tool.sha256 != EXECUTABLE_SHA256
-        || plan.inputs.setup_tool.size != 11_533_312
+        || plan
+            .inputs
+            .setup_tool
+            .as_ref()
+            .is_none_or(|tool| tool.sha256 != EXECUTABLE_SHA256 || tool.size != 11_533_312)
         || plan.inputs.conversion_tool.is_some()
     {
         return Err(PortcoveError::verification(

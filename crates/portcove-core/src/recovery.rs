@@ -288,6 +288,29 @@ fn require_install_publication_authority(
     operation: &LifecycleOperation,
     install: &InstallRecord,
 ) -> Result<()> {
+    let installer = Installer::new(service.library.clone())?;
+    if installer.retained_preparation_mode(install)? == Some(crate::PreparationMode::SourceOnly) {
+        let catalog = installer.retained_catalog(install)?.ok_or_else(|| {
+            PortcoveError::verification("sealed source publication has no retained definition")
+        })?;
+        let port = catalog.port(&install.port_id)?;
+        let profile = port.source_profile.as_deref().ok_or_else(|| {
+            PortcoveError::verification("sealed source publication has no source profile")
+        })?;
+        let source = service.library.source(profile)?.ok_or_else(|| {
+            PortcoveError::source("sealed source publication requires its registered original")
+        })?;
+        crate::source_inspection::verify_registered(&catalog, &source)?;
+        crate::preparation::source::validate(
+            &service.library,
+            &catalog,
+            port,
+            install,
+            Some(&source),
+            operation.preparation.as_ref(),
+        )?;
+    }
+
     if !matches!(
         operation.kind,
         LifecycleOperationKind::Install
