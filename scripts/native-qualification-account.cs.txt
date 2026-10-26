@@ -833,7 +833,7 @@ namespace Portcove.NativeQualification {
             }
         }
         internal static void VerifyHostedToken(IntPtr token, IntPtr station, IntPtr desktop) {
-            if (GrantedDesktopRights(station, token, true) != 0x20002 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
+            if (GrantedDesktopRights(station, token, true) != 0x20103 || GrantedDesktopRights(desktop, token, false) != 0x200c7)
                 throw new InvalidOperationException("Effective hosted station/private-desktop rights differ");
             IntPtr input = OpenInputDesktop(0, false, 0x20081);
             if (input == IntPtr.Zero) throw Error("Inspect actual input desktop access");
