@@ -375,7 +375,7 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   const invocation =
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
 
-  assert.equal((workflow.match(invocation) ?? []).length, 1);
+  assert.equal((workflow.match(invocation) ?? []).length, 0);
   const schemaInstall: Record<string, unknown> & { run: string } = workflowStep(
     "rust_quality_full",
     "Install Linux desktop schema-export prerequisites",
@@ -391,6 +391,12 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   );
   assert.equal(nativeInstall["timeout-minutes"], 30);
   assert.equal(nativeInstall.run, schemaInstall.run);
+  const docsInstall: Record<string, unknown> & { run: string } = workflowStep(
+    "rust_docs",
+    "Install Linux desktop prerequisites",
+  );
+  assert.equal(docsInstall["timeout-minutes"], 30);
+  assert.equal(docsInstall.run, schemaInstall.run);
   assert.equal((deepQuality.match(invocation) ?? []).length, 1);
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(
