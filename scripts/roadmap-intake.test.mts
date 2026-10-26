@@ -670,10 +670,12 @@ void test("capture-port creates one Project-backed issue without depending on pa
   assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 1);
 });
 const normalizationCases = [null, 16, 777].flatMap((parentNumber) =>
-  ["unlisted", "exact", "other-key", "other-upstream", "missing-upstream"].map((adoption) => ({
-    parentNumber,
-    adoption,
-  })),
+  ["unlisted", "exact", "captured", "other-key", "other-upstream", "missing-upstream"].map(
+    (adoption) => ({
+      parentNumber,
+      adoption,
+    }),
+  ),
 );
 for (const { parentNumber, adoption } of normalizationCases) {
   void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} with ${adoption} catalog adoption idempotently`, () => {
@@ -691,6 +693,14 @@ form-port
 ### User outcome and why this port matters
 
 Preserve this contributor text.`;
+    if (adoption === "captured") {
+      body =
+        renderPortIssueBody({
+          title: "Form Port",
+          upstream: "https://github.com/example/form-port",
+          portKey: "form-port",
+        }) + "\n\nPreserve this contributor text.";
+    }
     const initialBody = body;
     let workType = "Research";
     const issue = () => ({
@@ -839,7 +849,7 @@ Preserve this contributor text.`;
     assert.equal(first.projectItemAdded, false);
     assert.deepEqual(first.fieldsChanged, ["Work type"]);
     assert.match(body, /Preserve this contributor text/);
-    if (adoption === "exact") {
+    if (adoption === "exact" || adoption === "captured") {
       assert.match(body, /<!-- portcove-catalog-id: form-port -->/);
       assert.doesNotMatch(body, /<!-- portcove-port-key:|<!-- portcove-research:/);
     } else {
