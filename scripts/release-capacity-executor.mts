@@ -105,8 +105,7 @@ interface PrivateSession {
  * selected-profile requirement before authentication awaits, so removing its
  * live record cannot enable a lingering legacy App credential. The actual
  * selected getter/history/OIDC checks still establish the usable binding. */
-function selectedJournalRequired() {
-  const environment = { ...process.env };
+export function inspectSelectedJournalRequirement(environment: Readonly<NodeJS.ProcessEnv>) {
   const purpose = inspectControllerExecutionPurpose(environment.PORTCOVE_EXECUTION_PURPOSE);
   const raw =
     purpose === "application"
@@ -194,7 +193,7 @@ export async function authenticateCapacityExecutor(
   directory: string,
   deadline?: number,
 ): Promise<ExecutorSession> {
-  const requiresSignedJournal = selectedJournalRequired();
+  const requiresSignedJournal = inspectSelectedJournalRequirement({ ...process.env });
   const expected = inspectAssemblerIdentityExpectation(structuredClone(rawExpected));
   const identity = await observe(role, expected, directory, deadline);
   const session: ExecutorSession = Object.freeze({ kind: "authenticated-capacity-executor" });
@@ -454,7 +453,7 @@ export async function ensureOwnedCheckpointJournalHistory(
   if (value.nativePreparing || value.nativeCheckpoint)
     throw new Error("native phase owns executor until exact checkpoint settlement");
   capacityExecutorIdentity(session);
-  value.requiresSignedJournal ||= selectedJournalRequired();
+  value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
   if (!value.requiresSignedJournal && value.journalBinding === undefined) return false;
   if (value.journalBinding === undefined)
     await authenticateOwnedCheckpointJournalHistory(session, repository, expected);
@@ -870,7 +869,7 @@ function ownedCheckpointTransport(
   if (value.nativePreparing || value.nativeCheckpoint)
     throw new Error("prepared native phase owns executor until exact checkpoint settlement");
   let remote: NonNullable<CapacityOperationOptions["remote"]>;
-  value.requiresSignedJournal ||= selectedJournalRequired();
+  value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
   if (value.requiresSignedJournal || value.journalBinding !== undefined) {
     if (
       value.journalBinding !== "bound" ||
@@ -1127,7 +1126,7 @@ async function executeOwnedCapacityEffectWithinScope(
  * immutable controller must positively establish the requested resolution. */
 /** Provider reads share the actual executor's original phase clock. This
  * transport carries no executor authority and never extends a retained session. */
-function capacityRecoveryProviderApi(value: Pick<PrivateSession, "directory" | "deadline">) {
+export function capacityRecoveryProviderApi(value: { directory: string; deadline?: number }) {
   const remaining = () => {
     if (value.deadline !== undefined && !Number.isFinite(value.deadline))
       throw new Error("capacity recovery phase deadline invalid");

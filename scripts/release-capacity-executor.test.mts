@@ -1,7 +1,9 @@
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
   capacityExecutorIdentity,
+  inspectSelectedJournalRequirement,
   refreshCapacityExecutor,
   assertCapacityExecutorEffectScope,
   inspectCapacityExecutorSubject,
@@ -14,8 +16,6 @@ import {
 } from "./release-capacity-executor.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
-import { isRecord } from "./runtime-values.mts";
-import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 
 void test("imported sessions and custody cannot bind or reserve native checkpoint execution", async () => {
   const imported = Object.freeze({ kind: "authenticated-capacity-executor" as const });
@@ -34,23 +34,7 @@ void test("imported sessions and custody cannot bind or reserve native checkpoin
 });
 
 void test("selected journal refusal discriminator preserves current purpose and rejects malformed downgrade", async (t) => {
-  const { readFile } = await import("node:fs/promises");
-  const { stripTypeScriptTypes } = await import("node:module");
-  const { runInNewContext } = await import("node:vm");
-  const source = await readFile(
-    new URL("./release-capacity-executor.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function selectedJournalRequired("),
-    end = source.indexOf("const sessions =", start);
-  assert.ok(start > 0 && end > start);
-  const run = (environment: NodeJS.ProcessEnv) =>
-    (
-      runInNewContext(
-        stripTypeScriptTypes(source.slice(start, end)) + "\nselectedJournalRequired",
-        { process: { env: environment }, Buffer, isRecord, inspectControllerExecutionPurpose },
-      ) as () => boolean
-    )();
+  const run = inspectSelectedJournalRequirement;
   for (const catalog of ['{"schema_version":3}', "malformed unused catalog"]) {
     await t.test(`default application ignores ${catalog}`, () =>
       assert.equal(
@@ -471,66 +455,118 @@ void test("bootstrap and renewal route distinct explicit subjects through only t
   );
 });
 
-void test("actual recovery provider transport caps each read to original session remaining and refuses late replies", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const { stripTypeScriptTypes } = await import("node:module");
-  const { runInNewContext } = await import("node:vm");
-  const source = await readFile(
-    new URL("./release-capacity-executor.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function capacityRecoveryProviderApi("),
-    end = source.indexOf("export async function recoverOwnedCapacityEffect(", start);
-  assert.ok(start > 0 && end > start);
+async function recoveryProviderControl() {
+  const { mock } = await import("node:test");
+  const { performance } = await import("node:perf_hooks");
+  const assert: typeof import("node:assert/strict") = (await import("node:assert/strict")).default;
+  const githubUrl = new URL("./github-api.mts", process.argv[1]).href;
+  const github = (await import(githubUrl)) as typeof import("./github-api.mts");
   let now = 10,
     delay = 0,
     gets = 0;
   const timeouts: number[] = [];
-  const makeApi = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end)) + "\ncapacityRecoveryProviderApi",
-    {
-      performance: { now: () => now },
-      Number,
-      Math,
-      Error,
-      createGitHubRunner: (settings: { timeoutMs: number }) => {
+  mock.module(githubUrl, {
+    exports: {
+      ...github,
+      createGitHubRunner(settings: { timeoutMs: number }) {
         timeouts.push(settings.timeoutMs);
-        return (args: string[]) => {
+        return (args: readonly string[]) => {
           assert.ok(args.includes("github.com"));
           gets++;
           now += delay;
-          return { status: 200, body: { original: true } };
+          return 'HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n{"original":true}';
         };
       },
-      GitHubApiClient: class {
-        private runner: (...args: unknown[]) => unknown;
-        constructor(runner: (...args: unknown[]) => unknown) {
-          this.runner = runner;
-        }
-        request() {
-          return this.runner(["api", "fixed-original-job"], undefined);
-        }
-      },
     },
-  ) as (value: { directory: string; deadline?: number }) => { request: () => unknown };
-  const api = makeApi({ directory: "private", deadline: 100 });
-  api.request();
+  });
+  mock.method(performance, "now", () => now);
+  const executor = (await import(
+    process.argv[1] + "?owned-timeout-control"
+  )) as typeof import("./release-capacity-executor.mts");
+  const api = executor.capacityRecoveryProviderApi({ directory: "private", deadline: 100 });
+  const read = () => api.request("GET", "repos/boburning/portcove/actions/runs/123");
+  assert.deepEqual(read().body, { original: true });
   now = 50;
-  api.request();
+  read();
   assert.deepEqual(timeouts, [90, 50]);
   now = 100;
-  assert.throws(() => api.request(), /deadline exhausted/);
+  assert.throws(read, /deadline exhausted/);
   assert.equal(gets, 2);
   now = 95;
   delay = 6;
-  assert.throws(() => api.request(), /deadline exhausted/);
+  assert.throws(read, /deadline exhausted/);
   assert.equal(gets, 3);
   assert.deepEqual(timeouts, [90, 50, 5]);
-  assert.throws(() => makeApi({ directory: "private", deadline: NaN }).request(), /invalid/);
+  assert.throws(
+    () =>
+      executor
+        .capacityRecoveryProviderApi({ directory: "private", deadline: NaN })
+        .request("GET", "unused"),
+    /invalid/,
+  );
   assert.equal(gets, 3);
   now = 1;
   delay = 0;
-  makeApi({ directory: "private" }).request();
+  executor.capacityRecoveryProviderApi({ directory: "private" }).request("GET", "unused");
   assert.equal(timeouts.at(-1), 15000);
+}
+
+void test("actual recovery provider transport caps each read to original session remaining and refuses late replies", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    new URL("./release-capacity-executor.mts", import.meta.url),
+    "utf8",
+  );
+  // The two private recovery paths must retain this deadline-bounded provider.
   assert.equal(source.split("const api = capacityRecoveryProviderApi(value);").length - 1, 2);
+
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--experimental-test-module-mocks",
+      "--input-type=module",
+      "-e",
+      `await (${recoveryProviderControl.toString()})();`,
+      new URL("./release-capacity-executor.mts", import.meta.url).href,
+    ],
+    {
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+    },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+});
+
+void test("actual executor applies the selected journal refusal before authentication", () => {
+  const program = `
+    import assert from 'node:assert/strict';
+    const { authenticateCapacityExecutor } = await import(process.argv[1]);
+    await assert.rejects(authenticateCapacityExecutor('coordinator', {}, 'unused'), /protected journal configuration schema differs/);
+  `;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      program,
+      new URL("./release-capacity-executor.mts", import.meta.url).href,
+    ],
+    {
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      env: {
+        ...process.env,
+        PORTCOVE_EXECUTION_PURPOSE: "application",
+        PORTCOVE_RELEASE_AUTHORITIES: '{"schema_version":9}',
+        GITHUB_TOKEN: "",
+        GH_TOKEN: "",
+        ACTIONS_ID_TOKEN_REQUEST_TOKEN: "",
+      },
+    },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr + result.stdout);
 });
