@@ -857,6 +857,65 @@ void test("module-local changes select their owned groups and union mixed impact
   assert.match(requiredFixture(selected.groups[1]).reason, /source discovery/u);
 });
 
+void test("private unchanged-definition fixtures retain release ownership and conservative fallbacks", async () => {
+  const file = "crates/portcove-core/src/release/tests/unchanged_definition.rs";
+  const before = structuredClone(map);
+  for (const group of requiredFixture(before.packages["portcove-core"]).groups)
+    group.paths = group.paths.filter((path) => path !== file);
+  assert.equal(selectRustTestImpact(before, "portcove-core", [modified(file)]).mode, "broad");
+  for (const status of ["A", "M"]) {
+    const selection = selectRustTestImpact(map, "portcove-core", [{ status, path: file }]);
+    assert.equal(selection.mode, "focused");
+    assert.deepEqual(
+      selection.groups.map((group) => group.id),
+      ["release-discovery"],
+    );
+    assert.match(requiredFixture(selection.groups[0]).filter, /test\(\/\^release::tests::\/\)/u);
+  }
+  for (const change of [
+    { status: "D", path: file },
+    {
+      status: "R100",
+      previousPath: file,
+      path: "crates/portcove-core/src/release/tests/renamed.rs",
+    },
+    { status: "R100", previousPath: "crates/portcove-core/src/old.rs", path: file },
+  ])
+    assert.equal(selectRustTestImpact(map, "portcove-core", [change]).mode, "broad");
+  for (const shared of ["lib.rs", "test_fixture.rs", "service.rs", "database.rs", "unknown.rs"])
+    assert.equal(
+      selectRustTestImpact(map, "portcove-core", [
+        modified(file),
+        modified("crates/portcove-core/src/" + shared),
+      ]).mode,
+      "broad",
+      shared,
+    );
+  const mixed = selectRustTestImpact(map, "portcove-core", [
+    modified(file),
+    modified("crates/portcove-core/src/source_report.rs"),
+  ]);
+  assert.deepEqual(
+    mixed.groups.map((group) => group.id),
+    ["release-discovery", "source-inspection"],
+  );
+  const { classifyChanges, buildPlan } = await import("./ordinary-validation.mts");
+  const plan = workspacePlan([file]);
+  const groups = selectWorkspaceRustImpact(plan, map);
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    ["portcove-core:release-discovery"],
+  );
+  const commands = buildPlan(classifyChanges([modified(file)], { fileExists: () => true }), {
+    validationPlan: plan,
+  });
+  const rust = requiredFixture(commands.find((command) => command.id === "rust-workspace-tests"));
+  assert.deepEqual(
+    rust.rustCoverage,
+    groups.map((group) => group.filter),
+  );
+});
+
 void test("source import selects its complete family and discovery consumers", () => {
   const paths = [
     "crates/portcove-core/src/source_import.rs",
