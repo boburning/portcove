@@ -9381,12 +9381,39 @@
     {
       "id": "bodbdearg-psydoom",
       "name": "Doom / PsyDoom (BodbDearg)",
-      "summary": "Explore Doom / PsyDoom (BodbDearg) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play PlayStation Doom and Final Doom through PsyDoom using your own game-disc image.",
       "project_url": "https://github.com/BodbDearg/PsyDoom",
       "issue_number": 1873,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/BodbDearg/PsyDoom"
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/BodbDearg/PsyDoom#running-the-game",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the Windows player together",
+            "instruction": "Extract the complete Windows x64 ZIP into a separate folder. If the player requires it, follow upstream’s Windows Visual C++ runtime prerequisite."
+          },
+          {
+            "title": "Choose your PlayStation game disc",
+            "instruction": "Finish setup with PsyDoom.exe and its folder. On Play, use the launcher to select a supported PS1 Doom or Final Doom .cue file, keeping all referenced track files with it. A PC Doom WAD does not replace that disc image."
+          },
+          {
+            "title": "Preserve your working copy",
+            "instruction": "Updates remain with you and upstream. Keep original disc files and mods backed up. Windows settings, saves and demos normally use AppData/Roaming/com.codelobster/PsyDoom; also preserve a local launcher.ini or custom files if your copy uses them."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/BodbDearg/PsyDoom#running-the-game"
+      },
+      "release_url": "https://github.com/BodbDearg/PsyDoom/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "PsyDoom_",
+          "_Windows_x86_64.zip"
+        ]
+      }
     },
     {
       "id": "body-harvest-recompiled",
@@ -13256,12 +13283,14 @@
     {
       "id": "doom-ii-rpg-doomiirpg-re",
       "name": "Doom II RPG / DoomIIRPG-RE",
-      "summary": "Explore Doom II RPG / DoomIIRPG-RE and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Doom II RPG with the upstream Windows player and your original iOS game package.",
       "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
       "issue_number": 370,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Erick194/DoomIIRPG-RE",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Erick194/DoomIIRPG-RE#readme",
       "artwork": {
         "game_id": 101031,
         "cover_id": 139770,
@@ -13269,17 +13298,45 @@
         "image_sha256": "cba5f5ca6ebf630c36205d21c20d2d58c4def25c69503ab268ecfb83abdfc107",
         "game_slug": "doom-ii-rpg",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply the original iOS package",
+            "instruction": "Keep your permitted original Doom 2 RPG.ipa beside DoomIIRPG.exe, using that exact filename. This player reads the iOS package; BREW/J2ME rendering or cheat descriptions do not establish alternate game-data support."
+          },
+          {
+            "title": "Complete the Windows prerequisites",
+            "instruction": "Extract the complete Windows ZIP into a separate working folder. Upstream requires OpenAL 1.1 on Windows; use its documented runtime installation if it is missing."
+          },
+          {
+            "title": "Select the player and keep your saves",
+            "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme"
+      },
+      "release_url": "https://github.com/Erick194/DoomIIRPG-RE/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DoomIIRPG.",
+          ".zip"
+        ]
+      },
+      "original_game_title": "Doom II RPG"
     },
     {
       "id": "doom-rpg-doomrpg-re",
       "name": "Doom RPG / DoomRPG-RE",
-      "summary": "Explore Doom RPG / DoomRPG-RE and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
       "project_url": "https://github.com/Erick194/DoomRPG-RE",
       "issue_number": 369,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Erick194/DoomRPG-RE",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Erick194/DoomRPG-RE#readme",
       "artwork": {
         "game_id": 101029,
         "cover_id": 419952,
@@ -13287,7 +13344,35 @@
         "image_sha256": "cc08e314298f0cb0e877d0f6483b3d4b830feace20b3b36258c2300b82c068d2",
         "game_slug": "doom-rpg",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your original game data",
+            "instruction": "The player requires a prepared DoomRPG.zip beside DoomRPG.exe. Follow upstream’s supported preparation for your permitted original Doom RPG data. The included BarToZip.exe converts compatible BREW data; it is a manual preparation tool, not the game player."
+          },
+          {
+            "title": "Select the game player",
+            "instruction": "Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player."
+          },
+          {
+            "title": "Keep progress when updating",
+            "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+          }
+        ],
+        "warnings": [
+          "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both."
+        ],
+        "help_url": "https://github.com/Erick194/DoomRPG-RE#readme"
+      },
+      "release_url": "https://github.com/Erick194/DoomRPG-RE/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DoomRPG_Port.",
+          ".zip"
+        ]
+      },
+      "original_game_title": "Doom RPG"
     },
     {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
@@ -31831,12 +31916,14 @@
     {
       "id": "styd051-doom64-ex-plus-enhanced",
       "name": "Doom 64 / DOOM64 EX+ Enhanced (Styd051)",
-      "summary": "Explore Doom 64 / DOOM64 EX+ Enhanced (Styd051) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use a permitted DOOM 64 EX+ Enhanced copy with your PC remaster files and preserved user profile.",
       "project_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced",
       "issue_number": 1812,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
-      "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced",
+      "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme",
       "artwork": {
         "game_id": 224522,
         "cover_id": 267803,
@@ -31844,6 +31931,26 @@
         "image_sha256": "c753dc03a5efe6667836d1700435d133cc3f5b6f1b747e039cb3c15116decfff",
         "game_slug": "doom-64--1",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep a permitted working copy",
+            "instruction": "Use an existing permitted Windows installation with DOOM64EX+ENHANCED.exe and its accompanying Enhanced WAD and libraries. Keep your current working copy recoverable."
+          },
+          {
+            "title": "Provide the PC remaster assets before Play",
+            "instruction": "The engine searches supported GOG and Steam DOOM 64 remaster installations. It requires DOOM64.WAD, Doom64.kpf and normally DOOMSND.DLS; legacy ROM-derived WADs do not substitute. Missing files cause an error rather than an original-file picker."
+          },
+          {
+            "title": "Preserve both current and older profiles",
+            "instruction": "Choose that player and its folder, then Play explicitly. Current Windows saves, config.cfg and screenshots normally use AppData/Roaming/doom64ex-plus. Older copies may keep them beside the executable, and the game can move those files on startup. Back up both locations before changing versions. Upstream updates and any shared profile remain outside Portcove management."
+          }
+        ],
+        "warnings": [
+          "Use your permitted upstream copy under its applicable conditions. Keep both the older working folder and current user profile backed up before first Play."
+        ],
+        "help_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme"
       }
     },
     {
