@@ -459,6 +459,13 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# Mac ARM run 40358310040/a1 missed the 5s actual-copy latch. Its exact
+# 15s setup allowance needs the same finite 45s drain/cleanup envelope as Intel.
+[[profile.default.overrides]]
+platform = 'aarch64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_revocation_during_copy_refuses_publication$/)'

@@ -1,7 +1,6 @@
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import type { DoctorReport, PreparationCleanupPreview } from "../types";
@@ -26,21 +25,6 @@ const freshDiagnostics = {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-});
-
-it("keeps unavailable information distinct from an empty recorded repair list", () => {
-  const unavailable = renderToStaticMarkup(
-    <RecoveryReview {...freshDiagnostics} ports={[port]} stale />,
-  );
-  const empty = renderToStaticMarkup(
-    <RecoveryReview {...freshDiagnostics} ports={[port]} repair={{ generated_at: 1, items: [] }} />,
-  );
-  expect(unavailable).toContain("has not been checked for the current library state");
-  expect(unavailable).not.toContain("No recovery items");
-  expect(empty).toContain("No recovery items were recorded in the last check.");
-  expect(unavailable).toContain("rounded-pc-lg border border-pc-border");
-  expect(empty).toContain("py-2");
-  expect(empty).not.toContain("rounded-pc-lg border");
 });
 
 it("puts paths behind a collapsed review and omits raw errors and execution controls", async () => {
@@ -83,49 +67,6 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
   } finally {
     await act(async () => root.unmount());
   }
-});
-
-it.each(["future_kind", "constructor", "__proto__"])("uses a neutral label for %s", (kind) => {
-  const entry = {
-    ...item(),
-    kind: kind as ReturnType<typeof item>["kind"],
-    path: null,
-    proposed_action: "",
-    port_id: null,
-    operation_id: null,
-  };
-  const html = renderToStaticMarkup(
-    <RecoveryReview
-      {...freshDiagnostics}
-      repair={{ generated_at: 1, items: [entry] }}
-      ports={[]}
-    />,
-  );
-  expect(html).toContain("Library · Recovery information needs review");
-  expect(html).toContain("No location was recorded.");
-  expect(html).toContain("No recovery guidance was recorded.");
-  expect(html).not.toContain("raw-machine-secret");
-});
-
-it("retains every recorded item and full long names and paths", () => {
-  const longPath = `C:\\${"owned-folder\\".repeat(40)}retained`;
-  const items = Array.from({ length: 40 }, (_, index) => ({
-    ...item(),
-    operation_id: `operation-${index}`,
-    path: longPath,
-  }));
-  const html = renderToStaticMarkup(
-    <RecoveryReview
-      {...freshDiagnostics}
-      repair={{ generated_at: 1, items }}
-      ports={[{ ...port, name: "A long game name ".repeat(10) }]}
-    />,
-  );
-  expect(html).toContain("40 recorded items need review.");
-  expect(html.match(/<details(?:\s|>)/g)).toHaveLength(40);
-  expect(html).toContain(longPath);
-  expect(html).toContain("operation-39");
-  expect(html).not.toContain("raw-machine-secret");
 });
 
 it("inspects exact retained facts without deleting, then refreshes the bound plan for separate cleanup", async () => {

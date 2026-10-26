@@ -20,6 +20,7 @@ import {
   requiredFixture,
   workflow,
   workflowJob,
+  workflowJobSource,
   workflowStep,
   executableLines,
   qualificationWorkflow,
@@ -1060,7 +1061,7 @@ void test("release qualification profile connects bounded matrices and skips onl
       body,
       /if: needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\)/,
     );
-  const portability = workflow.split("  frontend_portability:")[1] ?? "";
+  const portability = workflowJobSource(workflow, "frontend_portability");
   assert.match(
     portability,
     /if: \(needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-aarch64'\)\)/,
@@ -1400,6 +1401,15 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_revocation_during_copy_refuses_publication$/))",
   );
   assert.equal(cacheRetention.platform, "x86_64-pc-windows-msvc");
+  const macCacheRetentionFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_retention_cancellation_preserves_partial_after_worker_exit$/)";
+  for (const platform of ["x86_64-apple-darwin", "aarch64-apple-darwin"]) {
+    assert.deepEqual(overrideFor(macCacheRetentionFilter, platform), {
+      platform,
+      filter: macCacheRetentionFilter,
+      "slow-timeout": { period: "5s", "terminate-after": 9, "grace-period": "0s" },
+    });
+  }
   assert.deepEqual(cacheRetention["slow-timeout"], {
     period: "5s",
     "terminate-after": 12,

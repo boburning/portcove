@@ -42,6 +42,7 @@ import {
   observeCatalogMaintenanceProtections,
 } from "./release-input-protections.mts";
 import { slice4CapacityResources } from "./release-capacity.mts";
+import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function fixture() {
   const fixed = {
@@ -346,7 +347,7 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
   const bytes = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   );
-  assert.ok(bytes.length <= 65536);
+  assert.ok(bytes.length <= maximumProductionControllerWorkflowBytes);
   const parsed = parseDocument(bytes.toString(), { uniqueKeys: true });
   assert.deepEqual(parsed.errors, []);
   const doc: unknown = parsed.toJS();
@@ -391,7 +392,7 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     assert.ok(isRecord(job));
     assert.match(String(job.if), /needs.admission.outputs.publication_purpose == 'application'/);
   }
-  assert.equal(slice4CapacityResources.declared_job_minutes, 85);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
   assert.equal(slice4CapacityResources.total_job_minutes, 100);
   assert.equal(
     slice4CapacityResources.catalog_job_minutes.reduce((a, b) => a + b, 0) +

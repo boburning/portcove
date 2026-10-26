@@ -36,17 +36,17 @@ import {
 // ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "dbd05cd665ded536e588370c61b6b4ba38035ce238786ee296975e7c34b1c405",
-  input_workflow_sha256: "dbd05cd665ded536e588370c61b6b4ba38035ce238786ee296975e7c34b1c405",
-  aggregate_job_minutes: Object.freeze([1, 4, 2, 3, 9, 2, 10, 10, 2, 2, 2, 2, 2, 6, 5]),
+  aggregate_workflow_sha256: "c0e6d7387cd78db6b8ab3b954dd074b40b7c934346203a292ea82850f77cf9b0",
+  input_workflow_sha256: "c0e6d7387cd78db6b8ab3b954dd074b40b7c934346203a292ea82850f77cf9b0",
+  aggregate_job_minutes: Object.freeze([1, 4, 2, 4, 3, 9, 2, 10, 10, 2, 2, 2, 2, 2, 6, 5]),
   input_job_minutes: Object.freeze([2, 2, 3, 10, 5]),
   wake_workflow_sha256: "015dc72a5574e4ec35333ed4c9f73be9641e9b8caf1e3c2b6a5899599a4ddd5c",
   wake_job_minutes: Object.freeze([1]),
-  declared_job_minutes: 85,
+  declared_job_minutes: 89,
   catalog_job_minutes: Object.freeze([1, 4, 2, 3, 2, 2, 2, 2, 5]),
   catalog_observer_job_minutes: Object.freeze([3, 8, 5]),
   catalog_declared_job_minutes: 40,
-  purpose_accounting: "mutually-exclusive-max-application85-catalog40",
+  purpose_accounting: "mutually-exclusive-max-application89-catalog40",
   // Separate candidate-workflow repair jobs; never enlarge the controller DAG.
   report_repair_job_minutes: 2,
   report_repair_attempts_per_candidate: 2,
@@ -65,7 +65,7 @@ export const slice4CapacityResources = Object.freeze({
   // four initial+14 phases, five TUF phases of three, and five site rounds.
   input_receipts: 163,
   input_receipt_bytes: 128 * 1024,
-  diagnostic_artifacts: 11,
+  diagnostic_artifacts: 13,
   diagnostic_files_per_artifact: 66,
   diagnostic_file_bytes: 65536,
   diagnostic_manifest_bytes: 65536,

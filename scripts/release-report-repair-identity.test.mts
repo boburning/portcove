@@ -129,5 +129,5 @@ void test("report-only workflow suppresses all candidate build and publication j
   assert.equal(slice4CapacityResources.report_repair_job_minutes, 2);
   assert.equal(slice4CapacityResources.report_repair_attempts_per_candidate, 2);
   assert.equal(slice4CapacityResources.report_repair_maximum_job_minutes_per_candidate, 4);
-  assert.equal(slice4CapacityResources.declared_job_minutes, 85);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
 });

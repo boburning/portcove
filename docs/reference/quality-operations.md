@@ -1151,6 +1151,32 @@ inventory, exact source heads, target interactions, required checks and run
 identities. The selected row is a recommendation: confirm existing ownership and
 actual writer activity and source-owner release before overlapping work. No
 coordinator grant or acknowledgment is required for independent delivery.
+The queue's `release_age_diagnosis` separates a passed status, explicitly missing
+timestamps, unexplained pending, and missing/conflicting/failed observations.
+A generic pending status does not establish a young release or a running timer.
+The optional bot version comes from the PR debug marker, not proof of the current
+hosted deployment. These fields are diagnostic only; raw statuses and all existing
+eligibility and delivery gates remain authoritative.
+
+For unexplained age blocks, bind every affected member's official datasource
+timestamp to the exact proposed version/digest, then inspect the hosted job's
+lookup and branch inputs and deployed engine version. Missing job access remains
+UNKNOWN. Never calculate an age expiry from PR creation, rebases or status-posting
+time. Docker Hub uses the tag's `tag_last_pushed`, so a mutable tag repush can restart
+the upstream delay. Digest and lock-maintenance symptoms may match
+[Renovate #45236](https://github.com/renovatebot/renovate/issues/45236); a matching
+symptom is not a confirmed hosted cause or permission to clear the status.
+
+Retain the one-day, timestamp-required, strict policy. Adopt a supported upstream
+correction when it is actually deployed, then request one supported retry after
+checking how authored work survives, and read back the actual source/status.
+An unmerged upstream fix cannot be installed into the hosted service by changing
+repository metadata. Keep unresolved service defects on the existing maintenance
+owner with exact heads, evidence and a concrete resume condition. Revisit on a
+changed source/status/input or supported scheduled wake; do not poll unchanged
+blocks tightly, write a custom age checker, manufacture green status, or silently
+relax policy. Any proposed policy exception requires explicit owner authority.
+
 The command does not retry, approve, rebase or merge proposals, assign ownership
 or maintain another queue. Refresh
 after every delivered outcome. No unattended execution is implied.
