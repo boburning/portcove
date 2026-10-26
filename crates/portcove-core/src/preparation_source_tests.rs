@@ -4,7 +4,7 @@ use crate::{
     PreparationOptions, ReleaseAsset, ReleaseChannel, ResolvedRelease,
 };
 use std::{
-    io::{Cursor, Read, Write},
+    io::{Cursor, Write},
     path::PathBuf,
 };
 
@@ -182,35 +182,13 @@ impl Fixture {
                 .with_runtime_source(Some(&self.source))
                 .unwrap();
         }
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = std::thread::spawn(move || {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-            let mut stream = loop {
-                match listener.accept() {
-                    Ok((stream, _)) => break stream,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        if std::time::Instant::now() >= deadline {
-                            return;
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                    }
-                    Err(error) => panic!("owned fixture server failed: {error}"),
-                }
-            };
-            stream
-                .set_read_timeout(Some(std::time::Duration::from_secs(10)))
-                .unwrap();
-            let _ = stream.read(&mut [0; 4096]);
-            write!(
-                stream,
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                bytes.len()
-            )
-            .unwrap();
-            stream.write_all(&bytes).unwrap();
-        });
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            bytes.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&bytes);
+        let (origin, _requests, server) = crate::test_http::serve_http_bytes(vec![response]);
         eprintln!("source install: execute");
         let result = Installer::with_faults(self.service.library().clone(), faults)
             .unwrap()
@@ -224,7 +202,7 @@ impl Fixture {
                         published_at: None,
                         asset: ReleaseAsset {
                             name: "owned-fixture.zip".into(),
-                            url: format!("http://{address}/owned-fixture.zip"),
+                            url: format!("{origin}/owned-fixture.zip"),
                             sha256: digest,
                             size,
                         },

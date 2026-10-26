@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI 40263836082/a1 reached this Windows case's 30.044s cap after verified
+# withdrawal and fresh-acquisition refusal at 28.68s, before cache refusal ended.
+# Preserve the full signed transition, assertions, two workers and zero retries;
+# give only this exact harness 60s. Product and nested socket deadlines stay fixed.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # The October 25 source-status regression completed in 24.690s, then hit
 # the 30s harness cutoff under shared-host load. Keep this exact Linux case
 # bounded at 60s; retain assertions, two slots, cleanup and zero retries.

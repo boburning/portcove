@@ -310,7 +310,7 @@ async fn downloaded_project_named_player_is_suggested_without_overriding_safety_
     )]);
     managed.release.asset_hints =
         std::collections::BTreeMap::from([(platform, vec!["runtime.zip".into()])]);
-    document.ports = vec![managed];
+    document.ports.push(managed);
     service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
     assert_eq!(
         service
