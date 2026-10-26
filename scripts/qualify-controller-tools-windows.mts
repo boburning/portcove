@@ -1,4 +1,5 @@
 /** Credential-free source/tool qualification. Never a native or protected producer. */
+import { nativeQualificationWorkerPath } from "./release-native-qualification-contract.mts";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import { openSync, closeSync, constants } from "node:fs";
@@ -646,10 +647,7 @@ async function main() {
     const sourceDeadline = performance.now() + 90000;
     const harnessHash = createHash("sha256")
       .update(
-        await readControllerToolFile(
-          path.join(source, "apps/desktop/scripts/desktop-test.mts"),
-          1024 ** 2,
-        ),
+        await readControllerToolFile(path.join(source, nativeQualificationWorkerPath), 1024 ** 2),
       )
       .digest("hex");
     const binding = createHash("sha256").update(JSON.stringify(expected)).digest("hex");

@@ -15,7 +15,7 @@ import {
   prepareActualHostedWindowsSource,
 } from "./release-hosted-native-windows-source.mts";
 
-const harness = "apps/desktop/scripts/desktop-test.mts";
+const harness = "scripts/release-native-worker.mts";
 const content = Buffer.from("export {};\n");
 const digest = createHash("sha256").update(content).digest("hex");
 const object = spawnSync("git", ["hash-object", "--stdin"], { input: content, encoding: "utf8" });
@@ -28,7 +28,7 @@ const inventory = (suffix = "") => inspectWindowsNativeSourceTree(Buffer.from(ro
 
 void test("Windows tree accepts exact Git modes, empty blobs and shared exact directory spelling", () => {
   const entries = inventory(
-    row("apps/desktop/empty", "100755", 0, "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"),
+    row("scripts/empty", "100755", 0, "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"),
   );
   assert.equal(entries.length, 2);
   assert.equal(entries[1]!.bytes, 0);
@@ -47,9 +47,9 @@ for (const [label, name] of [
   ["short name alias", "a~1/file"],
   ["Unicode alias", "a/COM¹"],
   ["empty component", "a//b"],
-  ["directory case alias", "Apps/other"],
-  ["file case alias", "apps/desktop/scripts/DESKTOP-TEST.mts"],
-  ["file prefix collision", "apps/desktop/scripts"],
+  ["directory case alias", "Scripts/other"],
+  ["file case alias", "scripts/RELEASE-NATIVE-WORKER.mts"],
+  ["file prefix collision", "scripts"],
 ]) {
   void test(`Windows tree refuses ${label}`, () => assert.throws(() => inventory(row(name))));
 }
@@ -77,7 +77,7 @@ function fixture(context: { after(callback: () => void | Promise<void>): void })
 }
 void test("Windows source verifies every byte against Git and independently pinned harness", (context) => {
   const root = fixture(context),
-    empty = "apps/desktop/empty";
+    empty = "scripts/empty";
   writeFileSync(path.join(root, empty), "");
   verifyWindowsNativeSourceFiles(
     root,
@@ -98,7 +98,7 @@ void test("Windows source rejects hardlinks and directory junction ancestry", (c
   assert.throws(() => verifyWindowsNativeSourceFiles(root, inventory(), digest, () => {}));
   const other = fixture(context);
   symlinkSync(
-    path.join(root, "apps"),
+    path.join(root, "scripts"),
     path.join(other, "alias"),
     process.platform === "win32" ? "junction" : "dir",
   );
@@ -106,9 +106,7 @@ void test("Windows source rejects hardlinks and directory junction ancestry", (c
     () =>
       verifyWindowsNativeSourceFiles(
         other,
-        inspectWindowsNativeSourceTree(
-          Buffer.from(row() + row("alias/desktop/scripts/desktop-test.mts")),
-        ),
+        inspectWindowsNativeSourceTree(Buffer.from(row() + row("alias/release-native-worker.mts"))),
         digest,
         () => {},
       ),
@@ -151,6 +149,8 @@ const {windowsSourceSystemExecutables:systemPaths}=await import(${JSON.stringify
 Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});
 const scratch=process.argv[1],data=Buffer.from(${JSON.stringify(content.toString())}),tree=Buffer.from(${JSON.stringify(row())}),hash=b=>createHash('sha256').update(b).digest('hex');
 let fault='',clock=1000,parent,toolReceipt,runtime,tools,spawned=false,requests=0,runtimeReads=0,gate,entered,block=false;
+const {selectedPublicationAuthoritiesFixture}=await import(${JSON.stringify(new URL("./fixtures/checkpoint-proof-fixture.mts", import.meta.url).href)});
+const {inspectSelectedPublicationAuthorityConfiguration:inspectConfiguration}=await import(${JSON.stringify(new URL("./release-authority-configuration.mts", import.meta.url).href)});
 const selected={source_commit:'b'.repeat(40),source_tree:'c'.repeat(40),harness:{path:${JSON.stringify(harness)},sha256:hash(data)}};
 const original={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/fixed-controller',run_id:123,run_attempt:1};
 globalThis.sourcePeers={
@@ -169,10 +169,11 @@ globalThis.sourcePeers={
 const routes={'./release-hosted-native-windows-dependency-files.mts':{inspectWindowsNativeDependencyInputs:'inputs',snapshotWindowsNativeDependencies:'graph'},'node:perf_hooks':{performance:'clock'},'./release-hosted-native-parent.mts':{requireActualHostedNativeParentSource:'parent'},'./release-controller-tool-admission.mts':{verifiedControllerToolPaths:'tools'},'./release-hosted-native-runtime.mts':{requireHostedNativeRuntime:'runtime',hostedNativeSupportDependencies:'support'},'./release-controller-tools.mts':{readControllerToolFile:'read'},'./release-native-runtime-custody.mts':{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck',windowsSourceSystemExecutables:'systemPaths',inspectWindowsSourceSystemCustody:'systemCustody',recheckWindowsSourceSystemCustody:'systemRecheck'},'node:child_process':{spawn:'spawn'},'./resource-command.mts':{runResourceCommand:'resource'},'./run-rust-tests.mts':{runRustTests:'supervise'},'./release-controller-job-bootstrap.mts':{assertControllerBootstrapEnvironment:'guard'}};
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(module)}&&routes[s])return {url:'source-controls:'+s,shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('source-controls:')){const exports=Object.entries(routes[u.slice(16)]).map(([name,key])=>'export const '+name+'='+(key==='clock'?'({now:globalThis.sourcePeers.now})':'globalThis.sourcePeers.'+key)+';').join('');return {format:'module',source:exports,shortCircuit:true}}return next(u,c)}});
 const api=await import(${JSON.stringify(module)});
-for(const scenario of ['valid','clipped','platform','stage','purpose','mixed-tools','no-reserve','changed-report','changed-tree','changed-blob','late-final','late-role','custody-final','getter-role','getter-bytes','getter-tools','getter-custody','getter-expired','concurrent-stop','deps','deps-preflight-late','deps-preflight-role']){
+for(const scenario of ['valid','clipped','platform','stage','purpose','mixed-tools','no-reserve','changed-report','changed-tree','changed-blob','late-final','late-role','custody-final','getter-role','getter-bytes','getter-tools','getter-custody','getter-expired','concurrent-stop','deps','deps-preflight-late','deps-preflight-role','harness']){
  fault=scenario;clock=1000;requests=runtimeReads=0;spawned=false;delete process.env.PORTCOVE_TUF_ROOT_KEY;
- const directory=path.join(scratch,scenario);await mkdir(directory);toolReceipt={};runtime={};tools={root:directory,node:process.execPath,pnpm:path.join(directory,'bin/pnpm.exe'),platform:'windows-x86_64',identity:original};parent={directory,producer:original,platform_label:scenario==='platform'?'linux-x86_64':'windows-x86_64',stage:scenario==='stage'?'release-publication':'payload-signing',deadline:scenario==='clipped'?250000:scenario==='no-reserve'?200000:500000,configuration:{purpose:scenario==='purpose'?'catalog':'application',hosted_native:{'windows-x86_64':{producer:selected}}},recheck(){assert.ok(clock<this.deadline)}};
- const preflight=['platform','stage','purpose','mixed-tools','no-reserve'].includes(scenario),failure=preflight||['changed-report','changed-tree','changed-blob','late-final','late-role','custody-final'].includes(scenario);
+ const configuration=selectedPublicationAuthoritiesFixture('application');configuration.hosted_native['windows-x86_64'].producer=scenario==='harness'?{...selected,harness:{path:'scripts/test-windows-installer.ps1',sha256:selected.harness.sha256}}:selected;inspectConfiguration(configuration);
+ const directory=path.join(scratch,scenario);await mkdir(directory);toolReceipt={};runtime={};tools={root:directory,node:process.execPath,pnpm:path.join(directory,'bin/pnpm.exe'),platform:'windows-x86_64',identity:original};parent={directory,producer:original,platform_label:scenario==='platform'?'linux-x86_64':'windows-x86_64',stage:scenario==='stage'?'release-publication':'payload-signing',deadline:scenario==='clipped'?250000:scenario==='no-reserve'?200000:500000,configuration:{...configuration,purpose:scenario==='purpose'?'catalog':'application'},recheck(){assert.ok(clock<this.deadline)}};
+ const preflight=['platform','stage','purpose','mixed-tools','no-reserve','harness'].includes(scenario),failure=preflight||['changed-report','changed-tree','changed-blob','late-final','late-role','custody-final'].includes(scenario);
  if(failure){await assert.rejects(api.prepareActualHostedWindowsSource(parent,toolReceipt,runtime),scenario);if(preflight){assert.equal(requests,0);assert.deepEqual(await readdir(directory),[])}else{assert.equal(requests,1);delete process.env.PORTCOVE_TUF_ROOT_KEY;fault='';clock=1000;await assert.rejects(api.prepareActualHostedWindowsSource(parent,toolReceipt,runtime),/one Windows source attempt/)}continue}
  const receipt=await api.prepareActualHostedWindowsSource(parent,toolReceipt,runtime);assert.equal(requests,1);await assert.rejects(api.requireActualHostedWindowsSource({...receipt}));
  if(scenario==='deps-preflight-late'||scenario==='deps-preflight-role'){
@@ -278,4 +279,84 @@ void test("Windows source child retains bounded raw command failure diagnostics 
     assert.deepEqual(Buffer.from(String(record.diagnostic.stderr.base64), "base64"), retained);
     assert.ok(Buffer.byteLength(result.stdout) < 65536 && Buffer.byteLength(result.stderr) < 8192);
   }
+});
+
+void test("Windows dependency child keeps startup homes outside its fresh DACL target", async (context) => {
+  const root = disposableDirectory(context, path.join(tmpdir(), "pc-win-deps-startup-")),
+    broker = path.join(root, "broker"),
+    source = path.join(broker, "windows-source/source"),
+    tools = path.join(root, "tools");
+  mkdirSync(path.join(source, "apps/desktop"), { recursive: true });
+  mkdirSync(path.join(tools, "scripts"), { recursive: true });
+  mkdirSync(path.join(tools, "bin"));
+  writeFileSync(
+    path.join(source, "package.json"),
+    JSON.stringify({ packageManager: "pnpm@12.14.0" }),
+    { mode: 0o600 },
+  );
+  writeFileSync(path.join(source, "apps/desktop/package.json"), "{}", { mode: 0o600 });
+  writeFileSync(path.join(source, "pnpm-workspace.yaml"), "packages: [apps/desktop]\n", {
+    mode: 0o600,
+  });
+  writeFileSync(
+    path.join(source, "pnpm-lock.yaml"),
+    `lockfileVersion: '9.0'\npackages:\n  inert@1.0.0:\n    resolution: {integrity: sha512-${Buffer.alloc(64).toString("base64")}}\nimporters:\n  .: {}\n`,
+    { mode: 0o600 },
+  );
+  const { inspectWindowsNativeDependencyInputs } =
+    await import("./release-hosted-native-windows-dependency-files.mts");
+  const inputs = await inspectWindowsNativeDependencyInputs(
+    source,
+    performance.now() + 10000,
+    () => {},
+  );
+  const plan = path.join(broker, "intent.json"),
+    setup = path.join(tools, "scripts/release-hosted-native-windows-setup.cs.txt"),
+    pnpm = path.join(tools, "bin/pnpm.exe"),
+    target = path.join(broker, "windows-dependencies");
+  writeFileSync(setup, "controlled unused source", { mode: 0o600 });
+  writeFileSync(pnpm, "controlled pinned runtime", { mode: 0o600 });
+  writeFileSync(
+    plan,
+    JSON.stringify({
+      schema_version: 1,
+      binding: "a".repeat(64),
+      source,
+      root: target,
+      setup,
+      pnpm,
+      inputs,
+      expires_at: Date.now() + 15000,
+    }),
+    { mode: 0o600 },
+  );
+  const module = new URL("./release-hosted-native-windows-source.mts", import.meta.url),
+    hook = path.join(root, "controlled-startup.mjs");
+  writeFileSync(
+    hook,
+    `import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import {EventEmitter} from 'node:events';import fs from 'node:fs';import path from 'node:path';Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});const plan=JSON.parse(fs.readFileSync(${JSON.stringify(plan)},'utf8'));globalThis.startupPeer=(exe,args,options)=>{const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.kill=()=>true;queueMicrotask(()=>{try{if(exe.endsWith('pwsh.exe')){for(const key of ['HOME','USERPROFILE','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME','TEMP','TMP'])assert.equal(options.env[key],path.dirname(plan.root));assert.equal(fs.existsSync(plan.root),false,'startup must not precreate the DACL target');fs.mkdirSync(plan.root)}else{assert.equal(exe,plan.pnpm);assert.equal(options.env.HOME,plan.root);if(args[0]==='--version')child.stdout.emit('data',Buffer.from('12.14.0'));else{assert.ok(args.includes('--frozen-lockfile')&&args.includes('--ignore-scripts')&&args.includes('--ignore-pnpmfile'));fs.mkdirSync(path.join(plan.source,'node_modules'));fs.mkdirSync(path.join(plan.source,'apps/desktop/node_modules'));fs.writeFileSync(path.join(plan.source,'node_modules/inert'),'fixture',{mode:0o600})}}child.emit('close',0,null)}catch(error){child.emit('error',error);child.emit('close',1,null)}});return child};registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(module.href)}&&s==='node:child_process')return {url:'startup-peer:spawn',shortCircuit:true};return next(s,c)},load(u,c,next){if(u==='startup-peer:spawn')return {format:'module',source:'export const spawn=globalThis.startupPeer;',shortCircuit:true};return next(u,c)}});`,
+    { mode: 0o600 },
+  );
+  const result = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(hook).href, fileURLToPath(module), "acquire-dependencies", plan],
+    {
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 65536,
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        HOME: process.env.HOME,
+        USERPROFILE: process.env.USERPROFILE,
+        TEMP: process.env.TEMP,
+        TMP: process.env.TMP,
+      },
+    },
+  );
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const observed: unknown = JSON.parse(result.stdout);
+  assert.ok(
+    isRecord(observed) && observed.dependencies_prepared === true && observed.authority === "none",
+  );
 });

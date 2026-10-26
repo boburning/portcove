@@ -1,5 +1,6 @@
 /** Held source preparation only. Public observations cannot mint an original
  * parent, runtime or source receipt; no account or native candidate is executed. */
+import { nativeQualificationWorkerPath } from "./release-native-qualification-contract.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -50,7 +51,7 @@ import {
 } from "./release-hosted-native-windows-dependency-files.mts";
 
 const { git, powershell } = windowsSourceSystemExecutables;
-const harness = "apps/desktop/scripts/desktop-test.mts";
+const harness = nativeQualificationWorkerPath;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Entry = Readonly<{ path: string; bytes: number; object: string }>;
 
@@ -540,7 +541,16 @@ async function acquireDependencies(planFile: string) {
       "$ErrorActionPreference='Stop';Set-StrictMode -Version Latest;$p=[IO.File]::ReadAllText($env:PORTCOVE_SOURCE_PLAN)|ConvertFrom-Json;Add-Type -TypeDefinition ([IO.File]::ReadAllText($p.setup));[Portcove.HostedNative.Setup]::Directory($p.root,[Security.Principal.WindowsIdentity]::GetCurrent().User.Value,$null,$false)",
     ],
     8192,
-    { PORTCOVE_SOURCE_PLAN: planFile, TEMP: path.dirname(plan.root), TMP: path.dirname(plan.root) },
+    {
+      PORTCOVE_SOURCE_PLAN: planFile,
+      TEMP: path.dirname(plan.root),
+      TMP: path.dirname(plan.root),
+      HOME: path.dirname(plan.root),
+      USERPROFILE: path.dirname(plan.root),
+      XDG_CONFIG_HOME: path.dirname(plan.root),
+      XDG_CACHE_HOME: path.dirname(plan.root),
+      XDG_DATA_HOME: path.dirname(plan.root),
+    },
   );
   created = true;
   const pnpmBefore = hash(await readControllerToolFile(plan.pnpm));
