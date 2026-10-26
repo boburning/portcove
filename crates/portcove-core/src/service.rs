@@ -5626,6 +5626,27 @@ impl PortcoveService {
         })
     }
 
+    fn retained_persistence_contracts(
+        &self,
+        port_id: &str,
+    ) -> Result<Vec<(PathBuf, PersistenceContract)>> {
+        let fallback = self.catalog.port(port_id)?;
+        let mut contracts = Vec::new();
+        for path in self.library.port_install_paths(port_id)? {
+            refuse_symlink_ancestors(&path)?;
+            match fs::symlink_metadata(&path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                result => {
+                    result?;
+                }
+            }
+            let install_root = self.managed_install_root(port_id, &path)?;
+            let contract = self.persistence_contract(fallback, &install_root)?;
+            contracts.push((install_root, contract));
+        }
+        Ok(contracts)
+    }
+
     fn require_completed_restore(&self, port_id: &str) -> Result<()> {
         if OperationStore::new(self.library.clone())
             .all()?

@@ -3023,7 +3023,27 @@ mod tests {
         let server = Server::new();
         let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
         let mut service = build_service(library.clone(), provider.clone());
-        service.replace_catalog_for_test(ready_persistence_catalog(false, false));
+        let original_catalog = crate::test_fixture::admitted_indexed_catalog(
+            &ready_persistence_catalog(false, false),
+            ID,
+        );
+        let expanded_catalog = crate::test_fixture::admitted_indexed_catalog(
+            &ready_persistence_catalog(true, true),
+            ID,
+        );
+        crate::definition_candidate::selection::trust_catalog_selection_for_test(
+            &library,
+            &expanded_catalog,
+            ID,
+        );
+        library
+            .restore_retained_definition_admission(
+                original_catalog.definition_selection(ID).unwrap(),
+                original_catalog.definition_snapshot(ID).unwrap(),
+                "previous",
+            )
+            .unwrap();
+        service.replace_catalog_for_test(original_catalog);
         let first = service
             .install(ID, None, None, None, true, |_| {})
             .await
@@ -3031,7 +3051,7 @@ mod tests {
         let manifest = fs::read(first.path.join(".portcove-manifest.json")).unwrap();
         let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
         fs::write(first.path.join("settings.ini"), b"before first Play").unwrap();
-        service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+        service.replace_catalog_for_test(expanded_catalog.clone());
         *provider.0.lock().unwrap() = server.release("v2", 2);
         let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
@@ -3126,7 +3146,7 @@ mod tests {
                 .is_err()
         );
         service = build_service(library.clone(), provider.clone());
-        service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+        service.replace_catalog_for_test(expanded_catalog.clone());
         service.recover_pending_operations().unwrap();
         assert_eq!(
             fs::read(staged.path.join("campaign.dat")).unwrap(),
@@ -3158,6 +3178,16 @@ mod tests {
         );
         assert!(!first.path.join("campaign.dat").exists());
         // Historical transfer authority works without adopting the widened live scope.
+        service.replace_catalog_for_test(expanded_catalog);
+        for (install, role) in [(&first, "previous"), (&staged, "active")] {
+            let retained = service.installed_catalog(install).unwrap();
+            assert_eq!(
+                library
+                    .retained_definition_admission_role(retained.definition_selection(ID).unwrap(),)
+                    .unwrap(),
+                Some(role)
+            );
+        }
         let metadata = temporary.path().join("export.json");
         service.write_library_metadata(&metadata).unwrap();
         let imported = temporary.path().join("imported");

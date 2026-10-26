@@ -727,17 +727,7 @@ impl PortcoveService {
         user_root: &Path,
     ) -> Result<BTreeMap<PathBuf, ModRestore>> {
         let mut plans = BTreeMap::new();
-        let fallback = self.catalog.port(port_id)?;
-        for path in self.library.port_install_paths(port_id)? {
-            refuse_symlink_ancestors(&path)?;
-            match fs::symlink_metadata(&path) {
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                result => {
-                    result?;
-                }
-            }
-            let install_root = self.managed_install_root(port_id, &path)?;
-            let contract = self.persistence_contract(fallback, &install_root)?;
+        for (install_root, contract) in self.retained_persistence_contracts(port_id)? {
             if !contract.writes_directly
                 && (contract.port.adapter == AdapterKind::PsxRecompManaged
                     || contract.port.mod_package_policy.is_some())
