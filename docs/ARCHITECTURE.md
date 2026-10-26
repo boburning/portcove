@@ -225,6 +225,9 @@ activation and stage-only retry validate that actual destination. Committed
 activation recovery finishes the committed version without reapplying an old
 absence condition. Transfer/import continue verifying retained-plus-retained
 contracts. No new registry, receipt format or lifecycle engine is introduced.
+Trusted verification projections keep the same exact root receipt-metadata
+exclusions as catalog-captured qualifications. Import still verifies each
+installation's retained scope, immutable identity and independent admission.
 
 Raw Installer activation refuses, and
 interrupted publication checks retained contracts and data before changing the
