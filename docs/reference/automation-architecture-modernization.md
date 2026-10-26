@@ -1,7 +1,8 @@
 # Automation architecture modernization
 
 Phase 1 owner: completed [#3662](https://github.com/boburning/portcove/issues/3662).
-Phase 2 owner: the existing development-agility [#1104](https://github.com/boburning/portcove/issues/1104).
+Phase 2 performance owner: the existing development-agility [#1104](https://github.com/boburning/portcove/issues/1104).
+Finite Roadmap policy owner: [#3700](https://github.com/boburning/portcove/issues/3700).
 Investigation baseline: `ba55e9a06357d0230ad9c65a48c96fe93f226a56`, October 25,
 2026 (America/New_York). This is dated implementation evidence, not a planning
 ledger. #2420 retains the canonical testing-audit recommendations; #1667 retains
@@ -682,3 +683,69 @@ Final local strict checking of the composed implementation covered 1,357 files
 with zero warnings, lint errors or type errors (8.6 s checker, 11.964 s guarded,
 5 ms queue). All 3,268 maintained files passed formatting. These observations
 retain their source/fixture boundary and do not replace exact-head hosted CI.
+
+## Final Phase 2 guarded delivery receipts
+
+| Delivered slice                                                                                                   | Reviewed source                            | Merge                                      | Required exact-head CI, attempt 1                                             |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| [#3668](https://github.com/boburning/portcove/pull/3668): browser scheduling, failure gate, parser/health cleanup | `79bbb6382f00f8ee918ca94f937a0fbaf9edb164` | `ea62405bf8d08f21055ff7381d90a6882379efee` | [40266447605](https://github.com/boburning/portcove/actions/runs/40266447605) |
+| [#3701](https://github.com/boburning/portcove/pull/3701): SSR ownership, pre-bundling and native help             | `cd9f8a03530e8ed913b5fe26c8620a56e30501c9` | `73bcaba170721984e7a30906a55102ec2f5efbc5` | [40346229424](https://github.com/boburning/portcove/actions/runs/40346229424) |
+| [#3707](https://github.com/boburning/portcove/pull/3707): Roadmap policy ownership/cycle removal                  | `c9c295d0d5ef406ad380e510d94d7ed4529481ba` | `0eaf374e141f273b9d799849bbd81751a8e82b54` | [40361414648](https://github.com/boburning/portcove/actions/runs/40361414648) |
+
+All five contexts (`catalog`, `dependency-review`, `frontend`, `rust`,
+`rust-quality`) passed for each listed source. #3707's tooling-only selection
+skipped frontend runtime producers; its successful `frontend` context is not a
+new browser execution claim. #3701 retains the relevant hosted frontend evidence.
+The supplementary upstream-health workflow returned success without establishing
+global catalog, installed/native or production-release acceptance.
+
+Two independent non-writing reviews cleared #3707's architecture/selection and
+correctness/oracle behavior, including 46 extracted function bodies, unchanged
+live client/mutation bodies, fresh approval/time defaults and compatibility.
+Its source/target interaction review covered `abc8c03b` and then `9f44c30e`.
+The first guarded merge stopped before mutation while mergeability was unknown;
+readback confirmed open/unmerged, then the resolved state permitted normal merge.
+
+A concurrent #3708 advance became the actual parent `a8b941efd22e8d35e00d1227d218af94e256327f`.
+The prediction against the earlier reviewed target consequently failed; that
+failure is retained. Readback confirmed the merge, and composing the actual parent
+with the reviewed source exactly reproduced tree `3df7555a0e68c4d5e5c2f04ce94e8a803326ad7d`.
+Independent post-merge interaction review verified both sets of routing edits
+survive and the new standalone-Rust receipt contract does not alter Roadmap
+snapshot or approval authority. Six focused interaction files on the actual
+merged composition passed 241 cases with three explicit skips. This is separate
+from earlier exact-source CI; the later parent is not retroactively called tested
+by that CI. No merge retry occurred after successful confirmation.
+
+Across these three implementation PRs, maintained non-test TypeScript is +126
+lines, tests/helpers +232, workflow configuration +4 and evidence documentation
++474 (net +836 before this final receipt update). Most relocation remains
+original behavior; imports/exports and meaningful regression coverage explain
+the increase. There are three new domain modules and net one additional frontend
+test file, with no dependency change or competing orchestration system. A browser
+entrypoint, an unused parser and duplicated policy/fixture behavior were retired;
+no arbitrary root-script deletion target was applied.
+
+The final tracked inventory at merged source 0eaf374e is recorded below. Counts
+include modules, tests, fixtures and generated data; they are not evidence of
+obsolete code or acceptance quotas.
+
+- `scripts/`: 924 tracked files (858 direct).
+- `apps/desktop/scripts/`: 168 tracked files (162 direct).
+- `tools/`: 2 tracked files (0 direct).
+
+Release-prefixed root files remain 382. The catalog observer, ordinary validation,
+PR delivery, release coordinator and native-candidate boundaries retain their
+existing authorities where current evidence did not establish an equivalent
+removable implementation. The later Roadmap cycle/status-policy findings above
+supersede the earlier Roadmap no-change disposition at that bounded scope.
+No signing/publication controller, durable journal, trusted admission check or
+platform adapter was collapsed merely to reduce file counts.
+
+The remaining high-impact browser cost is trace/resource handling. Revisit it
+only with a supported solution that passes the retained SIGTERM and cached-resource
+negative controls. Static-task caching remains unqualified under the maintained
+Just temporary environment; a supported native task/socket fix must precede a
+new full invalidation experiment. Existing Windows Rust profiling stays with
+#3661. These are bounded resume conditions, not a new cleanup campaign or beta gate.
+#1104 and #2420 retain their broader scopes; #1667 and completed #3662 are unchanged.
