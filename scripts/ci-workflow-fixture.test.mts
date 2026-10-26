@@ -142,7 +142,10 @@ mock.module("node:fs/promises", { namedExports: { ...originalNamed, readFile }, 
             budget: "Linux desktop prerequisite installation",
             evidence: "selected full Fallow runs once",
           };
-          assert.ok(output.includes(expected[mode] ?? "missing mutation owner"), output);
+          assert.match(
+            output,
+            new RegExp(`not ok \\d+ - ${expected[mode] ?? "missing mutation owner"}`, "u"),
+          );
         }
         t.diagnostic(
           `${mode}: child exit ${child.status}; ${output.match(/# tests (\d+)/u)?.[1] ?? "unknown"} actual policy cases`,
