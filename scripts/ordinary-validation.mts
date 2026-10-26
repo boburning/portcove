@@ -757,6 +757,13 @@ for (const [file, tests] of [
     ["scripts/release-hosted-native-job.test.mts", "scripts/release-controller-tools.test.mts"],
   ],
   [
+    "scripts/qualify-controller-tools-windows.mts",
+    [
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/release-controller-tools.test.mts",
+    ],
+  ],
+  [
     "scripts/release-hosted-native-windows-dependency-files.mts",
     [
       "scripts/release-hosted-native-windows-dependency-files.test.mts",

@@ -1,9 +1,10 @@
 /** Credential-free source/tool qualification. Never a native or protected producer. */
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { openSync, closeSync } from "node:fs";
+import { openSync, closeSync, constants } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, writeFile, lstat } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile, lstat, open } from "node:fs/promises";
+import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -102,6 +103,52 @@ export const hostedWindowsAccountSourcePaths = Object.freeze([
 ] as const);
 
 /** Source-only inert diagnostic inputs, never a controller-tool manifest. */
+/** Bounded raw fixture evidence, including oversized output; no provenance. */
+export async function readWindowsFixtureStreamPrefix(root: string, name: string) {
+  const filename = await assertOwnedUnlinkedPath(
+      root,
+      path.join(root, name),
+      "Windows fixture stream",
+    ),
+    before = await lstat(filename, { bigint: true });
+  assert.ok(
+    before.isFile() &&
+      !before.isSymbolicLink() &&
+      before.nlink === 1n &&
+      before.size <= BigInt(Number.MAX_SAFE_INTEGER),
+  );
+  const handle = await open(
+    filename,
+    constants.O_RDONLY | (process.platform === "win32" ? 0 : constants.O_NOFOLLOW),
+  );
+  const same = (info: typeof before) => {
+    for (const key of ["dev", "ino", "mode", "size", "nlink", "mtimeNs", "ctimeNs"] as const)
+      assert.equal(info[key], before[key], "Windows fixture stream changed");
+  };
+  try {
+    same(await handle.stat({ bigint: true }));
+    const bytes = Buffer.alloc(Number(before.size < 16384n ? before.size : 16384n));
+    let count = 0;
+    while (count < bytes.length) {
+      const { bytesRead } = await handle.read(bytes, count, bytes.length - count, null);
+      assert.ok(bytesRead > 0, "Windows fixture prefix shortened");
+      count += bytesRead;
+    }
+    same(await handle.stat({ bigint: true }));
+    same(await lstat(filename, { bigint: true }));
+    await assertOwnedUnlinkedPath(root, filename, "Windows fixture stream");
+    return {
+      observed_bytes: Number(before.size),
+      retained_bytes: bytes.length,
+      truncated: before.size > BigInt(bytes.length),
+      base64: bytes.toString("base64"),
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function stageHostedWindowsAccountSource(
   source: string,
   tools: string,
@@ -804,38 +851,48 @@ async function main() {
       closeSync(graphOut);
       throw error;
     }
+    let graphStatus: number | undefined;
     try {
-      assert.equal(
-        await runResourceCommand(
-          "analysis",
-          path.join(built.tools, "bin/node.exe"),
-          [
-            "--test",
-            "--test-timeout=30000",
-            path.join(source, "scripts/release-hosted-native-windows-dependency-files.test.mts"),
-          ],
-          {
-            cwd: source,
-            environment: { ...environment, GITHUB_ACTIONS: "true" },
-            output: { stdout: graphOut, stderr: graphErr },
-            executionTimeoutMilliseconds: 60000,
-            supervise: (args, dependencies) =>
-              runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
-          },
-        ),
-        0,
-        "Windows graph controls refused; retain partial evidence",
+      graphStatus = await runResourceCommand(
+        "analysis",
+        path.join(built.tools, "bin/node.exe"),
+        [
+          "--test",
+          "--test-timeout=30000",
+          path.join(source, "scripts/release-hosted-native-windows-dependency-files.test.mts"),
+        ],
+        {
+          cwd: source,
+          environment: { ...environment, GITHUB_ACTIONS: "true" },
+          output: { stdout: graphOut, stderr: graphErr },
+          executionTimeoutMilliseconds: 60000,
+          supervise: (args, dependencies) =>
+            runRustTests(args, { ...dependencies, ...prepared, tempRoot: buildParent }),
+        },
       );
+      assert.equal(graphStatus, 0, "Windows graph controls refused; retain partial evidence");
     } finally {
       closeSync(graphOut);
       closeSync(graphErr);
+      const streams = await Promise.all(
+        ["stdout", "stderr"].map(async (stream) => ({
+          stream,
+          ...(await readWindowsFixtureStreamPrefix(
+            directory,
+            `windows-dependency-controls.${stream}.txt`,
+          )),
+        })),
+      );
+      await record("windows-dependency-controls.json", {
+        status: graphStatus === 0 ? "pass" : "failed-or-unsettled",
+        exit_code: graphStatus ?? null,
+        source: expected,
+        streams,
+        scope: "ordinary Windows filesystem graph controls only",
+        native_acceptance: "not-established",
+        authority: "none",
+      });
     }
-    await record("windows-dependency-controls.json", {
-      status: "pass",
-      scope: "ordinary Windows filesystem graph controls only",
-      native_acceptance: "not-established",
-      authority: "none",
-    });
     recheckNativeRuntimeCustody(files, custody);
     await record("result.json", {
       status: "pass",

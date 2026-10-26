@@ -77,7 +77,7 @@ export async function inspectWindowsNativeDependencyInputs(
   const packages = lockInventory(new TextDecoder("utf-8", { fatal: true }).decode(lock));
   assert.ok(packages.size > 0 && packages.size <= 10000);
   assert.ok(
-    [...packages].every(([key, value]) => key.startsWith("0:") && value.unsupported === undefined),
+    [...packages.values()].every((value) => value.unsupported === undefined),
     "non-registry or unsupported lock resolution refused",
   );
   active();

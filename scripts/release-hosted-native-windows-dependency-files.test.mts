@@ -3,6 +3,9 @@ import { mkdirSync, writeFileSync, symlinkSync, linkSync, readFileSync } from "n
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { readWindowsFixtureStreamPrefix } from "./qualify-controller-tools-windows.mts";
+import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import {
   inspectWindowsNativeDependencyInputs,
@@ -133,6 +136,25 @@ void test("Windows dependency preflight rejects lockfile routes as well as manif
     (await inspectWindowsNativeDependencyInputs(root, deadline(), active)).registry_packages,
     1,
   );
+  writeFileSync(path.join(root, "pnpm-lock.yaml"), lock + "---\n" + lock, { mode: 0o600 });
+  assert.equal(
+    (await inspectWindowsNativeDependencyInputs(root, deadline(), active)).registry_packages,
+    2,
+  );
+  writeFileSync(
+    path.join(root, "pnpm-lock.yaml"),
+    lock +
+      "---\n" +
+      lock.replace(
+        "resolution: {",
+        "resolution: {tarball: 'https://outside.invalid/package.tgz', ",
+      ),
+    { mode: 0o600 },
+  );
+  await assert.rejects(
+    inspectWindowsNativeDependencyInputs(root, deadline(), active),
+    /lock resolution refused/,
+  );
   writeFileSync(
     path.join(root, "pnpm-lock.yaml"),
     lock.replace("resolution: {", "resolution: {tarball: 'https://outside.invalid/package.tgz', "),
@@ -148,4 +170,34 @@ void test("Windows dependency preflight rejects lockfile routes as well as manif
     inspectWindowsNativeDependencyInputs(root, deadline(), active),
     /registry overrides refused/,
   );
+});
+
+void test("Windows dependency preflight accepts the maintained registry-only multi-document repository lock", async () => {
+  const observed = await inspectWindowsNativeDependencyInputs(
+    path.resolve(fileURLToPath(new URL("..", import.meta.url))),
+    deadline(),
+    active,
+  );
+  assert.ok(observed.registry_packages > 0);
+  assert.match(observed.lock_sha256, /^[a-f0-9]{64}$/u);
+});
+
+void test("Windows fixture diagnostics retain oversized binary prefixes and refuse linked streams", async (context) => {
+  const root = fixture(context),
+    bytes = Buffer.alloc(100000, 255),
+    name = "capture.bin";
+  writeFileSync(path.join(root, name), bytes, { mode: 0o600 });
+  const observed = await readWindowsFixtureStreamPrefix(root, name);
+  assert.equal(observed.observed_bytes, bytes.length);
+  assert.equal(observed.retained_bytes, 16384);
+  assert.equal(observed.truncated, true);
+  assert.deepEqual(Buffer.from(observed.base64, "base64"), bytes.subarray(0, 16384));
+  assert.equal(
+    observed.sha256,
+    createHash("sha256").update(bytes.subarray(0, 16384)).digest("hex"),
+  );
+  writeFileSync(path.join(root, "empty"), "", { mode: 0o600 });
+  assert.equal((await readWindowsFixtureStreamPrefix(root, "empty")).retained_bytes, 0);
+  linkSync(path.join(root, name), path.join(root, "alias"));
+  await assert.rejects(readWindowsFixtureStreamPrefix(root, name));
 });
