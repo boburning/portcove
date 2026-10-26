@@ -3,12 +3,12 @@
   "listing": {
     "id": "opencommunityedition-opence",
     "name": "Halo: Combat Evolved / OpenCE (OpenCommunityEdition)",
-    "summary": "Explore Halo: Combat Evolved / OpenCE (OpenCommunityEdition) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image and the upstream updater.",
     "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
     "issue_number": 1849,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenCommunityEdition/OpenCE",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenCommunityEdition/OpenCE#readme",
     "artwork": {
       "game_id": 740,
       "cover_id": 128403,
@@ -16,6 +16,30 @@
       "image_sha256": "8e10e22bd95498f7c0cddbcf8566ae173456a5ccb3c9e91ebec215b21f633d8f",
       "game_slug": "halo-combat-evolved",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/OpenCommunityEdition/OpenCE/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the Windows package together",
+          "instruction": "Extract halo-windows-release.zip into a separate upstream-owned folder. Finish setup with halo.exe and that folder."
+        },
+        {
+          "title": "Choose your original Xbox disc image on Play",
+          "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso. OpenCE extracts its maps beside the player. Halo PC or Custom Edition maps do not replace these Xbox maps."
+        },
+        {
+          "title": "Use OpenCE’s updates and keep your data",
+          "instruction": "OpenCE replaces its own runtime when you use its updater. Keep the extracted maps, config.toml and your saves backed up; Windows saves normally use the halo folder under AppData/Roaming, unless paths.saves changes it."
+        }
+      ],
+      "warnings": [
+        "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible. Portcove does not replace or back up this upstream-owned runtime."
+      ],
+      "help_url": "https://github.com/OpenCommunityEdition/OpenCE#readme"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["halo-windows-release.zip"]
     }
   }
 }

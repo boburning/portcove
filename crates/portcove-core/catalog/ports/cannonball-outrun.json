@@ -3,12 +3,12 @@
   "listing": {
     "id": "cannonball-outrun",
     "name": "Cannonball / OutRun",
-    "summary": "Explore Cannonball / OutRun and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an existing permitted Cannonball installation with your matching OutRun ROMs.",
     "project_url": "https://github.com/djyt/cannonball",
     "issue_number": 120,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/djyt/cannonball",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/djyt/cannonball#readme",
     "artwork": {
       "game_id": 2051,
       "cover_id": 125104,
@@ -16,6 +16,22 @@
       "image_sha256": "b73e8678bba802ebed6776d5130fa0e5330cd413880507fa7f7c0115bc42ff1e",
       "game_slug": "outrun",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/djyt/cannonball/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep your permitted working copy",
+          "instruction": "Use an already permitted Cannonball installation with the matching OutRun Revision B ROMs required by that copy. Keep its configuration and ROM folders together."
+        },
+        {
+          "title": "Select the completed installation",
+          "instruction": "Select the native Cannonball player and its working folder. Keep your existing copy available; updates and data stay with you and upstream."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/djyt/cannonball#readme"
+    },
+    "download_block_reason": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered."
   }
 }
