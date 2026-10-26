@@ -43,13 +43,14 @@ void test("reviewed portability literals apply only to exact files and exact val
     JSON.stringify(value).replace(/\\u([a-f0-9]{4})/gu, "\\u{$1}");
   const expected: { file: string; value: string }[] = [];
   const allowed: { file: string; value: string }[] = [];
-  for (const [index, scope] of [
+  const scopes: { file: string; values: string[]; inherited_global_values?: string[] }[] = [
     ...portabilityBaseline.scopes,
     ...qualificationLiterals.scopes,
-  ].entries()) {
+  ];
+  for (const [index, scope] of scopes.entries()) {
     const deniedValue = `/portcove-unreviewed-${index}`;
     const neighbor = scope.file.replace(/\.rs$/u, "_unreviewed.rs");
-    const inherited = "inherited_global_values" in scope ? scope.inherited_global_values : [];
+    const inherited = scope.inherited_global_values ?? [];
     for (const [file, values] of [
       [scope.file, [...scope.values, ...inherited, deniedValue]],
       [neighbor, [...scope.values, ...inherited]],
