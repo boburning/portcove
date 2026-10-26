@@ -550,12 +550,3 @@ export function runDefaultNextest(
   if (result.status !== 0) return result.status ?? 1;
   return listArgs === null ? 0 : 1;
 }
-
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (process.argv[2] !== "--run")
-    throw new Error("Use the guarded Rust runner for default nextest outcomes");
-  const { resourceEntrypoint } = await import("./resource-command.mts");
-  process.exitCode = await resourceEntrypoint("rust", () =>
-    runDefaultNextest(process.argv.slice(3)),
-  );
-}

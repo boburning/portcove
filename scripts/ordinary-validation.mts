@@ -146,6 +146,7 @@ const containmentInputs = new Set([
   "scripts/rust-test-impact.mts",
   "scripts/windows-rust-tests.mts",
   "scripts/nextest-outcomes.mts",
+  "scripts/nextest-outcomes-cli.mts",
   "scripts/desktop-linux-x11.mts",
   "scripts/resource-paths.mts",
   "scripts/native-build.mts",
@@ -1560,6 +1561,9 @@ for (const file of nativeCompatibilitySourcePaths)
     "scripts/release-native-source-contract.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/nextest-outcomes-cli.mts", [
+  ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
+]);
 for (const file of [
   "scripts/report-summary.mts",
   "scripts/bounded-summary.mts",

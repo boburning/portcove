@@ -295,6 +295,7 @@ void test("behavioral script consumers invalidate optional audit fingerprints in
 void test("default nextest inventory retention dependencies invalidate Rust receipts", () => {
   for (const file of [
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-outcomes-cli.mts",
     "scripts/report-summary.mts",
     "scripts/bounded-summary.mts",
     "scripts/fallow-summary.mts",

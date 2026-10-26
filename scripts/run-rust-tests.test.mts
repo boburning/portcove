@@ -120,7 +120,7 @@ void test("runner distinguishes nextest, hosted preparation, and exact guarded c
   assert.deepEqual(parseRustRunMode(["--locked", "--workspace"]), {
     kind: "nextest",
     executable: process.execPath,
-    args: [path.resolve("scripts/nextest-outcomes.mts"), "--run", "--locked", "--workspace"],
+    args: [path.resolve("scripts/nextest-outcomes-cli.mts"), "--run", "--locked", "--workspace"],
     description: "cargo-nextest nextest run --locked --workspace",
   });
   assert.deepEqual(parseRustRunMode(["--prepare-only"]), { kind: "prepare" });
@@ -394,7 +394,7 @@ void test("runner holds the lock through nextest and preserves its exit status",
     ]);
     assert.match(
       required(events[3]),
-      /^spawn:portcove-process-tree-supervisor\.exe:.+registered\.gate .+[/\\]nextest-outcomes\.mts --run --package portcove-core$/u,
+      /^spawn:portcove-process-tree-supervisor\.exe:.+registered\.gate .+[/\\]nextest-outcomes-cli\.mts --run --package portcove-core$/u,
     );
     assert.deepEqual(events.slice(4), ["register:701", "release"]);
     assert.equal(registeredContainment, "windows-job");
@@ -465,7 +465,7 @@ void test("Linux runner monitors its reaper and registers the separate gated Nod
     );
     assert.deepEqual(required(spawnedArgs).slice(7), [
       process.execPath,
-      path.resolve("scripts/nextest-outcomes.mts"),
+      path.resolve("scripts/nextest-outcomes-cli.mts"),
       "--run",
       "--package",
       "portcove-core",
@@ -537,7 +537,7 @@ void test("inherited runner stays inside the recorded outer containment", async 
     assert.equal(status, 0);
     assert.equal(required(spawned).command, process.execPath);
     assert.deepEqual(required(spawned).args, [
-      path.resolve("scripts/nextest-outcomes.mts"),
+      path.resolve("scripts/nextest-outcomes-cli.mts"),
       "--run",
       "--package",
       "portcove-core",

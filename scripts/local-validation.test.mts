@@ -3532,6 +3532,7 @@ void test("default nextest runtime inputs retain local and hosted consumers acro
   const { baselineContractTests } = await import("./ci-baseline.mts");
   for (const file of [
     "scripts/nextest-outcomes.mts",
+    "scripts/nextest-outcomes-cli.mts",
     "scripts/run-rust-tests.mts",
     "scripts/report-summary.mts",
     "scripts/bounded-summary.mts",
