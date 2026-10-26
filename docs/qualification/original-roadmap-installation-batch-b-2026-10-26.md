@@ -73,9 +73,13 @@ No fork runtime archive was acquired or executed for this batch.
 Windows/Linux launcher preferences and updater rollback metadata have a separate
 per-user `NVDEMU/Ape Escape Recompiled - Enhanced Edition` app-data root, or
 `APE_ESCAPE_RECOMP_DATA_DIR` override. Preserve it as well as beside-player
-Windows game data or the Linux AppImage game-data root. Upstream Quick Tools
-opens the launcher app-data folder; macOS's wrapper supplies its shared per-user
-root. A player-folder backup alone is not a complete Windows/Linux backup.
+Windows game data or the Linux AppImage game-data root. The launcher-data
+defaults are `%APPDATA%/NVDEMU/Ape Escape Recompiled - Enhanced Edition` on
+Windows and `$XDG_DATA_HOME/NVDEMU/Ape Escape Recompiled - Enhanced Edition`
+(or `~/.local/share/NVDEMU/Ape Escape Recompiled - Enhanced Edition`) on Linux.
+The reviewed Quick Tools action opens the user home, not this separate root.
+macOS's wrapper supplies its shared per-user root. A player-folder backup alone
+is not a complete Windows/Linux backup.
 
 Windows uses its supplied native launcher; Linux uses the AppImage entry and
 its actual XDG/override data root. The macOS shell entry seeds per-user data,
