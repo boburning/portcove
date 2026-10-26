@@ -1201,3 +1201,42 @@ Add-Type -TypeDefinition $harness.Replace('__ENABLE__',$enable).Replace('__PROPO
     assert.match(result, /four object and ten privilege modes/u);
   },
 );
+
+void test(
+  "finite Security event read timeout supplies no evidence and preserves other errors",
+  { skip: process.platform !== "win32" },
+  () => {
+    const audit = fileURLToPath(
+      new URL("./release-hosted-native-windows-audit.cs.txt", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${audit.replaceAll("'", "''")}')
+$method=[regex]::Match($source,'(?s)  static Dictionary<string,string>\[\] ReadEventsCore\(.*?(?=  public void Dispose)').Value
+$harness=@'
+using System;using System.Collections.Generic;using System.Diagnostics;using System.Diagnostics.Eventing.Reader;using System.Linq;
+public class ReaderControl {
+ static string mode;static int closes,reads;
+ enum PathType{LogName}
+ class EventLogQuery {internal EventLogQuery(string p,PathType t,string q){}internal bool ReverseDirection{get;set;}}
+ class Failure:EventLogException{internal Failure(int code):base(code){}}
+ class EventRecord:IDisposable{public string ToXml(){if(mode=="render-timeout")throw new Failure(1460);return "fixed";}public void Dispose(){if(mode=="dispose-timeout")throw new Failure(1460);}}
+ class EventLogReader:IDisposable{
+  internal EventLogReader(EventLogQuery query){if(mode=="constructor-timeout")throw new Failure(1460);}
+  internal EventRecord ReadEvent(TimeSpan budget){reads++;if(budget.TotalMilliseconds!=250)throw new Exception("Read budget changed");if(mode=="timeout"||mode=="record-then-timeout"&&reads>1)throw new Failure(1460);if(mode=="access")throw new UnauthorizedAccessException();if(mode=="invalid")throw new Failure(15001);return (mode=="record"||mode=="record-then-timeout"||mode=="render-timeout"||mode=="dispose-timeout")&&reads==1?new EventRecord():null;}
+  public void Dispose(){closes++;}
+ }
+ static Dictionary<string,string> SelectRecord(string xml,string sid,uint pid,long created,string image,string logon,string[] names,int session){return new Dictionary<string,string>{{"record_id","1"}};}
+ static void BoundRecords(Dictionary<string,string>[] records){if(records.Length>8)throw new Exception("Unbounded records");}
+ __METHOD__
+ public static void Run(){foreach(string value in new[]{"empty","timeout","record","access","invalid","constructor-timeout","render-timeout","dispose-timeout","record-then-timeout"}){mode=value;closes=reads=0;bool refused=false;Dictionary<string,string>[] records=null;try{records=ReadEventsCore("S-1-5-21-1-2-3-1001",42,DateTime.UtcNow.AddSeconds(-1).ToFileTimeUtc(),"fixed","0x1",new[]{"Desktop:owned"},1);}catch{refused=true;}bool expected=mode=="access"||mode=="invalid"||mode=="constructor-timeout"||mode=="render-timeout"||mode=="dispose-timeout";if(refused!=expected||closes!=(mode=="constructor-timeout"?0:1))throw new Exception("Reader error/ownership differs: "+mode);if(!expected&&records.Length!=(mode=="record"||mode=="record-then-timeout"?1:0))throw new Exception("Invented event evidence: "+mode);}}
+}
+'@
+Add-Type -AssemblyName System.Diagnostics.EventLog
+$references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
+Add-Type -ReferencedAssemblies $references -TypeDefinition $harness.Replace('__METHOD__',$method)
+[ReaderControl]::Run()
+'actual finite reader passed nine fake modes; timeout is not event evidence'
+`);
+    assert.match(result, /nine fake modes/u);
+  },
+);

@@ -137,7 +137,8 @@ namespace Portcove.HostedNative {
    string since=DateTime.FromFileTimeUtc(created).AddSeconds(-1).ToString("o");string filters=String.Join(" or ",names.SelectMany(item=>{var part=item.Split(new[]{':'},2);string full="\\Sessions\\"+session+"\\Windows\\WindowStations\\"+(part[0]=="WindowStation"?part[1]:"WinSta0\\"+part[1]);return new[]{"(Data[@Name='ObjectType']='"+part[0]+"' and (Data[@Name='ObjectName']='"+part[1]+"' or Data[@Name='ObjectName']='"+full+"'))"};}));string query="*[System[EventID=4656 and TimeCreated[@SystemTime>='"+since+"']] and EventData[Data[@Name='SubjectUserSid']='"+sid+"' and Data[@Name='ProcessId']='0x"+pid.ToString("x")+"' and Data[@Name='SubjectLogonId']='"+logon+"' and ("+filters+")]]";
    var results=new List<Dictionary<string,string>>();var clock=Stopwatch.StartNew();
    using(var reader=new EventLogReader(new EventLogQuery("Security",PathType.LogName,query){ReverseDirection=true})){
-    while(clock.ElapsedMilliseconds<2000){using(var item=reader.ReadEvent(TimeSpan.FromMilliseconds(250))){if(item==null)break;if(results.Count==8)throw new InvalidOperationException("Audit result exceeds eight records");results.Add(SelectRecord(item.ToXml(),sid,pid,created,image,logon,names,session));}}
+    // EvtNext reports an elapsed finite read as ERROR_TIMEOUT, not end-of-query proof.
+    while(clock.ElapsedMilliseconds<2000){EventRecord item;try{item=reader.ReadEvent(TimeSpan.FromMilliseconds(250));}catch(EventLogException error)when(error.HResult==unchecked((int)0x800705b4)){break;}using(item){if(item==null)break;if(results.Count==8)throw new InvalidOperationException("Audit result exceeds eight records");results.Add(SelectRecord(item.ToXml(),sid,pid,created,image,logon,names,session));}}
    }
    var bounded=results.ToArray();BoundRecords(bounded);return bounded;
   }
