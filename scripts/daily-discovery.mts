@@ -112,7 +112,16 @@ export async function dailyDiscoveryMain(args: string[]) {
             ] as const,
         ),
       );
-      git(["fetch", "--no-tags", "--no-recurse-submodules", "origin", "main"]);
+      // Shared-repository maintenance must not consume the bounded metadata fetch.
+      git([
+        "fetch",
+        "--no-write-commit-graph",
+        "--no-auto-maintenance",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "origin",
+        "main",
+      ]);
       const head = git(["rev-parse", "origin/main"]);
       git(["cat-file", "-e", `${head}:scripts/daily-discovery.mts`]);
       git(["cat-file", "-e", `${head}:.agents/skills/portcove-daily-discovery/SKILL.md`]);
