@@ -1,0 +1,36 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "meteo-dream-mf-community-edition",
+    "name": "Mario Forever: Community Edition",
+    "original_game_title": "Mario Forever",
+    "summary": "Use a permitted Mario Forever: Community Edition copy, the community remake of Mario Forever.",
+    "project_url": "https://github.com/meteo-dream/mf-community-edition",
+    "issue_number": 2729,
+    "availability": "packages",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "release_url": "https://github.com/meteo-dream/mf-community-edition/releases",
+    "setup_url": "https://github.com/meteo-dream/mf-community-edition#readme",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your permitted existing player",
+          "instruction": "Keep the complete existing Windows or Linux package together. Select its native Mario Forever Community Edition game executable and containing folder. This is a self-contained community remake of Mario Forever; it does not ask for a commercial Super Mario ROM."
+        },
+        {
+          "title": "Keep the existing profile",
+          "instruction": "Upstream places saves, settings and logs in the user-data folder MeteoDream/Mario Forever Community Edition. Preserve that actual profile, any custom location and your existing working package before changing versions."
+        },
+        {
+          "title": "Play and update deliberately",
+          "instruction": "Choose Play explicitly after registering the existing player. Runtime updates and external profiles remain with you and upstream; Portcove does not replace, back up or remove those files."
+        }
+      ],
+      "warnings": [
+        "The project’s original contributions and bundled third-party game assets have separate distribution terms. Existing-copy registration does not certify those assets or grant acquisition permission."
+      ],
+      "help_url": "https://github.com/meteo-dream/mf-community-edition#readme"
+    },
+    "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established."
+  }
+}

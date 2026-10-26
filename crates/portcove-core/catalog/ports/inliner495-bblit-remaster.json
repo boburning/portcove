@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "inliner495-bblit-remaster",
+    "name": "Bugs Bunny: Lost in Time / BBLIT Remaster",
+    "original_game_title": "Bugs Bunny: Lost in Time",
+    "summary": "Use the upstream renderer and control enhancement with your existing Bugs Bunny: Lost in Time PC game.",
+    "project_url": "https://github.com/InLineR495/BBLIT-Remaster",
+    "issue_number": 2751,
+    "availability": "packages",
+    "platforms": ["windows-x86-64"],
+    "release_url": "https://github.com/InLineR495/BBLIT-Remaster/releases",
+    "setup_url": "https://github.com/InLineR495/BBLIT-Remaster#readme",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep your original PC game recoverable",
+          "instruction": "Use your permitted original PC installation and an executable edition listed by upstream. Preserve the working game folder, saves, settings and any existing renderer wrapper before changing it. The download is an enhancement, not a standalone game."
+        },
+        {
+          "title": "Place the enhancement beside the player",
+          "instruction": "Copy the archive’s BIN/ddraw.dll and BIN/remaster.ini into the game’s BIN folder beside bugs.exe. Review any existing file before replacing it. Do not register the DLL or the BugsBunny.exe launcher."
+        },
+        {
+          "title": "Set the required launch details",
+          "instruction": "Select BIN/bugs.exe, set the working directory to BIN, and add five separate launch arguments: /opengl, /win, /b0, /x800, /y600. Then choose Play explicitly. Keep saves, settings and remaster.log in BIN backed up; updates remain with you and upstream."
+        }
+      ],
+      "warnings": [
+        "The enhancement checks specific original bugs.exe editions. Modified or other editions are outside this claim; use upstream’s exact requirements. Linux Proton observations do not establish a native Linux player or Portcove-managed compatibility layer."
+      ],
+      "help_url": "https://github.com/InLineR495/BBLIT-Remaster#readme"
+    },
+    "download_asset_hints": {
+      "windows-x86-64": ["BBLIT-Remaster-", ".zip"]
+    },
+    "recommended_download_channel": "beta"
+  }
+}
