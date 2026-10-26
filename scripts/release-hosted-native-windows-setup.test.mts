@@ -1222,33 +1222,37 @@ void test(
     );
     const result = powershell(String.raw`
 $ErrorActionPreference='Stop';$source=[IO.File]::ReadAllText('${audit.replaceAll("'", "''")}')
+$query=[regex]::Match($source,'(?s)  static string BuildEventQuery\(.*?(?=  static Dictionary<string,string>\[\] ReadEventsCore)').Value
 $method=[regex]::Match($source,'(?s)  static Dictionary<string,string>\[\] ReadEventsCore\(.*?(?=  public void Dispose)').Value
 $harness=@'
-using System;using System.Collections.Generic;using System.Diagnostics;using System.Diagnostics.Eventing.Reader;using System.Linq;
+using System;using System.Collections.Generic;using System.Diagnostics;using System.Diagnostics.Eventing.Reader;using System.Linq;using System.Xml;using System.Security.Principal;
 public class ReaderControl {
  static string mode;static int closes,reads;
+ class Stopwatch{internal static Stopwatch StartNew(){return new Stopwatch();}internal long ElapsedMilliseconds{get{return reads*250L;}}}
  enum PathType{LogName}
  class EventLogQuery {internal EventLogQuery(string p,PathType t,string q){}internal bool ReverseDirection{get;set;}}
  class Failure:EventLogException{internal Failure(int code):base(code){}}
  class EventRecord:IDisposable{public string ToXml(){if(mode=="render-timeout")throw new Failure(1460);return "fixed";}public void Dispose(){if(mode=="dispose-timeout")throw new Failure(1460);}}
  class EventLogReader:IDisposable{
   internal EventLogReader(EventLogQuery query){if(mode=="constructor-timeout")throw new Failure(1460);}
-  internal EventRecord ReadEvent(TimeSpan budget){reads++;if(budget.TotalMilliseconds!=250)throw new Exception("Read budget changed");if(mode=="timeout"||mode=="record-then-timeout"&&reads>1)throw new Failure(1460);if(mode=="access")throw new UnauthorizedAccessException();if(mode=="invalid")throw new Failure(15001);return (mode=="record"||mode=="record-then-timeout"||mode=="render-timeout"||mode=="dispose-timeout")&&reads==1?new EventRecord():null;}
+  internal int BatchSize{get;set;}=64;
+  internal EventRecord ReadEvent(TimeSpan budget){reads++;if(BatchSize!=1)throw new Exception("Batch demand not bounded to one");if(budget.TotalMilliseconds!=250)throw new Exception("Read budget changed");if(mode=="timeout"||mode=="record-then-timeout"&&reads>1||(mode=="timeout-then-record"||mode=="timeout-then-invalid")&&reads==1)throw new Failure(1460);if(mode=="access")throw new UnauthorizedAccessException();if(mode=="invalid"||mode=="timeout-then-invalid")throw new Failure(15001);return (mode=="record"||mode=="record-then-timeout"||mode=="render-timeout"||mode=="dispose-timeout")&&reads==1||mode=="timeout-then-record"&&reads==2?new EventRecord():null;}
   public void Dispose(){closes++;}
  }
  static Dictionary<string,string> SelectRecord(string xml,string sid,uint pid,long created,string image,string logon,string[] names,int session){return new Dictionary<string,string>{{"record_id","1"}};}
  static void BoundRecords(Dictionary<string,string>[] records){if(records.Length>8)throw new Exception("Unbounded records");}
+ __QUERY__
  __METHOD__
- public static void Run(){foreach(string value in new[]{"empty","timeout","record","access","invalid","constructor-timeout","render-timeout","dispose-timeout","record-then-timeout"}){mode=value;closes=reads=0;bool refused=false;Dictionary<string,string>[] records=null;try{records=ReadEventsCore("S-1-5-21-1-2-3-1001",42,DateTime.UtcNow.AddSeconds(-1).ToFileTimeUtc(),"fixed","0x1",new[]{"Desktop:owned"},1);}catch{refused=true;}bool expected=mode=="access"||mode=="invalid"||mode=="constructor-timeout"||mode=="render-timeout"||mode=="dispose-timeout";if(refused!=expected||closes!=(mode=="constructor-timeout"?0:1))throw new Exception("Reader error/ownership differs: "+mode);if(!expected&&records.Length!=(mode=="record"||mode=="record-then-timeout"?1:0))throw new Exception("Invented event evidence: "+mode);}}
+ public static void Run(){foreach(string value in new[]{"empty","timeout","record","access","invalid","constructor-timeout","render-timeout","dispose-timeout","record-then-timeout","timeout-then-record","timeout-then-invalid"}){mode=value;closes=reads=0;bool refused=false;Dictionary<string,string>[] records=null;try{records=ReadEventsCore("S-1-5-21-1-2-3-1001",42,DateTime.UtcNow.AddSeconds(-1).ToFileTimeUtc(),"fixed","0x1",new[]{"Desktop:owned"},1);}catch{refused=true;}bool expected=mode=="access"||mode=="invalid"||mode=="constructor-timeout"||mode=="render-timeout"||mode=="dispose-timeout"||mode=="timeout-then-invalid";if(refused!=expected||closes!=(mode=="constructor-timeout"?0:1))throw new Exception("Reader error/ownership differs: "+mode);if(!expected&&records.Length!=(mode=="record"||mode=="record-then-timeout"||mode=="timeout-then-record"?1:0))throw new Exception("Invented event evidence: "+mode);if((mode=="timeout"||mode=="record-then-timeout")&&reads!=8)throw new Exception("Original total read deadline not enforced");}}
 }
 '@
 Add-Type -AssemblyName System.Diagnostics.EventLog
 $references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
-Add-Type -ReferencedAssemblies $references -TypeDefinition $harness.Replace('__METHOD__',$method)
+Add-Type -ReferencedAssemblies $references -TypeDefinition $harness.Replace('__QUERY__',$query).Replace('__METHOD__',$method)
 [ReaderControl]::Run()
-'actual finite reader passed nine fake modes; timeout is not event evidence'
+'actual finite reader passed eleven fake modes; timeout is not event evidence'
 `);
-    assert.match(result, /nine fake modes/u);
+    assert.match(result, /eleven fake modes/u);
   },
 );
 
@@ -1287,5 +1291,44 @@ if([AuditNameReadOnly]::GetProcessWindowStation() -ne $original -or $name.Invoke
 'actual name helper: READ_CONTROL denied5, READ_CONTROL plus READATTRIBUTES read; no privilege, ACL, policy or desktop changes'
 `);
     assert.match(result, /READ_CONTROL denied5/u);
+  },
+);
+
+void test(
+  "structured audit queries retain exact per-object selectors and compile without reading records",
+  { skip: process.platform !== "win32" },
+  () => {
+    const audit = fileURLToPath(
+      new URL("./release-hosted-native-windows-audit.cs.txt", import.meta.url),
+    );
+    const result = powershell(String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName System.Diagnostics.EventLog
+$references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[System.Diagnostics.Eventing.Reader.EventLogReader].Assembly.Location
+Add-Type -ReferencedAssemblies $references -TypeDefinition ([IO.File]::ReadAllText('${audit.replaceAll("'", "''")}'))
+$builder=[Portcove.HostedNative.AccessAudit].GetMethod('BuildEventQuery',[Reflection.BindingFlags]'NonPublic,Static')
+$sid='S-1-5-21-1-2-3-1001';$stamp=[DateTime]::UtcNow.AddMinutes(-1).ToFileTimeUtc()
+$objects=@('WindowStation:WinSta0','Desktop:PortcoveHosted_fixture','Desktop:Default','Desktop:Input_fixture')
+foreach($count in 1..4){
+ $selected=[string[]]$objects[0..($count-1)]
+ $text=$builder.Invoke($null,@($sid,[uint32]42,[long]$stamp,'0x123',$selected,[int]2));$xml=[xml]$text
+ $selectors=@($xml.QueryList.Query.Select)
+ if($selectors.Count -ne $count -or $xml.QueryList.Query.Path -cne 'Security'){throw 'Structured query lost object selectors'}
+ foreach($select in $selectors){
+  $predicate=$select.InnerText
+  if($select.Path -cne 'Security' -or [regex]::Matches($predicate,'=').Count -gt 20 -or -not $predicate.Contains("Data[@Name='SubjectUserSid']='$sid'") -or -not $predicate.Contains("Data[@Name='ProcessId']='0x2a'") -or -not $predicate.Contains("Data[@Name='SubjectLogonId']='0x123'")){throw 'Per-object subject/complexity boundary changed'}
+ }
+ # Compile the same selectors on a public channel; never call ReadEvent or open Security locally.
+ $publicXml=$text.Replace('Path="Security"','Path="Application"')
+ $query=[Diagnostics.Eventing.Reader.EventLogQuery]::new('Application',[Diagnostics.Eventing.Reader.PathType]::LogName,$publicXml)
+ $reader=[Diagnostics.Eventing.Reader.EventLogReader]::new($query)
+ $reader.Dispose()
+}
+foreach($bad in @(@('WindowStation:WinSta0','WindowStation:WinSta0'),@('Other:WinSta0'),@('Desktop:bad"name'),@('Desktop:a','Desktop:b','Desktop:c','Desktop:d','Desktop:e'))){
+ $refused=$false;try{$builder.Invoke($null,@($sid,[uint32]42,[long]$stamp,'0x123',[string[]]$bad,[int]2))|Out-Null}catch{$refused=$true};if(-not $refused){throw 'Unsafe/duplicate/overbound object query accepted'}
+}
+'one-to-four structured selectors compiled; no record, Security, privilege, SACL or policy read/write'
+`);
+    assert.match(result, /structured selectors compiled/u);
   },
 );

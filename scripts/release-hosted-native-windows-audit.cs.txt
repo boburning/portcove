@@ -139,12 +139,22 @@ namespace Portcove.HostedNative {
   }
   public static void BoundRecords(Dictionary<string,string>[] records){if(records.Length>8)throw new InvalidOperationException("Audit result exceeds eight records");long encoded=2;foreach(var record in records){encoded+=3;foreach(var pair in record)encoded+=8+6L*(pair.Key.Length+pair.Value.Length);}if(encoded>32768)throw new InvalidOperationException("Audit aggregate encoded export exceeds 32KiB");}
   static Dictionary<string,string>[] ReadEvents(string sid,uint pid,long created,string image,string logon,string[] names,int session){Dictionary<string,string>[] result=null;Exception failure=null;var worker=new Thread(()=>{try{result=ReadEventsCore(sid,pid,created,image,logon,names,session);}catch(Exception error){failure=error;}});worker.IsBackground=true;worker.Start();if(!worker.Join(2500))throw new TimeoutException("Owned Security reader exceeded bounded join; no acceptance");if(failure!=null)throw failure;return result;}
+  static string BuildEventQuery(string sid,uint pid,long created,string logon,string[] names,int session){
+   if(new SecurityIdentifier(sid).Value!=sid||pid==0||session<0||!System.Text.RegularExpressions.Regex.IsMatch(logon??"","^0x[0-9a-f]{1,16}$")||names==null||names.Length<1||names.Length>4||names.Distinct(StringComparer.Ordinal).Count()!=names.Length)throw new ArgumentException("Fixed bounded event subjects/objects required");
+   string since=DateTime.FromFileTimeUtc(created).AddSeconds(-1).ToString("o",System.Globalization.CultureInfo.InvariantCulture);
+   var document=new XmlDocument();document.XmlResolver=null;var list=document.CreateElement("QueryList");document.AppendChild(list);var query=document.CreateElement("Query");query.SetAttribute("Id","0");query.SetAttribute("Path","Security");list.AppendChild(query);
+   foreach(string item in names){var part=item.Split(new[]{':'},2);if(part.Length!=2||(part[0]!="Desktop"&&part[0]!="WindowStation")||!System.Text.RegularExpressions.Regex.IsMatch(part[1],"^[A-Za-z0-9_]{1,128}$"))throw new ArgumentException("Fixed audited object required");
+    string full="\\Sessions\\"+session+"\\Windows\\WindowStations\\"+(part[0]=="WindowStation"?part[1]:"WinSta0\\"+part[1]);
+    var select=document.CreateElement("Select");select.SetAttribute("Path","Security");select.InnerText="*[System[EventID=4656 and TimeCreated[@SystemTime>='"+since+"']] and EventData[Data[@Name='SubjectUserSid']='"+sid+"' and Data[@Name='ProcessId']='0x"+pid.ToString("x")+"' and Data[@Name='SubjectLogonId']='"+logon+"' and Data[@Name='ObjectType']='"+part[0]+"' and (Data[@Name='ObjectName']='"+part[1]+"' or Data[@Name='ObjectName']='"+full+"')]]";query.AppendChild(select);
+   }
+   if(document.OuterXml.Length>16384)throw new InvalidOperationException("Event query exceeds bound");return document.OuterXml;
+  }
   static Dictionary<string,string>[] ReadEventsCore(string sid,uint pid,long created,string image,string logon,string[] names,int session){
-   string since=DateTime.FromFileTimeUtc(created).AddSeconds(-1).ToString("o");string filters=String.Join(" or ",names.SelectMany(item=>{var part=item.Split(new[]{':'},2);string full="\\Sessions\\"+session+"\\Windows\\WindowStations\\"+(part[0]=="WindowStation"?part[1]:"WinSta0\\"+part[1]);return new[]{"(Data[@Name='ObjectType']='"+part[0]+"' and (Data[@Name='ObjectName']='"+part[1]+"' or Data[@Name='ObjectName']='"+full+"'))"};}));string query="*[System[EventID=4656 and TimeCreated[@SystemTime>='"+since+"']] and EventData[Data[@Name='SubjectUserSid']='"+sid+"' and Data[@Name='ProcessId']='0x"+pid.ToString("x")+"' and Data[@Name='SubjectLogonId']='"+logon+"' and ("+filters+")]]";
+   string query=BuildEventQuery(sid,pid,created,logon,names,session);
    var results=new List<Dictionary<string,string>>();var clock=Stopwatch.StartNew();
-   using(var reader=new EventLogReader(new EventLogQuery("Security",PathType.LogName,query){ReverseDirection=true})){
-    // EvtNext reports an elapsed finite read as ERROR_TIMEOUT, not end-of-query proof.
-    while(clock.ElapsedMilliseconds<2000){EventRecord item;try{item=reader.ReadEvent(TimeSpan.FromMilliseconds(250));}catch(EventLogException error)when(error.HResult==unchecked((int)0x800705b4)){break;}using(item){if(item==null)break;if(results.Count==8)throw new InvalidOperationException("Audit result exceeds eight records");results.Add(SelectRecord(item.ToXml(),sid,pid,created,image,logon,names,session));}}
+   using(var reader=new EventLogReader(new EventLogQuery("Security",PathType.LogName,query){ReverseDirection=true}){BatchSize=1}){
+    // A finite timeout is not EOF; retain the reader within the original total budget.
+    while(clock.ElapsedMilliseconds<2000){EventRecord item;try{item=reader.ReadEvent(TimeSpan.FromMilliseconds(250));}catch(EventLogException error)when(error.HResult==unchecked((int)0x800705b4)){continue;}using(item){if(item==null)break;if(results.Count==8)throw new InvalidOperationException("Audit result exceeds eight records");results.Add(SelectRecord(item.ToXml(),sid,pid,created,image,logon,names,session));}}
    }
    var bounded=results.ToArray();BoundRecords(bounded);return bounded;
   }

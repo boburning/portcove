@@ -5,6 +5,8 @@ import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
