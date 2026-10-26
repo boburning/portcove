@@ -96,6 +96,21 @@ foreach($name in $names){
     if($entry.Count -ne 1 -or $entry[0].path -isnot [string] -or $entry[0].bytes -isnot [long] -or $entry[0].bytes -lt 1 -or $entry[0].bytes -gt 131072 -or $entry[0].sha256 -cnotmatch '^[a-f0-9]{64}$' -or (Get-Item -LiteralPath $file).Length -ne $entry[0].bytes -or
         (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry[0].sha256){throw 'Fixed hosted setup source changed'}
 }
+function Read-HostedStartupSettlement {
+    param($Startup,$Group)
+    $result=[ordered]@{status='unknown';teardown=$null;failure=$null}
+    try {
+        if($Startup.Output.IsFaulted -or $Startup.ErrorOutput.IsFaulted -or $Startup.LastTeardown){throw 'Startup stop already attempted or capture faulted; counter skipped without retry'}
+        $result.teardown=$Startup.StopAndObserve(5000)
+        $observed=$result.teardown
+        if($observed.RootPid -ne $Startup.Pid -or $observed.RootCreatedFileTime -ne $Startup.CreatedFileTime -or
+            -not $observed.RootExited -or -not $observed.JobEmpty -or @($observed.RemainingPids).Count -ne 0){throw 'Startup per-root settlement unavailable or identity differs'}
+        if(@($Group.RemainingPids()).Count -ne 0){throw 'Original shared job is occupied; counter skipped'}
+        $result.status='settled'
+    }catch{$result.failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
+    return $result
+}
+
 Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'release-hosted-native-windows-setup.cs.txt') -Raw)
 Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'native-qualification-account.cs.txt') -Raw)
 if($env:SystemRoot -ine [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows) -or $env:SystemDrive -ine 'C:'){
@@ -220,9 +235,15 @@ try {
         $popup=$null
         try{$popup=Read-HostedStartupPopup $startup}catch{$popup=[ordered]@{status='unknown';query_failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}}
         try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-popup.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();popup=$popup;scope='bounded System Application Popup26 executable/time correlation only; no GUI acceptance';authority='none'})}catch{$cleanupFailures.Add('Startup popup retention failed: '+$_.Exception.Message)}
-        $guiControlObservation=[ordered]@{status='unknown';visible_responsive=$false;failure=$null;runtime_path=$null;runtime_sha256=$null;pe_subsystem=$null;scope='fixed signed GUI-subsystem countercontrol only; not form/HKCU/descendant or GUI acceptance'}
+        $threadDiagnostic=$null;$threadFailure=$null
+        try{$threadDiagnostic=@(Read-HostedStartupThreads $startup)}catch{$threadFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
+        try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-threads.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();threads=$threadDiagnostic;query_failure=$threadFailure;scope='bounded exact-generation thread states; not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup diagnostic retention failed: '+$_.Exception.Message)}
+        $guiStartupSettlement=$null
+        $guiRuntime=Join-Path $env:SystemRoot 'System32\winver.exe'
+        $guiControlObservation=[ordered]@{status='unknown';visible_responsive=$false;failure=$null;runtime_path=$guiRuntime;runtime_sha256=$null;pe_subsystem=$null;scope='fixed signed GUI-subsystem countercontrol only; not form/HKCU/descendant or GUI acceptance'}
         try{
-            $guiRuntime=Join-Path $env:SystemRoot 'System32\winver.exe';$guiControlObservation.runtime_path=$guiRuntime
+            $guiStartupSettlement=Read-HostedStartupSettlement $startup $group
+            if($guiStartupSettlement.status -cne 'settled'){throw 'Startup settlement did not permit GUI counter admission'}
             $guiSignature=Get-AuthenticodeSignature -LiteralPath $guiRuntime
             if($guiSignature.Status -ne 'Valid' -or $guiSignature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)'){throw 'Fixed GUI countercontrol signature unavailable; no install or fallback'}
             [Portcove.HostedNative.HostedStartupContext]::RequireGuiImage($guiRuntime);$guiControlObservation.pe_subsystem=2
@@ -238,10 +259,8 @@ try {
             }
             $guiControlObservation.status=$(if($guiControlObservation.visible_responsive){'observed'}else{'not_observed'})
         }catch{$guiControlObservation.failure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
-        try{Write-HostedNativeSetupRecord (Join-Path $capture 'gui-counter.json') ([ordered]@{context=$context;last_launch=$(if($group.LastLaunchInspection -and $group.LastLaunchInspection['runtime_path'] -ieq $guiRuntime){$group.LastLaunchInspection}else{$null});observation=$guiControlObservation;root_pid=$(if($guiControl){$guiControl.Pid}else{$null});root_created_filetime=$(if($guiControl){$guiControl.CreatedFileTime.ToString()}else{$null});token=$(if($guiControl){$guiControl.HostedTokenObservation}else{$null});window_inspection=$(if($guiControl){$guiControl.LastWindowInspection}else{$null});response_inspection=$(if($guiControl){$guiControl.LastResponseInspection}else{$null});observer_failure=$(if($guiControl){$guiControl.LastHostedObserverFailure}else{$null});authority='none'})}catch{$cleanupFailures.Add('GUI countercontrol retention failed: '+$_.Exception.Message)}
-        $threadDiagnostic=$null;$threadFailure=$null
-        try{$threadDiagnostic=@(Read-HostedStartupThreads $startup)}catch{$threadFailure=$_.Exception.Message.Substring(0,[Math]::Min(1024,$_.Exception.Message.Length))}
-        try{Write-HostedNativeSetupRecord (Join-Path $capture 'startup-threads.json') ([ordered]@{context=$context;root_pid=$startup.Pid;root_created_filetime=$startup.CreatedFileTime.ToString();threads=$threadDiagnostic;query_failure=$threadFailure;scope='bounded exact-generation thread states; not stack or GUI evidence';authority='none'})}catch{$cleanupFailures.Add('Startup diagnostic retention failed: '+$_.Exception.Message)}
+        try{Write-HostedNativeSetupRecord (Join-Path $capture 'gui-counter.json') ([ordered]@{context=$context;startup_settlement=$guiStartupSettlement;last_launch=$(if($group.LastLaunchInspection -and $group.LastLaunchInspection['runtime_path'] -ieq $guiRuntime){$group.LastLaunchInspection}else{$null});observation=$guiControlObservation;root_pid=$(if($guiControl){$guiControl.Pid}else{$null});root_created_filetime=$(if($guiControl){$guiControl.CreatedFileTime.ToString()}else{$null});token=$(if($guiControl){$guiControl.HostedTokenObservation}else{$null});window_inspection=$(if($guiControl){$guiControl.LastWindowInspection}else{$null});response_inspection=$(if($guiControl){$guiControl.LastResponseInspection}else{$null});observer_failure=$(if($guiControl){$guiControl.LastHostedObserverFailure}else{$null});authority='none'})}catch{$cleanupFailures.Add('GUI countercontrol retention failed: '+$_.Exception.Message)}
+
     }
     throw $primaryError
 }

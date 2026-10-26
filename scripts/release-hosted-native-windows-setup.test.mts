@@ -1030,3 +1030,40 @@ Add-Type -TypeDefinition $harness.Replace('__GROUP__',$group)
 `);
   assert.match(result, /passed six controlled modes/u);
 });
+
+void test("GUI counter serialization requires exact startup settlement and empty original job without stop retries", (t) => {
+  const root = mkdtempSync(path.join(homedir(), ".portcove-serial-counter-control-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const result = powershell(String.raw`
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$function=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Read-HostedStartupSettlement'},$true)
+. ([scriptblock]::Create($function.Extent.Text))
+$write=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Write-HostedNativeSetupRecord'},$true);. ([scriptblock]::Create($write.Extent.Text))
+$initialize=$ast.Find({param($n)$n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -ceq '$guiRuntime'},$true)
+$receipt=$ast.Find({param($n)$n -is [Management.Automation.Language.CommandAst] -and $n.GetCommandName() -ceq 'Write-HostedNativeSetupRecord' -and $n.Extent.Text.Contains("'gui-counter.json'")},$true)
+Set-StrictMode -Version Latest
+foreach($case in @('settled','faulted','prior-stop','stop','pid','created','root','members','empty-flag','original','query')){
+ $script:stops=0;$script:queries=0
+ $startup=[pscustomobject]@{Pid=42;CreatedFileTime=[long]123;Output=[pscustomobject]@{IsFaulted=$case -ceq 'faulted'};ErrorOutput=[pscustomobject]@{IsFaulted=$false};LastTeardown=$(if($case -ceq 'prior-stop'){@{prior=$true}}else{$null})}
+ $startup|Add-Member ScriptMethod StopAndObserve {param($ms)
+  $script:stops++;if($ms -ne 5000){throw 'Budget differs'};if($case -ceq 'stop'){throw 'controlled stop refusal'}
+  return [pscustomobject]@{RootPid=$(if($case -ceq 'pid'){43}else{42});RootCreatedFileTime=$(if($case -ceq 'created'){124}else{123});RootExited=$case -cne 'root';JobEmpty=$case -cne 'empty-flag';RemainingPids=$(if($case -ceq 'members'){@(43)}else{@()})}
+ }
+ $group=[pscustomobject]@{};$group|Add-Member ScriptMethod RemainingPids {$script:queries++;if($case -ceq 'query'){throw 'controlled group query refusal'};if($case -ceq 'original'){return @(43)};return @()}
+ $result=Read-HostedStartupSettlement $startup $group
+ if(($result.status -ceq 'settled') -ne ($case -ceq 'settled') -or $script:stops -ne $(if($case -in @('faulted','prior-stop')){0}else{1})){throw ('Serialization or stop retry differs: '+$case)}
+ if($case -notin @('settled','faulted','prior-stop','stop') -and $null -eq $result.teardown){throw 'Failed validation lost settlement receipt'}
+ if($case -ne 'settled' -and -not $result.failure){throw 'Unknown settlement lost cause'}
+ $context=@{};$capture=Join-Path '${root.replaceAll("'", "''")}' $case;[IO.Directory]::CreateDirectory($capture)|Out-Null;$guiControl=$null;$guiControlObservation=@{status='unknown'};$guiStartupSettlement=$result
+ $group|Add-Member NoteProperty LastLaunchInspection (@{runtime_path='whoami.exe'})
+ . ([scriptblock]::Create($initialize.Extent.Text))
+ . ([scriptblock]::Create($receipt.Extent.Text))
+ $retained=Get-Content -LiteralPath (Join-Path $capture 'gui-counter.json') -Raw|ConvertFrom-Json
+ if($retained.startup_settlement.status -cne $result.status -or $retained.startup_settlement.failure -cne $result.failure -or $null -ne $retained.last_launch){throw 'Actual counter receipt lost unknown settlement under strict mode'}
+
+}
+'actual GUI serialization passed eleven controlled cases; no account effects or GUI acceptance'
+`);
+  assert.match(result, /serialization passed eleven controlled cases/u);
+});
