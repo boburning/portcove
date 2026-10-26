@@ -147,7 +147,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
     fastRustTests,
     /- name: Retain runtime diagnostics acceptance and latency evidence\n\s+if: always\(\)/u,
   );
-  const linuxFixture = workflowStep(
+  const linuxFixture: Record<string, unknown> & { run: string } = workflowStep(
     "fast_rust_quality",
     "Test typed runtime diagnostics and frontend admission on Linux",
   );
@@ -192,7 +192,10 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
         line.endsWith('/support-export-tests.txt"'),
     ),
   );
-  const setup = workflowStep("fast_rust_quality", "Read pinned Linux diagnostic test runner");
+  const setup: Record<string, unknown> & { run: string } = workflowStep(
+    "fast_rust_quality",
+    "Read pinned Linux diagnostic test runner",
+  );
   assert.equal(setup.if, linuxFixture.if);
   assert.match(setup.run, /Get-Content \.github\/quality-tools\.json/u);
   assert.match(setup.run, /Where-Object id -eq "cargo-nextest"/u);
