@@ -371,26 +371,24 @@ export function runNextestWithOutcomes(
     }
   };
   const environment = dependencies.environment ?? process.env;
-  const result = run(
-    "cargo-nextest",
-    [
-      "nextest",
-      "run",
-      "--message-format",
-      "libtest-json-plus",
-      "--message-format-version",
-      "0.1",
-      ...args,
-    ],
-    {
-      cwd: dependencies.cwd ?? root,
-      encoding: "utf8",
-      maxBuffer: maximumBytes,
-      stdio: ["inherit", "pipe", "inherit"],
-      windowsHide: true,
-      env: { ...environment, NEXTEST_EXPERIMENTAL_LIBTEST_JSON: "1" },
-    },
+  const nativeArgs = [...args];
+  const separator = nativeArgs.indexOf("--");
+  nativeArgs.splice(
+    separator < 0 ? nativeArgs.length : separator,
+    0,
+    "--message-format",
+    "libtest-json-plus",
+    "--message-format-version",
+    "0.1",
   );
+  const result = run("cargo-nextest", ["nextest", "run", ...nativeArgs], {
+    cwd: dependencies.cwd ?? root,
+    encoding: "utf8",
+    maxBuffer: maximumBytes,
+    stdio: ["inherit", "pipe", "inherit"],
+    windowsHide: true,
+    env: { ...environment, NEXTEST_EXPERIMENTAL_LIBTEST_JSON: "1" },
+  });
   const raw = String(result.stdout ?? "");
   if (raw) publish(raw);
   const observation = parseNextestOutcomes(raw, selection);

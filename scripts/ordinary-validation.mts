@@ -1569,8 +1569,7 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/report-summary.test.mts",
     "scripts/fallow-summary.test.mts",
-    "scripts/nextest-outcomes.test.mts",
-    "scripts/run-rust-tests.test.mts",
+    ...(explicitNodeTests.get("scripts/nextest-outcomes.mts") ?? []),
   ]);
 explicitNodeTests.set("scripts/run-rust-tests.mts", [
   ...(explicitNodeTests.get("scripts/run-rust-tests.mts") ?? []),

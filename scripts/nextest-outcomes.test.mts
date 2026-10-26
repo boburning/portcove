@@ -391,10 +391,14 @@ void test("the nextest consumer retains profile, human stderr, raw JSON and orig
       report: (value) => output.push(value),
       spawnSync(command, args, options) {
         assert.equal(command, "cargo-nextest");
-        assert.deepEqual(args.slice(6), ["--locked", "--profile", "hosted-windows"]);
-        assert.deepEqual(args.slice(0, 6), [
+        assert.deepEqual(args.slice(0, 5), [
           "nextest",
           "run",
+          "--locked",
+          "--profile",
+          "hosted-windows",
+        ]);
+        assert.deepEqual(args.slice(-4), [
           "--message-format",
           "libtest-json-plus",
           "--message-format-version",
@@ -564,12 +568,12 @@ void test("default guarded nextest uses actual listing identities and bounded ex
   assert.deepEqual(calls[1], [
     "nextest",
     "run",
+    "--locked",
+    "--workspace",
     "--message-format",
     "libtest-json-plus",
     "--message-format-version",
     "0.1",
-    "--locked",
-    "--workspace",
     "--",
     "passed",
     "--exact",
