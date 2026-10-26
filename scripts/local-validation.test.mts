@@ -3460,7 +3460,8 @@ void test("controller decision modules retain their imported transport consumer 
 });
 
 void test("platform skip inputs retain their declared case and policy consumers across lifecycle changes", async () => {
-  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const { baselineContractTests, baselineRequiresDesktopDependencies } =
+    await import("./ci-baseline.mts");
   for (const file of [
     "scripts/node-platform-skips.mts",
     "scripts/node-test-suites.mts",
@@ -3490,6 +3491,19 @@ void test("platform skip inputs retain their declared case and policy consumers 
           }),
           { fileExists: () => false },
         ),
+      );
+      const dependencyPlan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      assert.equal(
+        baselineRequiresDesktopDependencies(dependencyPlan),
+        true,
+        file + "/" + variant + "/desktop-dependencies",
       );
       const expected = [
         "scripts/node-platform-skips.test.mts",
