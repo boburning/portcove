@@ -720,7 +720,7 @@ describe("desktop components", () => {
             readiness: {
               ...status.readiness!,
               source: "not_checked",
-              source_assessment: undefined,
+              source_assessment: null,
             },
           }}
         />,
