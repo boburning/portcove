@@ -6,6 +6,7 @@ import { parseDocument } from "yaml";
 import { qualificationMatrices } from "./validation-platforms.mts";
 import { isDeepStrictEqual } from "node:util";
 import { qualificationNextestRecipe } from "./qualification-nextest.mts";
+import { qualificationRustdocRecipe } from "./qualification-rustdoc.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const expectedPlatforms = [
@@ -125,6 +126,43 @@ function requireConsumer(job: Record<string, unknown>, command: string) {
     `consumer missing or disabled: ${command}`,
   );
 }
+function requireRustdocConsumers(job: Record<string, unknown>) {
+  for (const [mode, expected] of [
+    ["workspace", ["test", "--locked", "--workspace", "--exclude", "portcove-desktop", "--doc"]],
+    ["desktop", ["test", "--locked", "-p", "portcove-desktop", "--doc"]],
+  ] as const) {
+    requireConsumer(job, "node scripts/qualification-rustdoc.mts " + mode);
+    qualificationAssert(
+      isDeepStrictEqual(qualificationRustdocRecipe(mode), [...expected]),
+      "documentation reporter changed original Cargo scope",
+    );
+  }
+  qualificationAssert(
+    activeSteps(job).some(
+      (step) =>
+        typeof step.uses === "string" &&
+        step.uses.startsWith("actions/setup-node@") &&
+        isRecord(step.with) &&
+        step.with["node-version-file"] === ".node-version",
+    ),
+    "documentation reporter missing pinned Node",
+  );
+  const steps: unknown[] = Array.isArray(job.steps) ? job.steps : [];
+  qualificationAssert(
+    steps.some(
+      (step) =>
+        isRecord(step) &&
+        expression(step.if) === "always()" &&
+        typeof step.uses === "string" &&
+        step.uses.startsWith("actions/upload-artifact@") &&
+        isRecord(step.with) &&
+        strings(step.with.path)
+          .flatMap((value) => value.split(/\r?\n/u))
+          .some((value) => value.trim() === "work/test-results/rustdoc-*/"),
+    ),
+    "documentation original outcomes missing unconditional retention",
+  );
+}
 function matrix(job: Record<string, unknown>) {
   return isRecord(job.strategy) && isRecord(job.strategy.matrix) ? job.strategy.matrix : {};
 }
@@ -224,11 +262,7 @@ function validateMatrices(
       ),
       `reporter runtime and fixtures missing: ${name}`,
     );
-  requireConsumer(
-    jobs.rust_docs ?? {},
-    "cargo test --locked --workspace --exclude portcove-desktop --doc",
-  );
-  requireConsumer(jobs.rust_docs ?? {}, "cargo test --locked -p portcove-desktop --doc");
+  requireRustdocConsumers(jobs.rust_docs ?? {});
   qualificationAssert(
     isDeepStrictEqual(matrix(jobs.intel_tests ?? {}).partition, ["hash:1/2", "hash:2/2"]),
     "Intel consumer partitions missing",

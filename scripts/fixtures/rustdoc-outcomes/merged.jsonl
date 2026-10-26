@@ -1,0 +1,26 @@
+{ "type": "suite", "event": "started", "test_count": 2 }
+{ "type": "test", "event": "started", "name": "a/src/lib.rs - (line 1)" }
+{ "type": "test", "event": "started", "name": "a/src/lib.rs - (line 10)" }
+{ "type": "test", "name": "a/src/lib.rs - (line 1)", "event": "ok", "exec_time": 0.001070872 }
+{ "type": "test", "name": "a/src/lib.rs - (line 10)", "event": "ok", "exec_time": 0.000998952 }
+{ "type": "suite", "event": "ok", "passed": 2, "failed": 0, "ignored": 0, "measured": 0, "filtered_out": 0, "exec_time": 0.001433087 }
+{ "type": "suite", "event": "started", "test_count": 2 }
+{ "type": "test", "event": "started", "name": "a/src/lib.rs - (line 4)" }
+{ "type": "test", "event": "started", "name": "a/src/lib.rs - (line 7)" }
+{ "type": "test", "name": "a/src/lib.rs - (line 4)", "event": "ignored" }
+{ "type": "test", "name": "a/src/lib.rs - (line 7)", "event": "ok", "exec_time": 0.052748299 }
+{ "type": "suite", "event": "ok", "passed": 1, "failed": 0, "ignored": 1, "measured": 0, "filtered_out": 0, "exec_time": 0.053236607 }
+{ "type": "report", "total_time": 2.166249026, "compilation_time": 2.109089419 }
+{ "type": "suite", "event": "started", "test_count": 2 }
+{ "type": "test", "event": "started", "name": "b/src/lib.rs - (line 1)" }
+{ "type": "test", "event": "started", "name": "b/src/lib.rs - (line 10)" }
+{ "type": "test", "name": "b/src/lib.rs - (line 10)", "event": "ok", "exec_time": 0.001064146 }
+{ "type": "test", "name": "b/src/lib.rs - (line 1)", "event": "ok", "exec_time": 0.001338703 }
+{ "type": "suite", "event": "ok", "passed": 2, "failed": 0, "ignored": 0, "measured": 0, "filtered_out": 0, "exec_time": 0.001665499 }
+{ "type": "suite", "event": "started", "test_count": 2 }
+{ "type": "test", "event": "started", "name": "b/src/lib.rs - (line 4)" }
+{ "type": "test", "event": "started", "name": "b/src/lib.rs - (line 7)" }
+{ "type": "test", "name": "b/src/lib.rs - (line 4)", "event": "ignored" }
+{ "type": "test", "name": "b/src/lib.rs - (line 7)", "event": "ok", "exec_time": 0.023803986 }
+{ "type": "suite", "event": "ok", "passed": 1, "failed": 0, "ignored": 1, "measured": 0, "filtered_out": 0, "exec_time": 0.02424277 }
+{ "type": "report", "total_time": 0.340493866, "compilation_time": 0.312142619 }

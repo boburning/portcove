@@ -148,6 +148,50 @@ void test("missing, extra, duplicate, or zero inventories fail closed", () => {
   );
 });
 
+void test("doctest scopes, pinned runtime and failure artifacts remain executable obligations", () => {
+  for (const mutation of [
+    "disabled",
+    "extra-argument",
+    "missing-runtime",
+    "lost-artifacts",
+    "success-only",
+  ]) {
+    const changed = editedWorkflow((jobs) => {
+      const job = jobs.rust_docs;
+      const caller = requiredFixture(
+        steps(job).find((step) => step.run === "node scripts/qualification-rustdoc.mts workspace"),
+      );
+      if (mutation === "disabled") caller.if = false;
+      if (mutation === "extra-argument") caller.run = String(caller.run) + " hidden";
+      if (mutation === "missing-runtime") {
+        const setup = requiredFixture(
+          steps(job).find((step) => String(step.uses).startsWith("actions/setup-node@")),
+        );
+        record(setup.with)["node-version-file"] = "other-node-version";
+      }
+      const uploader = requiredFixture(
+        steps(job).find((step) => String(step.uses).startsWith("actions/upload-artifact@")),
+      );
+      if (mutation === "lost-artifacts") record(uploader.with).path = "work/unrelated/";
+      if (mutation === "success-only") uploader.if = "success()";
+    });
+    assert.throws(
+      () => validateQualificationCoverage(inventory, changed),
+      /Qualification/u,
+      mutation,
+    );
+  }
+  const equivalent = editedWorkflow((jobs) => {
+    const uploader = requiredFixture(
+      steps(jobs.rust_docs).find((step) =>
+        String(step.uses).startsWith("actions/upload-artifact@"),
+      ),
+    );
+    uploader.if = " ${{ always() }} ";
+  });
+  assert.doesNotThrow(() => validateQualificationCoverage(inventory, equivalent));
+});
+
 void test("qualification structure is independent of YAML layout and rejects comment-only or duplicate jobs", () => {
   const reformatted = stringify(parseDocument(workflow).toJS(), { indent: 4 });
   assert.deepEqual(

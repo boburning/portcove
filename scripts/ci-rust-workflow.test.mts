@@ -1166,6 +1166,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     "package(portcove-cli) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/) | test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/))";
   const intelPreparationFilter =
     "package(portcove-cli) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/)";
+  const curatedInstalledWithdrawalFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/)";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)",
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
@@ -1214,6 +1216,7 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
@@ -1221,6 +1224,12 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
       .map(outputIdentity)
       .sort(),
   );
+  assert.deepEqual(overrideFor(curatedInstalledWithdrawalFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: curatedInstalledWithdrawalFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const sourcePreparation = overrideFor(sourcePreparationFilter);
   assert.deepEqual(sourcePreparation["slow-timeout"], {
     period: "5s",
@@ -1324,8 +1333,8 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   }
   assert.match(rustTests, /windows-rust-tests\.mts run-qualification/u);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
-  assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
-  assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
+  assert.match(rustDocs, /node scripts\/qualification-rustdoc\.mts workspace/u);
+  assert.match(rustDocs, /node scripts\/qualification-rustdoc\.mts desktop/u);
   assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);
   assert.match(
     rustDocs,

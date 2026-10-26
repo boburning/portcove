@@ -3319,3 +3319,96 @@ void test("case observation implementation selects the reporter consumer with mi
     );
   }
 });
+
+void test("doctest reporting dependencies retain their real consumers across lifecycle changes", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const helpers = ["scripts/qualification-rustdoc.mts", "scripts/rustdoc-outcomes.mts"];
+  for (const file of [
+    ...helpers,
+    "scripts/runtime-values.mts",
+    ".node-version",
+    "rust-toolchain.toml",
+    "scripts/fixtures/rustdoc-outcomes/merged.jsonl",
+    "scripts/fixtures/rustdoc-outcomes/failed.jsonl",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = new Set(
+        baselineContractTests(
+          buildValidationPlan({
+            changes: [change],
+            eventName: "pull_request",
+            base: "a".repeat(40),
+            mergeBase: "a".repeat(40),
+            head: "b".repeat(40),
+            checkout: "b".repeat(40),
+          }),
+          { fileExists: () => false },
+        ),
+      );
+      const required = helpers.includes(file)
+        ? [
+            "qualification-rustdoc",
+            "qualification-coverage",
+            "audit",
+            "precommit-check",
+            "local-validation",
+            "node-test-inventory",
+          ]
+        : ["qualification-rustdoc"];
+      const requiredPaths = required.map((consumer) => "scripts/" + consumer + ".test.mts");
+      assert.deepEqual(
+        requiredPaths.filter((consumer) => !local.nodeTests.has(consumer)),
+        [],
+        file + "/" + variant + "/local",
+      );
+      assert.deepEqual(
+        requiredPaths.filter((consumer) => !hosted.has(consumer)),
+        [],
+        file + "/" + variant + "/hosted",
+      );
+    }
+});
+
+void test("Nextest configuration lifecycle changes select the executable timeout and output policy contract", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+    const file = ".config/nextest.toml";
+    const change = {
+      status: variant.startsWith("R") ? "R100" : variant,
+      oldPath: variant === "R-new" ? "docs/moved.md" : file,
+      newPath: variant === "R-old" ? "docs/moved.md" : file,
+      oldMode: variant === "A" ? "000000" : "100644",
+      newMode: variant === "D" ? "000000" : "100644",
+    };
+    const local = classifyChanges(
+      [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+      { fileExists: () => false },
+    );
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.ok(local.nodeTests.has("scripts/ci-rust-workflow.test.mts"), variant);
+    assert.ok(
+      baselineContractTests(plan, { fileExists: () => false }).includes(
+        "scripts/ci-rust-workflow.test.mts",
+      ),
+      variant,
+    );
+  }
+});

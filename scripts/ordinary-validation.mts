@@ -1171,6 +1171,26 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/precommit-check.test.mts",
     ],
   ],
+  [".config/nextest.toml", ["scripts/ci-rust-workflow.test.mts"]],
+  ...["scripts/qualification-rustdoc.mts", "scripts/rustdoc-outcomes.mts"].map(
+    (file): [string, string[]] => [
+      file,
+      [
+        "scripts/qualification-rustdoc.test.mts",
+        "scripts/qualification-coverage.test.mts",
+        "scripts/ci-rust-workflow.test.mts",
+        "scripts/dev-storage.test.mts",
+        "scripts/audit.test.mts",
+        "scripts/precommit-check.test.mts",
+        "scripts/local-validation.test.mts",
+        "scripts/node-test-inventory.test.mts",
+      ],
+    ],
+  ),
+  ...["merged", "failed"].map((name): [string, string[]] => [
+    "scripts/fixtures/rustdoc-outcomes/" + name + ".jsonl",
+    ["scripts/qualification-rustdoc.test.mts"],
+  ]),
   [
     "scripts/fixtures/nextest-inventory-baseline.json",
     ["scripts/nextest-outcomes.test.mts", "scripts/qualification-nextest.test.mts"],
@@ -1387,10 +1407,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/dependency-automation.test.mts",
       "scripts/ci-baseline-execution.test.mts",
       "scripts/qualification-nextest.test.mts",
+      "scripts/qualification-rustdoc.test.mts",
     ],
   ],
   ["Cargo.toml", ["scripts/dependency-automation.test.mts"]],
-  ["rust-toolchain.toml", ["scripts/dependency-automation.test.mts"]],
+  [
+    "rust-toolchain.toml",
+    ["scripts/dependency-automation.test.mts", "scripts/qualification-rustdoc.test.mts"],
+  ],
   [
     "package.json",
     [
@@ -1633,6 +1657,7 @@ for (const file of [
 explicitNodeTests.set("scripts/runtime-values.mts", [
   ...(explicitNodeTests.get("scripts/runtime-values.mts") ?? []),
   "scripts/qualification-nextest.test.mts",
+  "scripts/qualification-rustdoc.test.mts",
   "scripts/nextest-outcomes.test.mts",
   "scripts/qualification-coverage.test.mts",
   "scripts/audit.test.mts",
