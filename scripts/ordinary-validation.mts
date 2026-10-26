@@ -1731,6 +1731,19 @@ for (const file of [
     "scripts/rust-coverage.test.mts",
   ]);
 }
+for (const file of [
+  "scripts/fixtures/native-desktop-observer.cs.txt",
+  "scripts/release-hosted-native-windows-setup.ps1",
+  "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
+  "scripts/release-hosted-native-windows-observation.mts",
+  "scripts/qualify-controller-tools-windows.mts",
+]) {
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-hosted-native-windows-setup.test.mts",
+  ]);
+}
 explicitNodeTests.set("scripts/runtime-values.mts", [
   ...roadmapContractTests,
   ...(explicitNodeTests.get("scripts/runtime-values.mts") ?? []),
@@ -1743,6 +1756,7 @@ explicitNodeTests.set("scripts/runtime-values.mts", [
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/release-hosted-native-windows-setup.test.mts",
   "scripts/release-native-runtime-custody.test.mts",
   "scripts/hosted-native-continuity.test.mts",
   "scripts/recover-local-worker-empty-setup.test.mts",

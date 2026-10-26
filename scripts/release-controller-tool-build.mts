@@ -23,6 +23,7 @@ import {
   inspectControllerToolManifest,
   controllerCompilerSourceAsset,
   controllerNativeDriverVersion,
+  controllerToolSourceAssetMaximumBytes,
   controllerToolPlatformProfile,
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
@@ -263,6 +264,12 @@ export async function buildControllerTools(
     };
     guard();
     const tools = path.join(directory, "tools");
+    phase = "source-assets";
+    for (const name of profile.assets)
+      await readControllerToolFile(
+        path.join(sourceRoot, name),
+        controllerToolSourceAssetMaximumBytes,
+      );
     await mkdir(tools, { mode: 0o700 });
     phase = "fixed-native-package-manager";
     const packageMetadata: unknown = JSON.parse(
@@ -385,7 +392,10 @@ export async function buildControllerTools(
       await mkdir(path.dirname(path.join(tools, name)), { recursive: true, mode: 0o700 });
       await writeFile(
         path.join(tools, name),
-        await readControllerToolFile(path.join(sourceRoot, name), 64 * 1024),
+        await readControllerToolFile(
+          path.join(sourceRoot, name),
+          controllerToolSourceAssetMaximumBytes,
+        ),
         { flag: "wx", mode: 0o600 },
       );
     }
@@ -417,19 +427,27 @@ export async function buildControllerTools(
       mode: 0o600,
     });
     return { directory, tools, manifest, authority: "none" };
-  } catch {
+  } catch (error) {
+    const failure = (error instanceof Error ? error.message : "unknown bootstrap refusal").slice(
+      0,
+      1024,
+    );
     await writeFile(
       path.join(directory, "failure.json"),
       JSON.stringify({
         directory,
         phase,
+        failure,
         source: expected,
         authority: "none",
         automatic_retry: false,
       }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
-    throw new Error(`fixed controller bootstrap refused; retain ${directory}`);
+    throw new Error(
+      `fixed controller bootstrap refused in ${phase}: ${failure}; retain ${directory}`,
+      { cause: error },
+    );
   }
 }
 

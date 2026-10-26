@@ -46,6 +46,20 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 
 const allFilesExist = () => true;
 
+void test("native observer fixture edits retain the owning Windows regression suite", () => {
+  const fixture = "scripts/fixtures/native-desktop-observer.cs.txt";
+  for (const change of [
+    { status: "M", path: fixture },
+    { status: "A", path: fixture },
+    { status: "D", path: fixture },
+    { status: "R100", path: "docs/moved.md", previousPath: fixture },
+    { status: "R100", path: fixture, previousPath: "docs/moved.md" },
+  ]) {
+    const selected = classifyChanges([change], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/release-hosted-native-windows-setup.test.mts"));
+  }
+});
+
 void test("portability literal baseline retains its native scanner contract across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const input = "scripts/fixtures/rscheck-portability-baseline.json";

@@ -2745,6 +2745,14 @@
       ]
     },
     {
+      "file": "scripts/release-hosted-native-windows-setup.test.mts",
+      "memberships": [
+        ["windows-helpers-3", 500],
+        ["catalog-full-2", 16002],
+        ["release-check", 16202]
+      ]
+    },
+    {
       "file": "apps/desktop/scripts/cli-command-shell.native.test.mts",
       "memberships": [["native-tools", 0]]
     },

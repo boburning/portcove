@@ -7,6 +7,7 @@ import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
+export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
 export const controllerToolEntries = Object.freeze([
@@ -74,6 +75,12 @@ const windowsAssets = Object.freeze([
   "release/package-policy.json",
   "apps/desktop/src-tauri/tauri.release-public.conf.json",
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+  "scripts/release-hosted-native-windows-setup.ps1",
+  "scripts/release-hosted-native-windows-setup.cs.txt",
+  "scripts/release-hosted-native-windows-audit.cs.txt",
+  "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-registry.ps1",
+  "scripts/fixtures/native-account-gui-probe.ps1",
 ] as const);
 const windowsPaths = Object.freeze(
   [

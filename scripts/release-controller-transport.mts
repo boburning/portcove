@@ -814,7 +814,7 @@ async function linuxProcessStart(pid: number) {
     }
     return inspectControllerKeyProcess(Buffer.concat(chunks).toString("utf8"));
   } catch (error) {
-    if (isRecord(error) && error.code === "ENOENT") return null;
+    if (isRecord(error) && (error.code === "ENOENT" || error.code === "ESRCH")) return null;
     throw error;
   }
 }

@@ -1,5 +1,21 @@
 # Slice 4 protected execution and custody decision packet
 
+**Current: owner-approved resumption; batch 2 recovery verified.** The owner approved lifting the cleanup stop for reviewed repairs and the two remaining attempts. `40337992093/1` verified exact audit-policy restoration (0→2, command4, readback0), privilege restoration, account disabling and station restoration with no cleanup failures. The first event control remained unqualified; no candidate launched. One batch slot remains for the reviewed bounded reader/query correction. Batch 1's final policy remains historically Unknown. Actual audit usefulness, GUI acceptance and final CI/merge remain pending.
+
+**Audit cleanup stop active.** The first of the owner's three additional bounded attempts (`40331645673/1`) failed its first event-control gate and reported audit-policy restoration readback failure. Final policy state is Unknown; no candidate launched. Owner privilege, account disabling and station restoration were independently verified. Two unused attempts are held; no further hosted execution is implied by local recovery repairs or review. The [audit receipt](slice4-hosted-windows-access-audit-proposal-2026-10-26.md#october-26-batch-attempt-1-cleanup-stop-recovery-preparation) preserves exact failure/artifact/CI scope and reviewed preparation.
+
+The explicitly renewed corrected attempt `40327600284/1` advanced past the event-reader preflight, then failed on audit object-name access before policy/SACL writes or candidate launch. Recovery remained positive within its retained scope; GUI acceptance is still unqualified. The owner-handle name-query repair is locally prepared with 31 Windows controls and preserves candidate permissions. All five required CI contexts passed for `9acd452e`; no further hosted attempt is currently granted or dispatched.
+
+The authorized audit attempt `40323676920/1` failed in the initial event-query preflight before policy/SACL writes or candidate launch. Exact owner privilege restoration, account disabling and station restoration were retained; no GUI acceptance followed. The finite-read handling repair is locally prepared and independently reviewed with 30 controlled Windows passes. The single authorized hosted attempt is consumed; no further audit dispatch has occurred. All five required CI contexts passed for the attempted source `def78a04`; corrected-source CI and actual acceptance remain pending.
+
+The [targeted access-audit proposal](slice4-hosted-windows-access-audit-proposal-2026-10-26.md) was fully prepared and independently reviewed while disabled. The owner then explicitly authorized one bounded ordinary hosted diagnostic using existing owner SeSecurityPrivilege, targeted full-SACL failure ACEs, Kernel Object failure auditing preserving existing success state, and bounded exact-subject Security-log reads with guarded restoration. The gate is enabled only for that reviewed hosted scope. Combined screenless qualification failed; temporary station grants are reverted to `20002/D037D`. Actual audit usefulness and GUI acceptance remain unqualified. No production or protected authority follows.
+
+The [hosted Windows GUI boundary proposal](slice4-hosted-windows-gui-proposal-2026-10-25.md) prepares a restricted non-input private desktop within existing interactive WinSta0, exact suspended-token access checks, isolated same-desktop observation and guarded ACL restoration. Following independent review of the disabled proposal, the owner explicitly authorized this restricted hosted implementation and retired the categorical never-WinSta0 prohibition. Concrete isolation/access controls remain; existing local/protected implementations are unchanged. Code/control tests do not establish actual GUI acceptance. No workstation setup or new protected/production execution is requested; all existing authority, acceptance, resource and recovery holds remain.
+
+The ordinary hosted primitive now uses the required fixed PowerShell form/HKCU/descendant process as the sole initial root of its original JobObject. Auxiliary independent whoami/winver logons are retired after their job-hierarchy effects were separately observed; their failed evidence remains retained. Existing bounded diagnostics observe the actual required root. The reviewed fixed inert qualification returns to read control/attributes only (0x20002), with screen reading, clipboard, desktop creation, input and security changes still denied; this simplification changes neither acceptance nor authority.
+
+Neither the atom-only, enumeration-only nor combined metadata/atom trial repaired startup; those permission increases are reverted. Global atoms are shared station state and can survive process exit; this profile is limited to fixed inert source/runtime on a fresh disposable hosted VM. Process teardown does not assert atom removal, and no arbitrary/protected reuse is granted. Failure-only original-thread position diagnosis uses existing creation handles, bounded temporary suspend/resume compensation and no debugger or new privilege. Neither diagnostics nor account disabling/ACL restoration establish GUI acceptance, arbitrary-candidate/protected reuse or production authority; all broader holds remain.
+
 The [Windows controller-tool bootstrap preparation](slice4-hosted-observations-2026-10-22.md#windows-controller-tool-bootstrap-preparation-october-25) adds explicit Windows build/inventory and ordinary credential-free hosted qualification. Existing Linux/default protected receivers remain closed to Windows; platform-bound producer/runtime/capture integration and actual protected resource fit remain prerequisites. This changes no protected job, resource ceiling, authority or execution grant; production stays held.
 
 The [attested Linux WebDriver preparation](slice4-hosted-observations-2026-10-22.md#attested-linux-webdriver-preparation-october25) adds the existing maintained driver pin to the closed trusted-tool build and admitted archive, with actual pinned-build/help/refusal verification before delivery. It selects no new authority, job, resource allowance or execution grant. Native runtime installation/capture composition and actual acceptance remain pending; production stays held.
@@ -1582,3 +1598,25 @@ this does not wire a protected Windows job or establish direct capture/native
 acceptance. Remaining producer/account/capture/proof joins, resource fit and final
 runnable source/digest/grant reconciliation stay pending. No new owner action is
 requested; all existing issue acceptance and production holds remain.
+
+The [hosted Windows isolated-account primitive](slice4-hosted-observations-2026-10-22.md#hosted-windows-isolated-account-primitive-preparation-october-25)
+uses the existing launcher with a generated memory-only credential on a disposable
+standard runner, avoiding workstation passwords, Credential Manager and manual
+admin steps. Diagnostic context and controlled tests cannot mint protected/native
+acceptance. Actual hosted results belong to its delivery receipt. Protected
+Windows producer/candidate/source/runtime/capture/proof joins and resource fit
+remain unfinished engineering; no production job or execution authority is added.
+All existing issue, capacity, custody, recovery and production holds remain.
+
+### Local Windows GUI execution proposal — October 26
+
+The [owner-approved inert execution boundary](slice4-windows-gui-boundary-proposal-2026-10-26.md)
+records a real Windows observer-race repair and a bounded owned-station startup
+model. Its proposed `0x20062` station grant includes global atoms and
+WINSTA_EXITWINDOWS; that capability and owner-logoff/interrupted-cleanup risk remain
+explicit. After completed preparation and independent review, the owner approved
+this fixed inert disposable-host scope and one reviewed qualification. The GUI
+gate is enabled; the consumed privileged-audit grant stays disabled. Actual hosted
+GUI acceptance is not yet established; no protected or production authority follows. All earlier failures and production,
+protected acceptance, resource and issue holds remain. No workstation setup,
+password or administrator step is requested.

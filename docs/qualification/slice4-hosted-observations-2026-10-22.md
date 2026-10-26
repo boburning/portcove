@@ -1204,3 +1204,95 @@ for this preparation. D1/D2/D3 and all spending/admission/recovery restrictions
 remain: availability/headroom Unknown, no capacity reservation, #254 Done,
 #315/#534/#246 pending, Chameleon protected acceptance unset, production held and
 Slice5 excluded.
+
+## Hosted Windows isolated account primitive preparation (October 25)
+
+The fixed Windows tool diagnostic now prepares one fresh `PortcoveNativeQual`
+account on its disposable standard Windows2022 runner and exercises the existing
+native launcher with the retained inert GUI/profile/registry probe. It accepts
+only that workflow's pull-request or main-push diagnostic context, source-bound
+tool manifest and original direct-parent process generation. It does not admit a
+production parent, package, report, issuer or key. No local workstation account,
+password entry, elevation prompt, credential store or task is involved.
+
+A generated bounded read-only SecureString stays in the trusted helper process
+and is disposed after use. The account starts disabled with ordinary Users-only
+membership. Profile creation uses the previously successful fixed260-character
+buffer and verifies the actual ProfileList result. A fresh atomic broker/SYSTEM
+root retains the intent before account creation; source is candidate-read-only,
+work is candidate-modifiable and capture remains broker-only. Existing roots,
+accounts or profiles refuse adoption. The trusted launcher retains suspended
+creation, exact executable digest, non-admin token/profile checks, a new private
+window station/desktop and the existing finite kill-on-close JobObject. The inert
+probe must demonstrate actual HKCU/profile identity, responsive private GUI and
+an observed descendant in that original job. Positive root exit and empty-job
+readback remain mandatory; WinForms capability is not Tauri/WebView/package or
+minimum-client acceptance.
+
+Teardown and exact-account disabling are independent cleanup attempts. Both
+failures survive alongside the original failure; ambiguous job settlement stays
+false. Disabling prevents later logons and does not establish child termination.
+No account/profile/file deletion or automatic retry is implemented. Owned partial
+records remain on the disposable runner; only bounded context-matching public
+JSON and bounded diagnostic stderr are uploaded through the existing seven-day
+fixture artifact. Credentials never enter arguments, environment or receipts.
+The helper has a60second work fence with separate bounded teardown, inside
+an85second resource-admitted outer command. Queue admission and preparation use
+the existing Windows supervisor product and actual resource lease.
+
+Local tests execute the actual context parser, ordinary-local-call refusal,
+private directory creation/owner/DACL/readback and retained-directory refusal.
+The seven-case test file is registered in the existing required Windows helper,
+catalog and local release suites. Its captured-stream observation helper imports
+no npm dependency, preserving Windows helper execution before dependency setup.
+Controlled extraction of the actual cleanup body tests teardown refusal plus
+independent disabling and simultaneous cleanup refusal. The actual first-effect
+statement boundary refuses stale parent generation and expired lifetime before
+directory creation. These tests create no account or profile. Initial local
+failure from PowerShell converting a null string argument to empty text remains
+retained; the native helper now handles both as no candidate grant. Independent
+review also found and repaired cleanup skipping and a missing final pre-effect
+fence. Actual hosted outcomes and exact delivery identities belong to the owning
+receipt, rather than being inferred from these fixtures.
+
+This prepares and qualifies an OS primitive. Original protected Windows parent,
+candidate materialization, complete native source/dependency/runtime installation,
+direct capture/report/proof and original-worker upload joins still need connection.
+No protected Windows job or production allocation is added. Protected resource
+fit, final runnable source/digest/configuration reconciliation and actual
+producer/custody/protection/coordinator prerequisites remain separate. D1/D2/D3,
+the $0 stop-usage boundary and all existing restrictions remain; availability and
+headroom Unknown, no capacity reservation. #254 Done; #315/#534/#246 pending;
+Chameleon protected acceptance unset; production held; Slice5 excluded.
+
+### October 25 resumed Windows account diagnostic
+
+Source `e971816e4026764aea9ff36cdf80a1c30594e3ec` run `40194530285/1`, Windows job `121172405416`, failed at the original-parent fence before the fresh account/root intent. Retained `account-command.json` records status 1 and the actual parent/lifetime refusal; no account result exists. Artifact `12599008871`, 9554 bytes, SHA-256 `c8ec954380b62d7d53e115b5b5bcc6309f468a9ae3326f97e348c231501ba31a` was independently checked against provider metadata and ZIP CRC/member bounds. The caller used existing CIM UTC ticks while the callee compared FILETIME. The prepared repair names and compares the same CIM UTC-tick generation identity through the existing process-identity contract; its actual Windows fence regression now includes positive identity acceptance before stale-generation/deadline refusals. Missing result readback no longer masks the retained command failure.
+
+The same source CI `40194530216/1` failed only its fast-catalog leaf (`121172477374`) and dependent catalog aggregate: the workflow-registration assertion omitted the newly registered setup suite in both maintained Windows lanes. Windows helpers and the other required aggregates passed at their actual scope. The expectation is repaired; original failed logs remain retained. These repairs do not establish a successful hosted account, GUI, native package or protected execution outcome.
+
+The first repair source `4c9db9d5551c0ca90e8f9208bc1359b3af2cf959` passed all required CI in `40211363749/1`. Windows fixture `40211363739/1`, job `121223084012`, progressed beyond the corrected parent fence and created disabled SID `S-1-5-21-399838505-1430754676-1685527644-1003`, then refused the `Add-LocalGroupMember` SID-object-to-LocalPrincipal binding before profile/launch. Its actual result retains `disabled: true`, no cleanup failures, and unobserved process settlement as null/false. Artifact `12605842836`, 12347 bytes, SHA-256 `719952f27cec9b3c3338cb74db32814097458e6d6167165bec7ec1b9d8d04843`, passed provider byte/digest and bounded ZIP/CRC checks. The next repair passes the actual created LocalUser (a LocalPrincipal) directly; an actual Windows typed-parameter regression executes the maintained call with only the membership mutation replaced by a nonwriting observer. This preserves the failed remote account state and does not retry or adopt it.
+
+Membership repair source `bbf7b0b0f3a81fd45b7333586b26db21bf7515ce` passed required CI `40211907769/1`. Actual Windows job `121224734323` in fixture `40211907585/1` passed membership and actual/registered profile creation and launched root PID 4500, creation FILETIME `134374196152582050`, then failed `Actual private-desktop inert GUI unavailable`. Matching cleanup positively observed root exit, no remaining job PIDs, account disabled and no cleanup failures. Native success remains refused. Artifact `12606063349`, 11897 bytes, SHA-256 `1575053cf82396a8341d203b137a7333fcd22f07e6d376fb4d5e4d51bae6dd37`, passed provider byte/digest and bounded ZIP/CRC checks. The original fixture omitted child-stream diagnostics; the next source retains bounded 16KiB prefixes, original lengths/truncation and observed exit code before disposal, preserving original failure and cleanup independently. No restart/adoption of that failed account is performed.
+
+Diagnostic source `3cce1c01cb14bb6872601763651ad84c3eef07a1` passed required CI `40216499592/1`. Fixture `40216499618/1`, Windows job `121238656466`, retained the actual child failure: WinForms `ShowDialog()` refused non-UserInteractive mode on the private window station. Actual child stdout observed the expected SID/profile, target-account HKCU and descendant PID before that failure; this is partial startup evidence, not GUI acceptance. Root exit, empty job, disabled account and no cleanup errors were again positively observed. Artifact `12607802369`, 13709 bytes, SHA-256 `c1d0e57a4ca3b4b596fdf03ecab4341b9f23b6e93dfe49b60ad7a44c3f90d050`, passed provider byte/digest and bounded ZIP/CRC checks. The focused repair uses the standard nonmodal `Application.Run(form)` message loop with the same private desktop/form and close timer; it changes no account, station visibility, token, window responsiveness or teardown acceptance. Actual hosted window observation remains required.
+
+Private-form source `cf7d689275c2cbae1b53e7c0dd2044f8b84d856e`, fixture `40216945144/1`, Windows job `121240019297`, retained a further GUI refusal with empty child snapshots and supervisor-terminated exit 125. Root creation at `17:37:50.076897Z` occurred about 34 seconds into the 60.5-second setup command, leaving approximately 25 seconds for cold first-login startup. Matching root/job/disable cleanup remained positive with no errors; no natural child exit or GUI is inferred. Artifact `12607518376`, 12047 bytes, SHA-256 `d285c4fbc9dc4c9336ae52f5cfb9b59fc40ea5896c4c7a865cd375d32007515e`, passed provider byte/digest and bounded ZIP/CRC checks. Under standing harness-calibration authority the diagnostic clock becomes 120 seconds, with 110-second observation fence, existing 5+5-second teardown and 145-second outer resource bound (previously 60/55/85). The ordinary fixture job remains 15 minutes; production resource/deadline policy is unchanged. Fixed direct-console startup markers and JSON output distinguish startup stages from pipeline buffering without adding authentication or weakening window/profile/job assertions. A later pass qualifies this finite budget, not the causal reason for the empty prior snapshots.
+
+Calibrated source `0162ce3998e37916bfe210dd1463466241d39e2f` passed required CI `40217655775/1`. Fixture `40217655816/1`, Windows job `121242193672`, still refused GUI acceptance. Its only child marker was `inert-probe:started`; the fixed HKCU reader did not return before termination. No further timeout increase is inferred. Root exit, empty job, account disabled and no cleanup errors were positively read back. Artifact `12608675258`, 12076 bytes, SHA-256 `ce9945b043705e5041166a6c178846dfb3c0f1586a52fcae322074cb0f53b4ac`, passed provider byte/digest and bounded ZIP/CRC checks. Fixed ASCII stderr checkpoints now delimit the existing registry identity/principal/profile/hive/fixed-value operations; stdout, read-only registry scope, credentials, deadlines and acceptance assertions are unchanged. These markers reveal no registry values or private inputs.
+
+Independent review of marker source `8b1082d6ad3aed3a406508ec3a145d1521d329ed` blocked ordinary-reader compatibility: the native adapter requires empty registry stderr. Before delivery the checkpoints are gated behind explicit `-DiagnosticStages`, supplied only by the fixed inert GUI probe; the ordinary adapter remains unchanged and silent by default. An actual Windows parameter/prefix execution checks both default silence and the opt-in marker without executing registry reads or changing accounts. The rejected source is retained and cannot establish ordinary/native acceptance.
+
+Marker diagnostic source `8b1082d6ad3aed3a406508ec3a145d1521d329ed`, run `40218533609/1`, Windows job `121244833894`, reached every fixed registry checkpoint and `inert-probe:message-loop`, emitted the correct profile/HKCU/descendant JSON, and naturally exited 0 after its timer. The parent still refused the visible/private-window assertion; matching teardown and account disable were positive with no cleanup failures. Artifact `12608910405`, 13325 bytes, SHA-256 `3f043802f73cec557827c4b3b784e812ca94cd43eddc489dffb9896ca26cf58f`, passed provider byte/digest and bounded ZIP/CRC checks. This is diagnostic evidence from the rejected default-stderr source, not qualification of that source for ordinary use. The existing launcher supplies `STARTF_USESHOWWINDOW/SW_HIDE`; [the platform contract](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow) applies startup show state to the first show. The fixed fixture consumes that initial show and hides it before `Application.Run` shows the same form again. No WinSta0 access, station visibility, launcher policy, account/token or responsiveness/teardown assertion is relaxed. Actual window observation remains required.
+
+Opt-in/visibility source `3ad7f5f23705604786cfb6454b888bb18e73c008`, fixture `40219197913/1`, Windows job `121246863504`, still refused the parent window observation despite all registry/form/loop markers, correct profile/HKCU/descendant output and natural child exit 0. Root/job/disable cleanup remained positive. Artifact `12609476218`, 13325 bytes, SHA-256 `2e3cdd75c0df0601b1d639e7e6047c44fa3ea8491894da0c0b27a26a2472a2ce`, passed provider byte/digest and bounded ZIP/CRC checks. Inspection found existing `FindWindow` discarded `EnumDesktopWindows` failure. It now throws the actual native error when enumeration fails without finding a window, while preserving the legitimate false return caused by a successful callback early-stop. A controlled test executes the actual extracted lookup with native outcomes for empty success, failed enumeration and found callback stop. This is lookup-error handling evidence, not native window acceptance.
+
+The same lookup retains at most 16 numeric handle/visibility/style tuples for windows owned by that exact root PID, exposed only as bounded diagnostic readback in the existing setup result. It never selects a foreign window or changes acceptance. This distinguishes a native enumeration error from owned windows filtered by visibility without another speculative runtime change.
+
+Enumeration source `a64b40096013ff9017c97ffbfe711e9a3a504e55` passed required CI `40220204710/1`; fixture `40220205406/1`, Windows job `121249932919`, still refused GUI acceptance with complete probe output and natural exit 0. Native enumeration succeeded; final owned-window tuples were `131530:False:06CF0000,262586:False:84000000,262574:False:04EF0000`. Those last observations can follow form close and do not prove no window was visible earlier. Matching root/job/disable cleanup was positive. Artifact `12608819069`, 13413 bytes, SHA-256 `499036fff6bc5a732f90abaa98e51dbefa8d5ff833cc4dde23fe9ff156f6a647`, passed provider byte/digest and bounded ZIP/CRC checks. The existing WM_NULL response now retains its last attempted numeric handle/result/immediate Win32 error, without clearing that evidence when a later lookup has no visible window. The source-extracted controlled regression checks both refusal and success; responsiveness remains required for actual acceptance.
+
+Response diagnostic source `c7668d0aadd65341c7412340b55ce2177f9dcf1f` passed required CI `40221225569/1`. Fixture `40221225417/1`, Windows job `121253022341`, retained `saw_visible_window: false` and no attempted response, despite complete own-profile/HKCU/descendant output and natural exit 0. This rules out a recorded WM_NULL refusal for this attempt; it does not establish why the form stayed hidden. Matching root/job/disable cleanup was positive. Artifact `12609820723`, 13467 bytes, SHA-256 `e2921015e475539e6ff4b5c9006c8a38e9c82bd42327e994c53886fe19fdc8f5`, passed provider byte/digest and bounded ZIP/CRC checks. The fixed inert probe now explicitly invokes the platform ShowWindow(SW_SHOW) on its own form after managed Show, and refuses locally if IsWindowVisible remains false. The broker still independently requires its exact-root visible/responsive window. No desktop access, credentials, production authority or acceptance check changes.
+
+Explicit-show source `f43c5d77db44585918a605e1a97851767fe08e87` passed required CI `40243534656/1` and Linux fixture, but Windows job `121320227280` in fixture `40243534641/1` failed the new own-window check with `Inert own form remains hidden`, exit 1. Broker visibility remained false and response unattempted. Complete profile/HKCU/descendant output and positive root/job/disable cleanup survive. Artifact `12618161295`, 14046 bytes, SHA-256 `555e75f00cd8c7479281014b501e52a0aa6d106d6f7f0cacb23b70c7f387385b`, passed provider byte/digest and bounded ZIP/CRC checks. The fixture now makes both native calls explicit: own-window SW_HIDE to consume startup state, then SW_SHOW; it no longer assumes managed Show already consumed the first native call. The controlled regression requires that exact handle and 0→5 sequence in both refusal and continuation cases. Actual broker window/response acceptance is unchanged and remains required.
+
+Native-sequence source `ff47f255edef85854ffbd429a4484eb841c9ed7e` passed required CI `40244108300/1`; Windows fixture `40244108301/1`, job `121321941721`, again failed own visibility after explicit native 0→5 calls. Profile/HKCU/descendant output and positive root/job/disable cleanup are retained. Artifact `12618480282`, 14089 bytes, SHA-256 `7f8c731912ecf99c7bb307ee9e61abeebd68ef4e6ee974596cec192c6348ef99`, passed provider byte/digest and bounded ZIP/CRC checks. This disproves the proposed show-sequence repair at its tested scope. The next diagnostic retains only own HWND/style, immediate parent HWND/style and desktop HWND/style immediately before the unchanged refusal. IsWindowVisible checks window ancestry; a deliberately noninteractive station cannot provide human display. Neither a hidden ancestor nor absent own WS_VISIBLE is inferred until those immediate observations exist. No station/desktop access or acceptance policy changes.
