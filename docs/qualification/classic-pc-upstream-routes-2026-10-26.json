@@ -1,0 +1,241 @@
+{
+  "format_version": 1,
+  "kind": "dated-classic-pc-upstream-route-batch",
+  "owner": 2926,
+  "parent": 2510,
+  "source_base": "fcb685a3611f850d1ac417adb63f4a07ad414413",
+  "observed_at": "2026-10-26T02:01:04.954058+00:00",
+  "scope": "Four existing original unresolved identities; no new port IDs, live backlog or full inventory/fit-completion claim. Preserve original 524/312/22 cohorts, prior assessments and all still-unresolved managed decisions.",
+  "counts": {
+    "assessed_for_this_route_change": 4,
+    "new_identities": 0,
+    "new_managed_integrations": 0,
+    "managed_fit_decisions_resolved": 0
+  },
+  "entries": [
+    {
+      "id": "lethal-guitar-rigelengine",
+      "canonical_issue": 1877,
+      "authored_path": "crates/portcove-core/catalog/ports/lethal-guitar-rigelengine.json",
+      "authored_sha256": "1a2e4f77d6823720b179b30125b07823b747700b31a21ef130e5542f7a50aedc",
+      "previous_route": "discovery listing with no reviewed package or setup facts",
+      "selected_route": "upstream-owned download and explicit non-owning existing-player registration",
+      "platform_scope": {
+        "changed_operation": "Windows upstream ZIP and native player identification; Windows x64 host accepts both observed AMD64 and I386 native PE executables",
+        "listing_platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+        "other_platform_limits": "Rigel upstream advertises x64 Debian/macOS packages. Augustus also publishes Linux AppImage/macOS DMG and non-Desktop targets; macOS architecture remains unreviewed here. Aerofoil current selected release has Windows/Android; historical README macOS mention is not a current artifact qualification. Heretic2R reviewed package is Windows only. No native execution on any platform."
+      },
+      "upstream": {
+        "repository": "lethal-guitar/RigelEngine",
+        "repository_node_id": "MDEwOlJlcG9zaXRvcnk2OTcyODEwOQ==",
+        "tag": "v0.9.1",
+        "source_commit": "84ae53f039fc3d08971433b3287cd1910b78fb6b",
+        "source_url": "https://github.com/lethal-guitar/RigelEngine/tree/84ae53f039fc3d08971433b3287cd1910b78fb6b",
+        "release_url": "https://github.com/lethal-guitar/RigelEngine/releases/tag/v0.9.1",
+        "all_release_records": 25,
+        "release_inventory_complete": true,
+        "selected_release_assets_complete": true,
+        "selected_release_assets": 4
+      },
+      "artifact": {
+        "asset_id": 87717569,
+        "url": "https://github.com/lethal-guitar/RigelEngine/releases/download/v0.9.1/rigelengine_win_x64.zip",
+        "bytes": 2361055,
+        "publisher_expected_digest": null,
+        "actual_sha256": "f3269c5665b22674e577680f9b60c6c90623b0890f9b3a728fb1605892ca3a02",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 11,
+          "central_directory_bytes": 1059,
+          "compressed_bytes": 2361055
+        },
+        "expanded_bytes": 5644800,
+        "executable_headers": [
+          {
+            "path": "RigelEngine.exe",
+            "bytes": 2382848,
+            "machine": "0x8664"
+          }
+        ]
+      },
+      "download_asset_hints": ["rigelengine_win_x64.zip"],
+      "update_owner": "upstream/player; Portcove does not replace the registered runtime",
+      "setup_provider": "upstream/player; no discovered helper executes during discovery",
+      "setup_and_data_boundary": "First-Play picker accepts the player's shareware or registered Duke Nukem II folder; NUKEM2.CMP is required and NUKEM2.F1–F5 movies optional. The path is remembered; imported saves/high scores/settings, Options.json and ModLibrary.json use the SDL lethal-guitar / Rigel Engine profile.",
+      "managed_fit": "not established; remains unfinished",
+      "managed_next_action": "No publisher SHA-256 is present for the selected GitHub asset, release notes contain no checksum, and no independently expected Windows archive digest was established. Generic upstream-owned acquisition retains the existing unverified-artifact review; a computed inspection hash does not authenticate the package. Resolve publisher/accepted provider integrity and complete output/data review before managed adoption.",
+      "validation_scope": "Maintained preparation and exact preimages; complete selected assets and full upstream release inventory; bounded read-only archive layout/native headers and tagged documentation/profile-source evidence. No original, native game/helper, managed lifecycle, packaged Desktop or real-save execution. Final independent review/hosted qualification/delivery are separate.",
+      "preparation_report_sha256": "7cca6d64ed6a3f1b8daabb64731b23ce58104e32c747a1dbbc9ae6810fc83457",
+      "delivery_status": "candidate; actual merge and canonical readback recorded on the owning issues"
+    },
+    {
+      "id": "keriew-augustus",
+      "canonical_issue": 1793,
+      "authored_path": "crates/portcove-core/catalog/ports/keriew-augustus.json",
+      "authored_sha256": "7faef0030fb818e489bcf2b780215dc8319d13c68f3a3bd165966f5ff6b1ef7d",
+      "previous_route": "discovery listing with no reviewed package or setup facts",
+      "selected_route": "upstream-owned download and explicit non-owning existing-player registration",
+      "platform_scope": {
+        "changed_operation": "Windows upstream ZIP and native player identification; Windows x64 host accepts both observed AMD64 and I386 native PE executables",
+        "listing_platforms": ["windows-x86-64", "linux-x86-64"],
+        "other_platform_limits": "Rigel upstream advertises x64 Debian/macOS packages. Augustus also publishes Linux AppImage/macOS DMG and non-Desktop targets; macOS architecture remains unreviewed here. Aerofoil current selected release has Windows/Android; historical README macOS mention is not a current artifact qualification. Heretic2R reviewed package is Windows only. No native execution on any platform."
+      },
+      "upstream": {
+        "repository": "Keriew/augustus",
+        "repository_node_id": "MDEwOlJlcG9zaXRvcnkyMzQzMzE1NDk=",
+        "tag": "v4.0.0",
+        "source_commit": "3edf0f889c977a63117c555d4ef3d0891d797664",
+        "source_url": "https://github.com/Keriew/augustus/tree/3edf0f889c977a63117c555d4ef3d0891d797664",
+        "release_url": "https://github.com/Keriew/augustus/releases/tag/v4.0.0",
+        "all_release_records": 9,
+        "release_inventory_complete": true,
+        "selected_release_assets_complete": true,
+        "selected_release_assets": 6
+      },
+      "artifact": {
+        "asset_id": 142765702,
+        "url": "https://github.com/Keriew/augustus/releases/download/v4.0.0/augustus-4.0.0-windows.zip",
+        "bytes": 25743052,
+        "publisher_expected_digest": null,
+        "actual_sha256": "2388a6577d777539e645b0cd9c40b40f23b7dbcdc6a2113e26bfbd015050b79f",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 46,
+          "central_directory_bytes": 4918,
+          "compressed_bytes": 25743052
+        },
+        "expanded_bytes": 34399445,
+        "executable_headers": [
+          {
+            "path": "augustus.exe",
+            "bytes": 3374188,
+            "machine": "0x14c"
+          }
+        ]
+      },
+      "download_asset_hints": ["augustus-", "-windows.zip"],
+      "update_owner": "upstream/player; Portcove does not replace the registered runtime",
+      "setup_provider": "upstream/player; no discovered helper executes during discovery",
+      "setup_and_data_boundary": "First-Play selection uses a writable Caesar III 1.0.1.0 folder. Saves stay in that data folder; Augustus stores the location in its SDL augustus / augustus profile. Augustus reads Caesar III/Julius saves, but its saves are incompatible with those readers.",
+      "managed_fit": "not established; remains unfinished",
+      "managed_next_action": "No publisher SHA-256 is present for the selected GitHub asset, release notes contain no checksum, and no independently expected Windows archive digest was established. Generic upstream-owned acquisition retains the existing unverified-artifact review; a computed inspection hash does not authenticate the package. Resolve publisher/accepted provider integrity and complete output/data review before managed adoption.",
+      "validation_scope": "Maintained preparation and exact preimages; complete selected assets and full upstream release inventory; bounded read-only archive layout/native headers and tagged documentation/profile-source evidence. No original, native game/helper, managed lifecycle, packaged Desktop or real-save execution. Final independent review/hosted qualification/delivery are separate.",
+      "preparation_report_sha256": "2d2aeaf5f6909a646e0e5d5becf6f88f0515305e61e0fa2efbf16153735fbf1d",
+      "delivery_status": "candidate; actual merge and canonical readback recorded on the owning issues"
+    },
+    {
+      "id": "elasota-aerofoil",
+      "canonical_issue": 1790,
+      "authored_path": "crates/portcove-core/catalog/ports/elasota-aerofoil.json",
+      "authored_sha256": "209f2fcb1f89d9663a1e869ec8535536cec14ddbada69e841774cea2a4523c7b",
+      "previous_route": "discovery listing with no reviewed package or setup facts",
+      "selected_route": "upstream-owned download and explicit non-owning existing-player registration",
+      "platform_scope": {
+        "changed_operation": "Windows upstream ZIP and native player identification; Windows x64 host accepts both observed AMD64 and I386 native PE executables",
+        "listing_platforms": ["windows-x86-64"],
+        "other_platform_limits": "Rigel upstream advertises x64 Debian/macOS packages. Augustus also publishes Linux AppImage/macOS DMG and non-Desktop targets; macOS architecture remains unreviewed here. Aerofoil current selected release has Windows/Android; historical README macOS mention is not a current artifact qualification. Heretic2R reviewed package is Windows only. No native execution on any platform."
+      },
+      "upstream": {
+        "repository": "elasota/Aerofoil",
+        "repository_node_id": "MDEwOlJlcG9zaXRvcnkyMTMyMjE0NzI=",
+        "tag": "1.1.2",
+        "source_commit": "1fe94e4f06cec8f68b9298a82c15dab6113d1c61",
+        "source_url": "https://github.com/elasota/Aerofoil/tree/1fe94e4f06cec8f68b9298a82c15dab6113d1c61",
+        "release_url": "https://github.com/elasota/Aerofoil/releases/tag/1.1.2",
+        "all_release_records": 30,
+        "release_inventory_complete": true,
+        "selected_release_assets_complete": true,
+        "selected_release_assets": 5
+      },
+      "artifact": {
+        "asset_id": 49122703,
+        "url": "https://github.com/elasota/Aerofoil/releases/download/1.1.2/Aerofoil-1.1.2-win64.zip",
+        "bytes": 9503855,
+        "publisher_expected_digest": null,
+        "actual_sha256": "a407f6e70e79941198ce36ae4fda8d000c7f10c8a0b52b1fd740e70b2c4c0a99",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 56,
+          "central_directory_bytes": 6755,
+          "compressed_bytes": 9503855
+        },
+        "expanded_bytes": 11217251,
+        "executable_headers": [
+          {
+            "path": "Aerofoil/Aerofoil.exe",
+            "bytes": 40448,
+            "machine": "0x8664"
+          }
+        ]
+      },
+      "download_asset_hints": ["Aerofoil-", "-win64.zip"],
+      "update_owner": "upstream/player; Portcove does not replace the registered runtime",
+      "setup_provider": "upstream/player; no discovered helper executes during discovery",
+      "setup_and_data_boundary": "The Windows ZIP includes the packaged houses and editor. GpFileSystem_Win32 uses the redirected Windows Documents known folder plus Aerofoil for preferences, Houses, SavedGames, Scores, Logs and Export. Original-format content import tools remain a separate optional package.",
+      "managed_fit": "not established; remains unfinished",
+      "managed_next_action": "No publisher SHA-256 is present for the selected GitHub asset, release notes contain no checksum, and no independently expected Windows archive digest was established. Generic upstream-owned acquisition retains the existing unverified-artifact review; a computed inspection hash does not authenticate the package. Resolve publisher/accepted provider integrity and complete output/data review before managed adoption.",
+      "validation_scope": "Maintained preparation and exact preimages; complete selected assets and full upstream release inventory; bounded read-only archive layout/native headers and tagged documentation/profile-source evidence. No original, native game/helper, managed lifecycle, packaged Desktop or real-save execution. Final independent review/hosted qualification/delivery are separate.",
+      "preparation_report_sha256": "09cf836070d74f2b9f39835810b312f9d433f181e1d10d0b5d9bbab972612efd",
+      "delivery_status": "candidate; actual merge and canonical readback recorded on the owning issues"
+    },
+    {
+      "id": "m-x-d-heretic2r",
+      "canonical_issue": 1826,
+      "authored_path": "crates/portcove-core/catalog/ports/m-x-d-heretic2r.json",
+      "authored_sha256": "22df4eca9b53572b31c09bd8221c86bda560c71442f52d99b1e0c6e9d43f5088",
+      "previous_route": "discovery listing with no reviewed package or setup facts",
+      "selected_route": "upstream-owned download and explicit non-owning existing-player registration",
+      "platform_scope": {
+        "changed_operation": "Windows upstream ZIP and native player identification; Windows x64 host accepts both observed AMD64 and I386 native PE executables",
+        "listing_platforms": ["windows-x86-64"],
+        "other_platform_limits": "Rigel upstream advertises x64 Debian/macOS packages. Augustus also publishes Linux AppImage/macOS DMG and non-Desktop targets; macOS architecture remains unreviewed here. Aerofoil current selected release has Windows/Android; historical README macOS mention is not a current artifact qualification. Heretic2R reviewed package is Windows only. No native execution on any platform."
+      },
+      "upstream": {
+        "repository": "m-x-d/Heretic2R",
+        "repository_node_id": "R_kgDOMJchnw",
+        "tag": "R6",
+        "source_commit": "2b59338ff3d8150e7231da771c0f1fb323c78bbb",
+        "source_url": "https://github.com/m-x-d/Heretic2R/tree/2b59338ff3d8150e7231da771c0f1fb323c78bbb",
+        "release_url": "https://github.com/m-x-d/Heretic2R/releases/tag/R6",
+        "all_release_records": 6,
+        "release_inventory_complete": true,
+        "selected_release_assets_complete": true,
+        "selected_release_assets": 1
+      },
+      "artifact": {
+        "asset_id": 499901240,
+        "url": "https://github.com/m-x-d/Heretic2R/releases/download/R6/Heretic2R_R6.zip",
+        "bytes": 3337407,
+        "publisher_expected_digest": "sha256:8b7d76c323f0829ebb71b83f3599453069b71c18f85b3fe3d51f809b2d266a06",
+        "actual_sha256": "8b7d76c323f0829ebb71b83f3599453069b71c18f85b3fe3d51f809b2d266a06",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 12,
+          "central_directory_bytes": 1140,
+          "compressed_bytes": 3337407
+        },
+        "expanded_bytes": 10042771,
+        "executable_headers": [
+          {
+            "path": "Heretic2R.exe",
+            "bytes": 576512,
+            "machine": "0x14c"
+          }
+        ]
+      },
+      "download_asset_hints": ["Heretic2R_", ".zip"],
+      "update_owner": "upstream/player; Portcove does not replace the registered runtime",
+      "setup_provider": "upstream/player; no discovered helper executes during discovery",
+      "setup_and_data_boundary": "Manual preparation copies the player's Heretic II 1.06 base folder to a separate runtime while excluding original DLLs. Packaged base DLLs/defaults stay distinct. Saved Games/Heretic2R holds saves, settings, screenshots and logs; original H2 saves and modules are incompatible. Own OGG CD tracks are optional.",
+      "managed_fit": "not established; remains unfinished",
+      "managed_next_action": "Publisher digest verifies the selected archive, but original-data copying overlaps the package's base runtime DLLs/defaults and no reviewed contained preparation/readiness contract exists. Establish a compatible original-data projection and supported completion behavior before managed adoption; do not invent an empty persistence contract or treat all base files as player data.",
+      "validation_scope": "Maintained preparation and exact preimages; complete selected assets and full upstream release inventory; bounded read-only archive layout/native headers and tagged documentation/profile-source evidence. No original, native game/helper, managed lifecycle, packaged Desktop or real-save execution. Final independent review/hosted qualification/delivery are separate.",
+      "preparation_report_sha256": "e97a9e70e30306fe8d89ee468c294fad00838a3f5123c8cb9970576ef15b1134",
+      "delivery_status": "candidate; actual merge and canonical readback recorded on the owning issues"
+    }
+  ],
+  "retained_failure_evidence": [
+    "The first private preparation renamed the listing/added original-title metadata and correctly invalidated artwork reuse; the equality guard refused before any source copy. Final proposals retain accepted names/artwork and fix the Rigel README anchor.",
+    "Listing-only/default release discovery deliberately leaves asset inventory incomplete; final observations explicitly bind each selected tag and retrieve its complete asset inventory. No incomplete retrieval is claimed complete."
+  ]
+}
