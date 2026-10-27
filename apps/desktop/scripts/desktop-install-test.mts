@@ -938,8 +938,7 @@ export async function installScenarios({
       // alone cannot establish the file baseline used by acquisition assertions.
       const launchMarker = path.join(active.path, ".portcove-launched");
       await browser.wait(
-        async () =>
-          (await exists(launchMarker)) && (await readFile(launchMarker, "utf8")) === "1",
+        async () => (await exists(launchMarker)) && (await readFile(launchMarker, "utf8")) === "1",
         15_000,
         "Core did not finish recording the owned managed launch",
       );
