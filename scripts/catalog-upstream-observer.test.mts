@@ -5,7 +5,10 @@ import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promis
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCatalogUpstreams, retireObserverConfigurations } from "./observe-catalog-upstreams.mts";
-import { advanceObservation } from "./observe-configured-upstream.mts";
+import {
+  advanceObservation,
+  catalogObservationDefinitionHashes,
+} from "./observe-configured-upstream.mts";
 import {
   advanceCatalogObservations,
   catalogObservationSources,
@@ -995,5 +998,38 @@ void test("a mismatched retained policy in a current binding is refused before a
     next.report.source_statuses.find((source) => source.repository === "owner/shared")!
       .current_scope_complete,
     false,
+  );
+});
+
+void test("observation bindings use the canonical normalized Core hash and retain legacy receipt identity", () => {
+  const bytes = Buffer.from('{"ports":[]}');
+  // These are intentionally different serialization contracts on the same normalized definition.
+  const receipt = {
+    format_version: 1,
+    input_sha256: observationHash({ ports: [] }),
+    input_bytes: bytes.length,
+    ports: [
+      {
+        port_id: "stable-port",
+        definition_sha256: "a".repeat(64),
+        observation_definition_sha256: "b".repeat(64),
+      },
+    ],
+  };
+  assert.equal(
+    catalogObservationDefinitionHashes(receipt, bytes).get("stable-port"),
+    "b".repeat(64),
+  );
+  const oldReceipt = structuredClone(receipt) as {
+    ports: { observation_definition_sha256?: string }[];
+  };
+  delete oldReceipt.ports[0]!.observation_definition_sha256;
+  assert.throws(
+    () => catalogObservationDefinitionHashes(oldReceipt, bytes),
+    /definition identities/,
+  );
+  assert.throws(
+    () => catalogObservationDefinitionHashes({ ...receipt, input_sha256: "c".repeat(64) }, bytes),
+    /exact reviewed input/,
   );
 });
