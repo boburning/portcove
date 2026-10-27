@@ -954,8 +954,25 @@
       "file": "scripts/native-qualification-account.test.mts",
       "memberships": [
         ["catalog-full-2", 11300],
-        ["release-check", 9400]
-      ]
+        ["release-check", 9400],
+        ["windows-storage-3", 1000007]
+      ],
+      "platform_skips": {
+        "platform": "win32",
+        "owner": "windows-storage-3",
+        "prerequisite": "Windows current-token process/job/pipe APIs and PowerShell7 compilation; no separate account logon",
+        "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
+        "cases": [
+          "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
+          "closed credential purpose keeps primary default and separately names public proof without reading credentials",
+          "bridge state retains actual root image and startup identity for partial or complete capture",
+          "fixed Windows account helper compiles and validates inert requests without credentials or logon",
+          "owner-side native pipe reader bounds actual bytes and rejects invalid UTF-8 without logon",
+          "shared native job settles one inert root separately and both roots at attempt teardown",
+          "owned-copy hosted memory bridge settles an empty job without credential lookup or taking owner resources",
+          "owned-copy hosted memory bridge cannot renew its original clock through context mutation"
+        ]
+      }
     },
     {
       "file": "scripts/native-qualification-linux-supervisor.test.mts",
@@ -2931,6 +2948,34 @@
         ["catalog-full-2", 1000007],
         ["release-check", 16206]
       ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-host.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000008],
+        ["release-check", 16207]
+      ]
+    },
+    {
+      "file": "scripts/release-owned-windows-proof-store.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000009],
+        ["release-check", 16208],
+        ["windows-storage-3", 1000006]
+      ],
+      "platform_skips": {
+        "platform": "win32",
+        "owner": "windows-storage-3",
+        "prerequisite": "Windows local file identities, write-through and broker/system ACL custody",
+        "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
+        "cases": [
+          "Windows proof storage exclusively flushes bounded public records and never adopts attempts",
+          "Windows proof storage detects prior-file and directory substitution and retains partial attempts",
+          "Windows proof storage refuses a deliberately foreign-writable fixture and nonlocal paths",
+          "Windows proof storage permanently refuses concurrent writes including the in-flight result",
+          "Windows proof storage refuses oversized and escaping records before writing"
+        ]
+      }
     }
   ]
 }
