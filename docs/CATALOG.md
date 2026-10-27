@@ -122,6 +122,10 @@ normal staged route does; this adds no restore-receipt requirement to native por
 Today's recommended definition cannot authorize an incompatible retained target.
 A failed pre-commit check preserves the active version and all player data;
 already committed recovery finishes with the authoritative committed version.
+Reuse, normal staged activation and both recovery routes share the existing
+`prepare_retained_install_data` preflight. Their callers retain distinct admission,
+publication, journal and commit boundaries. Rollback retains its stricter
+directional compatibility check.
 
 Assess preparation separately on each platform. A Windows first-Play picker
 does not establish a Linux picker or a manual completion record. Keep a useful
@@ -1111,8 +1115,8 @@ catalog change.
 Declare the offered route's maintenance policy on its existing canonical Port
 issue during admission and subsequent disposition work, independently from its
 operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
-owns cohort reconciliation, [#254](https://github.com/boburning/portcove/issues/254)
-owns repeatable proposal and evidence preparation, and
+owns cohort reconciliation; completed [#254](https://github.com/boburning/portcove/issues/254)
+provides repeatable proposal and evidence preparation, and
 [#246](https://github.com/boburning/portcove/issues/246) owns protected compatible
 delivery. These declarations are not new catalog schema fields or a second
 planning registry.
