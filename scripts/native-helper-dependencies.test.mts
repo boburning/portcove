@@ -507,3 +507,15 @@ void test("shared capture preflight is retained by helper and execution-plan cus
     assert.ok(plan.receiptInputs.some((input) => input.kind === "file" && input.path === source));
   }
 });
+
+void test("boundary invocation seam remains in declared helper and execution-plan source custody", () => {
+  const selection = resolveDesktopSelection({ scenarios: ["keyboard-layout"], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  for (const source of [
+    "apps/desktop/scripts/desktop-boundary-invoke.mts",
+    "apps/desktop/scripts/browser-script.mts",
+  ]) {
+    assert.ok(nativeHelperSharedSources.includes(source));
+    assert.ok(plan.receiptInputs.some((input) => input.kind === "file" && input.path === source));
+  }
+});
