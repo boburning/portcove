@@ -541,3 +541,29 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       );
       process.exitCode = 2;
     });
+
+/** Preparation completes in one original bundle realm and under its job clock. */
+export async function prepareConfiguredHostedWindowsInstallation(
+  raw: unknown,
+  root: string,
+  deadline: number,
+  executingEntry: string,
+) {
+  const prepared = await prepareConfiguredHostedWindowsSource(raw, root, deadline, executingEntry);
+  const { prepareActualHostedWindowsDependencies } =
+    await import("./release-hosted-native-windows-source.mts");
+  const dependencies = await prepareActualHostedWindowsDependencies(
+    prepared.parent,
+    prepared.tools,
+    prepared.runtime,
+    prepared.source,
+  );
+  const { prepareActualHostedWindowsInstallation } =
+    await import("./release-hosted-native-windows-installation.mts");
+  const installation = await prepareActualHostedWindowsInstallation(dependencies);
+  assert.ok(
+    performance.now() < prepared.deadline - 210000,
+    "Windows installation must preserve capture/recovery reserve",
+  );
+  return Object.freeze({ ...prepared, dependencies, installation });
+}

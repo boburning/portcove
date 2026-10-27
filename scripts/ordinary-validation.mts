@@ -757,9 +757,32 @@ for (const [file, tests] of [
     ["scripts/release-hosted-native-job.test.mts", "scripts/release-controller-tools.test.mts"],
   ],
   [
+    "scripts/qualify-controller-tools-windows.mts",
+    [
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/release-controller-tools.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-hosted-native-windows-dependency-files.mts",
+    [
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/release-hosted-native-windows-source.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-hosted-native-windows-installation.mts",
+    [
+      "scripts/release-hosted-native-windows-installation.test.mts",
+      "scripts/release-hosted-native-windows-source.test.mts",
+    ],
+  ],
+  [
     "scripts/release-hosted-native-windows-source.mts",
     [
       "scripts/release-hosted-native-windows-source.test.mts",
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/release-hosted-native-windows-installation.test.mts",
       "scripts/release-hosted-native-windows-bootstrap.test.mts",
     ],
   ],
@@ -1129,6 +1152,7 @@ for (const [file, tests] of [
       "scripts/release-hosted-native-runner.test.mts",
       "scripts/release-hosted-native-windows-bootstrap.test.mts",
       "scripts/release-hosted-native-windows-source.test.mts",
+      "scripts/release-hosted-native-windows-dependency-files.test.mts",
       "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",

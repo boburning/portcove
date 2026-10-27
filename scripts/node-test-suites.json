@@ -2917,6 +2917,20 @@
         ["catalog-full-2", 1000004],
         ["repository-tools-2", 1000003]
       ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000006],
+        ["release-check", 16205]
+      ]
+    },
+    {
+      "file": "scripts/release-hosted-native-windows-installation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 1000007],
+        ["release-check", 16206]
+      ]
     }
   ]
 }
