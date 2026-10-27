@@ -4,6 +4,9 @@ import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 
 const repository = "boburning/portcove";
 const root = `repos/${repository}`;
+// The hourly recovery sweep is intentionally limited to typical rerun attempts.
+// All attempts, including higher ones, are supported by the exact-run event/manual path.
+const recoveryAttempts = [1, 2, 3, 4] as const;
 
 interface CleanupApi {
   paginateRest(
@@ -62,12 +65,32 @@ export function cleanup(
   api: CleanupApi,
   { apply = false, runId = null }: { apply?: boolean; runId?: number | null } = {},
 ) {
-  const artifacts = api.paginateRest(`${root}/actions/artifacts?per_page=100`, {
-    select: (body) => object(body).artifacts,
-    identity: (item) => String(integer(object(item).id, "artifact")),
-    totalCount: (body) => integer(object(body).total_count, "collection"),
-    label: "Intel transfer artifact inventory",
-  });
+  if (runId !== null && (!Number.isSafeInteger(runId) || runId <= 0))
+    throw new Error("Intel cleanup requires a positive safe workflow run ID");
+  // GitHub retains Intel transfers for one day. Avoid the large and changing
+  // repository-wide artifact collection: completion events inspect only their
+  // own run; hourly/manual catch-up reads exact artifact names with full pagination.
+  const endpoints =
+    runId === null
+      ? recoveryAttempts.map(
+          (attempt) => `${root}/actions/artifacts?name=intel-rust-tests-${attempt}&per_page=100`,
+        )
+      : [`${root}/actions/runs/${runId}/artifacts?per_page=100`];
+  const artifacts = endpoints.flatMap((endpoint) =>
+    api.paginateRest(endpoint, {
+      select: (body) => object(body).artifacts,
+      identity: (item) => String(integer(object(item).id, "artifact")),
+      totalCount: (body) => integer(object(body).total_count, "collection"),
+      label: "Intel transfer artifact inventory",
+    }),
+  );
+  // Complete every collection and reject overlap before considering a DELETE.
+  const seen = new Set<number>();
+  for (const candidate of artifacts) {
+    const id = integer(object(candidate).id, "artifact");
+    if (seen.has(id)) throw new Error("Intel transfer inventory contains a duplicate artifact");
+    seen.add(id);
+  }
   const result: {
     repository: string;
     apply: boolean;
@@ -77,6 +100,11 @@ export function cleanup(
   } = { repository, apply, deleted: [], eligible: [], preserved: 0 };
   for (const raw of artifacts) {
     const artifact = object(raw);
+    if (
+      runId !== null &&
+      (isRecord(artifact.workflow_run) ? artifact.workflow_run.id : undefined) !== runId
+    )
+      throw new Error("Intel transfer artifact does not belong to the selected run");
     if (
       typeof artifact.name !== "string" ||
       !/^intel-rust-tests-[1-9][0-9]*$/u.test(artifact.name) ||
@@ -141,20 +169,31 @@ export function cleanup(
   return result;
 }
 
+export function parseCleanupArgs(args: readonly string[]) {
+  let apply = false;
+  let runId: number | null = null;
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (arg === "--apply" && !apply) {
+      apply = true;
+    } else if (arg === "--run-id" && runId === null) {
+      const raw = args[++index];
+      if (!raw || !/^[1-9][0-9]*$/u.test(raw) || !Number.isSafeInteger(Number(raw)))
+        throw new Error("run ID must be a positive safe integer");
+      runId = Number(raw);
+    } else {
+      throw new Error("usage: cleanup-intel-artifacts.mts [--apply] [--run-id ID]");
+    }
+  }
+  return { apply, runId };
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
-    const args = process.argv.slice(2);
-    if (args.some((arg) => arg !== "--apply"))
-      throw new Error("usage: cleanup-intel-artifacts.mts [--apply]");
+    const options = parseCleanupArgs(process.argv.slice(2));
     if (process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY !== repository)
       throw new Error("cleanup is restricted to boburning/portcove");
-    console.log(
-      JSON.stringify(
-        cleanup(new GitHubApiClient(createGitHubRunner()), { apply: args.includes("--apply") }),
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify(cleanup(new GitHubApiClient(createGitHubRunner()), options), null, 2));
   } catch (error) {
     console.error(errorMessage(error));
     process.exitCode = 1;
