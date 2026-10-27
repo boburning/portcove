@@ -181,28 +181,45 @@ pagination, while this Roadmap client continues to own Project schema,
 completeness, mutation and readback decisions.
 
 Bulk Project field transitions admit logical specifications independently of
-assignment count and execute in verified chunks of at most 25 assignments.
-Final multi-item readback uses the same finite item bound. A streamed 8 MiB
-regular-file input envelope bounds parsing; it is not a 100-assignment quota. Before every chunk,
-the client accepts only the declared source or already-applied target value,
-samples the current GraphQL quota and preserves a recovery reserve based on
-bounded chunk costs, replacing the initial proportional estimate with actual
-observed read costs. The entire logical preflight cost is not charged as a
-per-chunk reserve. Every
-mutation is read back before the next chunk; an ambiguous response is never
-retried blindly. A partial run stops safely and the same specification can be
-resumed because already-applied targets are reconciled explicitly. Applied runs
-retain an atomic progress journal under the Git common directory's
-`portcove-locks/set-many/`, keyed by the absolute specification path. It binds
-exact specification bytes, validated configuration and resolved
-Project/item/field/option identities,
-records attempts before send and verified fields after readback. Resume the same
-specification; never edit it to remove completed rows. Changed inputs, identities,
-concurrent reversal of verified values or unresolved ambiguous writes stop before
-further mutation. An ambiguous field must first be observed at its exact desired
-target; it is never automatically resent. Journals retain a finite 32 MiB storage
-envelope and do not replace live Project state. Full readback and the applicable
-scoped or full Roadmap check remain the final success gate.
+assignment count. Applied specifications retain staged preflight, mutation,
+resumption-read and final-verification positions in the existing atomic journal
+under the Git common directory's `portcove-locks/set-many/`, keyed by the absolute
+specification path. The streamed 8 MiB regular-file input and 32 MiB journal
+envelopes bound local resources. Exact input/configuration hashes and resolved
+Project/item/content/field/option identities remain authoritative.
+
+Preflight resolves resource-admitted prefixes of at most 25 targets, preserving
+observed GraphQL costs. No mutation starts before the entire specification is
+resolved and global item/field alias uniqueness is proved. Current bindings and
+exact declared source or already-applied target values are read again before each
+mutation chunk of at most 25 assignments. Actual read costs replace estimates in
+the recovery reserve. Attempts are persisted before send and every mutation is
+read back before the next chunk. An ambiguous field must first be observed at its
+exact desired target; it is never automatically resent. Previously verified
+fields are not overwritten on resume. Checks of the retained prefix have their
+own durable field-read positions; an observed reversal or unresolved ambiguous
+write stops before new mutation.
+
+Every final assignment receives authoritative field-value readback in bounded
+chunks. These reads can continue across provider windows, retaining exact
+completed positions and observation clocks. Neither `updatedAt` timestamps nor
+Project-wide revision markers replace field-value evidence. The completion
+receipt names the independently verified observation interval and the final
+applicable scoped or full Roadmap check; it does not claim an atomic snapshot of
+all fields. A new completed invocation, or resumption after a failed doctor,
+starts a new final field-read interval. Concurrent changes detected by binding
+or value checks remain explicit conflicts; later independent edits do not grant
+authority to resend completed writes.
+
+Only a positive pre-admission quota deferral with an observed future reset time
+waits and continues automatically with the same complete specification. The
+current operation releases the common Roadmap lock before waiting; the next
+operation reacquires it, reconstructs current provider/schema context, and checks
+input/configuration identity again. Unknown or expired reset clocks, provider or
+HTTP failures, changed inputs, conflicting values and ambiguous writes stop with
+retained diagnostics. The continuation adds no daemon, hosted queue, credential
+or Project permission. Cancellation while waiting leaves durable progress; resume
+the same specification rather than editing away completed rows.
 
 `roadmap.mts set-many` and `pr-delivery.mts watch|merge` retain their human
 output by default. `--json` emits one schema-versioned operation envelope on
@@ -222,9 +239,13 @@ required reserve. Apply validates every target before one bounded mutation,
 reads back each field exactly, and runs one final affected-record check. A current value equal
 to `to` is an idempotent resume; any value other than `from` or `to` aborts the
 whole batch before mutation. Larger logical updates continue through verified
-chunks automatically; quota exhaustion retains progress for the same-specification
-resume after provider capacity returns. Read-only plans do not create progress
-journals. Keep completed and failed evidence when reconciling a changed
+chunks automatically. Observed pre-admission quota depletion waits for its reset
+and resumes without splitting the specification; other failures retain precise
+same-specification recovery evidence. Read-only previews use separate input/configuration-bound metadata journals and
+perform no GitHub mutations. An interrupted preview resumes its preflight
+positions; a completed preview starts fresh on its next invocation. Preview
+receipts name their observation interval and cannot authorize writes or replace
+an applied-operation journal. Keep completed and failed evidence when reconciling a changed
 specification or an unresolved write; a new file is not permission to overwrite
 concurrent owner changes.
 
