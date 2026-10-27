@@ -6,7 +6,7 @@ import type {
 } from "./upstream-observer.mts";
 import type { OutputUpstreamObservationReport } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,7 @@ import {
   observeUpstream,
   validateObserverConfig,
   validateObservationContinuation,
+  reusableProviderObservation,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -54,6 +55,7 @@ interface Checkpoint {
 }
 export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
   project: (observation: Observation) => unknown;
+  reprojectFreshFacts?: boolean;
   catalogIds?: string[];
   commitContinuation?: (checkpoint: unknown) => void | Promise<void>;
   execution?: {
@@ -225,7 +227,51 @@ export async function advanceObservation(
   const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
-      const result = await observeUpstream(config, {
+      let result: Awaited<ReturnType<typeof observeUpstream>> | null = null;
+      if (options.reprojectFreshFacts && next.last_complete) {
+        const retained = reusableProviderObservation(
+          config,
+          next.last_complete.observation,
+          next.last_complete.cache,
+          next.continuation,
+          now(),
+        );
+        if (retained) {
+          let covered = true;
+          if (config.format === 2) {
+            const facts = {
+              ...retained.facts,
+              releases: retained.facts.releases.map((release) => ({ ...release, assets: [] })),
+            };
+            const headers = {
+              ...retained,
+              facts,
+              facts_sha256: observationHash(facts),
+              coverage: {
+                kind: "channel-candidate-assets" as const,
+                complete_release_headers: true as const,
+                asset_release_ids: [],
+              },
+            };
+            if (!options.selectAssetReleases)
+              throw new ObservationFailure(
+                "core-binding",
+                "Current Core selection is required before provider fact reuse",
+              );
+            const selected = await options.selectAssetReleases(headers);
+            const known = new Set(retained.coverage!.asset_release_ids);
+            covered = selected.every((id) => known.has(id));
+          }
+          if (covered)
+            result = {
+              observation: retained,
+              cache: next.last_complete.cache as Awaited<
+                ReturnType<typeof observeUpstream>
+              >["cache"],
+            };
+        }
+      }
+      result ??= await observeUpstream(config, {
         ...options,
         cache: next.last_complete?.cache,
         continuation: next.continuation,
@@ -439,49 +485,101 @@ export async function withCheckpointLock<T>(
   }
 }
 
+async function inspectCoreJson(
+  cli: string,
+  directory: string,
+  bytes: Buffer,
+  command: string,
+  argumentsFor: (input: string) => string[],
+): Promise<unknown> {
+  if (bytes.length > 4 * 1024 * 1024)
+    throw new ObservationFailure(
+      "core-input-size",
+      "Core inspection input exceeds its existing byte boundary",
+    );
+  const input = path.join(directory, `core-inspection-${randomUUID()}.json`);
+  await mkdir(path.dirname(input), { recursive: true });
+  try {
+    await writeFile(input, bytes, { flag: "wx" });
+    const output = execFileSync(cli, argumentsFor(input), {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 30_000,
+      maxBuffer: 4 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const envelope: unknown = JSON.parse(output);
+    if (!isRecord(envelope) || envelope.command !== command || envelope.ok !== true)
+      throw new ObservationFailure(
+        "core-policy",
+        "Core did not return the expected successful inspection",
+      );
+    return envelope.data;
+  } finally {
+    await rm(input, { force: true });
+  }
+}
+
+export async function inspectCatalogDefinitions(cli: string, directory: string, bytes: Buffer) {
+  const report = await inspectCoreJson(
+    cli,
+    directory,
+    bytes,
+    "catalog.inspect-proposal",
+    (input) => ["--json", "catalog", "inspect-proposal", input],
+  );
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  if (
+    !isRecord(report) ||
+    report.format_version !== 1 ||
+    report.input_sha256 !== sha256 ||
+    report.input_bytes !== bytes.length ||
+    !Array.isArray(report.ports)
+  )
+    throw new ObservationFailure(
+      "core-binding",
+      "Core catalog receipt differs from the exact reviewed input bytes",
+    );
+  const hashes = new Map<string, string>();
+  const ports: unknown[] = report.ports;
+  for (const port of ports) {
+    if (
+      !isRecord(port) ||
+      typeof port.port_id !== "string" ||
+      typeof port.definition_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(port.definition_sha256) ||
+      hashes.has(port.port_id)
+    )
+      throw new ObservationFailure(
+        "core-binding",
+        "Core catalog receipt has invalid or duplicate definition identities",
+      );
+    hashes.set(port.port_id, port.definition_sha256);
+  }
+  return hashes;
+}
+
 export async function projectObservation(
   cli: string,
   config: ObserverConfig,
   directory: string,
   observation: Observation,
 ): Promise<unknown> {
-  const input = path.join(directory, `observation-${randomUUID()}.json`);
-  await mkdir(path.dirname(input), { recursive: true });
-  try {
-    await writeFile(input, JSON.stringify(observation), { flag: "wx" });
-    const output = execFileSync(
-      cli,
-      [
-        "--json",
-        "catalog",
-        "inspect-observation",
-        config.port_id,
-        input,
-        "--repository-id",
-        String(config.repository_id),
-      ],
-      {
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 30_000,
-        maxBuffer: 4 * 1024 * 1024,
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
-    const envelope: unknown = JSON.parse(output);
-    if (
-      !isRecord(envelope) ||
-      envelope.command !== "catalog.inspect-observation" ||
-      envelope.ok !== true
-    )
-      throw new ObservationFailure(
-        "core-policy",
-        "core did not return a successful observation inspection",
-      );
-    return envelope.data;
-  } finally {
-    await rm(input, { force: true });
-  }
+  return inspectCoreJson(
+    cli,
+    directory,
+    Buffer.from(JSON.stringify(observation)),
+    "catalog.inspect-observation",
+    (input) => [
+      "--json",
+      "catalog",
+      "inspect-observation",
+      config.port_id,
+      input,
+      "--repository-id",
+      String(config.repository_id),
+    ],
+  );
 }
 
 async function main(args: string[]) {

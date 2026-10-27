@@ -104,7 +104,10 @@ impl Catalog {
     }
 
     pub fn from_json(value: &str) -> Result<Self> {
-        let mut document: CatalogDocument = serde_json::from_str(value)?;
+        Self::from_document(serde_json::from_str(value)?)
+    }
+
+    pub(crate) fn from_document(mut document: CatalogDocument) -> Result<Self> {
         match document.schema_version {
             1 => {
                 if document.source_catalog.is_some() {

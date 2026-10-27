@@ -320,6 +320,7 @@ for (const [file, tests] of [
     ["scripts/capture-target.test.mts", "scripts/native-helper-dependencies.test.mts"],
   ],
   ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
+  ["scripts/catalog-capacity.mts", ["scripts/sign-catalog.test.mts"]],
   [
     "scripts/artwork-preparation-progress.mts",
     ["scripts/prepare-port.test.mts", "scripts/catalog-artwork-batches.test.mts"],
