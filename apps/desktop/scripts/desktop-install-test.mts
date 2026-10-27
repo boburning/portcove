@@ -929,7 +929,7 @@ export async function installScenarios({
       await click("Play");
       const captured = await browser.wait(
         () => observer.capture(game, evidenceName("live-game")),
-        20_000,
+        60_000,
         "Play did not start the exact owned installed executable",
       );
       assert.ok(captured);

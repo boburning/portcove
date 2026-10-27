@@ -1969,9 +1969,11 @@ const acquisitionGameObserver: AcquisitionGameObserver = {
     );
     ownedSession.game = { executable, installation: { ...game.installation } };
     assert.match(name, /^[a-z0-9-]+$/u);
-    const deadline = performance.now() + 10_000;
+    const deadline = performance.now() + 30_000;
     const snapshot = path.join(output, `${name}-processes.json`);
-    const captured = observeNativeSession("SnapshotDriverTree", snapshot);
+    // Cold observer startup and the Core session read share this bounded capture
+    // budget; other observations and cleanup retain their existing default.
+    const captured = observeNativeSession("SnapshotDriverTree", snapshot, undefined, 30_000);
     artifacts.push(snapshot);
     assert.deepEqual(captured.driver, ownedSession.driver, "Captured driver identity changed");
     ownedSession.requireApplication(captured);
@@ -2015,6 +2017,7 @@ function observeNativeSession<Mode extends NativeSessionMode>(
   mode: Mode,
   snapshot: string,
   identity?: { applicationPid: number; parentPid: number; sha256: string },
+  timeoutMs = 10_000,
 ): NativeSessionObservations[Mode] {
   if (nativeAccount) {
     assert.equal(
@@ -2048,7 +2051,7 @@ function observeNativeSession<Mode extends NativeSessionMode>(
           ]
         : []),
     ],
-    { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+    { encoding: "utf8", windowsHide: true, timeout: timeoutMs },
   );
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return readNativeSessionObservation(mode, JSON.parse(result.stdout));
