@@ -2,7 +2,7 @@ import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts"
 import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
 import type { ValidationChangeInput, ValidationPlan } from "./validation-plan.mts";
 import { existsSync, readFileSync } from "node:fs";
-import { parseNodeTestSuites } from "./node-test-suites.mts";
+import { nodeTestPath, parseNodeTestSuites } from "./node-test-suites.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan, validationOwnershipForPath } from "./validation-plan.mts";
@@ -250,10 +250,12 @@ const platformSkipConsumers = [
   "scripts/node-platform-skips.test.mts",
   "scripts/required-node-test-reporter.test.mts",
   "scripts/node-test-inventory.test.mts",
+  "scripts/precommit-check.test.mts",
+  "scripts/windows-helper-checks.test.mts",
   "scripts/ui-test-selection.test.mts",
   "scripts/validation-evidence.test.mts",
   "scripts/audit.test.mts",
-  ...Object.keys(nodeTestOwnership.platformSkips ?? {}),
+  ...Object.keys(nodeTestOwnership.platformSkips ?? {}).filter((file) => nodeTestPath.test(file)),
 ];
 const explicitNodeTests = new Map<string, readonly string[]>();
 for (const [file, tests] of [

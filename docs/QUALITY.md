@@ -368,21 +368,29 @@ nonzero native status remains primary over reporting refusal. The CI artifact
 is retained after failure as well as success. These unit-binary observations are
 separate from native GUI, package or release acceptance.
 
-### Declared platform skips
+### Declared skip routes
 
-The existing Node ownership record may declare `platform_skips`: intended platform,
-prerequisite, reason, complete qualification owner and stable top-level case names.
-The declaration remains distinct from the runner's original skip reason. Its
-qualification owner must be an actual, enabled, unfiltered producer on the stated
-platform; missing, unsupported or wrong-platform runner labels cannot qualify it.
+The existing Node ownership record declares `platform_skips` with stable case names,
+an optional single parent `suite`, intended platforms, prerequisites, reasons and a
+maintained producer. Other nested deferrals remain unregistered and fail closed.
+Legacy single-object declarations retain their reviewed, exclusive unfiltered
+qualification owners. Complementary route arrays add platform, prerequisite,
+supervised-parent and explicit-acceptance observations without granting file-level
+ownership or any prerequisite. Original native reasons and outcomes remain separate.
 
-For unfiltered invocations, the required reporter refuses missing or ambiguous
-cases, unregistered skips/todos in declared families, and outcomes inconsistent
-with the intended platform. A registered case cannot become TODO on its owner.
-Filtered runs explicitly report that full-family evaluation was not performed;
-they cannot replace the complete qualification owner. Metadata read failures are
-reported after consuming original runner failures. This opt-in platform contract
-does not classify undeclared families, other skip categories or native acceptance.
+Every registered file is checked for new skips/todos. Selected declared cases must
+appear exactly once and execute on their intended platform when known prerequisites
+are present. Ordinary Linux ownership and explicit environment prerequisites are
+checked independently; unavailable capabilities retain only their specific original
+skip reason. Unknown tool availability remains unassessed and cannot qualify acceptance.
+
+A complementary selector may prove its explicitly named cases, including selection
+through their declared parent suite, never full-family discovery. Unsupported
+stateful filters remain unevaluated. A missing
+case, removed producer or selector excluding its declared route fails; legacy
+unfiltered owners remain required. Metadata failures preserve original native
+failures. These inventories never execute ignored cases, appoint tools, grant
+credentials, or establish native, installed-client or release acceptance.
 
 ### Default nextest outcome reporting
 

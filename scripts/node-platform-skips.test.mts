@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import os from "node:os";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
-import { createNodePlatformSkipInventory } from "./node-platform-skips.mts";
+import { createNodePlatformSkipInventory, nodeCaseSelected } from "./node-platform-skips.mts";
 import { parseNodeTestSuites } from "./node-test-suites.mts";
 import { requireNodeTestInventory } from "./node-test-inventory.mts";
+import { isRecord } from "./runtime-values.mts";
 
 const file = "scripts/owned.test.mts";
 const contract = {
@@ -20,6 +21,70 @@ const contract = {
 const observe = (name = contract.cases[0], skipped = false, nesting = 0) => ({
   type: "test:pass",
   data: { name, entryFile: path.resolve(file), nesting, skip: skipped, details: { type: "test" } },
+});
+void test(
+  "declared top-level filter selection agrees with actual Node execution",
+  { timeout: 30_000 },
+  (t) => {
+    const root = disposableDirectory(t, path.join(os.tmpdir(), "portcove-route-filters-"));
+    const fixture = path.join(root, "selection.test.mjs"),
+      output = path.join(root, "executed.txt");
+    const names = [
+      "owned platform case",
+      "pnpm uses configured storage",
+      "direct just recipes",
+      "another case",
+    ];
+    writeFileSync(
+      fixture,
+      `import {test} from 'node:test';import {appendFileSync} from 'node:fs';for(const name of ${JSON.stringify(names)})test(name,()=>appendFileSync(${JSON.stringify(output)},name+'\\n'));`,
+    );
+    for (const filters of [
+      [],
+      ["--test-name-pattern=owned|pnpm"],
+      ["--test-name-pattern=/^OWNED/i"],
+      ["--test-name-pattern=owned", "--test-name-pattern=pnpm"],
+      ["--test-skip-pattern", "pnpm uses|direct just recipes"],
+    ]) {
+      writeFileSync(output, "");
+      const environment: Record<string, string | undefined> = { ...process.env };
+      delete environment.NODE_TEST_CONTEXT;
+      const child = spawnSync(process.execPath, ["--test", ...filters, fixture], {
+        env: environment,
+        encoding: "utf8",
+        timeout: 5_000,
+        maxBuffer: 128 * 1024,
+      });
+      assert.ifError(child.error);
+      assert.equal(child.status, 0, child.stdout + child.stderr);
+      const executed = readFileSync(output, "utf8").trim().split("\n").filter(Boolean);
+      assert.deepEqual(
+        names.filter((name) => nodeCaseSelected(name, filters) === true),
+        executed,
+      );
+    }
+    assert.equal(nodeCaseSelected("owned", ["--test-name-pattern=/owned/g"]), null);
+    assert.equal(nodeCaseSelected("owned", ["--test-name-pattern"]), null);
+  },
+);
+void test("a selected declared route cannot disappear behind a complementary file filter", () => {
+  const filters = ["--test-skip-pattern", "pnpm uses|direct just recipes"];
+  const missing = createNodePlatformSkipInventory(
+    [file],
+    filters,
+    { [file]: contract },
+    { platform: "linux" },
+  );
+  assert.match(missing.finish().errors.join("\n"), /missing or ambiguous/u);
+  const observed = createNodePlatformSkipInventory(
+    [file],
+    filters,
+    { [file]: contract },
+    { platform: "linux" },
+  );
+  observed.capture(observe());
+  assert.deepEqual(observed.finish().errors, []);
+  assert.equal(observed.finish().evaluation, "not_evaluated_filtered_invocation");
 });
 void test("one file retains distinct platform routes and detects disappearance on its intended host", () => {
   const routes = [
@@ -48,7 +113,7 @@ void test("one file retains distinct platform routes and detects disappearance o
 void test("explicit acceptance stays missing until its declared environment exists and then must execute", () => {
   const route = {
     ...contract,
-    platform: "any" as const,
+    platform: ["linux", "win32", "darwin"] as const,
     category: "explicit-acceptance" as const,
     required_environment: ["PORTCOVE_FIXTURE_TOOL"],
     intended_route: "Run the reviewed actual-tool acceptance with its verified tool",
@@ -71,7 +136,7 @@ void test("explicit acceptance stays missing until its declared environment exis
 void test("prerequisite skips require the original specific reason instead of accepting arbitrary new skips", () => {
   const route = {
     ...contract,
-    platform: "any" as const,
+    platform: ["linux", "win32", "darwin"] as const,
     category: "prerequisite" as const,
     skip_reason_prefix: "Symlink prerequisite: ",
     intended_route: "Execute the complete owner with symlink privilege",
@@ -82,6 +147,59 @@ void test("prerequisite skips require the original specific reason instead of ac
     inventory.capture({ ...event, data: { ...event.data, skip: reason } });
     assert.equal(inventory.finish().errors.length === 0, reason !== "unrelated new skip");
   }
+});
+void test("ordinary Linux owner prerequisites are evaluated without treating a root skip as execution", () => {
+  const route = {
+    ...contract,
+    category: "prerequisite" as const,
+    requires_non_root: true as const,
+  };
+  for (const uid of [0, 1000]) {
+    const inventory = createNodePlatformSkipInventory(
+      [file],
+      [],
+      { [file]: route },
+      { platform: "linux", uid },
+    );
+    inventory.capture(observe(undefined, uid === 0));
+    assert.deepEqual(inventory.finish().errors, []);
+    const wrong = createNodePlatformSkipInventory(
+      [file],
+      [],
+      { [file]: route },
+      { platform: "linux", uid },
+    );
+    wrong.capture(observe(undefined, uid !== 0));
+    assert.match(wrong.finish().errors.join("\n"), /differs from intended/u);
+  }
+});
+void test("unknown appointed-artifact availability retains its explicit skip reason and original failure", () => {
+  const route = {
+    ...contract,
+    category: "explicit-acceptance" as const,
+    skip_reason_prefix: "Appointed artifacts unavailable",
+    intended_route: "Run the maintained disposable signer/verifier fixture",
+  };
+  const inventory = createNodePlatformSkipInventory(
+    [file],
+    [],
+    { [file]: route },
+    { platform: "linux" },
+  );
+  const event = observe();
+  inventory.capture({
+    ...event,
+    data: { ...event.data, skip: "Appointed artifacts unavailable: verifier missing" },
+  });
+  assert.deepEqual(inventory.finish().errors, []);
+  const failed = createNodePlatformSkipInventory(
+    [file],
+    [],
+    { [file]: { ...route, required_environment: ["PORTCOVE_MISSING_FIXTURE_TOOL"] } },
+    { environment: {}, platform: "linux" },
+  );
+  failed.capture({ ...event, type: "test:fail" });
+  assert.deepEqual(failed.finish().errors, []);
 });
 void test("registered files cannot introduce a skip without a declaration while isolated reporter fixtures remain separate", () => {
   const inventory = createNodePlatformSkipInventory([file], [], {}, { registered: [file] });
@@ -114,6 +232,8 @@ void test("platform skip observations preserve their declared reason and actual 
         intended_route: "contracts",
         required_environment: [],
         original_skip_reason: null,
+        selected: true,
+        requires_non_root: false,
         observations: 1,
       },
     ]);
@@ -230,7 +350,7 @@ void test("actual pinned Node nested-suite deferrals reach the platform observer
   const fixture = path.join(root, "owned.test.mjs");
   writeFileSync(
     fixture,
-    "import {test,describe} from 'node:test'; test('owned Linux case',()=>{}); describe('outer',()=>{describe.skip('hidden skip',()=>{}); describe.todo('hidden todo',()=>{});});",
+    "import {test,describe} from 'node:test'; test('owned Linux case',()=>{}); describe('outer',()=>{test('owned nested case',()=>{}); describe.skip('hidden skip',()=>{}); describe.todo('hidden todo',()=>{});});",
   );
   const controller = path.join(root, "inspect.mjs");
   writeFileSync(
@@ -239,9 +359,11 @@ void test("actual pinned Node nested-suite deferrals reach the platform observer
     import {run} from 'node:test';
     import {createNodePlatformSkipInventory} from ${JSON.stringify(new URL("./node-platform-skips.mts", import.meta.url).href)};
     const file=process.argv[2];
-    const inventory=createNodePlatformSkipInventory([file],[],{'owned.test.mjs':${JSON.stringify(contract)}},{root:${JSON.stringify(root)},platform:'linux'});
+    const filtered=process.argv[3]==='filtered';
+    const routes=[${JSON.stringify(contract)},{...${JSON.stringify(contract)},suite:'outer',cases:['owned nested case']}];
+    const inventory=createNodePlatformSkipInventory([file],filtered?['--test-name-pattern=outer']:[],{'owned.test.mjs':routes},{root:${JSON.stringify(root)},platform:'linux'});
     const nativeMarkers=[];
-    for await(const event of run({files:[file]})) {
+    for await(const event of run({files:[file],...(filtered?{testNamePatterns:[/outer/]}:{})})) {
       const data=event.data;
       if((event.type==='test:pass'||event.type==='test:fail') && data?.details?.type==='suite') {
         if(data.skip===true||typeof data.skip==='string') nativeMarkers.push('skip:'+data.name+':'+data.nesting);
@@ -254,27 +376,33 @@ void test("actual pinned Node nested-suite deferrals reach the platform observer
   );
   const environment = { ...process.env };
   delete environment.NODE_TEST_CONTEXT;
-  const result = spawnSync(process.execPath, [controller, fixture], {
-    encoding: "utf8",
-    env: environment,
-    timeout: 15000,
-    maxBuffer: 128 * 1024,
-    windowsHide: true,
-  });
-  unproven = !!result.error || !!result.signal || result.status === null;
-  assert.ifError(result.error);
-  assert.equal(result.status, 0, result.stderr);
-  const observed: unknown = JSON.parse(result.stdout);
-  assert.ok(
-    typeof observed === "object" &&
-      observed !== null &&
-      "errors" in observed &&
-      "contracts" in observed &&
-      "nativeMarkers" in observed,
-  );
-  assert.deepEqual(observed.nativeMarkers, ["skip:hidden skip:1", "todo:hidden todo:1"]);
-  assert.deepEqual(observed.errors, ["Unregistered skipped or todo suite in owned.test.mjs"]);
-  assert.ok(Array.isArray(observed.contracts) && observed.contracts.length === 1);
+  for (const mode of ["unfiltered", "filtered"]) {
+    const result = spawnSync(process.execPath, [controller, fixture, mode], {
+      encoding: "utf8",
+      env: environment,
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    });
+    unproven = !!result.error || !!result.signal || result.status === null;
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    const observed: unknown = JSON.parse(result.stdout);
+    assert.ok(
+      typeof observed === "object" &&
+        observed !== null &&
+        "errors" in observed &&
+        "contracts" in observed &&
+        "nativeMarkers" in observed,
+    );
+    assert.deepEqual(observed.nativeMarkers, ["skip:hidden skip:1", "todo:hidden todo:1"]);
+    assert.deepEqual(observed.errors, ["Unregistered skipped or todo suite in owned.test.mjs"]);
+    assert.ok(Array.isArray(observed.contracts) && observed.contracts.length === 2);
+    const nested: unknown = observed.contracts[1];
+    assert.ok(isRecord(nested));
+    assert.equal(nested.observations, 1);
+    assert.equal(nested.selected, true);
+  }
 });
 function registry(override: unknown = contract) {
   return JSON.stringify({
@@ -295,6 +423,8 @@ void test("the single ownership record resolves skip metadata and qualification 
     { ...contract, cases: [] },
     { ...contract, cases: ["same", "same"] },
     { ...contract, unexpected: true },
+    { ...contract, suite: "" },
+    { ...contract, suite: [] },
   ])
     assert.throws(() => parseNodeTestSuites(registry(malformed)));
 });

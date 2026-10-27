@@ -8,8 +8,9 @@ const nativeNodeTestPath = /^apps\/desktop\/scripts\/[a-z0-9-]+\.native\.test\.m
 const registeredTestPath = (file: string) =>
   nodeTestPath.test(file) || nativeNodeTestPath.test(file);
 export interface NodePlatformSkipContract {
-  platform: "linux" | "win32" | "darwin" | "posix" | "any";
-  category?: "platform" | "prerequisite" | "explicit-acceptance";
+  platform: "linux" | "win32" | "darwin" | readonly ("linux" | "win32" | "darwin")[];
+  requires_non_root?: true;
+  category?: "platform" | "prerequisite" | "explicit-acceptance" | "supervised-parent";
   required_environment?: string[];
   skip_reason_prefix?: string;
   intended_route?: string;
@@ -17,6 +18,7 @@ export interface NodePlatformSkipContract {
   prerequisite: string;
   reason: string;
   cases: string[];
+  suite?: string;
 }
 export interface NodeTestSuite {
   arguments: string[];
@@ -69,24 +71,31 @@ function registerPlatformSkips(
             "required_environment",
             "skip_reason_prefix",
             "intended_route",
+            "requires_non_root",
+            "suite",
           ].includes(key),
       )
     )
       throw new Error("Invalid platform skip contract: " + file);
-    const platform = value.platform;
-    if (
-      platform !== "linux" &&
-      platform !== "win32" &&
-      platform !== "darwin" &&
-      platform !== "posix" &&
-      platform !== "any"
+    let platform: NodePlatformSkipContract["platform"];
+    const supported = (input: unknown): input is "linux" | "win32" | "darwin" =>
+      input === "linux" || input === "win32" || input === "darwin";
+    if (supported(value.platform)) platform = value.platform;
+    else if (
+      Array.isArray(value.platform) &&
+      value.platform.length > 0 &&
+      value.platform.length <= 3 &&
+      value.platform.every(supported) &&
+      new Set(value.platform).size === value.platform.length
     )
-      throw new Error("Invalid platform skip target: " + file);
+      platform = value.platform;
+    else throw new Error("Invalid platform skip target: " + file);
     const category = value.category ?? "platform";
     if (
       category !== "platform" &&
       category !== "prerequisite" &&
-      category !== "explicit-acceptance"
+      category !== "explicit-acceptance" &&
+      category !== "supervised-parent"
     )
       throw new Error("Invalid skip category: " + file);
     const owner = value.owner;
@@ -98,6 +107,11 @@ function registerPlatformSkips(
     if (!validPlatformCases(value.cases) || value.cases.some((name) => names.has(name)))
       throw new Error("Invalid or overlapping platform skip case inventory: " + file);
     value.cases.forEach((name) => names.add(name));
+    if (
+      value.suite !== undefined &&
+      (typeof value.suite !== "string" || !value.suite.trim() || value.suite.length > 2048)
+    )
+      throw new Error("Invalid skip suite identity: " + file);
     let requiredEnvironment: string[] | undefined;
     if (value.required_environment !== undefined) {
       if (
@@ -113,7 +127,7 @@ function registerPlatformSkips(
         throw new Error("Invalid skip acceptance prerequisites: " + file);
       requiredEnvironment = value.required_environment.map((name: unknown) => String(name));
     }
-    if (category === "explicit-acceptance" && !requiredEnvironment)
+    if (category === "explicit-acceptance" && !requiredEnvironment && !value.skip_reason_prefix)
       throw new Error("Missing explicit acceptance prerequisites: " + file);
     if (
       value.intended_route !== undefined &&
@@ -126,20 +140,25 @@ function registerPlatformSkips(
       throw new Error("Missing explicit acceptance route: " + file);
     if (
       value.skip_reason_prefix !== undefined &&
-      (category !== "prerequisite" ||
+      ((category !== "prerequisite" && category !== "explicit-acceptance") ||
         typeof value.skip_reason_prefix !== "string" ||
         !value.skip_reason_prefix.trim() ||
         value.skip_reason_prefix.length > 512)
     )
       throw new Error("Invalid skip reason prefix: " + file);
-    if (category === "prerequisite" && !value.skip_reason_prefix)
+    if (
+      value.requires_non_root !== undefined &&
+      (value.requires_non_root !== true || category !== "prerequisite" || platform !== "linux")
+    )
+      throw new Error("Invalid ordinary-owner prerequisite: " + file);
+    if (category === "prerequisite" && !value.skip_reason_prefix && !value.requires_non_root)
       throw new Error("Missing prerequisite skip reason prefix: " + file);
-    // Only existing exclusive platform owners affect file-level deduplication.
-    // Prerequisite/acceptance and complementary POSIX routes remain non-owning.
+    // Legacy single-platform records retain their reviewed exclusive owners.
+    // New complementary route arrays do not grant file-level ownership.
     const targets =
-      category === "platform" && platform === "linux"
+      !Array.isArray(declaration) && category === "platform" && platform === "linux"
         ? ["linux-x86_64"]
-        : category === "platform" && platform === "win32"
+        : !Array.isArray(declaration) && category === "platform" && platform === "win32"
           ? ["windows-x86_64"]
           : [];
     for (const target of targets) {
@@ -154,7 +173,9 @@ function registerPlatformSkips(
       prerequisite: String(value.prerequisite),
       reason: String(value.reason),
       cases: value.cases,
+      ...(typeof value.suite === "string" ? { suite: value.suite } : {}),
       ...(value.category === undefined ? {} : { category }),
+      ...(value.requires_non_root === true ? { requires_non_root: true as const } : {}),
       ...(requiredEnvironment ? { required_environment: requiredEnvironment } : {}),
       ...(typeof value.intended_route === "string" ? { intended_route: value.intended_route } : {}),
       ...(typeof value.skip_reason_prefix === "string"

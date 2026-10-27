@@ -19,7 +19,36 @@ function terminalNodeEvent(event: unknown) {
   };
 }
 
-/** Declared platform ownership is separate from the runner's original skip reason. */
+/** Declared identities cover top-level cases or one named suite; deeper trees remain unregistered. */
+export function nodeCaseSelected(
+  name: string,
+  arguments_: readonly string[],
+  suite?: string,
+): boolean | null {
+  const include: RegExp[] = [],
+    exclude: RegExp[] = [];
+  try {
+    for (let index = 0; index < arguments_.length; index++) {
+      const argument = arguments_[index] ?? "";
+      const option = argument.match(/^--test-(name|skip)-pattern(?:=(.*))?$/u);
+      if (!option) continue;
+      const value = option[2] ?? arguments_[++index];
+      if (value === undefined) return null;
+      const literal = value.match(/^\/(.*)\/([a-z]*)$/u);
+      const flags = literal?.[2] ?? "";
+      if (/[gy]/u.test(flags)) return null;
+      const pattern = new RegExp(literal?.[1] ?? value, flags);
+      (option[1] === "name" ? include : exclude).push(pattern);
+    }
+  } catch {
+    return null;
+  }
+  const names = suite === undefined ? [name] : [name, suite, `${suite} ${name}`];
+  const matches = (pattern: RegExp) => names.some((candidate) => pattern.test(candidate));
+  return (!include.length || include.some(matches)) && !exclude.some(matches);
+}
+
+/** Declared routes remain separate from original outcomes and prerequisite authority. */
 export function createNodePlatformSkipInventory(
   requested: readonly string[],
   filters: readonly string[],
@@ -29,11 +58,13 @@ export function createNodePlatformSkipInventory(
     platform = process.platform,
     registered = Object.keys(contracts),
     environment = process.env,
+    uid = process.getuid?.(),
   }: {
     root?: string;
     platform?: NodeJS.Platform;
     registered?: readonly string[];
     environment?: Readonly<Record<string, string | undefined>>;
+    uid?: number;
   } = {},
 ) {
   const identity = (file: string) => {
@@ -59,22 +90,22 @@ export function createNodePlatformSkipInventory(
       }),
   );
   const eligible = (contract: NodePlatformSkipContract) =>
-    contract.platform === "any" ||
-    contract.platform === platform ||
-    (contract.platform === "posix" && platform !== "win32");
+    typeof contract.platform === "string"
+      ? contract.platform === platform
+      : contract.platform.some((target) => target === platform);
   const errors = new Set<string>();
   const problem = (message: string) => {
     if (errors.size < 32) errors.add(message);
   };
   return {
     capture(event: unknown) {
-      // Filters cannot prove full family presence; the registry requires an unfiltered owner.
-      if (filters.length) return;
+      // Filters can select declared top-level names, never prove the whole family.
       const observed = terminalNodeEvent(event);
       if (!observed) return;
       const { data, details } = observed;
       const owner = files.get(identity(observed.entryFile));
       if (!owner) return;
+      if (typeof data.name !== "string") return;
       const skipped = data.skip === true || typeof data.skip === "string";
       const deferred = data.todo === true || typeof data.todo === "string";
       if (details.type === "suite") {
@@ -82,15 +113,18 @@ export function createNodePlatformSkipInventory(
         return;
       }
       if (details.type !== "test") return;
-      const route =
-        data.nesting === 0 && typeof data.name === "string"
-          ? owner.routes.find((contract) => contract.cases.includes(data.name as string))
-          : undefined;
+      const route = owner.routes.find(
+        (contract) =>
+          contract.cases.includes(data.name as string) &&
+          (contract.suite === undefined
+            ? data.nesting === 0
+            : data.nesting === 1 && details.classname === contract.suite),
+      );
       if (!route) {
         if (skipped || deferred) problem("Unregistered skipped or todo case in " + owner.file);
         return;
       }
-      const name = data.name as string;
+      const name = data.name;
       owner.seen.set(name, (owner.seen.get(name) ?? 0) + 1);
       owner.reasons.set(name, typeof data.skip === "string" ? data.skip : null);
       // A forced acceptance with missing prerequisites must retain its actual failure.
@@ -99,10 +133,13 @@ export function createNodePlatformSkipInventory(
       const missingPrerequisite =
         category === "explicit-acceptance" &&
         route.required_environment?.some((key) => !environment[key]?.trim());
-      const expectedSkip = !eligible(route) || missingPrerequisite;
+      const missingOwner = route.requires_non_root === true && (uid === undefined || uid === 0);
+      const expectedSkip = !eligible(route) || missingPrerequisite || missingOwner;
       const admittedPrerequisiteSkip =
         eligible(route) &&
-        category === "prerequisite" &&
+        category !== "platform" &&
+        !route.requires_non_root &&
+        !route.required_environment?.length &&
         skipped &&
         typeof data.skip === "string" &&
         typeof route.skip_reason_prefix === "string" &&
@@ -115,11 +152,13 @@ export function createNodePlatformSkipInventory(
         routes.flatMap((contract) =>
           contract.cases.map((name) => {
             const observations = seen.get(name) ?? 0;
-            if (!filters.length && observations !== 1)
+            const selected = nodeCaseSelected(name, filters, contract.suite);
+            if (selected === true && observations !== 1)
               problem("Declared platform case missing or ambiguous: " + file + ": " + name);
             return {
               file,
               name,
+              ...(contract.suite === undefined ? {} : { suite: contract.suite }),
               category: contract.category ?? "platform",
               platform: contract.platform,
               prerequisite: contract.prerequisite,
@@ -128,6 +167,8 @@ export function createNodePlatformSkipInventory(
               intended_route: contract.intended_route ?? contract.owner,
               required_environment: contract.required_environment ?? [],
               original_skip_reason: reasons.get(name) ?? null,
+              selected,
+              requires_non_root: contract.requires_non_root ?? false,
               observations,
             };
           }),
@@ -135,6 +176,9 @@ export function createNodePlatformSkipInventory(
       );
       return {
         evaluation: filters.length ? "not_evaluated_filtered_invocation" : "complete_invocation",
+        declared_route_evaluation: rows.some((row) => row.selected === null)
+          ? "not_evaluated_unsupported_filter"
+          : "evaluated_selected_declared_routes",
         contracts: rows,
         errors: [...errors],
       };

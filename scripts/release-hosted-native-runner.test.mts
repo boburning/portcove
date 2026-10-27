@@ -293,9 +293,9 @@ void test(
   "actual prepared reaper supervises both fixed children and closes detached descendants or timeout",
   {
     skip:
-      process.platform !== "linux" ||
-      process.getuid?.() === 0 ||
-      !existsSync(preparedFixtureResult),
+      process.platform !== "linux" || process.getuid?.() === 0 || !existsSync(preparedFixtureResult)
+        ? "prepared original Linux custody fixture unavailable"
+        : false,
   },
   (t) => {
     const resultBytes = readFileSync(preparedFixtureResult);

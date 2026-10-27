@@ -1,3 +1,4 @@
+import nodeTestRegistry from "./node-test-suites.json" with { type: "json" };
 import {
   nativeHelperDependencies,
   nativeHelperRegistryPath,
@@ -54,6 +55,14 @@ interface HelperSelectionPlan {
 }
 
 const helperPaths = new Set([
+  "scripts/node-test-suites.json",
+  ...nodeTestRegistry.tests
+    .filter((entry) =>
+      entry.memberships.some(
+        ([suite]) => typeof suite === "string" && /^windows-helpers(?:-\d+)?$/u.test(suite),
+      ),
+    )
+    .map((entry) => entry.file),
   "scripts/release-local-worker-accounts.ps1",
   "scripts/release-local-worker-accounts.test.mts",
   "scripts/recover-local-worker-empty-setup.ps1",
