@@ -63,7 +63,7 @@ export interface ObserverRequestOptions {
   signal: AbortSignal;
 }
 export type ObserverFetch = (url: string, options: ObserverRequestOptions) => Promise<Response>;
-export interface ProviderObservation {
+export interface ProviderObservation extends Record<string, unknown> {
   format: number;
   config_sha256: string;
   port_id: string;

@@ -23,14 +23,10 @@ const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const checkpointLimit = 32 * 1024 * 1024;
 
 type Observation = Awaited<ReturnType<typeof observeUpstream>>["observation"];
-type RetainedObservation = Pick<
-  Observation,
-  "facts_sha256" | "config_sha256" | "port_id" | "completed_at"
-> & {
-  facts: unknown;
-  validation_started_at?: string | null;
-  started_at?: string;
-};
+type RetainedObservation = Record<string, unknown> &
+  Pick<Observation, "facts_sha256" | "config_sha256" | "port_id" | "completed_at"> & {
+    facts: unknown;
+  };
 type ProjectionIdentity = Pick<
   OutputUpstreamObservationReport,
   "port_id" | "repository_id" | "facts_sha256"
