@@ -314,6 +314,13 @@ for (const [file, tests] of [
   ...["scripts/python-test-results.py", "scripts/python-test-results.mts"].map(
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
+  [
+    "apps/desktop/scripts/desktop-boundary-invoke.mts",
+    [
+      "apps/desktop/scripts/desktop-webview-boundary.native.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
   ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
   [
     "apps/desktop/scripts/desktop-capture-target.mts",
