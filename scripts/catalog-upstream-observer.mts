@@ -302,6 +302,8 @@ export interface CatalogObservationOptions extends Pick<
   "fetch" | "signal" | "sleep" | "token"
 > {
   now?: () => number;
+  deadline?: number;
+  excludedSources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
@@ -357,7 +359,9 @@ export async function advanceCatalogObservations(
   );
   if ([...definitions.values()].some((value) => !/^[a-f0-9]{64}$/u.test(value)))
     throw new Error("Normalized current Core definition identities are required");
-  const deadline = now() + template.budget.duration_ms;
+  const deadline = Math.min(now() + template.budget.duration_ms, options.deadline ?? Infinity);
+  if (!Number.isFinite(deadline) || deadline <= now())
+    throw new ObservationFailure("budget", "Collector deadline unavailable");
   const scopeBinding = (source: ObservableSource) =>
     observationHash({
       contract: "normalized-current-catalog-core-policy-v1",
@@ -415,6 +419,7 @@ export async function advanceCatalogObservations(
   const failures: { source: string; repository: string; rule: string; details: string }[] = [];
   const pending = sources
     .filter((source) => {
+      if (options.excludedSources?.has(source.key)) return false;
       const progress = state.sources[source.key];
       return (
         !progress ||

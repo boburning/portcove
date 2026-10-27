@@ -178,6 +178,17 @@ progress can receive another turn automatically while capacity remains. A failur
 isolates its source. New non-budget exceptions fail the job once; continuing
 exceptions and normal continuation remain visible without repeated notifications.
 
+The existing ten-minute hosted job establishes a nine-minute observation deadline
+before checkout and build, reserving the final minute for checkpoint and artifact
+publication. Accepted page, validation or Core progress can automatically start
+another operation within that opportunity; each operation keeps its existing
+three-minute admission budget. Request counts and refreshed clocks alone cannot
+authorize another batch. Non-budget failures stay visible and are excluded from
+further attempts in that job. All batches share one aggregate handoff byte budget;
+input or inspector changes stop continuation and preserve earlier evidence. The
+standalone command without this explicit hosted deadline remains one bounded
+operation.
+
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
 use a separate, uniquely owned handoff directory for each invocation, exported as
