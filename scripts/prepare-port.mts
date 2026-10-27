@@ -154,6 +154,10 @@ function packageHintFeedback(
     assets_complete: facts.assets_complete,
     maintenance: {
       observed_release_tag: tag,
+      observed_provider_prerelease:
+        isRecord(facts.release?.body) && typeof facts.release.body.prerelease === "boolean"
+          ? facts.release.body.prerelease
+          : null,
       potential_version_restrictions: platforms.flatMap((platform) => {
         const values = hints[platform];
         const restricted = Array.isArray(values)
@@ -165,7 +169,7 @@ function packageHintFeedback(
           : [];
         return restricted.length ? [{ platform, hints: restricted }] : [];
       }),
-      next: "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly.",
+      next: "Keep ordinary compatible N/N+1 progression independent of definition edits: use stable project, platform, architecture and package-variant rules, then exercise the production resolver with unchanged rules. A real restriction needs a supported exact pin with its reason and reconsideration condition, never latest plus an old filename. Numeric ABI or engine-generation tokens can be deliberate; review applicability rather than stripping them blindly. Check Core’s channel classification against the release tag as well as the provider prerelease flag; a -alpha, -preview or -nightly tag can select Preview with that flag unset. These observations do not classify a channel or override a player’s saved choice.",
       scope:
         "Definition-authoring advice only; changing observed names, URLs, sizes and independent digests do not require routine definition edits or a new per-release approval.",
     },
