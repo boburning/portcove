@@ -101,6 +101,7 @@ function rethrowFailure(error: unknown): never {
 }
 import { executeBrowserScript } from "./browser-script.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
+import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
@@ -1990,19 +1991,47 @@ export async function preparationScenarios({
                   "The focused menu must have a stable Library return identity",
                 );
                 const selector = `button[data-detail-origin=${JSON.stringify(exactTarget)}]`;
-                const capture = await captureSettledVisual({
-                  browser,
-                  output,
-                  name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200`,
-                  scenario: "native-library-layout",
+                // Resize/focus recovery can leave a fractional edge at the viewport
+                // boundary. Prepare the exact target inside its real scroll owner;
+                // screenshot completeness remains stricter than usability checks.
+                const preparedTarget = await prepareCaptureTarget({
                   target: selector,
-                  observeTarget: () =>
+                  label: `200% Library ${theme} ${layout} action`,
+                  scroll: () =>
+                    executeBrowserScript(
+                      browser,
+                      (element) =>
+                        element.scrollIntoView({
+                          block: "center",
+                          inline: "nearest",
+                          behavior: "instant",
+                        }),
+                      more,
+                    ),
+                  observe: () =>
                     executeBrowserScript(
                       browser,
                       observeVisibleTarget,
                       selector,
                       "visual" as const,
                     ),
+                });
+                const capture = await captureSettledVisual({
+                  browser,
+                  output,
+                  name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200`,
+                  scenario: "native-library-layout",
+                  target: selector,
+                  observeTarget: async () => {
+                    const state = await executeBrowserScript(
+                      browser,
+                      observeVisibleTarget,
+                      selector,
+                      "visual" as const,
+                    );
+                    requireUnchangedCaptureTarget(preparedTarget.observation, state);
+                    return { ...state, capture_target_preflight: preparedTarget };
+                  },
                   readiness: () =>
                     executeBrowserScript(
                       browser,

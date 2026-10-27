@@ -377,7 +377,7 @@ export function WorkspaceToolbar({
   }[view];
   return (
     <div className="workspace-toolbar flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
-      <div className="flex min-w-0 items-center gap-3" aria-label="Current location">
+      <div className="flex min-w-0 items-center gap-3" role="group" aria-label="Current location">
         <span className="max-[42rem]:hidden">Portcove</span>
         <span className="max-[42rem]:hidden" aria-hidden="true">
           /

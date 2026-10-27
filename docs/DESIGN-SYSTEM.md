@@ -88,8 +88,9 @@ not installed. Readiness never establishes ownership.
 The contained 2:3 cover frame is independent of title length: 128 by 192 CSS pixels
 ordinarily, 148 by 222 in wide detail containers and 96 by 144 in compact
 containers. Narrow layouts omit the cover and retain the complete identity and
-actions. The illustrated hero uses flat semantic tonal overlays; controls and
-focus retain production semantic colors. Existing artwork precedence,
+actions. The illustrated hero uses flat semantic tonal overlays; identity copy
+has a content-sized opaque elevated surface, leaving the hero image visible
+outside it. Controls and focus retain production semantic colors. Existing artwork precedence,
 cache/provenance, overrides and quiet fallback remain with Artwork; both artwork
 slots are accessible through Change artwork in Manage. No cover crop or provider
 mapping is inferred.

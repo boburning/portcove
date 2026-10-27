@@ -59,6 +59,7 @@ export function OrganizationControls({
   return (
     <div
       className="mb-3 flex basis-full flex-wrap items-center gap-2"
+      role="group"
       aria-label={discover ? "Discover collections" : "Library collections"}
     >
       {[["all", "All games"], ...(discover ? [["saved", "Saved"]] : [["hidden", "Hidden"]])].map(

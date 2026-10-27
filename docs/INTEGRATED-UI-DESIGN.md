@@ -119,7 +119,9 @@ own roles. Whole-image cover limits are 220px ordinarily, 180px when the viewpor
 is at most 800px high, and 160px at most 680px high. Existing effective-width and
 enlargement rules still apply; essential text does not shrink to fit the artwork.
 
-Detail keeps identity and the dominant action first. Matching selected/installed
+Detail keeps identity and the dominant action first. Hero identity copy uses a
+content-sized opaque elevated surface; artwork remains visible outside the copy
+and absent artwork does not change its legibility. Matching selected/installed
 channels share a Release channel fact; differing channels remain explicit separate
 facts. Check for updates is secondary to the game action. The optional future
 install-folder editor is disclosed without unmounting its draft/review owner.

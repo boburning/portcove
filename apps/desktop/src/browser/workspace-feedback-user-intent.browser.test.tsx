@@ -9,34 +9,43 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { controlledAct } from "../../test/controlled-react-act";
 import { navigateTo } from "../../test/primary-navigation";
+import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
+let root: HTMLDivElement | undefined;
 afterEach(async () => {
   await cleanup();
+  root?.remove();
+  root = undefined;
   transport?.dispose();
   transport = undefined;
   vi.restoreAllMocks();
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
+  await page.viewport(1280, 800);
 });
 const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 async function painted() {
   await frame();
   await frame();
 }
-function owner() {
+function workspace() {
   const workspace = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]');
   if (!workspace) throw new Error("Actual App workspace is missing");
-  return getComputedStyle(workspace).overflowY === "visible"
+  return workspace;
+}
+function owner() {
+  const main = workspace();
+  return getComputedStyle(main).overflowY === "visible"
     ? (document.scrollingElement ?? document.documentElement)
-    : workspace;
+    : main;
 }
 function point(origin: HTMLButtonElement) {
   const scroll = owner();
   const rectangle = origin.getBoundingClientRect();
   return {
-    scroll: scroll.scrollTop,
+    scroll: workspaceScrollTop(workspace()),
     maximum: scroll.scrollHeight - scroll.clientHeight,
     originTop: rectangle.top,
     originDocumentTop: rectangle.top + scroll.scrollTop,
@@ -67,17 +76,22 @@ function staleSnapshot() {
     },
   };
 }
-async function startControlledLaunch(layout: "Covers" | "Compact rows" = "Covers") {
-  await page.viewport(720, 560);
+async function startControlledLaunch(layout: "Covers" | "Compact rows" = "Covers", width = 720) {
+  await page.viewport(width, 560);
   transport = installInteractiveTransport("collection", (message) => {
     throw new Error(message);
   });
   initializeLocalization(["en"]);
   document.documentElement.dataset.theme = "dark";
+  // Match main.tsx: definite #root geometry selects the production scroll owner.
+  root = document.createElement("div");
+  root.id = "root";
+  document.body.append(root);
   await render(
     <LocalizationProvider api={desktopApi}>
       <App />
     </LocalizationProvider>,
+    { container: root },
   );
   await expect.element(page.getByRole("button", { name: layout, exact: true })).toBeVisible();
   await page.getByRole("button", { name: layout, exact: true }).click();
@@ -90,7 +104,7 @@ async function startControlledLaunch(layout: "Covers" | "Compact rows" = "Covers
   const origin = origins.at(-1);
   if (!origin) throw new Error("Fixture requires a final launchable collection control");
   origin.scrollIntoView({ block: "end" });
-  owner().scrollTo({ top: owner().scrollHeight });
+  scrollWorkspaceTo(workspace(), owner().scrollHeight);
   origin.focus({ preventScroll: true });
   await painted();
   const originalPosition = point(origin);
@@ -152,9 +166,12 @@ for (const when of ["pending", "notice visible"] as const) {
     await userEvent.click(search);
     // Native focus may scroll the field into view. Establish the deliberate
     // reading position after that click, distinct from the old bottom baseline.
-    owner().scrollTo({
-      top: owner().scrollTop + search.getBoundingClientRect().top - Math.min(100, innerHeight / 5),
-    });
+    scrollWorkspaceTo(
+      workspace(),
+      workspaceScrollTop(workspace()) +
+        search.getBoundingClientRect().top -
+        Math.min(100, innerHeight / 5),
+    );
     await painted();
     const searchBounds = search.getBoundingClientRect();
     expect(searchBounds.top).toBeGreaterThanOrEqual(0);
@@ -266,7 +283,10 @@ it("keeps the command dialog in control while background feedback changes", asyn
 });
 
 it("preserves the current target through concurrent feedback and document-to-workspace owner transfer", async () => {
-  const running = await startControlledLaunch("Compact rows");
+  // The document-flow shell is below 42rem; 720px already uses main scrolling.
+  const running = await startControlledLaunch("Compact rows", 640);
+  expect(getComputedStyle(workspace()).overflowY).toBe("visible");
+  expect(owner()).toBe(document.scrollingElement ?? document.documentElement);
   // Concurrent requests exercise both triggers without claiming a particular
   // same-frame browser schedule or adding an artificial timer delay.
   await Promise.all([
@@ -279,13 +299,13 @@ it("preserves the current target through concurrent feedback and document-to-wor
   await expect.poll(() => running.origin.getAttribute("aria-disabled")).not.toBe("true");
   await expect.element(running.notice).toBeVisible();
   await painted();
-  const workspace = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
-  expect(getComputedStyle(workspace).overflowY).toBe("auto");
-  expect(owner()).toBe(workspace);
+  const main = workspace();
+  expect(getComputedStyle(main).overflowY).toBe("auto");
+  expect(owner()).toBe(main);
   const current = point(running.origin);
   expect(current.focused).toBe(true);
   const bounds = running.origin.getBoundingClientRect();
-  const viewport = workspace.getBoundingClientRect();
+  const viewport = main.getBoundingClientRect();
   expect(bounds.top).toBeGreaterThanOrEqual(Math.max(0, viewport.top) - 1);
   expect(bounds.bottom).toBeLessThanOrEqual(Math.min(innerHeight, viewport.bottom) + 1);
   await running.removeNotice();

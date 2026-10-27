@@ -27,6 +27,11 @@
     position: relative;
     z-index: 1;
   }
+  .detail-identity {
+    width: fit-content;
+    padding-block: 0.25rem;
+    background: var(--color-bg-elevated);
+  }
   .detail-header-artwork {
     position: absolute;
     z-index: 0;

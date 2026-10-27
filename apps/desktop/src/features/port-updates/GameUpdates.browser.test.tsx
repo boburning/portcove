@@ -3,6 +3,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
+import { browserFixture } from "../../../test/browser-fixture";
 import { desktopApi } from "../../api";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type {
@@ -1461,6 +1462,118 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
     .element(page.getByRole("option", { name: "Download for later", exact: true }))
     .toBeVisible();
 });
+
+it.each([
+  [1280, "100%"],
+  [640, "100%"],
+  [1280, "200%"],
+  [640, "200%"],
+] as const)(
+  "keeps all pending archive actions reachable at %spx with %s text",
+  async (width, fontSize) => {
+    const environment = browserFixture({ styles: ["font-size"], viewport: true });
+    let owner: ReturnType<typeof useOperationState> | undefined;
+    const refresh = vi.fn(async () => undefined);
+    let finish!: (value: GameUpdateAcquisition) => void;
+    const transfer = new Promise<GameUpdateAcquisition>((resolve) => {
+      finish = resolve;
+    });
+    const review = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
+    const acquire = vi
+      .spyOn(desktopApi, "acquireGameUpdate")
+      .mockImplementation((_port, _plan, _generation, receive) => {
+        receive?.({
+          schema_version: 2,
+          operation_id: "pending-archive-transfer",
+          parent_operation_id: null,
+          target: null,
+          sequence: 0,
+          timestamp_ms: 1,
+          operation: "update",
+          type: "started",
+        });
+        return transfer;
+      });
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+    const cancel = vi.spyOn(desktopApi, "cancelOperation");
+    function Fixture() {
+      owner = useOperationState({ refresh, libraryGeneration: 9 });
+      return (
+        <OperationPresentationProvider generation={9} pending={owner.pendingOperations}>
+          <GameUpdateControl
+            portId="sample"
+            generation={9}
+            policy="notify"
+            busy={Boolean(owner.busy)}
+            perform={owner.perform}
+          />
+        </OperationPresentationProvider>
+      );
+    }
+    try {
+      await page.viewport(width, 900);
+      document.documentElement.style.fontSize = fontSize;
+      await root.rerender(<Fixture />);
+      await document.fonts.ready;
+      await page.getByRole("combobox", { name: /^What would you like to do/ }).click();
+      await page.getByRole("option", { name: "Download for later", exact: true }).click();
+      await page.getByRole("button", { name: "Review game update", exact: true }).click();
+      await page.getByRole("button", { name: "Download archive for later", exact: true }).click();
+      const pending = [...owner!.pendingOperations.values()].find(
+        (record) => record.context.operation === "acquire_game_update",
+      );
+      expect(pending?.context.target).toEqual({ kind: "port", id: "sample", label: "sample" });
+      expect(pending?.phase).toBe("pending");
+      expect(acquire).toHaveBeenCalledExactlyOnceWith(
+        "sample",
+        plan.plan_sha256,
+        9,
+        expect.any(Function),
+      );
+      const surface = page.getByRole("dialog").element() as HTMLElement;
+      const footer = surface.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+      const actions = [...footer.querySelectorAll<HTMLButtonElement>("button")];
+      expect(actions.map((button) => button.textContent?.trim())).toEqual([
+        "Continue browsing",
+        "Downloading archive…",
+        "Review install now",
+        "Review prepare for later",
+        "Cancel review",
+      ]);
+      expect(
+        surface.scrollWidth,
+        "review must reflow without horizontal scrolling",
+      ).toBeLessThanOrEqual(surface.clientWidth + 1);
+      for (const button of actions) {
+        button.scrollIntoView({ block: "nearest", inline: "nearest" });
+        const box = button.getBoundingClientRect(),
+          dialogBox = surface.getBoundingClientRect(),
+          left = dialogBox.left + surface.clientLeft,
+          top = dialogBox.top + surface.clientTop;
+        expect(box.left, button.textContent ?? "action").toBeGreaterThanOrEqual(left);
+        expect(box.right, button.textContent ?? "action").toBeLessThanOrEqual(
+          left + surface.clientWidth,
+        );
+        expect(box.top, button.textContent ?? "action").toBeGreaterThanOrEqual(top);
+        expect(box.bottom, button.textContent ?? "action").toBeLessThanOrEqual(
+          top + surface.clientHeight,
+        );
+      }
+      const refreshesBeforeLeaving = refresh.mock.calls.length;
+      await page.getByRole("button", { name: "Continue browsing", exact: true }).click();
+      await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+      expect(owner!.pendingOperations.get(pending!.id)).toEqual(pending);
+      expect(review).toHaveBeenCalledExactlyOnceWith("sample", 9);
+      expect(acquire).toHaveBeenCalledTimes(1);
+      expect(apply).not.toHaveBeenCalled();
+      expect(cancel).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledTimes(refreshesBeforeLeaving);
+    } finally {
+      await act(async () => finish(acquisition));
+      await environment.dispose();
+    }
+  },
+);
 
 it("runs immutable acquisition alongside a pending launch through the actual invocation owner", async () => {
   let owner: ReturnType<typeof useOperationState> | undefined;
