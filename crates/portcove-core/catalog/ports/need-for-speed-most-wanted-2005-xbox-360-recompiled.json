@@ -42,7 +42,8 @@
           "title": "Follow upstream updates with a recoverable copy",
           "instruction": "Close both the launcher and the game before replacing files. Upstream provides update notices; keep your old copy recoverable and extract the new release separately. Let the new runtime regenerate its shader libraries and renderer caches from your own files. Keep upstream controls and save import/export/restore tools available, with separate backups of your actual profile. You or upstream own runtime updates and backups; Portcove registration provides no managed Update, Backup or Rollback. Removing the registration leaves every external file untouched."
         }
-      ]
+      ],
+      "warnings": []
     }
   }
 }
