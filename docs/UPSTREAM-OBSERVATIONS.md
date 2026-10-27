@@ -78,13 +78,31 @@ must stay under its `work` directory without symlink/reparse components.
 Defaults are `work/upstream-observer/<config-sha256>/checkpoint.json` and
 `report.json`. These are factual runtime cache/evidence, not roadmap state.
 
-Only a complete observation with a matching core projection advances the
-checkpoint. Each replacement is atomic and bounded to 32 MiB. A crash before
-replacement leaves the prior checkpoint usable. The checkpoint contains the
-complete observation, validated conditional cache and projection in one file;
-the report is a derived export written afterwards. Interruption between these
-two writes can leave an older report. Compare its facts hash and completion
-clock with the checkpoint and rerun; never treat that old report as current.
+Only a complete observation with a matching Core projection advances
+`last_complete`. Accepted collection pages and the subsequent semantic-validation
+cursor are persisted separately in the same checkpoint after each operation.
+They bind the exact configuration, page bodies/digests, ordered validation scope
+and observation clocks. Resource exhaustion retains that continuation; a later
+admitted batch reconstructs completed work without refetching collection pages
+and resumes the exact next read or validation position. Partial facts never
+become an eligible observation or advance successful completion clocks.
+
+Each replacement remains atomic and bounded to 32 MiB. A crash before replacement
+leaves the prior checkpoint usable. Report export follows checkpoint replacement;
+interruption can leave an older report, so compare its facts/completion clocks
+and continuation with the checkpoint before reuse. Cache eviction or a whole-job
+termination before hosted cache save can still lose unsaved progress; no new
+storage service or durability guarantee is introduced.
+
+A detected semantic change restarts the observation, retaining valid conditional
+representations as cache evidence. Malformed uncompleted pages are not committed
+as replay positions. Cross-release identity conflicts likewise require a fresh
+collection rather than permanently replaying invalid facts. Cancellation stops
+cached replay and Core projection too. A completed validation awaiting Core
+projection retains its original clocks; retrying projection does not manufacture
+a fresh provider observation. Freshness uses the earliest validation clock, so
+validation spanning stale intervals remains explicitly stale even after all pages
+have been accounted for. Legacy format-1 checkpoints remain readable.
 
 An exclusive `<checkpoint>.lock` prevents concurrent local writers. Normal
 errors release it; a killed coordinator can leave it behind. Never steal a lock
@@ -110,7 +128,10 @@ failure, and no catalog entry is removed.
 
 ## Resource bounds and availability evidence
 
-The configured per-run bounds are 256 API requests, ten pages per collection,
+The configured per-batch bounds are 256 API requests and ten newly read pages
+per collection; retained pages do not consume another collection allowance.
+These bounds do not cap the total legitimate collection across resumed batches.
+Each batch also retains
 4 MiB per response, 16 MiB total response bytes and three minutes of observation.
 Transport/server failures allow two retries with bounded backoff; rate-limit
 responses defer to the provider retry clock rather than sleep through a job.
@@ -140,7 +161,8 @@ successful latency samples. Workflow event, source commit, run and attempt are
 recorded as execution context; they are not a self-issued trust attestation.
 
 Deterministic fixtures cover pagination, changed/replaced test-asset metadata,
-partial reads, cache, rate limits, bounded retries, malformed facts, RC flags,
+partial reads, durable collection/validation continuation, cancellation, changed
+input bindings, cache, rate limits, bounded retries, malformed facts, RC flags,
 stale state, exception recovery and coordinator contention. The fixture byte
 strings and their SHA-256 changes are test data, not executable game archives.
 Core and compiled-CLI tests prove the shared policy and offline boundary.

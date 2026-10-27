@@ -668,3 +668,257 @@ void test("monitoring bindings reject changed active pins and malformed retained
     );
   });
 });
+
+void test("collector-only continuation crosses twenty pages without advancing partial projection", async () => {
+  const server = fixture();
+  // Collector continuation only: this deliberately exceeds Core's existing
+  // 1,000-assets-per-release inspection bound and grants no real eligibility.
+  const assets = Array.from({ length: 2101 }, (_, index) => asset(index + 2));
+  for (let page = 1; page <= 22; page++)
+    server.replies.set(`${root}/releases/1/assets?per_page=100&page=${page}`, {
+      body: assets.slice((page - 1) * 100, page * 100),
+      link:
+        page < 22 ? `<${root}/releases/1/assets?per_page=100&page=${page + 1}>; rel="next"` : "",
+    });
+  const bounded = { ...config, budget: { ...config.budget, requests: 5, pages_per_collection: 2 } };
+  let checkpoint: unknown = null;
+  let clock = Date.parse(time);
+  let projections = 0;
+  let persisted = 0;
+  let completed: Awaited<ReturnType<typeof advanceObservation>> | undefined;
+  for (let batch = 0; batch < 64; batch++) {
+    const before = server.requests.length;
+    const result = await advanceObservation(bounded, checkpoint, {
+      fetch: server.fetch,
+      now: () => clock,
+      project: (observation) => {
+        projections++;
+        return project(observation);
+      },
+      commitContinuation: () => {
+        persisted++;
+      },
+    });
+    assert.ok(server.requests.length - before <= 5);
+    checkpoint = result.checkpoint;
+    if (result.report.transition === "initial-baseline") {
+      completed = result;
+      break;
+    }
+    assert.equal(result.checkpoint.completed_runs, 0);
+    assert.equal(result.report.observation, null);
+    assert.equal(result.report.policy, null);
+    assert.equal(result.report.continuation?.complete, false);
+    assert.equal(projections, 0);
+    clock += 24 * 3600000;
+  }
+  assert.ok(completed);
+  assert.equal(projections, 1);
+  assert.equal(
+    server.requests.length,
+    48,
+    "each accepted page is collected and validated exactly once",
+  );
+  assert.equal(objectFixture(completed.report.observation?.consumed).requests, 48);
+  const releases = arrayFixture(objectFixture(completed.report.observation?.facts).releases);
+  assert.equal(arrayFixture(objectFixture(releases[0]).assets).length, 2101);
+  assert.equal(completed.checkpoint.continuation, undefined);
+  assert.ok(persisted >= 48);
+  assert.equal(completed.report.stale, true, "old validation pages cannot claim current freshness");
+});
+
+void test("interruption and cancellation retain completed pages without repeating collection", async () => {
+  const server = fixture();
+  let interruption = true;
+  const interrupted = await advanceObservation(config, null, {
+    fetch: server.fetch,
+    project,
+    commitContinuation: () => {
+      if (interruption) {
+        interruption = false;
+        throw new Error("fixture interruption after durable page");
+      }
+    },
+  });
+  assert.equal(interrupted.report.observation, null);
+  assert.equal(interrupted.report.continuation?.retained_pages, 1);
+  const recovered = await advanceObservation(config, interrupted.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(recovered.report.transition, "initial-baseline");
+  assert.equal(
+    server.requests.filter((request) => request.url === root).length,
+    2,
+    "one collection plus required validation",
+  );
+  const controller = new AbortController();
+  const cancelledServer = fixture({
+    intercept: (_url, _options, count) => {
+      if (count === 2) controller.abort();
+    },
+  });
+  const cancelled = await advanceObservation(config, null, {
+    fetch: cancelledServer.fetch,
+    signal: controller.signal,
+    project,
+  });
+  assert.equal(cancelled.report.exception?.rule, "cancelled");
+  assert.equal(cancelled.report.observation, null);
+  const resumed = await advanceObservation(config, cancelled.checkpoint, {
+    fetch: cancelledServer.fetch,
+    project,
+  });
+  assert.equal(resumed.report.transition, "initial-baseline");
+  assert.equal(cancelledServer.requests.filter((request) => request.url === root).length, 2);
+});
+
+void test("malformed uncompleted pages are not retained as permanently replayed cursors", async () => {
+  let malformed = true;
+  const server = fixture({
+    intercept: (url) =>
+      url === `${root}/releases?per_page=100&page=1` && malformed
+        ? new Response("{}", { headers: { "content-type": "application/json" } })
+        : null,
+  });
+  const failed = await advanceObservation(config, null, { fetch: server.fetch, project });
+  assert.equal(failed.report.continuation?.retained_pages, 1);
+  malformed = false;
+  const recovered = await advanceObservation(config, failed.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(recovered.report.transition, "initial-baseline");
+  assert.equal(server.requests.filter((request) => request.url === root).length, 2);
+});
+
+void test("continued facts refuse changed input bindings, corrupted pages and changed upstream identities", async () => {
+  const bounded = { ...config, budget: { ...config.budget, requests: 2 } };
+  const server = fixture();
+  const partial = await advanceObservation(bounded, null, { fetch: server.fetch, project });
+  assert.ok(partial.checkpoint.continuation);
+  await assert.rejects(
+    advanceObservation(config, partial.checkpoint, {
+      fetch: async () => assert.fail("changed config reached provider"),
+      project,
+    }),
+    /different observer configuration/,
+  );
+  const corrupt = structuredClone(partial.checkpoint);
+  objectFixture(corrupt.continuation?.pages[root]).sha256 = "wrong";
+  await assert.rejects(
+    advanceObservation(bounded, corrupt, {
+      fetch: async () => assert.fail("corrupt cursor reached provider"),
+      project,
+    }),
+    /continuation is invalid/,
+  );
+  incrementFixtureId(server.replies.get(root).body);
+  const refused = await advanceObservation(bounded, partial.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(refused.report.observation, null);
+  assert.equal(refused.report.exception?.rule, "repository-identity");
+});
+
+void test("global duplicate identities restart retained pages and can observe a provider repair", async () => {
+  const server = fixture();
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [release(1), release(2)];
+  const second = asset();
+  second.browser_download_url = second.browser_download_url.replace("v1.0.0", "v2.0.0");
+  server.replies.set(`${root}/releases/2/assets?per_page=100&page=1`, { body: [second] });
+  const refused = await advanceObservation(config, null, { fetch: server.fetch, project });
+  assert.equal(refused.report.exception?.rule, "invalid-metadata");
+  assert.equal(refused.report.continuation?.phase, "restart");
+  const before = server.requests.length;
+  second.id = 3;
+  const recovered = await advanceObservation(config, refused.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(recovered.report.transition, "initial-baseline");
+  assert.ok(server.requests.length > before);
+});
+
+void test("cancelled complete-validation recovery cannot project and retains the original observation clocks", async () => {
+  const server = fixture();
+  let clock = Date.parse(time);
+  const failed = await advanceObservation(config, null, {
+    fetch: server.fetch,
+    now: () => clock,
+    project: () => {
+      throw new Error("fixture projection unavailable");
+    },
+  });
+  assert.equal(failed.report.continuation?.phase, "validate");
+  const controller = new AbortController();
+  controller.abort();
+  clock += 24 * 3600000;
+  const cancelled = await advanceObservation(config, failed.checkpoint, {
+    now: () => clock,
+    signal: controller.signal,
+    fetch: async () => assert.fail("cancelled recovery reached provider"),
+    project: () => assert.fail("cancelled recovery projected facts"),
+  });
+  assert.equal(cancelled.report.exception?.rule, "cancelled");
+  assert.equal(cancelled.report.observation, null);
+  const recovered = await advanceObservation(config, cancelled.checkpoint, {
+    now: () => clock,
+    fetch: async () => assert.fail("complete validated pages were fetched again"),
+    project,
+  });
+  assert.equal(recovered.report.observation?.completed_at, new Date(time).toISOString());
+  assert.equal(recovered.report.stale, true);
+  const corrupt = structuredClone(failed.checkpoint);
+  assert.ok(corrupt.continuation);
+  corrupt.continuation.first_validated_at = null;
+  await assert.rejects(
+    advanceObservation(config, corrupt, {
+      fetch: async () => assert.fail("invalid clocks reached provider"),
+      project,
+    }),
+    /continuation is invalid/,
+  );
+});
+
+void test("Core-bounded release shapes continue past the former single-run request envelope", async () => {
+  const server = fixture();
+  for (let page = 1; page <= 3; page++)
+    server.replies.set(`${root}/releases?per_page=100&page=${page}`, {
+      body: Array.from({ length: 100 }, (_, i) => release((page - 1) * 100 + i + 1)),
+      link: page < 3 ? `<${root}/releases?per_page=100&page=${page + 1}>; rel="next"` : "",
+    });
+  for (let id = 1; id <= 300; id++)
+    server.replies.set(`${root}/releases/${id}/assets?per_page=100&page=1`, { body: [] });
+  const bounded = { ...config, budget: { ...config.budget, requests: 128 } };
+  let checkpoint: unknown = null;
+  let projections = 0;
+  let complete = false;
+  for (let batch = 0; batch < 8; batch++) {
+    const before = server.requests.length;
+    const result = await advanceObservation(bounded, checkpoint, {
+      fetch: server.fetch,
+      project: (observation) => {
+        projections++;
+        return project(observation);
+      },
+    });
+    assert.ok(server.requests.length - before <= 128);
+    checkpoint = result.checkpoint;
+    if (result.report.transition === "initial-baseline") {
+      assert.equal(
+        arrayFixture(objectFixture(result.report.observation?.facts).releases).length,
+        300,
+      );
+      complete = true;
+      break;
+    }
+    assert.equal(result.report.observation, null);
+  }
+  assert.equal(complete, true);
+  assert.equal(projections, 1);
+  assert.equal(server.requests.length, 608);
+  // The projection callback is a fixture; actual compiled-Core and hosted
+  // observations remain distinct evidence even though these shapes fit its caps.
+});

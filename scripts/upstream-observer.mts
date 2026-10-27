@@ -61,8 +61,23 @@ export interface ObserverRequestOptions {
   signal: AbortSignal;
 }
 export type ObserverFetch = (url: string, options: ObserverRequestOptions) => Promise<Response>;
+export interface ObservationContinuation {
+  format: 1;
+  config_sha256: string;
+  started_at: string;
+  phase: "collect" | "validate" | "restart";
+  pages: Record<string, CachedPage>;
+  validation_cursor: number;
+  last_validated_at: string | null;
+  first_validated_at: string | null;
+  validation_order_sha256: string | null;
+  consumed: { requests: number; response_bytes: number; conditional_hits: number };
+}
 export interface ObserveOptions {
   cache?: unknown;
+  continuation?: unknown;
+  onCheckpoint?: (continuation: ObservationContinuation) => void | Promise<void>;
+  signal?: AbortSignal;
   fetch?: ObserverFetch;
   now?: () => number;
   sleep?: (milliseconds: number) => Promise<unknown>;
@@ -73,6 +88,8 @@ const apiRoot = "https://api.github.com";
 export class ObservationFailure extends Error {
   rule: string;
   retryAt: string | null;
+  continuation?: ObservationContinuation;
+  restartContinuation?: boolean;
   constructor(rule: string, details: string, retryAt: string | null = null) {
     super(details);
     this.rule = rule;
@@ -537,17 +554,149 @@ function validatedCache(cache: unknown, configHash: string): Record<string, unkn
   return cache.pages;
 }
 
+export function validateObservationContinuation(
+  value: unknown,
+  config: ObserverConfig,
+): ObservationContinuation | undefined {
+  if (value === undefined) return undefined;
+  keys(
+    value,
+    [
+      "format",
+      "config_sha256",
+      "started_at",
+      "phase",
+      "pages",
+      "validation_cursor",
+      "last_validated_at",
+      "first_validated_at",
+      "validation_order_sha256",
+      "consumed",
+    ],
+    "observation continuation",
+  );
+  const continuedUsage = value.consumed;
+  requireFact(
+    value.format === 1 &&
+      value.config_sha256 === observationHash(config) &&
+      typeof value.started_at === "string" &&
+      Number.isFinite(Date.parse(value.started_at)) &&
+      ["collect", "validate", "restart"].includes(String(value.phase)) &&
+      isRecord(value.pages) &&
+      Number.isSafeInteger(value.validation_cursor) &&
+      Number(value.validation_cursor) >= 0 &&
+      Number(value.validation_cursor) <= Object.keys(value.pages).length &&
+      (value.last_validated_at === null ||
+        (typeof value.last_validated_at === "string" &&
+          Number.isFinite(Date.parse(value.last_validated_at)))) &&
+      (value.first_validated_at === null ||
+        (typeof value.first_validated_at === "string" &&
+          Number.isFinite(Date.parse(value.first_validated_at)))) &&
+      isRecord(continuedUsage) &&
+      ["requests", "response_bytes", "conditional_hits"].every(
+        (key) => Number.isSafeInteger(continuedUsage[key]) && Number(continuedUsage[key]) >= 0,
+      ) &&
+      Buffer.byteLength(JSON.stringify(value)) <= 32 * 1024 * 1024,
+    "invalid-checkpoint",
+    "continuation configuration, cursor or retained bytes are invalid",
+  );
+  requireFact(
+    value.phase === "validate" || value.validation_cursor === 0,
+    "invalid-checkpoint",
+    "only complete collection can have validation progress",
+  );
+  requireFact(
+    value.validation_cursor === 0
+      ? value.first_validated_at === null && value.last_validated_at === null
+      : typeof value.first_validated_at === "string" &&
+          typeof value.last_validated_at === "string" &&
+          Date.parse(value.started_at) <= Date.parse(value.first_validated_at) &&
+          Date.parse(value.first_validated_at) <= Date.parse(value.last_validated_at),
+    "invalid-checkpoint",
+    "continuation validation clocks do not match its cursor",
+  );
+  requireFact(
+    value.phase === "validate"
+      ? typeof value.validation_order_sha256 === "string" &&
+          /^[a-f0-9]{64}$/u.test(value.validation_order_sha256)
+      : value.validation_order_sha256 === null,
+    "invalid-checkpoint",
+    "continuation validation order is invalid",
+  );
+  const repositoryPath = `/repos/${config.repository}`;
+  for (const [address, page] of Object.entries(value.pages)) {
+    const url = new URL(address);
+    const tail = url.pathname.slice(repositoryPath.length);
+    requireFact(
+      url.origin === apiRoot &&
+        !url.username &&
+        !url.password &&
+        !url.hash &&
+        url.pathname.startsWith(repositoryPath) &&
+        ((tail === "" && url.search === "") ||
+          (/^\/releases(?:\/\d+\/assets)?$/u.test(tail) &&
+            url.searchParams.get("per_page") === "100" &&
+            /^\d+$/u.test(url.searchParams.get("page") ?? "") &&
+            Number.isSafeInteger(Number(url.searchParams.get("page"))) &&
+            Number(url.searchParams.get("page")) > 0 &&
+            [...url.searchParams.keys()].length === 2)),
+      "invalid-checkpoint",
+      "continued page escaped its configured collection",
+    );
+    keys(page, ["etag", "link", "body", "sha256"], "continued page");
+    requireFact(
+      typeof page.etag === "string" &&
+        page.etag.length <= 512 &&
+        !/[\r\n]/u.test(page.etag) &&
+        typeof page.link === "string" &&
+        page.link.length <= 8192 &&
+        Buffer.byteLength(JSON.stringify(page.body)) <= config.budget.response_bytes &&
+        page.sha256 === observationHash(page.body),
+      "invalid-checkpoint",
+      "continued page digest differs",
+    );
+  }
+  return value as unknown as ObservationContinuation;
+}
+
 /** Read-only provider observations. No candidate data is executed or admitted. */
 export async function observeUpstream(input: unknown, options: ObserveOptions = {}) {
   const config = validateObserverConfig(input);
   const configHash = observationHash(config);
-  const prior = validatedCache(options.cache, configHash);
+  const retained = validateObservationContinuation(options.continuation, config);
+  const prior = {
+    ...validatedCache(options.cache, configHash),
+    ...(retained?.phase === "restart" ? retained.pages : {}),
+  };
   const fetcher = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
   const sleep =
     options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const started = now();
-  const pages: Record<string, CachedPage> = {};
+  requireFact(
+    !retained ||
+      (Date.parse(retained.started_at) <= started &&
+        (retained.last_validated_at === null || Date.parse(retained.last_validated_at) <= started)),
+    "clock-or-budget",
+    "continued observation starts in the future",
+  );
+  const continuation: ObservationContinuation =
+    retained && retained.phase !== "restart"
+      ? structuredClone(retained)
+      : {
+          format: 1,
+          config_sha256: configHash,
+          started_at: new Date(started).toISOString(),
+          phase: "collect",
+          pages: {},
+          validation_cursor: 0,
+          last_validated_at: null,
+          first_validated_at: null,
+          validation_order_sha256: null,
+          consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+        };
+  const pages = continuation.pages;
+  const previouslyConsumed = { ...continuation.consumed };
   const consumed = { requests: 0, response_bytes: 0, conditional_hits: 0 };
   const requestOrder: {
     pathname: string;
@@ -557,11 +706,26 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
     value: CachedPage;
   }[] = [];
 
+  const retain = async () => {
+    continuation.consumed = {
+      requests: previouslyConsumed.requests + consumed.requests,
+      response_bytes: previouslyConsumed.response_bytes + consumed.response_bytes,
+      conditional_hits: previouslyConsumed.conditional_hits + consumed.conditional_hits,
+    };
+    await options.onCheckpoint?.(structuredClone(continuation));
+  };
+
   async function request(
     pathname: string,
     page: number | null = null,
     cached: unknown = null,
+    replay = false,
   ): Promise<{ url: string; value: CachedPage }> {
+    if (options.signal?.aborted)
+      throw new ObservationFailure(
+        "cancelled",
+        "Observation cancelled; retain the exact continuation",
+      );
     const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
     const candidate = cached ?? prior[url];
     let previous: CachedPage | undefined;
@@ -590,7 +754,16 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
         "cached response exceeds the byte budget",
       );
     }
+    if (replay) {
+      requireFact(previous, "invalid-checkpoint", "continued page is missing");
+      return { url, value: previous };
+    }
     for (let attempt = 0; ; attempt++) {
+      if (options.signal?.aborted)
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled; retain the exact continuation",
+        );
       const remaining = config.budget.duration_ms - (now() - started);
       requireFact(
         remaining > 0 && consumed.requests < config.budget.requests,
@@ -610,9 +783,16 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
         response = await fetcher(url, {
           headers,
           redirect: "error",
-          signal: AbortSignal.timeout(Math.min(15_000, remaining)),
+          signal: options.signal
+            ? AbortSignal.any([options.signal, AbortSignal.timeout(Math.min(15_000, remaining))])
+            : AbortSignal.timeout(Math.min(15_000, remaining)),
         });
       } catch {
+        if (options.signal?.aborted)
+          throw new ObservationFailure(
+            "cancelled",
+            "Observation cancelled; retain the exact continuation",
+          );
         if (attempt >= config.budget.retries)
           throw new ObservationFailure(
             "transport",
@@ -715,10 +895,21 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
     pathname: string,
     page: number | null,
     normalize: (value: unknown) => unknown,
+    deferCheckpoint = false,
   ) {
-    const result = await request(pathname, page);
+    const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
+    const replay = Object.hasOwn(pages, url);
+    const result = await request(pathname, page, replay ? pages[url] : null, replay);
+    normalize(result.value.body);
+    if (page !== null && nextPage(result.value.link, pathname, page, config))
+      requireFact(
+        Array.isArray(result.value.body) && result.value.body.length === 100,
+        "pagination",
+        "nonterminal page is incomplete",
+      );
     pages[result.url] = result.value;
     requestOrder.push({ pathname, page, normalize, ...result });
+    if (!replay && !deferCheckpoint) await retain();
     return result.value;
   }
 
@@ -728,92 +919,167 @@ export async function observeUpstream(input: unknown, options: ObserveOptions = 
   ): Promise<unknown[]> {
     const all = [];
     const ids = new Set();
+    let chargedPages = 0;
     for (let page = 1; ; page++) {
+      const url = `${apiRoot}${pathname}?per_page=100&page=${page}`;
+      if (!Object.hasOwn(pages, url)) chargedPages++;
       requireFact(
-        page <= config.budget.pages_per_collection,
+        chargedPages <= config.budget.pages_per_collection,
         "budget",
-        "collection exceeded the complete-pagination budget",
+        "collection batch page budget exhausted; retain the exact continuation",
       );
-      const response = await read(pathname, page, (body) => {
+      const fresh = !Object.hasOwn(pages, url);
+      const response = await read(
+        pathname,
+        page,
+        (body) => {
+          requireFact(
+            Array.isArray(body) && body.length <= 100,
+            "invalid-metadata",
+            "collection page must contain at most 100 objects",
+          );
+          return body.map((value: unknown) => normalizeItem(value));
+        },
+        true,
+      );
+      let more: boolean;
+      try {
         requireFact(
-          Array.isArray(body) && body.length <= 100,
+          Array.isArray(response.body) && response.body.length <= 100,
           "invalid-metadata",
           "collection page must contain at most 100 objects",
         );
-        return body.map((value: unknown) => normalizeItem(value));
-      });
-      requireFact(
-        Array.isArray(response.body) && response.body.length <= 100,
-        "invalid-metadata",
-        "collection page must contain at most 100 objects",
-      );
-      const items: unknown[] = response.body;
-      for (const item of items) {
-        const id = identity(isRecord(item) ? item.id : undefined, "collection item");
-        requireFact(!ids.has(id), "pagination", "collection repeated an identity across pages");
-        ids.add(id);
-        all.push(item);
+        for (const item of response.body as unknown[]) {
+          const id = identity(isRecord(item) ? item.id : undefined, "collection item");
+          requireFact(!ids.has(id), "pagination", "collection repeated an identity across pages");
+          ids.add(id);
+          all.push(item);
+        }
+        more = nextPage(response.link, pathname, page, config);
+      } catch (error) {
+        if (fresh) {
+          delete pages[url];
+          requestOrder.pop();
+        }
+        throw error;
       }
-      if (!nextPage(response.link, pathname, page, config)) return all;
-      requireFact(response.body.length === 100, "pagination", "nonterminal page is incomplete");
+      if (fresh) await retain();
+      if (!more) return all;
     }
   }
 
-  const repositoryPath = `/repos/${config.repository}`;
-  const repository = repositoryFact(
-    (await read(repositoryPath, null, (value) => repositoryFact(value, config))).body,
-    config,
-  );
-  const releases = [];
-  const assetIds = new Set();
-  for (const raw of await collection(`${repositoryPath}/releases`, releaseFact)) {
-    const release = releaseFact(raw);
-    const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
-    const assets = (
-      await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
-    ).map(normalizeAsset);
-    for (const asset of assets) {
-      requireFact(
-        !assetIds.has(asset.id),
-        "invalid-metadata",
-        "asset identity appears in multiple releases",
-      );
-      assetIds.add(asset.id);
-    }
-    releases.push({ ...release, assets });
-  }
-  // GitHub provides no atomic repository snapshot. Revalidate every consumed
-  // page and preserve the observation interval; any detected change aborts.
-  for (const entry of requestOrder) {
-    const current = await request(entry.pathname, entry.page, entry.value);
-    requireFact(
-      observationHash(entry.normalize(current.value.body)) ===
-        observationHash(entry.normalize(entry.value.body)) &&
-        current.value.link === entry.value.link,
-      "concurrent-change",
-      `provider collection changed during observation: ${entry.pathname}`,
+  try {
+    const repositoryPath = `/repos/${config.repository}`;
+    const repository = repositoryFact(
+      (await read(repositoryPath, null, (value) => repositoryFact(value, config))).body,
+      config,
     );
-    pages[entry.url] = current.value;
+    const releases = [];
+    const assetIds = new Set();
+    for (const raw of await collection(`${repositoryPath}/releases`, releaseFact)) {
+      const release = releaseFact(raw);
+      const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
+      const assets = (
+        await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
+      ).map(normalizeAsset);
+      for (const asset of assets) {
+        if (assetIds.has(asset.id)) {
+          const failure = new ObservationFailure(
+            "invalid-metadata",
+            "asset identity appears in multiple releases",
+          );
+          failure.restartContinuation = true;
+          throw failure;
+        }
+        assetIds.add(asset.id);
+      }
+      releases.push({ ...release, assets });
+    }
+    // GitHub provides no atomic repository snapshot. Revalidate every consumed
+    // page and preserve the observation interval; any detected change aborts.
+    if (continuation.phase === "collect") {
+      continuation.phase = "validate";
+      continuation.validation_order_sha256 = observationHash(
+        requestOrder.map((entry) => entry.url),
+      );
+      await retain();
+    }
+    requireFact(
+      continuation.validation_cursor <= requestOrder.length &&
+        continuation.validation_order_sha256 ===
+          observationHash(requestOrder.map((entry) => entry.url)),
+      "invalid-checkpoint",
+      "validation cursor exceeds the reconstructed collection",
+    );
+    for (let index = continuation.validation_cursor; index < requestOrder.length; index++) {
+      const entry = requestOrder[index]!;
+      const current = await request(entry.pathname, entry.page, entry.value);
+      requireFact(
+        observationHash(entry.normalize(current.value.body)) ===
+          observationHash(entry.normalize(entry.value.body)) &&
+          current.value.link === entry.value.link,
+        "concurrent-change",
+        `provider collection changed during observation: ${entry.pathname}`,
+      );
+      pages[entry.url] = current.value;
+      const validationClock = now();
+      requireFact(
+        validationClock >= started &&
+          validationClock >= Date.parse(continuation.last_validated_at ?? continuation.started_at),
+        "clock-or-budget",
+        "observation clock moved backwards during validation",
+      );
+      continuation.validation_cursor = index + 1;
+      continuation.last_validated_at = new Date(validationClock).toISOString();
+      continuation.first_validated_at ??= continuation.last_validated_at;
+      await retain();
+    }
+    if (options.signal?.aborted)
+      throw new ObservationFailure("cancelled", "Observation cancelled before completion");
+    const completed = Date.parse(continuation.last_validated_at!);
+    requireFact(
+      completed >= Date.parse(continuation.started_at) &&
+        completed <= now() &&
+        now() >= started &&
+        now() - started <= config.budget.duration_ms,
+      "clock-or-budget",
+      "observation clock moved backwards or exceeded its deadline",
+    );
+    const facts = { repository, releases };
+    return {
+      observation: {
+        format: 1,
+        config_sha256: configHash,
+        port_id: config.port_id,
+        started_at: continuation.started_at,
+        completed_at: new Date(completed).toISOString(),
+        validation_started_at: continuation.first_validated_at,
+        facts_sha256: observationHash(facts),
+        facts,
+        consumed: continuation.consumed,
+        batch_consumed: consumed,
+        interval_semantics:
+          "Independently revalidated pages over the retained observation interval; not an atomic provider snapshot",
+        authority: "provider-observation-only",
+      },
+      cache: { format: 1, config_sha256: configHash, pages },
+    };
+  } catch (error) {
+    if (error instanceof ObservationFailure) {
+      if (error.rule === "concurrent-change" || error.restartContinuation) {
+        continuation.phase = "restart";
+        continuation.validation_cursor = 0;
+        continuation.last_validated_at = null;
+        continuation.first_validated_at = null;
+        continuation.validation_order_sha256 = null;
+      }
+      continuation.consumed = {
+        requests: previouslyConsumed.requests + consumed.requests,
+        response_bytes: previouslyConsumed.response_bytes + consumed.response_bytes,
+        conditional_hits: previouslyConsumed.conditional_hits + consumed.conditional_hits,
+      };
+      error.continuation = structuredClone(continuation);
+    }
+    throw error;
   }
-  const completed = now();
-  requireFact(
-    completed >= started && completed - started <= config.budget.duration_ms,
-    "clock-or-budget",
-    "observation clock moved backwards or exceeded its deadline",
-  );
-  const facts = { repository, releases };
-  return {
-    observation: {
-      format: 1,
-      config_sha256: configHash,
-      port_id: config.port_id,
-      started_at: new Date(started).toISOString(),
-      completed_at: new Date(completed).toISOString(),
-      facts_sha256: observationHash(facts),
-      facts,
-      consumed,
-      authority: "provider-observation-only",
-    },
-    cache: { format: 1, config_sha256: configHash, pages },
-  };
 }
