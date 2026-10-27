@@ -719,6 +719,58 @@ fn upstream_observation_is_offline_and_does_not_open_a_library() {
 }
 
 #[test]
+fn provider_upstream_observation_uses_explicit_mode_without_opening_library() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let observation = temporary.path().join("provider-observation.json");
+    std::fs::write(
+        &observation,
+        include_str!("fixtures/provider-direct-observation.json"),
+    )
+    .unwrap();
+    let arguments = [
+        "--json",
+        "catalog",
+        "inspect-observation",
+        "openpete",
+        observation.to_str().unwrap(),
+        "--provider-facts",
+    ];
+    let output = portcove(&library, &arguments);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response = json_stdout(&output);
+    assert_eq!(response["data"]["format"], 2);
+    assert_eq!(
+        response["data"]["provider_identity"]["provider"],
+        "direct-manifest"
+    );
+    assert_eq!(
+        response["data"]["evidence"]["artifact_bytes_verified"],
+        false
+    );
+    assert!(!library.exists());
+    let conflicting = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "inspect-observation",
+            "openpete",
+            observation.to_str().unwrap(),
+            "--provider-facts",
+            "--repository-id",
+            "1",
+        ],
+    );
+    assert_eq!(conflicting.status.code(), Some(2));
+    assert!(!library.exists());
+}
+
+#[test]
 fn exported_source_assessment_separates_facts_without_opening_library() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");

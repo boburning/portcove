@@ -599,6 +599,8 @@ exhaustion permits another automatic turn; a last-request transport failure
 never becomes retry permission. Individual requests, operation quanta, response
 bytes, runtime, checkpoint bytes and the Core input envelope remain finite.
 
+The offline CLI inspects these inputs with `catalog inspect-observation PORT FILE --provider-facts`. GitHub keeps its required `--repository-id`; conflicting modes are usage errors.
+
 Version 3 inert provider observations and version 2 provider reports enter the
 same bounded #246 artifact handoff with per-port current Core projections.
 Reports distinguish observed releases, metadata eligibility and endpoint

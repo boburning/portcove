@@ -76,8 +76,15 @@ pub(crate) enum CatalogCommand {
         /// Inert upstream observation JSON; inspected against the built-in catalog without opening a library.
         file: PathBuf,
         /// Expected numeric GitHub identity; required for GitHub observations, omitted for other providers.
-        #[arg(long)]
+        #[arg(
+            long,
+            required_unless_present = "provider_facts",
+            conflicts_with = "provider_facts"
+        )]
         repository_id: Option<u64>,
+        /// Inspect another reviewed provider with its own identities; never invent a GitHub ID.
+        #[arg(long)]
+        provider_facts: bool,
     },
     /// Show the active catalog, publisher keys, and rollback and replay protection.
     Status,

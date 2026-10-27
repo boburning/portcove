@@ -411,13 +411,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 port_id,
                 file,
                 repository_id,
+                provider_facts,
             },
     } = &cli.command
     {
         let catalog = portcove_core::Catalog::embedded()?;
         let port = catalog.port(port_id)?;
         if port.release.provider != portcove_core::ReleaseSource::Github {
-            if repository_id.is_some() {
+            if !provider_facts || repository_id.is_some() {
                 return Err(portcove_core::PortcoveError::verification(
                     "non-GitHub observation must not invent a GitHub repository identity",
                 ));
@@ -427,6 +428,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 serde_json::to_string_pretty(report).unwrap_or_default()
             })?;
             return Ok(ExitCode::SUCCESS);
+        }
+        if *provider_facts {
+            return Err(portcove_core::PortcoveError::verification(
+                "GitHub observations require their repository identity, not provider-facts mode",
+            ));
         }
         let report = portcove_core::inspect_upstream_observation(
             port,

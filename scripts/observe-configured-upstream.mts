@@ -598,7 +598,7 @@ export async function projectProviderObservation(
     directory,
     Buffer.from(JSON.stringify(observation)),
     "catalog.inspect-observation",
-    (input) => ["--json", "catalog", "inspect-observation", portId, input],
+    (input) => ["--json", "catalog", "inspect-observation", portId, input, "--provider-facts"],
   );
 }
 
