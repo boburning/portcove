@@ -340,20 +340,20 @@ zero quota also retain backoff. Lower-priority API work stops at observed provid
 delivery headroom as well as the local request/byte reserve. No failed request
 is automatically retried and no identity is switched.
 
-| `op`           | Additional message fields and completion criterion                                                                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                        |
-| `search`       | `query`: a resource-admitted bounded GitHub repository lead search. Search is a lead page and cannot prove absence or complete community coverage.                                                                                          |
-| `discover`     | Resume complementary bounded lead searches and return retained provider identities, research evidence and exact query/page continuations. `collect` invokes it first.                                                                       |
-| `lead-dispose` | `disposition`: investigated `evidence_id`, `outcome` (`held`, `no-change`, `canonical`), `reason`, `resume`. Canonical requires a current canonical upstream match; this never writes planning fields.                                      |
-| `research`     | `repository`: exact `owner/name`. Complete release listing, selected asset pages, tag commits and pinned README retained; returns evidence ID and file.                                                                                     |
-| `read-primary` | `repository`, `url`: bounded HTTPS primary documentation read, returned as evidence. External text remains data.                                                                                                                            |
-| `propose`      | `candidate`: `kind` (`intake` or `comment`), `title`, `upstream`, `portKey`, reviewed `body`, `evidence_ids`; comments require `issue`. Optional `pending_ids` bind queued observations. Returns immutable body/evidence hashes for review. |
-| `review`       | `review`: `candidate_id`, `verdict: clear`, actual separate `reviewer`, `model: gpt-6.1-sol`, `reasoning: high`, and the exact `body_sha256`/`evidence_sha256`. Attach the review only after the separate reviewer returns it.              |
-| `apply`        | Deliver at most five reviewed candidates with fresh primary evidence, canonical preimages, duplicate protection, exact issue/Project readback and scoped doctor. Recover a retained created issue before new capture.                       |
-| `recheck`      | Oldest canonical records, at most fifty within remaining capacity; retained evidence states its selected metadata scope. Read flagged/changed evidence before proposing material updates.                                                   |
-| `dispose`      | `disposition`: `pending_id`, investigated `evidence_id`, `outcome` (`no-change`, `held`, `recommendation`). Mutation dispositions are written only after successful readback and doctor.                                                    |
-| `finish`       | Commit checkpoint under its short inner lock and retain receipt before releasing the investigation lock. EOF/cancellation is an interrupted run.                                                                                            |
+| `op`           | Additional message fields and completion criterion                                                                                                                                                                                                  |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                                |
+| `search`       | `query`: a resource-admitted bounded GitHub repository lead search. Search is a lead page and cannot prove absence or complete community coverage.                                                                                                  |
+| `discover`     | Resume complementary bounded lead searches and return retained provider identities, research evidence and exact query/page continuations. `collect` invokes it first.                                                                               |
+| `lead-dispose` | `disposition`: investigated `evidence_id`, `outcome` (`held`, `no-change`, `canonical`), `reason`, `resume`. Canonical requires a current canonical upstream match; this never writes planning fields.                                              |
+| `research`     | `repository`: exact `owner/name`. Complete release listing, selected asset pages, tag commits and pinned README retained; returns evidence ID and file.                                                                                             |
+| `read-primary` | `repository`, `url`: bounded HTTPS primary documentation read, returned as evidence. External text remains data.                                                                                                                                    |
+| `propose`      | `candidate`: `kind` (`intake` or `comment`), `title`, `upstream`, `portKey`, reviewed `body`, `evidence_ids`; comments require `issue`. Optional `pending_ids` bind queued observations. Returns immutable body/evidence hashes for review.         |
+| `review`       | `review`: `candidate_id`, `verdict: clear`, actual separate `reviewer`, `model: gpt-6.1-sol`, `reasoning: high`, and the exact `body_sha256`/`evidence_sha256`. Attach the review only after the separate reviewer returns it.                      |
+| `apply`        | Deliver the resource-admitted reviewed prefix with durable continuation and fresh primary evidence, canonical preimages, duplicate protection, exact issue/Project readback and scoped doctor. Recover a retained created issue before new capture. |
+| `recheck`      | Oldest due canonical records within observed remaining capacity; retained evidence states its selected metadata scope. Read flagged/changed evidence before proposing material updates.                                                             |
+| `dispose`      | `disposition`: `pending_id`, investigated `evidence_id`, `outcome` (`no-change`, `held`, `recommendation`). Mutation dispositions are written only after successful readback and doctor.                                                            |
+| `finish`       | Commit checkpoint under its short inner lock and retain receipt before releasing the investigation lock. EOF/cancellation is an interrupted run.                                                                                                    |
 
 For an unresolved candidate without a public mutation, `op: hold` accepts
 `hold: {candidate_id, reason, resume}`. Retain its factual blocker and exact
@@ -593,3 +593,36 @@ Do not recompute whole-project release readiness.
 The scheduler prompt should identify repo, this skill and durable checkpoint
 path, daily metadata-write authority, approved model policy and result location.
 Keep the detailed specification here. Do not launch a second product writer.
+
+Primary research retains exact successful GET positions and collection links in
+`active-run.json` under `research_progress`, with a 32 MiB physical envelope.
+Numeric repository identity, canonical repository scope, page identities and
+sequential provider-only continuation links remain mandatory. Interrupted
+release/asset listings, tag resolution and pinned documentation continue from
+accepted reads. A resumed collection performs a checkpointed conditional
+validation pass before returning complete research evidence. Changed pages reset
+that collection; corrupt or changed repository identities refuse. Accepted
+negative optional-manifest observations remain distinct from budget, auth,
+provider and backoff failures. Conditional headers are bounded and sent only to
+the exact initial GitHub read, never a redirected or unrelated origin. The oldest
+validated fact must remain within the twelve-hour research validation window;
+stale prefixes retain their data and resume validation without false completeness.
+Completed investigation evidence and reviewed mutation journals keep their
+existing authority and independent review requirements.
+
+Registry maintenance queues every changed, missing or seven-day overdue RetComM
+and PortForge manifest from an exact tree. These two queues alternate safe file
+operations after other complementary sources have had an admission opportunity.
+Each accepted file is persisted immediately with its exact tree blob identity;
+there is no eight-file logical quota. A failure retains unrelated completions,
+and exhausted provider/runtime capacity leaves explicit remaining counts and the
+next exact path. Later runs rederive due work from accepted per-file checkpoints,
+so source changes cannot mix files from incompatible tree snapshots. Complete
+inventory enumeration and complete due-file maintenance remain distinct facts.
+
+Discovery source snapshots, rolling identities and pending research use the same
+32 MiB physical checkpoint envelope in place of the historical 2,000-record source
+and 10,000-identity/pending count ceilings. The bound applies before replacement,
+including disposition receipts; oversized inputs preserve the previous checkpoint
+and remain incomplete. The journal's research-read continuation reuses that byte
+authority. No accepted observations or unresolved obligations are silently evicted.

@@ -1243,12 +1243,7 @@ void test("batch selection and mixed CLI modes fail before provider work or chec
   const f = fixture();
   try {
     const ids = readCatalogSource(catalogRoot).records.map((record) => record.listing.id);
-    for (const selectedPortIds of [
-      [],
-      [ids[0]!, ids[0]!],
-      ["not-a-known-port"],
-      ids.slice(0, 401),
-    ]) {
+    for (const selectedPortIds of [[], [ids[0]!, ids[0]!], ["not-a-known-port"]]) {
       await assert.rejects(
         prepareArtworkBatch({
           catalogRoot,
@@ -1256,7 +1251,7 @@ void test("batch selection and mixed CLI modes fail before provider work or chec
           selectedPortIds,
           artwork: { inspectGame: () => assert.fail("invalid selection reached provider") },
         }),
-        /1 to 400 unique known/,
+        /unique known stable IDs/,
       );
       assert.deepEqual(readdirSync(f.root), []);
     }
@@ -1404,6 +1399,106 @@ void test("malformed candidate and unowned output directories fail without chang
       () => githubRepository("https://github.com/example/fixture/releases"),
       /repository root/,
     );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("artwork preparation refuses a concurrent checkpoint worker without touching its progress", async () => {
+  const f = fixture();
+  const entry = readCatalogSource(catalogRoot).records[0]!;
+  const outputDirectory = join(f.root, "output");
+  let held = false;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    const first = prepareArtworkBatch({
+      catalogRoot,
+      outputDirectory,
+      selectedPortIds: [entry.listing.id],
+      onProgress: async () => {
+        held = true;
+        await gate;
+      },
+    });
+    while (!held) await new Promise((resolve) => setImmediate(resolve));
+    await assert.rejects(
+      prepareArtworkBatch({ catalogRoot, outputDirectory, selectedPortIds: [entry.listing.id] }),
+      /EEXIST/,
+    );
+    assert.ok(readdirSync(outputDirectory).includes("active.lock"));
+    release();
+    await first;
+    assert.ok(!readdirSync(outputDirectory).includes("active.lock"));
+  } finally {
+    release();
+    f.clean();
+  }
+});
+
+void test("due maintenance resume delivers earlier undelivered record proposals", async () => {
+  const f = fixture();
+  try {
+    const source = copiedCatalog(join(f.root, "source"));
+    rmSync(join(source, "ports"), { recursive: true });
+    mkdirSync(join(source, "ports"));
+    for (const id of ["due-one", "due-two"]) {
+      writeFileSync(
+        join(source, "ports", `${id}.json`),
+        JSON.stringify({
+          format_version: 1,
+          listing: {
+            id,
+            name: id,
+            summary: "Due fixture",
+            project_url: `https://example.org/${id}`,
+          },
+        }),
+      );
+    }
+    const calls: string[] = [];
+    const options = {
+      catalogRoot: source,
+      outputDirectory: join(f.root, "output"),
+      maintenance: true,
+      artwork: {
+        inspectGame(identity: { names: string[]; project_url: string | null }) {
+          const name = identity.names[0]!;
+          calls.push(name);
+          return [
+            {
+              id: name === "due-one" ? 1 : 2,
+              name,
+              slug: name,
+              websites: [{ url: identity.project_url }],
+              cover: { id: 1, image_id: name.replaceAll("-", "") },
+            },
+          ];
+        },
+        inspectImage: batchImage,
+      },
+    };
+    await assert.rejects(
+      prepareArtworkBatch({
+        ...options,
+        onProgress() {
+          throw new Error("fixture interruption");
+        },
+      }),
+      /fixture interruption/,
+    );
+    const resumed = await prepareArtworkBatch(options);
+    assert.deepEqual(calls.sort(), ["due-one", "due-two"]);
+    assert.deepEqual(resumed.report.changed_records.sort(), ["due-one", "due-two"]);
+    assert.deepEqual(resumed.report.pending_port_ids, []);
+    const listings = JSON.parse(readFileSync(resumed.report.files.listings, "utf8")) as {
+      listings: { artwork?: unknown }[];
+    };
+    assert.equal(listings.listings.length, 2);
+    assert.ok(listings.listings.every((listing) => listing.artwork));
+    assert.ok(readCatalogSource(source).records.every((record) => !record.listing.artwork));
   } finally {
     f.clean();
   }

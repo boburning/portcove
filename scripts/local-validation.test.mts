@@ -3815,3 +3815,46 @@ void test("standalone reporter and binary-identity inputs retain local and hoste
         );
     }
 });
+
+void test("resource observation ledger remains an affected consumer of every maintained budget workflow", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    ".github/workflows/release.yml",
+    ".github/workflows/application-update-production.yml",
+    ".github/workflows/application-update-wake.yml",
+    "scripts/release-capacity.mts",
+    "scripts/release-resource-observation.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+          [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+          { fileExists: allFilesExist },
+        ),
+        hosted = baselineContractTests(
+          buildValidationPlan({
+            changes: [change],
+            eventName: "pull_request",
+            base: "a".repeat(40),
+            mergeBase: "a".repeat(40),
+            head: "b".repeat(40),
+            checkout: "b".repeat(40),
+          }),
+          { fileExists: allFilesExist },
+        );
+      assert.ok(
+        local.nodeTests.has("scripts/release-resource-observation.test.mts"),
+        file + "/" + variant + "/local",
+      );
+      assert.ok(
+        hosted.includes("scripts/release-resource-observation.test.mts"),
+        file + "/" + variant + "/hosted",
+      );
+    }
+});

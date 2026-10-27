@@ -497,9 +497,13 @@ void test("native receipt capture binds schema validation and reproduction input
 });
 
 void test("shared capture preflight is retained by helper and execution-plan custody", () => {
-  const source = "apps/desktop/test/capture-target.ts";
-  assert.ok(nativeHelperSharedSources.includes(source));
   const selection = resolveDesktopSelection({ scenarios: ["keyboard-layout"], platform: "win32" });
   const plan = planDesktopExecution(selection, { platform: "win32" });
-  assert.ok(plan.receiptInputs.some((input) => input.kind === "file" && input.path === source));
+  for (const source of [
+    "apps/desktop/test/capture-target.ts",
+    "apps/desktop/scripts/desktop-capture-target.mts",
+  ]) {
+    assert.ok(nativeHelperSharedSources.includes(source));
+    assert.ok(plan.receiptInputs.some((input) => input.kind === "file" && input.path === source));
+  }
 });

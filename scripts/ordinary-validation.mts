@@ -209,6 +209,7 @@ const upstreamHealthObservationTests = [
 const upstreamHealthContractTests = [
   ...upstreamHealthObservationTests,
   "scripts/upstream-observer.test.mts",
+  "scripts/catalog-upstream-observer.test.mts",
   "scripts/upstream-health.test.mts",
   "scripts/upstream-health-plan.test.mts",
   "scripts/upstream-health-monitor.test.mts",
@@ -314,7 +315,16 @@ for (const [file, tests] of [
     (file): [string, readonly string[]] => [file, pythonContractTests],
   ),
   ["apps/desktop/scripts/native-enlargement.mts", ["scripts/desktop-execution-plan.test.mts"]],
+  [
+    "apps/desktop/scripts/desktop-capture-target.mts",
+    ["scripts/capture-target.test.mts", "scripts/native-helper-dependencies.test.mts"],
+  ],
   ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
+  ["scripts/catalog-capacity.mts", ["scripts/sign-catalog.test.mts"]],
+  [
+    "scripts/artwork-preparation-progress.mts",
+    ["scripts/prepare-port.test.mts", "scripts/catalog-artwork-batches.test.mts"],
+  ],
   ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
   [
     "scripts/catalog-authoring-inspector.mts",
@@ -1120,6 +1130,7 @@ for (const [file, tests] of [
     "scripts/desktop-execution-plan.mts",
     "scripts/desktop-scenarios.mts",
     "scripts/desktop-verify.mts",
+    "scripts/operation-coverage.mts",
     "scripts/testdata/desktop-execution-baseline.json",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
   ].map((file): [string, string[]] => [
@@ -1129,6 +1140,7 @@ for (const [file, tests] of [
       "scripts/desktop-scenarios.test.mts",
       "scripts/desktop-verify.test.mts",
       "scripts/frontend-command-preflight.test.mts",
+      "scripts/development-evidence.test.mts",
       "scripts/native-helper-dependencies.test.mts",
       "scripts/windows-helper-checks.test.mts",
     ],
@@ -1381,6 +1393,8 @@ for (const [file, tests] of [
     "scripts/upstream-observer.mts",
     [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
   ],
+  ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
+  ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
@@ -1728,6 +1742,11 @@ explicitNodeTests.set("scripts/run-rust-tests.mts", [
   "scripts/nextest-outcomes.test.mts",
 ]);
 
+for (const file of ["scripts/release-resource-observation.mts", "scripts/release-capacity.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-resource-observation.test.mts",
+  ]);
 const workflowTests = new Map([
   [
     "hosted-native-continuity.yml",
@@ -1752,7 +1771,10 @@ const workflowTests = new Map([
   ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
-  ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
+  [
+    "configured-upstream-observer.yml",
+    ["scripts/upstream-observer.test.mts", "scripts/catalog-upstream-observer.test.mts"],
+  ],
   [
     "upstream-health.yml",
     ["scripts/upstream-health-plan.test.mts", "scripts/upstream-health-monitor.test.mts"],
@@ -1868,7 +1890,17 @@ explicitNodeTests.set("scripts/runtime-values.mts", [
   "scripts/precommit-check.test.mts",
 ]);
 
+for (const workflow of [
+  "release.yml",
+  "application-update-production.yml",
+  "application-update-wake.yml",
+])
+  workflowTests.set(workflow, [
+    ...(workflowTests.get(workflow) ?? []),
+    "scripts/release-resource-observation.test.mts",
+  ]);
 const releaseContractTests = Object.freeze([
+  "scripts/release-resource-observation.test.mts",
   "scripts/release-hosted-native-windows-setup.test.mts",
   "scripts/release-native-runtime-custody.test.mts",
   "scripts/hosted-native-continuity.test.mts",

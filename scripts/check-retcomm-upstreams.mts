@@ -255,7 +255,7 @@ async function loadRetcommTitle(titleId: string): Promise<unknown> {
 
   for (const relative of relativeCandidates) {
     const url = `https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/${encodeURIComponent(ref)}/${relative.replaceAll("\\", "/")}`;
-    const response = await fetch(url, { headers: rawHeaders });
+    const response = await fetch(url, { headers: rawHeaders, signal: AbortSignal.timeout(15_000) });
     if (response.ok) return response.json();
     if (response.status !== 404) {
       throw new Error(`RetComM catalog returned ${response.status} for ${titleId}`);

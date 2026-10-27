@@ -1,6 +1,14 @@
 import type { GitHubRunner } from "./github-api.mts";
 import type { SetManyClient, SetManyAssignment } from "./roadmap.mts";
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import {
+  SetManyJournal,
+  readSetManyInput,
+  maximumSetManyInputBytes,
+} from "./roadmap-batch-progress.mts";
 import test from "node:test";
 
 import {
@@ -55,7 +63,13 @@ function adaptiveSetManyFixture(
       return rate;
     },
     planSetMany() {
-      return { context: {}, pending: changes, alreadyApplied: [], assignments: changes.length };
+      const live = changes.map((change) => ({ ...change, observed: values.get(change.itemId) }));
+      return {
+        context: {},
+        pending: live.filter((change) => change.observed !== change.to),
+        alreadyApplied: live.filter((change) => change.observed === change.to),
+        assignments: changes.length,
+      };
     },
     verifySetMany(plan) {
       return [...plan.pending, ...plan.alreadyApplied].map((change) => {
@@ -336,19 +350,19 @@ void test("set-many specifications fail closed before GitHub access", () => {
       ),
     })),
   };
-  assert.throws(() => validateSetManySpec(config, tooLarge), /at most 100/);
+  assert.ok(validateSetManySpec(config, tooLarge).assignments > 100);
   assert.equal(setManyRequiredReserve(11, 1), 123);
   assert.equal(setManyRequiredReserve(11, 100), 147);
   for (const values of [
     [-1, 1],
     [1, -1],
-    [1, 101],
+    [1, Number.MAX_SAFE_INTEGER + 1],
   ] as const)
     assert.throws(() => setManyRequiredReserve(values[0], values[1]), /quota inputs/);
 });
 
 void test("set-many applies at most 25 assignments per verified adaptive chunk", async () => {
-  const fixture = adaptiveSetManyFixture(52);
+  const fixture = adaptiveSetManyFixture(127);
   const result = await executeSetMany({
     client: fixture.client,
     config,
@@ -359,12 +373,12 @@ void test("set-many applies at most 25 assignments per verified adaptive chunk",
   assert.equal(maximumMutationChunkAssignments, 25);
   assert.deepEqual(
     fixture.mutations.map((chunk) => chunk.length),
-    [25, 25, 2],
+    [25, 25, 25, 25, 25, 2],
   );
   assert.equal(result.status, "succeeded");
-  assert.equal(result.evidence.verified, 52);
+  assert.equal(result.evidence.verified, 127);
   assert.equal(result.evidence.remaining, 0);
-  assert.equal(result.evidence.chunks.length, 3);
+  assert.equal(result.evidence.chunks.length, 6);
 });
 
 void test("set-many reconciles an ambiguous mutation response without retrying", async () => {
@@ -585,4 +599,189 @@ void test("commitment rename refuses divergent assignment readback and reconcile
     throw Error("lost response");
   };
   assert.equal(executeCommitmentRename({ client, config, apply: true }).reconciledAfterError, true);
+});
+
+void test("127 assignments resume from durable verified chunks without specification splitting", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "roadmap-bulk-progress-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const inputFile = path.join(root, "spec.json");
+  const input = Buffer.from(
+    JSON.stringify({
+      schema_version: 1,
+      updates: Array.from({ length: 127 }, (_, i) => ({
+        target: `#${i + 1}`,
+        fields: { Status: { from: "Ready", to: "Done" } },
+      })),
+    }),
+  );
+  writeFileSync(inputFile, input);
+  const file = path.join(root, "progress.json");
+  const first = new SetManyJournal(file, inputFile, input, config);
+  const fixture = adaptiveSetManyFixture(127);
+  await assert.rejects(
+    executeSetMany({
+      client: fixture.client,
+      config,
+      spec: JSON.parse(input.toString()),
+      apply: true,
+      doctor: async () => {},
+      onCheckpoint: (progress) => {
+        first.observe(progress);
+        if (progress.phase === "readback")
+          throw new Error("fixture cancellation after verified chunk");
+      },
+    }),
+    /fixture cancellation/,
+  );
+  assert.equal(fixture.mutations.length, 1);
+  assert.equal(first.journal?.verified.length, 25);
+  const resumed = new SetManyJournal(file, inputFile, readSetManyInput(inputFile), config);
+  const result = await executeSetMany({
+    client: fixture.client,
+    config,
+    spec: JSON.parse(input.toString()),
+    apply: true,
+    doctor: async () => {},
+    onCheckpoint: (progress) => resumed.observe(progress),
+  });
+  assert.equal(result.evidence.verified, 127);
+  assert.equal(new Set(fixture.mutations.flat()).size, 127);
+  assert.equal(fixture.mutations.flat().length, 127);
+  assert.equal(resumed.journal?.verified.length, 127);
+  assert.equal(resumed.journal?.phase, "completed");
+  assert.deepEqual(resumed.journal?.uncertain, []);
+  fixture.values.set("ITEM_1", "Ready");
+  await assert.rejects(
+    executeSetMany({
+      client: fixture.client,
+      config,
+      spec: {},
+      apply: true,
+      doctor: async () => {},
+      onCheckpoint: (progress) => resumed.observe(progress),
+    }),
+    /verified state changed concurrently/,
+  );
+  assert.equal(fixture.mutations.flat().length, 127);
+  writeFileSync(inputFile, Buffer.concat([input, Buffer.from("\n")]));
+  assert.throws(
+    () => new SetManyJournal(file, inputFile, readSetManyInput(inputFile), config),
+    /journal identity/,
+  );
+});
+
+void test("ambiguous partial bulk writes stay held until their exact targets are observed", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "roadmap-ambiguous-progress-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const inputFile = path.join(root, "spec.json");
+  writeFileSync(inputFile, "{}");
+  const file = path.join(root, "progress.json");
+  const journal = new SetManyJournal(file, inputFile, readSetManyInput(inputFile), config);
+  const fixture = adaptiveSetManyFixture(2);
+  let mutations = 0;
+  fixture.client.applySetMany = () => {
+    mutations++;
+    fixture.values.set("ITEM_1", "Done");
+    throw new Error("ambiguous connection loss");
+  };
+  const run = (progress: SetManyJournal) =>
+    executeSetMany({
+      client: fixture.client,
+      config,
+      spec: {},
+      apply: true,
+      doctor: async () => {},
+      onCheckpoint: (event) => progress.observe(event),
+    });
+  await assert.rejects(run(journal), /readback mismatches/);
+  assert.equal(journal.journal?.verified.length, 1);
+  assert.equal(journal.journal?.uncertain.length, 1);
+  const resumed = new SetManyJournal(file, inputFile, readSetManyInput(inputFile), config);
+  await assert.rejects(run(resumed), /no automatic retry/);
+  assert.equal(mutations, 1);
+  fixture.values.set("ITEM_2", "Done");
+  assert.equal((await run(resumed)).status, "succeeded");
+  assert.equal(mutations, 1);
+});
+
+void test("bulk progress refuses changed resolved identities, malformed journals and oversized inputs", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "roadmap-bulk-input-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const inputFile = path.join(root, "spec.json");
+  writeFileSync(inputFile, "{}");
+  const file = path.join(root, "progress.json");
+  const journal = new SetManyJournal(file, inputFile, readSetManyInput(inputFile), config);
+  const changes = adaptiveSetManyFixture(1).changes;
+  journal.observe({ phase: "plan", assignments: changes, changes: [] });
+  assert.throws(
+    () =>
+      journal.observe({
+        phase: "plan",
+        assignments: changes.map((change) => ({ ...change, itemId: "OTHER" })),
+        changes: [],
+      }),
+    /identities changed/,
+  );
+  writeFileSync(inputFile, Buffer.alloc(maximumSetManyInputBytes + 1));
+  assert.throws(() => readSetManyInput(inputFile), /bounded regular file/);
+  writeFileSync(file, "{}");
+  writeFileSync(inputFile, "{}");
+  assert.throws(
+    () => new SetManyJournal(file, inputFile, readSetManyInput(inputFile), config),
+    /journal identity/,
+  );
+  if (process.platform !== "win32") {
+    const alias = path.join(root, "alias.json");
+    symlinkSync(inputFile, alias);
+    assert.throws(() => readSetManyInput(alias), /bounded regular file/);
+  }
+});
+
+void test("final bulk readback requests at most25 distinct item identities per query", () => {
+  const client = new RoadmapClient(config, () => {
+    throw new Error("Unexpected transport");
+  });
+  const calls: number[] = [];
+  client.graphql = (_query, variables) => {
+    const ids = variables?.ids;
+    assert.ok(Array.isArray(ids));
+    calls.push(ids.length);
+    return {
+      nodes: ids.map((id: unknown) => ({
+        id,
+        fieldValues: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false } },
+      })),
+    };
+  };
+  const assignments = adaptiveSetManyFixture(127).changes;
+  assert.equal(client.readSetManyItems({ pending: assignments, alreadyApplied: [] }).size, 127);
+  assert.deepEqual(calls, [25, 25, 25, 25, 25, 2]);
+  client.graphql = () => ({ nodes: [] });
+  assert.throws(
+    () => client.readSetManyItems({ pending: assignments, alreadyApplied: [] }),
+    /item count differs/,
+  );
+});
+
+void test("a large logical preflight cost does not become an impossible per-chunk quota reserve", async () => {
+  const used = [0, 3000, 3002, 3030, 3058, 3086, 3114, 3142];
+  const fixture = adaptiveSetManyFixture(127, {
+    rates: used.map((value) => ({
+      used: value,
+      remaining: 5000 - value,
+      resetAt: "2026-09-16T12:00:00.000Z",
+    })),
+  });
+  const result = await executeSetMany({
+    client: fixture.client,
+    config,
+    spec: {},
+    apply: true,
+    doctor: async () => {},
+  });
+  assert.equal(result.evidence.verified, 127);
+  assert.deepEqual(
+    fixture.mutations.map((chunk) => chunk.length),
+    [25, 25, 25, 25, 25, 2],
+  );
 });

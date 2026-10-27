@@ -705,6 +705,7 @@ void test("preflight and controller share the exact hosted script authority boun
     "scripts/nextest-skip-routes.mts",
     "scripts/standalone-rust-tests.mts",
     "scripts/development-evidence.mts",
+    "scripts/operation-coverage.mts",
     "scripts/bounded-summary.mts",
     "scripts/fallow-summary.mts",
     "scripts/node-platform-skips.mts",
@@ -725,6 +726,11 @@ void test("preflight and controller share the exact hosted script authority boun
     runHostedValidation.toString(),
     /["']\.config\/rust-test-impact\.json["']/u,
     "the protected bootstrap must preserve its actual skip-route configuration",
+  );
+  assert.match(
+    runHostedValidation.toString(),
+    /["']scripts\/operation-coverage\.mts["']/u,
+    "the frozen bootstrap preserves its actual operation-report dependency",
   );
   assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/src/example.ts"), false);
   assert.ok(hostedLocalCheckAuthorityPaths.includes("scripts/workflow-provenance.mts") === false);
