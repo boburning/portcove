@@ -46,6 +46,7 @@ import {
   snapshotWindowsNativeDependencies,
 } from "./release-hosted-native-windows-dependency-files.mts";
 import {
+  hostedWindowsDependencyPreparationMilliseconds,
   inspectWindowsNativeSourceTree,
   verifyWindowsNativeSourceFiles,
 } from "./release-hosted-native-windows-source.mts";
@@ -780,7 +781,7 @@ async function main() {
         "credential-free Git/source/directory observation only; no original protected capability",
     });
     phase = "credential-free-Windows-dependency-preparation";
-    const dependencyDeadline = performance.now() + 90000;
+    const dependencyDeadline = performance.now() + hostedWindowsDependencyPreparationMilliseconds;
     const dependencyActive = () => assert.ok(performance.now() < dependencyDeadline && !stopped);
     const dependencySource = path.join(sourceRoot, "source");
     const inputs = await inspectWindowsNativeDependencyInputs(
@@ -835,7 +836,9 @@ async function main() {
     await record("windows-dependencies-preparation.json", {
       ...dependencies,
       source: expected,
-      elapsed_milliseconds: 90000 - Math.floor(dependencyDeadline - performance.now()),
+      elapsed_milliseconds:
+        hostedWindowsDependencyPreparationMilliseconds -
+        Math.floor(dependencyDeadline - performance.now()),
       original_parent_runtime_acceptance: "not-established",
       account_execution: "not_requested",
       scope: "frozen registry dependency/source observation only; no original protected capability",

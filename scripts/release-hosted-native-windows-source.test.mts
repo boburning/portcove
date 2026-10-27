@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { appendFileSync, linkSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  linkSync,
+  mkdirSync,
+  symlinkSync,
+  writeFileSync,
+  readFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -148,38 +155,40 @@ const {assertControllerBootstrapEnvironment:guard}=await import(${JSON.stringify
 const {windowsSourceSystemExecutables:systemPaths}=await import(${JSON.stringify(new URL("./release-native-runtime-custody.mts", import.meta.url).href)});
 Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});
 const scratch=process.argv[1],data=Buffer.from(${JSON.stringify(content.toString())}),tree=Buffer.from(${JSON.stringify(row())}),hash=b=>createHash('sha256').update(b).digest('hex');
-let fault='',clock=1000,parent,toolReceipt,runtime,tools,spawned=false,requests=0,runtimeReads=0,gate,entered,block=false;
+let fault='',clock=1000,parent,toolReceipt,runtime,tools,spawned=false,requests=0,runtimeReads=0,gate,entered,block=false,inherited=Infinity;
 const {selectedPublicationAuthoritiesFixture}=await import(${JSON.stringify(new URL("./fixtures/checkpoint-proof-fixture.mts", import.meta.url).href)});
 const {inspectSelectedPublicationAuthorityConfiguration:inspectConfiguration}=await import(${JSON.stringify(new URL("./release-authority-configuration.mts", import.meta.url).href)});
 const selected={source_commit:'b'.repeat(40),source_tree:'c'.repeat(40),harness:{path:${JSON.stringify(harness)},sha256:hash(data)}};
 const original={controller_revision:'a'.repeat(40),controller_ref:'refs/tags/fixed-controller',run_id:123,run_attempt:1};
 globalThis.sourcePeers={
+ budget:(maximum=30000)=>{const remaining=Math.floor(Math.min(maximum,inherited-clock));assert.ok(remaining>0);return remaining},deadlineCheck:()=>assert.ok(clock<inherited),deadlineScope:async(deadline,work)=>{const previous=inherited;inherited=Math.min(inherited,deadline);try{return await work()}finally{inherited=previous}},
  now:()=>clock,guard,systemPaths,systemCustody:()=>new Map(),systemRecheck:()=>{},
  parent:async value=>{assert.equal(value,parent);return parent},
  tools:async value=>{assert.equal(value,toolReceipt);return tools},
- runtime:async(value,source)=>{assert.equal(value,runtime);assert.equal(source,parent);runtimeReads++;if(fault==='deps-preflight-late'&&runtimeReads===4)clock=100000;if(fault==='deps-preflight-role'&&runtimeReads===4)process.env.PORTCOVE_TUF_ROOT_KEY='inert forbidden';if(block){block=false;entered();await new Promise(resolve=>gate=resolve)}if((fault==='late-role'&&runtimeReads===2)||(fault==='getter-role'&&runtimeReads>=3))process.env.PORTCOVE_TUF_ROOT_KEY='inert forbidden';if(fault==='late-final'&&runtimeReads===2)clock=91001;return {tools:fault==='mixed-tools'||(fault==='getter-tools'&&runtimeReads>=3)?{}:toolReceipt,root:'executing-root-is-distinct',deadline:parent.deadline}},
+ runtime:async(value,source)=>{assert.equal(value,runtime);assert.equal(source,parent);runtimeReads++;if(fault==='deps-preflight-late'&&runtimeReads===4)clock=181001;if(fault==='deps-preflight-role'&&runtimeReads===4)process.env.PORTCOVE_TUF_ROOT_KEY='inert forbidden';if(block){block=false;entered();await new Promise(resolve=>gate=resolve)}if((fault==='late-role'&&runtimeReads===2)||(fault==='getter-role'&&runtimeReads>=3))process.env.PORTCOVE_TUF_ROOT_KEY='inert forbidden';if(fault==='late-final'&&runtimeReads===2)clock=91001;return {tools:fault==='mixed-tools'||(fault==='getter-tools'&&runtimeReads>=3)?{}:toolReceipt,root:'executing-root-is-distinct',deadline:parent.deadline}},
  inputs:async()=>({workspace_sha256:'d'.repeat(64),lock_sha256:'e'.repeat(64),patches:[],registry_packages:1}),graph:async()=>({sha256:(fault==='deps-graph'?'f':'1').repeat(64),entries:2,bytes:5}),
  support:async()=>({}),read:async(filename,...rest)=>filename.includes('Program Files')?Buffer.from('fixed OS helper'):read(filename,...rest),
  custody:files=>new Map(files.map(file=>[file,'controlled-only'])),
  recheck:(files,custody)=>{assert.deepEqual(files,[...custody.keys()]);if((fault==='custody-final'&&spawned)||(fault==='getter-custody'&&runtimeReads>=3))throw Error('controlled custody drift')},
  spawn:()=>{spawned=true;return {stdout:new EventEmitter(),stderr:new EventEmitter()}},
- resource:async(kind,command,args,options)=>{requests++;assert.equal(kind,'analysis');assert.equal(command,tools.node);assert.equal(options.queueDeadline,Math.min(91000,parent.deadline-210000));return options.supervise([command,...args],{})},
+ resource:async(kind,command,args,options)=>{requests++;assert.equal(kind,'analysis');assert.equal(command,tools.node);assert.equal(options.queueDeadline,Math.min(args[1]==='acquire-dependencies'?181000:91000,parent.deadline-210000,inherited));return options.supervise([command,...args],{})},
  supervise:async(args,options)=>{const child=options.spawn(args[0],args.slice(1),{}),plan=JSON.parse(await readFile(args[3],'utf8'));if(args[2]==='acquire-dependencies'){assert.equal(plan.source,path.join(parent.directory,'windows-source/source'));assert.equal(plan.pnpm,tools.pnpm);child.stdout.emit('data',Buffer.from(JSON.stringify({schema_version:1,binding:plan.binding,inputs:plan.inputs,dependencies_prepared:true,entries:2,bytes:5,graph_sha256:'1'.repeat(64),native_acceptance:'not-established',authority:'none'})+'\n'));return 0}assert.equal(args[1],path.join(tools.root,'scripts/release-hosted-native-windows-source.bundle.mjs'));await mkdir(path.join(plan.root,'source',path.dirname(selected.harness.path)),{recursive:true});await writeFile(path.join(plan.root,'tree.bin'),fault==='changed-tree'?Buffer.from('changed'):tree);await writeFile(path.join(plan.root,'source',selected.harness.path),fault==='changed-blob'?Buffer.alloc(data.length,0x61):data);child.stdout.emit('data',Buffer.from(JSON.stringify({schema_version:1,binding:fault==='changed-report'?'changed':plan.binding,source_commit:plan.source_commit,source_tree:plan.source_tree,tree_inventory_sha256:hash(tree),acquired:true,dependencies_prepared:false,native_acceptance:'not-established',authority:'none'})+'\n'));return 0}
 };
-const routes={'./release-hosted-native-windows-dependency-files.mts':{inspectWindowsNativeDependencyInputs:'inputs',snapshotWindowsNativeDependencies:'graph'},'node:perf_hooks':{performance:'clock'},'./release-hosted-native-parent.mts':{requireActualHostedNativeParentSource:'parent'},'./release-controller-tool-admission.mts':{verifiedControllerToolPaths:'tools'},'./release-hosted-native-runtime.mts':{requireHostedNativeRuntime:'runtime',hostedNativeSupportDependencies:'support'},'./release-controller-tools.mts':{readControllerToolFile:'read'},'./release-native-runtime-custody.mts':{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck',windowsSourceSystemExecutables:'systemPaths',inspectWindowsSourceSystemCustody:'systemCustody',recheckWindowsSourceSystemCustody:'systemRecheck'},'node:child_process':{spawn:'spawn'},'./resource-command.mts':{runResourceCommand:'resource'},'./run-rust-tests.mts':{runRustTests:'supervise'},'./release-controller-job-bootstrap.mts':{assertControllerBootstrapEnvironment:'guard'}};
+const routes={'./release-coordinator-deadline.mts':{coordinatorCommandTimeout:'budget',checkCoordinatorDeadline:'deadlineCheck',withCoordinatorDeadline:'deadlineScope'},'./release-hosted-native-windows-dependency-files.mts':{inspectWindowsNativeDependencyInputs:'inputs',snapshotWindowsNativeDependencies:'graph'},'node:perf_hooks':{performance:'clock'},'./release-hosted-native-parent.mts':{requireActualHostedNativeParentSource:'parent'},'./release-controller-tool-admission.mts':{verifiedControllerToolPaths:'tools'},'./release-hosted-native-runtime.mts':{requireHostedNativeRuntime:'runtime',hostedNativeSupportDependencies:'support'},'./release-controller-tools.mts':{readControllerToolFile:'read'},'./release-native-runtime-custody.mts':{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck',windowsSourceSystemExecutables:'systemPaths',inspectWindowsSourceSystemCustody:'systemCustody',recheckWindowsSourceSystemCustody:'systemRecheck'},'node:child_process':{spawn:'spawn'},'./resource-command.mts':{runResourceCommand:'resource'},'./run-rust-tests.mts':{runRustTests:'supervise'},'./release-controller-job-bootstrap.mts':{assertControllerBootstrapEnvironment:'guard'}};
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(module)}&&routes[s])return {url:'source-controls:'+s,shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('source-controls:')){const exports=Object.entries(routes[u.slice(16)]).map(([name,key])=>'export const '+name+'='+(key==='clock'?'({now:globalThis.sourcePeers.now})':'globalThis.sourcePeers.'+key)+';').join('');return {format:'module',source:exports,shortCircuit:true}}return next(u,c)}});
 const api=await import(${JSON.stringify(module)});
-for(const scenario of ['valid','clipped','platform','stage','purpose','mixed-tools','no-reserve','changed-report','changed-tree','changed-blob','late-final','late-role','custody-final','getter-role','getter-bytes','getter-tools','getter-custody','getter-expired','concurrent-stop','deps','deps-preflight-late','deps-preflight-role','harness']){
- fault=scenario;clock=1000;requests=runtimeReads=0;spawned=false;delete process.env.PORTCOVE_TUF_ROOT_KEY;
+for(const scenario of ['valid','clipped','platform','stage','purpose','mixed-tools','no-reserve','changed-report','changed-tree','changed-blob','late-final','late-role','custody-final','getter-role','getter-bytes','getter-tools','getter-custody','getter-expired','concurrent-stop','deps','deps-clipped','deps-inherited','deps-preflight-late','deps-preflight-role','harness']){
+ fault=scenario;clock=1000;inherited=Infinity;requests=runtimeReads=0;spawned=false;delete process.env.PORTCOVE_TUF_ROOT_KEY;
  const configuration=selectedPublicationAuthoritiesFixture('application');configuration.hosted_native['windows-x86_64'].producer=scenario==='harness'?{...selected,harness:{path:'scripts/test-windows-installer.ps1',sha256:selected.harness.sha256}}:selected;inspectConfiguration(configuration);
- const directory=path.join(scratch,scenario);await mkdir(directory);toolReceipt={};runtime={};tools={root:directory,node:process.execPath,pnpm:path.join(directory,'bin/pnpm.exe'),platform:'windows-x86_64',identity:original};parent={directory,producer:original,platform_label:scenario==='platform'?'linux-x86_64':'windows-x86_64',stage:scenario==='stage'?'release-publication':'payload-signing',deadline:scenario==='clipped'?250000:scenario==='no-reserve'?200000:500000,configuration:{...configuration,purpose:scenario==='purpose'?'catalog':'application'},recheck(){assert.ok(clock<this.deadline)}};
+ const directory=path.join(scratch,scenario);await mkdir(directory);toolReceipt={};runtime={};tools={root:directory,node:process.execPath,pnpm:path.join(directory,'bin/pnpm.exe'),platform:'windows-x86_64',identity:original};parent={directory,producer:original,platform_label:scenario==='platform'?'linux-x86_64':'windows-x86_64',stage:scenario==='stage'?'release-publication':'payload-signing',deadline:['clipped','deps-clipped'].includes(scenario)?250000:scenario==='no-reserve'?200000:500000,configuration:{...configuration,purpose:scenario==='purpose'?'catalog':'application'},recheck(){assert.ok(clock<this.deadline)}};
  const preflight=['platform','stage','purpose','mixed-tools','no-reserve','harness'].includes(scenario),failure=preflight||['changed-report','changed-tree','changed-blob','late-final','late-role','custody-final'].includes(scenario);
  if(failure){await assert.rejects(api.prepareActualHostedWindowsSource(parent,toolReceipt,runtime),scenario);if(preflight){assert.equal(requests,0);assert.deepEqual(await readdir(directory),[])}else{assert.equal(requests,1);delete process.env.PORTCOVE_TUF_ROOT_KEY;fault='';clock=1000;await assert.rejects(api.prepareActualHostedWindowsSource(parent,toolReceipt,runtime),/one Windows source attempt/)}continue}
  const receipt=await api.prepareActualHostedWindowsSource(parent,toolReceipt,runtime);assert.equal(requests,1);await assert.rejects(api.requireActualHostedWindowsSource({...receipt}));
  if(scenario==='deps-preflight-late'||scenario==='deps-preflight-role'){
  await assert.rejects(api.prepareActualHostedWindowsDependencies(parent,toolReceipt,runtime,receipt));assert.equal(requests,1);assert.equal((await readdir(directory)).includes('windows-dependencies-intent.json'),false);delete process.env.PORTCOVE_TUF_ROOT_KEY;fault='';clock=1000;await assert.rejects(api.prepareActualHostedWindowsDependencies(parent,toolReceipt,runtime,receipt));continue;
  }
- if(scenario==='deps'){
+ if(['deps','deps-clipped','deps-inherited'].includes(scenario)){
+ if(scenario==='deps-inherited')inherited=51000;
  await assert.rejects(api.prepareActualHostedWindowsDependencies({},toolReceipt,runtime,receipt));
  await assert.rejects(api.prepareActualHostedWindowsDependencies(parent,{},runtime,receipt));
  await assert.rejects(api.prepareActualHostedWindowsDependencies(parent,toolReceipt,{},receipt));
@@ -326,7 +335,7 @@ void test("Windows dependency child keeps startup homes outside its fresh DACL t
       setup,
       pnpm,
       inputs,
-      expires_at: Date.now() + 15000,
+      expires_at: Date.now() + 120000,
     }),
     { mode: 0o600 },
   );
@@ -359,4 +368,26 @@ void test("Windows dependency child keeps startup homes outside its fresh DACL t
   assert.ok(
     isRecord(observed) && observed.dependencies_prepared === true && observed.authority === "none",
   );
+  const original: unknown = JSON.parse(readFileSync(plan, "utf8"));
+  assert.ok(isRecord(original));
+  writeFileSync(plan, JSON.stringify({ ...original, expires_at: Date.now() + 190000 }));
+  const expired = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(hook).href, fileURLToPath(module), "acquire-dependencies", plan],
+    {
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 65536,
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        HOME: process.env.HOME,
+        USERPROFILE: process.env.USERPROFILE,
+        TEMP: process.env.TEMP,
+        TMP: process.env.TMP,
+      },
+    },
+  );
+  assert.equal(expired.status, 1);
+  assert.match(expired.stdout, /expiry exceeds internal preparation allocation/);
 });

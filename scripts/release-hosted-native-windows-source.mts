@@ -50,6 +50,7 @@ import {
   snapshotWindowsNativeDependencies,
 } from "./release-hosted-native-windows-dependency-files.mts";
 
+export const hostedWindowsDependencyPreparationMilliseconds = 180000;
 const { git, powershell } = windowsSourceSystemExecutables;
 const harness = nativeQualificationWorkerPath;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -465,7 +466,8 @@ async function acquireDependencies(planFile: string) {
     typeof raw.expires_at === "number" &&
       Number.isSafeInteger(raw.expires_at) &&
       raw.expires_at > Date.now() &&
-      raw.expires_at - Date.now() <= 90000,
+      raw.expires_at - Date.now() <= hostedWindowsDependencyPreparationMilliseconds,
+    "Windows dependency plan expiry exceeds internal preparation allocation",
   );
   const plan = raw as DependencyPlan;
   assert.equal(path.basename(plan.root), "windows-dependencies");
@@ -758,10 +760,11 @@ async function prepareWindowsOperation(
   assert.ok(process.platform === "win32" && process.arch === "x64");
   assertControllerBootstrapEnvironment();
   const parent = await requireActualHostedNativeParentSource(parentReceipt);
+  const allowance = sourceReceipt ? hostedWindowsDependencyPreparationMilliseconds : 90000;
   const deadline = Math.min(
-    started + 90000,
+    started + allowance,
     parent.deadline - 210000,
-    performance.now() + coordinatorCommandTimeout(90000),
+    performance.now() + coordinatorCommandTimeout(allowance),
   );
   return withCoordinatorDeadline(deadline, async () => {
     const tools = await verifiedControllerToolPaths(toolsReceipt);
