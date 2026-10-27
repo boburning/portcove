@@ -1589,3 +1589,12 @@ Existing D1/D2/D3, auditfalse/0slots, single-owner recovery, account-wide$0stop,
 Unknown capacity/no reservation, production and protected acceptance holds remain.
 #534 stays open/Blocked; #254Done; #315/#246pending; Chameleon protected_acceptance
 unset; Slice5 excluded.
+
+The first session source24ed595e passed local full static validation and strict
+component controls (103passes,12declared skips, complete inventory). Hosted
+CI40498908624/1 refused its undeclared fixed worker-contract import in the native
+helper dependency check before the Windows helper controls. The repair declares
+that exact shared import in the existing registry, which also includes its bytes
+in retained reproduction inputs. Dynamic/escaping imports remain refused; the
+13 declaration regressions and complete18-file check pass. The earlier hosted
+failure remains retained and does not qualify the repaired source.
