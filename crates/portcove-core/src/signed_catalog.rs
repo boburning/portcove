@@ -77,7 +77,13 @@ pub struct CatalogProvenance {
 pub(crate) struct VerifiedCatalog {
     pub catalog: Catalog,
     pub envelope: SignedCatalogEnvelope,
-    pub payload: SignedCatalogPayload,
+    pub payload: VerifiedPayloadMetadata,
+}
+
+pub(crate) struct VerifiedPayloadMetadata {
+    pub sequence: i64,
+    pub issued_at: i64,
+    pub expires_at: i64,
 }
 
 pub(crate) fn digest(bytes: &[u8]) -> String {
@@ -159,12 +165,17 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
         )
         .with_known_cause(crate::failure::KnownFailureCause::CatalogValidity));
     }
-    let catalog = Catalog::from_json(&serde_json::to_string(&payload.catalog)?)?;
+    let metadata = VerifiedPayloadMetadata {
+        sequence: payload.sequence,
+        issued_at: payload.issued_at,
+        expires_at: payload.expires_at,
+    };
+    let catalog = Catalog::from_document(payload.catalog)?;
     validate_update_contract(&catalog, &Catalog::embedded()?)?;
     Ok(VerifiedCatalog {
         catalog,
         envelope,
-        payload,
+        payload: metadata,
     })
 }
 

@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -241,3 +242,91 @@ void test("standalone selected setup routes build catalog-aware CLIs", async () 
   });
   assert.deepEqual(ordinary.cli_features, []);
 });
+
+void test("operation coverage flags remain a read-only scenario report route", () => {
+  const options = parseDesktopVerifyArgs([
+    "--list-scenarios",
+    "--json",
+    "--qualification-evidence",
+    "capture.json",
+    "--current-preflight",
+    "preflight.json",
+    "--acceptance-packet",
+    "one.json",
+    "--acceptance-packet",
+    "two.json",
+  ]);
+  assert.deepEqual(options.operationCoverageInputs, {
+    qualification: "capture.json",
+    currentPreflights: ["preflight.json"],
+    packets: ["one.json", "two.json"],
+  });
+  assert.throws(
+    () => parseDesktopVerifyArgs(["--qualification-evidence", "capture.json"]),
+    /require --list-scenarios/,
+  );
+  assert.throws(
+    () => parseDesktopVerifyArgs(["--list-scenarios", "--acceptance-packet", "one.json"]),
+    /require --qualification-evidence/,
+  );
+});
+
+void test(
+  "the actual coverage CLI reports offered holds without starting native work",
+  { timeout: 15000 },
+  async (t) => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { spawnSync } = await import("node:child_process");
+    const directory = await mkdtemp(path.join(tmpdir(), "portcove-offers-cli-"));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const input = path.join(directory, "capture.json");
+    await writeFile(
+      input,
+      JSON.stringify({
+        report_format: 1,
+        captured_at: "2026-10-27T00:00:00Z",
+        cli_sha256: "a".repeat(64),
+        evidence: {
+          doctor: { ok: true, data: { platform: "linux-x86_64" } },
+          status: {
+            ok: true,
+            data: [
+              {
+                port_id: "synthetic-fixture",
+                active: null,
+                port_actions: [
+                  { action: "install", availability: "held", reason: "assessment_incomplete" },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./desktop-verify.mts", import.meta.url)),
+        "--list-scenarios",
+        "--json",
+        "--qualification-evidence",
+        input,
+      ],
+      { env, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    const report: unknown = JSON.parse(result.stdout);
+    assert.ok(isRecord(report) && isRecord(report.operation_coverage));
+    assert.equal(report.operation_coverage.observations_complete, false);
+    assert.ok(Array.isArray(report.operation_coverage.rows));
+    assert.equal(report.operation_coverage.rows.length, 1);
+    const row: unknown = report.operation_coverage.rows[0];
+    assert.ok(isRecord(row));
+    assert.equal(row.availability, "held");
+    assert.equal(row.mandatory_observation, "missing");
+  },
+);

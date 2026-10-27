@@ -92,6 +92,7 @@ const helperPaths = new Set([
   "scripts/viteplus-cli.mts",
   "scripts/frontend-command-preflight.test.mts",
   "scripts/desktop-verify.mts",
+  "scripts/operation-coverage.mts",
   "scripts/desktop-verify.test.mts",
   "scripts/desktop-execution-plan.mts",
   "scripts/desktop-execution-plan.test.mts",

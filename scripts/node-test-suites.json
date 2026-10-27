@@ -342,6 +342,13 @@
       ]
     },
     {
+      "file": "scripts/catalog-upstream-observer.test.mts",
+      "memberships": [
+        ["catalog-full", 1201],
+        ["repository-tools", 402]
+      ]
+    },
+    {
       "file": "scripts/check-catalog-repositories.test.mts",
       "memberships": [
         ["windows-storage-3", 200],
@@ -3820,6 +3827,13 @@
       "memberships": [
         ["catalog-full", 1100],
         ["roadmap-check", 1100]
+      ]
+    },
+    {
+      "file": "scripts/discovery-primary-progress.test.mts",
+      "memberships": [
+        ["catalog-full", 1250],
+        ["roadmap-check", 1250]
       ]
     },
     {

@@ -7,19 +7,31 @@ publish definitions, install updates, or execute upstream instructions.
 
 ## Scope and cadence
 
-`release/upstream-observer.json` configures the existing `shipwright` catalog
-entry and GitHub repository `HarbourMasters/Shipwright`, numeric ID `472575717`.
-Changing that repository identity fails closed. The core projection covers
-every platform in the embedded definition and game Stable, Preview and Rolling
-channels; unsupported channels remain visible with a hold reason. These game
-channels are distinct from the application's Stable/Preview channels.
+`release/upstream-observer.json` retains the reviewed `shipwright` baseline,
+GitHub repository `HarbourMasters/Shipwright`, numeric ID `472575717`, and finite
+operation budgets. The scheduled coordinator discovers GitHub release sources
+from the reviewed embedded catalog. Ports sharing an exact repository use one
+provider collection and separate Core projections; channel, platform, artifact,
+checksum and adapter policy never transfer between ports. Unsupported providers
+remain held with an explicit capability/resume reason; user-prepared sources do
+not acquire an executable-update owner through observation.
+
+A new source establishes its numeric identity from fresh primary-provider metadata
+or genuinely equivalent fresh trusted upstream-health repository observations.
+The baseline persists before further reads. A conflicting identity is held rather
+than silently rebaselined. Health facts can save that metadata lookup, but cannot
+stand in for complete release headers, candidate assets, Core eligibility or bytes.
+Invalid optional health evidence is preserved and falls back to a fresh primary
+lookup; conflicting trusted identities remain held.
 
 The `Configured upstream observer` workflow requests observations at 00:17,
 06:17, 12:17 and 18:17 UTC. Hosted scheduling can be delayed or skipped; this is
-a requested cadence, not a delivery guarantee. A report is stale after twelve
-hours without a complete observation. Every other catalog entry is explicitly
-unmonitored. Manual dispatch is available for diagnosis and produces separately
-attributed evidence; it does not prove scheduled execution.
+a requested cadence, not a delivery guarantee. The configured baseline retains
+its cadence and twelve-hour freshness bound. Catalog sources use durable fair
+turns, activity observations and staleness to admit work within the same job.
+Unknown activity uses the existing cadence; measured change intervals may defer
+quieter sources only inside the freshness margin. Manual dispatch remains
+separately attributed and does not prove scheduled execution.
 
 ## Bounded interface and policy
 
@@ -50,6 +62,25 @@ catalog and applies the existing core channel/asset rules. It opens no library
 and performs no network requests. The format-1 result is exported by
 `schema export` as `upstream_observation_report`.
 
+Format 2 adds explicit `channel-candidate-assets` coverage for catalog-scale
+observation. It retains every release header in provider order and identifies
+which release IDs have complete asset collections. An inert header-only probe
+asks the same Core projection for channel candidates; the observer then collects
+only those asset collections and revalidates all consumed pages. Missing candidate
+coverage produces `release-asset-observation-incomplete`, never metadata eligibility.
+Unknown, repeated or foreign coverage IDs and asset payloads outside declared
+coverage are refused. Format 1 retains its existing full-asset semantics; existing
+clients and the configured Shipwright workflow continue to use that format.
+
+The format-2 configuration binds `asset_scope: core-channel-candidates` and a
+`policy_input_sha256` to the maintained selection inputs. A changed Core candidate
+set during continuation resets the validation cursor and discards irrelevant
+asset pages from the active scope. Retained conditional representations may save
+bytes but cannot establish current coverage. This interface adds no artifact
+verification, signing or protected admission authority. The catalog coordinator
+supplies the selector through the maintained Core inspector. Hosted and protected
+acceptance remain distinct from deterministic orchestration fixtures.
+
 Each platform/channel projection retains the latest observed release, its
 channel candidate, latest metadata-eligible asset, and hold reasons. Core's
 existing prerelease policy recognizes RC/preview tags even when the provider's
@@ -78,13 +109,31 @@ must stay under its `work` directory without symlink/reparse components.
 Defaults are `work/upstream-observer/<config-sha256>/checkpoint.json` and
 `report.json`. These are factual runtime cache/evidence, not roadmap state.
 
-Only a complete observation with a matching core projection advances the
-checkpoint. Each replacement is atomic and bounded to 32 MiB. A crash before
-replacement leaves the prior checkpoint usable. The checkpoint contains the
-complete observation, validated conditional cache and projection in one file;
-the report is a derived export written afterwards. Interruption between these
-two writes can leave an older report. Compare its facts hash and completion
-clock with the checkpoint and rerun; never treat that old report as current.
+Only a complete observation with a matching Core projection advances
+`last_complete`. Accepted collection pages and the subsequent semantic-validation
+cursor are persisted separately in the same checkpoint after each operation.
+They bind the exact configuration, page bodies/digests, ordered validation scope
+and observation clocks. Resource exhaustion retains that continuation; a later
+admitted batch reconstructs completed work without refetching collection pages
+and resumes the exact next read or validation position. Partial facts never
+become an eligible observation or advance successful completion clocks.
+
+Each replacement remains atomic and bounded to 32 MiB. A crash before replacement
+leaves the prior checkpoint usable. Report export follows checkpoint replacement;
+interruption can leave an older report, so compare its facts/completion clocks
+and continuation with the checkpoint before reuse. Cache eviction or a whole-job
+termination before hosted cache save can still lose unsaved progress; no new
+storage service or durability guarantee is introduced.
+
+A detected semantic change restarts the observation, retaining valid conditional
+representations as cache evidence. Malformed uncompleted pages are not committed
+as replay positions. Cross-release identity conflicts likewise require a fresh
+collection rather than permanently replaying invalid facts. Cancellation stops
+cached replay and Core projection too. A completed validation awaiting Core
+projection retains its original clocks; retrying projection does not manufacture
+a fresh provider observation. Freshness uses the earliest validation clock, so
+validation spanning stale intervals remains explicitly stale even after all pages
+have been accounted for. Legacy format-1 checkpoints remain readable.
 
 An exclusive `<checkpoint>.lock` prevents concurrent local writers. Normal
 errors release it; a killed coordinator can leave it behind. Never steal a lock
@@ -108,9 +157,66 @@ it never replaces the successful checkpoint or becomes an eligible candidate.
 All platform projections remain in the retained snapshot during a provider
 failure, and no catalog entry is removed.
 
+## Catalog scheduling and definition-delivery handoff
+
+`node scripts/observe-catalog-upstreams.mts --cli PATH_TO_PORTCOVE` uses the same
+source checkpoints, transports, atomic replacement and locks. Its bounded
+`work/upstream-observer/catalog/checkpoint.json` records source turns, numeric
+identity, scope/freshness, actual provider backoff and Core continuation. Current
+per-port catalog inputs and the observed inspector-binary digest bind completion
+and both Core cursors. A changed scope cannot inherit old freshness. Completed
+header selections and per-port final projections survive runtime interruption
+without repeating completed Core calls. Provider and Core clocks are never
+manufactured by a later resume.
+
+Request admission uses received provider capacity with a five-percent reserve,
+observed request cost, remaining runtime and fair source turns. Unknown quota uses
+the existing finite request envelope; it is not assumed available. Quantum/runtime
+exhaustion has no provider retry clock. Actual depletion and provider retry
+responses defer the shared provider until its reset. A budget-limited source with
+progress can receive another turn automatically while capacity remains. A failure
+isolates its source. New non-budget exceptions fail the job once; continuing
+exceptions and normal continuation remain visible without repeated notifications.
+
+The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
+one `report.json` and its existing consumer/configuration binding. Catalog reports
+use a separate, uniquely owned handoff directory for each invocation, exported as
+`catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
+per-port Core policies for #246's existing supplied-observation → bounded-candidate
+path. Historical fallback policies retain their own facts/definition identities
+and are explicitly held as unknown current state. No automatic acceptance,
+publication, signing or player update eligibility follows from this handoff.
+
+Each source operation admits response bytes, including identity lookups, while
+reading. Its finite byte envelope does not cap cumulative catalog-session work:
+further bounded operations continue while actual quota and runtime remain.
+Failed reads without accepted page/Core progress are not immediately requeued.
+The new handoff has the existing sixteen-MiB response envelope as its aggregate
+byte budget, with four MiB reserved for the summary and one-day artifact retention.
+A handoff that cannot fit the remaining batch stays checkpointed for a later
+automatic batch. An individual handoff exceeding the physical response envelope
+is explicitly held for a reviewed framed-handoff capability; it is not reported
+as export-complete or retried immediately. An
+oversized diagnostic summary reports omission counts and the runtime-checkpoint
+digest instead of claiming complete exported coverage. The legacy artifact keeps
+its existing seven-day retention. Unique handoff directories prevent old outputs
+from being uploaded as a later invocation's evidence.
+
+Retired configuration caches are removed only after replacement, under their
+existing exact checkpoint locks and validated configuration identities. Current
+and last-complete fallback configurations, contended locks, foreign metadata and
+unrelated files are retained. Interrupted cleanup is idempotent and resumes from
+the controller's retired-configuration journal. Each source/controller checkpoint
+retains the thirty-two-MiB byte bound; there is no growing per-revision cache list
+or new storage service. Cache eviction and unavailable physical storage still
+provide no durability guarantee.
+
 ## Resource bounds and availability evidence
 
-The configured per-run bounds are 256 API requests, ten pages per collection,
+The configured per-batch bounds are 256 API requests and ten newly read pages
+per collection; retained pages do not consume another collection allowance.
+These bounds do not cap the total legitimate collection across resumed batches.
+Each batch also retains
 4 MiB per response, 16 MiB total response bytes and three minutes of observation.
 Transport/server failures allow two retries with bounded backoff; rate-limit
 responses defer to the provider retry clock rather than sleep through a job.
@@ -125,14 +231,16 @@ Only checkpoint/report files enter the observation cache, scoped by config and
 ref; interrupted locks and temporary files do not. Reports have seven-day
 artifact retention. GitHub manages cache quotas and evicts unused cache entries;
 cache availability is not durable storage or an availability guarantee. Each
-saved observation checkpoint/report pair is bounded to 64 MiB before cache
-compression; standard repository CI/billing limits still apply. Rust build
+legacy observation checkpoint/report pair is bounded to 64 MiB before cache
+compression. Catalog cache size depends on the observed source workset within the
+existing per-file bounds; standard repository CI/billing limits and the account's
+$0 stop still apply. No paid fallback or spending setting is introduced. Rust build
 caches remain separate from observation evidence.
 
 Same-day compatible-client availability is a 24-hour engineering objective with
 an **unknown baseline**. Reports identify UTC upstream publication clocks and
-observation intervals, one monitored repository, unmonitored entries and all
-holds. Protected acceptance, definition publication and compatible-client
+observation intervals, assessed and pending source scopes, unsupported entries
+and all holds. Protected acceptance, definition publication and compatible-client
 availability clocks remain null, and measured end-to-end samples remain zero
 until #246 integrates those stages. Initial historical inventory, unmonitored
 upstreams and unintegrated downstream stages are explicit exclusions, not
@@ -140,7 +248,8 @@ successful latency samples. Workflow event, source commit, run and attempt are
 recorded as execution context; they are not a self-issued trust attestation.
 
 Deterministic fixtures cover pagination, changed/replaced test-asset metadata,
-partial reads, cache, rate limits, bounded retries, malformed facts, RC flags,
+partial reads, durable collection/validation continuation, cancellation, changed
+input bindings, cache, rate limits, bounded retries, malformed facts, RC flags,
 stale state, exception recovery and coordinator contention. The fixture byte
 strings and their SHA-256 changes are test data, not executable game archives.
 Core and compiled-CLI tests prove the shared policy and offline boundary.
@@ -266,26 +375,48 @@ Format-1 policy fixtures retain their earlier interpretation.
 ## Bounded batches and retained history
 
 The coordinator validates the complete inventory and accounting policy before
-network work. It selects ports oldest-attempt-first, keeping the conservative
-request forecast within the fixed **320-request hard ceiling** and each batch
-within 512 observation records. Each network-capable location
-reserves one request, each qualifying release-pin location up to three additional
-metadata reads and each reviewed source archive up to two. Successful reuse,
-redirects and backoff are never speculative budget credits. Unselected ports
-are deferred explicitly; a single port exceeding either ceiling remains unassessed
-and fails the collection rather than disappearing from the denominator.
+network work. It selects ports oldest-attempt-first and admits at most one
+individually oversized port alongside normally fitting scopes. Within that
+scope, locations rotate fairly across owners and oldest actual attempts. Each
+operation permits at most **320 requests**, **512 newly assessed locations**,
+three minutes, fifteen seconds per request, one MiB per response and sixteen MiB
+consumed response bytes. Compatible completed locations may be replayed from the
+validated checkpoint without spending another operation slot or request; their
+original clocks remain unchanged. Coverage exceeding an operation envelope is
+partial until every location has an applicable completed observation.
 
-The standalone full collector still refuses all network work if its selected
-inventory exceeds either ceiling. The coordinator avoids that all-inventory cliff
-by rotating bounded batches. Neither path can raise the ceiling through catalog
-content, environment variables or caller options. Collection remains sequential,
-with zero retries, three minutes total, fifteen seconds per request, one MiB per
-response and sixteen MiB consumed response bytes. Rate limits defer that provider
-while other providers may continue. A complete HTTP 200 repository response can
-serve another identical endpoint during the same collection; failed, redirected,
-partial and historical responses cannot supply this cache. Old and relocated
-endpoints stay distinct. The configured Shipwright observer retains its separate
-bounds and scheduling.
+Each network-capable location reserves one request, each qualifying release-pin
+location up to three additional metadata reads and each reviewed source archive
+up to two. Unproven reuse is never a speculative budget credit. Successful
+same-operation repository metadata can serve identical endpoints. Actual GitHub
+and GitLab quota headers preserve a five-percent provider reserve (at least one
+request); provider-wide reset and Retry-After clocks persist across automatic batches and
+resumed invocations and defer related reads without
+blocking unrelated providers. Unknown capacity retains the finite request
+bootstrap. Failed reads are not retried within the same logical job.
+
+The standalone full collector keeps its strict preflight refusal when the
+selected logical inventory exceeds either historical ceiling. The maintained
+workflow uses incremental admission instead: completed locations are checkpointed
+atomically after each operation, under the existing lock and 16 MiB envelope.
+Continuation binds the accounting policy and exact per-owner health contracts.
+Changed contracts discard incompatible reuse; corrupt or future evidence fails
+closed. An interrupted process can resume accepted locations without resetting
+numeric identity baselines. A PR cannot write trusted history.
+
+The ten-minute hosted deadline remains. A deadline anchored at the first job step
+allows up to nine minutes for preparation and automatic bounded collector batches,
+leaving one minute for history/artifact retention and cleanup. Observed main run
+40462280230 used roughly twelve seconds for preparation and two seconds for
+retention. The separate RetComM check retains at most two sequential 15-second
+request deadlines per title (titles run concurrently); selected IDs accumulate
+across all health batches. This reserve is operational headroom, not a claimed worst-case service
+guarantee. The coordinator drains while work and productive capacity remain,
+without a fixed logical batch count. It persists every completed batch, retains
+failed conditions, and stops on exhausted runtime, provider backoff or lack of
+progress. Later runs resume the same authoritative history. Summaries distinguish
+the final batch from aggregate session API consumption and never claim an atomic
+global health snapshot or verified artifact bytes.
 
 `work/upstream-health/checkpoint.json` is a bounded history of per-port attempts,
 location observations and incidents, not a fresh full-inventory report. Only
@@ -293,8 +424,8 @@ validated main push, scheduled or manual executions of this repository's workflo
 may replace it and save the main cache. PRs may read that comparison history but
 never update it. The checkpoint records execution identity, health and policy
 hashes, observation clocks, collection status and incident material facts. It is
-bounded to 16 MiB, 4,096 ports and 8,192 observations, written atomically under an
-exclusive lock. Cache loss starts a new comparison baseline; cache retention
+bounded to 16 MiB and written atomically under an exclusive lock. Historical
+cardinality does not impose a second limit inside that physical envelope. Cache loss starts a new comparison baseline; cache retention
 provides no durability or observation-frequency guarantee.
 
 The report states the total inventory, ports assessed this run, deferred and
@@ -312,8 +443,8 @@ Incident keys bind the port, location, operation, rule and relevant observation
 contract. Unchanged conditions retain first-seen time and recurrence without a
 new notification; material changes and freshly observed recovery are separate.
 
-The checkpoint keeps a separate `incident_history`, bounded to 8,192 incidents
-overall and 512 per port within its existing 16 MiB limit. An inconclusive 503
+The checkpoint keeps a separate `incident_history` within its existing 16 MiB
+physical limit. An inconclusive 503
 does not erase a prior 404: a later matching 404 retains its original first-seen
 time and recurrence. Only the latest conditions appear as current in `port_health`
 and the summary. History is removed on matching endpoint or metadata assessment
@@ -382,3 +513,57 @@ deterministic offline mapping validation in required catalog CI retains the
 complete catalog. Release checks and standalone invocation retain their full
 scope. A no-probe PR result establishes applicability only. It is not a healthy
 inventory, accepted artifact or exception to required hosted validation.
+
+### Growing monitoring inventories
+
+The monitor retains fair oldest-attempt rotation across bounded collector runs.
+The collector's 320-request and 512-new-location envelopes bound one operation,
+not the logical catalog or retained cross-run history. Checkpoints use their
+existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
+or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
+including programmatic invocations. Oversized physical inputs remain refused;
+no history is silently truncated to claim complete coverage.
+
+Each invocation validates and snapshots the complete inventory once for request
+estimation. Scoped estimates retain shared-location identities and reviewed
+accounting semantics. Per-port freshness hashes likewise reuse one catalog
+projection; hash semantics and legacy checkpoints remain unchanged. These local
+optimizations do not equate repository reachability with release eligibility,
+and partial batches continue to report global health as unassessed.
+
+### Current Core projection of fresh provider facts
+
+A changed Core binary or catalog policy invalidates prior eligibility. When the
+provider configuration is unchanged, the coordinator can reuse the prior complete
+provider interval and recompute every port's current Core selection and policy.
+The exact current catalog input is inspected once by Core, and every projection
+must match the resulting normalized per-port definition hash. An older embedded
+catalog cannot claim the reviewed input's eligibility. Scope identities bind a
+versioned validated contract and normalized definition hashes, so pre-guard
+completion and partial cursors are automatically reprojected. Retained per-port
+policies are also checked before cursor reuse. The coordinator reconstructs
+repository, complete release headers and covered asset collections
+from the existing bounded page proofs, verifies their identities/digests against
+the complete observation, and retains the original oldest validation clock.
+Reprojection never makes an old provider fact fresh. Normal cadence/expiry still
+requires provider checks.
+
+Current Core must select candidates from the complete header universe, and every
+selected release must have complete validated asset coverage. Missing coverage
+returns to the ordinary incremental collection path. Corrupt or missing page
+proofs refuse reuse; changed known partial pages, restarted collections and
+expired facts use ordinary observation. Old policy and acceptance output cannot
+become current eligibility. Current per-port projection cursors remain durable,
+including while provider capacity is unavailable, and cancellation refuses a
+projection before it is retained. Core executable object/size/time identity is
+checked around hashing and each inspection so a changed executable cannot inherit
+the invocation's policy identity. This adds no provider, queue, database, artifact
+trust or protected admission authority.
+
+Catalog proposal receipts retain the legacy field-order `definition_sha256` and
+add `observation_definition_sha256`, the normalized recursively sorted identity
+shared with Core observation projections. Observation binding requires this
+explicit canonical field; the two hashes are not interchangeable. Both remain
+inert declarations, without trust or publication authority. This preserves old
+proposal consumers while preventing serialization-order mismatches from holding
+otherwise valid current Core projections.

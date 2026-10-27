@@ -663,6 +663,33 @@ pub(crate) fn open_single_link_file(path: &Path) -> Result<fs::File> {
 }
 
 fn read_metadata(path: &Path, limit: u64, single_link: bool) -> Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    stream_metadata(path, limit, single_link, &|| Ok(()), &mut |chunk| {
+        bytes.extend_from_slice(chunk);
+        Ok(())
+    })?;
+    Ok(bytes)
+}
+
+/// Stream a bounded original member while retaining the metadata reader's
+/// no-follow, single-link and before/after object-identity checks.
+pub(crate) fn stream_single_link_metadata(
+    path: &Path,
+    limit: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+    visit: &mut dyn FnMut(&[u8]) -> Result<()>,
+) -> Result<u64> {
+    stream_metadata(path, limit, true, checkpoint, visit)
+}
+
+fn stream_metadata(
+    path: &Path,
+    limit: u64,
+    single_link: bool,
+    checkpoint: &dyn Fn() -> Result<()>,
+    visit: &mut dyn FnMut(&[u8]) -> Result<()>,
+) -> Result<u64> {
+    checkpoint()?;
     crate::path::refuse_symlink_ancestors(path)?;
     let canonical = fs::canonicalize(path)?;
     let mut file = open_object(&canonical, false)?;
@@ -677,12 +704,24 @@ fn read_metadata(path: &Path, limit: u64, single_link: bool) -> Result<Vec<u8>> 
             "query metadata exceeds its read budget",
         ));
     }
-    let mut bytes = Vec::new();
-    (&mut file)
-        .take(limit.saturating_add(1))
-        .read_to_end(&mut bytes)?;
-    if bytes.len() as u64 > limit
-        || bytes.len() as u64 != before.size
+    let mut length = 0_u64;
+    let mut buffer = [0_u8; 128 * 1024];
+    let mut reader = (&mut file).take(limit.saturating_add(1));
+    loop {
+        checkpoint()?;
+        let count = reader.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        length = length
+            .checked_add(count as u64)
+            .ok_or_else(changed_during_inspection)?;
+        if length > limit || length > before.size {
+            return Err(changed_during_inspection());
+        }
+        visit(&buffer[..count])?;
+    }
+    if length != before.size
         || file_snapshot(&file)? != before
         || file_snapshot(&open_object(&canonical, false)?)? != before
         || (single_link && link_count(&file)? != 1)
@@ -693,7 +732,8 @@ fn read_metadata(path: &Path, limit: u64, single_link: bool) -> Result<Vec<u8>> 
     if fs::canonicalize(path)? != canonical {
         return Err(changed_during_inspection());
     }
-    Ok(bytes)
+    checkpoint()?;
+    Ok(length)
 }
 
 pub(crate) fn open_identity_handle(path: &Path) -> Result<fs::File> {
