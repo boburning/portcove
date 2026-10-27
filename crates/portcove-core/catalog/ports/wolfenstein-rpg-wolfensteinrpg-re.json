@@ -3,12 +3,15 @@
   "listing": {
     "id": "wolfenstein-rpg-wolfensteinrpg-re",
     "name": "Wolfenstein RPG / WolfensteinRPG-RE",
-    "summary": "Explore Wolfenstein RPG / WolfensteinRPG-RE and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Wolfenstein RPG with your own matching original iOS game data.",
     "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
     "issue_number": 371,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE",
+    "platforms": [
+      "windows-x86-64",
+      "linux-x86-64"
+    ],
+    "availability": "packages",
+    "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
     "artwork": {
       "game_id": 67744,
       "cover_id": 199174,
@@ -16,6 +19,40 @@
       "image_sha256": "31cefd47414a8bafd8da34018c6d5af038ce19cd9b1c898324e9b9276dd4b331",
       "game_slug": "wolfenstein-rpg",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/Erick194/WolfensteinRPG-RE/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "linux-x86-64": [
+        "WolfensteinRPG-x86_64",
+        ".AppImage"
+      ],
+      "windows-x86-64": [
+        "WolfensteinRPG.v",
+        ".zip"
+      ]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the player and required libraries together",
+          "instruction": "The Windows release ZIP contains the 32-bit WolfensteinRPG.exe, SDL2.dll, zlib.dll and its README. Keep them together in a writable folder; Windows x64 can use the Win32 player. If OpenAL is missing, follow the packaged README’s official OpenAL 1.1 Windows Installer link and install it yourself. Portcove does not run that installer during discovery or registration. Linux has a separate x86-64 AppImage and an upstream CMake build route."
+        },
+        {
+          "title": "Supply your matching original iOS archive",
+          "instruction": "Put your own matching original iOS archive, named Wolfenstein RPG.ipa, in the player’s working folder. This player expects Payload/Wolf...RPG.app/Packages/ and its sounds/ subfolder inside the archive. J2ME, BREW and other iOS bundle layouts are not substitutes. Keep your original archive intact and use upstream’s matching-data preparation; this guide supplies no game data or extraction workaround."
+        },
+        {
+          "title": "Register the player, then choose Play",
+          "instruction": "On Windows, add WolfensteinRPG.exe with the folder containing your IPA as its working directory. For the Linux AppImage or a user-prepared native WolfensteinRPG binary, use a writable working directory containing that same required archive. Read-only discovery never runs the player or a helper; Play is a separate choice."
+        },
+        {
+          "title": "Preserve the writable game folder when updating",
+          "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md"
     }
   }
 }

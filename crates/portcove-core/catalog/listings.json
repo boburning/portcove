@@ -22169,12 +22169,15 @@
     {
       "id": "mario-kart-super-circuit-recomp",
       "name": "Mario Kart: Super Circuit Recomp",
-      "summary": "Explore Mario Kart: Super Circuit Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Mario Kart: Super Circuit with your own matching GBA game and BIOS.",
       "project_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
       "issue_number": 285,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md",
       "artwork": {
         "game_id": 2343,
         "cover_id": 357726,
@@ -22182,6 +22185,40 @@
         "image_sha256": "b4c4d19c169bb3ecccdf0e84b75bc6608a973c601b0d218ff9a9e0cbb8a24c1b",
         "game_slug": "mario-kart-super-circuit",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "MarioKartSuperCircuitRecomp-windows-x64-",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "MarioKartSuperCircuitRecomp-linux-x86_64-",
+          ".AppImage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the complete player together",
+            "instruction": "Use the official Windows x64 ZIP with MarioKartSuperCircuitRecomp.exe, its libraries, assets, mods and overlay_toolchain folder together. No separate game installer is required. The Linux x64 release is an AppImage with its own upstream handoff; keep its writable working folder and original files outside the image."
+          },
+          {
+            "title": "Choose Play, then select any missing original files",
+            "instruction": "Add the player in Portcove, then choose Play to open the upstream launcher. Supply your own matching USA Mario Kart: Super Circuit GBA game and retail GBA BIOS when requested. The launcher validates those inputs and remembers valid choices. Portcove discovery and registration do not run the bundled compilers or helpers."
+          },
+          {
+            "title": "Keep your actual saves and settings",
+            "instruction": "Normal .sav files and optional .stateN slots follow the selected original game file, unless you chose custom save/state paths. Preserve that actual folder and its .tmp, .bak and .prev-size.bak recovery siblings separately. Also keep local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, any selected local saves/, and the complete mods/ tree. The launcher save-path display does not relocate saves."
+          },
+          {
+            "title": "Prepare updates beside your working copy",
+            "instruction": "You or upstream update this registered runtime. Keep the working player, saves, settings and complete mods while preparing a new version separately, then change the registration when ready. Upstream has changed bundled mod contents without changing their package version; preserve both copies and reconcile selections deliberately rather than overwriting them. Keep generated recomp_cache and diagnostics with their original runtime; do not carry executable caches into a new version. Portcove registration offers no managed Update, Backup or Rollback and removing it leaves all external files untouched."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md"
       }
     },
     {
@@ -39246,12 +39283,15 @@
     {
       "id": "wolfenstein-rpg-wolfensteinrpg-re",
       "name": "Wolfenstein RPG / WolfensteinRPG-RE",
-      "summary": "Explore Wolfenstein RPG / WolfensteinRPG-RE and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Wolfenstein RPG with your own matching original iOS game data.",
       "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
       "issue_number": 371,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
       "artwork": {
         "game_id": 67744,
         "cover_id": 199174,
@@ -39259,6 +39299,40 @@
         "image_sha256": "31cefd47414a8bafd8da34018c6d5af038ce19cd9b1c898324e9b9276dd4b331",
         "game_slug": "wolfenstein-rpg",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/Erick194/WolfensteinRPG-RE/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "WolfensteinRPG-x86_64",
+          ".AppImage"
+        ],
+        "windows-x86-64": [
+          "WolfensteinRPG.v",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the player and required libraries together",
+            "instruction": "The Windows release ZIP contains the 32-bit WolfensteinRPG.exe, SDL2.dll, zlib.dll and its README. Keep them together in a writable folder; Windows x64 can use the Win32 player. If OpenAL is missing, follow the packaged README’s official OpenAL 1.1 Windows Installer link and install it yourself. Portcove does not run that installer during discovery or registration. Linux has a separate x86-64 AppImage and an upstream CMake build route."
+          },
+          {
+            "title": "Supply your matching original iOS archive",
+            "instruction": "Put your own matching original iOS archive, named Wolfenstein RPG.ipa, in the player’s working folder. This player expects Payload/Wolf...RPG.app/Packages/ and its sounds/ subfolder inside the archive. J2ME, BREW and other iOS bundle layouts are not substitutes. Keep your original archive intact and use upstream’s matching-data preparation; this guide supplies no game data or extraction workaround."
+          },
+          {
+            "title": "Register the player, then choose Play",
+            "instruction": "On Windows, add WolfensteinRPG.exe with the folder containing your IPA as its working directory. For the Linux AppImage or a user-prepared native WolfensteinRPG binary, use a writable working directory containing that same required archive. Read-only discovery never runs the player or a helper; Play is a separate choice."
+          },
+          {
+            "title": "Preserve the writable game folder when updating",
+            "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md"
       }
     },
     {
