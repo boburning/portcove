@@ -256,6 +256,7 @@ export interface CatalogObservationOptions extends Pick<
   now?: () => number;
   config: ObserverConfig;
   policyIdentity: string;
+  definitionHash: (portId: string) => string;
   withSourceLock: <T>(config: ObserverConfig, operation: () => Promise<T>) => Promise<T>;
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
@@ -413,11 +414,13 @@ export async function advanceCatalogObservations(
       policy.port_id !== portId ||
       policy.repository_id !== repositoryId ||
       policy.facts_sha256 !== observation.facts_sha256 ||
-      !Array.isArray(policy.projections)
+      !Array.isArray(policy.projections) ||
+      !/^[a-f0-9]{64}$/u.test(options.definitionHash(portId)) ||
+      policy.catalog_definition_sha256 !== options.definitionHash(portId)
     )
       throw new ObservationFailure(
         "core-binding",
-        "Core projection differs from the exact port, source or provider facts",
+        "Core projection differs from the exact reviewed catalog definition, port, source or provider facts",
       );
     if (options.signal?.aborted)
       throw new ObservationFailure(

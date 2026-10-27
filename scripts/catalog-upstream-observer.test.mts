@@ -50,6 +50,7 @@ function harness(requests = 256) {
     config: validateObserverConfig({ ...config, budget: { ...config.budget, requests } }),
     now: () => now,
     policyIdentity: "a".repeat(64),
+    definitionHash: (portId) => observationHash(input.ports.find((port) => port.id === portId)),
     sleep: async () => {},
     load: async (config) => states.get(observationHash(config)) ?? null,
     save: async (config, value) => {
@@ -87,6 +88,7 @@ function harness(requests = 256) {
     project: async (portId, repositoryId, observation) => ({
       format: 1,
       port_id: portId,
+      catalog_definition_sha256: observationHash(input.ports.find((port) => port.id === portId)),
       repository_id: repositoryId,
       facts_sha256: observation.facts_sha256,
       projections: [
@@ -382,6 +384,8 @@ void test("operational coordinator isolates handoff files, preserves failure not
   await writeFile(catalog, JSON.stringify(h.input));
   const runtime = {
     root,
+    inspectCatalog: async () =>
+      new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
     now: h.options.now!,
     observer: { fetch: h.options.fetch!, sleep: h.options.sleep! },
     project: async (
@@ -570,6 +574,8 @@ void test("legacy artifact retains its original report shape while shared ports 
   );
   const result = await runCatalogUpstreams(["--cli", cli], {
     root,
+    inspectCatalog: async () =>
+      new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
@@ -860,6 +866,8 @@ void test("a Core executable changed during projection cannot publish a complete
   );
   const result = await runCatalogUpstreams(["--cli", cli], {
     root,
+    inspectCatalog: async () =>
+      new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
@@ -872,4 +880,32 @@ void test("a Core executable changed during projection cannot publish a complete
   assert.equal(result.report.completed_source_keys.length, 0);
   assert.equal(result.report.failures[0]!.rule, "core-identity");
   assert.ok(result.report.source_statuses.every((source) => !source.current_scope_complete));
+});
+
+void test("old embedded catalog policy cannot become current eligibility for a different reviewed definition", async () => {
+  const h = harness();
+  const first = await advanceCatalogObservations(h.input, null, h.options);
+  const next = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    definitionHash: (portId) =>
+      portId === "stable-port" ? "f".repeat(64) : h.options.definitionHash(portId),
+  });
+  const sharedKey = Object.entries(next.checkpoint.sources).find(
+    ([, source]) => source.repository === "owner/shared",
+  )![0];
+  assert.ok(
+    next.report.failures.some(
+      (failure) => failure.source === sharedKey && failure.rule === "core-binding",
+    ),
+  );
+  assert.equal(
+    next.report.source_statuses.find((source) => source.repository === "owner/shared")!
+      .current_scope_complete,
+    false,
+  );
+  assert.deepEqual(
+    next.checkpoint.sources[sharedKey]!.last_complete_policies,
+    first.checkpoint.sources[sharedKey]!.last_complete_policies,
+  );
 });

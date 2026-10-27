@@ -1,4 +1,4 @@
-import { fileIdentity } from "./development-evidence.mts";
+import { fileIdentity, readBoundedEvidenceFile } from "./development-evidence.mts";
 import { randomUUID } from "node:crypto";
 import { mkdir, lstat, rm, appendFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,6 +13,7 @@ import {
   atomicJson,
   boundedJson,
   projectObservation,
+  inspectCatalogDefinitions,
   withCheckpointLock,
   validateObserverCheckpoint,
 } from "./observe-configured-upstream.mts";
@@ -94,6 +95,7 @@ export async function runCatalogUpstreams(
     now?: () => number;
     observer?: Pick<ObserveOptions, "fetch" | "sleep" | "signal">;
     project?: typeof projectObservation;
+    inspectCatalog?: typeof inspectCatalogDefinitions;
     api?: GitHubRestReader;
     log?: (value: string) => void;
   } = {},
@@ -106,10 +108,11 @@ export async function runCatalogUpstreams(
   const config = validateObserverConfig(
     await boundedJson(path.join(root, "release/upstream-observer.json"), 16384),
   );
-  const catalog = await boundedJson(
+  const catalogInput = await readBoundedEvidenceFile(
     path.join(root, "crates/portcove-core/catalog/catalog.json"),
     4 * 1024 * 1024,
   );
+  const catalog: unknown = JSON.parse(catalogInput.bytes.toString("utf8"));
   const directory = (config: ObserverConfig) =>
     path.join(root, "work/upstream-observer", observationHash(config));
   const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
@@ -162,6 +165,12 @@ export async function runCatalogUpstreams(
     };
     const coreIdentity = await fileIdentity(cli, { signal: AbortSignal.timeout(30000) });
     await assertCoreEntry();
+    const definitionHashes = await (runtime.inspectCatalog ?? inspectCatalogDefinitions)(
+      cli,
+      path.dirname(statePath),
+      catalogInput.bytes,
+    );
+    await assertCoreEntry();
     const result = await advanceCatalogObservations(
       catalog,
       await boundedJson(statePath, 32 * 1024 * 1024, true),
@@ -170,6 +179,7 @@ export async function runCatalogUpstreams(
         now,
         ...runtime.observer,
         policyIdentity: coreIdentity.sha256,
+        definitionHash: (portId) => definitionHashes.get(portId) ?? "",
         ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
         withSourceLock: (sourceConfig, operation) =>
           withCheckpointLock(path.join(directory(sourceConfig), "checkpoint.json"), operation),
