@@ -315,8 +315,8 @@ validated main push, scheduled or manual executions of this repository's workflo
 may replace it and save the main cache. PRs may read that comparison history but
 never update it. The checkpoint records execution identity, health and policy
 hashes, observation clocks, collection status and incident material facts. It is
-bounded to 16 MiB, 4,096 ports and 8,192 observations, written atomically under an
-exclusive lock. Cache loss starts a new comparison baseline; cache retention
+bounded to 16 MiB and written atomically under an exclusive lock. Historical
+cardinality does not impose a second limit inside that physical envelope. Cache loss starts a new comparison baseline; cache retention
 provides no durability or observation-frequency guarantee.
 
 The report states the total inventory, ports assessed this run, deferred and
@@ -334,8 +334,8 @@ Incident keys bind the port, location, operation, rule and relevant observation
 contract. Unchanged conditions retain first-seen time and recurrence without a
 new notification; material changes and freshly observed recovery are separate.
 
-The checkpoint keeps a separate `incident_history`, bounded to 8,192 incidents
-overall and 512 per port within its existing 16 MiB limit. An inconclusive 503
+The checkpoint keeps a separate `incident_history` within its existing 16 MiB
+physical limit. An inconclusive 503
 does not erase a prior 404: a later matching 404 retains its original first-seen
 time and recurrence. Only the latest conditions appear as current in `port_health`
 and the summary. History is removed on matching endpoint or metadata assessment
