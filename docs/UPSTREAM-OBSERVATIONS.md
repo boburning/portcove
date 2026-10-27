@@ -9,7 +9,7 @@ publish definitions, install updates, or execute upstream instructions.
 
 `release/upstream-observer.json` retains the reviewed `shipwright` baseline,
 GitHub repository `HarbourMasters/Shipwright`, numeric ID `472575717`, and finite
-operation budgets. The scheduled coordinator discovers GitHub release sources
+operation budgets. The scheduled coordinator discovers GitHub, GitLab, and fixed direct-manifest sources
 from the reviewed embedded catalog. Ports sharing an exact repository use one
 provider collection and separate Core projections; channel, platform, artifact,
 checksum and adapter policy never transfer between ports. Unsupported providers
@@ -567,3 +567,42 @@ explicit canonical field; the two hashes are not interchangeable. Both remain
 inert declarations, without trust or publication authority. This preserves old
 proposal consumers while preventing serialization-order mismatches from holding
 otherwise valid current Core projections.
+
+### Additional reviewed providers
+
+The same fair catalog queue and atomic checkpoint schedule GitLab projects and
+fixed direct manifests. GitLab uses actual project, tag, release-link and
+package-file identities. Its numeric project baseline persists before release
+collection; same-path project recreation is held for source reconciliation.
+Complete release/package pagination and selected-version package-file records
+feed Core's shared channel, native archive and checksum rules. The observer
+never invents GitHub IDs for another provider. Ambiguous registry uploads remain
+held when the collected facts cannot identify one exact file. Contradictory
+description and registry checksums remain held; metadata observation does not
+override runtime checksum precedence.
+
+Direct manifests observe the exact reviewed pinned endpoints with bounded HEAD
+requests and credential-free HTTPS redirect handling. They retain the reviewed
+version, channel, platform, size and checksum. A fixed URL is not a declared
+future-version stream: a different release still needs reviewed manifest data.
+Unknown lengths do not verify bytes; changed sizes and unavailable endpoints
+produce explicit Core holds. No image or executable artifact is downloaded.
+
+Provider reads retain exact ordered prefixes and conditional validation positions
+inside the existing catalog checkpoint. Changed reviewed scopes retain their
+prior evidence and start a clean prefix; changed provider facts discard the
+incomplete current collection before a fresh attempt. Core projections retain
+per-port progress bound to exact definitions, facts and executable identity.
+Quota evidence and Retry-After are isolated by HTTPS origin with a five-percent
+reserve (at least one request). Only typed positive pre-admission budget
+exhaustion permits another automatic turn; a last-request transport failure
+never becomes retry permission. Individual requests, operation quanta, response
+bytes, runtime, checkpoint bytes and the Core input envelope remain finite.
+
+Version 3 inert provider observations and version 2 provider reports enter the
+same bounded #246 artifact handoff with per-port current Core projections.
+Reports distinguish observed releases, metadata eligibility and endpoint
+availability from verified artifact bytes, protected catalog admission and
+player update eligibility. The latter three remain unassessed. GitHub's existing
+formats 1/2 and report format 1 remain compatible; no workflow per port, service,
+account, signing authority or production activation is introduced.

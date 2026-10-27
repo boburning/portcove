@@ -415,9 +415,26 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     } = &cli.command
     {
         let catalog = portcove_core::Catalog::embedded()?;
+        let port = catalog.port(port_id)?;
+        if port.release.provider != portcove_core::ReleaseSource::Github {
+            if repository_id.is_some() {
+                return Err(portcove_core::PortcoveError::verification(
+                    "non-GitHub observation must not invent a GitHub repository identity",
+                ));
+            }
+            let report = portcove_core::inspect_provider_observation(port, file)?;
+            render_read_success(mode, "catalog.inspect-observation", report, |report| {
+                serde_json::to_string_pretty(report).unwrap_or_default()
+            })?;
+            return Ok(ExitCode::SUCCESS);
+        }
         let report = portcove_core::inspect_upstream_observation(
-            catalog.port(port_id)?,
-            *repository_id,
+            port,
+            repository_id.ok_or_else(|| {
+                portcove_core::PortcoveError::verification(
+                    "GitHub observation requires --repository-id",
+                )
+            })?,
             file,
         )?;
         render_read_success(mode, "catalog.inspect-observation", report, |report| {

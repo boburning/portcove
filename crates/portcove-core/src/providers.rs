@@ -78,7 +78,7 @@ impl ReleaseProvider for CompositeReleaseProvider {
     }
 }
 
-fn resolve_direct(
+pub(crate) fn resolve_direct(
     port: &PortDefinition,
     channel: ReleaseChannel,
     platform: Platform,

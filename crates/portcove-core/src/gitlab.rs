@@ -557,75 +557,18 @@ impl ReleaseProvider for GitlabReleaseProvider {
         } else {
             None
         };
-        let (name, size, sha256, download_url) = if let Some((file, url)) = generic {
-            if native_archive_score(
-                &file.file_name.to_ascii_lowercase(),
-                platform,
-                port.release
-                    .asset_hints
-                    .get(&platform)
-                    .map(Vec::as_slice)
-                    .unwrap_or_default(),
-            )
-            .is_none()
-            {
-                return Err(PortcoveError::verification(
-                    "GitLab generic registry filename does not match the selected native archive",
-                ));
-            }
-            (file.file_name, file.size, file.file_sha256, url.into())
-        } else if let Some(file) = package_file {
-            (
-                file.file_name,
-                file.size,
-                file.file_sha256,
-                link.direct_asset_url
-                    .clone()
-                    .unwrap_or_else(|| link.url.clone()),
-            )
-        } else {
-            let sha256 = description_digest.ok_or_else(|| {
-                PortcoveError::verification(format!(
-                    "{} does not publish a SHA-256 digest for {}",
-                    port.name, link.name
-                ))
-            })?;
-            (
-                link.name.clone(),
-                0,
-                sha256,
-                link.direct_asset_url
-                    .clone()
-                    .unwrap_or_else(|| link.url.clone()),
-            )
-        };
-        if port.n64_runtime_at_executable_parent
-            && native_archive_score(
-                &name.to_ascii_lowercase(),
-                platform,
-                port.release
-                    .asset_hints
-                    .get(&platform)
-                    .map(Vec::as_slice)
-                    .unwrap_or_default(),
-            )
-            .is_none()
-        {
-            return Err(PortcoveError::verification(
-                "GitLab package filename does not match the reviewed native archive rules",
-            ));
-        }
-        let resolved = ResolvedRelease {
-            version: release.tag_name.clone(),
+        let resolved = resolve_observed_asset(
+            port,
             channel,
-            published_at: release.released_at.clone(),
-            asset: ReleaseAsset {
-                name,
-                url: download_url,
-                size,
-                sha256,
+            platform,
+            release,
+            link,
+            GitlabObservedAsset {
+                package_file,
+                generic,
+                description_digest,
             },
-        };
+        )?;
         self.store_release(key, resolved.clone()).await;
         Ok(resolved)
     }
@@ -873,6 +816,357 @@ fn is_beta_tag(tag: &str) -> bool {
     ]
     .iter()
     .any(|marker| tag.contains(marker))
+}
+
+struct GitlabObservedAsset {
+    package_file: Option<GitlabPackageFile>,
+    generic: Option<(GitlabPackageFile, reqwest::Url)>,
+    description_digest: Option<String>,
+}
+
+fn resolve_observed_asset(
+    port: &PortDefinition,
+    channel: ReleaseChannel,
+    platform: Platform,
+    release: &GitlabRelease,
+    link: &GitlabReleaseLink,
+    metadata: GitlabObservedAsset,
+) -> Result<ResolvedRelease> {
+    let GitlabObservedAsset {
+        package_file,
+        generic,
+        description_digest,
+    } = metadata;
+    let (name, size, sha256, download_url) = if let Some((file, url)) = generic {
+        if native_archive_score(
+            &file.file_name.to_ascii_lowercase(),
+            platform,
+            port.release
+                .asset_hints
+                .get(&platform)
+                .map(Vec::as_slice)
+                .unwrap_or_default(),
+        )
+        .is_none()
+        {
+            return Err(PortcoveError::verification(
+                "GitLab generic registry filename does not match the selected native archive",
+            ));
+        }
+        (file.file_name, file.size, file.file_sha256, url.into())
+    } else if let Some(file) = package_file {
+        (
+            file.file_name,
+            file.size,
+            file.file_sha256,
+            link.direct_asset_url
+                .clone()
+                .unwrap_or_else(|| link.url.clone()),
+        )
+    } else {
+        let sha256 = description_digest.ok_or_else(|| {
+            PortcoveError::verification(format!(
+                "{} does not publish a SHA-256 digest for {}",
+                port.name, link.name
+            ))
+        })?;
+        (
+            link.name.clone(),
+            0,
+            sha256,
+            link.direct_asset_url
+                .clone()
+                .unwrap_or_else(|| link.url.clone()),
+        )
+    };
+    if port.n64_runtime_at_executable_parent
+        && native_archive_score(
+            &name.to_ascii_lowercase(),
+            platform,
+            port.release
+                .asset_hints
+                .get(&platform)
+                .map(Vec::as_slice)
+                .unwrap_or_default(),
+        )
+        .is_none()
+    {
+        return Err(PortcoveError::verification(
+            "GitLab package filename does not match the reviewed native archive rules",
+        ));
+    }
+    Ok(ResolvedRelease {
+        version: release.tag_name.clone(),
+        channel,
+        published_at: release.released_at.clone(),
+        asset: ReleaseAsset {
+            name,
+            url: download_url,
+            size,
+            sha256,
+        },
+    })
+}
+
+/// Offline metadata projection. Provider facts grant no artifact or publication trust.
+pub(crate) fn project_observed_releases(
+    port: &PortDefinition,
+    facts: &serde_json::Value,
+) -> Result<serde_json::Value> {
+    use serde_json::{Value, json};
+    let fail =
+        || PortcoveError::verification("GitLab observation has incomplete or foreign identities");
+    let project_id = facts["project"]["id"]
+        .as_u64()
+        .filter(|id| *id > 0)
+        .ok_or_else(fail)?;
+    if facts["project"]["path_with_namespace"] != port.release.repository
+        || !facts["project"]["archived"].is_boolean()
+        || facts["coverage"]["releases"] != true
+        || facts["coverage"]["packages"] != true
+    {
+        return Err(fail());
+    }
+    let raw = facts["releases"].as_array().ok_or_else(fail)?;
+    let mut tags = HashSet::new();
+    let mut links = HashSet::new();
+    for release in raw {
+        let tag = release["tag_name"]
+            .as_str()
+            .filter(|s| !s.is_empty() && s.len() <= 255 && !s.chars().any(char::is_control))
+            .ok_or_else(fail)?;
+        if !tags.insert(tag)
+            || !release["upcoming_release"].is_boolean()
+            || release["released_at"]
+                .as_str()
+                .and_then(|s| {
+                    time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339)
+                        .ok()
+                })
+                .is_none()
+        {
+            return Err(fail());
+        }
+        for link in release["assets"]["links"].as_array().ok_or_else(fail)? {
+            if !links.insert(link["id"].as_u64().filter(|id| *id > 0).ok_or_else(fail)?) {
+                return Err(fail());
+            }
+            for field in ["url", "direct_asset_url"] {
+                if let Some(url) = link[field].as_str() {
+                    let url = reqwest::Url::parse(url).map_err(|_| fail())?;
+                    if url.scheme() != "https"
+                        || url.host_str() != Some("gitlab.com")
+                        || url.port().is_some()
+                        || !url.username().is_empty()
+                        || url.password().is_some()
+                        || url.query().is_some()
+                        || url.fragment().is_some()
+                    {
+                        return Err(fail());
+                    }
+                }
+            }
+        }
+    }
+    let releases: Vec<GitlabRelease> = serde_json::from_value(facts["releases"].clone())?;
+    let packages: Vec<GitlabPackage> = serde_json::from_value(facts["packages"].clone())?;
+    let mut package_ids = HashSet::new();
+    let mut file_ids = HashSet::new();
+    for package in &packages {
+        if package.id == 0 || !package_ids.insert(package.id) {
+            return Err(fail());
+        }
+        if let Some(rows) = facts["package_files"].get(package.id.to_string()) {
+            let files: Vec<GitlabPackageFile> = serde_json::from_value(rows.clone())?;
+            for file in files {
+                if file.id == 0
+                    || file.size == 0
+                    || !file_ids.insert(file.id)
+                    || file.file_sha256.len() != 64
+                    || !file.file_sha256.bytes().all(|b| b.is_ascii_hexdigit())
+                {
+                    return Err(fail());
+                }
+            }
+        }
+    }
+    let project_url = format!(
+        "https://gitlab.com/api/v4/projects/{}",
+        urlencoding_repository(&port.release.repository)
+    );
+    let mut projections = Vec::new();
+    for &platform in &port.platforms {
+        for channel in [
+            ReleaseChannel::Stable,
+            ReleaseChannel::Beta,
+            ReleaseChannel::Rolling,
+        ] {
+            let candidate = crate::release::select_channel_candidate(
+                &releases,
+                channel,
+                port.release.rolling_tag.as_deref(),
+                |r| !r.upcoming_release,
+                |r| is_beta_tag(&r.tag_name),
+                |r| r.tag_name.as_str(),
+            );
+            let latest = releases
+                .iter()
+                .find(|r| !r.upcoming_release)
+                .map(|r| json!({"tag":r.tag_name,"published_at":r.released_at}));
+            let mut row = json!({"platform":platform,"channel":channel,"latest_observed":latest,"channel_candidate":candidate.map(|r| json!({"tag":r.tag_name,"published_at":r.released_at})),"latest_eligible":null,"hold_reasons":[]});
+            let resolution = (|| -> Result<Value> {
+                if !port.channels.contains(&channel) {
+                    return Err(PortcoveError::unsupported("channel-not-offered"));
+                }
+                let release = candidate
+                    .ok_or_else(|| PortcoveError::not_found("no-published-channel-candidate"))?;
+                let link = choose_link(port, platform, &release.assets.links)?;
+                let file_id = package_file_id(&link.url);
+                if let Some(file_id) = file_id {
+                    let expected = format!(
+                        "https://gitlab.com/{}/-/package_files/{file_id}/download",
+                        port.release.repository
+                    );
+                    if link.url != expected
+                        || link
+                            .direct_asset_url
+                            .as_ref()
+                            .is_some_and(|url| url != &expected)
+                    {
+                        return Err(PortcoveError::verification(
+                            "package-file-url-escaped-reviewed-project",
+                        ));
+                    }
+                }
+                let description_digest = digest_from_description(&release.description, &link.name);
+                let matching: Vec<_> = packages
+                    .iter()
+                    .filter(|p| {
+                        p.version == release.tag_name
+                            || p.version == release.tag_name.trim_start_matches('v')
+                    })
+                    .collect();
+                let mut files = Vec::new();
+                for package in matching {
+                    let rows = match facts["package_files"].get(package.id.to_string()) {
+                        Some(rows) => rows,
+                        None if file_id.is_none() && description_digest.is_some() => continue,
+                        None => {
+                            return Err(PortcoveError::verification(
+                                "selected-package-files-incomplete",
+                            ));
+                        }
+                    };
+                    for file in serde_json::from_value::<Vec<GitlabPackageFile>>(rows.clone())? {
+                        files.push((package, file));
+                    }
+                }
+                let mut selected: Vec<_> = files
+                    .into_iter()
+                    .filter(|(package, file)| {
+                        if let Some(id) = file_id {
+                            return file.id == id;
+                        }
+                        [
+                            project_url.clone(),
+                            format!("https://gitlab.com/api/v4/projects/{project_id}"),
+                        ]
+                        .iter()
+                        .any(|base| {
+                            let Ok(mut expected) = reqwest::Url::parse(base) else {
+                                return false;
+                            };
+                            let Ok(mut segments) = expected.path_segments_mut() else {
+                                return false;
+                            };
+                            segments.extend([
+                                "packages",
+                                "generic",
+                                &package.name,
+                                &package.version,
+                                &file.file_name,
+                            ]);
+                            drop(segments);
+                            expected.as_str() == link.url
+                        })
+                    })
+                    .map(|(_, file)| file)
+                    .collect();
+                if selected.len() > 1 {
+                    return Err(PortcoveError::verification(
+                        "ambiguous-registry-upload-needs-published-checksum-header",
+                    ));
+                }
+                let mut file = selected.pop();
+                if file_id.is_none()
+                    && let Some(digest) = &description_digest
+                {
+                    if file
+                        .as_ref()
+                        .is_some_and(|file| !file.file_sha256.eq_ignore_ascii_case(digest))
+                    {
+                        return Err(PortcoveError::verification(
+                            "description-and-registry-checksums-conflict",
+                        ));
+                    }
+                    file = None;
+                }
+                let selected_file_id = file.as_ref().map(|file| file.id);
+                let digest = description_digest;
+                let generic_url = if file_id.is_none() && digest.is_none() {
+                    generic_package_url(
+                        &project_url,
+                        "https://gitlab.com/api/v4",
+                        project_id,
+                        &link.url,
+                    )?
+                } else {
+                    None
+                };
+                let (package_file, generic) = match (file, generic_url) {
+                    (Some(file), Some(url)) => (None, Some((file, url))),
+                    (file, _) => (file, None),
+                };
+                let resolved = resolve_observed_asset(
+                    port,
+                    channel,
+                    platform,
+                    release,
+                    link,
+                    GitlabObservedAsset {
+                        package_file,
+                        generic,
+                        description_digest: digest,
+                    },
+                )?;
+                let raw_link = raw
+                    .iter()
+                    .find(|r| r["tag_name"] == release.tag_name)
+                    .and_then(|r| r["assets"]["links"].as_array())
+                    .and_then(|links| {
+                        links
+                            .iter()
+                            .find(|l| l["name"] == link.name && l["url"] == link.url)
+                    })
+                    .ok_or_else(fail)?;
+                Ok(
+                    json!({"identity":{"project_id":project_id,"tag":release.tag_name,"link_id":raw_link["id"],"package_file_id":selected_file_id},"release":resolved}),
+                )
+            })();
+            match resolution {
+                Ok(value) => row["latest_eligible"] = value,
+                Err(error) => row["hold_reasons"] = json!([error.to_string()]),
+            }
+            projections.push(row);
+        }
+    }
+    Ok(
+        json!({"provider_identity":{"provider":"gitlab","project_id":project_id,"repository":port.release.repository},"projections":projections}),
+    )
+}
+
+fn urlencoding_repository(repository: &str) -> String {
+    repository.replace('/', "%2F")
 }
 
 #[cfg(test)]
