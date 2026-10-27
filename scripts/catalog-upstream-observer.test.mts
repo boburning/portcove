@@ -1066,7 +1066,14 @@ void test("one fair catalog pipeline isolates GitLab failures, observes fixed pi
             ? { id: projectId, path_with_namespace: "owner/lab", archived: false }
             : [],
         ),
-        { headers: { etag: '"fixed"' } },
+        {
+          headers: {
+            etag: '"fixed"',
+            "x-page": url.searchParams.get("page") ?? "1",
+            "x-per-page": "100",
+            "x-next-page": "",
+          },
+        },
       );
     },
     projectProvider: async (id, observation) => ({
@@ -1089,6 +1096,28 @@ void test("one fair catalog pipeline isolates GitLab failures, observes fixed pi
   )!;
   assert.equal(second.checkpoint.sources[source.key]!.repository_id, 27);
   assert.equal(second.report.pending_source_keys.length, 0);
+  const legacy = structuredClone(second.checkpoint);
+  const oldProgress = legacy.sources[source.key]!.provider_progress!;
+  oldProgress.format = 1;
+  for (const read of oldProgress.reads) {
+    delete read.page;
+    delete read.per_page;
+    read.next ??= "";
+    read.sha256 = observationHash({
+      url: read.url,
+      method: read.method,
+      body: read.body,
+      status: read.status,
+      next: read.next,
+      content_length: read.content_length,
+    });
+  }
+  legacy.sources[source.key]!.completed_scope_sha256 = "0".repeat(64);
+  const migrated = await advanceCatalogObservations(catalog, legacy, options);
+  assert.equal(migrated.checkpoint.sources[source.key]!.provider_progress!.format, 2);
+  assert.equal(migrated.checkpoint.sources[source.key]!.provider_previous_progress!.format, 1);
+  assert.equal(migrated.checkpoint.sources[source.key]!.repository_id, 27);
+  assert.equal(migrated.report.pending_source_keys.length, 0);
   (gitlab.release as Record<string, unknown>).asset_hints = { windows: ["new-reviewed-hint"] };
   const changedScope = await advanceCatalogObservations(catalog, second.checkpoint, options);
   assert.equal(changedScope.report.pending_source_keys.length, 0);

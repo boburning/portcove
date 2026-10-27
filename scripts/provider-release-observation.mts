@@ -13,14 +13,16 @@ interface Read {
   method: "GET" | "HEAD";
   body: unknown;
   status: number;
-  next: string;
+  next: string | null;
+  page?: string | null;
+  per_page?: string | null;
   etag: string | null;
   content_length: number | null;
   observed_at: string;
   sha256: string;
 }
 export interface ProviderProgress {
-  format: 1;
+  format: 1 | 2;
   binding: string;
   reads: Read[];
   validation_cursor: number;
@@ -31,19 +33,20 @@ export interface ProviderCapacity {
   reset_at: string | null;
   retry_at: string | null;
 }
-const readHash = (read: Omit<Read, "sha256" | "etag" | "observed_at">) =>
+const readHash = (read: Omit<Read, "sha256" | "etag" | "observed_at">, legacy = false) =>
   observationHash({
     url: read.url,
     method: read.method,
     body: read.body,
     status: read.status,
     next: read.next,
+    ...(legacy ? {} : { page: read.page ?? null, per_page: read.per_page ?? null }),
     content_length: read.content_length,
   });
 export function validateProviderProgress(value: unknown): asserts value is ProviderProgress {
   if (
     !isRecord(value) ||
-    value.format !== 1 ||
+    ![1, 2].includes(Number(value.format)) ||
     typeof value.binding !== "string" ||
     !/^[a-f0-9]{64}$/u.test(value.binding) ||
     !Array.isArray(value.reads) ||
@@ -59,14 +62,18 @@ export function validateProviderProgress(value: unknown): asserts value is Provi
       typeof read.url !== "string" ||
       !["GET", "HEAD"].includes(String(read.method)) ||
       !Number.isInteger(read.status) ||
-      typeof read.next !== "string" ||
+      !((read.next === null && value.format === 2) || typeof read.next === "string") ||
+      (value.format === 2 &&
+        [read.page, read.per_page].some(
+          (field) => !(field === null || (typeof field === "string" && /^\d+$/u.test(field))),
+        )) ||
       !(
         read.etag === null ||
         (typeof read.etag === "string" && read.etag.length <= 512 && !/[\r\n]/u.test(read.etag))
       ) ||
       typeof read.observed_at !== "string" ||
       !Number.isFinite(Date.parse(read.observed_at)) ||
-      read.sha256 !== readHash(read as unknown as Read)
+      read.sha256 !== readHash(read as unknown as Read, value.format === 1)
     )
       throw new Error("Corrupt provider read evidence");
   }
@@ -94,9 +101,14 @@ export async function observeProviderSource(
   const now = options.now ?? Date.now;
   const state: ProviderProgress =
     prior === undefined
-      ? { format: 1, binding: source.scope_sha256, reads: [], validation_cursor: 0 }
+      ? { format: 2, binding: source.scope_sha256, reads: [], validation_cursor: 0 }
       : (structuredClone(prior) as ProviderProgress);
   validateProviderProgress(state);
+  if (state.format !== 2)
+    throw new ObservationFailure(
+      "provider-proof-upgrade",
+      "Legacy provider reads need a fresh pagination proof; historical evidence must remain retained",
+    );
   if (state.binding !== source.scope_sha256)
     throw new ObservationFailure(
       "provider-scope-changed",
@@ -239,7 +251,9 @@ export async function observeProviderSource(
       method,
       body,
       status: response.status,
-      next: response.headers["x-next-page"] ?? "",
+      next: response.headers["x-next-page"] ?? null,
+      page: response.headers["x-page"] ?? null,
+      per_page: response.headers["x-per-page"] ?? null,
       content_length: contentLength,
     };
     return {
@@ -278,7 +292,10 @@ export async function observeProviderSource(
         if (
           !Array.isArray(result.body) ||
           result.body.length > 100 ||
-          (result.next && result.next !== String(page + 1))
+          result.page !== String(page) ||
+          result.per_page !== "100" ||
+          result.next === null ||
+          (result.next && (result.next !== String(page + 1) || result.body.length !== 100))
         )
           throw new ObservationFailure(
             "provider-pagination",

@@ -574,6 +574,8 @@ The same fair catalog queue and atomic checkpoint schedule GitLab projects and
 fixed direct manifests. GitLab uses actual project, tag, release-link and
 package-file identities. Its numeric project baseline persists before release
 collection; same-path project recreation is held for source reconciliation.
+Explicit current-page, page-size and terminal/advancing next-page proofs are required before a GitLab collection page is accepted. Missing pagination metadata remains incomplete. Legacy generic read proofs remain historical while a clean version 2 proof is collected with the retained numeric baseline.
+
 Complete release/package pagination and selected-version package-file records
 feed Core's shared channel, native archive and checksum rules. The observer
 never invents GitHub IDs for another provider. Ambiguous registry uploads remain

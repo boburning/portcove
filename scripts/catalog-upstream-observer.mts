@@ -361,6 +361,9 @@ export async function advanceCatalogObservations(
   const scopeBinding = (source: ObservableSource) =>
     observationHash({
       contract: "normalized-current-catalog-core-policy-v1",
+      ...((source.provider ?? "github") !== "github"
+        ? { provider_proof: "explicit-page-coverage-v2" }
+        : {}),
       policy: policyIdentity,
       scope: source.scope_sha256,
       definitions: source.ports.map((port) => [port.id, definitions.get(port.id)]),
@@ -554,7 +557,8 @@ export async function advanceCatalogObservations(
           progress.completed_scope_sha256 !== null && progress.exception_key === null;
         if (
           progress.provider_progress &&
-          progress.provider_progress.binding !== source.scope_sha256
+          (progress.provider_progress.binding !== source.scope_sha256 ||
+            progress.provider_progress.format !== 2)
         ) {
           progress.provider_previous_progress = progress.provider_progress;
           delete progress.provider_progress;

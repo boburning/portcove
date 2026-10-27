@@ -46,14 +46,12 @@ function fixture(pages = 9) {
       let body: unknown;
       const page = Number(url.searchParams.get("page") ?? 1);
       if (url.pathname.endsWith("releases"))
-        body = [
-          {
-            tag_name: `v${changed ? 999 + page : page}`,
-            upcoming_release: false,
-            released_at: "2026-10-26T00:00:00Z",
-            assets: { links: [] },
-          },
-        ];
+        body = Array.from({ length: 100 }, (_, index) => ({
+          tag_name: `v${(page - 1) * 100 + index + 1 + (changed ? 999 : 0)}`,
+          upcoming_release: false,
+          released_at: "2026-10-26T00:00:00Z",
+          assets: { links: [] },
+        }));
       else if (url.pathname.endsWith("packages"))
         body = [{ id: 101, version: "v1", name: "example" }];
       else if (url.pathname.endsWith("package_files"))
@@ -62,6 +60,8 @@ function fixture(pages = 9) {
       return new Response(JSON.stringify(body), {
         headers: {
           etag: '"stable"',
+          "x-page": String(page),
+          "x-per-page": "100",
           "x-next-page": url.pathname.endsWith("releases") && page < pages ? String(page + 1) : "",
           ...(quota === null
             ? {}
@@ -302,3 +302,48 @@ for (const malformed of ["project", "list", "file"] as const) {
     assert.equal(result.state.reads.length, 4);
   });
 }
+
+void test("missing, truncated or contradictory GitLab pagination proof never becomes accepted terminal coverage", async () => {
+  for (const fault of ["missing", "wrong-page", "short-nonterminal"] as const) {
+    const h = fixture(1);
+    let broken = true;
+    const fetcher = h.options.fetch;
+    const options = {
+      ...h.options,
+      maximumRequests: 20,
+      fetch: (async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input),
+          response = await fetcher(input, init);
+        if (broken && url.pathname.endsWith("releases")) {
+          const headers = new Headers(response.headers);
+          if (fault === "missing") headers.delete("x-next-page");
+          if (fault === "wrong-page") headers.set("x-page", "2");
+          if (fault === "short-nonterminal") {
+            headers.set("x-next-page", "2");
+            return new Response(
+              JSON.stringify([
+                {
+                  tag_name: "v1",
+                  upcoming_release: false,
+                  released_at: "2026-10-26T00:00:00Z",
+                  assets: { links: [] },
+                },
+              ]),
+              { headers },
+            );
+          }
+          return new Response(response.body, { headers });
+        }
+        return response;
+      }) as typeof fetch,
+    };
+    await assert.rejects(
+      observeProviderSource(h.source, undefined, options),
+      (error: { rule: string }) => error.rule === "provider-pagination",
+    );
+    assert.equal(h.prior()!.reads.length, 1);
+    broken = false;
+    const result = await observeProviderSource(h.source, h.prior(), options);
+    assert.equal(result.observations.length, 1);
+  }
+});
