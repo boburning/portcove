@@ -209,6 +209,7 @@ const upstreamHealthObservationTests = [
 const upstreamHealthContractTests = [
   ...upstreamHealthObservationTests,
   "scripts/upstream-observer.test.mts",
+  "scripts/catalog-upstream-observer.test.mts",
   "scripts/upstream-health.test.mts",
   "scripts/upstream-health-plan.test.mts",
   "scripts/upstream-health-monitor.test.mts",
@@ -1391,6 +1392,8 @@ for (const [file, tests] of [
     "scripts/upstream-observer.mts",
     [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
   ],
+  ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
+  ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
   [
@@ -1767,7 +1770,10 @@ const workflowTests = new Map([
   ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
-  ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
+  [
+    "configured-upstream-observer.yml",
+    ["scripts/upstream-observer.test.mts", "scripts/catalog-upstream-observer.test.mts"],
+  ],
   [
     "upstream-health.yml",
     ["scripts/upstream-health-plan.test.mts", "scripts/upstream-health-monitor.test.mts"],

@@ -266,6 +266,43 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
   return value as unknown as HealthCheckpoint;
 }
 
+/** Equivalent fresh primary repository metadata only; never release or artifact eligibility. */
+export function observedHealthRepositoryIdentity(
+  checkpoint: unknown,
+  repositoryName: string,
+  now = Date.now(),
+): number | null {
+  if (checkpoint === null) return null;
+  const validated = validateCheckpoint(checkpoint, now);
+  const matches =
+    validated?.observations.filter(
+      (observation) =>
+        observation.provider === "github" &&
+        observation.repository === repositoryName &&
+        observation.release_ref === undefined &&
+        observation.status === "reachable" &&
+        observation.reason === null &&
+        observation.http_status === 200 &&
+        (observation.attempted || observation.metadata_reused) &&
+        now - Date.parse(observation.observed_at) <= healthFreshnessMs,
+    ) ?? [];
+  const identities = new Set(
+    matches.flatMap((observation) =>
+      observation.observed_repository_id === null ? [] : [observation.observed_repository_id],
+    ),
+  );
+  if (
+    identities.size > 1 ||
+    matches.some(
+      (observation) =>
+        observation.baseline_repository_id !== null &&
+        observation.baseline_repository_id !== observation.observed_repository_id,
+    )
+  )
+    throw new Error("Fresh health observations disagree about repository identity");
+  return identities.values().next().value ?? null;
+}
+
 function locationKey(location: unknown): string {
   if (!isRecord(location)) throw new Error("Invalid monitoring location");
   return observationHash({
