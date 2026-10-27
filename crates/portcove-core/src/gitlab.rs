@@ -921,7 +921,7 @@ pub(crate) fn project_observed_releases(
         .filter(|id| *id > 0)
         .ok_or_else(fail)?;
     if facts["project"]["path_with_namespace"] != port.release.repository
-        || !facts["project"]["archived"].is_boolean()
+        || (!facts["project"]["archived"].is_boolean() && !facts["project"]["archived"].is_null())
         || facts["coverage"]["releases"] != true
         || facts["coverage"]["packages"] != true
     {
@@ -1161,7 +1161,7 @@ pub(crate) fn project_observed_releases(
         }
     }
     Ok(
-        json!({"provider_identity":{"provider":"gitlab","project_id":project_id,"repository":port.release.repository},"projections":projections}),
+        json!({"provider_identity":{"provider":"gitlab","project_id":project_id,"repository":port.release.repository,"archived":facts["project"]["archived"]},"projections":projections}),
     )
 }
 

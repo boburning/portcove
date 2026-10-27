@@ -400,3 +400,41 @@ for (const boundary of ["missing", "changed"] as const) {
     assert.equal(unconditional, 1);
   });
 }
+
+void test("public GitLab metadata without archive state remains explicitly unknown and cannot erase identity checks", async () => {
+  for (const archived of [undefined, null, "false"] as const) {
+    const h = fixture(1),
+      fetcher = h.options.fetch;
+    const operation = observeProviderSource(h.source, undefined, {
+      ...h.options,
+      maximumRequests: 20,
+      fetch: async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        if (!url.search && !url.pathname.endsWith("package_files"))
+          return new Response(
+            JSON.stringify({
+              id: 7,
+              path_with_namespace: h.source.repository,
+              ...(archived === undefined ? {} : { archived }),
+            }),
+            { headers: { etag: '"public-project"' } },
+          );
+        return fetcher(input, init);
+      },
+    });
+    if (archived === "false") {
+      await assert.rejects(
+        operation,
+        (error: { rule: string }) => error.rule === "provider-metadata",
+      );
+      assert.equal(h.prior(), undefined);
+    } else {
+      const result = await operation;
+      assert.equal(
+        (result.observations[0]!.facts as { project: { archived: unknown } }).project.archived,
+        null,
+      );
+      assert.equal(result.observations.length, 1);
+    }
+  }
+});

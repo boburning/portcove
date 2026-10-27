@@ -580,7 +580,7 @@ otherwise valid current Core projections.
 The same fair catalog queue and atomic checkpoint schedule GitLab projects and
 fixed direct manifests. GitLab uses actual project, tag, release-link and
 package-file identities. Its numeric project baseline persists before release
-collection; same-path project recreation is held for source reconciliation.
+collection; same-path project recreation is held for source reconciliation. Public GitLab metadata may omit archive state. Omission/null is reported as unknown, matching runtime resolution; it never becomes an active/archived assertion or weakens project identity. Malformed known archive values remain refused.
 Explicit current-page, page-size and terminal/advancing next-page proofs are required before a GitLab collection page is accepted. Missing pagination metadata remains incomplete. Conditional 304 responses preserve body reuse only with matching page coverage; a changed or missing page boundary requires a separately admitted unconditional read before validation can advance. Legacy generic read proofs remain historical while a clean version 2 proof is collected with the retained numeric baseline.
 
 Complete release/package pagination and selected-version package-file records
