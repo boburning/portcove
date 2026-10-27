@@ -272,13 +272,28 @@ impl Input {
         Ok(Self::Zip { checked, names })
     }
 
-    fn read(
+    fn verify(
         &mut self,
         member: &RelativeSourceMemberIdentity,
         checkpoint: &dyn Fn() -> Result<()>,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<()> {
+        self.copy_verified(member, &mut std::io::sink(), checkpoint)
+    }
+
+    fn copy_verified(
+        &mut self,
+        member: &RelativeSourceMemberIdentity,
+        output: &mut dyn Write,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
         checkpoint()?;
-        let bytes = match self {
+        let mut digest = Sha256::new();
+        let mut visit = |chunk: &[u8]| -> Result<()> {
+            digest.update(chunk);
+            output.write_all(chunk)?;
+            Ok(())
+        };
+        let length = match self {
             Self::Directory { root, files } => {
                 crate::path::refuse_symlink_ancestors(root)?;
                 let path = files
@@ -289,7 +304,12 @@ impl Input {
                             member.path
                         ))
                     })?;
-                crate::external_runtime::read_single_link_metadata(path, member.size)?
+                crate::external_runtime::stream_single_link_metadata(
+                    path,
+                    member.size,
+                    checkpoint,
+                    &mut visit,
+                )?
             }
             Self::Zip { checked, names } => {
                 let index = *names
@@ -308,8 +328,8 @@ impl Input {
                         "original ZIP member has the wrong size",
                     ));
                 }
-                let mut bytes = Vec::new();
-                let mut reader = entry.take(member.size + 1);
+                let mut length = 0_u64;
+                let mut reader = entry.take(member.size.saturating_add(1));
                 let mut buffer = [0; 128 * 1024];
                 loop {
                     checkpoint()?;
@@ -317,21 +337,29 @@ impl Input {
                     if count == 0 {
                         break;
                     }
-                    bytes.extend_from_slice(&buffer[..count]);
+                    length = length.checked_add(count as u64).ok_or_else(|| {
+                        PortcoveError::source("original ZIP member size overflow")
+                    })?;
+                    if length > member.size {
+                        return Err(PortcoveError::source(
+                            "original ZIP member exceeds its checked size",
+                        ));
+                    }
+                    visit(&buffer[..count])?;
                 }
-                bytes
+                length
             }
         };
         checkpoint()?;
-        if bytes.len() as u64 != member.size
-            || !hex::encode(Sha256::digest(&bytes)).eq_ignore_ascii_case(&member.sha256)
+        if length != member.size
+            || !hex::encode(digest.finalize()).eq_ignore_ascii_case(&member.sha256)
         {
             return Err(PortcoveError::source(format!(
                 "original data does not match the checked identity: {}",
                 member.path
             )));
         }
-        Ok(bytes)
+        Ok(())
     }
 }
 
@@ -398,7 +426,7 @@ pub(crate) fn validate_profile(
     }
     validate(&members)?;
     for member in &members {
-        input.read(member, &|| Ok(()))?;
+        input.verify(member, &|| Ok(()))?;
     }
     Ok(record(&profile.id, path, &members, &input))
 }
@@ -499,7 +527,7 @@ fn inspect_with_limits_and_checkpoint(
                 for member in members {
                     budget.reserve(member.size)?;
                     budget.hashed += member.size;
-                    input.read(member, &checkpoint)?;
+                    input.verify(member, &checkpoint)?;
                     components.push(crate::ObservedSourceComponent {
                         id: member.id.clone(),
                         kind: crate::SourceComponentKind::FileSetMember,
@@ -664,7 +692,7 @@ pub(crate) fn materialize(
     if reusable {
         // The marker or directory name never substitutes for current source bytes.
         for member in &members {
-            input.read(member, checkpoint)?;
+            input.verify(member, checkpoint)?;
         }
         return Ok(());
     }
@@ -673,7 +701,6 @@ pub(crate) fn materialize(
         .prefix("original-data-")
         .tempdir_in(&staging_root)?;
     for member in &members {
-        let bytes = input.read(member, checkpoint)?;
         let target = staging.path().join(&member.path);
         fs::create_dir_all(
             target
@@ -684,7 +711,7 @@ pub(crate) fn materialize(
             .write(true)
             .create_new(true)
             .open(target)?;
-        output.write_all(&bytes)?;
+        input.copy_verified(member, &mut output, checkpoint)?;
         output.sync_all()?;
     }
     if !verify_cache(&members, staging.path(), checkpoint)? {
@@ -800,9 +827,18 @@ fn verify_cache(
         }
         // Read up to the per-member safety bound, so corrupt private data can be
         // recreated while linked or unsafe files continue to refuse replacement.
-        let bytes = crate::external_runtime::read_single_link_metadata(&path, MAX_MEMBER_BYTES)?;
-        valid &= bytes.len() as u64 == member.size
-            && hex::encode(Sha256::digest(&bytes)).eq_ignore_ascii_case(&member.sha256);
+        let mut digest = Sha256::new();
+        let length = crate::external_runtime::stream_single_link_metadata(
+            &path,
+            MAX_MEMBER_BYTES,
+            checkpoint,
+            &mut |chunk| {
+                digest.update(chunk);
+                Ok(())
+            },
+        )?;
+        valid &= length == member.size
+            && hex::encode(digest.finalize()).eq_ignore_ascii_case(&member.sha256);
     }
     Ok(valid)
 }

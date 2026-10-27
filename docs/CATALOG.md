@@ -445,6 +445,17 @@ size and caller-budget checks precede member admission. The normalized aggregate
 uses its own versioned SHA-256 protocol, including single-member sets. Existing
 basename file-set identities and aggregates are unchanged.
 
+Member hashing and owned staging use bounded 128 KiB chunks for directory and ZIP
+sources. Directory reads retain no-follow, single-link and before/after object
+identity checks; cache revalidation uses the same streaming path. Cancellation
+is checked between chunks. A hash or size mismatch refuses admission/publication,
+and interrupted writes stay in the existing private staging/recovery boundary.
+The 128 MiB member, 512 MiB aggregate and 256-member capability limits remain:
+the current reviewed 48-member Dark Forces representation totals 68,386,776 bytes,
+with a largest member of 14,244,049 bytes (catalog measured 2026-10-27). No reviewed
+supported representation was demonstrated to need a larger bound. Streaming
+reduces scratch allocation; it does not expand source or archive authority.
+
 The reviewed Windows TFE v1.22.420 package selects the constrained
 `tfe-dark-forces-portable-v1` initializer and requires staged-source capability
 **19** for direct manifests or **21** for GitHub discovery. The retained definition supplies executable and package rules; an exact
