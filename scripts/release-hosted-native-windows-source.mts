@@ -628,6 +628,7 @@ const sources = new WeakMap<
     harness: string;
     files: string[];
     custody: ReturnType<typeof inspectNativeRuntimeCustody>;
+    system_custody: ReturnType<typeof inspectWindowsSourceSystemCustody>;
   }
 >();
 
@@ -637,6 +638,7 @@ export async function requireActualHostedWindowsSource(receipt: object) {
   assert.ok(source, "original Windows source receipt required");
   try {
     const parent = await requireActualHostedNativeParentSource(source.parent);
+    recheckWindowsSourceSystemCustody(source.system_custody);
     await verifiedControllerToolPaths(source.tools);
     assert.equal(
       (await requireHostedNativeRuntime(source.runtime, source.parent)).tools,
@@ -655,12 +657,15 @@ export async function requireActualHostedWindowsSource(receipt: object) {
     };
     verifyWindowsNativeSourceFiles(source.root, source.entries, source.harness, active);
     active();
+    recheckWindowsSourceSystemCustody(source.system_custody);
+    active();
     return Object.freeze({
       root: source.root,
       parent: source.parent,
       runtime: source.runtime,
       tools: source.tools,
       deadline: parent.deadline,
+      system_custody: new Map(source.system_custody),
     });
   } catch (error) {
     sources.delete(receipt);
@@ -985,6 +990,7 @@ async function prepareWindowsOperation(
     active();
     const receipt = Object.freeze({ kind: "original-hosted-windows-source", authority: "none" });
     sources.set(receipt, {
+      system_custody: systemCustody,
       parent: parentReceipt,
       tools: toolsReceipt,
       runtime: runtimeReceipt,

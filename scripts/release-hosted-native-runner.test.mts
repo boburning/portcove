@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { createHash } from "node:crypto";
 import {
@@ -497,7 +498,7 @@ process.stderr.write('launch-fixture:'+name+'\n'); const home=path.join(root,nam
  if(name==='foreign-tools'){await assert.rejects(pre(),/foreign issuer/);assert.deepEqual(await readdir(fixedRoot),[]);continue}
  const plan=await pre();assert.equal(plan.command,node);assert.equal(plan.temporary,fixedRoot);assert.equal(plan.authority,'none');assert.equal(plan.native_acceptance,'not-established');assert.equal(plan.arguments[1],'pre-sign');assert.equal((await lstat(node)).mode&0o777,0o700);
  if(name==='valid'){assert.ok(Object.isFrozen(plan.arguments));assert.throws(()=>{plan.arguments[0]='foreign-code'});await assert.rejects(api.claimPreparedHostedLinuxLaunch({...plan}),/original/);const context=await api.claimPreparedHostedLinuxLaunch(plan);context.recheck();assert.equal(context.tools_root,tools);await assert.rejects(api.claimPreparedHostedLinuxLaunch(plan),/original/)}
- assert.deepEqual(await readFile(node),await readFile(process.execPath));assert.deepEqual((await readdir(fixedRoot)).sort(),['authenticated-tools','bootstrap-node','launcher-binding.json','pre-sign-launch.json']);
+ assert.ok((await readFile(node)).equals(await readFile(process.execPath)),'copied Node byte identity differs');assert.deepEqual((await readdir(fixedRoot)).sort(),['authenticated-tools','bootstrap-node','launcher-binding.json','pre-sign-launch.json']);
  if(name==='binding')binding='changed';if(name==='replaced'){await rename(node,node+'.retained');await writeFile(node,await readFile(node+'.retained'),{mode:0o700})}if(name==='bytes')await writeFile(node,'changed');if(name==='writable')await chmod(node,0o777);if(name==='linked'){await rename(node,node+'.retained');await symlink(node+'.retained',node)}
  if(['binding','replaced','bytes','writable','linked'].includes(name)){await assert.rejects(post());assert.ok((await readFile(path.join(fixedRoot,'pre-sign-launch.json'))).length);continue}
  if(name==='replay'){await assert.rejects(pre(),{code:'EEXIST'});continue}
@@ -1173,3 +1174,75 @@ void test("native failure diagnostics retain only bounded public lifecycle rows 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+for (const stage of ["payload-signing", "release-publication"] as const)
+  void test(`Windows ${stage} upload routing binds platform, bytes, ACK and one attempt without proof authority`, async (t) => {
+    const root = disposableDirectory(t, path.join(os.tmpdir(), "windows-native-upload-"));
+    const { mkdir, writeFile, readFile } = await import("node:fs/promises");
+    const api = await import("./release-hosted-native-runner.mts");
+    const directory = path.join(root, "public");
+    await mkdir(directory, { mode: 0o700 });
+    const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+    const files = [];
+    for (const name of ["subject", "report", "capture", "bundle"]) {
+      const bytes = Buffer.from("{}");
+      const file = path.join(directory, `${name}.json`);
+      await writeFile(file, bytes, { flag: "wx", mode: 0o600 });
+      files.push({ path: file, bytes: bytes.length, sha256: hash(bytes) });
+    }
+    const readyFile = path.join(directory, "native-upload-ready.json");
+    const ready = Buffer.from(
+      JSON.stringify({
+        schema_version: 1,
+        authority: "none",
+        retention_days: 7,
+        overwrite: false,
+        compression_level: 0,
+        name: `hosted-native-${stage}-windows-x86_64-123-1`,
+        files,
+      }),
+    );
+    await writeFile(readyFile, ready, { flag: "wx", mode: 0o600 });
+    const request = Buffer.from(
+      JSON.stringify({
+        schema_version: 1,
+        authority: "none",
+        nonce: "c".repeat(32),
+        ready_file: readyFile,
+        ready_sha256: hash(ready),
+        deadline_ns: String(process.hrtime.bigint() + 30000000000n),
+      }),
+    );
+    await writeFile(path.join(root, "native-job-upload-request.json"), request, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    const read =
+      stage === "payload-signing"
+        ? api.readHostedWindowsNativeUploadRequest
+        : api.readHostedWindowsNativePostSignUploadRequest;
+    const ack =
+      stage === "payload-signing"
+        ? api.acknowledgeHostedWindowsNativeUpload
+        : api.acknowledgeHostedWindowsNativePostSignUpload;
+    const got = await read(root);
+    assert.equal(got.authority, "none");
+    assert.equal(got.files.length, 4);
+    await assert.rejects(api.readHostedNativeUploadRequest(root));
+    await assert.rejects(api.readHostedNativePostSignUploadRequest(root));
+    await assert.rejects(
+      (stage === "payload-signing"
+        ? api.readHostedWindowsNativePostSignUploadRequest
+        : api.readHostedWindowsNativeUploadRequest)(root),
+    );
+    await assert.rejects(ack(root, "b".repeat(64), 17, "d".repeat(64)));
+    await ack(root, hash(request), 17, "d".repeat(64));
+    const acknowledgement: unknown = JSON.parse(
+      await readFile(path.join(root, "native-job-upload-ack.json"), "utf8"),
+    );
+    assert.ok(isRecord(acknowledgement));
+    assert.equal(acknowledgement.nonce, "c".repeat(32));
+    await assert.rejects(ack(root, hash(request), 17, "d".repeat(64)));
+    await writeFile(files[0]!.path, "changed");
+    await assert.rejects(read(root));
+  });
