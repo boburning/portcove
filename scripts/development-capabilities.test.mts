@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   readFileSync,
   mkdtempSync,
+  realpathSync,
   mkdirSync,
   writeFileSync,
   cpSync,
@@ -140,7 +141,12 @@ void test("Windows driver-only preparation excludes broad development installati
 });
 
 function bootstrapFixture(t: TestContext) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces "));
+  // macOS exposes its owned temp directory through /var -> /private/var.
+  // Bash/PowerShell resolve that path before guarded re-entry; compare the
+  // same canonical owned fixture root without relaxing the admission check.
+  const directory = realpathSync(
+    mkdtempSync(path.join(os.tmpdir(), "portcove capability spaces ")),
+  );
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const project = path.join(directory, "checkout with spaces");
   const bin = path.join(directory, "commands");
@@ -153,6 +159,7 @@ function bootstrapFixture(t: TestContext) {
     "scripts/tool-cache.mts",
     "scripts/bootstrap-quality-tools.sh",
     "scripts/bootstrap-quality-tools.ps1",
+    "scripts/windows-webview-driver-policy.psm1",
     ".node-version",
     "rust-toolchain.toml",
     "package.json",

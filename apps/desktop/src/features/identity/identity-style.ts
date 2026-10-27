@@ -21,19 +21,29 @@ const aliases: Record<string, string> = {
   psp: "playstation-portable",
   "playstation-portable-psp": "playstation-portable",
 };
-export const canonicalIdentityId = (id: string): string => aliases[id] ?? id;
+export const canonicalIdentityId = (id: string): string =>
+  Object.hasOwn(aliases, id) ? aliases[id]! : id;
 export function identityLabel(id: string): string {
   id = canonicalIdentityId(id);
   if (id === "not-specified") return "Not specified";
   if (id === "pc") return "PC";
   if (id === "mobile") return "Mobile";
   if (id === "nintendo-64dd") return "Nintendo 64DD";
-  return identities[id]?.label ?? id.replaceAll("-", " ");
+  return Object.hasOwn(identities, id) ? identities[id]!.label : id.replaceAll("-", " ");
 }
+const channelColors: Record<string, string> = {
+  stable: "#22C55E",
+  beta: "#F59E0B",
+  rolling: "#3B82F6",
+};
 export function identityStyle(id: string, channel = false): CSSProperties | undefined {
   if (!channel) id = canonicalIdentityId(id);
   const color = channel
-    ? ({ stable: "#22C55E", beta: "#F59E0B", rolling: "#3B82F6" } as Record<string, string>)[id]
-    : identities[id]?.color;
+    ? Object.hasOwn(channelColors, id)
+      ? channelColors[id]
+      : undefined
+    : Object.hasOwn(identities, id)
+      ? identities[id]!.color
+      : undefined;
   return color ? ({ "--identity-base": color } as CSSProperties) : undefined;
 }

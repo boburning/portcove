@@ -498,9 +498,9 @@ void test("history opens populated details before waiting for requested inspecti
   const start = source.indexOf("      await installFixture();");
   const end = source.indexOf("      for (const [name, theme, width, height, font]", start);
   assert.ok(start >= 0 && end > start);
-  const startup = source
-    .slice(start, end)
-    .replace('({ By, Key, until } = await import("selenium-webdriver"));', "");
+  const driverImport = '({ By, Key } = await import("selenium-webdriver"));';
+  assert.ok(source.slice(start, end).includes(driverImport));
+  const startup = source.slice(start, end).replace(driverImport, "");
   const window = { __portcoveHistoryProbe: { snapshots: 0, reports: 0 } };
   const calls: string[] = [];
   await runInNewContext(`(async () => { let technicalSummary; ${startup} })()`, {
@@ -1067,18 +1067,83 @@ void test("external picker observation leaves immutable Tauri internals untouche
     const output = path.join(root, refused ? "refused" : "cancelled");
     await mkdir(output);
     const fixture = await createExternalRuntimeFixture(output);
-    const original = () => {};
+    const original = () => assert.fail("Picker observation must not invoke Tauri internals");
     const internals = Object.freeze({ invoke: original });
     const failure = new Error("original owned helper failure");
     let chosen = 0;
-    const browser = {
-      executeScript: () => {
-        throw new Error("Unexpected internal instrumentation");
+    let selected = 0;
+    const document: { activeElement: unknown; elementFromPoint: () => unknown } = {
+      activeElement: undefined,
+      elementFromPoint: () => identity,
+    };
+    const identity = {
+      closest: () => null,
+      getAnimations: () => [],
+      focus: () => {
+        document.activeElement = identity;
       },
-      wait: async () => {},
+      scrollIntoView: () => {},
+      getBoundingClientRect: () => ({ x: 0, y: 0, width: 40, height: 40 }),
+      contains: () => false,
+      isDisplayed: async () => true,
+      isEnabled: async () => true,
+      click: async () => {
+        selected++;
+      },
+    };
+    const group = {
+      getAttribute: async (name: string) => {
+        assert.ok(["data-discover-port-ids", "data-discover-matching-port-ids"].includes(name));
+        return JSON.stringify([fixture.port.id]);
+      },
+      findElement: async (locator: { value: string }) => {
+        assert.equal(locator.value, ".discover-game-identity");
+        return identity;
+      },
+    };
+    const browser = {
+      executeScript: async (script: unknown, ...args: unknown[]) => {
+        assert.ok(typeof script === "string" || typeof script === "function");
+        const body =
+          typeof script === "string"
+            ? `(function () { ${script} }).apply(undefined, args)`
+            : `(${script.toString()})(...args)`;
+        return runInNewContext(body, {
+          args,
+          document,
+          window: Object.freeze({ __TAURI_INTERNALS__: internals }),
+        });
+      },
+      wait: async (condition: unknown) => {
+        if (typeof condition === "function") {
+          const value = await sourceFunction(condition)(browser);
+          assert.ok(value, "The real grouped selection wait must settle");
+          return value;
+        }
+        const observation = object(condition);
+        if (typeof observation.fn === "function") {
+          const value = await sourceFunction(observation.fn)(browser);
+          assert.ok(value, "The real native visibility/location wait must settle");
+          return value;
+        }
+        assert.equal(typeof observation.value, "string");
+        return true;
+      },
+      findElements: async (locator: { value: string }) => {
+        if (locator.value === ".discover-game[data-discover-port-ids]") return [group];
+        assert.equal(
+          locator.value,
+          `[data-detail-workspace][data-detail-port-id="${fixture.port.id}"]`,
+        );
+        assert.equal(selected, 1, "The exact Discover identity must open before details settle");
+        return [{}];
+      },
       findElement: (locator: { value: string }) => ({
         click: async () => {
-          if (locator.value.includes("Choose game folder")) chosen++;
+          if (locator.value.includes("Choose game folder")) {
+            assert.equal(selected, 1);
+            chosen++;
+          }
         },
         sendKeys: async () => {},
         isEnabled: async () => true,

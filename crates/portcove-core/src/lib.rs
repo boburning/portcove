@@ -133,7 +133,9 @@ pub use browsing_context::{CatalogBrowsingContext, CatalogBrowsingSnapshot};
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use cartridge_build::CartridgeBuildRecipe;
 pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
-pub use catalog_media::{CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, validate_catalog_media};
+pub use catalog_media::{
+    CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, validate_catalog_media,
+};
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
 pub use curated_acquisition::{CuratedAcquisitionRecord, CuratedEvidenceReference};

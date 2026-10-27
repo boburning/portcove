@@ -3,7 +3,15 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -89,7 +97,8 @@ void test("capability selection rejects an unknown profile before any setup", ()
 });
 
 void test("release tool help works before inputs, dependencies, network, or output exist", (t) => {
-  const fixtureRoot = mkdtempSync(path.join(os.tmpdir(), "portcove-release-help-"));
+  // Keep direct-entry identity equal to Node's resolved module URL on macOS.
+  const fixtureRoot = realpathSync(mkdtempSync(path.join(os.tmpdir(), "portcove-release-help-")));
   t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
   mkdirSync(path.join(fixtureRoot, "scripts"));
   function copyTool(name: string) {

@@ -88,7 +88,9 @@ const channels: Record<string, LucideIcon> = {
   rolling: RefreshCw,
 };
 export function IdentityIcon({ name, channel = false }: { name: string; channel?: boolean }) {
-  const Icon = channel ? channels[name] : systemIcons[identityLabel(name)];
+  const icons = channel ? channels : systemIcons;
+  const key = channel ? name : identityLabel(name);
+  const Icon = Object.hasOwn(icons, key) ? icons[key] : undefined;
   return Icon ? (
     <Icon
       className="identity-icon"

@@ -1,4 +1,3 @@
-import { selectCatalogPort } from "./desktop-review-controls.mts";
 import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 // One normal-app read-response fixture. No game launch, source registration or consent mutation.
@@ -429,6 +428,7 @@ export async function qualificationHistoryScenario({
     let technicalSummary: Locator;
     const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     async function openDetails() {
+      const { selectCatalogPort } = await import("./desktop-review-controls.mts");
       await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
       await selectCatalogPort(browser, fixture.port_id);
       await browser.wait(

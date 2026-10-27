@@ -1,3 +1,6 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { IdentityIcon } from "./IdentityIcon";
 import { expect, it } from "vite-plus/test";
 import { canonicalIdentityId, identityLabel, identityStyle } from "./identity-style";
 import palette from "./platform-palette.json";
@@ -17,3 +20,15 @@ it("uses canonical system aliases without guessing an unknown system", () => {
   expect(identityStyle("windows-x86-64")).toEqual(identityStyle("windows"));
   expect(identityStyle("unknown-system")).toBeUndefined();
 });
+
+it.each(["constructor", "__proto__", "toString", "hasOwnProperty"])(
+  "preserves the unknown identity %s without inherited aliases, colors or icons",
+  (id) => {
+    expect(canonicalIdentityId(id)).toBe(id);
+    expect(identityLabel(id)).toBe(id);
+    expect(identityStyle(id)).toBeUndefined();
+    expect(identityStyle(id, true)).toBeUndefined();
+    expect(renderToStaticMarkup(createElement(IdentityIcon, { name: id }))).toBe("");
+    expect(renderToStaticMarkup(createElement(IdentityIcon, { name: id, channel: true }))).toBe("");
+  },
+);

@@ -8,6 +8,16 @@ import type { GithubAuthStatus, PortDefinition, PortStatus, ReleaseChannel } fro
 import { formatBytes, platformLabel } from "./view-model";
 import { currentCatalogPort } from "./catalog-test-fixtures";
 
+/** The exact-port action remains enabled independently of cached readiness. */
+function discoverAction(html: string, portId: string): string {
+  const action = [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/gu)]
+    .map(([button]) => button)
+    .find((button) => button.includes(`data-detail-origin="catalog:card:${portId}:details"`));
+  expect(action).toBeDefined();
+  expect(action).not.toContain(" disabled=");
+  return action!;
+}
+
 describe("catalog and capacity presentation", () => {
   it.each([
     {
@@ -37,12 +47,10 @@ describe("catalog and capacity presentation", () => {
         />,
       );
       expect(html).toContain("Setup status unknown");
-      expect(html).toContain("View details");
+      expect(discoverAction(html, port.id)).toContain("View port");
       expect(html).not.toContain("Available");
       expect(html).not.toContain("Unsupported");
-      const card = html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0];
-      expect(card).toBeDefined();
-      expect(card).not.toContain(" disabled=");
+      expect(discoverAction(html, port.id)).not.toContain(" disabled=");
       expect(html).toContain(installationLabel);
       expect(html).not.toContain(absentInstallationLabel);
     },
@@ -69,9 +77,7 @@ describe("catalog and capacity presentation", () => {
     expect(html).toContain("Not installed");
     expect(html).not.toContain("Available");
     expect(html).not.toContain("Ready to play");
-    const card = html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0];
-    expect(card).toBeDefined();
-    expect(card).not.toContain(" disabled=");
+    expect(discoverAction(html, port.id)).toContain("View port");
   });
 
   it.each([
@@ -116,11 +122,11 @@ describe("catalog and capacity presentation", () => {
         />,
       );
       expect(html).toContain(`${label}</span>`);
-      expect(html).toContain("View details");
+      expect(discoverAction(html, port.id)).toContain("View port");
       expect(html).toContain(explanation);
       expect(html).toContain("Not installed");
       expect(html).not.toContain("Ready to play");
-      expect(html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0]).not.toContain(" disabled=");
+      expect(discoverAction(html, port.id)).toContain("aria-describedby=");
     },
   );
 
@@ -314,7 +320,11 @@ it.each(["catalog", "library"] as const)(
       expect(html).toContain(reason);
       expect(html).toContain("aria-describedby=");
       expect(html).not.toContain(">Play</button>");
-      expect(html).toContain(view === "library" ? `View details for ${port.name}` : "Finish setup");
+      const action = view === "catalog" ? discoverAction(html, port.id) : html;
+      expect(action).toContain(
+        view === "library" ? `View details for ${port.name}` : "View installation",
+      );
+      expect(action).toContain("aria-describedby=");
     }
   },
 );
@@ -351,7 +361,8 @@ it.each(["catalog", "library"] as const)(
       );
     const html = renderCard();
     expect(html).toContain("Setup required");
-    expect(html).toContain("Finish setup");
+    const action = view === "catalog" ? discoverAction(html, port.id) : html;
+    expect(action).toContain(view === "library" ? "Finish setup" : "View installation");
     expect(html).not.toContain("Launch needs review");
     status.port_actions = [
       { action: "launch", availability: "held", reason: "definition_ineligible", definition: null },
@@ -362,10 +373,10 @@ it.each(["catalog", "library"] as const)(
 );
 
 it.each(["stable", "beta", "rolling"] as const)(
-  "labels the selected Catalog release channel %s without deriving it from support",
+  "labels the declared Catalog release channel %s independently of support and the selected update stream",
   (channel) => {
-    const port = { ...portDefinition(), support_tier: "rolling" as const };
-    const status = { ...portStatus(), channel };
+    const port = { ...portDefinition(), channels: [channel], support_tier: "rolling" as const };
+    const status = { ...portStatus(), active: cardInstall, channel };
     const html = renderToStaticMarkup(
       <PortBrowser
         view="catalog"
@@ -378,8 +389,12 @@ it.each(["stable", "beta", "rolling"] as const)(
         loading={false}
       />,
     );
+    const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
+    expect(html).toContain(`${label}</span>`);
+    expect(html.includes("Selected update channel:")).toBe(channel !== "stable");
     expect(html).toContain(
-      ` · ${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"} channel`,
+      channel === "stable" ? `${label}</span>` : `Selected update channel: ${label}`,
     );
+    expect(discoverAction(html, port.id)).toContain("View installation");
   },
 );

@@ -4022,6 +4022,10 @@
       "memberships": [["native-tools", 2300]]
     },
     {
+      "file": "apps/desktop/scripts/desktop-review-controls.native.test.mts",
+      "memberships": [["native-tools", 2350]]
+    },
+    {
       "file": "apps/desktop/scripts/desktop-scenario-state.native.test.mts",
       "memberships": [["native-tools", 2400]]
     },

@@ -1,4 +1,3 @@
-import { selectCatalogPort } from "./desktop-review-controls.mts";
 import type { WebDriver, By, Key, until } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 import type { FailureReport, PortStatus } from "../src/transport-types.generated.d.ts";
@@ -144,6 +143,7 @@ export async function externalRuntimePickerObservation({
   Key,
   until,
 }: PickerContext) {
+  const { selectCatalogPort } = await import("./desktop-review-controls.mts");
   await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, fixture.port.name);
@@ -247,6 +247,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
   try {
     report.picker_cancel = await pickerObservation;
     assert.equal(object(report.picker_cancel).cancelled, true);
+    const { selectCatalogPort } = await import("./desktop-review-controls.mts");
     report.before = await status();
     assert.ok(!report.before.external_runtime);
     const { transportValue } = await import("./transport-values.mts");
