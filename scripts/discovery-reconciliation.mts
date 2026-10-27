@@ -1,3 +1,4 @@
+import { discoveryCheckpointBytes } from "./discovery-checkpoint.mts";
 /** Read-only reconciliation of reviewed source identities. No title similarity,
  * source popularity, issue state or release channel grants implementation identity.
  * Callers bind these inputs to their dated upstream and canonical snapshots.
@@ -35,14 +36,9 @@ function identity(value: DiscoveryIdentity) {
   if (value.game_key !== undefined && (!value.game_key.trim() || value.game_key.length > 256))
     throw new Error("Invalid independently catalogable game identity");
 }
-export function reconcileDiscoveryIdentity(
-  candidate: ReviewedDiscoveryIdentity,
-  canonical: readonly CanonicalDiscoveryIdentity[],
-) {
-  if (canonical.length > 10000) throw new Error("Canonical reconciliation capacity exceeded");
-  if (!["implementation", "helper", "framework"].includes(candidate.kind))
-    throw new Error("Explicit primary-reviewed architecture disposition is required");
-  identity(candidate);
+function canonicalIndex(canonical: readonly CanonicalDiscoveryIdentity[]) {
+  if (Buffer.byteLength(JSON.stringify(canonical)) > discoveryCheckpointBytes)
+    throw new Error("Canonical reconciliation byte envelope exceeded");
   for (const row of canonical) {
     identity(row);
     if (
@@ -54,6 +50,34 @@ export function reconcileDiscoveryIdentity(
       throw new Error("Invalid canonical discovery record");
     row.aliases?.forEach(repository);
   }
+
+  const paths = new Map<string, number[]>(),
+    ids = new Map<number, number[]>();
+  const append = <K,>(map: Map<K, number[]>, key: K, index: number) => {
+    const rows = map.get(key) ?? [];
+    rows.push(index);
+    map.set(key, rows);
+  };
+  canonical.forEach((row, index) => {
+    for (const path of [row.repository, ...(row.aliases ?? [])])
+      append(paths, repository(path), index);
+    if (row.repository_id !== undefined) append(ids, row.repository_id, index);
+  });
+  return { rows: canonical, paths, ids };
+}
+export function reconcileDiscoveryIdentity(
+  candidate: ReviewedDiscoveryIdentity,
+  canonical: readonly CanonicalDiscoveryIdentity[],
+) {
+  return reconcileIndexed(candidate, canonicalIndex(canonical));
+}
+function reconcileIndexed(
+  candidate: ReviewedDiscoveryIdentity,
+  index: ReturnType<typeof canonicalIndex>,
+) {
+  if (!["implementation", "helper", "framework"].includes(candidate.kind))
+    throw new Error("Explicit primary-reviewed architecture disposition is required");
+  identity(candidate);
   if (candidate.kind === "framework")
     return {
       disposition: "Shared infrastructure",
@@ -69,12 +93,14 @@ export function reconcileDiscoveryIdentity(
   const target = candidate.kind === "helper" ? candidate.helper_for! : candidate;
   identity(target);
   const key = repository(target.repository);
-  const matching = canonical.filter((row) => {
-    const pathMatch = [row.repository, ...(row.aliases ?? [])].some((v) => repository(v) === key);
-    const idMatch =
-      target.repository_id !== undefined && target.repository_id === row.repository_id;
-    return pathMatch || idMatch;
-  });
+  const matching = [
+    ...new Set([
+      ...(index.paths.get(key) ?? []),
+      ...(target.repository_id === undefined ? [] : (index.ids.get(target.repository_id) ?? [])),
+    ]),
+  ]
+    .sort((a, b) => a - b)
+    .map((position) => index.rows[position]!);
   if (
     matching.some(
       (row) =>
@@ -124,7 +150,9 @@ export function reconcileDiscoverySnapshot(
   candidates: readonly (ReviewedDiscoveryIdentity & { key: string; evidence: string })[],
   canonical: readonly CanonicalDiscoveryIdentity[],
 ) {
-  if (candidates.length > 10000) throw new Error("Discovery reconciliation capacity exceeded");
+  if (Buffer.byteLength(JSON.stringify({ candidates, canonical })) > discoveryCheckpointBytes)
+    throw new Error("Discovery reconciliation byte envelope exceeded");
+  const index = canonicalIndex(canonical);
   const unique = new Map<string, { identity: ReviewedDiscoveryIdentity; evidence: Set<string> }>();
   for (const candidate of candidates) {
     if (
@@ -142,11 +170,14 @@ export function reconcileDiscoverySnapshot(
     row.evidence.add(evidence);
     unique.set(key, row);
   }
-  return [...unique]
+  const report = [...unique]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, row]) => ({
       key,
-      ...reconcileDiscoveryIdentity(row.identity, canonical),
+      ...reconcileIndexed(row.identity, index),
       evidence: [...row.evidence].sort(),
     }));
+  if (Buffer.byteLength(JSON.stringify(report)) > discoveryCheckpointBytes)
+    throw new Error("Discovery reconciliation output byte envelope exceeded");
+  return report;
 }

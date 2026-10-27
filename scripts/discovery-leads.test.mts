@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   acceptLeadPage,
+  retainLeadResults,
   nextLeadPage,
   parseLeadState,
   pendingLeads,
@@ -772,5 +773,35 @@ void test("partial family effort requires six observed families and the same pri
     session.leadWorkComplete(),
     true,
     "four validated pages remain the original alternate bound",
+  );
+});
+
+void test("retained leads exceed 10000 identities without truncation and enforce the shared physical envelope", () => {
+  const state = retainLeadResults(
+    parseLeadState(undefined),
+    Array.from({ length: 12001 }, (_, index) => item(index + 1)),
+    now,
+    "primary-evidence",
+  );
+  const reloaded = parseLeadState(JSON.parse(JSON.stringify(state)));
+  assert.equal(Object.keys(reloaded.records).length, 12001);
+  const next = retainLeadResults(reloaded, [item(12002)], now, "next-bounded-batch");
+  assert.equal(Object.keys(next.records).length, 12002);
+  assert.equal(next.records["1"]!.id, 1);
+  assert.equal(Object.keys(reloaded.records).length, 12001);
+  assert.throws(
+    () =>
+      retainLeadResults(
+        reloaded,
+        [{ ...item(12003), description: "x".repeat(32 * 1024 * 1024) }],
+        now,
+        "oversized-response",
+      ),
+    /byte envelope/u,
+  );
+  assert.equal(Object.keys(reloaded.records).length, 12001);
+  assert.throws(
+    () => retainLeadResults(reloaded, [item(12004, "ports/game-1")], now, "identity-conflict"),
+    /identity changed/u,
   );
 });
