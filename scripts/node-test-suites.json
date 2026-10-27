@@ -879,7 +879,8 @@
             "POSIX Core warm setup selects only nextest; failed Rust acquisition preserves prior state",
             "POSIX frontend setup selects only its supervisor compiler without Core components or Aqua",
             "POSIX frontend warm setup refreshes hooks and propagates install or hook failures",
-            "frontend pin drift fails before dependency acquisition and preserves previous state"
+            "frontend pin drift fails before dependency acquisition and preserves previous state",
+            "Darwin frontend's empty tool selection preserves cold and warm setup without tool acquisition"
           ]
         },
         {

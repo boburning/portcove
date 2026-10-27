@@ -56,7 +56,7 @@ fi
 # guarded setup never auto-installs the compiler needed by its own supervisor.
 if [[ "${GITHUB_ACTIONS:-}" != true && "${PORTCOVE_CONTAINER_GUEST:-}" != 1 ]]; then
   if [[ -z "${PORTCOVE_RESOURCE_RESERVATION:-}" ]]; then
-    exec node scripts/resource-command.mts rust --bootstrap -- "$BASH" "$project_root/scripts/bootstrap-quality-tools.sh" "${bootstrap_args[@]}"
+    exec node scripts/resource-command.mts rust --bootstrap -- "$BASH" "$project_root/scripts/bootstrap-quality-tools.sh" ${bootstrap_args[@]+"${bootstrap_args[@]}"}
   fi
   node scripts/resource-command.mts verify-bootstrap
 fi
@@ -80,12 +80,12 @@ if $want_rust && [[ "$profile" != standard ]]; then
   rust_ready=true
   [[ "$(RUSTUP_AUTO_INSTALL=0 rustc --version 2>/dev/null || true)" == "rustc $rust_pin "* ]] || rust_ready=false
   component_args=()
-  for component in "${components[@]}"; do
+  for component in ${components[@]+"${components[@]}"}; do
     component_args+=(--component "$component")
     RUSTUP_AUTO_INSTALL=0 cargo "${component/rustfmt/fmt}" --version >/dev/null 2>&1 || rust_ready=false
   done
   if ! $rust_ready; then
-    rustup toolchain install "$rust_pin" --profile minimal "${component_args[@]}"
+    rustup toolchain install "$rust_pin" --profile minimal ${component_args[@]+"${component_args[@]}"}
   fi
 fi
 if $want_aqua; then
@@ -174,7 +174,8 @@ install_tool() {
   printf 'Installed %s: %s.\n' "$crate" "$(reported_version "$command_line")"
 }
 
-for tool in "${required_tools[@]}"; do
+# Older Bash treats an empty array as unset under nounset; preserve zero arguments.
+for tool in ${required_tools[@]+"${required_tools[@]}"}; do
   install_tool "$tool"
 done
 
@@ -183,7 +184,7 @@ if $include_deep && ! $want_rust; then
   printf '%s\n' '--include-deep requires a Rust-capable profile' >&2; exit 2
 fi
 if $include_deep; then
-  for tool in "${optional_tools[@]}"; do
+  for tool in ${optional_tools[@]+"${optional_tools[@]}"}; do
     crate="${tool%%|*}"
     if ! install_tool "$tool"; then
       optional_failures+=("$crate")
@@ -197,6 +198,6 @@ if [[ "$profile" != standard ]]; then
   node scripts/dev-doctor.mts --profile "$profile"
 fi
 printf 'Requested pinned Portcove tools are ready (%s).\n' "$profile"
-if [[ ${#optional_failures[@]} -gt 0 ]]; then
+if [[ -n "${optional_failures[*]-}" ]]; then
   printf 'Warning: optional deep tools remain unavailable on this host: %s.\n' "${optional_failures[*]}" >&2
 fi
