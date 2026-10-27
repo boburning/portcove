@@ -906,6 +906,71 @@ function clearFixtureArtwork(directory: string, ids: string[]) {
   }
 }
 
+void test("preparation preserves authored acquisition restrictions despite replacement records and provider facts", async () => {
+  const f = fixture();
+  try {
+    const source = copiedCatalog(join(f.root, "source"));
+    const record: AuthoredPort = {
+      format_version: 1,
+      listing: {
+        id: "restricted-preparation-fixture",
+        name: "Restricted preparation fixture",
+        summary: "An unresolved acquisition condition.",
+        project_url: project,
+        download_block_reason: "Resolve the exact bundled-component permission.",
+      },
+    };
+    const file = join(source, "ports", `${record.listing.id}.json`);
+    const original = `${JSON.stringify(record, null, 2)}\n`;
+    writeFileSync(file, original);
+    for (const condition of [
+      undefined,
+      "A package exists now.",
+      record.listing.download_block_reason,
+    ]) {
+      const proposal = structuredClone(record);
+      if (condition === undefined) delete proposal.listing.download_block_reason;
+      else proposal.listing.download_block_reason = condition;
+      proposal.listing.availability = "packages";
+      proposal.listing.release_url = `${project}/releases`;
+      proposal.listing.download_asset_hints = { "windows-x86-64": ["windows", ".zip"] };
+      const prepare = () =>
+        preparePort({
+          catalogRoot: source,
+          outputDirectory: join(
+            f.root,
+            `proposal-${condition === undefined ? "removed" : condition === record.listing.download_block_reason ? "retained" : "changed"}`,
+          ),
+          record: proposal,
+          facts: {
+            fetcher: f.fetcher((url) => {
+              if (url.endsWith("/repos/example/fixture"))
+                return json({ ...metadata, description: "New upstream package available." });
+              if (url.includes("/releases")) return json([]);
+              return assert.fail(`Unexpected request ${url}`);
+            }),
+          },
+          artwork: { inspectGame: () => [] },
+        });
+      if (condition !== record.listing.download_block_reason)
+        await assert.rejects(prepare(), /cannot remove or change an authored download restriction/);
+      else {
+        const result = await prepare();
+        const listing = (
+          JSON.parse(readFileSync(result.report.files.listings, "utf8")) as {
+            listings: AuthoredPort["listing"][];
+          }
+        ).listings.find((entry) => entry.id === record.listing.id);
+        assert.equal(listing?.download_block_reason, condition);
+        assert.equal(result.report.operational_changed, false);
+      }
+      assert.equal(readFileSync(file, "utf8"), original);
+    }
+  } finally {
+    f.clean();
+  }
+});
+
 void test("preparation resolves related downloads from stable ID and canonical issue while isolating managed releases", async () => {
   for (const route of [
     "id",

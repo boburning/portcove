@@ -182,6 +182,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Authored port order must be a nonnegative integer.");
   if (value.integration !== undefined) {
     if (!isRecord(value.integration)) throw new Error("Integration must be a strict object.");
+    if (listing.download_block_reason !== undefined)
+      throw new Error(
+        "A download restriction cannot coexist with a managed integration; resolve the canonical acquisition condition before authoring that route.",
+      );
     const integration = value.integration;
     const presentation = integration.presentation;
     if (sharedPortFields.some((field) => Object.hasOwn(integration, field)))
