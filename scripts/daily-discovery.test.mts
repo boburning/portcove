@@ -22,7 +22,8 @@ import {
   assertDiscoveryCommentMayPost,
 } from "./discovery-mutation.mts";
 import type { DiscoveryMutation } from "./discovery-mutation.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError, GitHubApiClient } from "./github-api.mts";
+import { renderPortIssueBody } from "./roadmap-issue.mts";
 import { renameSync, readdirSync } from "node:fs";
 import * as discoverySession from "./daily-discovery-session.mts";
 const envelope = {
@@ -464,4 +465,465 @@ void test("control input rejects an overlong unterminated message while reading"
   const failures: unknown[] = await error;
   assert.ok(failures[0] instanceof Error);
   assert.match(failures[0].message, /exceeds cap/);
+});
+
+void test("fresh observed capacity admits more than historical request counts without dropping finite resources", () => {
+  let now = Date.parse("2026-10-27T00:00:00Z");
+  const budget = new DiscoveryBudget(
+    "ordinary",
+    () => {},
+    () => now,
+  );
+  budget.observeProvider({
+    resource: "core",
+    remaining: 1000,
+    resetAt: new Date(now + 3600000).toISOString(),
+  });
+  budget.charge("GET", "repos/o/r", 1, 100, "200");
+  now += 10;
+  for (let i = 1; i < 350; i++) {
+    budget.admit(1, 100);
+    budget.charge("GET", "repos/o/r", 1, 100, "200");
+    now += 10;
+  }
+  assert.equal(budget.usage.requests, 350);
+  budget.reserveDelivery(600, 1024);
+  assert.ok(budget.remaining().requests <= 50);
+  assert.throws(() => budget.admit(51, 1), /budget/);
+  budget.delivery = true;
+  assert.throws(() => budget.admit(1, budget.limits.bytes), /budget/);
+  budget.observeProvider({
+    resource: "core",
+    remaining: 0,
+    resetAt: new Date(now + 3600000).toISOString(),
+  });
+  assert.throws(() => budget.admit(1, 1), /backoff/);
+  now += 3600001;
+  assert.throws(() => budget.admit(1, 1), /budget/);
+});
+
+void test("observed response costs and runtime reduce adaptive admission", () => {
+  let now = Date.parse("2026-10-27T00:00:00Z");
+  const budget = new DiscoveryBudget(
+    "ordinary",
+    () => {},
+    () => now,
+  );
+  budget.observeProvider({
+    resource: "core",
+    remaining: 1000,
+    resetAt: new Date(now + 3600000).toISOString(),
+  });
+  budget.charge("GET", "repos/o/r", 1, 9 * 1024 * 1024, "200");
+  now += 1;
+  assert.equal(
+    budget.remaining().requests,
+    1,
+    "remaining retained bytes admit only one observed-size operation",
+  );
+  assert.throws(() => budget.admit(2, 1), /budget/);
+  now += 29 * 60000;
+  assert.equal(budget.remaining().requests, 0, "observed elapsed cost leaves insufficient runtime");
+});
+
+void test("quiet rotation resumes past fifty from per-operation durable checkpoints", async (t) => {
+  const root = mkdtempSync(
+    path.join(await import("node:os").then((m) => m.tmpdir()), "discovery-capacity-"),
+  );
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const config = JSON.parse(
+    readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
+  const calls: number[] = [];
+  const allowRecheck = new Set<number>();
+  const make = (runId: string) => {
+    const run = path.join(root, runId);
+    mkdirSync(run);
+    const session = new discoverySession.DiscoverySession(
+      root,
+      run,
+      config,
+      "fixture-token",
+      new Date().toISOString(),
+      "fixture-head",
+    );
+    const budget = new DiscoveryBudget("ordinary");
+    const api = new GitHubApiClient((args) => {
+      const endpoint = args[2]!;
+      const id = Number(endpoint.match(/game-(\d+)$/u)?.[1]);
+      assert.ok(id > 0);
+      // Every prior successful operation must already be on disk before this read.
+      if (calls.length) {
+        const durable = JSON.parse(readFileSync(path.join(root, "active-run.json"), "utf8")) as {
+          checkpoint: { checked: Record<string, string> };
+        };
+        assert.ok(durable.checkpoint.checked[calls.at(-1)!]);
+      }
+      assert.ok(
+        !calls.includes(id) || allowRecheck.has(id),
+        "completed identities are not read again on resume",
+      );
+      calls.push(id);
+      budget.charge("GET", endpoint, 1, 100, "200");
+      return `HTTP/2 200\n\n${JSON.stringify({ id, full_name: `ports/game-${id}`, archived: false })}`;
+    });
+    Object.assign(session.client, { api });
+    Object.assign(session, {
+      budget,
+      leadWorkComplete: () => true,
+      inventory: {
+        issues: Array.from({ length: 75 }, (_, index) => ({
+          id: `I${index + 1}`,
+          number: index + 1,
+          title: `[Port] Game ${index + 1}`,
+          state: "OPEN",
+          updatedAt: "2026-10-26T00:00:00Z",
+          body: renderPortIssueBody({
+            title: `Game ${index + 1}`,
+            upstream: `https://github.com/ports/game-${index + 1}`,
+            portKey: `game-${index + 1}`,
+          }),
+        })),
+      },
+    });
+    return session;
+  };
+  const first = make("first");
+  first.budget.reserveDelivery(145, 1024);
+  assert.equal(first.recheck().checked.length, 55);
+  assert.equal(calls.length, 55);
+  // Construct the real interrupted-session reader, not a hand-copied checkpoint.
+  const resumed = make("resumed");
+  assert.equal(resumed.recheck().checked.length, 20);
+  assert.equal(calls.length, 75);
+  assert.equal(resumed.recheck().checked.length, 0);
+  const changed = resumed.inventory.issues[0]!;
+  allowRecheck.add(1);
+  changed.body += "\nChanged source contract";
+  // Body hashing catches changes even within the provider timestamp resolution.
+  assert.deepEqual(resumed.recheck().checked, [1]);
+  delete changed.updatedAt;
+  assert.deepEqual(resumed.recheck().checked, [1], "unknown revisions cannot inherit freshness");
+  assert.ok(!resumed.checkpoint.checked_revisions?.[1]);
+});
+
+void test("thirteen complete investigations retain independently bound evidence within resource admission", async (t) => {
+  const root = mkdtempSync(
+    path.join(await import("node:os").then((m) => m.tmpdir()), "discovery-research-capacity-"),
+  );
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const run = path.join(root, "run");
+  mkdirSync(run);
+  const config = JSON.parse(
+    readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
+  const session = new discoverySession.DiscoverySession(
+    root,
+    run,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  const api = new GitHubApiClient((args) => {
+    const endpoint = args[2]!;
+    session.budget.charge("GET", endpoint, 1, 100, "200");
+    const repository = endpoint.match(/^repos\/([^/]+\/[^/?]+)/u)![1]!;
+    let body: unknown;
+    if (endpoint.endsWith("per_page=10")) body = [];
+    else if (endpoint.includes("/git/ref/heads/")) body = { object: { sha: "a".repeat(40) } };
+    else if (endpoint.includes("/readme?"))
+      body = {
+        sha: "b".repeat(40),
+        content: Buffer.from("Reviewed upstream setup").toString("base64"),
+      };
+    else if (endpoint.includes("/contents/")) return "HTTP/2 404\n\n{}";
+    else
+      body = {
+        id: Number(repository.split("-").at(-1)),
+        full_name: repository,
+        default_branch: "main",
+        archived: false,
+        fork: false,
+      };
+    return `HTTP/2 200\n\n${JSON.stringify(body)}`;
+  });
+  Object.assign(session.source, { api });
+  for (let id = 1; id <= 13; id++) session.research(`ports/game-${id}`);
+  assert.equal(session.deepInvestigations, 13);
+  assert.equal(Object.keys(session.journal.evidence).length, 13);
+  const resumedRun = path.join(root, "resumed");
+  mkdirSync(resumedRun);
+  const resumed = new discoverySession.DiscoverySession(
+    root,
+    resumedRun,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  assert.equal(Object.keys(resumed.journal.evidence).length, 13);
+});
+
+void test("a logical journal beyond five candidates resumes verified batches without splitting or repeated writes", async (t) => {
+  const root = mkdtempSync(
+    path.join(await import("node:os").then((m) => m.tmpdir()), "discovery-intake-capacity-"),
+  );
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const config = JSON.parse(
+    readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
+  const writes = new Set<string>();
+  const batches: number[] = [];
+  const make = (name: string, interrupt: boolean) => {
+    const run = path.join(root, name);
+    mkdirSync(run);
+    const session = new discoverySession.DiscoverySession(
+      root,
+      run,
+      config,
+      "fixture-token",
+      new Date().toISOString(),
+      "fixture-head",
+    );
+    Object.assign(session, {
+      inventory: { issues: [], items: [], archivedItems: [] },
+      budget: new DiscoveryBudget("ordinary"),
+    });
+    session.checkProviderCapacity = () => {
+      for (const resource of ["core", "graphql"])
+        session.budget.observeProvider({
+          resource,
+          remaining: 10000,
+          resetAt: new Date(Date.now() + 3600000).toISOString(),
+        });
+    };
+    // Exercise admission, durable candidates, production write journal guards and
+    // the real interrupted reader. This fixture does not claim hosted mutation evidence.
+    session.applyBatch = async (candidates) => {
+      batches.push(candidates.length);
+      for (const candidate of candidates) {
+        discoveryPost(
+          candidate,
+          () => {
+            assert.ok(!writes.has(candidate.id));
+            writes.add(candidate.id);
+            return { id: writes.size };
+          },
+          () => session.persist(),
+        );
+        candidate.status = "delivered";
+        session.budget.charge("POST", "fixture/readback-verified", 10, 100, "200");
+        session.persist();
+      }
+      if (interrupt) throw new Error("fixture interruption after verified batch");
+      return {
+        delivered: candidates.map((c) => ({ id: c.id, issue: c.issue, readback: c.readback })),
+      };
+    };
+    return session;
+  };
+  const first = make("first", true);
+  const evidenceHash = (await import("./upstream-observer.mts")).observationHash;
+  for (let id = 1; id <= 13; id++) {
+    const body = `reviewed-${id}`;
+    first.journal.candidates[String(id)] = {
+      id: String(id),
+      kind: "comment",
+      title: `Game ${id}`,
+      upstream: `https://github.com/ports/game-${id}`,
+      portKey: `game-${id}`,
+      issue: id,
+      body,
+      body_sha256: evidenceHash(body),
+      evidence_ids: [],
+      evidence_sha256: evidenceHash([]),
+      status: "reviewed",
+      review: {
+        verdict: "clear",
+        body_sha256: evidenceHash(body),
+        evidence_sha256: evidenceHash([]),
+      },
+    };
+  }
+  await assert.rejects(first.apply(), /fixture interruption/);
+  assert.ok(writes.size > 5 && writes.size < 13);
+  const resumed = make("resumed", false);
+  const result = await resumed.apply();
+  assert.equal(result.pending, 0);
+  assert.equal(writes.size, 13);
+  assert.ok(batches.length >= 2);
+  assert.ok(Object.values(resumed.journal.candidates).every((c) => c.status === "delivered"));
+  await resumed.apply();
+  assert.equal(writes.size, 13);
+});
+
+void test("GraphQL capacity admits a smaller prefix and later reset continues the same logical queue", async () => {
+  const session = Object.create(
+    discoverySession.DiscoverySession.prototype,
+  ) as discoverySession.DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  let graphql = 500;
+  const writes: string[] = [];
+  const batches: number[] = [];
+  Object.assign(session, {
+    budget,
+    inventory: { issues: [], items: [], archivedItems: [] },
+    journal: {
+      candidates: Object.fromEntries(
+        Array.from({ length: 3 }, (_, i) => [
+          String(i),
+          {
+            id: String(i),
+            status: "reviewed",
+            body: "reviewed",
+            evidence_ids: [],
+          },
+        ]),
+      ),
+      evidence: {},
+      notes: [],
+    },
+    persist: () => {},
+    checkProviderCapacity: () => {
+      budget.observeProvider({
+        resource: "core",
+        remaining: 10000,
+        resetAt: "2099-01-01T00:00:00Z",
+      });
+      budget.observeProvider({
+        resource: "graphql",
+        remaining: graphql,
+        resetAt: "2099-01-01T00:00:00Z",
+      });
+    },
+  });
+  session.applyBatch = async (candidates) => {
+    batches.push(candidates.length);
+    for (const candidate of candidates) {
+      assert.ok(!writes.includes(candidate.id));
+      writes.push(candidate.id);
+      candidate.status = "delivered";
+    }
+    graphql = 100;
+    return {
+      delivered: candidates.map((c) => ({ id: c.id, issue: c.issue, readback: c.readback })),
+    };
+  };
+  const partial = await session.apply();
+  assert.deepEqual(batches, [1]);
+  assert.equal(partial.pending, 2);
+  assert.equal(session.journal.delivery, "pending");
+  graphql = 1000;
+  const completed = await session.apply();
+  assert.equal(completed.pending, 0);
+  assert.deepEqual(batches, [1, 2]);
+  assert.deepEqual(writes, ["0", "1", "2"]);
+});
+
+void test("automatic delivery batches retain separate doctor evidence files and journal receipts", async (t) => {
+  const root = mkdtempSync(
+    path.join(await import("node:os").then((m) => m.tmpdir()), "discovery-doctors-"),
+  );
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const run = path.join(root, "run");
+  mkdirSync(run);
+  const config = JSON.parse(
+    readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
+  const session = new discoverySession.DiscoverySession(
+    root,
+    run,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  Object.assign(session, {
+    inventory: { issues: [], items: [], archivedItems: [] },
+    checkProviderCapacity: () => {},
+    refresh: () => session.inventory,
+  });
+  await session.applyBatch([]);
+  await session.applyBatch([]);
+  const receipts = session.journal.doctors as { evidence: string; scope: string }[];
+  assert.equal(receipts.length, 2);
+  assert.notEqual(receipts[0]!.evidence, receipts[1]!.evidence);
+  for (const receipt of receipts) {
+    assert.equal(receipt.scope, "none");
+    assert.deepEqual(JSON.parse(readFileSync(receipt.evidence, "utf8")), {
+      scope: "none",
+      global_health: "not_evaluated",
+      reason: "no roadmap changes",
+    });
+  }
+  const nextRun = path.join(root, "next");
+  mkdirSync(nextRun);
+  const resumed = new discoverySession.DiscoverySession(
+    root,
+    nextRun,
+    config,
+    "fixture-token",
+    new Date().toISOString(),
+    "fixture-head",
+  );
+  assert.deepEqual(resumed.journal.doctors, receipts);
+});
+
+void test("holding the final candidate cannot bypass a resumed substantial change's global check", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  mkdirSync(work, { recursive: true });
+  const root = mkdtempSync(path.join(work, "discovery-global-finalization-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const config = JSON.parse(
+    readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
+  const make = (name: string) => {
+    const run = path.join(root, name);
+    mkdirSync(run);
+    return new discoverySession.DiscoverySession(
+      root,
+      run,
+      config,
+      "fixture-token",
+      new Date().toISOString(),
+      "fixture-head",
+    );
+  };
+  const first = make("first");
+  const hash = (await import("./upstream-observer.mts")).observationHash;
+  first.journal.candidates.held = {
+    id: "held",
+    kind: "comment",
+    title: "Held final candidate",
+    upstream: "https://github.com/ports/held",
+    portKey: "held",
+    body: "held",
+    body_sha256: hash("held"),
+    evidence_ids: [],
+    evidence_sha256: hash([]),
+    status: "held",
+  };
+  first.journal.global_doctor_pending = true;
+  first.journal.doctor = { status: "passed", scope: "issues", evidence: "earlier-scoped-batch" };
+  first.persist();
+  const resumed = make("resumed");
+  assert.equal(resumed.journal.global_doctor_pending, true);
+  resumed.journal.collection_done = true;
+  Object.assign(resumed, { leadWorkComplete: () => true });
+  let checks = 0;
+  resumed.applyBatch = async (candidates) => {
+    assert.equal(candidates.length, 0, "finalization must perform no candidate mutations");
+    checks++;
+    throw new Error("global validation unavailable");
+  };
+  const receipt = await resumed.finish();
+  assert.equal(checks, 1);
+  assert.equal(receipt.status, "failed");
+  assert.equal(resumed.journal.global_doctor_pending, true);
+  const next = make("next");
+  assert.equal(next.journal.global_doctor_pending, true);
+  next.applyBatch = resumed.applyBatch;
+  await assert.rejects(next.apply(), /global validation unavailable/);
+  assert.equal(checks, 2);
 });
