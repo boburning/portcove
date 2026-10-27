@@ -155,6 +155,10 @@ void test("download restrictions project through the versioned directory without
     record.listing.download_block_reason,
   );
   assert.equal(projection.catalog.ports.length, 0);
+  assert.throws(
+    () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
+    /download restriction cannot coexist with a managed integration/,
+  );
   const legacy = structuredClone(record);
   delete legacy.listing.download_block_reason;
   assert.equal(assembleCatalogRecords(shared, [legacy]).directory.format_version, 1);

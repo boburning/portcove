@@ -115,7 +115,10 @@ an existing marker needs a supported transition. First-Play file pickers remain
 Play and need no artificial completion marker.
 
 When an active installation exists, activation checks the destination's actual
-retained data contract, including artifact reuse and pending activation recovery.
+retained data contract, including artifact reuse, interrupted install publication
+and pending activation recovery. Native portable publication recovery collects
+current player data and restores it before committing activation, just as the
+normal staged route does; this adds no restore-receipt requirement to native ports.
 Today's recommended definition cannot authorize an incompatible retained target.
 A failed pre-commit check preserves the active version and all player data;
 already committed recovery finishes with the authoritative committed version.
@@ -154,6 +157,11 @@ preview and mutation before contacting the provider. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
+Preparation refuses replacement records that remove or change an existing
+restriction; resolve its canonical condition in a reviewed Git-authored edit.
+A restricted authored listing cannot also supply a managed integration, whose
+acquisition eligibility belongs to the strict definition. Package observations,
+release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
