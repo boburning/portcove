@@ -1,4 +1,10 @@
 import {
+  continueRoadmapCapacity,
+  roadmapQuotaDeferred,
+  retainRoadmapQuotaDeferral,
+} from "./roadmap-capacity-continuation.mts";
+import { observationHash } from "./upstream-observer.mts";
+import {
   qualifiedPlatforms,
   validatePortStageSemantics,
   planPortStageReconciliation,
@@ -127,11 +133,16 @@ import {
   recordField as qualificationField,
 } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { SetManyJournal, readSetManyInput, setManyJournalName } from "./roadmap-batch-progress.mts";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  SetManyJournal,
+  readSetManyInput,
+  setManyJournalName,
+  setManyPreviewJournalName,
+} from "./roadmap-batch-progress.mts";
 import type { SetManyProgress } from "./roadmap-batch-progress.mts";
 import { access, readFile } from "node:fs/promises";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -200,6 +211,7 @@ export interface SetManyAssignment extends RoadmapFieldTransition {
   fieldName: string;
   observed: unknown;
   mutation_identity?: { project_id: string; field_id: string; option_id: string };
+  target_identity?: { content_id: string; kind: string };
 }
 export interface SetManyPlan<Context = unknown> {
   context: Context;
@@ -232,10 +244,20 @@ interface SetManyState {
   rateLimit: SetManyRate | null;
   doctor: "not_run" | "passed" | "failed";
   doctorScope?: "global" | "issues" | "items";
+  totalOperations?: number;
+  verificationEpoch?: {
+    started_at: string;
+    first_read_at: string | null;
+    last_read_at: string | null;
+    checked_assignments: number;
+    scope: string;
+  };
 }
 export interface SetManyClient<Context = unknown> {
   sampleGraphqlRate(): SetManyRate;
   planSetMany(spec: unknown): SetManyPlan<Context>;
+  refreshSetManyPlan?(spec: unknown): SetManyPlan<Context>;
+  validateSetManyBindings?(assignments: readonly SetManyAssignment[]): void;
   verifySetMany(plan: SetManyPlan<Context>): SetManyReadback[];
   applySetMany(plan: SetManyPlan<Context>, changes: SetManyAssignment[]): unknown;
 }
@@ -401,14 +423,168 @@ function setManyEvidence(plan: SetManyPlan, state: SetManyState) {
     verified_after_attempt: state.verifiedAfterAttempt,
     reconciled: state.reconciled,
     reconciled_after_error: state.reconciledAfterError,
-    remaining: Math.max(0, plan.pending.length - state.processed),
+    remaining: Math.max(0, (state.totalOperations ?? plan.pending.length) - state.processed),
     chunks: state.chunks,
     rate_limit: state.rateLimit
       ? { remaining: state.rateLimit.remaining, reset_at: state.rateLimit.resetAt }
       : null,
     doctor: state.doctor,
     doctor_scope: state.doctorScope ?? null,
+    verification_epoch: state.verificationEpoch ?? null,
   };
+}
+
+function phasedQuota(
+  client: SetManyClient,
+  phase: string,
+  evidence: Record<string, unknown>,
+  required = 110,
+) {
+  const rate = client.sampleGraphqlRate();
+  if (rate.remaining < required) throw roadmapQuotaDeferred(phase, evidence, rate);
+  return rate;
+}
+function assignmentKey(change: Pick<SetManyAssignment, "itemId" | "fieldName">) {
+  return JSON.stringify([change.itemId, change.fieldName]);
+}
+function planFromAssignments<Context>(
+  context: Context,
+  assignments: SetManyAssignment[],
+): SetManyPlan<Context> {
+  return {
+    context,
+    assignments: assignments.length,
+    pending: assignments.filter((row) => row.observed !== row.to),
+    alreadyApplied: assignments.filter((row) => row.observed === row.to),
+  };
+}
+function prepareDurableSetMany<Context>(
+  client: SetManyClient<Context>,
+  config: RoadmapConfig,
+  spec: unknown,
+  journal: SetManyJournal,
+) {
+  const validated = validateSetManySpec(config, spec);
+  const saved = journal.planning;
+  let cursor = saved?.next_update ?? 0;
+  let context = saved?.context as Context;
+  let rows = (saved?.assignments ?? []).map((row) => ({ ...row }));
+  if (saved && saved.total_updates !== validated.updates.length)
+    throw new Error("set-many staged specification scope differs");
+  const verifyPrefix = () => {
+    const expected = validated.updates.slice(0, cursor).flatMap((update) =>
+      Object.entries(update.fields).map(([fieldName, transition]) => ({
+        target: update.target,
+        fieldName,
+        ...transition,
+      })),
+    );
+    if (
+      expected.length !== rows.length ||
+      expected.some((row, index) => {
+        const actual = rows[index];
+        return (
+          !actual ||
+          row.target !== actual.target ||
+          row.fieldName !== actual.fieldName ||
+          row.from !== actual.from ||
+          row.to !== actual.to
+        );
+      })
+    )
+      throw new Error("set-many staged preflight differs from exact specification");
+    const identities = new Set<string>();
+    const fields = new Map<string, string>();
+    for (const row of rows) {
+      const key = assignmentKey(row);
+      if (identities.has(key))
+        throw new Error("duplicate set-many resolved item field across preflight chunks");
+      identities.add(key);
+      if (row.mutation_identity)
+        for (const [name, value] of [
+          ["project", row.mutation_identity.project_id],
+          [`field:${row.fieldName}`, row.mutation_identity.field_id],
+          [`option:${row.fieldName}:${row.to}`, row.mutation_identity.option_id],
+        ]) {
+          if (fields.has(name!) && fields.get(name!) !== value)
+            throw new Error(
+              "set-many Project field/option identity changed across preflight chunks",
+            );
+          fields.set(name!, value!);
+        }
+    }
+  };
+  verifyPrefix();
+  let costPerUpdate = saved?.read_cost_per_update ?? 10;
+  while (cursor < validated.updates.length) {
+    const rate = phasedQuota(
+      client,
+      "preflight",
+      { completed_updates: cursor, total_updates: validated.updates.length },
+      100 + costPerUpdate,
+    );
+    const count = Math.min(
+      maximumMutationChunkAssignments,
+      validated.updates.length - cursor,
+      Math.max(1, Math.floor((rate.remaining - 100) / costPerUpdate)),
+    );
+    const partial = client.planSetMany({
+      schema_version: 1,
+      updates: validated.updates.slice(cursor, cursor + count),
+    });
+    const ordered = [...partial.pending, ...partial.alreadyApplied];
+    for (const update of validated.updates.slice(cursor, cursor + count))
+      for (const fieldName of Object.keys(update.fields)) {
+        const matched = ordered.filter(
+          (row) => row.target === update.target && row.fieldName === fieldName,
+        );
+        if (matched.length !== 1)
+          throw new Error("set-many partial preflight omitted or duplicated a specification field");
+        rows.push(matched[0]!);
+      }
+    cursor += count;
+    context = partial.context;
+    verifyPrefix();
+    journal.stagePlanning(cursor, validated.updates.length, context, rows);
+    const after = client.sampleGraphqlRate();
+    if (after.resetAt === rate.resetAt && after.used >= rate.used)
+      costPerUpdate = Math.max(1, Math.ceil((after.used - rate.used) / count));
+    journal.stagePlanning(cursor, validated.updates.length, context, rows, costPerUpdate);
+  }
+  return planFromAssignments(context, rows);
+}
+function specificationForAssignments(rows: readonly SetManyAssignment[]) {
+  const updates = new Map<
+    string,
+    { target: string; fields: Record<string, RoadmapFieldTransition> }
+  >();
+  for (const row of rows) {
+    const update = updates.get(row.target) ?? { target: row.target, fields: {} };
+    update.fields[row.fieldName] = { from: row.from, to: row.to };
+    updates.set(row.target, update);
+  }
+  return { schema_version: 1, updates: [...updates.values()] };
+}
+function validateSetManyItemBinding(
+  node: unknown,
+  projectId: unknown,
+  expected?: { content_id: string; kind: string },
+) {
+  if (
+    !isRecord(node) ||
+    typeof node.id !== "string" ||
+    node.isArchived !== false ||
+    qualificationField(node.project, "id") !== projectId ||
+    !isRecord(node.content) ||
+    typeof node.content.id !== "string" ||
+    !["Issue", "DraftIssue"].includes(String(node.content.__typename))
+  )
+    throw new Error("set-many active item content binding is unavailable");
+  if (
+    expected &&
+    (node.content.id !== expected.content_id || node.content.__typename !== expected.kind)
+  )
+    throw new Error("set-many target content identity changed during continuation");
 }
 
 export async function executeSetMany<Context>({
@@ -419,6 +595,7 @@ export async function executeSetMany<Context>({
   doctor,
   onPlan = () => {},
   onCheckpoint = () => {},
+  progress,
 }: {
   client: SetManyClient<Context>;
   config: RoadmapConfig;
@@ -431,22 +608,36 @@ export async function executeSetMany<Context>({
   ) => unknown;
   onPlan?: (summary: string) => void;
   onCheckpoint?: (progress: SetManyProgress) => void;
+  progress?: SetManyJournal;
 }) {
+  if (progress && !apply) progress.beginPreview();
+  const restartVerification =
+    progress?.journal?.phase === "completed" || progress?.journal?.doctor_pending === true;
   const before = client.sampleGraphqlRate();
-  const plan = client.planSetMany(spec);
+  if (progress && apply && (!client.refreshSetManyPlan || !client.validateSetManyBindings))
+    throw new Error(
+      "Durable set-many requires current binding and authoritative readback capabilities",
+    );
+  const plan = progress
+    ? prepareDurableSetMany(client, config, spec, progress)
+    : client.planSetMany(spec);
   const after = client.sampleGraphqlRate();
-  if (after.used < before.used)
+  if (after.used < before.used && !progress)
     throw new Error("GitHub GraphQL rate-limit window changed during set-many preflight; retry");
-  const preflightCost = after.used - before.used;
+  const preflightCost = Math.max(
+    0,
+    after.resetAt === before.resetAt ? after.used - before.used : 0,
+  );
   const state: SetManyState = {
-    verified: plan.alreadyApplied.length,
+    verified: progress ? 0 : plan.alreadyApplied.length,
     verifiedAfterAttempt: 0,
-    reconciled: plan.alreadyApplied.length,
+    reconciled: progress ? 0 : plan.alreadyApplied.length,
     reconciledAfterError: 0,
     processed: 0,
     chunks: [],
     rateLimit: after,
     doctor: "not_run",
+    ...(progress ? { totalOperations: plan.assignments } : {}),
   };
   // Preflight may cover thousands of assignments. Reserve for a bounded chunk,
   // then replace this estimate with observed chunk read costs before mutation.
@@ -460,16 +651,29 @@ export async function executeSetMany<Context>({
     `${preflightCost} GraphQL points observed during preflight, ${after.remaining} remain, ` +
     `${requiredReserve} required before the next mutation.`;
   if (!apply) {
+    progress?.markPreviewCompleted();
     return {
       status: "planned",
       summary: `Set-many plan: ${planSummary}`,
-      evidence: setManyEvidence(plan, state),
+      evidence: {
+        ...setManyEvidence(plan, state),
+        preflight_interval: progress?.planning
+          ? {
+              started_at: progress.planning.started_at,
+              last_read_at: progress.planning.updated_at,
+              scope:
+                "observed target values during staged preflight; apply rebinds and reads values again",
+            }
+          : null,
+      },
     };
   }
   onPlan(`Set-many plan: ${planSummary}`);
   const checkpoint = (phase: SetManyProgress["phase"], changes: SetManyAssignment[] = []) => {
     try {
-      onCheckpoint({ phase, assignments: [...plan.pending, ...plan.alreadyApplied], changes });
+      const value = { phase, assignments: [...plan.pending, ...plan.alreadyApplied], changes };
+      progress?.observe(value);
+      onCheckpoint(value);
     } catch (error) {
       throw setManyOutcomeError(
         "partial",
@@ -481,12 +685,112 @@ export async function executeSetMany<Context>({
   };
   checkpoint("plan");
 
-  for (let offset = 0; offset < plan.pending.length; offset += maximumMutationChunkAssignments) {
-    const chunk = plan.pending.slice(offset, offset + maximumMutationChunkAssignments);
-    const chunkPlan = { ...plan, pending: chunk, alreadyApplied: [] };
-    let beforeMutation;
+  const allAssignments = [...plan.pending, ...plan.alreadyApplied];
+  if (progress) client.validateSetManyBindings!(allAssignments);
+  if (progress && !progress.hasFinalVerification) {
+    const retained = new Set([
+      ...(progress.journal?.verified ?? []),
+      ...(progress.journal?.uncertain ?? []),
+    ]);
+    const prior = allAssignments.filter((row) => retained.has(assignmentKey(row)));
+    const checked = progress.resumptionReads(prior);
+    progress.stageResumptionReads(checked, prior);
+    const remaining = prior.filter((row) => !checked[assignmentKey(row)]);
+    for (let offset = 0; offset < remaining.length; offset += maximumMutationChunkAssignments) {
+      phasedQuota(client, "resumption-field-read", {
+        checked_assignments: Object.keys(checked).length,
+        retained_assignments: prior.length,
+      });
+      const chunk = remaining.slice(offset, offset + maximumMutationChunkAssignments);
+      const observed = client.verifySetMany({ ...plan, pending: chunk, alreadyApplied: [] });
+      progress.assertChunk(observed);
+      if (
+        observed.length !== chunk.length ||
+        observed.some((row) => !row.verified) ||
+        chunk.some(
+          (row) =>
+            observed.filter((value) => assignmentKey(value) === assignmentKey(row)).length !== 1,
+        )
+      )
+        throw new Error("set-many resumption field readback is incomplete or conflicting");
+      checkpoint("readback", observed);
+      const clock = new Date().toISOString();
+      for (const row of observed) checked[assignmentKey(row)] = clock;
+      progress.stageResumptionReads(checked, prior);
+    }
+  }
+
+  const operations = progress
+    ? allAssignments.filter((row) => !progress.journal?.verified.includes(assignmentKey(row)))
+    : plan.pending;
+  const skipWrites = progress?.hasFinalVerification ?? false;
+  if (progress && !skipWrites) {
+    state.verified = progress.journal?.verified.length ?? 0;
+    state.processed = state.verified;
+  }
+  if (skipWrites) {
+    state.verified = plan.assignments;
+    state.processed = plan.assignments;
+  }
+  for (let offset = 0; !skipWrites && offset < operations.length;) {
+    let admitted = maximumMutationChunkAssignments;
+    if (progress) {
+      const rate = phasedQuota(client, "mutation-batch-admission", {
+        verified: progress.journal?.verified.length ?? 0,
+      });
+      admitted = Math.min(
+        admitted,
+        Math.max(
+          1,
+          Math.floor(
+            (rate.remaining - 100) / ((progress.planning?.read_cost_per_update ?? 10) + 4),
+          ),
+        ),
+      );
+    }
+    const chunk = operations.slice(offset, offset + admitted);
+    let chunkPlan = { ...plan, pending: chunk, alreadyApplied: [] as SetManyAssignment[] };
+    if (progress) {
+      phasedQuota(client, "mutation-preflight", {
+        verified: progress.journal?.verified.length ?? 0,
+      });
+      const current = client.refreshSetManyPlan!(specificationForAssignments(chunk));
+      const actual = [...current.pending, ...current.alreadyApplied];
+      if (
+        actual.length !== chunk.length ||
+        chunk.some((expected) => {
+          const observed = actual.find(
+            (row) => row.target === expected.target && row.fieldName === expected.fieldName,
+          );
+          return (
+            !observed ||
+            observed.itemId !== expected.itemId ||
+            observationHash(observed.mutation_identity ?? null) !==
+              observationHash(expected.mutation_identity ?? null) ||
+            observationHash(observed.target_identity ?? null) !==
+              observationHash(expected.target_identity ?? null)
+          );
+        })
+      )
+        throw new Error(
+          "set-many current Project/item/field/option bindings changed before mutation",
+        );
+      chunkPlan = { ...current, pending: chunk, alreadyApplied: [] };
+    }
+    let beforeMutation: SetManyReadback[];
     try {
+      if (progress) state.rateLimit = client.sampleGraphqlRate();
       beforeMutation = client.verifySetMany(chunkPlan);
+      if (
+        beforeMutation.length !== chunk.length ||
+        chunk.some(
+          (row) =>
+            beforeMutation.filter((value) => assignmentKey(value) === assignmentKey(row)).length !==
+            1,
+        )
+      )
+        throw new Error("set-many pre-mutation field coverage is incomplete");
+      progress?.assertChunk(beforeMutation);
     } catch (error) {
       throw setManyOutcomeError(
         "unknown",
@@ -528,6 +832,8 @@ export async function executeSetMany<Context>({
       state.rateLimit = rate;
       const chunkReserve = setManyRequiredReserve(chunkReadCost, pending.length);
       if (rate.remaining < chunkReserve) {
+        if (progress)
+          throw roadmapQuotaDeferred("mutation-admission", setManyEvidence(plan, state), rate);
         throw setManyOutcomeError(
           "partial",
           `${githubRateLimitMessage(rate, "set-many stopped before mutation")}; ${chunkReserve} points are required to preserve the recovery reserve`,
@@ -536,13 +842,13 @@ export async function executeSetMany<Context>({
       }
       checkpoint("attempted", pending);
       try {
-        client.applySetMany(plan, pending);
+        client.applySetMany(chunkPlan, pending);
       } catch (error) {
         mutationError = error;
       }
     }
 
-    let afterMutation;
+    let afterMutation: SetManyReadback[];
     try {
       afterMutation = client.verifySetMany(chunkPlan);
     } catch (error) {
@@ -553,6 +859,19 @@ export async function executeSetMany<Context>({
         error,
       );
     }
+    if (
+      afterMutation.length !== chunk.length ||
+      chunk.some(
+        (row) =>
+          afterMutation.filter((value) => assignmentKey(value) === assignmentKey(row)).length !== 1,
+      )
+    )
+      throw setManyOutcomeError(
+        "unknown",
+        "set-many post-mutation field coverage is incomplete",
+        setManyEvidence(plan, state),
+        mutationError,
+      );
     const verified = afterMutation.filter((result) => result.verified);
     const mismatches = afterMutation.filter((result) => !result.verified);
     const newlyVerified = verified.length - alreadyDesired;
@@ -581,12 +900,54 @@ export async function executeSetMany<Context>({
         mutationError,
       );
     }
+    offset += chunk.length;
   }
 
-  let finalVerification;
+  let finalVerification: SetManyReadback[];
   try {
-    finalVerification = client.verifySetMany(plan);
+    if (!progress) finalVerification = client.verifySetMany(plan);
+    else {
+      const all = [...plan.pending, ...plan.alreadyApplied];
+      client.validateSetManyBindings!(all);
+      const checked = restartVerification ? {} : progress.verificationReads(all);
+      progress.stageVerification(checked, all, restartVerification);
+      const remaining = all.filter((row) => !checked[assignmentKey(row)]);
+      for (let offset = 0; offset < remaining.length; offset += maximumMutationChunkAssignments) {
+        phasedQuota(client, "final-field-read", {
+          verified_assignments: Object.keys(checked).length,
+          total_assignments: all.length,
+        });
+        const chunk = remaining.slice(offset, offset + maximumMutationChunkAssignments);
+        const observed = client.verifySetMany({ ...plan, pending: chunk, alreadyApplied: [] });
+        if (
+          observed.length !== chunk.length ||
+          observed.some((row) => !row.verified) ||
+          chunk.some(
+            (row) =>
+              observed.filter((value) => assignmentKey(value) === assignmentKey(row)).length !== 1,
+          )
+        )
+          throw new Error(
+            "set-many final readback found conflicting or incomplete field assignments",
+          );
+        progress.assertChunk(observed);
+        const clock = new Date().toISOString();
+        for (const row of observed) checked[assignmentKey(row)] = clock;
+        progress.stageVerification(checked, all);
+      }
+      const clocks = Object.values(checked).toSorted();
+      state.verificationEpoch = {
+        started_at: progress.journal!.final_verification!.started_at,
+        first_read_at: clocks[0] ?? null,
+        last_read_at: clocks.at(-1) ?? null,
+        checked_assignments: clocks.length,
+        scope:
+          "authoritative field readback per bounded chunk over the stated interval; not an atomic global-current snapshot",
+      };
+      finalVerification = all.map((row) => ({ ...row, observed: row.to, verified: true }));
+    }
   } catch (error) {
+    if (isRecord(error) && error.code === "set_many_quota_deferred") throw error;
     throw setManyOutcomeError(
       "unknown",
       `set-many final readback failed: ${errorMessage(error)}`,
@@ -603,6 +964,10 @@ export async function executeSetMany<Context>({
     );
   }
   state.verified = finalVerification.length;
+  if (progress) {
+    phasedQuota(client, "doctor-admission", setManyEvidence(plan, state));
+    progress.markDoctorPending();
+  }
   try {
     state.doctorScope = roadmapCheckScope([...plan.pending, ...plan.alreadyApplied]);
     if (doctor) await doctor(config, client, { quiet: true });
@@ -632,7 +997,7 @@ export async function executeSetMany<Context>({
   checkpoint("completed");
   return {
     status: "succeeded",
-    summary: `Set-many verified ${finalVerification.length} field assignments and completed the final doctor.`,
+    summary: `Set-many verified ${finalVerification.length} field assignments and completed the final doctor.${state.verificationEpoch ? ` Independent chunk verification interval: ${state.verificationEpoch.first_read_at} to ${state.verificationEpoch.last_read_at}.` : ""}`,
     evidence: setManyEvidence(plan, state),
   };
 }
@@ -1537,7 +1902,15 @@ function projectFieldValues(node: unknown): RoadmapFieldValue[] {
   return values
     .map((value) => ({
       name: qualificationField(value, "name"),
-      field: { name: qualificationField(qualificationField(value, "field"), "name") },
+      ...(qualificationField(value, "optionId") !== undefined
+        ? { optionId: qualificationField(value, "optionId") }
+        : {}),
+      field: {
+        name: qualificationField(qualificationField(value, "field"), "name"),
+        ...(qualificationField(qualificationField(value, "field"), "id") !== undefined
+          ? { id: qualificationField(qualificationField(value, "field"), "id") }
+          : {}),
+      },
     }))
     .filter((value) => value.name && value.field.name);
 }
@@ -2687,6 +3060,35 @@ export class RoadmapClient {
     this.graphql(`mutation(${declarations}) { ${selections} }`, variables);
   }
 
+  refreshSetManyPlan(spec: unknown) {
+    this._completeProjectContext = undefined;
+    return this.planSetMany(spec);
+  }
+  private setManyRequireIdentity = false;
+  private setManyExpectedContent = new Map<string, { content_id: string; kind: string }>();
+  validateSetManyBindings(assignments: readonly SetManyAssignment[]) {
+    this.setManyRequireIdentity = true;
+    this.setManyExpectedContent = new Map(
+      assignments
+        .filter((row) => row.target_identity)
+        .map((row) => [row.itemId, row.target_identity!]),
+    );
+    this._completeProjectContext = undefined;
+    const context = this.completeProjectContext();
+    for (const row of assignments) {
+      const input = this.fieldMutationInput(context, row.itemId, row.fieldName, row.to);
+      const current = {
+        project_id: input.projectId,
+        field_id: input.fieldId,
+        option_id: input.value.singleSelectOptionId,
+      };
+      if (
+        !row.mutation_identity ||
+        observationHash(current) !== observationHash(row.mutation_identity)
+      )
+        throw new Error("set-many field or option identity changed during final continuation");
+    }
+  }
   planSetMany(spec: unknown): SetManyPlan<ProjectContext> {
     const validated = validateSetManySpec(this.config, spec);
     const context = this.completeProjectContext();
@@ -2709,6 +3111,14 @@ export class RoadmapClient {
             option_id: mutation.value.singleSelectOptionId,
           },
           target: update.target,
+          ...(typeof item.content?.id === "string"
+            ? {
+                target_identity: {
+                  content_id: item.content.id,
+                  kind: String(item.content.__typename),
+                },
+              }
+            : {}),
           itemId: item.id,
           fieldName,
           observed,
@@ -2745,7 +3155,7 @@ export class RoadmapClient {
       ...new Set([...plan.pending, ...plan.alreadyApplied].map((change) => change.itemId)),
     ];
     if (!ids.length) return new Map();
-    const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on ProjectV2Item { id fieldValues(first: 100) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } } }`;
+    const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on ProjectV2Item { id isArchived project{id} content{__typename ...on Issue{id} ...on DraftIssue{id}} fieldValues(first: 100) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name optionId field { ... on ProjectV2SingleSelectField { id name } } } } pageInfo { hasNextPage endCursor } } } } }`;
     const results = new Map<string, RoadmapFieldValue[]>();
     for (let offset = 0; offset < ids.length; offset += maximumMutationChunkAssignments) {
       const selected = ids.slice(offset, offset + maximumMutationChunkAssignments);
@@ -2770,6 +3180,27 @@ export class RoadmapClient {
         ) {
           throw new Error("incomplete GitHub inventory: malformed or truncated set-many readback");
         }
+        if (
+          this.setManyRequireIdentity &&
+          node.fieldValues.nodes.some(
+            (value) =>
+              !isRecord(value) ||
+              (("name" in value || "optionId" in value || "field" in value) &&
+                (typeof value.name !== "string" ||
+                  !value.name ||
+                  typeof value.optionId !== "string" ||
+                  !value.optionId ||
+                  !isRecord(value.field) ||
+                  typeof value.field.id !== "string")),
+          )
+        )
+          throw new Error("set-many field or option identity coverage is incomplete");
+        if (this.setManyRequireIdentity)
+          validateSetManyItemBinding(
+            node,
+            this.completeProjectContext().details.id,
+            this.setManyExpectedContent.get(node.id),
+          );
         const fieldValues = projectFieldValues(node);
         results.set(node.id, fieldValues);
       }
@@ -2781,13 +3212,29 @@ export class RoadmapClient {
     return results;
   }
 
-  verifySetMany<Change extends Pick<SetManyAssignment, "itemId" | "fieldName" | "to">>(plan: {
-    pending: readonly Change[];
-    alreadyApplied: readonly Change[];
-    context?: unknown;
-  }) {
+  verifySetMany<
+    Change extends Pick<SetManyAssignment, "itemId" | "fieldName" | "to"> &
+      Partial<Pick<SetManyAssignment, "mutation_identity">>,
+  >(plan: { pending: readonly Change[]; alreadyApplied: readonly Change[]; context?: unknown }) {
     const items = this.readSetManyItems(plan);
     return [...plan.pending, ...plan.alreadyApplied].map((change) => {
+      if (this.setManyRequireIdentity && change.mutation_identity) {
+        const values = (items.get(change.itemId) ?? []).filter(
+          (value) => value.field?.id === change.mutation_identity!.field_id,
+        );
+        if (values.length > 1)
+          throw new Error("set-many readback repeated an exact field identity");
+        const value = values[0];
+        if (value && typeof value.optionId !== "string")
+          throw new Error("set-many option identity is unavailable");
+        const observed = value?.name ?? null;
+        return {
+          ...change,
+          observed,
+          verified:
+            observed === change.to && value?.optionId === change.mutation_identity.option_id,
+        };
+      }
       const observed =
         fieldValue({ fieldValues: items.get(change.itemId) }, change.fieldName) ?? null;
       return { ...change, observed, verified: observed === change.to };
@@ -3978,24 +4425,25 @@ async function main(argv: readonly string[]) {
       const specPath = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
       const input = readSetManyInput(specPath);
       const spec: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(input));
-      const journal =
-        parsed.options["--apply"] === true
-          ? new SetManyJournal(
-              path.join(path.dirname(roadmapLockPath()), "set-many", setManyJournalName(specPath)),
-              specPath,
-              input,
-              config,
-            )
-          : undefined;
+      const journal = new SetManyJournal(
+        path.join(
+          path.dirname(roadmapLockPath()),
+          "set-many",
+          parsed.options["--apply"] === true
+            ? setManyJournalName(specPath)
+            : setManyPreviewJournalName(specPath, input, config),
+        ),
+        specPath,
+        input,
+        config,
+      );
       const result = await executeSetMany({
         client,
         config,
         spec,
         apply: parsed.options["--apply"] === true,
         ...(parsed.options["--json"] ? {} : { onPlan: (summary: string) => console.log(summary) }),
-        ...(journal
-          ? { onCheckpoint: (progress: SetManyProgress) => journal.observe(progress) }
-          : {}),
+        ...(journal ? { progress: journal } : {}),
       });
       if (parsed.options["--json"]) {
         console.log(
@@ -4231,7 +4679,19 @@ async function main(argv: readonly string[]) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   try {
-    await main(process.argv.slice(2));
+    const args = process.argv.slice(2);
+    if (args[0] === "set-many" && !args.includes("--help") && !args.includes("-h")) {
+      const parsed = parseArguments(args);
+      const spec = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
+      await continueRoadmapCapacity(() => main(args), {
+        identity: () =>
+          createHash("sha256")
+            .update(readSetManyInput(spec))
+            .update(readFileSync(path.join(projectRoot, ".github/roadmap.json")))
+            .digest("hex"),
+        observe: (error) => retainRoadmapQuotaDeferral(projectRoot, error),
+      });
+    } else await main(args);
   } catch (error) {
     const json =
       ["set-many", "context", "next"].includes(process.argv[2] ?? "") &&
