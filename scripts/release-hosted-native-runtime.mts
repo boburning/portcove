@@ -18,6 +18,8 @@ import {
   preparedNativeSupportDependencies,
 } from "./release-native-runtime-support.mts";
 import { rustSupportInputIdentity } from "./rust-support-cache.mts";
+import { inspectWindowsWebviewDriverProof } from "./release-windows-webview-driver.mts";
+import { assertMinimumVersion } from "./release-authority-configuration-contract.mts";
 import type { RustRunDependencies } from "./run-rust-tests.mts";
 import {
   inspectNativeRuntimeCustody,
@@ -109,12 +111,36 @@ export async function prepareHostedNativeRuntime(
     process.execPath,
   ];
   const custody = inspectNativeRuntimeCustody(custodyFiles);
+  const windowsDriverInputs = new Map<string, Buffer>();
+  const driverInputs = new Set([
+    "webview-driver.json",
+    "bin/msedgedriver.exe",
+    "scripts/windows-webview-driver-policy.psm1",
+  ]);
   // The fixed bundle re-verifies its own complete materialization against the
   // original attested receipt in this bundle's realm. No cross-bundle brand.
   for (const file of manifest.files) {
     const bytes = await readControllerToolFile(path.join(executingRoot, file.path), file.bytes);
     assert.equal(bytes.length, file.bytes);
     assert.equal(hash(bytes), file.sha256);
+    if (tools.platform === "windows-x86_64" && driverInputs.has(file.path))
+      windowsDriverInputs.set(file.path, bytes);
+  }
+  if (tools.platform === "windows-x86_64") {
+    assert.equal(parent.configuration.purpose, "application");
+    const selected = parent.configuration.hosted_native["windows-x86_64"].engine;
+    assert.equal(selected.name, "WebView2");
+    const proof = windowsDriverInputs.get("webview-driver.json"),
+      driver = windowsDriverInputs.get("bin/msedgedriver.exe"),
+      policy = windowsDriverInputs.get("scripts/windows-webview-driver-policy.psm1");
+    assert.ok(proof && proof.length <= 65536 && driver && policy);
+    const facts = inspectWindowsWebviewDriverProof(
+      JSON.parse(proof.toString("utf8")),
+      driver,
+      policy,
+    );
+    // A driver below this floor cannot match any accepted candidate engine.
+    assertMinimumVersion(facts.version, selected.minimum_version, "Windows driver/native engine");
   }
   assert.equal(
     hash(await readControllerToolFile(path.join(executingRoot, "manifest.json"), 65536)),
