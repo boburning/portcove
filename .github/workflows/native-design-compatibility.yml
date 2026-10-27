@@ -516,7 +516,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $source = (Resolve-Path scripts/bootstrap-quality-tools.ps1).Path
+          $source = (Resolve-Path scripts/windows-webview-driver-policy.psm1).Path
           $tokens = $null; $errors = $null
           $ast = [System.Management.Automation.Language.Parser]::ParseFile($source, [ref]$tokens, [ref]$errors)
           if ($errors.Count) { throw ($errors | Out-String) }

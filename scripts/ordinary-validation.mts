@@ -1167,6 +1167,7 @@ for (const [file, tests] of [
       "scripts/release-hosted-native-windows-dependency-files.test.mts",
       "scripts/native-qualification-account.test.mts",
       "scripts/release-owned-windows-proof-store.test.mts",
+      "scripts/release-windows-webview-driver.test.mts",
       "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",
@@ -1685,6 +1686,22 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-controller-tools.test.mts",
+  ]);
+for (const file of [
+  "scripts/release-windows-webview-driver.mts",
+  "scripts/windows-webview-driver-policy.psm1",
+  "scripts/bounded-zip.mts",
+  "scripts/bootstrap-quality-tools.ps1",
+  "scripts/release-controller-tool-build.mts",
+  "scripts/release-controller-tools.mts",
+  "scripts/release-controller-tool-admission.mts",
+  "scripts/qualify-controller-tools-windows.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-windows-webview-driver.test.mts",
+    "scripts/release-controller-tools.test.mts",
+    "scripts/quality-tools.test.mts",
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
