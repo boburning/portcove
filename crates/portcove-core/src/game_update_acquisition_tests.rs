@@ -2,7 +2,8 @@ use super::*;
 use crate::test_fixture::async_phase;
 use crate::{ErrorCode, ReleaseAsset};
 use std::{
-    net::TcpListener,
+    io,
+    net::{TcpListener, TcpStream},
     sync::atomic::{AtomicBool, AtomicU8, Ordering},
     thread,
     time::{Duration, Instant},
@@ -28,8 +29,9 @@ struct Server {
     arrived: Arc<AtomicBool>,
     released: Arc<AtomicBool>,
     stopped: Arc<AtomicBool>,
+    cancelled: Arc<AtomicBool>,
     phase: Arc<AtomicU8>,
-    worker: Option<thread::JoinHandle<()>>,
+    worker: Option<thread::JoinHandle<io::Result<()>>>,
 }
 impl Server {
     fn new(bytes: Vec<u8>, gated: bool) -> Self {
@@ -39,54 +41,78 @@ impl Server {
         let arrived = Arc::new(AtomicBool::new(false));
         let released = Arc::new(AtomicBool::new(!gated));
         let stopped = Arc::new(AtomicBool::new(false));
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let cancellation = cancelled.clone();
         let phase = Arc::new(AtomicU8::new(0));
         let phase_worker = phase.clone();
         let a = arrived.clone();
         let r = released.clone();
         let stop = stopped.clone();
         let worker = thread::spawn(move || {
-            let mut stream = loop {
-                if stop.load(Ordering::SeqCst) {
-                    return;
-                }
-                match listener.accept() {
-                    Ok((stream, _)) => {
-                        phase_worker.store(1, Ordering::SeqCst);
-                        break stream;
+            let result = (|| {
+                let mut stream = loop {
+                    if stop.load(Ordering::SeqCst) {
+                        return Ok(());
                     }
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        thread::sleep(Duration::from_millis(2))
+                    match listener.accept() {
+                        Ok((stream, _)) => {
+                            phase_worker.store(1, Ordering::SeqCst);
+                            break stream;
+                        }
+                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                            thread::sleep(Duration::from_millis(2))
+                        }
+                        Err(error) => return Err(error),
                     }
-                    Err(error) => panic!("{error}"),
+                };
+                // Winsock accepts inherit the listener's nonblocking mode.
+                stream.set_nonblocking(false)?;
+                Self::read_headers(&mut stream, &stop)?;
+                phase_worker.store(2, Ordering::SeqCst);
+                let headers = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    bytes.len()
+                );
+                Self::write_bytes(&mut stream, headers.as_bytes(), &stop)?;
+                stream.flush()?;
+                a.store(true, Ordering::SeqCst);
+                phase_worker.store(3, Ordering::SeqCst);
+                while !r.load(Ordering::SeqCst) && !stop.load(Ordering::SeqCst) {
+                    thread::sleep(Duration::from_millis(2));
                 }
-            };
-            stream
-                .set_read_timeout(Some(Duration::from_secs(2)))
-                .unwrap();
-            let mut request = [0; 4096];
-            let _ = stream.read(&mut request);
-            phase_worker.store(2, Ordering::SeqCst);
-            let _ = write!(
-                stream,
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                bytes.len()
-            );
-            let _ = stream.flush();
-            a.store(true, Ordering::SeqCst);
-            phase_worker.store(3, Ordering::SeqCst);
-            while !r.load(Ordering::SeqCst) && !stop.load(Ordering::SeqCst) {
-                thread::sleep(Duration::from_millis(2));
+                if !stop.load(Ordering::SeqCst) {
+                    // The intentional hold does not consume the response-write budget.
+                    Self::write_bytes(&mut stream, &bytes, &stop)?;
+                    stream.flush()?;
+                    phase_worker.store(4, Ordering::SeqCst);
+                }
+                Ok(())
+            })();
+            if let Err(error) = &result
+                && stop.load(Ordering::SeqCst)
+                && cancellation.load(Ordering::SeqCst)
+                && matches!(
+                    error.kind(),
+                    io::ErrorKind::Interrupted
+                        | io::ErrorKind::BrokenPipe
+                        | io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                )
+            {
+                eprintln!(
+                    "acquisition HTTP fixture stopped: phase={}; error={error}",
+                    phase_worker.load(Ordering::SeqCst)
+                );
+                return Ok(());
             }
-            if !stop.load(Ordering::SeqCst) {
-                let _ = stream.write_all(&bytes);
-                phase_worker.store(4, Ordering::SeqCst);
-            }
+            result
         });
         Self {
             url: format!("http://{address}/update.zip"),
             arrived,
             released,
             stopped,
+            cancelled,
             phase,
             worker: Some(worker),
         }
@@ -94,16 +120,199 @@ impl Server {
     fn release(&self) {
         self.released.store(true, Ordering::SeqCst);
     }
-}
-impl Drop for Server {
-    fn drop(&mut self) {
+
+    fn remaining(deadline: Instant, stopped: &AtomicBool) -> io::Result<Duration> {
+        if stopped.load(Ordering::SeqCst) {
+            return Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                "fixture stopped",
+            ));
+        }
+        deadline
+            .checked_duration_since(Instant::now())
+            .filter(|remaining| !remaining.is_zero())
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::TimedOut, "fixture socket budget exhausted")
+            })
+    }
+
+    fn retryable(error: &io::Error) -> bool {
+        matches!(
+            error.kind(),
+            io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut | io::ErrorKind::Interrupted
+        )
+    }
+
+    fn read_headers(stream: &mut TcpStream, stopped: &AtomicBool) -> io::Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut request = [0; 4096];
+        let mut length = 0;
+        while !request[..length]
+            .windows(4)
+            .any(|bytes| bytes == b"\r\n\r\n")
+        {
+            let remaining = Self::remaining(deadline, stopped)?;
+            if length == request.len() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "fixture headers exceed4096bytes",
+                ));
+            }
+            stream.set_read_timeout(Some(remaining.min(Duration::from_millis(20))))?;
+            match stream.read(&mut request[length..]) {
+                Ok(0) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "fixture request ended before complete headers",
+                    ));
+                }
+                Ok(read) => length += read,
+                Err(error) if Self::retryable(&error) => continue,
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
+    fn write_bytes(
+        stream: &mut TcpStream,
+        mut bytes: &[u8],
+        stopped: &AtomicBool,
+    ) -> io::Result<()> {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !bytes.is_empty() {
+            stream.set_write_timeout(Some(
+                Self::remaining(deadline, stopped)?.min(Duration::from_millis(20)),
+            ))?;
+            match stream.write(&bytes[..bytes.len().min(64 * 1024)]) {
+                Ok(0) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::WriteZero,
+                        "fixture wrote zero bytes",
+                    ));
+                }
+                Ok(written) => bytes = &bytes[written..],
+                Err(error) if Self::retryable(&error) => continue,
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
+    fn finish(&mut self) -> io::Result<()> {
+        // Only an unreleased held response is an intentionally cancelled transfer.
+        if !self.released.load(Ordering::SeqCst) {
+            self.cancelled.store(true, Ordering::SeqCst);
+        }
         self.stopped.store(true, Ordering::SeqCst);
         self.release();
         if let Some(worker) = self.worker.take() {
-            worker.join().unwrap();
+            worker
+                .join()
+                .map_err(|_| io::Error::other("acquisition HTTP fixture worker panicked"))??;
+        }
+        Ok(())
+    }
+}
+impl Drop for Server {
+    fn drop(&mut self) {
+        if let Err(error) = self.finish() {
+            let phase = self.phase.load(Ordering::SeqCst);
+            if thread::panicking() {
+                eprintln!(
+                    "acquisition HTTP fixture failure retained during original assertion: phase={phase}; error={error}"
+                );
+            } else {
+                panic!("acquisition HTTP fixture failed: phase={phase}; error={error}");
+            }
         }
     }
 }
+
+#[test]
+fn acquisition_http_fixture_reads_fragmented_headers_before_releasing_owned_body() {
+    let body = b"exact owned archive bytes";
+    let mut server = Server::new(body.to_vec(), true);
+    let address = server
+        .url
+        .strip_prefix("http://")
+        .unwrap()
+        .split('/')
+        .next()
+        .unwrap();
+    let mut client = TcpStream::connect(address).unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_millis(100)))
+        .unwrap();
+    client
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    client
+        .write_all(b"GET /update.zip HTTP/1.1\r\nHost: fixture")
+        .unwrap();
+    let mut byte = [0];
+    assert!(Server::retryable(&client.read(&mut byte).unwrap_err()));
+    assert!(!server.arrived.load(Ordering::SeqCst));
+    client.write_all(b"\r\n\r\n").unwrap();
+    client
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    let mut headers = Vec::new();
+    while !headers.ends_with(b"\r\n\r\n") {
+        client.read_exact(&mut byte).unwrap();
+        headers.push(byte[0]);
+        assert!(headers.len() <= 4096);
+    }
+    assert_eq!(
+        String::from_utf8(headers).unwrap(),
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+    );
+    client
+        .set_read_timeout(Some(Duration::from_millis(100)))
+        .unwrap();
+    assert!(Server::retryable(&client.read(&mut byte).unwrap_err()));
+    server.release();
+    client
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    let mut received = Vec::new();
+    client.read_to_end(&mut received).unwrap();
+    assert_eq!(received, body);
+    server.finish().unwrap();
+    assert_eq!(server.phase.load(Ordering::SeqCst), 4);
+}
+
+#[test]
+fn acquisition_http_fixture_retains_incomplete_request_failure_after_join() {
+    let mut server = Server::new(b"must not respond".to_vec(), false);
+    let address = server
+        .url
+        .strip_prefix("http://")
+        .unwrap()
+        .split('/')
+        .next()
+        .unwrap();
+    let mut client = TcpStream::connect(address).unwrap();
+    client.write_all(b"GET /update.zip HTTP/1.1\r\n").unwrap();
+    client.shutdown(std::net::Shutdown::Write).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while !server.worker.as_ref().unwrap().is_finished() {
+        assert!(
+            Instant::now() < deadline,
+            "fixture did not retain its header EOF outcome"
+        );
+        thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(
+        server.finish().unwrap_err().kind(),
+        io::ErrorKind::UnexpectedEof
+    );
+    assert!(!server.arrived.load(Ordering::SeqCst));
+}
+
 fn archive() -> Vec<u8> {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     writer

@@ -38,6 +38,30 @@ impl From<&PortDefinition> for PortListing {
 }
 
 impl CatalogListingDocument {
+    /// Only already accepted facts may be promoted; raw authored documents keep
+    /// their declared version and pass the ordinary version checks unchanged.
+    pub(super) fn promote_projected_format(&mut self) {
+        // Projection can combine validated format-2 delivery/retained entries
+        // with a format-1 directory. Preserve their semantics without accepting
+        // a raw format-1 document that falsely advertises those fields.
+        if self.format_version == 1
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.download_block_reason.is_some())
+        {
+            self.format_version = 2;
+        }
+        if matches!(self.format_version, 1 | 2)
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.original_game.is_some() || !listing.media.is_empty())
+        {
+            self.format_version = 3;
+        }
+    }
+
     pub fn from_json(content: &str) -> Result<Self> {
         if content.len() > MAX_LISTING_BYTES {
             return Err(PortcoveError::usage(
@@ -303,25 +327,7 @@ impl Catalog {
         mut self,
         mut document: CatalogListingDocument,
     ) -> Result<Self> {
-        // Projection can combine validated format-2 delivery/retained entries
-        // with a format-1 directory. Preserve their semantics without accepting
-        // a raw format-1 document that falsely advertises those fields.
-        if document.format_version == 1
-            && document
-                .listings
-                .iter()
-                .any(|listing| listing.download_block_reason.is_some())
-        {
-            document.format_version = 2;
-        }
-        if matches!(document.format_version, 1 | 2)
-            && document
-                .listings
-                .iter()
-                .any(|listing| listing.original_game.is_some() || !listing.media.is_empty())
-        {
-            document.format_version = 3;
-        }
+        document.promote_projected_format();
         document.validate_identity_set()?;
         for port in self.ports() {
             if !document
@@ -437,6 +443,96 @@ mod tests {
             "summary":"Known project; package and platform availability are unknown.",
             "project_url":"https://example.com/project", "availability":"source-only"
         })
+    }
+
+    #[test]
+    fn strict_constructor_listing_projection_preserves_versions_and_optional_metadata() {
+        let mut strict: serde_json::Value =
+            serde_json::from_str(include_str!("../../catalog/catalog-schema1-fixture.json"))
+                .unwrap();
+        strict["ports"].as_array_mut().unwrap().truncate(1);
+        let port_id = strict["ports"][0]["id"].as_str().unwrap().to_owned();
+        let legacy = Catalog::from_json(&strict.to_string()).unwrap();
+        assert_eq!(legacy.listing_document().format_version, 1);
+        let source_profile = legacy.source_profile("ocarina-of-time").unwrap();
+        let legacy_bytes = serde_json::to_string(legacy.listing_document()).unwrap();
+        let legacy_reread = CatalogListingDocument::from_json(&legacy_bytes).unwrap();
+        assert_eq!(serde_json::to_string(&legacy_reread).unwrap(), legacy_bytes);
+        let game = json!({
+            "format_version": 1, "id": "fixture-game",
+            "evidence_urls": ["https://example.com/fixture-game"],
+            "source_editions": [{
+                "id": "unknown-system-edition", "title": "Reviewed edition",
+                "evidence_urls": ["https://example.com/fixture-edition"]
+            }]
+        });
+        let media = json!([{
+            "id": "fixture-scene", "role": "screenshot",
+            "subject": {"kind": "port", "port_id": port_id},
+            "caption": "Synthetic test scene", "sha256": "a".repeat(64),
+            "url": format!("https://raw.githubusercontent.com/owner/project/{}/shot.png", "a".repeat(40)),
+            "width": 2, "height": 1, "attribution": "Portcove test fixture",
+            "source_url": "https://github.com/owner/project", "license": "CC0-1.0",
+            "rights_url": "https://github.com/owner/project/blob/main/LICENSE"
+        }]);
+        for (identity, images, version) in [
+            (None, None, 1),
+            (Some(game), None, 3),
+            (None, Some(media), 3),
+        ] {
+            let mut input = strict.clone();
+            input["ports"][0]["presentation"] = json!({
+                "installation_method": "portable-package",
+                "source_requirements": [{
+                    "role": "game", "profile_id": source_profile.id,
+                    "label": source_profile.label, "verification": "catalog-identity"
+                }],
+                "saves_and_settings": "portcove-managed"
+            });
+            if let Some(game) = identity.as_ref() {
+                input["ports"][0]["presentation"]["original_game"] = game.clone();
+            }
+            if let Some(media) = images.as_ref() {
+                input["ports"][0]["presentation"]["media"] = media.clone();
+            }
+            let catalog = Catalog::from_json(&input.to_string()).unwrap();
+            let projected = serde_json::to_value(catalog.listing_document()).unwrap();
+            assert_eq!(projected["format_version"], version);
+            assert_eq!(
+                projected["listings"][0].get("original_game"),
+                identity.as_ref()
+            );
+            assert_eq!(projected["listings"][0].get("media"), images.as_ref());
+            let reread = CatalogListingDocument::from_json(&projected.to_string()).unwrap();
+            assert_eq!(serde_json::to_value(&reread).unwrap(), projected);
+            let restored = catalog.clone().with_listing_document(reread).unwrap();
+            assert_eq!(
+                serde_json::to_value(restored.port(&port_id).unwrap()).unwrap(),
+                serde_json::to_value(catalog.port(&port_id).unwrap()).unwrap()
+            );
+            assert_eq!(
+                serde_json::to_value(restored.listing_document()).unwrap(),
+                projected
+            );
+            if version == 1 {
+                // A newer explicit directory remains that version even when
+                // optional descriptive metadata is genuinely not specified.
+                for declared in [1, 2, 3] {
+                    let mut authored = projected.clone();
+                    authored["format_version"] = json!(declared);
+                    let directory =
+                        CatalogListingDocument::from_json(&authored.to_string()).unwrap();
+                    let accepted = catalog.clone().with_listing_document(directory).unwrap();
+                    assert_eq!(accepted.listing_document().format_version, declared);
+                }
+            } else {
+                for declared in [1, 2] {
+                    let mut incompatible = projected.clone();
+                    incompatible["format_version"] = json!(declared);
+                    assert!(CatalogListingDocument::from_json(&incompatible.to_string()).is_err());
+                }
+            }
+        }
     }
 
     #[test]

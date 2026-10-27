@@ -396,7 +396,8 @@ impl PortcoveService {
             for (index, asset) in payload.assets.iter().enumerate() {
                 let archive = file(&private, index);
                 verify_archive(&archive, asset, &operation)?;
-                fs::File::open(archive)?.sync_all()?;
+                // Windows FlushFileBuffers requires write access even though no bytes change.
+                OpenOptions::new().write(true).open(archive)?.sync_all()?;
             }
             crate::durability::sync_publication(&private)?;
             crate::durability::sync_publication(private.parent().expect("acquisition parent"))?;

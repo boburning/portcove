@@ -135,15 +135,17 @@ impl Catalog {
                 )));
             }
         }
+        let mut listings = crate::CatalogListingDocument {
+            format_version: 1,
+            listings: document
+                .ports
+                .iter()
+                .map(crate::PortListing::from)
+                .collect(),
+        };
+        listings.promote_projected_format();
         let catalog = Self {
-            listings: Arc::new(crate::CatalogListingDocument {
-                format_version: 1,
-                listings: document
-                    .ports
-                    .iter()
-                    .map(crate::PortListing::from)
-                    .collect(),
-            }),
+            listings: Arc::new(listings),
             user_selected_listing: false,
             document: Arc::new(document),
             definition_snapshot: None,

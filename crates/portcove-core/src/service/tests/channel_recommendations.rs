@@ -69,7 +69,9 @@ fn fixture(root: &Path, recommendation: Option<ReleaseChannel>) -> PortcoveServi
         .unwrap()
         .channels = vec![ReleaseChannel::Stable, ReleaseChannel::Beta];
     let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
-    let mut listings = catalog.listing_document().clone();
+    // Keep the accepted authored directory and its format fence. Rebuilding a
+    // strict-only catalog above changes offered channels, not descriptive facts.
+    let mut listings = service.catalog.listing_document().clone();
     listings
         .listings
         .iter_mut()

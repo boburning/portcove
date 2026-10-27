@@ -524,6 +524,8 @@ mod tests {
     #[tokio::test]
     async fn activity_apply_refuses_other_handle_file_work_before_consuming_review_or_mutating() {
         use crate::test_fixture::{async_phase, phase};
+        // Keep the large Apply futures out of this diagnostic wrapper's inline
+        // state; Windows debug frames otherwise exhaust the normal test stack.
         let (_temporary, service) = phase("activity Apply: seed two retained runtimes", fixture);
         let before = phase("activity Apply: baseline status", || service.status(PORT)).unwrap();
         let tree = phase("activity Apply: baseline version tree", || {
@@ -553,7 +555,7 @@ mod tests {
         assert_eq!(
             async_phase(
                 "activity Apply: busy refusal",
-                service.apply_game_update(PORT, true, &grant.token, |_| {})
+                Box::pin(service.apply_game_update(PORT, true, &grant.token, |_| {}))
             )
             .await
             .unwrap_err()
@@ -591,7 +593,7 @@ mod tests {
         assert!(
             async_phase(
                 "activity Apply: old client grant refused after reopen",
-                reopened.apply_game_update(PORT, true, &grant.token, |_| {})
+                Box::pin(reopened.apply_game_update(PORT, true, &grant.token, |_| {}))
             )
             .await
             .is_err()
@@ -632,7 +634,7 @@ mod tests {
         assert_ne!(fresh_grant.token, grant.token);
         let activated = async_phase(
             "activity Apply: fresh grant activates verified staged runtime",
-            reopened.apply_game_update(PORT, true, &fresh_grant.token, |_| {}),
+            Box::pin(reopened.apply_game_update(PORT, true, &fresh_grant.token, |_| {})),
         )
         .await
         .unwrap();
