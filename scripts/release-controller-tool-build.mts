@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
+import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
 import { acquireNativePnpm, nativePnpmVersion } from "./release-pnpm-runtime.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
@@ -294,6 +295,11 @@ export async function buildControllerTools(
         flag: "wx",
         mode: name.startsWith("bin/") ? 0o700 : 0o600,
       });
+    if (platform === "windows-x86_64") {
+      phase = "fixed-microsoft-webview-driver";
+      await acquireWindowsWebviewDriver(sourceRoot, tools, env);
+      guard();
+    }
     phase = "fixed-node-bundles";
     await bundleControllerEntries(sourceRoot, tools, platform);
     phase = "fixed-rust-build";
@@ -441,6 +447,7 @@ export async function buildControllerTools(
         directory,
         phase,
         failure,
+        diagnostic: isRecord(error) && isRecord(error.diagnostic) ? error.diagnostic : null,
         source: expected,
         authority: "none",
         automatic_retry: false,

@@ -397,10 +397,12 @@ void test("bootstrap pins use verified official Windows download origins", () =>
 
 void test("EdgeDriver callers share a signature-first version boundary", async () => {
   const source = await readFile(new URL("./bootstrap-quality-tools.ps1", import.meta.url), "utf8");
-  const helper = source.slice(
-    source.indexOf("function Test-VerifiedEdgeDriver"),
-    source.indexOf("function Install-DesktopTools"),
+  const policy = await readFile(
+    new URL("./windows-webview-driver-policy.psm1", import.meta.url),
+    "utf8",
   );
+  const helper = policy.slice(policy.indexOf("function Test-VerifiedEdgeDriver"));
+  assert.match(source, /Import-Module .*windows-webview-driver-policy\.psm1/u);
   assert.ok(helper.indexOf("Get-AuthenticodeSignature") < helper.indexOf("Test-ReportedVersion"));
   assert.match(helper, /Status -ne "Valid"/u);
   assert.match(helper, /Subject -notmatch "Microsoft Corporation"/u);
@@ -544,8 +546,11 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $errors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_EDGE_FIXTURE_SOURCE, [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw ($errors | Out-String) }
+$policyAst = [System.Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_EDGE_FIXTURE_POLICY, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
 foreach ($name in @('Assert-UnderRoot','Test-VerifiedEdgeDriver','Install-DesktopTools')) {
-    $definition = @($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
+    $selectedAst = if ($name -eq 'Test-VerifiedEdgeDriver') {$policyAst} else {$ast}
+    $definition = @($selectedAst.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
     if ($definition.Count -ne 1) { throw "Expected one production function $name" }
     . ([scriptblock]::Create($definition[0].Extent.Text))
 }
@@ -626,7 +631,13 @@ $results | ConvertTo-Json -Depth 6 -Compress
       encoding: "utf8",
       windowsHide: true,
       timeout: 18_000,
-      env: { ...process.env, PORTCOVE_EDGE_FIXTURE_SOURCE: script },
+      env: {
+        ...process.env,
+        PORTCOVE_EDGE_FIXTURE_SOURCE: script,
+        PORTCOVE_EDGE_FIXTURE_POLICY: fileURLToPath(
+          new URL("./windows-webview-driver-policy.psm1", import.meta.url),
+        ),
+      },
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const cases: unknown = JSON.parse(result.stdout);

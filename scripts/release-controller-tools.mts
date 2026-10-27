@@ -82,6 +82,7 @@ const windowsAssets = Object.freeze([
   "scripts/native-qualification-account.cs.txt",
   "scripts/native-qualification-account-registry.ps1",
   "scripts/fixtures/native-account-gui-probe.ps1",
+  "scripts/windows-webview-driver-policy.psm1",
 ] as const);
 const windowsPaths = Object.freeze(
   [
@@ -90,6 +91,11 @@ const windowsPaths = Object.freeze(
     "bin/portcove-release-tools.exe",
     "bin/tauri-addon.node",
     "bin/tauri-driver.exe",
+    "bin/msedgedriver.exe",
+    "webview-driver.json",
+    "webview-driver-license.txt",
+    "webview-driver-eula.txt",
+    "webview-driver-notices.html",
     "bin/pnpm.exe",
     "pnpm-license.txt",
     "pnpm-notices.txt",

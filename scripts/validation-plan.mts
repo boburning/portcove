@@ -487,6 +487,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-public-build-provenance.mts",
   "scripts/release-control-handshake.mts",
   "scripts/release-controller-tool-build.mts",
+  "scripts/release-windows-webview-driver.mts",
+  "scripts/windows-webview-driver-policy.psm1",
   "scripts/release-pnpm-runtime.mts",
   "scripts/qualify-controller-tool-build.mts",
   ".github/workflows/controller-tool-build-fixture.yml",
