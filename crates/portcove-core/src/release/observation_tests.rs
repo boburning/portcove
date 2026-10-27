@@ -507,3 +507,81 @@ fn scoped_observations_refuse_ambiguous_coverage_and_unassessed_asset_payloads()
     assert!(inspect(&port, &document).is_err());
     Ok(())
 }
+
+#[test]
+fn observations_accept_exact_percent_encoded_release_components() -> Result<()> {
+    let port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    for (tag, name, url) in [
+        (
+            "1.0+test",
+            "game-windows.zip",
+            "https://github.com/HarbourMasters/Shipwright/releases/download/1.0%2Btest/game-windows.zip",
+        ),
+        (
+            "1.0.0",
+            "game+windows.zip",
+            "https://github.com/HarbourMasters/Shipwright/releases/download/1.0.0/game%2bwindows.zip",
+        ),
+        (
+            "branch/1.0",
+            "game windows.zip",
+            "https://github.com/HarbourMasters/Shipwright/releases/download/branch%2F1.0/game%20windows.zip",
+        ),
+    ] {
+        let mut observed = release(1, tag);
+        observed["assets"][0]["name"] = json!(name);
+        observed["assets"][0]["browser_download_url"] = json!(url);
+        let report = inspect(&port, &envelope(vec![observed])?)?;
+        assert_eq!(report.facts_sha256.len(), 64);
+        assert!(!report.evidence.artifact_bytes_verified);
+        assert!(!report.evidence.catalog_admission_assessed);
+    }
+    Ok(())
+}
+
+#[test]
+fn observations_refuse_encoded_scope_changes_double_decoding_and_extra_components() -> Result<()> {
+    let port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    for url in [
+        "https://github.com/HarbourMasters%2FShipwright/releases/download/1.0.0/game-windows.zip",
+        "https://github.com/HarbourMasters/Shipwright/releases%2Fdownload/1.0.0/game-windows.zip",
+        "https://github.com/HarbourMasters/Other/releases/download/1.0.0/game-windows.zip",
+        "https://github.com/HarbourMasters/Shipwright/releases/download/1.0.0/game%252Dwindows.zip",
+        "https://github.com/HarbourMasters/Shipwright/releases/download/1.0.0/game-windows.zip/extra",
+        "https://github.com/HarbourMasters/Shipwright/releases/download/1.0.0/game-windows.zip?token=fixture",
+        "https://foreign.invalid/HarbourMasters/Shipwright/releases/download/1.0.0/game-windows.zip",
+        "https://github.com/HarbourMasters/Shipwright/releases/download/1.0.0/game%windows.zip",
+    ] {
+        let mut observed = release(1, "1.0.0");
+        observed["assets"][0]["browser_download_url"] = json!(url);
+        assert!(inspect(&port, &envelope(vec![observed])?).is_err(), "{url}");
+    }
+    Ok(())
+}
+
+#[test]
+fn actual_encoded_primary_release_metadata_keeps_observation_only_authority() -> Result<()> {
+    let fixtures: Value = serde_json::from_str(include_str!(
+        "../testdata/upstream-observer-encoded-components-2026-10-27.json"
+    ))?;
+    let catalog = crate::Catalog::embedded()?;
+    for fixture in fixtures["cases"].as_array().unwrap() {
+        let port_id = fixture["port_id"].as_str().unwrap();
+        let facts = fixture["facts"].clone();
+        let document = json!({ "format": 1, "authority": "provider-observation-only", "port_id": port_id,
+            "started_at": "2026-10-27T07:00:00Z", "completed_at": "2026-10-27T08:00:00Z",
+            "facts_sha256": json_digest(&facts)?, "facts": facts });
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("actual-observation.json");
+        std::fs::write(&path, serde_json::to_vec(&document)?)?;
+        let report = inspect_upstream_observation(
+            catalog.port(port_id)?,
+            fixture["repository_id"].as_u64().unwrap(),
+            &path,
+        )?;
+        assert!(!report.evidence.artifact_bytes_verified);
+        assert!(!report.evidence.catalog_admission_assessed);
+        assert!(!report.evidence.provider_authenticated);
+    }
+    Ok(())
+}
