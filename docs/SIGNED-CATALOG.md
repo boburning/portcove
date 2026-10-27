@@ -91,3 +91,52 @@ Explicit rollback consumes the previous selection and keeps the highest sequence
 Trust and replay state belong to the local library's database. Managed moves retain it. Metadata-only export/import intentionally leaves it out, so each destination configures its own trust; old installed artifacts remain subject to the same embedded safety contracts. This protects against network/publisher-delivery tampering and replay under an intact local database. It does not protect against a local attacker rewriting that database, restore its newer replay floor after a whole-database rollback, or supply a trustworthy system clock.
 
 Bundled-runtime updates may change their pinned archive asset and archive root, like a game release update. They cannot add or remove a runtime platform, change its mount directory or executable, or make runtime files mutable. Runtime-only updates receive a distinct immutable install identity. Adding a new runtime execution contract requires an application update; an older cached catalog that omits the new contract is rejected and falls back through the normal verified selection rules.
+
+## Capacity diagnostics and retained representations
+
+Run `node scripts/catalog-capacity.mts --catalog PATH` for offline counts of the
+current source, compact document, representative escaped format-1 envelope and
+remaining parser headroom. The tool reads the existing Core limit constants; it
+creates no key or signature and contacts no provider. Its growth model holds
+shared source data and average per-port metadata fixed. It is not admission,
+semantic validation, a production signed envelope or a guarantee for future
+source identities. Existing clients still require matching embedded membership;
+adding ports remains an application/catalog compatibility decision.
+
+Measured October 27, 2026 at catalog SHA-256
+`a3de2a0a1b18d9c2110521f58c40dbdf13396fed381f5b960a81cbec4d59a1e3`:
+167 operational ports occupy 990,397 source bytes and 708,076 compact JSON bytes.
+A representative envelope with a maximum-safe-integer sequence, two ten-digit
+Unix timestamps and fixed-width placeholder key/signature fields occupies 761,067
+bytes, leaving 3,433,237 of the 4,194,304-byte bound (about 81.9%). Shared data in
+that model occupies 324,799 bytes; future shared source growth is not assumed
+constant in the actual product. The current byte limit has ample observed
+headroom, so format1 and its security bound remain unchanged.
+
+Verification now moves the parsed catalog document through the existing shared
+validator rather than serializing and parsing it again. The verified result
+retains only sequence/validity metadata alongside its validated catalog and exact
+signed payload string. It no longer retains a second full parsed payload catalog.
+Exact signed bytes, validation, signatures, replay protection, snapshots, atomic
+publication and recovery remain unchanged. Serialized sizes do not measure heap
+or RSS savings; those remain Unknown.
+
+The optional local GitHub metadata cache retains a 64 MiB **charged record** budget
+rather than 512 rows. Charges include body bytes, URL key/index bytes, validators
+and a 4 KiB per-record reserve, so empty/tiny entries cannot grow without a resource
+bound. A single uncacheable record is excluded before ordinary oldest-first
+resource eviction. Seven-day expiry, per-response bounds, conditional validation
+and unchanged observations remain intact; a 304 already refreshes the existing
+cache age. The SQLite schema and old-client readers are unchanged. This budget
+is not a limit on the entire library database or its existing free pages.
+
+In a controlled 1,000-row SQLite fixture, 22,000 body bytes and 173,780 text/index
+bytes occupied 221,184 database bytes; the former row cap would evict 488 entries.
+That demonstrates avoidable loss of small conditional responses, not actual
+production misses or traffic. A conservative 4 KiB record reserve exceeds that
+fixture's observed 47.404-byte average physical overhead. Pruning checks aggregate
+resource admission before sorting for eviction. With 20 local SQLite 3.53.1
+samples per case, the 1,000/10,000-row aggregate checks averaged 0.080/0.759ms;
+unconditional window eviction averaged 0.420/3.857ms. These are small-body fixture
+CPU observations, not application timings or provider costs. Live occupancy,
+API consumption, process memory and actual release throughput remain Unknown.

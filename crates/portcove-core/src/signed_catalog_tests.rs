@@ -887,3 +887,33 @@ async fn candidate_changes_and_insecure_delivery_fail_before_publication() {
     assert!(service.plan_catalog_update(&source).await.is_err());
     assert_eq!(library.catalog_status().unwrap().highest_sequence, 0);
 }
+
+#[test]
+fn format_one_growth_at_the_exact_envelope_bound_preserves_verification_and_refuses_overflow() {
+    let now = 1_800_000_000;
+    let original = fixture(1, now);
+    let mut envelope: SignedCatalogEnvelope = serde_json::from_slice(&sign(&original)).unwrap();
+    let padding = MAX_CATALOG_BYTES - serde_json::to_vec(&envelope).unwrap().len();
+    envelope.payload.push_str(&" ".repeat(padding));
+    let key = signing_key();
+    envelope.signature = hex::encode(
+        key.sign(&signed_catalog::signing_message(
+            &envelope.key_id,
+            &envelope.payload,
+        ))
+        .to_bytes(),
+    );
+    let bytes = serde_json::to_vec(&envelope).unwrap();
+    assert_eq!(bytes.len(), MAX_CATALOG_BYTES);
+    let trust =
+        CatalogTrustKey::from_public_key(&hex::encode(key.verifying_key().as_bytes())).unwrap();
+    let verified = signed_catalog::verify(&bytes, std::slice::from_ref(&trust), now).unwrap();
+    assert_eq!(verified.payload.sequence, original.sequence);
+    assert_eq!(verified.payload.expires_at, original.expires_at);
+    assert_eq!(verified.catalog.ports().len(), original.catalog.ports.len());
+    assert_eq!(verified.envelope.payload, envelope.payload);
+    envelope.payload.push(' ');
+    let overflow = serde_json::to_vec(&envelope).unwrap();
+    assert_eq!(overflow.len(), MAX_CATALOG_BYTES + 1);
+    assert!(signed_catalog::verify(&overflow, &[trust], now).is_err());
+}
