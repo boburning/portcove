@@ -1,9 +1,10 @@
 import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 import type { TestModule, TestCase } from "vite-plus/test/node";
+import { browserTraceProbe } from "../apps/desktop/src/browser/failure-probe-contract.ts";
 
 type TestObservation = Pick<TestCase, "fullName"> & {
-  result(): Pick<ReturnType<TestCase["result"]>, "state">;
+  result(): Pick<ReturnType<TestCase["result"]>, "state"> & { note?: string | undefined };
 };
 export type UiModuleObservation = Pick<TestModule, "moduleId" | "state" | "ok"> & {
   children: { allTests(): Iterable<TestObservation> };
@@ -11,6 +12,29 @@ export type UiModuleObservation = Pick<TestModule, "moduleId" | "state" | "ok"> 
 export interface UiRunObservation {
   testModules: readonly UiModuleObservation[];
   unhandledErrors: readonly unknown[];
+}
+
+export interface UiSkipContract {
+  category: "explicit-diagnostic";
+  reason: string;
+  prerequisite: string;
+  intended_route: string;
+  cases: readonly string[];
+}
+
+export function declaredUiSkip(file: string, desktopRoot: string): UiSkipContract | null {
+  if (
+    identity(path.resolve(file)) !==
+    identity(path.resolve(desktopRoot, "src/browser/failure-probe.browser.test.tsx"))
+  )
+    return null;
+  return {
+    category: "explicit-diagnostic",
+    reason: browserTraceProbe.reason,
+    prerequisite: `${browserTraceProbe.environment}=1 enables the deliberate failure`,
+    intended_route: browserTraceProbe.intendedRoute,
+    cases: [browserTraceProbe.name],
+  };
 }
 
 const identity = (file: string): string =>
@@ -31,19 +55,14 @@ export function allowedUiSkippedFiles(
   files: readonly string[],
   desktopRoot: string,
   environment: Readonly<NodeJS.ProcessEnv> = process.env,
-): ReadonlyMap<string, string> {
-  const probe = identity(path.resolve(desktopRoot, "src/browser/failure-probe.browser.test.tsx"));
+): ReadonlyMap<string, UiSkipContract> {
   return new Map(
-    files
-      .filter(
-        (file) =>
-          environment.VITE_PORTCOVE_BROWSER_TRACE_PROBE !== "1" &&
-          identity(path.resolve(file)) === probe,
-      )
-      .map((file) => [
-        file,
-        "Intentional browser failure diagnostic is disabled outside its probe",
-      ]),
+    files.flatMap((file) => {
+      const contract = declaredUiSkip(file, desktopRoot);
+      return contract && environment[browserTraceProbe.environment] !== "1"
+        ? [[file, contract] as const]
+        : [];
+    }),
   );
 }
 
@@ -84,7 +103,7 @@ export function resolveUiSelection(
 export function reconcileUiSelection(
   { testModules, unhandledErrors }: UiRunObservation,
   files: readonly string[],
-  allowedSkippedFiles: ReadonlyMap<string, string> = new Map(),
+  allowedSkippedFiles: ReadonlyMap<string, UiSkipContract> = new Map(),
 ) {
   const rawModules: unknown = testModules;
   const rawErrors: unknown = unhandledErrors;
@@ -92,16 +111,36 @@ export function reconcileUiSelection(
     throw new Error("UI run is unsuccessful or incomplete");
   const expected = new Set(files.map((file: string) => identity(path.resolve(file))));
   if (!expected.size) throw new Error("UI selection is empty");
-  const permissions = new Map<string, string>();
-  for (const [file, reason] of allowedSkippedFiles) {
+  const permissions = new Map<string, UiSkipContract>();
+  for (const [file, contract] of allowedSkippedFiles) {
     const key = identity(path.resolve(file));
-    if (!expected.has(key) || permissions.has(key) || !reason.trim())
+    if (
+      !expected.has(key) ||
+      permissions.has(key) ||
+      typeof contract !== "object" ||
+      contract === null ||
+      contract.category !== "explicit-diagnostic" ||
+      ![contract.reason, contract.prerequisite, contract.intended_route].every(
+        (value) => typeof value === "string" && value.trim() && value.length <= 4096,
+      ) ||
+      !Array.isArray(contract.cases) ||
+      !contract.cases.length ||
+      contract.cases.length > 1024 ||
+      new Set(contract.cases).size !== contract.cases.length ||
+      contract.cases.some((name) => typeof name !== "string" || !name.trim() || name.length > 4096)
+    )
       throw new Error(`Invalid UI skipped-file permission: ${file}`);
-    permissions.set(key, reason);
+    permissions.set(key, contract);
   }
   const discovered = new Set<string>(),
     executed: string[] = [];
   const skippedFiles: { file: string; reason: string }[] = [];
+  const skippedCases: {
+    file: string;
+    name: string;
+    original_skip_reason: string | null;
+    contract: UiSkipContract;
+  }[] = [];
   let passed = 0,
     skipped = 0;
   for (const module of testModules) {
@@ -115,18 +154,31 @@ export function reconcileUiSelection(
     if (!tests.length) throw new Error("UI suite has no test evidence");
     let ran = false;
     for (const test of tests) {
-      const state = test.result().state;
+      const result = test.result(),
+        state = result.state;
       if (state === "passed") {
         passed++;
         ran = true;
-      } else if (state === "skipped") skipped++;
-      else throw new Error(`UI test did not finish successfully: ${test.fullName}`);
+      } else if (state === "skipped") {
+        const contract = permissions.get(key);
+        if (!contract || !contract.cases.includes(test.fullName))
+          throw new Error(
+            `Unexpected UI skip or wholly skipped suite: ${module.moduleId}: ${test.fullName}`,
+          );
+        skipped++;
+        skippedCases.push({
+          file: module.moduleId,
+          name: test.fullName,
+          original_skip_reason: typeof result.note === "string" ? result.note : null,
+          contract,
+        });
+      } else throw new Error(`UI test did not finish successfully: ${test.fullName}`);
     }
     if (ran) executed.push(module.moduleId);
     else {
-      const reason = permissions.get(key);
-      if (!reason) throw new Error(`Requested UI suite was wholly skipped: ${module.moduleId}`);
-      skippedFiles.push({ file: module.moduleId, reason });
+      const contract = permissions.get(key);
+      if (!contract) throw new Error(`Requested UI suite was wholly skipped: ${module.moduleId}`);
+      skippedFiles.push({ file: module.moduleId, reason: contract.reason });
     }
   }
   const missing = files.filter((file: string) => !discovered.has(identity(path.resolve(file))));
@@ -137,6 +189,7 @@ export function reconcileUiSelection(
     discovered_files: testModules.map((module) => module.moduleId),
     executed_files: executed,
     skipped_files: skippedFiles,
+    skipped_cases: skippedCases,
     passed,
     skipped,
   };

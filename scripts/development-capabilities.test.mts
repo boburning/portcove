@@ -153,6 +153,7 @@ function bootstrapFixture(t: TestContext) {
     "scripts/tool-cache.mts",
     "scripts/bootstrap-quality-tools.sh",
     "scripts/bootstrap-quality-tools.ps1",
+    "scripts/windows-webview-driver-policy.psm1",
     ".node-version",
     "rust-toolchain.toml",
     "package.json",
@@ -356,7 +357,12 @@ void test(
 
 void test(
   "PowerShell frontend setup selects dependencies before unrelated tools",
-  { skip: spawnSync("pwsh", ["--version"], { timeout: 5000 }).status !== 0 },
+  {
+    skip:
+      spawnSync("pwsh", ["--version"], { timeout: 5000 }).status !== 0
+        ? "PowerShell executable unavailable"
+        : false,
+  },
   (t) => {
     const fixture = bootstrapFixture(t);
     const result = fixture.run(

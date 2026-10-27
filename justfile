@@ -301,3 +301,13 @@ rust-coverage:
 # Read-only hosted CI history; kept outside required offline checks.
 ci-health:
     node scripts/ci-health.mts
+
+# Complete declared POSIX tooling route; platform prerequisites remain explicit.
+posix-tooling-contracts:
+    # node-suite: posix-tooling-contracts
+    node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/dev-doctor.test.mts scripts/development-capabilities.test.mts scripts/development-cli-help.test.mts
+
+# Maintained Mac complements, also available for explicit local replay.
+macos-platform-contracts:
+    # node-suite: macos-platform-contracts
+    node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/precommit-check.test.mts scripts/production-aggregate-steps.test.mts scripts/quality-tools.test.mts scripts/release-role-key-channel.test.mts scripts/release-run-evidence.test.mts scripts/release-workflow.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/test-duration-reporter.test.mts scripts/trusted-release-assembly.test.mts scripts/ui-test-selection.test.mts

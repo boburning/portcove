@@ -95,7 +95,7 @@ void test("Switch searches preserve old pagination and carry their supported ord
   assert.equal(parseLeadState(JSON.parse(JSON.stringify(state))).next_family, 0);
   assert.equal(leadFamilyIds.length, 28);
 });
-void test("six-page runs rotate all 28 families across five runs and preserve pending windows and HTTP ordering", (t) => {
+void test("resource-admitted six-page batches rotate all families and preserve exact windows and HTTP ordering", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-switch-rotation-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   let state = parseLeadState(undefined);
@@ -103,6 +103,7 @@ void test("six-page runs rotate all 28 families across five runs and preserve pe
   for (let run = 0; run < 5; run++) {
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
     const budget = new DiscoveryBudget("ordinary");
+    budget.reserveDelivery(178, 1024); // Six pages fit before the investigation reserve.
     Object.assign(session, {
       stateDir: root,
       runDir: root,
@@ -229,13 +230,14 @@ void test("current, capped and typed-drift skips cannot hide a due Switch topic 
   session.discover();
   assert.deepEqual(requested, [
     "new-recompiled",
-    ...Array<string>(5).fill("changed-switch-topics"),
+    ...Array<string>(6).fill("changed-switch-topics"),
   ]);
-  assert.equal(session.searches, 6);
-  assert.equal(session.leadPages, 5, "drifting page is never validated pagination");
+  assert.equal(session.searches, 7);
+  assert.equal(session.leadPages, 6, "drifting page is never validated pagination");
   assert.ok(session.deferredLeadFamilies.has("new-recompiled"));
   assert.equal(session.leads.slices["new-recompiled"]?.page, 1);
-  assert.equal(session.leads.slices["changed-switch-topics"]?.page, 6);
+  assert.equal(session.leads.slices["changed-switch-topics"]?.page, 7);
+  assert.equal(session.leads.slices["changed-switch-topics"]?.completed_at, now);
   assert.ok(session.leads.records["1"], "retained prior identity survives");
   assert.ok(session.leads.records["99999"], "positive lead survives refused pagination");
   assert.deepEqual(session.leads.records["99999"]?.search_families, ["new-recompiled"]);
@@ -293,13 +295,21 @@ for (const driftingFamilies of [1, 2, 4])
       },
     });
     session.discover();
-    assert.equal(requests.length, 6, "spend the six-page bound across independent families");
+    assert.equal(
+      requests.length,
+      leadFamilyIds.length,
+      "continue beyond six pages across independent families",
+    );
     assert.equal(
       requests.filter((r) => decodeURIComponent(r).includes("recompiled in:")).length,
       1,
       "never retry the drifting family in this session",
     );
-    assert.equal(session.leadPages, 6 - driftingFamilies, "refused page is not validated coverage");
+    assert.equal(
+      session.leadPages,
+      leadFamilyIds.length - driftingFamilies,
+      "refused page is not validated coverage",
+    );
     assert.equal(session.leads.slices["new-recompiled"]?.page, 1);
     assert.equal(session.leads.slices["new-recompiled"]?.completed_at, undefined);
     assert.equal(session.leads.records["1"]?.id, 1, "prior lead survives discarded pagination");
@@ -596,8 +606,8 @@ void test("runner charges complementary pages, guards rotation and retains queue
   assert.equal("status" in session.recheck() ? "deferred" : "unexpected", "deferred");
   assert.equal(calls, 0);
   session.discover();
-  assert.equal(calls, 6);
-  assert.equal(budget.usage.requests, 10);
+  assert.equal(calls, leadFamilyIds.length);
+  assert.equal(budget.usage.requests, leadFamilyIds.length + 4);
   assert.equal(
     session.leadWorkComplete(),
     false,
@@ -664,7 +674,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
   assert.equal(recovered.leads.records["2"]?.status, "held");
   assert.equal(recovered.leads.records["2"]?.research?.evidence_id, "retained-2");
   const restored = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
-  assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, 3);
+  assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, leadFamilyIds.length - 3);
   const constrained = new DiscoveryBudget("ordinary");
   constrained.reserveDelivery(190, 1024);
   Object.assign(session, {
@@ -677,7 +687,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
     leads: parseLeadState(undefined),
   });
   session.discover();
-  assert.equal(calls, 6, "reserve refusal must happen before HTTP");
+  assert.equal(calls, leadFamilyIds.length, "reserve refusal must happen before HTTP");
   assert.equal(session.leadWorkComplete(), false);
 });
 void test("new window overlaps the completed interval and hints do not claim package usability", () => {

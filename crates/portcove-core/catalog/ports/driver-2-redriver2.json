@@ -3,12 +3,12 @@
   "listing": {
     "id": "driver-2-redriver2",
     "name": "Driver 2 / REDRIVER2",
-    "summary": "Explore Driver 2 / REDRIVER2 and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play Driver 2 with the native REDRIVER2 player and both of your original discs.",
     "project_url": "https://github.com/OpenDriver2/REDRIVER2",
     "issue_number": 317,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/OpenDriver2/REDRIVER2",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions",
     "artwork": {
       "game_id": 6391,
       "cover_id": 364339,
@@ -16,6 +16,38 @@
       "image_sha256": "188dd97ae742e78c8c47e7a2e0c7921a5b7047a83245f307fb4b3a0b19eea00e",
       "game_slug": "driver-2-back-on-the-streets",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/OpenDriver2/REDRIVER2/releases",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["REDRIVER2_Win32_Release.zip"],
+      "linux-x86-64": ["REDRIVER2_Linux_Release.tar.gz"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the standard player and its dependencies together",
+          "instruction": "Use the standard release archive, keeping REDRIVER2.exe on Windows or REDRIVER2 on Linux with its complete data, configuration and install/ companions. The Windows player is Win32 and can run on a Windows x64 host; the Linux package is x64 and needs the upstream SDL2/OpenAL dependencies. Follow upstream instructions for any missing Windows Visual C++ runtime. Development archives are separate alternatives."
+        },
+        {
+          "title": "Prepare both of your original discs with upstream setup",
+          "instruction": "You need both of your Driver 2 discs. Upstream documents English US/EU revisions 1.0 and 1.1. On Windows, put the upstream Launcher.exe in the player folder, install the required Java runtime for media conversion, and use its Setup wizard with both disc images. The Launcher is a separate native program; Java runs the bundled jPSXdec conversion tools. Back up a working prepared folder before allowing setup to replace its contents. Portcove never starts the Launcher, scripts or JARs during discovery."
+        },
+        {
+          "title": "Use the manual setup alternative only when needed",
+          "instruction": "If you are not using the Windows Setup wizard, the supplied conversion scripts expect raw disc data at install/Driver2CD1.bin and install/Driver2CD2.bin, with config.ini pointing to the first image. Renaming a CHD or a cooked ISO does not convert it into the required raw data. Follow the upstream guide and deliberately run the Windows/Linux conversion step with Java to prepare the media. Review any conversion errors and keep originals and failed work recoverable before retrying."
+        },
+        {
+          "title": "Add the prepared player, then choose Play",
+          "instruction": "Register REDRIVER2.exe or the Linux REDRIVER2 executable with its complete prepared folder as the working directory. Keep the upstream Launcher for its setup and configuration functions. Read-only discovery only suggests a launch target; saving launch details and choosing Play remain separate choices."
+        },
+        {
+          "title": "Preserve your prepared copy and actual profile",
+          "instruction": "You or upstream provide runtime updates. Keep the whole prepared folder, config.ini, cutscene_recorder.ini, original images, generated media, mods and any custom data-folder paths before trying a new version separately. Profiles live under USERPROFILE/.driver2 on Windows or HOME/.driver2 on Linux, including config.dat and progress.dat; they are not isolated by choosing another player folder. Preserve that actual profile too. Portcove registration provides no managed Update, Backup or Rollback, and removing it leaves every external file untouched."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions"
     }
   }
 }

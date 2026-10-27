@@ -19,6 +19,7 @@ interface ProviderQuota {
 export interface Usage {
   requests: number;
   bytes: number;
+  accounting_bytes: number;
   graphql_points_observed: number;
   graphql_cost_unknown_requests: number;
   started_at: string;
@@ -46,6 +47,7 @@ export class DiscoveryBudget {
     this.usage = {
       requests: 0,
       bytes: 0,
+      accounting_bytes: 0,
       graphql_points_observed: 0,
       graphql_cost_unknown_requests: 0,
       started_at: new Date(now()).toISOString(),
@@ -54,11 +56,34 @@ export class DiscoveryBudget {
     };
   }
   remaining() {
+    const elapsed = this.now() - Date.parse(this.usage.started_at);
+    const milliseconds = this.limits.milliseconds - elapsed;
+    const quota = this.usage.provider_quotas?.core;
+    // The historical request counts are bootstrap estimates, not throughput
+    // ceilings once fresh provider capacity and actual costs are observable.
+    // Keep the finite runtime and retained-byte envelopes for this batch.
+    const adaptive = quota && Date.parse(quota.resetAt) > this.now() && this.usage.requests > 0;
+    const requests = adaptive
+      ? Math.max(
+          0,
+          Math.min(
+            quota.remaining,
+            Math.floor(milliseconds / Math.max(1, elapsed / this.usage.requests)),
+            Math.floor(
+              (this.limits.bytes - this.usage.bytes - this.usage.accounting_bytes) /
+                Math.max(1, (this.usage.bytes + this.usage.accounting_bytes) / this.usage.requests),
+            ),
+          ),
+        )
+      : this.limits.requests - this.usage.requests;
     return {
-      requests:
-        this.limits.requests - this.usage.requests - (this.delivery ? 0 : this.reserve.requests),
-      bytes: this.limits.bytes - this.usage.bytes - (this.delivery ? 0 : this.reserve.bytes),
-      milliseconds: this.limits.milliseconds - (this.now() - Date.parse(this.usage.started_at)),
+      requests: requests - (this.delivery ? 0 : this.reserve.requests),
+      bytes:
+        this.limits.bytes -
+        this.usage.bytes -
+        this.usage.accounting_bytes -
+        (this.delivery ? 0 : this.reserve.bytes),
+      milliseconds,
     };
   }
   admit(requests: number, bytes: number) {
@@ -155,9 +180,20 @@ export class DiscoveryBudget {
       throw new Error("Invalid discovery usage");
     this.usage.requests += requests;
     this.usage.bytes += bytes;
-    this.usage.attempts.push({ method, endpoint, status, requests, bytes });
+    // Conservatively charge all request chains to the observed core allowance.
+    // An actual core response replaces this estimate with provider readback;
+    // search/GraphQL retain their independent transport admission checks.
+    const quota = this.usage.provider_quotas?.core;
+    if (quota) quota.remaining = Math.max(0, quota.remaining - requests);
+    const attempt = { method, endpoint, status, requests, bytes };
+    this.usage.attempts.push(attempt);
+    this.usage.accounting_bytes += Buffer.byteLength(JSON.stringify(attempt)) + 1;
     this.persist(this.usage);
-    if (this.usage.requests > this.limits.requests || this.usage.bytes > this.limits.bytes)
+    if (
+      ((!quota || Date.parse(quota.resetAt) <= this.now()) &&
+        this.usage.requests > this.limits.requests) ||
+      this.usage.bytes + this.usage.accounting_bytes > this.limits.bytes
+    )
       throw new GitHubApiError("budget_exhausted", "Discovery hard budget exceeded");
   }
 }

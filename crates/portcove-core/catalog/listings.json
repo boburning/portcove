@@ -8626,12 +8626,15 @@
     {
       "id": "banjo-kazooie-nuts-bolts-renut",
       "name": "Banjo-Kazooie: Nuts & Bolts / reNut",
-      "summary": "Explore Banjo-Kazooie: Nuts & Bolts / reNut and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare and play your permitted reNut copy with upstream tools and your own original game data.",
       "project_url": "https://github.com/masterspike52/reNut",
       "issue_number": 161,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/masterspike52/reNut",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/masterspike52/reNut/blob/02e33bdbf2ac97acf74a0dc61143a8ee38f85ab9/README.md",
       "artwork": {
         "game_id": 3008,
         "cover_id": 113272,
@@ -8639,6 +8642,35 @@
         "image_sha256": "d9fdbcaf84c07704610236e52a03420bcafec11c295730d03999a01377bf21e1",
         "game_slug": "banjo-kazooie-nuts-bolts",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/masterspike52/reNut/releases",
+      "recommended_download_channel": "beta",
+      "download_block_reason": "Fresh Portcove downloads remain paused until attributable terms cover reNut and its bundled resources. Named SDK or tool licences do not resolve that existing condition. You can prepare and add an existing copy you have permission to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use permitted existing copies and local preparation",
+            "instruction": "Keep permitted copies of reNut and NutStaller, and point NutStaller at your player folder. If extract-xiso is missing, its separate Get extract-xiso action downloads that tool. Then use 3. Pick ISO + extract with your own USA Banjo-Kazooie: Nuts & Bolts Xbox 360 ISO and 4. Add title update with your matching original update as required by the current release instructions. Back up the prepared folder before approving its replacement. These local preparation actions do not acquire another runtime; Get latest reNut and Do everything do and require separate acquisition permission. Portcove does not run the tools during discovery."
+          },
+          {
+            "title": "Keep the richer upstream launcher available",
+            "instruction": "NutStaller provides runtime update checks, controls, Workshop and save tools; keep it available after registering the prepared player. On Linux, its current instructions require glibc 2.17 for NutStaller itself, 2.34 for the extractor and 2.38 for the player. The player and preparation helper have separate requirements."
+          },
+          {
+            "title": "Add the prepared player, then choose Play",
+            "instruction": "On Windows select the prepared renut.exe; on Linux select the prepared renut.AppImage and its matching folder. Save the launch details, then choose Play separately. If preparing the player manually, its first-run path wizard asks for existing game-data, user-data and update folders and remembers those paths. No game, installer or helper is executed merely by discovering or registering the copy."
+          },
+          {
+            "title": "Preserve actual saves, settings and custom content",
+            "instruction": "Close the game before backup or replacement. Keep your actual selected user-data root; defaults are Documents/renut on Windows and XDG_DATA_HOME/renut, normally ~/.local/share/renut, on Linux. Keep renut.cfg and renut.toml beside the Windows player or in Linux user data, plus the original ISO/update, prepared game and DLC, mods, Workshop content and nutstaller.ini beside the helper. Beta12 also documents custom music in music/ beside the Windows player or ~/.local/share/renut/music on Linux; preserve that folder separately from any custom save path."
+          },
+          {
+            "title": "Keep update and removal ownership clear",
+            "instruction": "You or upstream update this runtime. Preserve the working copy and actual data before accepting an upstream replacement; a save-tool backup does not establish that every separate mod, music, source or helper folder was included. Portcove registration offers no managed Update, Backup or Rollback and does not adopt these files. Removing the registration preserves every external file."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/masterspike52/reNut/blob/02e33bdbf2ac97acf74a0dc61143a8ee38f85ab9/README.md"
       }
     },
     {
@@ -14634,12 +14666,15 @@
     {
       "id": "driver-2-redriver2",
       "name": "Driver 2 / REDRIVER2",
-      "summary": "Explore Driver 2 / REDRIVER2 and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Play Driver 2 with the native REDRIVER2 player and both of your original discs.",
       "project_url": "https://github.com/OpenDriver2/REDRIVER2",
       "issue_number": 317,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/OpenDriver2/REDRIVER2",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions",
       "artwork": {
         "game_id": 6391,
         "cover_id": 364339,
@@ -14647,6 +14682,42 @@
         "image_sha256": "188dd97ae742e78c8c47e7a2e0c7921a5b7047a83245f307fb4b3a0b19eea00e",
         "game_slug": "driver-2-back-on-the-streets",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/OpenDriver2/REDRIVER2/releases",
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "REDRIVER2_Win32_Release.zip"
+        ],
+        "linux-x86-64": [
+          "REDRIVER2_Linux_Release.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the standard player and its dependencies together",
+            "instruction": "Use the standard release archive, keeping REDRIVER2.exe on Windows or REDRIVER2 on Linux with its complete data, configuration and install/ companions. The Windows player is Win32 and can run on a Windows x64 host; the Linux package is x64 and needs the upstream SDL2/OpenAL dependencies. Follow upstream instructions for any missing Windows Visual C++ runtime. Development archives are separate alternatives."
+          },
+          {
+            "title": "Prepare both of your original discs with upstream setup",
+            "instruction": "You need both of your Driver 2 discs. Upstream documents English US/EU revisions 1.0 and 1.1. On Windows, put the upstream Launcher.exe in the player folder, install the required Java runtime for media conversion, and use its Setup wizard with both disc images. The Launcher is a separate native program; Java runs the bundled jPSXdec conversion tools. Back up a working prepared folder before allowing setup to replace its contents. Portcove never starts the Launcher, scripts or JARs during discovery."
+          },
+          {
+            "title": "Use the manual setup alternative only when needed",
+            "instruction": "If you are not using the Windows Setup wizard, the supplied conversion scripts expect raw disc data at install/Driver2CD1.bin and install/Driver2CD2.bin, with config.ini pointing to the first image. Renaming a CHD or a cooked ISO does not convert it into the required raw data. Follow the upstream guide and deliberately run the Windows/Linux conversion step with Java to prepare the media. Review any conversion errors and keep originals and failed work recoverable before retrying."
+          },
+          {
+            "title": "Add the prepared player, then choose Play",
+            "instruction": "Register REDRIVER2.exe or the Linux REDRIVER2 executable with its complete prepared folder as the working directory. Keep the upstream Launcher for its setup and configuration functions. Read-only discovery only suggests a launch target; saving launch details and choosing Play remain separate choices."
+          },
+          {
+            "title": "Preserve your prepared copy and actual profile",
+            "instruction": "You or upstream provide runtime updates. Keep the whole prepared folder, config.ini, cutscene_recorder.ini, original images, generated media, mods and any custom data-folder paths before trying a new version separately. Profiles live under USERPROFILE/.driver2 on Windows or HOME/.driver2 on Linux, including config.dat and progress.dat; they are not isolated by choosing another player folder. Preserve that actual profile too. Portcove registration provides no managed Update, Backup or Rollback, and removing it leaves every external file untouched."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions"
       }
     },
     {

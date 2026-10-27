@@ -293,9 +293,9 @@ void test(
   "actual prepared reaper supervises both fixed children and closes detached descendants or timeout",
   {
     skip:
-      process.platform !== "linux" ||
-      process.getuid?.() === 0 ||
-      !existsSync(preparedFixtureResult),
+      process.platform !== "linux" || process.getuid?.() === 0 || !existsSync(preparedFixtureResult)
+        ? "prepared original Linux custody fixture unavailable"
+        : false,
   },
   (t) => {
     const resultBytes = readFileSync(preparedFixtureResult);
@@ -405,7 +405,8 @@ globalThis.supervisionFixture={
  claim:async plan=>{assert.ok(plans.has(plan));return {tools_root:tools,deadline,recheck(){assert.ok(!stopped&&identityAvailable&&globalThis.supervisionFixture.now()<deadline,'original owner or clock unavailable')},refuse(){stopped=true}}},
  scope:async()=>{const frozenDirectory=directory;return {identity:{run_id:'123',run_attempt:1,controller_revision:'a'.repeat(40)},binding:'fixed',unchanged(){assert.equal(directory,frozenDirectory,'fixed fixture source changed')}}},
  identity:()=> identityAvailable?'fixture-owned-process':null,custody,recheck:(files,before)=>assert.deepEqual(custody(files),before),
- open:async file=>{const handle=await fsp.open(file,'wx',0o600);return {writeFile:async bytes=>{if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json'))identityAvailable=false;await handle.writeFile(bytes);if((fault==='late-stage'&&file.endsWith('pre-sign-supervision-settlement.json'))||(fault==='late-final'&&file.endsWith('native-supervision-settlement.json'))){clock=deadline+1;await delay(0)};if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json')){await delay(25)}},sync:()=>handle.sync(),close:()=>handle.close()}},
+ // Publish the controlled signal after close so late-settlement controls reach their intended phase.
+ open:async file=>{const pending=file.endsWith('native-post-start.json')?file+'.fixture-pending':file;const handle=await fsp.open(pending,'wx',0o600);return {writeFile:async bytes=>{if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json'))identityAvailable=false;if(fault==='late-final'&&file.endsWith('native-post-start.json'))await delay(125);await handle.writeFile(bytes);if((fault==='late-stage'&&file.endsWith('pre-sign-supervision-settlement.json'))||(fault==='late-final'&&file.endsWith('native-supervision-settlement.json'))){clock=deadline+1;await delay(0)};if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json')){await delay(25)}},sync:()=>handle.sync(),close:async()=>{await handle.close();if(pending!==file)await fsp.rename(pending,file)}}},
  resource:async(profile,command,args,options)=>{assert.equal(profile,'analysis');assert.ok(options.queueDeadline===deadline);return options.supervise(['--guard-command',command,...args],{})},
  inspect:(raw,pid)=>{assert.equal(raw.fixture,true);assert.equal(pid,12345);return {pid:12346}},
  spawn:()=>{spawns++;const child=new EventEmitter();child.pid=12345;child.stdout=new EventEmitter();child.stderr=new EventEmitter();return child},
@@ -447,7 +448,7 @@ for(const name of ['valid','overflow','oversized-registration','missing-post','b
  }
  const result=await outcome,final=JSON.parse(await fsp.readFile(path.join(directory,'native-supervision-settlement.json'),'utf8'));
  if(name==='valid'){assert.ok(!result.error,result.error?.stack);assert.equal(spawns,2);assert.equal(final.exit_code,0);assert.equal(final.post_sign_complete,true)}
- else {assert.ok(result.error,name);if(name==='late-final'){assert.equal(final.exit_code,0);assert.equal(JSON.parse(await fsp.readFile(path.join(directory,'native-supervision-refusal.json'),'utf8')).recovery_required,true)}else assert.equal(final.recovery_required,true)}
+ else {assert.ok(result.error,name);if(name==='late-final'){assert.match(result.error.message,/original native clock expired during final supervisor settlement/);assert.equal(final.exit_code,0,JSON.stringify({phase:final.phase,error:result.error?.message,final}));assert.equal(JSON.parse(await fsp.readFile(path.join(directory,'native-supervision-refusal.json'),'utf8')).recovery_required,true)}else assert.equal(final.recovery_required,true)}
  if(name==='lost-supervisor'){assert.equal(identityAvailable,false);assert.equal(spawns,1);assert.equal(final.post_sign_complete,false)}
  if(name==='late-stage'){const partial=JSON.parse(await fsp.readFile(path.join(directory,'pre-sign-supervision-settlement.json'),'utf8'));assert.equal(partial.exit_code,0);assert.equal(JSON.parse(await fsp.readFile(path.join(directory,'pre-sign-supervision-refusal.json'),'utf8')).recovery_required,true)}
  if(name==='overflow'){assert.equal((await fsp.stat(path.join(directory,'pre-sign-worker.stdout.bin'))).size,1024*1024);const row=JSON.parse(await fsp.readFile(path.join(directory,'pre-sign-supervision-settlement.json'),'utf8'));assert.equal(row.streams.stdout.observed_bytes,1024*1024+1);assert.equal(row.streams.stdout.truncated,true)}

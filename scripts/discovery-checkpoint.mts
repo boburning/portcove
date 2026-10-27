@@ -30,6 +30,7 @@ export interface DiscoveryCheckpoint {
   pending: Record<string, PendingObservation>;
   receipts: Record<string, DispositionReceipt>;
   checked: Record<string, string>;
+  checked_revisions?: Record<string, string>;
 }
 interface DiscoveryRun {
   observed_at: string;
@@ -133,7 +134,21 @@ function checkpoint(value: unknown): DiscoveryCheckpoint {
   );
   const checked = stringMap(state.checked, "Checkpoint checked");
   Object.values(checked).forEach(clock);
-  return { ...state, format: 1, sources, pending, receipts, checked };
+  const revisions =
+    state.checked_revisions === undefined
+      ? undefined
+      : stringMap(state.checked_revisions, "Checkpoint checked revisions");
+  if (revisions && Object.values(revisions).some((hash) => !/^[a-f0-9]{64}$/u.test(hash)))
+    throw new Error("Invalid checked revision binding");
+  return {
+    ...state,
+    format: 1,
+    sources,
+    pending,
+    receipts,
+    checked,
+    ...(revisions ? { checked_revisions: revisions } : {}),
+  };
 }
 function discoveryRun(value: unknown): DiscoveryRun {
   const run = object(value, "Discovery run");

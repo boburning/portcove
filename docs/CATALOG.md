@@ -115,10 +115,17 @@ an existing marker needs a supported transition. First-Play file pickers remain
 Play and need no artificial completion marker.
 
 When an active installation exists, activation checks the destination's actual
-retained data contract, including artifact reuse and pending activation recovery.
+retained data contract, including artifact reuse, interrupted install publication
+and pending activation recovery. Native portable publication recovery collects
+current player data and restores it before committing activation, just as the
+normal staged route does; this adds no restore-receipt requirement to native ports.
 Today's recommended definition cannot authorize an incompatible retained target.
 A failed pre-commit check preserves the active version and all player data;
 already committed recovery finishes with the authoritative committed version.
+Reuse, normal staged activation and both recovery routes share the existing
+`prepare_retained_install_data` preflight. Their callers retain distinct admission,
+publication, journal and commit boundaries. Rollback retains its stricter
+directional compatibility check.
 
 Assess preparation separately on each platform. A Windows first-Play picker
 does not establish a Linux picker or a manual completion record. Keep a useful
@@ -154,6 +161,11 @@ preview and mutation before contacting the provider. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
+Preparation refuses replacement records that remove or change an existing
+restriction; resolve its canonical condition in a reviewed Git-authored edit.
+A restricted authored listing cannot also supply a managed integration, whose
+acquisition eligibility belongs to the strict definition. Package observations,
+release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
@@ -1103,8 +1115,8 @@ catalog change.
 Declare the offered route's maintenance policy on its existing canonical Port
 issue during admission and subsequent disposition work, independently from its
 operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
-owns cohort reconciliation, [#254](https://github.com/boburning/portcove/issues/254)
-owns repeatable proposal and evidence preparation, and
+owns cohort reconciliation; completed [#254](https://github.com/boburning/portcove/issues/254)
+provides repeatable proposal and evidence preparation, and
 [#246](https://github.com/boburning/portcove/issues/246) owns protected compatible
 delivery. These declarations are not new catalog schema fields or a second
 planning registry.
@@ -1626,6 +1638,12 @@ historical migration is no longer a current authoring path. It reads the frozen
 qualification records must not be added to that migration.
 
 Use one thin preparation entry point for a new or updated record:
+
+Shared upstream families retain complete independent per-ID records. The existing
+authoring tests compare Raze's shared package/platform/profile/update facts and
+Namco's common upstream/platform links. Original-file requirements, canonical
+issues, identities and independently reviewed acquisition restrictions stay local
+to each record. These checks add no runtime inheritance or shared policy registry.
 
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation

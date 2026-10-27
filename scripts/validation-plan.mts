@@ -799,6 +799,7 @@ function classifyPath(file: string): PathOwnership {
     );
     match(
       file.startsWith("scripts/") ||
+        file === "apps/desktop/src/browser/failure-probe-contract.ts" ||
         file === ".fallow-tooling.json" ||
         file.startsWith(".vite-hooks/") ||
         file === "lint-staged.config.mjs" ||
