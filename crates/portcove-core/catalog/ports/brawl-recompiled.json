@@ -3,13 +3,41 @@
   "listing": {
     "id": "brawl-recompiled",
     "name": "Super Smash Bros. Brawl / BrawlRecompiled",
-    "summary": "Explore BrawlRecompiled and follow the upstream project for original-game requirements, downloads and setup.",
+    "summary": "Keep the Brawl launcher, prepare your own Wii disc and preserve saves and mods in a permitted player copy.",
     "project_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled",
     "original_game_title": "Super Smash Bros. Brawl",
     "issue_number": 2434,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "release_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/releases",
-    "setup_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled"
+    "setup_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["BrawlRecompiled-", "-Windows.zip"],
+      "linux-x86-64": ["BrawlRecompiled-", "-Linux.tar.gz"]
+    },
+    "download_block_reason": "Portcove downloads are paused while permission for this package's game-derived launcher art and title-font resources remains unresolved. Keep an existing permitted copy. Reconsider when upstream supplies compatible resource grants or a package that obtains those resources from your own disc.",
+    "manual_setup": {
+      "help_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
+      "warnings": [],
+      "steps": [
+        {
+          "title": "Keep a permitted complete player",
+          "instruction": "Keep Brawl Recompiled.exe, engine and Disc together in the Windows release folder. On Linux use its separate Brawl Recompiled launcher and complete Linux package. Register the launcher with its folder as the working directory, save launch details, then choose Play separately. A prebuilt release needs no compiler; follow the upstream requirements for your platform."
+        },
+        {
+          "title": "Choose your own supported disc on first Play",
+          "instruction": "Use the launcher's Play page to choose your own USA RSBE01 revision 1 Brawl ISO, CISO or WBFS. It validates the disc and extracts Disc/DATA, about 7 GB. A matching Dolphin-extracted Disc/DATA folder is another upstream route. Keep the original image recoverable; no original disc or automatic helper execution is supplied by Portcove. Reuse a valid remembered disc choice."
+        },
+        {
+          "title": "Keep saves, SD content and mods together",
+          "instruction": "Close both game and launcher before copying data or replacing the runtime. Back up the complete engine/UserData tree in packaged releases, including Config.toml, NAND saves, SD and mods, plus any sd.raw card and configured custom disc, NAND or card roots. Development builds can instead use Play/UserData; use the folder opened by your actual launcher. Keep Disc and your original image separately. SD/card writes are copied back when the game exits, so wait for a clean exit. Use the upstream launcher for save import, controls and mod selection."
+        },
+        {
+          "title": "Update with a recoverable working copy",
+          "instruction": "You or upstream own runtime updates and backups. Keep the current working copy and full data backup, prepare a new permitted version separately and verify your own progress before removing the old copy. Do not replace your data with a clean package. Portcove registration does not manage Update, Backup or Rollback; removing it leaves every external file untouched."
+        }
+      ]
+    }
   }
 }
