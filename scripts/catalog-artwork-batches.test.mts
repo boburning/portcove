@@ -697,7 +697,7 @@ void test("a successful HTTP image exceeding its remaining byte budget retains a
   assert.deepEqual(result.catalog, fixture.accepted);
   assert.equal(
     requiredFixture(requiredFixture(result.records[0]).exceptions[0]).reason,
-    "image-unavailable-or-invalid",
+    "batch-provider-budget-exhausted",
   );
   assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
   assert.equal(fixture.decodes(), 0);

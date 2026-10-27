@@ -880,9 +880,17 @@ async function readBounded(
   response: ArtworkResponse,
   maximum: number,
   observeBytes: (bytes: number) => void = () => {},
+  operationRemaining = maximum,
 ) {
-  if (Number(response.headers.get("content-length")) > maximum || !response.body)
-    throw new Error("Response exceeds its byte contract.");
+  const admit = (length: number) => {
+    if (length > maximum) throw new Error("Response exceeds its byte contract.");
+    if (length > operationRemaining)
+      throw new ArtworkBatchExhausted(
+        "Response exceeds the remaining bounded operation; continue in a fresh batch.",
+      );
+  };
+  admit(Number(response.headers.get("content-length")));
+  if (!response.body) throw new Error("Response exceeds its byte contract.");
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let length = 0;
@@ -892,7 +900,7 @@ async function readBounded(
       if (done) return Buffer.concat(chunks, length);
       length += value.byteLength;
       observeBytes(value.byteLength);
-      if (length > maximum) throw new Error("Response exceeds its byte contract.");
+      admit(length);
       chunks.push(value);
     }
   } finally {
@@ -1133,10 +1141,11 @@ export function createIgdbInspector(
           (
             await readBounded(
               response,
-              Math.min(1024 * 1024, 32 * 1024 * 1024 - used("metadata_bytes")),
+              1024 * 1024,
               (bytes) => {
                 metrics.metadata_bytes += bytes;
               },
+              32 * 1024 * 1024 - used("metadata_bytes"),
             )
           ).toString("utf8"),
         );
@@ -1170,10 +1179,11 @@ export function createIgdbInspector(
           throw new Error("IGDB image unavailable.");
         const bytes = await readBounded(
           response,
-          Math.min(maximumImageBytes, remainingBytes, maximumBatchBytes - used("image_bytes")),
+          maximumImageBytes,
           (length) => {
             metrics.image_bytes += length;
           },
+          Math.min(remainingBytes, maximumBatchBytes - used("image_bytes")),
         );
         const sha256 = createHash("sha256").update(bytes).digest("hex");
         const validated = await validateImage(bytes);
