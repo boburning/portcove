@@ -104,7 +104,13 @@ const publicFixture = process.env.PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE;
 const actualTool = process.env.PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL;
 void test(
   "qualified actual Rust renewal tool authenticates public fixture and custody refuses later mutation",
-  { skip: !publicFixture || !actualTool, timeout: 120000 },
+  {
+    skip:
+      !publicFixture || !actualTool
+        ? "actual renewal tool or public fixture is not appointed"
+        : false,
+    timeout: 120000,
+  },
   async (t) => {
     assert.ok(publicFixture && actualTool);
     const f = await fixture(t);

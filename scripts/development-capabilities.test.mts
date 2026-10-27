@@ -356,7 +356,12 @@ void test(
 
 void test(
   "PowerShell frontend setup selects dependencies before unrelated tools",
-  { skip: spawnSync("pwsh", ["--version"], { timeout: 5000 }).status !== 0 },
+  {
+    skip:
+      spawnSync("pwsh", ["--version"], { timeout: 5000 }).status !== 0
+        ? "PowerShell executable unavailable"
+        : false,
+  },
   (t) => {
     const fixture = bootstrapFixture(t);
     const result = fixture.run(
