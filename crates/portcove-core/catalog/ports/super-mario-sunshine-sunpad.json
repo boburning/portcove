@@ -3,12 +3,12 @@
   "listing": {
     "id": "super-mario-sunshine-sunpad",
     "name": "Super Mario Sunshine / SunPad",
-    "summary": "Explore Super Mario Sunshine / SunPad and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Prepare your own SunPad Mac app upstream and keep its initialized game data and saves together.",
     "project_url": "https://github.com/chrissotraidis/sunpad",
     "issue_number": 1634,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/chrissotraidis/sunpad",
+    "platforms": ["macos-aarch64"],
+    "availability": "source-only",
+    "setup_url": "https://github.com/chrissotraidis/sunpad/blob/d40a0674afa7189c14bfd6ce6f099dd275b46397/README.md",
     "artwork": {
       "game_id": 1075,
       "cover_id": 524521,
@@ -16,6 +16,28 @@
       "image_sha256": "d24815214c09cacb6947c63015545a19f94a54eda2762365f6c234ff2be167ed",
       "game_slug": "super-mario-sunshine",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "warnings": [],
+      "help_url": "https://github.com/chrissotraidis/sunpad/blob/d40a0674afa7189c14bfd6ce6f099dd275b46397/docs/MACOS.md",
+      "steps": [
+        {
+          "title": "Build your own Mac app upstream",
+          "instruction": "On an Apple Silicon Mac with Xcode, use current PadMint, choose SunPad, your own supported Super Mario Sunshine USA revision 0 GMSE01 raw ISO or GCM image and This Mac. PadMint 0.5.5 or newer supports this target; the current game-owned recipe and upstream Mac build instructions are authoritative. The released IPA is an iPhone/iPad preparation shell, not a Mac player. Keep your personal build and original image; do not share game files or generated game modules."
+        },
+        {
+          "title": "Open the complete app through macOS",
+          "instruction": "Move the completed SunPad.app to Applications and open it through upstream macOS instructions. If the launcher asks for your own matching image, choose it and follow Extract and Play. Keep valid prepared game data and remembered choices; do not remove or reimport it unnecessarily. Keep the complete app and its launcher, controller and configuration defaults together."
+        },
+        {
+          "title": "Preserve the live SunPad profile before replacement",
+          "instruction": "Close SunPad before backing up ~/Library/Application Support/SunPad, including saves, extracted data, configuration, controller profiles and logs. Keep your original image, personal generated module and previous working app recoverable. Update using a compatible personal build while preserving app and signing identity. For iPhone/iPad or Apple TV use their separate save/export instructions; TV storage can be purged and an app reinstall is not a save restore."
+        },
+        {
+          "title": "Keep using the supported Mac app",
+          "instruction": "Use the finished SunPad app from Applications. Its launcher initializes the SunPad profile and missing defaults before starting the game, and Portcove cannot run that launcher yet. Do not select SunPadFrontend in its place or change the app environment to bypass setup. Keep the complete upstream app and your saved data recoverable. You or upstream own updates and backups; Portcove does not provide managed Update, Backup or Rollback for this route."
+        }
+      ]
     }
   }
 }
