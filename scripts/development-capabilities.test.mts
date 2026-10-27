@@ -153,6 +153,7 @@ function bootstrapFixture(t: TestContext) {
     "scripts/tool-cache.mts",
     "scripts/bootstrap-quality-tools.sh",
     "scripts/bootstrap-quality-tools.ps1",
+    "scripts/windows-webview-driver-policy.psm1",
     ".node-version",
     "rust-toolchain.toml",
     "package.json",

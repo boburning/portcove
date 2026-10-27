@@ -30,6 +30,20 @@ interface PythonReport {
   incomplete_reason: string | null;
   duration_ms: number;
   cases: PythonCase[];
+  skip_inventory: {
+    evaluation: "owned_suite" | "unmanaged_fixture";
+    contracts: {
+      id: string;
+      category: "platform";
+      platforms: string[];
+      prerequisite: string;
+      intended_route: string;
+      intended_parent: string;
+      original_skip_reason: string | null;
+      observations: number;
+    }[];
+    errors: string[];
+  };
 }
 
 const reporter = fileURLToPath(new URL("./python-test-results.py", import.meta.url));
@@ -140,6 +154,85 @@ export function readPythonReport(text: string, suite: string, status: number | n
       value.suite_exit_status === 1,
       "Python suite status contradicts case outcomes",
     );
+  const skips = value.skip_inventory;
+  assert.ok(
+    isRecord(skips) &&
+      typeof skips.evaluation === "string" &&
+      ["owned_suite", "unmanaged_fixture"].includes(skips.evaluation),
+  );
+  assert.ok(
+    Array.isArray(skips.errors) &&
+      skips.errors.length <= 32 &&
+      skips.errors.every(
+        (error: unknown) => typeof error === "string" && Buffer.byteLength(error) <= 8192,
+      ),
+  );
+  assert.ok(Array.isArray(skips.contracts) && skips.contracts.length <= selected.length);
+  for (const row of skips.contracts) {
+    assert.ok(isRecord(row) && selected.includes(row.id));
+    assert.equal(row.category, "platform");
+    assert.ok(
+      Array.isArray(row.platforms) &&
+        row.platforms.length > 0 &&
+        row.platforms.length <= 3 &&
+        row.platforms.every(
+          (platform: unknown) =>
+            typeof platform === "string" && ["linux", "darwin", "win32"].includes(platform),
+        ),
+    );
+    for (const key of ["prerequisite", "intended_route", "intended_parent"])
+      assert.ok(typeof row[key] === "string" && row[key].length > 0 && row[key].length <= 4096);
+    assert.ok(
+      row.original_skip_reason === null ||
+        (typeof row.original_skip_reason === "string" &&
+          Buffer.byteLength(row.original_skip_reason) <= 4096),
+    );
+    assert.ok(
+      Number.isSafeInteger(row.observations) &&
+        Number(row.observations) >= 0 &&
+        Number(row.observations) <= 2048,
+    );
+    const observations = cases.filter(
+      (item): item is Record<string, unknown> =>
+        isRecord(item) && item.kind === "test" && item.id === row.id,
+    );
+    assert.equal(
+      row.observations,
+      observations.length,
+      "Python skip observations differ from actual cases",
+    );
+    const observed = observations.length === 1 ? observations[0] : undefined;
+    assert.equal(
+      row.original_skip_reason,
+      observed?.status === "skipped" ? observed.reason : null,
+      "Python skip reason differs from original outcome",
+    );
+    if (value.incomplete_reason === null) {
+      assert.equal(
+        observations.length,
+        1,
+        "Complete Python skip route has no unique original case",
+      );
+      assert.equal(
+        observed?.status === "skipped",
+        !row.platforms.includes(value.platform),
+        "Complete Python skip route contradicts its platform outcome",
+      );
+    }
+  }
+  assert.equal(
+    new Set(skips.contracts.map((row: unknown) => isRecord(row) && row.id)).size,
+    skips.contracts.length,
+  );
+  if (skips.errors.length) assert.notEqual(value.incomplete_reason, null);
+  if (skips.evaluation === "owned_suite" && value.incomplete_reason === null) {
+    const declared = new Set(skips.contracts.map((row: unknown) => isRecord(row) && row.id));
+    assert.ok(
+      cases.every((item) => !isRecord(item) || item.status !== "skipped" || declared.has(item.id)),
+      "Complete owned Python inventory omitted an actual skip",
+    );
+  }
+  if (skips.evaluation === "unmanaged_fixture") assert.equal(skips.contracts.length, 0);
   return value as unknown as PythonReport;
 }
 
@@ -180,6 +273,16 @@ export function runPythonSuite(
   for (const item of report.cases)
     context.diagnostic(
       `Python case: ${JSON.stringify({ outer: context.name, source: report.source, source_sha256: report.source_sha256, platform: report.platform, ...item })}`,
+    );
+  for (const contract of report.skip_inventory.contracts)
+    context.diagnostic(
+      `Python skip route: ${JSON.stringify({
+        outer: context.name,
+        source: report.source,
+        source_sha256: report.source_sha256,
+        platform: report.platform,
+        ...contract,
+      })}`,
     );
   context.diagnostic(
     `Python inventory: ${JSON.stringify({ outer: context.name, runner: report.runner, source: report.source, source_sha256: report.source_sha256, reporter_sha256: report.reporter_sha256, platform: report.platform, python: report.python, selected: report.selected, tests_run: report.tests_run, suite_exit_status: report.suite_exit_status, exit_status: report.exit_status, incomplete_reason: report.incomplete_reason, duration_ms: report.duration_ms })}`,

@@ -225,7 +225,8 @@ internal static class ContractTests
         new ScenarioRunner.Scenario("long-session-observation", LongSessionObservation),
         new ScenarioRunner.Scenario("compiled-cli-consumer",
             () => CompiledCliChecks(new[] { cli, library }),
-            () => cli == null ? "Requires both an explicit CLI and an isolated library." : null),
+            () => cli == null ? "Requires both an explicit CLI and an isolated library." : null,
+            ".github/workflows/ci.yml: workspace-other / Build and test public Playnite reference consumer; integrations/playnite/check.ps1 -Cli -Library"),
     };
 
     private static void ProtocolChecks()

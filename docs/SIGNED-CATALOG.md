@@ -42,6 +42,13 @@ All normal core catalog validation runs before admission. The schema-2 identity,
 
 ## Producing and reviewing an envelope
 
+Format-1 metadata corrections retain the authored listing directory's download
+restrictions through Core's existing strict-presentation projection. A release
+URL, asset hint or package availability cannot clear that separate condition.
+Bounded authoring (#254), compatible loading (#397) and configured observation
+(#398) are completed components. Their fixtures and this envelope format do not
+establish #246's production journey or #534's provisioning acceptance.
+
 Run `node scripts/sign-catalog.mts --help` for the required arguments, limits and
 an example. Help does not read signing inputs or create output files.
 

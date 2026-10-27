@@ -259,6 +259,7 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/run-ui-tests.mts",
   "scripts/run-viteplus.mts",
   "scripts/ui-test-selection.mts",
+  "apps/desktop/src/browser/failure-probe-contract.ts",
   "scripts/viteplus-cli.mts",
   "tsconfig.json",
   "scripts/run-rust-tests.mts",
@@ -279,7 +280,9 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
 
 export function isHostedLocalCheckScriptAuthority(name: string) {
   return (
-    (name.startsWith("scripts/") || name.startsWith("apps/desktop/scripts/")) &&
+    (name === "apps/desktop/src/browser/failure-probe-contract.ts" ||
+      name.startsWith("scripts/") ||
+      name.startsWith("apps/desktop/scripts/")) &&
     !/\.test\.[cm]?[jt]s$/u.test(name) &&
     name !== "scripts/workflow-provenance.mts"
   );
@@ -1337,6 +1340,7 @@ export async function runHostedValidation(
       throw new Error("Source controller differs from the separately reviewed controller");
   }
   const preserved = [
+    "apps/desktop/src/browser/failure-probe-contract.ts",
     "scripts/audit.mts",
     "scripts/validation-evidence.mts",
     "justfile",

@@ -755,9 +755,8 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// An older install journal can retain activate=true. Publish it inactive,
-    /// then perform current retained-data preflight before its original commit.
-    pub(crate) fn prepare_recovered_psx_activation(&self, install: &InstallRecord) -> Result<()> {
+    /// Shared preflight before the caller's reuse, activation or recovery commit.
+    pub(crate) fn prepare_retained_install_data(&self, install: &InstallRecord) -> Result<()> {
         let port = self.installed_port(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
         let active = self
