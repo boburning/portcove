@@ -664,7 +664,8 @@ void test("delivered candidates make quiet repeats write nothing and review cann
     evidence_sha256: "x",
     status: "delivered",
   };
-  assert.deepEqual(await session.apply(), { applied: 0 });
+  assert.deepEqual(await session.apply(), { delivered: [], pending: 0 });
+  assert.equal(session.wrote, false);
   assert.throws(
     () =>
       session.review({
@@ -882,7 +883,7 @@ void test("unclassified integrity failures never trigger semantic recollection",
   assert.equal(calls, 1);
   assert.equal(session.inventoryRecollections, 0);
 });
-void test("delivery provider preflight refuses before evidence refresh or any mutation", async (t) => {
+void test("delivery provider preflight defers before evidence refresh or any mutation", async (t) => {
   const { session } = await temporarySession(t);
   session.inventory = collectRoadmapInventory(fixture(1).client);
   session.journal.candidates.waiting = {
@@ -914,7 +915,13 @@ void test("delivery provider preflight refuses before evidence refresh or any mu
       rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
     };
   };
-  await assert.rejects(session.apply(), /graphql quota.*2099/);
+  session.applyBatch = async () => {
+    throw new Error("Delivery batch must not start without provider capacity");
+  };
+  assert.deepEqual(await session.apply(), { delivered: [], pending: 1 });
+  assert.equal(session.journal.delivery, "pending");
+  assert.equal(session.budget.usage.provider_quotas?.graphql?.remaining, 0);
+  assert.equal(session.budget.usage.provider_quotas?.graphql?.resetAt, "2099-01-01T00:00:00.000Z");
   assert.equal(probes, 1);
   assert.equal(session.journal.candidates.waiting?.status, "reviewed");
   assert.equal(session.budget.delivery, false);
@@ -984,7 +991,7 @@ void test("material proposal identity ignores wording and invalid replacements p
   assert.equal(session.journal.candidates[first.id]?.status, "held");
   assert.equal(Object.keys(session.journal.candidates).length, 1);
 });
-void test("quiet rotation yields a continuation at its reserved floor and cannot exceed fifty across commands", async (t) => {
+void test("quiet rotation preserves its reserved floor and continues beyond historical count caps", async (t) => {
   const { session } = await temporarySession(t);
   // This fixture isolates the rotation budget after complementary collection with no new leads.
   session.leadPages = 4;
@@ -1012,11 +1019,13 @@ void test("quiet rotation yields a continuation at its reserved floor and cannot
     rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
   });
   const first = session.recheck();
-  assert.equal(first.checked.length, 50);
-  assert.equal(session.quietAttempts, 50);
+  assert.equal(first.checked.length, 60);
+  assert.equal(session.quietAttempts, 60);
   assert.deepEqual(session.recheck().checked, []);
   session.deepInvestigations = 12;
-  assert.throws(() => session.research("example/fixture"), /Deep investigation limit/);
+  session.budget.usage.requests = session.budget.limits.requests;
+  assert.throws(() => session.research("example/fixture"), /budget/);
+  assert.equal(session.deepInvestigations, 12);
 });
 void test("warm inventory fetches changed bodies only and rejects corrupt cached body hashes", () => {
   const f = fixture();
