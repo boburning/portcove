@@ -43,7 +43,9 @@ function rows(workflow: string, bytes: Buffer) {
     );
     const alternatives =
       typeof timeout === "string"
-        ? /&&\s*([1-9][0-9]*)\s*\|\|\s*([1-9][0-9]*)\s*\}\}$/u.exec(timeout)
+        ? /^\$\{\{\s*(?:inputs\.report_only_repair|needs\.identity\.outputs\.release_profile\s*==\s*'initial-beta-win-linux')\s*&&\s*([1-9][0-9]*)\s*\|\|\s*([1-9][0-9]*)\s*\}\}$/u.exec(
+            timeout,
+          )
         : null;
     const values = alternatives ? [Number(alternatives[1]), Number(alternatives[2])] : null;
     if (values) assert.ok(values.every((value) => Number.isSafeInteger(value) && value <= 360));
@@ -97,12 +99,24 @@ export function observeReleaseResources(production: Buffer, wake: Buffer, candid
     });
   const catalog = [...selected(catalogReaders), ...selected(catalogObservers)];
   const sum = (items: typeof productionRows) => {
-    assert.ok(items.every((row) => row.maximum_job_minutes !== null));
+    if (
+      !items.every(
+        (row) => row.maximum_job_minutes !== null && row.matrix === null && row.reusable === null,
+      )
+    )
+      return null;
     return items.reduce((total, row) => total + Number(row.maximum_job_minutes), 0);
   };
+  const unaccountedCatalog = productionRows
+    .filter(
+      (row) => row.key.startsWith("catalog_") && !catalog.some((known) => known.key === row.key),
+    )
+    .map((row) => row.key);
+  const addWake = (value: number | null) =>
+    value === null || wakeMinutes === null ? null : value + wakeMinutes;
   const wakeMinutes = sum(wakeRows),
-    applicationMinutes = sum(application) + wakeMinutes,
-    catalogMinutes = sum(catalog) + wakeMinutes;
+    applicationMinutes = addWake(sum(application)),
+    catalogMinutes = unaccountedCatalog.length ? null : addWake(sum(catalog));
   const digest = createHash("sha256").update(production).digest("hex"),
     matches = (actual: unknown, expected: unknown) =>
       JSON.stringify(actual) === JSON.stringify(expected);
@@ -128,11 +142,6 @@ export function observeReleaseResources(production: Buffer, wake: Buffer, candid
     ) &&
     applicationMinutes === policy.declared_job_minutes &&
     catalogMinutes === policy.catalog_declared_job_minutes;
-  const unaccountedCatalog = productionRows
-    .filter(
-      (row) => row.key.startsWith("catalog_") && !catalog.some((known) => known.key === row.key),
-    )
-    .map((row) => row.key);
   return {
     schema_version: 1,
     scope: "advisory declared allocation and observation gaps; not a resource policy",
@@ -145,10 +154,16 @@ export function observeReleaseResources(production: Buffer, wake: Buffer, candid
       unit: "aggregate declared runner-minute ceilings; not wall time or billable minutes",
       application: applicationMinutes,
       catalog_alternative: catalogMinutes,
+      allocation_completeness: {
+        application: applicationMinutes !== null,
+        catalog: catalogMinutes !== null,
+      },
       mutually_exclusive: true,
       policy_envelope: policy.total_job_minutes,
       declared_unused_allocation:
-        policy.total_job_minutes - Math.max(applicationMinutes, catalogMinutes),
+        applicationMinutes === null || catalogMinutes === null
+          ? null
+          : policy.total_job_minutes - Math.max(applicationMinutes, catalogMinutes),
       measured_wall_seconds: null,
       provider_availability: "Unknown",
       account_headroom: "Unknown",

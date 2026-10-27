@@ -47,4 +47,44 @@ void test("resource observations reconcile current purposes and keep provider, b
   assert.equal(next.ratification_required_for_policy_change, true);
   assert.equal(next.accounting.provider_availability, "Unknown");
   assert.equal(capacityDigest(slice4CapacityResources), slice4CapacityResourceDigest);
+  const original: unknown = parse(production.toString("utf8"));
+  assert.ok(isRecord(original) && isRecord(original.jobs));
+  const catalog = structuredClone(original);
+  assert.ok(isRecord(catalog.jobs));
+  catalog.jobs.catalog_unbudgeted = { "runs-on": "ubuntu-22.04", "timeout-minutes": 100 };
+  const incomplete = observeReleaseResources(Buffer.from(stringify(catalog)), wake, candidate);
+  assert.equal(incomplete.accounting.catalog_alternative, null);
+  assert.equal(incomplete.accounting.allocation_completeness.catalog, false);
+  assert.equal(incomplete.accounting.declared_unused_allocation, null);
+  assert.deepEqual(incomplete.accounting.unaccounted_catalog_jobs, ["catalog_unbudgeted"]);
+  for (const replacement of [
+    { "timeout-minutes": "${{ inputs.override || inputs.fast && 2 || 3 }}" },
+    { strategy: { matrix: { platform: ["a", "b"] } } },
+    { uses: "./.github/workflows/extra.yml" },
+  ]) {
+    const variant = structuredClone(original);
+    assert.ok(isRecord(variant.jobs) && isRecord(variant.jobs.native_linux));
+    variant.jobs.native_linux = { ...variant.jobs.native_linux, ...replacement };
+    const unknown = observeReleaseResources(Buffer.from(stringify(variant)), wake, candidate);
+    assert.equal(unknown.accounting.application, null);
+    assert.equal(unknown.accounting.declared_unused_allocation, null);
+    assert.equal(unknown.policy_matches_workflow, false);
+  }
+  const candidateVariant: unknown = parse(candidate.toString("utf8"));
+  assert.ok(
+    isRecord(candidateVariant) &&
+      isRecord(candidateVariant.jobs) &&
+      isRecord(candidateVariant.jobs.identity),
+  );
+  candidateVariant.jobs.identity["timeout-minutes"] =
+    "${{ inputs.override || inputs.fast && 2 || 3 }}";
+  assert.equal(
+    observeReleaseResources(
+      production,
+      wake,
+      Buffer.from(stringify(candidateVariant)),
+    ).separate_candidate_and_repair_workflow.find((row) => row.key === "identity")
+      ?.maximum_job_minutes,
+    null,
+  );
 });

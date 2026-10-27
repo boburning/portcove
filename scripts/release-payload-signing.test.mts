@@ -136,7 +136,10 @@ const verifier =
 void test(
   "real pinned Tauri signs disposable bytes; Rust authenticates bytes/key and signed version",
   {
-    skip: (!addon || !verifier) && process.env.PORTCOVE_REQUIRE_SIGNER_FIXTURE !== "1",
+    skip:
+      (!addon || !verifier) && process.env.PORTCOVE_REQUIRE_SIGNER_FIXTURE !== "1"
+        ? "appointed disposable signing/verifier artifacts unavailable"
+        : false,
     timeout: 120_000,
   },
   async (t) => {

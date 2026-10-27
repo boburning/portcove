@@ -467,7 +467,12 @@ try {
 
 void test(
   "bootstrap retires only recognized legacy runtime shims without changing provider or quality tools",
-  { skip: spawnSync("pwsh", ["--version"], { timeout: 5_000 }).status !== 0 },
+  {
+    skip:
+      spawnSync("pwsh", ["--version"], { timeout: 5_000 }).status !== 0
+        ? "PowerShell executable unavailable"
+        : false,
+  },
   () => {
     const source = fileURLToPath(new URL("./bootstrap-quality-tools.ps1", import.meta.url));
     const command = String.raw`

@@ -218,7 +218,7 @@ pub(crate) fn recover_published_install(
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
-                        if crate::persistence::requires_restore_receipt(
+                        if crate::persistence::collect_before_first_launch(
                             catalog.port(&install.port_id)?,
                         ) =>
                     {
@@ -226,12 +226,12 @@ pub(crate) fn recover_published_install(
                         // activate-before-restore ordering. A failed preflight
                         // leaves the previous active and this staged copy intact.
                         service.library.register_install(&install, false)?;
-                        service.prepare_recovered_psx_activation(&install)?;
+                        service.prepare_retained_install_data(&install)?;
                     }
                     None if service
                         .catalog()
                         .port(&install.port_id)
-                        .is_ok_and(crate::persistence::requires_restore_receipt) =>
+                        .is_ok_and(crate::persistence::collect_before_first_launch) =>
                     {
                         return Err(PortcoveError::verification(
                             "Interrupted activation has no retained player-data contract. Preserve both runtime copies and the journal; recover the missing contract before retrying.",
@@ -763,7 +763,7 @@ pub(crate) fn recover_activation(
                 status.active.as_ref().map(|active| active.version.as_str()),
             )?;
             let commit = activation.prepare_commit(service, operation)?;
-            service.prepare_recovered_psx_activation(&install)?;
+            service.prepare_retained_install_data(&install)?;
             service.library.activate_staged(&install.port_id)?;
             commit.persist(store)?;
         } else {

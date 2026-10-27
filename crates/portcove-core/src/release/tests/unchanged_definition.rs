@@ -25,6 +25,207 @@ fn release(tag: &str, assets: Vec<serde_json::Value>) -> serde_json::Value {
     })
 }
 
+fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/rollout-release-selection-2026-10-26.json"
+    ))
+    .unwrap();
+    corpus["upstreams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|upstream| upstream["port_id"] == id)
+        .unwrap()["releases"]
+        .as_array()
+        .unwrap()
+        .clone()
+}
+
+#[tokio::test]
+async fn observed_rollout_metadata_progresses_with_unchanged_authored_definitions() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, platform, old_index, expected_tag, expected_name) in [
+        (
+            "road-rash-64-recompiled",
+            Platform::WindowsX86_64,
+            1,
+            "v1.4.8",
+            "RoadRash64Recompiled-v1.4.8-Win64.zip",
+        ),
+        (
+            "sonic-3-and-knuckles-recomp",
+            Platform::WindowsX86_64,
+            1,
+            "v0.6.0",
+            "Sonic3KRecomp-windows-x64-v0.6.0.zip",
+        ),
+        (
+            "blizz127-brave-fencer-musashi-decomp-port",
+            Platform::WindowsX86_64,
+            2,
+            "bfm-r48-1e23c3d4f",
+            "bfm-r48-355ec7668-windows-x64.zip",
+        ),
+        (
+            "blizz127-brave-fencer-musashi-decomp-port",
+            Platform::LinuxX86_64,
+            2,
+            "bfm-r55-ba90b87ad",
+            "bfm-r55-ba90b87ad-linux-x86_64.tar.gz",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let definition = serde_json::to_vec(port).unwrap();
+        let observed = observed_rollout_releases(id);
+        let old = &observed[old_index];
+        let channel = if id == "blizz127-brave-fencer-musashi-decomp-port" {
+            ReleaseChannel::Beta
+        } else {
+            ReleaseChannel::Stable
+        };
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(old)),
+            metadata(),
+            releases(&observed),
+        ]);
+        let baseline = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, channel, platform)
+            .await
+            .unwrap();
+        assert_eq!(
+            baseline.version,
+            old["tag_name"].as_str().unwrap(),
+            "{id}: {platform:?}"
+        );
+        let successor = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, channel, platform)
+            .await
+            .unwrap();
+        assert_eq!(successor.version, expected_tag, "{id}: {platform:?}");
+        assert_eq!(successor.asset.name, expected_name);
+        let expected = observed
+            .iter()
+            .flat_map(|release| release["assets"].as_array().unwrap())
+            .find(|asset| asset["name"] == expected_name)
+            .unwrap();
+        assert_eq!(successor.asset.size, expected["size"].as_u64().unwrap());
+        assert_eq!(
+            successor.asset.sha256,
+            expected["digest"]
+                .as_str()
+                .unwrap()
+                .strip_prefix("sha256:")
+                .unwrap()
+        );
+        assert_eq!(serde_json::to_vec(port).unwrap(), definition);
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+}
+
+#[tokio::test]
+async fn observed_rollout_metadata_keeps_synthetic_successor_refusals_authoritative() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, selected_name) in [
+        (
+            "road-rash-64-recompiled",
+            "RoadRash64Recompiled-v1.4.8-Win64.zip",
+        ),
+        (
+            "sonic-3-and-knuckles-recomp",
+            "Sonic3KRecomp-windows-x64-v0.6.0.zip",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        for mutation in ["wrong-cpu", "debug", "ambiguous", "missing-integrity"] {
+            let mut observed = observed_rollout_releases(id);
+            let mut player = observed[0]["assets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|asset| asset["name"] == selected_name)
+                .unwrap()
+                .clone();
+            match mutation {
+                "wrong-cpu" => {
+                    player["name"] = serde_json::json!(
+                        selected_name
+                            .replace("Win64", "Win-arm64")
+                            .replace("windows-x64", "windows-arm64")
+                    )
+                }
+                "debug" => {
+                    player["name"] = serde_json::json!(selected_name.replace("-v", "-debug-v"))
+                }
+                "missing-integrity" => player["digest"] = serde_json::Value::Null,
+                _ => {}
+            }
+            let mut assets = vec![player.clone()];
+            if mutation == "ambiguous" {
+                player["name"] = serde_json::json!(selected_name.replace("-v", "-alternate-v"));
+                assets.push(player);
+            }
+            // Synthetic metadata contains no checksum sidecar or alternate player.
+            observed[0]["assets"] = serde_json::json!(assets);
+            let (root, _, server) = serve_http(vec![metadata(), releases(&observed)]);
+            let failure = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap_err();
+            assert_eq!(
+                failure.code,
+                match mutation {
+                    "ambiguous" => crate::ErrorCode::Conflict,
+                    "missing-integrity" => crate::ErrorCode::Verification,
+                    _ => crate::ErrorCode::NotFound,
+                },
+                "{id}: {mutation}"
+            );
+            server.join().unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn observed_openciv3_preview_uses_shared_classification_despite_the_provider_flag() {
+    let observed = observed_rollout_releases("c7-game-openciv3");
+    assert_eq!(observed[0]["prerelease"], false);
+    for (channel, index) in [(ReleaseChannel::Beta, 0), (ReleaseChannel::Stable, 1)] {
+        let expected = &observed[index];
+        let (root, requests, server) = serve_http(vec![
+            releases(&observed),
+            ok_json(&serde_json::to_string(&expected["assets"]).unwrap(), ""),
+        ]);
+        let (candidates, coverage, summaries, selected) =
+            GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .catalog_download_options("C7-Game/OpenCiv3", None, channel, None)
+                .await
+                .unwrap();
+        assert_eq!(selected, expected["id"].as_u64());
+        assert_eq!(candidates.len(), 3);
+        assert!(coverage.candidates_complete && coverage.release_history_complete);
+        assert!(summaries[0].preview);
+        assert!(!summaries[1].preview);
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 2);
+    }
+    // This replays metadata selection only. The authored acquisition hold and
+    // existing-copy permission boundary remain enforced by the service tests.
+    assert!(
+        crate::Catalog::embedded()
+            .unwrap()
+            .listing("c7-game-openciv3")
+            .unwrap()
+            .download_block_reason
+            .is_some()
+    );
+}
+
 #[tokio::test]
 async fn unchanged_closed_policy_rules_resolve_successors_with_exact_provider_bindings() {
     let catalog = crate::Catalog::embedded().unwrap();

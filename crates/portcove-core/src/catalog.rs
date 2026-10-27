@@ -3290,6 +3290,9 @@ mod tests {
         let mut no_steps = guide.clone();
         no_steps["steps"] = serde_json::json!([]);
         invalid.push(no_steps);
+        let mut missing_warnings = guide.clone();
+        missing_warnings.as_object_mut().unwrap().remove("warnings");
+        invalid.push(missing_warnings);
         let mut empty_warning = guide.clone();
         empty_warning["warnings"] = serde_json::json!([""]);
         invalid.push(empty_warning);
@@ -3298,9 +3301,13 @@ mod tests {
             document["ports"][0]["presentation"]["manual_setup"] = bad;
             assert!(Catalog::from_json(&document.to_string()).is_err());
         }
-        let mut valid = original;
-        valid["ports"][0]["presentation"]["manual_setup"] = guide;
-        assert!(Catalog::from_json(&valid.to_string()).is_ok());
+        for warnings in [guide["warnings"].clone(), serde_json::json!([])] {
+            let mut valid = original.clone();
+            let mut valid_guide = guide.clone();
+            valid_guide["warnings"] = warnings;
+            valid["ports"][0]["presentation"]["manual_setup"] = valid_guide;
+            assert!(Catalog::from_json(&valid.to_string()).is_ok());
+        }
     }
 
     #[test]

@@ -172,6 +172,29 @@ replacing a nonzero native exit. Invalid declarations or pre-execution IO can
 leave the command unexecuted, with no inferred native outcome.
 These declarations never execute ignored cases or grant their prerequisites.
 
+Windows archive consumers retain the same compiled skip-route observations under
+`work/test-results/windows-rust-skip-routes/`, including the complete native listing,
+its hash, the source/run binding, report and report hash. Both ordinary and Core
+worker artifacts retain that directory after failure. Route errors are reported
+after native execution; an original native failure remains primary.
+
+The stdlib Python reporter classifies the existing owned-suite platform guards and
+names their maintained Node parents. Owned unknown skips, missing declarations and
+contradictory observations make reporting incomplete while preserving unittest's
+original status, reasons and errors. The reader reconciles route counts and reasons
+against original cases. Copied and controlled reporting fixtures remain framework
+evidence. The C# runner similarly names the compiled CLI scenario's explicit
+`check.ps1 -Cli -Library` parent; an undeclared skip refuses reporting without
+rewriting the original skipped outcome or preventing later independent scenarios.
+
+The browser trace probe is an explicit diagnostic that deliberately fails when
+enabled. Its exact case, prerequisite and intended artifact-custody producer are
+recorded separately from original Vitest outcomes. Focused UI selection refuses
+undeclared skipped cases, including a skip beside a surviving pass. The bounded
+default frontend observer remains passive: it reports `unexpected_skips` and
+`missing_skip_routes` without replacing the public runner's native authority.
+These fields never establish installed, native or release acceptance.
+
 The extra Linux diagnostics replay stays broad for diagnostics, Core, CLI,
 Desktop, shared, dependency and uncertain inputs. Only ordinary added or modified
 regular Rust files within the independent release-tool crate may omit it;
@@ -368,21 +391,31 @@ nonzero native status remains primary over reporting refusal. The CI artifact
 is retained after failure as well as success. These unit-binary observations are
 separate from native GUI, package or release acceptance.
 
-### Declared platform skips
+### Declared skip routes
 
-The existing Node ownership record may declare `platform_skips`: intended platform,
-prerequisite, reason, complete qualification owner and stable top-level case names.
-The declaration remains distinct from the runner's original skip reason. Its
-qualification owner must be an actual, enabled, unfiltered producer on the stated
-platform; missing, unsupported or wrong-platform runner labels cannot qualify it.
+The existing Node ownership record declares `platform_skips` with stable case names,
+an optional single parent test or `suite`, intended platforms, prerequisites, reasons
+and a maintained producer. Declarations cover registrations through their owning
+entry file, including explicitly named imported cases; raw Node observations retain
+the defining source separately. Other nested deferrals fail closed.
+Legacy single-object declarations retain their reviewed, exclusive unfiltered
+qualification owners. Complementary route arrays add platform, prerequisite,
+supervised-parent and explicit-acceptance observations without granting file-level
+ownership or any prerequisite. Original native reasons and outcomes remain separate.
 
-For unfiltered invocations, the required reporter refuses missing or ambiguous
-cases, unregistered skips/todos in declared families, and outcomes inconsistent
-with the intended platform. A registered case cannot become TODO on its owner.
-Filtered runs explicitly report that full-family evaluation was not performed;
-they cannot replace the complete qualification owner. Metadata read failures are
-reported after consuming original runner failures. This opt-in platform contract
-does not classify undeclared families, other skip categories or native acceptance.
+Every registered file is checked for new skips/todos. Selected declared cases must
+appear exactly once and execute on their intended platform when known prerequisites
+are present. Ordinary Linux ownership and explicit environment prerequisites are
+checked independently; unavailable capabilities retain only their specific original
+skip reason. Unknown tool availability remains unassessed and cannot qualify acceptance.
+
+A complementary selector may prove its explicitly named cases, including selection
+through their declared parent suite, never full-family discovery. Unsupported
+stateful filters remain unevaluated. A missing
+case, removed producer or selector excluding its declared route fails; legacy
+unfiltered owners remain required. Metadata failures preserve original native
+failures. These inventories never execute ignored cases, appoint tools, grant
+credentials, or establish native, installed-client or release acceptance.
 
 ### Default nextest outcome reporting
 

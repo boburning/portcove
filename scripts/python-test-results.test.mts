@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -26,6 +26,99 @@ function execute(suite: string) {
     { encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 3 * 1024 * 1024 },
   );
 }
+
+void test("owned Python suites refuse undeclared skips while retaining native outcomes", (t) => {
+  const source = fixture(
+    t,
+    `
+class Cases(unittest.TestCase):
+    @unittest.skip("original unknown prerequisite")
+    def test_skip(self): pass
+    def test_pass(self): pass
+`,
+  );
+  const owned = path.join(path.dirname(source), "scripts");
+  mkdirSync(owned);
+  const reporter = path.join(owned, "python-test-results.py"),
+    suite = path.join(owned, "cases.test.py");
+  copyFileSync(fileURLToPath(new URL("./python-test-results.py", import.meta.url)), reporter);
+  copyFileSync(source, suite);
+  const result = spawnSync(
+    process.platform === "win32" ? "python" : "python3",
+    ["-I", "-S", "-B", reporter, suite],
+    { encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 3 * 1024 * 1024 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  const report = readPythonReport(result.stdout, suite, result.status);
+  assert.equal(report.suite_exit_status, 0);
+  assert.equal(
+    report.cases.find((item) => item.status === "skipped")?.reason,
+    "original unknown prerequisite",
+  );
+  assert.match(report.skip_inventory.errors.join(";"), /Unregistered Python skip: Cases.test_skip/);
+});
+
+void test("declared Python skip sources retain real registered Node parent files", () => {
+  const reporter = fileURLToPath(new URL("./python-test-results.py", import.meta.url));
+  const code = `import runpy,json\nfrom pathlib import Path\na=runpy.run_path(${JSON.stringify(reporter)})\nprint(json.dumps([{'source':s,'parent':a['skip_parent'](Path(s))} for s in a['SKIP_ROUTES']]))`;
+  const result = spawnSync(
+    process.platform === "win32" ? "python" : "python3",
+    ["-I", "-S", "-B", "-c", code],
+    { encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 64 * 1024 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const routes: unknown = JSON.parse(result.stdout);
+  assert.ok(Array.isArray(routes) && routes.length > 0);
+  const registry = parseNodeTestSuites(
+    readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  const files = new Set(Object.values(registry.suites).flatMap((suite) => suite.files));
+  for (const row of routes) {
+    assert.ok(isRecord(row) && typeof row.source === "string" && typeof row.parent === "string");
+    assert.ok(existsSync(fileURLToPath(new URL(`../${row.source}`, import.meta.url))), row.source);
+    assert.ok(files.has(row.parent), row.parent);
+  }
+});
+
+void test("Python skip route observations and reasons reconcile against the original cases", (t) => {
+  const source = fixture(
+    t,
+    `
+import sys
+@unittest.skipUnless(sys.platform == "linux", "original platform reason")
+class RuntimePackages(unittest.TestCase):
+    def test_owned(self): pass
+@unittest.skipUnless(sys.platform == "linux", "original platform reason")
+class DependencyGraph(unittest.TestCase):
+    def test_owned(self): pass
+`,
+  );
+  const owned = path.join(path.dirname(source), "scripts");
+  mkdirSync(owned);
+  const reporter = path.join(owned, "python-test-results.py"),
+    suite = path.join(owned, "prepare-hosted-native-linux-installation.test.py");
+  copyFileSync(fileURLToPath(new URL("./python-test-results.py", import.meta.url)), reporter);
+  copyFileSync(source, suite);
+  const result = spawnSync(
+    process.platform === "win32" ? "python" : "python3",
+    ["-I", "-S", "-B", reporter, suite],
+    { encoding: "utf8", windowsHide: true, timeout: 10_000, maxBuffer: 3 * 1024 * 1024 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const report = readPythonReport(result.stdout, suite, result.status);
+  assert.equal(report.skip_inventory.contracts.length, 2);
+  for (const count of [0, 2]) {
+    const changed = structuredClone(report);
+    changed.skip_inventory.contracts[0]!.observations = count;
+    assert.throws(() => readPythonReport(JSON.stringify(changed), suite, 0), /observations differ/);
+  }
+  const changed = structuredClone(report);
+  changed.skip_inventory.contracts[0]!.original_skip_reason = "unrelated reason";
+  assert.throws(() => readPythonReport(JSON.stringify(changed), suite, 0), /reason differs/);
+});
 
 void test("Python wrappers retain finite outer headroom in every registered route", () => {
   const registry = parseNodeTestSuites(

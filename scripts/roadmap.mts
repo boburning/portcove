@@ -128,6 +128,8 @@ import {
 } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { SetManyJournal, readSetManyInput, setManyJournalName } from "./roadmap-batch-progress.mts";
+import type { SetManyProgress } from "./roadmap-batch-progress.mts";
 import { access, readFile } from "node:fs/promises";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -197,6 +199,7 @@ export interface SetManyAssignment extends RoadmapFieldTransition {
   itemId: string;
   fieldName: string;
   observed: unknown;
+  mutation_identity?: { project_id: string; field_id: string; option_id: string };
 }
 export interface SetManyPlan<Context = unknown> {
   context: Context;
@@ -302,7 +305,6 @@ const setFlags = new Map([
   ["--port-stage", "Port stage"],
   ["--effort", "Effort"],
 ]);
-const maximumBatchAssignments = 100;
 export const maximumMutationChunkAssignments = 25;
 
 function requireExactKeys(
@@ -360,8 +362,6 @@ export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetMa
     }
     return { target: update.target, fields };
   });
-  if (assignments > maximumBatchAssignments)
-    throw new Error(`set-many supports at most ${maximumBatchAssignments} field assignments`);
   return { schema_version: 1, updates, assignments };
 }
 
@@ -372,8 +372,7 @@ export function setManyRequiredReserve(preflightCost: unknown, pendingAssignment
     preflightCost < 0 ||
     typeof pendingAssignments !== "number" ||
     !Number.isSafeInteger(pendingAssignments) ||
-    pendingAssignments < 0 ||
-    pendingAssignments > maximumBatchAssignments
+    pendingAssignments < 0
   ) {
     throw new Error("set-many quota inputs are invalid");
   }
@@ -419,6 +418,7 @@ export async function executeSetMany<Context>({
   apply = false,
   doctor,
   onPlan = () => {},
+  onCheckpoint = () => {},
 }: {
   client: SetManyClient<Context>;
   config: RoadmapConfig;
@@ -430,6 +430,7 @@ export async function executeSetMany<Context>({
     options: { quiet: boolean },
   ) => unknown;
   onPlan?: (summary: string) => void;
+  onCheckpoint?: (progress: SetManyProgress) => void;
 }) {
   const before = client.sampleGraphqlRate();
   const plan = client.planSetMany(spec);
@@ -447,7 +448,13 @@ export async function executeSetMany<Context>({
     rateLimit: after,
     doctor: "not_run",
   };
-  const requiredReserve = setManyRequiredReserve(preflightCost, plan.pending.length);
+  // Preflight may cover thousands of assignments. Reserve for a bounded chunk,
+  // then replace this estimate with observed chunk read costs before mutation.
+  let chunkReadCost = Math.ceil(
+    (preflightCost * Math.min(maximumMutationChunkAssignments, plan.assignments)) /
+      Math.max(1, plan.assignments),
+  );
+  const requiredReserve = setManyRequiredReserve(chunkReadCost, plan.pending.length);
   const planSummary =
     `${plan.pending.length} pending, ${plan.alreadyApplied.length} already applied, ` +
     `${preflightCost} GraphQL points observed during preflight, ${after.remaining} remain, ` +
@@ -460,6 +467,19 @@ export async function executeSetMany<Context>({
     };
   }
   onPlan(`Set-many plan: ${planSummary}`);
+  const checkpoint = (phase: SetManyProgress["phase"], changes: SetManyAssignment[] = []) => {
+    try {
+      onCheckpoint({ phase, assignments: [...plan.pending, ...plan.alreadyApplied], changes });
+    } catch (error) {
+      throw setManyOutcomeError(
+        "partial",
+        `set-many could not retain ${phase} progress: ${errorMessage(error)}`,
+        setManyEvidence(plan, state),
+        error,
+      );
+    }
+  };
+  checkpoint("plan");
 
   for (let offset = 0; offset < plan.pending.length; offset += maximumMutationChunkAssignments) {
     const chunk = plan.pending.slice(offset, offset + maximumMutationChunkAssignments);
@@ -499,8 +519,14 @@ export async function executeSetMany<Context>({
     let mutationError: unknown = null;
     if (pending.length) {
       const rate = client.sampleGraphqlRate();
+      if (
+        state.rateLimit &&
+        rate.resetAt === state.rateLimit.resetAt &&
+        rate.used >= state.rateLimit.used
+      )
+        chunkReadCost = Math.max(chunkReadCost, rate.used - state.rateLimit.used);
       state.rateLimit = rate;
-      const chunkReserve = setManyRequiredReserve(preflightCost, pending.length);
+      const chunkReserve = setManyRequiredReserve(chunkReadCost, pending.length);
       if (rate.remaining < chunkReserve) {
         throw setManyOutcomeError(
           "partial",
@@ -508,6 +534,7 @@ export async function executeSetMany<Context>({
           setManyEvidence(plan, state),
         );
       }
+      checkpoint("attempted", pending);
       try {
         client.applySetMany(plan, pending);
       } catch (error) {
@@ -540,6 +567,7 @@ export async function executeSetMany<Context>({
       verified: verified.length,
       reconciled_after_error: mutationError ? newlyVerified : 0,
     });
+    checkpoint("readback", afterMutation);
     if (mismatches.length) {
       throw setManyOutcomeError(
         "partial",
@@ -601,6 +629,7 @@ export async function executeSetMany<Context>({
       error,
     );
   }
+  checkpoint("completed");
   return {
     status: "succeeded",
     summary: `Set-many verified ${finalVerification.length} field assignments and completed the final doctor.`,
@@ -2672,7 +2701,13 @@ export class RoadmapClient {
           throw new Error(`duplicate set-many item field: ${update.target} ${fieldName}`);
         itemFields.add(key);
         const observed = fieldValue(item, fieldName) ?? null;
+        const mutation = this.fieldMutationInput(context, item.id, fieldName, transition.to);
         const planned = {
+          mutation_identity: {
+            project_id: mutation.projectId,
+            field_id: mutation.fieldId,
+            option_id: mutation.value.singleSelectOptionId,
+          },
           target: update.target,
           itemId: item.id,
           fieldName,
@@ -2711,29 +2746,33 @@ export class RoadmapClient {
     ];
     if (!ids.length) return new Map();
     const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on ProjectV2Item { id fieldValues(first: 100) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } } } } }`;
-    const nodes = qualificationField(this.graphql(query, { ids }), "nodes");
-    if (!Array.isArray(nodes) || nodes.length !== ids.length)
-      throw new Error("incomplete GitHub inventory: set-many readback item count differs");
     const results = new Map<string, RoadmapFieldValue[]>();
-    const rawNodes: unknown[] = nodes;
-    for (const node of rawNodes) {
-      if (
-        !isRecord(node) ||
-        typeof node.id !== "string" ||
-        !node.id ||
-        results.has(node.id) ||
-        !isRecord(node.fieldValues) ||
-        typeof node.fieldValues.totalCount !== "number" ||
-        !Number.isSafeInteger(node.fieldValues.totalCount) ||
-        node.fieldValues.totalCount < 0 ||
-        !Array.isArray(node.fieldValues.nodes) ||
-        node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
-        qualificationField(node.fieldValues.pageInfo, "hasNextPage") !== false
-      ) {
-        throw new Error("incomplete GitHub inventory: malformed or truncated set-many readback");
+    for (let offset = 0; offset < ids.length; offset += maximumMutationChunkAssignments) {
+      const selected = ids.slice(offset, offset + maximumMutationChunkAssignments);
+      const nodes = qualificationField(this.graphql(query, { ids: selected }), "nodes");
+      if (!Array.isArray(nodes) || nodes.length !== selected.length)
+        throw new Error("incomplete GitHub inventory: set-many readback item count differs");
+      const rawNodes: unknown[] = nodes;
+      for (const node of rawNodes) {
+        if (
+          !isRecord(node) ||
+          typeof node.id !== "string" ||
+          !node.id ||
+          results.has(node.id) ||
+          !selected.includes(node.id) ||
+          !isRecord(node.fieldValues) ||
+          typeof node.fieldValues.totalCount !== "number" ||
+          !Number.isSafeInteger(node.fieldValues.totalCount) ||
+          node.fieldValues.totalCount < 0 ||
+          !Array.isArray(node.fieldValues.nodes) ||
+          node.fieldValues.nodes.length !== node.fieldValues.totalCount ||
+          qualificationField(node.fieldValues.pageInfo, "hasNextPage") !== false
+        ) {
+          throw new Error("incomplete GitHub inventory: malformed or truncated set-many readback");
+        }
+        const fieldValues = projectFieldValues(node);
+        results.set(node.id, fieldValues);
       }
-      const fieldValues = projectFieldValues(node);
-      results.set(node.id, fieldValues);
     }
     for (const id of ids) {
       if (!results.has(id))
@@ -3937,13 +3976,26 @@ async function main(argv: readonly string[]) {
           throw new Error(`unsupported set-many option: ${option}`);
       }
       const specPath = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
-      const spec: unknown = JSON.parse(await readFile(specPath, "utf8"));
+      const input = readSetManyInput(specPath);
+      const spec: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(input));
+      const journal =
+        parsed.options["--apply"] === true
+          ? new SetManyJournal(
+              path.join(path.dirname(roadmapLockPath()), "set-many", setManyJournalName(specPath)),
+              specPath,
+              input,
+              config,
+            )
+          : undefined;
       const result = await executeSetMany({
         client,
         config,
         spec,
         apply: parsed.options["--apply"] === true,
         ...(parsed.options["--json"] ? {} : { onPlan: (summary: string) => console.log(summary) }),
+        ...(journal
+          ? { onCheckpoint: (progress: SetManyProgress) => journal.observe(progress) }
+          : {}),
       });
       if (parsed.options["--json"]) {
         console.log(
