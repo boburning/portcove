@@ -1,5 +1,9 @@
 import { isRecord, errorCode } from "./runtime-values.mts";
-import type { ObserverConfig, ObserveOptions } from "./upstream-observer.mts";
+import type {
+  ObserverConfig,
+  ObserveOptions,
+  ObservationContinuation,
+} from "./upstream-observer.mts";
 import type { OutputUpstreamObservationReport } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -12,6 +16,7 @@ import {
   observationHash,
   observeUpstream,
   validateObserverConfig,
+  validateObservationContinuation,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -45,10 +50,12 @@ interface Checkpoint {
     cache?: unknown;
   } | null;
   exception: CheckpointException | null;
+  continuation?: ObservationContinuation;
 }
 export interface AdvanceOptions extends Omit<ObserveOptions, "cache"> {
   project: (observation: Observation) => unknown;
   catalogIds?: string[];
+  commitContinuation?: (checkpoint: unknown) => void | Promise<void>;
   execution?: {
     kind: string | undefined;
     source_commit: string | null | undefined;
@@ -71,6 +78,7 @@ function validateCheckpoint(
         "first_complete_at",
         "last_complete",
         "exception",
+        ...(Object.hasOwn(checkpoint, "continuation") ? ["continuation"] : []),
       ]
         .sort()
         .join(",")
@@ -81,6 +89,13 @@ function validateCheckpoint(
       "invalid-checkpoint",
       "checkpoint belongs to a different observer configuration",
     );
+  if (checkpoint.continuation !== undefined) {
+    try {
+      validateObservationContinuation(checkpoint.continuation, config);
+    } catch {
+      throw new ObservationFailure("invalid-checkpoint", "retained continuation is invalid");
+    }
+  }
   if (checkpoint.first_complete_at !== null && typeof checkpoint.first_complete_at !== "string")
     throw new ObservationFailure("invalid-checkpoint", "invalid first complete clock");
   const prior = checkpoint.last_complete;
@@ -96,6 +111,14 @@ function validateCheckpoint(
       prior.observation.port_id !== config.port_id ||
       prior.projection.port_id !== config.port_id ||
       prior.projection.repository_id !== config.repository_id ||
+      (prior.observation.validation_started_at !== undefined &&
+        (typeof prior.observation.validation_started_at !== "string" ||
+          !Number.isFinite(Date.parse(prior.observation.validation_started_at)) ||
+          typeof prior.observation.started_at !== "string" ||
+          Date.parse(prior.observation.validation_started_at) <
+            Date.parse(prior.observation.started_at) ||
+          Date.parse(prior.observation.validation_started_at) >
+            Date.parse(String(prior.observation.completed_at)))) ||
       typeof prior.observation.completed_at !== "string" ||
       !Number.isFinite(Date.parse(prior.observation.completed_at)))
   )
@@ -203,9 +226,22 @@ export async function advanceObservation(
       const result = await observeUpstream(config, {
         ...options,
         cache: next.last_complete?.cache,
+        continuation: next.continuation,
+        onCheckpoint: async (continuation) => {
+          next.continuation = structuredClone(continuation);
+          await options.onCheckpoint?.(structuredClone(continuation));
+          await options.commitContinuation?.(structuredClone(next));
+        },
       });
       failedPolicyInput = result.observation;
+      if (options.signal?.aborted)
+        throw new ObservationFailure("cancelled", "Observation cancelled before Core projection");
       const projection = await options.project(result.observation);
+      if (options.signal?.aborted)
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled before committing Core projection",
+        );
       if (
         !isRecord(projection) ||
         projection.format !== 1 ||
@@ -235,8 +271,11 @@ export async function advanceObservation(
       next.first_complete_at ??= result.observation.completed_at;
       next.completed_runs++;
       next.exception = null;
+      delete next.continuation;
       failedPolicyInput = null;
     } catch (error) {
+      if (error instanceof ObservationFailure && error.continuation)
+        next.continuation = error.continuation;
       const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
       changedException = exception.key !== next.exception?.key;
       next.exception = exception;
@@ -244,7 +283,12 @@ export async function advanceObservation(
     }
   }
   const previousComplete = next.last_complete?.observation.completed_at ?? null;
-  const age = previousComplete ? now() - Date.parse(previousComplete) : null;
+  const validationStart = next.last_complete?.observation.validation_started_at;
+  const freshnessClock =
+    typeof validationStart === "string" && Number.isFinite(Date.parse(validationStart))
+      ? validationStart
+      : previousComplete;
+  const age = freshnessClock ? now() - Date.parse(freshnessClock) : null;
   const stale = age === null || age < 0 || age > config.stale_after_hours * 3_600_000;
   const unmonitored = (options.catalogIds ?? []).filter((id) => id !== config.port_id);
   const report = {
@@ -260,6 +304,7 @@ export async function advanceObservation(
     transition,
     stale,
     last_complete_at: previousComplete,
+    freshness_observed_at: freshnessClock,
     next_observation_due_at: new Date(
       (previousComplete ? Date.parse(previousComplete) : now()) + config.cadence_hours * 3_600_000,
     ).toISOString(),
@@ -275,6 +320,17 @@ export async function advanceObservation(
     policy: next.last_complete?.projection ?? null,
     exception: next.exception,
     failed_policy_input: failedPolicyInput,
+    continuation: next.continuation
+      ? {
+          phase: next.continuation.phase,
+          started_at: next.continuation.started_at,
+          retained_pages: Object.keys(next.continuation.pages).length,
+          validation_cursor: next.continuation.validation_cursor,
+          complete: false,
+          resume_condition:
+            "Continue the retained collection/validation cursor in the next admitted observation; partial facts have no eligibility authority",
+        }
+      : null,
     exception_age_ms: next.exception
       ? Math.max(0, now() - Date.parse(next.exception.first_seen))
       : null,
@@ -501,6 +557,7 @@ async function main(args: string[]) {
       ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
       execution,
+      commitContinuation: (checkpoint) => atomicJson(statePath, checkpoint),
       catalogIds: ports.map((port) => {
         if (!isRecord(port) || typeof port.id !== "string")
           throw new Error("Invalid catalog identity");
