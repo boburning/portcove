@@ -466,7 +466,15 @@ export async function preparePort(options: PrepareOptions) {
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
-    return { id, previous, base: explicit ?? previous };
+    const base = explicit ?? previous;
+    if (
+      previous?.listing.download_block_reason !== undefined &&
+      base?.listing.download_block_reason !== previous.listing.download_block_reason
+    )
+      throw new Error(
+        "Preparation cannot remove or change an authored download restriction; resolve its canonical condition in a reviewed source edit.",
+      );
+    return { id, previous, base };
   };
   openCheckpoint(root);
   try {

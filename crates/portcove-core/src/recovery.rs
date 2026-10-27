@@ -218,7 +218,7 @@ pub(crate) fn recover_published_install(
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
-                        if crate::persistence::requires_restore_receipt(
+                        if crate::persistence::collect_before_first_launch(
                             catalog.port(&install.port_id)?,
                         ) =>
                     {
@@ -231,7 +231,7 @@ pub(crate) fn recover_published_install(
                     None if service
                         .catalog()
                         .port(&install.port_id)
-                        .is_ok_and(crate::persistence::requires_restore_receipt) =>
+                        .is_ok_and(crate::persistence::collect_before_first_launch) =>
                     {
                         return Err(PortcoveError::verification(
                             "Interrupted activation has no retained player-data contract. Preserve both runtime copies and the journal; recover the missing contract before retrying.",

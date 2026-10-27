@@ -3635,6 +3635,132 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn native_publication_recovery_preserves_retained_contracts_and_current_data() {
+        for case in [
+            "compatible",
+            "data",
+            "executable",
+            "environment",
+            "active-bytes",
+            "target-bytes",
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider);
+            let first = service
+                .install("portable-fixture", None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let mut document = service.catalog.authoritative_document().clone();
+            let port = &mut document.ports[0];
+            match case {
+                "data" => port.persistent_paths = vec!["other.ini".into()],
+                "executable" => {
+                    port.executable_hints
+                        .insert(Platform::WindowsX86_64, vec!["other.exe".into()]);
+                }
+                "environment" => {
+                    port.launch_environment
+                        .insert("PROFILE".into(), "another".into());
+                }
+                _ => {}
+            }
+            service.replace_catalog_for_test(
+                Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+            );
+            let target = Installer::new(library.clone())
+                .unwrap()
+                .install(
+                    InstallRequest {
+                        port_id: "portable-fixture".into(),
+                        release: server.release_in_folder(
+                            "v2",
+                            2,
+                            "",
+                            if case == "executable" {
+                                "other.exe"
+                            } else {
+                                "game.exe"
+                            },
+                        ),
+                        output_root: library.versions_dir().join("portable-fixture"),
+                        activate: false,
+                        managed: None,
+                        qualification: InstallQualification::from_catalog(
+                            &service.catalog,
+                            "portable-fixture",
+                            Platform::WindowsX86_64,
+                        )
+                        .unwrap(),
+                    },
+                    &OperationCoordinator::new("native-recovery-target", None),
+                    |_| {},
+                )
+                .await
+                .unwrap();
+            // A historical journal can still request immediate activation.
+            let id = Uuid::new_v4().to_string();
+            let mut journal =
+                LifecycleOperation::new(&id, LifecycleOperationKind::Install, "portable-fixture");
+            journal.install = Some(target.clone());
+            journal.activate = true;
+            journal.phase = LifecyclePhase::PayloadPublished;
+            journal.paths.staging = Some(library.staging_dir().join(&id));
+            journal.paths.final_path = Some(target.path.clone());
+            fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
+            let store = OperationStore::new(library.clone());
+            store.put(&mut journal).unwrap();
+            fs::write(first.path.join("settings.ini"), b"edited after staging").unwrap();
+            let canonical = library.user_dir("portable-fixture").join("settings.ini");
+            fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+            fs::write(&canonical, b"previous canonical").unwrap();
+            if case == "active-bytes" {
+                fs::write(first.path.join("game.exe"), b"modified active").unwrap();
+            }
+            if case == "target-bytes" {
+                fs::write(target.path.join("game.exe"), b"modified target").unwrap();
+            }
+            let manifest = fs::read(target.path.join(".portcove-manifest.json")).unwrap();
+            let result = crate::recovery::recover_published_install(&service, &store, &mut journal);
+            let active = service.status("portable-fixture").unwrap().active.unwrap();
+            if case == "compatible" {
+                result.unwrap();
+                assert_eq!(active.id, target.id);
+                assert_eq!(
+                    fs::read(target.path.join("settings.ini")).unwrap(),
+                    b"edited after staging"
+                );
+                assert_eq!(fs::read(&canonical).unwrap(), b"edited after staging");
+                assert!(store.get(&id).unwrap().is_none());
+                crate::recovery::recover_published_install(&service, &store, &mut journal).unwrap();
+            } else {
+                assert!(result.is_err(), "{case}");
+                assert_eq!(active.id, first.id, "{case}");
+                assert_eq!(
+                    fs::read(&canonical).unwrap(),
+                    b"previous canonical",
+                    "{case}"
+                );
+                assert!(!target.path.join("settings.ini").exists(), "{case}");
+                assert!(store.get(&id).unwrap().is_some(), "{case}");
+            }
+            assert_eq!(
+                fs::read(first.path.join("settings.ini")).unwrap(),
+                b"edited after staging",
+                "{case}"
+            );
+            assert_eq!(
+                fs::read(target.path.join(".portcove-manifest.json")).unwrap(),
+                manifest,
+                "{case}"
+            );
+            assert!(first.path.is_dir() && target.path.is_dir());
+        }
+    }
+
     async fn installs_with_retained_scopes(
         service: &mut PortcoveService,
         library: &Library,
