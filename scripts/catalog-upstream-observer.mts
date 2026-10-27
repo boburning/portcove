@@ -1064,9 +1064,26 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      checkpoint_storage: {
+        bytes: Buffer.byteLength(JSON.stringify(state)),
+        limit_bytes: 32 * 1024 * 1024,
+        provider_read_cache_bytes: Object.values(state.sources).reduce(
+          (sum, progress) =>
+            sum +
+            Buffer.byteLength(
+              JSON.stringify({
+                current: progress.provider_progress ?? null,
+                previous: progress.provider_previous_progress ?? null,
+              }),
+            ),
+          0,
+        ),
+      },
       source_statuses: sources.map((source) => {
         const progress = state.sources[source.key];
         return {
+          source_key: source.key,
+          provider: source.provider ?? "github",
           repository: source.repository,
           port_ids: source.ports.map((port) => port.id),
           current_scope_complete:
