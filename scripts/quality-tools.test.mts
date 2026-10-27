@@ -138,7 +138,7 @@ void test(
   async () => {
     const source = await readFile(new URL("./bootstrap-quality-tools.sh", import.meta.url), "utf8");
     const start = source.indexOf("reported_version() {");
-    const end = source.indexOf('for tool in "${required_tools[@]}";');
+    const end = source.indexOf("\nfor tool in ", start);
     assert.ok(start > 0 && end > start);
     const installFunctions = source.slice(start, end);
     for (const prebuilt of [false, true]) {
