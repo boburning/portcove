@@ -41,10 +41,18 @@ function fixture(pages = 9) {
     fetch: (async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input);
       calls.push(url.href);
-      if (new Headers(init?.headers).has("If-None-Match") && !changed)
-        return new Response(null, { status: 304 });
-      let body: unknown;
       const page = Number(url.searchParams.get("page") ?? 1);
+      if (new Headers(init?.headers).has("If-None-Match") && !changed)
+        return new Response(null, {
+          status: 304,
+          headers: {
+            "x-page": String(page),
+            "x-per-page": "100",
+            "x-next-page":
+              url.pathname.endsWith("releases") && page < pages ? String(page + 1) : "",
+          },
+        });
+      let body: unknown;
       if (url.pathname.endsWith("releases"))
         body = Array.from({ length: 100 }, (_, index) => ({
           tag_name: `v${(page - 1) * 100 + index + 1 + (changed ? 999 : 0)}`,
@@ -347,3 +355,48 @@ void test("missing, truncated or contradictory GitLab pagination proof never bec
     assert.equal(result.observations.length, 1);
   }
 });
+
+for (const boundary of ["missing", "changed"] as const) {
+  void test(`a 304 with ${boundary} pagination proof cannot refresh false terminal coverage`, async () => {
+    const h = fixture(1);
+    await assert.rejects(
+      observeProviderSource(h.source, undefined, { ...h.options, maximumRequests: 2 }),
+    );
+    const fetcher = h.options.fetch;
+    let unconditional = 0;
+    const result = observeProviderSource(h.source, h.prior(), {
+      ...h.options,
+      maximumRequests: 20,
+      fetch: async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        if (url.pathname.endsWith("releases")) {
+          if (new Headers(init?.headers).has("If-None-Match"))
+            return new Response(null, {
+              status: 304,
+              headers:
+                boundary === "changed"
+                  ? { "x-page": "1", "x-per-page": "100", "x-next-page": "2" }
+                  : {},
+            });
+          unconditional++;
+          const response = await fetcher(input, init);
+          if (boundary === "changed") {
+            const headers = new Headers(response.headers);
+            headers.set("x-next-page", "2");
+            return new Response(response.body, { headers });
+          }
+          return response;
+        }
+        return fetcher(input, init);
+      },
+    });
+    if (boundary === "changed") {
+      await assert.rejects(result, (error: { rule: string }) => error.rule === "provider-changed");
+      assert.equal(h.prior()!.reads.length, 0);
+    } else {
+      assert.equal((await result).observations.length, 1);
+      assert.equal(h.prior()!.validation_cursor, h.prior()!.reads.length);
+    }
+    assert.equal(unconditional, 1);
+  });
+}

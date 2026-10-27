@@ -231,6 +231,11 @@ export async function observeProviderSource(
         );
       throw new ObservationFailure("provider-transport", response.error);
     }
+    if (response.status === 304 && (method !== "GET" || !etag))
+      throw new ObservationFailure(
+        "provider-http",
+        "Unexpected not-modified response without a conditional GET",
+      );
     if (![200, 204, 304].includes(response.status) && method === "GET")
       throw new ObservationFailure(
         "provider-http",
@@ -443,11 +448,22 @@ export async function observeProviderSource(
   if (resumed && !options.reuseComplete) {
     while (state.validation_cursor < state.reads.length) {
       const saved = state.reads[state.validation_cursor]!;
-      const current = await request(
+      let current = await request(
         saved.url,
         saved.method,
         saved.method === "GET" ? (saved.etag ?? undefined) : undefined,
       );
+      if (
+        current.status === 304 &&
+        saved.page !== null &&
+        saved.page !== undefined &&
+        (current.page !== saved.page ||
+          current.per_page !== saved.per_page ||
+          current.next !== saved.next)
+      ) {
+        // A body ETag alone cannot prove the terminal pagination boundary.
+        current = await request(saved.url, saved.method);
+      }
       if (current.status !== 304 && current.sha256 !== saved.sha256) {
         state.reads = [];
         state.validation_cursor = 0;
