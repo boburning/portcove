@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { fileIdentity } from "./development-evidence.mts";
+import { isDeepStrictEqual } from "node:util";
+import { fileIdentity, readBoundedEvidenceFile } from "./development-evidence.mts";
 
 import { isRecord } from "./runtime-values.mts";
 import type { FileIdentity } from "./development-evidence.mts";
@@ -218,6 +219,16 @@ function sourceReview(value: unknown): PacketSourceReview {
   }
   return review;
 }
+function actualSourceReview(review: PacketSourceReview, sourceHead: string) {
+  return Boolean(
+    review.reviewer &&
+    review.reference &&
+    review.source_head === sourceHead &&
+    typeof review.outcome === "string" &&
+    ["passed", "failed", "unsupported"].includes(review.outcome),
+  );
+}
+
 function knownGaps(value: unknown): PacketGap[] {
   return records(value).map((record) => {
     const gap: PacketGap = { ...record };
@@ -301,7 +312,11 @@ export async function writeAcceptancePreflight(
 
 // Compare effective dependencies and declared requirements, never filenames or
 // source-head equality. Ambiguous/missing declarations require requalification.
-export function reusableAcceptanceScenarios(previousValue: unknown, nextValue: unknown) {
+function assessAcceptanceScenarios(
+  previousValue: unknown,
+  nextValue: unknown,
+  requirePassed: boolean,
+) {
   const previous = isRecord(previousValue) ? previousValue : {};
   const next = isRecord(nextValue) ? nextValue : {};
   const previousBindings = previous.bindings;
@@ -353,18 +368,59 @@ export function reusableAcceptanceScenarios(previousValue: unknown, nextValue: u
       harnessChanged ||
       commonChanged ||
       hash(relevant(previousExecution)) !== hash(relevant(nextExecution)) ||
-      previous.stage !== "completed" ||
-      !Array.isArray(previous.outcomes) ||
-      !previous.outcomes.some(
-        (item: unknown) =>
-          isRecord(item) && item.scenario === scenario && item.outcome === "passed",
-      ) ||
+      (requirePassed &&
+        (previous.stage !== "completed" ||
+          !Array.isArray(previous.outcomes) ||
+          !previous.outcomes.some(
+            (item: unknown) =>
+              isRecord(item) && item.scenario === scenario && item.outcome === "passed",
+          ))) ||
       !previousExecution.scenarios.includes(scenario)
     )
       rerun.push(scenario);
     else reusable.push(scenario);
   }
   return { reusable, rerun, reason: "effective-dependencies-and-requirements" };
+}
+
+export function reusableAcceptanceScenarios(previousValue: unknown, nextValue: unknown) {
+  return assessAcceptanceScenarios(previousValue, nextValue, true);
+}
+
+// Compatibility locates failed observations too; it never grants their reuse.
+export function compatibleAcceptanceScenarios(previousValue: unknown, nextValue: unknown) {
+  const {
+    reusable: compatible,
+    rerun: incompatible,
+    reason,
+  } = assessAcceptanceScenarios(previousValue, nextValue, false);
+  return { compatible, incompatible, reason };
+}
+
+/** Inspect frozen dependencies without inventing the capture's source-root path. */
+export function inspectAcceptancePreflight(value: unknown) {
+  const packet = acceptanceRecord(value);
+  if (
+    packet.format_version !== 1 ||
+    packet.stage !== "preflight" ||
+    packet.harness_identity !== harnessIdentity(packet.bindings) ||
+    packet.execution_qualification_identity !== hash(packet.bindings.execution_qualification)
+  )
+    throw new Error("Expected a self-consistent preflight packet");
+  return {
+    bindings: packet.bindings,
+    source_review: packet.source_review,
+    known_gaps: packet.known_gaps,
+    prerequisites: object(value).prerequisites ?? null,
+    source_review_complete: actualSourceReview(packet.source_review, packet.bindings.source_head),
+  };
+}
+
+async function readPacketJson(identity: FileIdentity): Promise<unknown> {
+  const observed = await readBoundedEvidenceFile(identity.path, identity.bytes);
+  if (observed.identity.sha256 !== identity.sha256 || observed.identity.bytes !== identity.bytes)
+    throw new Error("Packet retained artifact bytes changed");
+  return JSON.parse(observed.bytes.toString("utf8"));
 }
 
 async function verifyIdentity(identity: FileIdentity) {
@@ -406,7 +462,7 @@ async function closureProof(
   retained: readonly FileIdentity[],
   evidence: unknown,
 ): Promise<boolean> {
-  const record = object(JSON.parse(await readFile(identity.path, "utf8")));
+  const record = object(await readPacketJson(identity));
   if (record.method === "private-pid-namespace-init-normal-unshare-join") {
     // A normal PID-1 join proves kernel teardown of descendants. Driver exit
     // remains optional when closing the control pipe initiates teardown.
@@ -448,7 +504,7 @@ async function closureProof(
   ) {
     const snapshotIdentity = retained.find((item) => item.path === record.snapshot);
     if (!snapshotIdentity) return false;
-    const snapshot = object(JSON.parse(await readFile(snapshotIdentity.path, "utf8")));
+    const snapshot = object(await readPacketJson(snapshotIdentity));
     const binding = object(object(evidence).execution_binding);
     const app = records(binding.product_artifacts).find((input) => input.role === "app");
     const driver =
@@ -537,6 +593,8 @@ function acceptanceRecord(value: unknown) {
     stage: record.stage,
     execution_observation_source_head: record.execution_observation_source_head,
     qualification_complete: record.qualification_complete,
+    harness_identity: record.harness_identity,
+    execution_qualification_identity: record.execution_qualification_identity,
     author: text(record.author),
     source_review: sourceReview(record.source_review),
     reusable_evidence: records(record.reusable_evidence),
@@ -550,7 +608,7 @@ function acceptanceRecord(value: unknown) {
   };
 }
 
-export async function completeAcceptancePacket(
+async function evaluateAcceptancePacket(
   preflightIdentity: FileIdentity,
   context: AcceptanceCompletionContext,
 ) {
@@ -573,21 +631,13 @@ export async function completeAcceptancePacket(
   const final_delivery = object(deliveryValue);
   const composition_decision =
     decisionValue === undefined || decisionValue === null ? undefined : object(decisionValue);
-  await verifyIdentity(preflightIdentity);
-  const preflight = acceptanceRecord(JSON.parse(await readFile(preflightIdentity.path, "utf8")));
+  const preflight = acceptanceRecord(await readPacketJson(preflightIdentity));
   if (preflight.format_version !== 1 || preflight.stage !== "preflight")
     throw new Error("Completion requires an actual preflight packet");
   validateBindings(preflight.bindings);
-  if (
-    !preflight.source_review.reviewer ||
-    !preflight.source_review.reference ||
-    preflight.source_review.source_head !== preflight.bindings.source_head ||
-    typeof preflight.source_review.outcome !== "string" ||
-    !["passed", "failed", "unsupported"].includes(preflight.source_review.outcome)
-  )
+  if (!actualSourceReview(preflight.source_review, preflight.bindings.source_head))
     throw new Error("Completed packet cannot retain a placeholder source review");
-  await verifyIdentity(evidence_identity);
-  const evidence = object(JSON.parse(await readFile(evidence_identity.path, "utf8")));
+  const evidence = object(await readPacketJson(evidence_identity));
   const selected = preflight.bindings.execution_qualification.scenarios;
   let observedPreflight = preflight,
     observedPreflightIdentity = preflightIdentity;
@@ -600,8 +650,7 @@ export async function completeAcceptancePacket(
     if (!reusable?.packet)
       throw new Error("Different source-head observations require bound reusable evidence");
     const reusablePacket = identity(reusable.packet);
-    await verifyIdentity(reusablePacket);
-    const prior = acceptanceRecord(JSON.parse(await readFile(reusablePacket.path, "utf8")));
+    const prior = acceptanceRecord(await readPacketJson(reusablePacket));
     if (
       prior.evidence?.sha256 !== evidence_identity.sha256 ||
       (prior.execution_observation_source_head ?? prior.bindings.source_head) !==
@@ -611,10 +660,7 @@ export async function completeAcceptancePacket(
     )
       throw new Error("Effective dependencies require requalification");
     observedPreflightIdentity = identity(prior.execution_preflight ?? prior.preflight);
-    await verifyIdentity(observedPreflightIdentity);
-    observedPreflight = acceptanceRecord(
-      JSON.parse(await readFile(observedPreflightIdentity.path, "utf8")),
-    );
+    observedPreflight = acceptanceRecord(await readPacketJson(observedPreflightIdentity));
   }
   const observed = optionalObject(evidence.execution_binding);
   const evidencePreflight = optionalObject(evidence.acceptance_preflight);
@@ -718,7 +764,7 @@ export async function completeAcceptancePacket(
     const receiptPath = image.path.replace(/\.png$/u, "-capture.json");
     const receiptIdentity = retained_artifacts.find((item) => item.path === receiptPath);
     if (!receiptIdentity) throw new Error("Required image has no settled capture receipt");
-    const capture = object(JSON.parse(await readFile(receiptPath, "utf8")));
+    const capture = object(await readPacketJson(receiptIdentity));
     const capturedImage = optionalObject(capture.image);
     const observation = optionalObject(capture.observation);
     const semantic = optionalObject(observation?.semantic);
@@ -829,7 +875,56 @@ export async function completeAcceptancePacket(
     missing_required_images: missingImages,
     qualification_complete: complete,
   };
+  return packet;
+}
+
+export async function completeAcceptancePacket(
+  preflightIdentity: FileIdentity,
+  context: AcceptanceCompletionContext,
+) {
+  const packet = await evaluateAcceptancePacket(preflightIdentity, context);
   const file = path.join(path.dirname(preflightIdentity.path), "completed.json");
   await writeFile(file, JSON.stringify(packet, null, 2) + "\n", { flag: "wx", mode: 0o600 });
   return { packet, identity: await fileIdentity(file) };
+}
+
+// Re-run the owning verifier; a nearby JSON success flag is not a receipt.
+export async function revalidateAcceptancePacket(receipt: FileIdentity) {
+  if (!Number.isSafeInteger(receipt.bytes) || receipt.bytes < 1 || receipt.bytes > 4 * 1024 * 1024)
+    throw new Error("Acceptance receipt must be bounded");
+  const { bytes } = await readBoundedEvidenceFile(receipt.path, receipt.bytes);
+  if (
+    bytes.byteLength !== receipt.bytes ||
+    createHash("sha256").update(bytes).digest("hex") !== receipt.sha256
+  )
+    throw new Error("Acceptance receipt changed during reading");
+  const record = object(JSON.parse(bytes.toString("utf8")));
+  if (
+    record.format_version !== 1 ||
+    record.stage !== "completed" ||
+    typeof record.completed_at !== "string" ||
+    !Number.isFinite(Date.parse(record.completed_at))
+  )
+    throw new Error("Expected a dated completed acceptance packet");
+  const packet = await evaluateAcceptancePacket(identity(record.preflight), {
+    ...record,
+    evidence_identity: record.evidence,
+  } as unknown as AcceptanceCompletionContext);
+  const { completed_at: _oldDate, ...previous } = record;
+  const { completed_at: _newDate, ...verified } = packet;
+  if (!isDeepStrictEqual(previous, JSON.parse(JSON.stringify(verified))))
+    throw new Error("Completed receipt differs from revalidated evidence");
+  const execution = await readBoundedEvidenceFile(packet.evidence.path, packet.evidence.bytes);
+  if (
+    execution.identity.sha256 !== packet.evidence.sha256 ||
+    execution.identity.bytes !== packet.evidence.bytes
+  )
+    throw new Error("Packet retained execution bytes changed");
+  const observation = object(JSON.parse(execution.bytes.toString("utf8")));
+  const observedAt =
+    typeof observation.captured_at === "string" &&
+    Number.isFinite(Date.parse(observation.captured_at))
+      ? observation.captured_at
+      : null;
+  return { ...packet, completed_at: record.completed_at, observation_captured_at: observedAt };
 }

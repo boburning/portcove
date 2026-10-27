@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { operationCoverage, readCoverageInput } from "./operation-coverage.mts";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import type { DesktopSelection } from "./desktop-scenarios.mts";
 import type { StoragePaths } from "./dev-storage.mts";
@@ -47,6 +48,9 @@ Selection:
   --profile smoke|presentation|restart|artwork|owned-lifecycle|full
   --scenario ID                 Repeat for an exact focused series
   --list-scenarios              List stable IDs and requirements
+  --qualification-evidence FILE Add actual Core offered-operation coverage to the list
+  --current-preflight FILE      Requested frozen dependencies for one scope (repeatable)
+  --acceptance-packet FILE      Completed receipt to revalidate (repeatable)
 
 Options:
   --restart-cycles 1..10        Default: 1
@@ -117,6 +121,9 @@ export function parseDesktopVerifyArgs(args: string[]) {
       profile: { type: "string" },
       scenario: { type: "string", multiple: true, default: [] },
       "list-scenarios": { type: "boolean", default: false },
+      "qualification-evidence": { type: "string" },
+      "current-preflight": { type: "string", multiple: true, default: [] },
+      "acceptance-packet": { type: "string", multiple: true, default: [] },
       "restart-cycles": { type: "string", default: "1" },
       "reload-cycles": { type: "string", default: "0" },
       "require-clean": { type: "boolean", default: false },
@@ -125,6 +132,18 @@ export function parseDesktopVerifyArgs(args: string[]) {
       json: { type: "boolean", default: false },
     },
   });
+  if (
+    (values["qualification-evidence"] ||
+      values["current-preflight"].length ||
+      values["acceptance-packet"].length) &&
+    !values["list-scenarios"]
+  )
+    throw new Error("Coverage inputs require --list-scenarios");
+  if (
+    (values["current-preflight"].length || values["acceptance-packet"].length) &&
+    !values["qualification-evidence"]
+  )
+    throw new Error("Receipt inputs require --qualification-evidence");
   const restartCycles = Number(values["restart-cycles"]);
   const reloadCycles = Number(values["reload-cycles"]);
   if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10)
@@ -141,6 +160,15 @@ export function parseDesktopVerifyArgs(args: string[]) {
     profile: values.profile,
     scenarios: values.scenario,
     listScenarios: values["list-scenarios"],
+    ...(values["qualification-evidence"]
+      ? {
+          operationCoverageInputs: {
+            qualification: values["qualification-evidence"],
+            currentPreflights: values["current-preflight"],
+            packets: values["acceptance-packet"],
+          },
+        }
+      : {}),
     restartCycles,
     reloadCycles,
     requireClean: values["require-clean"],
@@ -257,9 +285,33 @@ export function buildDesktopVerifyPlan<Source extends { revision: string }, Pack
   };
 }
 
-function printCatalog(asJson: boolean) {
-  const report = { format_version: 1, profiles: DESKTOP_PROFILES, scenarios: catalogReport() };
+async function printCatalog(
+  asJson: boolean,
+  inputs?: {
+    qualification: string;
+    currentPreflights: readonly string[];
+    packets: readonly string[];
+  },
+) {
+  const coverage = inputs
+    ? await operationCoverage(
+        (await readCoverageInput(inputs.qualification)).value,
+        await Promise.all(
+          inputs.packets.map(async (file) => (await readCoverageInput(file)).identity),
+        ),
+        await Promise.all(
+          inputs.currentPreflights.map(async (file) => (await readCoverageInput(file)).value),
+        ),
+      )
+    : undefined;
+  const report = {
+    format_version: 1,
+    profiles: DESKTOP_PROFILES,
+    scenarios: catalogReport(),
+    ...(coverage ? { operation_coverage: coverage } : {}),
+  };
   if (asJson) return console.log(JSON.stringify(report, null, 2));
+  if (coverage) console.log(JSON.stringify({ operation_coverage: coverage }, null, 2));
   console.log("Native desktop scenarios:");
   for (const item of report.scenarios) {
     const runnable = item.runnable ? "runnable" : `gap: ${item.reason}`;
@@ -728,7 +780,7 @@ export async function main(args = process.argv.slice(2)) {
     console.log(desktopVerifyUsage);
     return;
   }
-  if (options.listScenarios) return printCatalog(options.json);
+  if (options.listScenarios) return printCatalog(options.json, options.operationCoverageInputs);
   const selection = resolveDesktopSelection({
     profile: options.profile,
     scenarios: options.scenarios,
