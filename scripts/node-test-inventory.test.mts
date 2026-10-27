@@ -393,6 +393,59 @@ function ownedRegistry() {
   };
 }
 
+void test("declared case routes require their selected Mac producer despite ordinary file coverage", () => {
+  const check = (pattern = "owned", runner = "macos-26", enabled = true) => {
+    const value = {
+      format_version: 2,
+      suites: {
+        contracts: { arguments: ["--test", "--test-timeout=30000"] },
+        mac: { arguments: ["--test", `--test-name-pattern=${pattern}`] },
+      },
+      tests: [
+        {
+          file: first,
+          memberships: [
+            ["contracts", 100],
+            ["mac", 100],
+          ],
+          platform_skips: [
+            {
+              platform: ["linux", "darwin"],
+              owner: "mac",
+              category: "platform",
+              prerequisite: "POSIX process semantics",
+              reason: "Requires a POSIX host",
+              cases: ["owned"],
+            },
+          ],
+        },
+      ],
+    };
+    const workflow = stringify({
+      jobs: {
+        ordinary: {
+          if: "needs.classify.outputs.mode == 'qualification'",
+          "runs-on": "ubuntu-latest",
+          steps: [{ run: `node --test --test-timeout=30000 ${first}` }],
+        },
+        mac: {
+          if: "needs.classify.outputs.mode == 'qualification'",
+          "runs-on": runner,
+          steps: [{ if: enabled, run: `node --test --test-name-pattern=${pattern} ${first}` }],
+        },
+      },
+    });
+    requireNodeTestInventory([first], workflow, surfaces().local, "", JSON.stringify(value));
+  };
+  check();
+  for (const mutation of [
+    () => check("other"),
+    () => check("owned", "windows-latest"),
+    () => check("owned", "macos-26", false),
+  ])
+    assert.throws(mutation, /Skip route has no complete intended producer/);
+});
+
 void test("maintained module-mock flag is literal and cannot enable arbitrary module loading", () => {
   const value = ownedRegistry();
   value.suites.contracts.arguments.push("--experimental-test-module-mocks");

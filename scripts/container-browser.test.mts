@@ -190,7 +190,10 @@ void test("build-cache admission reads actual Docker JSON records and rejects un
 void test(
   "backing storage follows junctions and enforces the physical system-volume policy",
   {
-    skip: process.platform !== "win32" || isWindowsSystemDrivePath(root, process.env.SystemDrive),
+    skip:
+      process.platform !== "win32" || isWindowsSystemDrivePath(root, process.env.SystemDrive)
+        ? "non-system Windows storage fixture unavailable"
+        : false,
   },
   () => {
     mkdirSync(path.join(root, "work"), { recursive: true });

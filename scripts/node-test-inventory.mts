@@ -1,3 +1,5 @@
+import { windowsHelperChecksRequired } from "./windows-helper-checks.mts";
+import { nodeCaseSelected } from "./node-platform-skips.mts";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -7,6 +9,8 @@ import {
   workflowJobs,
   workflowDefinition,
   isQualificationOnlyCondition,
+  isReusableQualificationCondition,
+  isWindowsHelperExecutionCondition,
 } from "./qualification-coverage.mts";
 import {
   executableNodeCommands,
@@ -27,7 +31,11 @@ const inventoryInputs = [
 function qualificationPlatform(runner: unknown) {
   if (typeof runner === "string" && /^ubuntu-(?:latest|\d+\.\d+)$/u.test(runner))
     return "linux-x86_64";
-  return runner === "windows-latest" ? "windows-x86_64" : null;
+  return runner === "windows-latest"
+    ? "windows-x86_64"
+    : runner === "macos-26"
+      ? "macos-arm64"
+      : null;
 }
 
 export function requireNodeTestInventory(
@@ -52,7 +60,7 @@ export function requireNodeTestInventory(
   const localFiles = new Set<string>();
   const qualificationProducers = new Map<
     string,
-    { suite: string; arguments: string[]; eligible: boolean }[]
+    { suite: string; arguments: string[]; eligible: boolean; routeEligible: boolean }[]
   >();
   let requiredWindows = false;
   let localWindows = false;
@@ -102,8 +110,7 @@ export function requireNodeTestInventory(
         defaults(job.defaults)["working-directory"] ??
         workflowDefaults["working-directory"];
       const shell = step.shell ?? defaults(job.defaults).shell ?? workflowDefaults.shell;
-      const eligible =
-        isQualificationOnlyCondition(job.if) &&
+      const executionShape =
         enabled(step.if) &&
         !job["continue-on-error"] &&
         !step["continue-on-error"] &&
@@ -111,6 +118,11 @@ export function requireNodeTestInventory(
         (shell === undefined ||
           (typeof shell === "string" && ["bash", "pwsh", "sh"].includes(shell))) &&
         straightLine(step.run);
+      const eligible = executionShape && isQualificationOnlyCondition(job.if);
+      const helperLane =
+        job["runs-on"] === "windows-latest" && isWindowsHelperExecutionCondition(job.if);
+      const routeEligible =
+        executionShape && (isReusableQualificationCondition(job.if) || helperLane);
       const disabled = (condition: unknown) => condition === false || condition === "false";
       const otherMode =
         typeof job.if === "string" &&
@@ -136,6 +148,14 @@ export function requireNodeTestInventory(
                 suite: command.id,
                 arguments: command.arguments,
                 eligible: eligible && candidate === platform,
+                routeEligible:
+                  routeEligible &&
+                  candidate === platform &&
+                  (!helperLane ||
+                    windowsHelperChecksRequired({
+                      mode: "fast",
+                      changes: [{ oldPath: file, newPath: file }],
+                    })),
               });
               qualificationProducers.set(key, producers);
             }
@@ -220,9 +240,48 @@ export function requireNodeTestInventory(
       throw new Error("Unsupported Windows qualification payload custody");
     for (const command of windowsCommands)
       for (const file of command.files) {
-        if (requiredWindows) requiredFiles.add(file);
+        if (requiredWindows) {
+          requiredFiles.add(file);
+          const key = `windows-x86_64:${file}`;
+          const producers = qualificationProducers.get(key) ?? [];
+          producers.push({
+            suite: command.id,
+            arguments: command.arguments,
+            eligible: true,
+            routeEligible: true,
+          });
+          qualificationProducers.set(key, producers);
+        }
         if (localWindows) localFiles.add(file);
       }
+  }
+  for (const [file, routes] of Object.entries(registry.platformSkips ?? {})) {
+    if (!registered.has(file)) continue; // Native helper producers have their own registry check.
+    for (const route of routes) {
+      const platforms = typeof route.platform === "string" ? [route.platform] : route.platform;
+      const targets = platforms.map((platform) =>
+        platform === "linux"
+          ? "linux-x86_64"
+          : platform === "win32"
+            ? "windows-x86_64"
+            : "macos-arm64",
+      );
+      const selectsRoute = (producer: { arguments: string[]; routeEligible: boolean }) =>
+        producer.routeEligible &&
+        route.cases.every(
+          (name) => nodeCaseSelected(name, producer.arguments, route.suite) === true,
+        );
+      const complete = targets.flatMap((target) =>
+        (qualificationProducers.get(`${target}:${file}`) ?? []).filter(selectsRoute),
+      );
+      if (!complete.some((producer) => producer.suite === route.owner))
+        throw new Error(`Skip route has no complete intended producer ${route.owner}: ${file}`);
+      if ((route.category ?? "platform") === "platform")
+        for (const target of targets) {
+          if (!(qualificationProducers.get(`${target}:${file}`) ?? []).some(selectsRoute))
+            throw new Error(`Skip platform route disappeared ${target}: ${file}`);
+        }
+    }
   }
   for (const file of files) {
     if (!requiredFiles.has(file))

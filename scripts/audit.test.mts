@@ -300,6 +300,7 @@ void test("candidate coverage constants cannot authorize their own reduced trans
     "scripts/validation-plan.mts",
     "scripts/release-native-source-contract.mts",
     "scripts/windows-helper-checks.mts",
+    "scripts/node-test-suites.json",
     "scripts/native-helper-dependencies.mts",
     "scripts/development-evidence.mts",
     "scripts/retained-evidence.mts",

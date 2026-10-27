@@ -1,3 +1,4 @@
+import { errorCode } from "./runtime-values.mts";
 import type { ToolDefinition, DoctorOptions } from "./dev-doctor.mts";
 import { readToolPins } from "./tool-cache.mts";
 import { loadQualityManifest } from "./quality-tools.mts";
@@ -539,7 +540,6 @@ void test("tsgolint observes installed metadata only after successful help start
 });
 
 void test("tsgolint refuses a launcher symlink outside its installed package", (t) => {
-  if (process.platform === "win32") return t.skip("file symlinks require Windows privilege");
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-linked-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const packageRoot = path.join(directory, "node_modules/oxlint-tsgolint");
@@ -554,7 +554,13 @@ void test("tsgolint refuses a launcher symlink outside its installed package", (
   );
   const outside = path.join(directory, "outside.cjs");
   writeFileSync(outside, "");
-  symlinkSync(outside, path.join(packageRoot, "cli.cjs"));
+  try {
+    symlinkSync(outside, path.join(packageRoot, "cli.cjs"));
+  } catch (error) {
+    if (process.platform === "win32" && ["EPERM", "EACCES"].includes(errorCode(error) ?? ""))
+      return t.skip("file symlinks require Windows privilege");
+    throw error;
+  }
   assert.equal(
     existingNpmDefinition("npm-vite-plus", directory, "oxlint-tsgolint", "tsgolint"),
     null,
