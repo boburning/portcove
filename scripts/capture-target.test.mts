@@ -184,3 +184,59 @@ void test("native preflight retains the exact refused observation without anothe
     else await assert.rejects(lstat(file), { code: "ENOENT" });
   }
 });
+
+void test("the real native entrypoint delegates capture context and arguments to the imported helper", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  // Policy wiring, not a behavioral surrogate: the real native journey still
+  // checks refused capture; imported-helper tests exercise the decisions here.
+  function delegation(input: string) {
+    const code = stripTypeScriptTypes(input, { mode: "strip" });
+    const imported =
+      /import\s*\{\s*captureKeyboardTarget(?:\s+as\s+(\w+))?\s*\}\s*from\s*["']\.\/desktop-capture-target\.mts["']/u.exec(
+        code,
+      );
+    assert.ok(imported, "Native entrypoint must import the capture helper");
+    const alias = imported[1] ?? "captureKeyboardTarget";
+    const wrapper = new RegExp(
+      String.raw`async\s+function\s+\w+\s*\(\s*(?<name>\w+)\s*,\s*(?<element>\w+)\s*,\s*(?<scenario>\w+)\s*=\s*["']keyboard-layout["']\s*,?\s*\)\s*\{\s*return[ \t]+(?:await\s+)?${alias}\s*\(\s*\{(?<context>[^{}]*)\}\s*,\s*\k<name>\s*,\s*\k<element>\s*,\s*\k<scenario>\s*,?\s*\)\s*;?\s*\}`,
+      "u",
+    ).exec(code);
+    assert.ok(wrapper?.groups, "Native capture wrapper must forward all three arguments");
+    const properties = wrapper.groups
+      .context!.split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    assert.equal(properties.length, 3);
+    assert(properties.some((value) => /^browser\s*:\s*\w+\s*\(\s*\)$/u.test(value)));
+    assert(properties.some((value) => /^output(?:\s*:\s*\w+)?$/u.test(value)));
+    assert(properties.some((value) => /^artifacts(?:\s*:\s*\w+)?$/u.test(value)));
+    return wrapper[0];
+  }
+  const erased = stripTypeScriptTypes(source, { mode: "strip" });
+  const wrapper = delegation(erased);
+  assert.throws(
+    () => delegation(erased.replace(wrapper, "async function removedCapture() {}")),
+    /must forward/,
+  );
+  assert.throws(
+    () =>
+      delegation(
+        erased.replace(
+          /captureNativeKeyboardTarget\s*\(\s*\{/u,
+          "captureNativeKeyboardTarget({}, {",
+        ),
+      ),
+    /must forward/,
+  );
+  delegation(
+    source
+      .replaceAll("captureNativeKeyboardTarget", "renamedCaptureHelper")
+      .replaceAll("scenarioId", "renamedScenario")
+      .replace(/renamedCaptureHelper\s*\(/u, "renamedCaptureHelper(\n"),
+  );
+});
