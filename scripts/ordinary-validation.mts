@@ -249,6 +249,7 @@ export const nodeTestOwnership = parseNodeTestSuites(
 const platformSkipConsumers = [
   "scripts/node-platform-skips.test.mts",
   "scripts/required-node-test-reporter.test.mts",
+  "scripts/python-test-results.test.mts",
   "scripts/node-test-inventory.test.mts",
   "scripts/precommit-check.test.mts",
   "scripts/windows-helper-checks.test.mts",
