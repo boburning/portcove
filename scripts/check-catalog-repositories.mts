@@ -293,6 +293,17 @@ export interface HealthOptions {
   portIds?: string[] | null;
   reviewedAccounting?: unknown;
   lineageRecords?: unknown[];
+  /** Trusted monitor continuation; legacy one-shot collection keeps strict preflight. */
+  incremental?: boolean;
+  resumeObservations?: unknown[];
+  operationDeadline?: number;
+  abortSignal?: AbortSignal;
+  sessionStartedAt?: number;
+  providerBackoff?: Record<string, string>;
+  onObservation?: (
+    observation: HealthObservation,
+    providerBackoff: Record<string, string>,
+  ) => Promise<void>;
 }
 
 /** Read reviewed authoring decisions without deriving lineage from live metadata. */
@@ -1259,6 +1270,13 @@ export async function collectRepositoryHealth(
     portIds = null,
     reviewedAccounting: accountingInput = accountingPolicy,
     lineageRecords = [],
+    incremental = false,
+    resumeObservations = [],
+    operationDeadline,
+    onObservation,
+    abortSignal,
+    sessionStartedAt,
+    providerBackoff = {},
   }: HealthOptions = {},
 ) {
   const {
@@ -1277,7 +1295,10 @@ export async function collectRepositoryHealth(
   } = prepareHealthCollection(input, portIds, accountingInput);
   const limits = Object.freeze({
     ...resourceLimits,
-    requests: overflow ? 0 : requestPlan.conservative_requests,
+    requests:
+      overflow && !incremental
+        ? 0
+        : Math.min(HARD_REQUEST_CEILING, requestPlan.conservative_requests),
   });
   const lineage = assessedLineage(catalog, lineageRecords);
   const currentPortHashes = healthCatalogPortHashes(catalog, lineageRecords);
@@ -1300,13 +1321,65 @@ export async function collectRepositoryHealth(
           .map((incident) => [incident.key, incident])
       : [],
   );
-  const deadline = started + limits.duration_ms;
+  if (
+    operationDeadline !== undefined &&
+    (!Number.isFinite(operationDeadline) || operationDeadline <= started)
+  )
+    throw new Error("Health operation deadline is unavailable");
+  const deadline = Math.min(started + limits.duration_ms, operationDeadline ?? Infinity);
+  if (
+    Buffer.byteLength(JSON.stringify(resumeObservations)) > HEALTH_HISTORY_BYTES ||
+    resumeObservations.some((value) => !isHealthObservationHistory(value, started))
+  )
+    throw new Error("Invalid bounded monitor continuation observations");
+  const locationKey = (record: LocationRecord) =>
+    observationHash({
+      provider: record.provider,
+      repository: record.repository,
+      release_ref: record.release_ref ?? null,
+      unlocated_port_ids: record.provider === "unlocated-historical" ? record.port_ids : null,
+    });
+  const resumeRecords = new Map(
+    (resumeObservations as HealthObservation[]).map((record) => [locationKey(record), record]),
+  );
+  if (resumeRecords.size !== resumeObservations.length)
+    throw new Error("Monitor continuation repeats a source location");
+  const reusedHistory = new Set<string>();
   const consumed = { requests: 0, response_bytes: 0 };
   // This collection's complete 200 repository response can serve both the
   // pin validator and the identical original-location observation. Never
   // import prior reports or equate old and relocated repository endpoints.
   const repositoryMetadata = new Map<string, unknown>();
   const deferred = new Map<string, string>();
+  if (
+    !isRecord(providerBackoff) ||
+    Buffer.byteLength(JSON.stringify(providerBackoff)) > 1024 * 1024
+  )
+    throw new Error("Invalid provider backoff envelope");
+  for (const [provider, reset] of Object.entries(providerBackoff)) {
+    const origin = ["github", "gitlab"].includes(provider)
+      ? null
+      : (() => {
+          try {
+            return new URL(provider);
+          } catch {
+            return null;
+          }
+        })();
+    if (
+      (!["github", "gitlab"].includes(provider) &&
+        (!origin ||
+          origin.protocol !== "https:" ||
+          origin.origin !== provider ||
+          origin.username ||
+          origin.password)) ||
+      typeof reset !== "string" ||
+      !Number.isFinite(Date.parse(reset)) ||
+      new Date(reset).toISOString() !== reset
+    )
+      throw new Error("Invalid provider backoff identity or reset clock");
+    if (Date.parse(reset) > started) deferred.set(provider, reset);
+  }
   const observations: HealthObservation[] = [];
   const originalRules = (record: LocationRecord) => {
     if (record.release_ref !== undefined) return [];
@@ -1363,6 +1436,21 @@ export async function collectRepositoryHealth(
           ),
       })),
     });
+  const retainProviderReserve = (provider: string, headers: Headers) => {
+    const remaining = headers.get("x-ratelimit-remaining") ?? headers.get("ratelimit-remaining");
+    const capacity = headers.get("x-ratelimit-limit") ?? headers.get("ratelimit-limit");
+    if (
+      remaining !== null &&
+      capacity !== null &&
+      /^\d+$/u.test(remaining) &&
+      /^\d+$/u.test(capacity) &&
+      Number.isSafeInteger(Number(remaining)) &&
+      Number.isSafeInteger(Number(capacity)) &&
+      Number(capacity) > 0 &&
+      Number(remaining) <= Math.max(1, Math.ceil(Number(capacity) * 0.05))
+    )
+      deferred.set(provider, retryAt(headers, now()));
+  };
   const readGithubMetadata = async (endpoint: string) => {
     const remaining = deadline - now();
     if (
@@ -1387,6 +1475,7 @@ export async function collectRepositoryHealth(
         redirect: "manual",
         signal,
       });
+      retainProviderReserve("github", response.headers);
       if (response.status !== 200) {
         const reason = statusReason(response);
         if (reason === "rate-limit") deferred.set("github", retryAt(response.headers, now()));
@@ -1404,432 +1493,50 @@ export async function collectRepositoryHealth(
       await cancelBody(response);
     }
   };
-  for (const record of records) {
-    const budgetProvider = ["direct-manifest", "project-page"].includes(record.provider)
-      ? new URL(record.repository).origin
-      : record.provider;
-    const priorLocation = priorObservations.find(
-      (value) =>
-        value.provider === record.provider &&
-        value.repository === record.repository &&
-        value.release_ref === record.release_ref,
-    );
-    const priorBaseline = priorNumber(
-      priorLocation?.baseline_repository_id ?? priorLocation?.observed_repository_id,
-    );
-    const contract = observationContract(record);
-    const comparisonMatches = priorLocation?.observation_contract_sha256 === contract;
-    const result: HealthObservation = {
-      ...record,
-      observation_contract_sha256: contract,
-      observed_at: new Date(started).toISOString(),
-      attempted: false,
-      metadata_reused: false,
-      status: "unknown",
-      reason: null,
-      http_status: null,
-      archived: null,
-      observed_repository_id: null,
-      baseline_repository_id: priorBaseline !== null && priorBaseline > 0 ? priorBaseline : null,
-      comparison_http_status: null,
-      comparison_observed_at: null,
-      retry_at: null,
-      resume_condition: null,
-      pin_assessment: null,
-      source_archive_assessment: null,
-      reviewed_condition_sha256: null,
-      observed_redirect_repository_id: null,
-    };
-    const fail = (reason: HealthReason) => {
-      result.reason = reason;
-      result.resume_condition = resume[reason];
-    };
-    observations.push(result);
-    const remaining = deadline - now();
-    if (remaining <= 0 || consumed.response_bytes >= limits.total_bytes) {
-      fail("budget");
-      continue;
-    }
-    // Static no-request failures retain their reasons even when the selected
-    // inventory needs zero calls or preflight refuses the whole collection.
-    if (record.provider === "unlocated-historical") {
-      fail("release-identity-unavailable");
-      continue;
-    }
-    const github = record.provider === "github";
-    const direct = record.provider === "direct-manifest";
-    const plain = direct || record.provider === "project-page";
-    if (
-      direct &&
-      new Set(
-        requiredValue(record.artifact_identities).map((identity) =>
-          observationHash({
-            version: identity.version,
-            sha256: identity.sha256,
-            size: identity.size,
-          }),
-        ),
-      ).size !== 1
-    ) {
-      fail("identity-mismatch");
-      continue;
-    }
-    if (overflow) {
-      fail("budget");
-      result.resume_condition =
-        "The validated request forecast exceeds the fixed hard ceiling; reduce legitimate obligations or deliver a separately reviewed capacity redesign. Partial collections do not establish full health.";
-      continue;
-    }
-    if (deferred.has(budgetProvider)) {
-      fail("rate-limit");
-      result.retry_at = requiredValue(deferred.get(budgetProvider));
-      if (previousUsable && comparisonMatches && priorLocation?.reason === "rate-limit") {
-        result.comparison_http_status = priorNumber(
-          priorLocation.http_status ?? priorLocation.comparison_http_status,
-        );
-        result.comparison_observed_at =
-          priorText(priorLocation.observed_at) ??
-          priorText(priorLocation.comparison_observed_at) ??
-          previous?.completed_at ??
-          null;
-      }
-      continue;
-    }
-    const reused =
-      record.provider === "github" &&
-      !record.release_ref &&
-      repositoryMetadata.has(`https://api.github.com/repos/${record.repository}`);
-    if (!reused && consumed.requests >= limits.requests) {
-      fail("budget");
-      continue;
-    }
-    if (
-      previousUsable &&
-      comparisonMatches &&
-      priorLocation?.reason === "rate-limit" &&
-      typeof priorLocation.retry_at === "string" &&
-      Number.isFinite(Date.parse(priorLocation.retry_at)) &&
-      Date.parse(priorLocation.retry_at) > started
-    ) {
-      fail("rate-limit");
-      result.retry_at = priorLocation.retry_at;
-      result.comparison_http_status = priorNumber(
-        priorLocation.http_status ?? priorLocation.comparison_http_status,
-      );
-      result.comparison_observed_at =
-        priorText(priorLocation.comparison_observed_at) ?? previous?.completed_at ?? null;
-      continue;
-    }
-    const url = plain
-      ? record.repository
-      : github
-        ? `https://api.github.com/repos/${record.repository}`
-        : `https://gitlab.com/api/v4/projects/${encodeURIComponent(record.repository)}`;
-    const requestUrl = record.release_ref
-      ? `${url}/releases/${github ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
-      : url;
-    const headers: Record<string, string> = { "User-Agent": "Portcove-catalog-audit" };
-    if (github) {
-      headers.Accept = "application/vnd.github+json";
-      headers["X-GitHub-Api-Version"] = "2022-11-28";
-      if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
-    } else if (record.provider === "gitlab" && gitlabToken) headers["PRIVATE-TOKEN"] = gitlabToken;
-    const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
-    if (!reused) consumed.requests++;
-    result.attempted = !reused;
-    result.metadata_reused = Boolean(reused);
-    let response: Response | undefined;
-    try {
-      response = reused
-        ? new Response(null, { status: 200 })
-        : await fetcher(requestUrl, {
-            headers,
-            // Observe a redirect as an HTTP fact rather than losing it in a fetch
-            // exception. Never follow it or retain a potentially signed Location.
-            redirect: "manual",
-            signal,
-            ...(plain ? { method: "HEAD" } : {}),
-          });
-      result.http_status = response.status;
-      if (response.status !== 200) {
-        fail(statusReason(response));
-        const conditions = originalRules(record);
-        if (
-          conditions.length &&
-          conditions.every(
-            (rule) =>
-              rule.http_status === requiredValue(response).status && rule.reason === result.reason,
-          )
-        ) {
-          let match = true;
-          if (response.status === 301) {
-            const facts = await metadata(response, consumed, now, deadline);
-            const expectedId = requiredValue(conditions[0]).redirect_repository_id;
-            match =
-              isRecord(facts) &&
-              facts.message === "Moved Permanently" &&
-              facts.url === `https://api.github.com/repositories/${expectedId}` &&
-              conditions.every((rule) => rule.redirect_repository_id === expectedId) &&
-              (result.baseline_repository_id === null ||
-                result.baseline_repository_id === expectedId);
-            if (match) result.observed_redirect_repository_id = expectedId;
+  const incompleteReasons = new Set([
+    "authentication",
+    "forbidden",
+    "rate-limit",
+    "provider-error",
+    "transport",
+    "timeout",
+    "invalid-metadata",
+    "budget",
+    "provider-status",
+    "invalid-or-changed-pin-metadata",
+    "invalid-or-changed-commit-metadata",
+  ]);
+  const collected = (record: HealthObservation) =>
+    !incompleteReasons.has(record.reason ?? "") &&
+    !incompleteReasons.has(record.pin_assessment?.reason ?? "") &&
+    !incompleteReasons.has(record.source_archive_assessment?.reason ?? "");
+  const fairRecords = incremental
+    ? (() => {
+        const attemptedAt = (record: LocationRecord) => {
+          const previous = resumeRecords.get(locationKey(record));
+          return previous && (previous.attempted || previous.metadata_reused || collected(previous))
+            ? Date.parse(previous.observed_at)
+            : 0;
+        };
+        const queues = new Map<string, LocationRecord[]>();
+        for (const record of [...records].sort(
+          (a, b) => attemptedAt(a) - attemptedAt(b) || locationKey(a).localeCompare(locationKey(b)),
+        )) {
+          const owner = record.port_ids.toSorted()[0] ?? locationKey(record);
+          const queue = queues.get(owner) ?? [];
+          queue.push(record);
+          queues.set(owner, queue);
+        }
+        const result: LocationRecord[] = [];
+        while (queues.size)
+          for (const [owner, queue] of queues) {
+            result.push(queue.shift()!);
+            if (!queue.length) queues.delete(owner);
           }
-          if (match) {
-            result.reviewed_condition_sha256 = observationHash(conditions);
-            result.resume_condition = requiredValue(conditions[0]).resume_condition;
-          }
-        }
-        const pins = pinRules(record);
-        const declarations = declaredPins(record);
-        if (plain && direct && response.status === 302 && (pins.length || declarations.length)) {
-          result.pin_assessment = { status: "unknown", reason: null };
-          try {
-            if (pinBindingConflict(record)) throw new HealthFailure("identity-mismatch");
-            const pin = requiredValue(pins[0] ?? declarations[0]);
-            const repo = await readGithubMetadata(pin.repository);
-            const release = await readGithubMetadata(
-              `${pin.repository}/releases/tags/${encodeURIComponent(pin.tag)}`,
-            );
-            if (
-              !isRecord(release) ||
-              typeof release.id !== "number" ||
-              !Number.isSafeInteger(release.id) ||
-              release.id <= 0
-            )
-              throw new HealthFailure("invalid-metadata");
-            if (
-              !isRecord(repo) ||
-              typeof repo.id !== "number" ||
-              !Number.isSafeInteger(repo.id) ||
-              repo.id <= 0
-            )
-              throw new HealthFailure("invalid-metadata");
-            result.observed_repository_id = repo.id;
-            result.baseline_repository_id ??= pins[0]?.repository_id ?? repo.id;
-            if (
-              result.baseline_repository_id !== repo.id ||
-              pins.some(
-                (scope) => scope.repository_id !== repo.id || scope.release_id !== release.id,
-              )
-            )
-              throw new HealthFailure("identity-mismatch");
-            const assets = await readGithubMetadata(
-              `${pin.repository}/releases/${release.id}/assets?per_page=100`,
-            );
-            let facts;
-            for (const declaration of declarations)
-              facts = validateGithubDeclaredPinMetadata(repo, release, assets, declaration);
-            for (const scope of pins) {
-              facts = validateGithubPinMetadata(repo, release, assets, scope);
-              if (facts.asset.id !== scope.asset_id) throw new HealthFailure("identity-mismatch");
-            }
-            if (!facts) throw new HealthFailure("invalid-metadata");
-            const bound = pins.length === record.artifact_identities?.length;
-            result.pin_assessment = {
-              status: bound ? "provider-reported-pin-present" : "provider-reported-pin-observed",
-              identity_binding: bound ? "reviewed" : "unbound-observation",
-              repository_id: facts.repository.id,
-              release_id: facts.release.id,
-              asset_id: facts.asset.id,
-              asset_facts_sha256: observationHash(facts.asset),
-              provider_digest: facts.asset.digest,
-              destination_availability: "unknown",
-              accepted_bytes: "unverified",
-              accounting_scope_sha256: observationHash({ reviewed: pins, declarations }),
-            };
-          } catch (error) {
-            result.pin_assessment = {
-              status: "unknown",
-              reason:
-                error instanceof HealthFailure ? error.reason : "invalid-or-changed-pin-metadata",
-            };
-            result.resume_condition =
-              "Reassess exact declared pin metadata; changed, unavailable, ambiguous or incomplete facts remain visible. Reviewed numeric identities are retained. No redirect destination or bytes were inspected.";
-          }
-        }
-        const archives = archiveRules(record);
-        if (plain && direct && response.status === 302 && archives.length) {
-          result.source_archive_assessment = { status: "unknown", reason: null };
-          try {
-            const archive = requiredValue(archives[0]);
-            const repo = await readGithubMetadata(archive.repository);
-            const commit = await readGithubMetadata(
-              `${archive.repository}/git/commits/${archive.commit_sha}`,
-            );
-            let facts;
-            for (const scope of archives)
-              facts = validateGithubSourceArchiveMetadata(repo, commit, scope);
-            if (!facts) throw new HealthFailure("invalid-metadata");
-            result.source_archive_assessment = {
-              status: "provider-reported-commit-present",
-              repository_id: facts.repository.id,
-              commit_sha: facts.commit.sha,
-              tree_sha: facts.commit.tree_sha,
-              commit_facts_sha256: observationHash(facts.commit),
-              destination_availability: "unknown",
-              accepted_bytes: "unverified",
-              accounting_scope_sha256: observationHash(archives),
-            };
-          } catch (error) {
-            result.source_archive_assessment = {
-              status: "unknown",
-              reason:
-                error instanceof HealthFailure
-                  ? error.reason
-                  : "invalid-or-changed-commit-metadata",
-            };
-            result.resume_condition =
-              "Reassess the exact declared source commit metadata; missing, changed or incomplete facts remain unaccounted. Archive destination and accepted bytes remain unverified.";
-          }
-        }
-        if (result.reason === "rate-limit") {
-          result.retry_at = retryAt(response.headers, now());
-          deferred.set(budgetProvider, result.retry_at);
-        }
-        continue;
-      }
-      if (now() >= deadline) {
-        fail("budget");
-        continue;
-      }
-      if (plain) {
-        // HEAD never verifies accepted bytes. No download, execution or redirect
-        // authority follows from a reachable declared artifact location.
-        const length = response.headers.get("content-length");
-        result.observed_size =
-          length !== null && /^\d+$/u.test(length) && Number.isSafeInteger(Number(length))
-            ? Number(length)
-            : null;
-        if (
-          direct &&
-          (length === null ||
-            !/^\d+$/u.test(length) ||
-            requiredValue(record.artifact_identities).some(
-              (identity) => Number(length) !== identity.size,
-            ))
-        ) {
-          fail("invalid-metadata");
-          continue;
-        }
-        result.status = "reachable";
-        continue;
-      }
-      let facts;
-      try {
-        facts = reused
-          ? repositoryMetadata.get(requestUrl)
-          : await metadata(response, consumed, now, deadline);
-      } catch (error) {
-        fail(
-          error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
-        );
-        continue;
-      }
-      if (record.release_ref) {
-        const assets = isRecord(facts)
-          ? github
-            ? facts.assets
-            : isRecord(facts.assets)
-              ? facts.assets.links
-              : undefined
-          : undefined;
-        if (
-          !isRecord(facts) ||
-          facts.tag_name !== record.release_ref ||
-          !Array.isArray(assets) ||
-          assets.length >= 100 ||
-          (github &&
-            (typeof facts.id !== "number" || !Number.isSafeInteger(facts.id) || facts.id <= 0))
-        ) {
-          fail("invalid-metadata");
-          continue;
-        }
-        result.observed_release_id = github ? priorNumber(facts.id) : null;
-        result.observed_asset_digests = assets
-          .map((asset: unknown) => (isRecord(asset) ? asset.digest : undefined))
-          .filter(
-            (digest): digest is string =>
-              typeof digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(digest),
-          );
-        result.accepted_digest_match = result.observed_asset_digests.length
-          ? "provider-reported"
-          : "unknown; provider supplied no digest";
-        if (
-          !assets.length ||
-          (result.observed_asset_digests.length &&
-            requiredValue(record.historical_artifact_identities).some(
-              (identity) =>
-                !requiredValue(result.observed_asset_digests).includes(
-                  `sha256:${identity.artifact_sha256}`,
-                ),
-            ))
-        ) {
-          fail("release-identity-unavailable");
-          continue;
-        }
-        result.status = "reachable";
-        continue;
-      }
-      if (
-        !isRecord(facts) ||
-        typeof facts.id !== "number" ||
-        !Number.isSafeInteger(facts.id) ||
-        facts.id <= 0 ||
-        (typeof facts.archived !== "boolean" && (github || Object.hasOwn(facts, "archived"))) ||
-        typeof (github ? facts.full_name : facts.path_with_namespace) !== "string"
-      ) {
-        fail("invalid-metadata");
-        continue;
-      }
-      const observedName = github ? facts.full_name : facts.path_with_namespace;
-      if (typeof observedName !== "string") throw new HealthFailure("invalid-metadata");
-      const observed = github ? observedName.toLowerCase() : observedName;
-      if (observed !== (github ? record.repository.toLowerCase() : record.repository)) {
-        fail("identity-mismatch");
-        continue;
-      }
-      const reviewedIds = new Set([
-        ...reviewedAccounting.pins
-          .filter(
-            (pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase(),
-          )
-          .map((pin) => pin.repository_id),
-        ...(reviewedAccounting.source_archives ?? [])
-          .filter(
-            (pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase(),
-          )
-          .map((pin) => pin.repository_id),
-        ...(record.original_upstream_port_ids ?? []).flatMap((id) => {
-          const identity = lineage.get(id)?.current.repository;
-          return identity?.host === (github ? "github.com" : "gitlab.com")
-            ? [Number(identity.id)]
-            : [];
-        }),
-      ]);
-      if (reviewedIds.size > 1 || [...reviewedIds].some((id) => id !== facts.id)) {
-        result.observed_repository_id = facts.id;
-        fail("identity-mismatch");
-        continue;
-      }
-      result.baseline_repository_id ??= [...reviewedIds][0] ?? facts.id;
-      if (result.baseline_repository_id !== facts.id) {
-        result.observed_repository_id = facts.id;
-        fail("identity-mismatch");
-        continue;
-      }
-      result.status = "reachable";
-      result.archived = typeof facts.archived === "boolean" ? facts.archived : null;
-      result.observed_repository_id = facts.id;
-    } catch (error) {
-      fail(
-        error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
-      );
-    } finally {
-      await cancelBody(response);
-    }
-  }
-  const reachable = observations.filter((record) => record.status === "reachable").length;
-  for (const record of observations) {
+        return result;
+      })()
+    : records;
+  const classify = (record: HealthObservation) => {
     const knownMaintenance =
       record.reason === "inaccessible-or-missing" &&
       record.port_ids.every(
@@ -1863,24 +1570,500 @@ export async function collectRepositoryHealth(
               : record.status === "reachable"
                 ? "location-reachable; exact-bytes-unverified"
                 : "unclassified-or-actionable";
+  };
+  let operationRecords = 0;
+  for (const record of fairRecords) {
+    abortSignal?.throwIfAborted();
+    const observationStart = observations.length;
+    try {
+      const budgetProvider = ["direct-manifest", "project-page"].includes(record.provider)
+        ? new URL(record.repository).origin
+        : record.provider;
+      const priorLocation =
+        priorObservations.find(
+          (value) =>
+            value.provider === record.provider &&
+            value.repository === record.repository &&
+            value.release_ref === record.release_ref,
+        ) ?? resumeRecords.get(locationKey(record));
+      const priorBaseline = priorNumber(
+        priorLocation?.baseline_repository_id ?? priorLocation?.observed_repository_id,
+      );
+      const contract = observationContract(record);
+      const retained = incremental ? resumeRecords.get(locationKey(record)) : undefined;
+      if (
+        retained &&
+        retained.observation_contract_sha256 === contract &&
+        sessionStartedAt !== undefined &&
+        retained.reason !== "budget" &&
+        !collected(retained) &&
+        Date.parse(retained.observed_at) >= sessionStartedAt
+      ) {
+        // A failed read is retained for this job; another independent run may retry it.
+        observations.push({
+          ...structuredClone(retained),
+          ...record,
+          attempted: false,
+          metadata_reused: false,
+        });
+        reusedHistory.add(locationKey(record));
+        continue;
+      }
+      if (
+        retained &&
+        retained.observation_contract_sha256 === contract &&
+        collected(retained) &&
+        started - Date.parse(retained.observed_at) < 24 * 3600000
+      ) {
+        observations.push({
+          ...structuredClone(retained),
+          ...record,
+          attempted: false,
+          metadata_reused: true,
+        });
+        reusedHistory.add(locationKey(record));
+        continue;
+      }
+      const comparisonMatches = priorLocation?.observation_contract_sha256 === contract;
+      const result: HealthObservation = {
+        ...record,
+        observation_contract_sha256: contract,
+        observed_at: new Date(started).toISOString(),
+        attempted: false,
+        metadata_reused: false,
+        status: "unknown",
+        reason: null,
+        http_status: null,
+        archived: null,
+        observed_repository_id: null,
+        baseline_repository_id: priorBaseline !== null && priorBaseline > 0 ? priorBaseline : null,
+        comparison_http_status: null,
+        comparison_observed_at: null,
+        retry_at: null,
+        resume_condition: null,
+        pin_assessment: null,
+        source_archive_assessment: null,
+        reviewed_condition_sha256: null,
+        observed_redirect_repository_id: null,
+      };
+      const fail = (reason: HealthReason) => {
+        result.reason = reason;
+        result.resume_condition = resume[reason];
+        if (reason === "rate-limit")
+          result.retry_at = deferred.get(budgetProvider) ?? result.retry_at;
+      };
+      observations.push(result);
+      const remaining = deadline - now();
+      if (incremental && operationRecords >= PRIOR_REPORT_ENTRIES) {
+        fail("budget");
+        continue;
+      }
+      operationRecords += 1;
+      if (remaining <= 0 || consumed.response_bytes >= limits.total_bytes) {
+        fail("budget");
+        continue;
+      }
+      // Static no-request failures retain their reasons even when the selected
+      // inventory needs zero calls or preflight refuses the whole collection.
+      if (record.provider === "unlocated-historical") {
+        fail("release-identity-unavailable");
+        continue;
+      }
+      const github = record.provider === "github";
+      const direct = record.provider === "direct-manifest";
+      const plain = direct || record.provider === "project-page";
+      if (
+        direct &&
+        new Set(
+          requiredValue(record.artifact_identities).map((identity) =>
+            observationHash({
+              version: identity.version,
+              sha256: identity.sha256,
+              size: identity.size,
+            }),
+          ),
+        ).size !== 1
+      ) {
+        fail("identity-mismatch");
+        continue;
+      }
+      if (overflow && !incremental) {
+        fail("budget");
+        result.resume_condition =
+          "The validated request forecast exceeds the fixed hard ceiling; reduce legitimate obligations or deliver a separately reviewed capacity redesign. Partial collections do not establish full health.";
+        continue;
+      }
+      const operationRequests =
+        1 +
+        (pinRules(record).length || declaredPins(record).length ? 3 : 0) +
+        (archiveRules(record).length ? 2 : 0);
+      if (incremental && consumed.requests + operationRequests > limits.requests) {
+        fail("budget");
+        continue;
+      }
+      if (deferred.has(budgetProvider)) {
+        fail("rate-limit");
+        result.retry_at = requiredValue(deferred.get(budgetProvider));
+        if (previousUsable && comparisonMatches && priorLocation?.reason === "rate-limit") {
+          result.comparison_http_status = priorNumber(
+            priorLocation.http_status ?? priorLocation.comparison_http_status,
+          );
+          result.comparison_observed_at =
+            priorText(priorLocation.observed_at) ??
+            priorText(priorLocation.comparison_observed_at) ??
+            previous?.completed_at ??
+            null;
+        }
+        continue;
+      }
+      const reused =
+        record.provider === "github" &&
+        !record.release_ref &&
+        repositoryMetadata.has(`https://api.github.com/repos/${record.repository}`);
+      if (!reused && consumed.requests >= limits.requests) {
+        fail("budget");
+        continue;
+      }
+      if (
+        previousUsable &&
+        comparisonMatches &&
+        priorLocation?.reason === "rate-limit" &&
+        typeof priorLocation.retry_at === "string" &&
+        Number.isFinite(Date.parse(priorLocation.retry_at)) &&
+        Date.parse(priorLocation.retry_at) > started
+      ) {
+        fail("rate-limit");
+        result.retry_at = priorLocation.retry_at;
+        result.comparison_http_status = priorNumber(
+          priorLocation.http_status ?? priorLocation.comparison_http_status,
+        );
+        result.comparison_observed_at =
+          priorText(priorLocation.comparison_observed_at) ?? previous?.completed_at ?? null;
+        continue;
+      }
+      const url = plain
+        ? record.repository
+        : github
+          ? `https://api.github.com/repos/${record.repository}`
+          : `https://gitlab.com/api/v4/projects/${encodeURIComponent(record.repository)}`;
+      const requestUrl = record.release_ref
+        ? `${url}/releases/${github ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
+        : url;
+      const headers: Record<string, string> = { "User-Agent": "Portcove-catalog-audit" };
+      if (github) {
+        headers.Accept = "application/vnd.github+json";
+        headers["X-GitHub-Api-Version"] = "2022-11-28";
+        if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
+      } else if (record.provider === "gitlab" && gitlabToken)
+        headers["PRIVATE-TOKEN"] = gitlabToken;
+      const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
+      if (!reused) consumed.requests++;
+      result.attempted = !reused;
+      result.metadata_reused = Boolean(reused);
+      let response: Response | undefined;
+      try {
+        response = reused
+          ? new Response(null, { status: 200 })
+          : await fetcher(requestUrl, {
+              headers,
+              // Observe a redirect as an HTTP fact rather than losing it in a fetch
+              // exception. Never follow it or retain a potentially signed Location.
+              redirect: "manual",
+              signal,
+              ...(plain ? { method: "HEAD" } : {}),
+            });
+        retainProviderReserve(budgetProvider, response.headers);
+        result.http_status = response.status;
+        if (response.status !== 200) {
+          fail(statusReason(response));
+          const conditions = originalRules(record);
+          if (
+            conditions.length &&
+            conditions.every(
+              (rule) =>
+                rule.http_status === requiredValue(response).status &&
+                rule.reason === result.reason,
+            )
+          ) {
+            let match = true;
+            if (response.status === 301) {
+              const facts = await metadata(response, consumed, now, deadline);
+              const expectedId = requiredValue(conditions[0]).redirect_repository_id;
+              match =
+                isRecord(facts) &&
+                facts.message === "Moved Permanently" &&
+                facts.url === `https://api.github.com/repositories/${expectedId}` &&
+                conditions.every((rule) => rule.redirect_repository_id === expectedId) &&
+                (result.baseline_repository_id === null ||
+                  result.baseline_repository_id === expectedId);
+              if (match) result.observed_redirect_repository_id = expectedId;
+            }
+            if (match) {
+              result.reviewed_condition_sha256 = observationHash(conditions);
+              result.resume_condition = requiredValue(conditions[0]).resume_condition;
+            }
+          }
+          const pins = pinRules(record);
+          const declarations = declaredPins(record);
+          if (plain && direct && response.status === 302 && (pins.length || declarations.length)) {
+            result.pin_assessment = { status: "unknown", reason: null };
+            try {
+              if (pinBindingConflict(record)) throw new HealthFailure("identity-mismatch");
+              const pin = requiredValue(pins[0] ?? declarations[0]);
+              const repo = await readGithubMetadata(pin.repository);
+              const release = await readGithubMetadata(
+                `${pin.repository}/releases/tags/${encodeURIComponent(pin.tag)}`,
+              );
+              if (
+                !isRecord(release) ||
+                typeof release.id !== "number" ||
+                !Number.isSafeInteger(release.id) ||
+                release.id <= 0
+              )
+                throw new HealthFailure("invalid-metadata");
+              if (
+                !isRecord(repo) ||
+                typeof repo.id !== "number" ||
+                !Number.isSafeInteger(repo.id) ||
+                repo.id <= 0
+              )
+                throw new HealthFailure("invalid-metadata");
+              result.observed_repository_id = repo.id;
+              result.baseline_repository_id ??= pins[0]?.repository_id ?? repo.id;
+              if (
+                result.baseline_repository_id !== repo.id ||
+                pins.some(
+                  (scope) => scope.repository_id !== repo.id || scope.release_id !== release.id,
+                )
+              )
+                throw new HealthFailure("identity-mismatch");
+              const assets = await readGithubMetadata(
+                `${pin.repository}/releases/${release.id}/assets?per_page=100`,
+              );
+              let facts;
+              for (const declaration of declarations)
+                facts = validateGithubDeclaredPinMetadata(repo, release, assets, declaration);
+              for (const scope of pins) {
+                facts = validateGithubPinMetadata(repo, release, assets, scope);
+                if (facts.asset.id !== scope.asset_id) throw new HealthFailure("identity-mismatch");
+              }
+              if (!facts) throw new HealthFailure("invalid-metadata");
+              const bound = pins.length === record.artifact_identities?.length;
+              result.pin_assessment = {
+                status: bound ? "provider-reported-pin-present" : "provider-reported-pin-observed",
+                identity_binding: bound ? "reviewed" : "unbound-observation",
+                repository_id: facts.repository.id,
+                release_id: facts.release.id,
+                asset_id: facts.asset.id,
+                asset_facts_sha256: observationHash(facts.asset),
+                provider_digest: facts.asset.digest,
+                destination_availability: "unknown",
+                accepted_bytes: "unverified",
+                accounting_scope_sha256: observationHash({ reviewed: pins, declarations }),
+              };
+            } catch (error) {
+              result.pin_assessment = {
+                status: "unknown",
+                reason:
+                  error instanceof HealthFailure ? error.reason : "invalid-or-changed-pin-metadata",
+              };
+              result.resume_condition =
+                "Reassess exact declared pin metadata; changed, unavailable, ambiguous or incomplete facts remain visible. Reviewed numeric identities are retained. No redirect destination or bytes were inspected.";
+            }
+          }
+          const archives = archiveRules(record);
+          if (plain && direct && response.status === 302 && archives.length) {
+            result.source_archive_assessment = { status: "unknown", reason: null };
+            try {
+              const archive = requiredValue(archives[0]);
+              const repo = await readGithubMetadata(archive.repository);
+              const commit = await readGithubMetadata(
+                `${archive.repository}/git/commits/${archive.commit_sha}`,
+              );
+              let facts;
+              for (const scope of archives)
+                facts = validateGithubSourceArchiveMetadata(repo, commit, scope);
+              if (!facts) throw new HealthFailure("invalid-metadata");
+              result.source_archive_assessment = {
+                status: "provider-reported-commit-present",
+                repository_id: facts.repository.id,
+                commit_sha: facts.commit.sha,
+                tree_sha: facts.commit.tree_sha,
+                commit_facts_sha256: observationHash(facts.commit),
+                destination_availability: "unknown",
+                accepted_bytes: "unverified",
+                accounting_scope_sha256: observationHash(archives),
+              };
+            } catch (error) {
+              result.source_archive_assessment = {
+                status: "unknown",
+                reason:
+                  error instanceof HealthFailure
+                    ? error.reason
+                    : "invalid-or-changed-commit-metadata",
+              };
+              result.resume_condition =
+                "Reassess the exact declared source commit metadata; missing, changed or incomplete facts remain unaccounted. Archive destination and accepted bytes remain unverified.";
+            }
+          }
+          if (result.reason === "rate-limit") {
+            result.retry_at = retryAt(response.headers, now());
+            deferred.set(budgetProvider, result.retry_at);
+          }
+          continue;
+        }
+        if (now() >= deadline) {
+          fail("budget");
+          continue;
+        }
+        if (plain) {
+          // HEAD never verifies accepted bytes. No download, execution or redirect
+          // authority follows from a reachable declared artifact location.
+          const length = response.headers.get("content-length");
+          result.observed_size =
+            length !== null && /^\d+$/u.test(length) && Number.isSafeInteger(Number(length))
+              ? Number(length)
+              : null;
+          if (
+            direct &&
+            (length === null ||
+              !/^\d+$/u.test(length) ||
+              requiredValue(record.artifact_identities).some(
+                (identity) => Number(length) !== identity.size,
+              ))
+          ) {
+            fail("invalid-metadata");
+            continue;
+          }
+          result.status = "reachable";
+          continue;
+        }
+        let facts;
+        try {
+          facts = reused
+            ? repositoryMetadata.get(requestUrl)
+            : await metadata(response, consumed, now, deadline);
+        } catch (error) {
+          fail(
+            error instanceof HealthFailure
+              ? error.reason
+              : signal.aborted
+                ? "timeout"
+                : "transport",
+          );
+          continue;
+        }
+        if (record.release_ref) {
+          const assets = isRecord(facts)
+            ? github
+              ? facts.assets
+              : isRecord(facts.assets)
+                ? facts.assets.links
+                : undefined
+            : undefined;
+          if (
+            !isRecord(facts) ||
+            facts.tag_name !== record.release_ref ||
+            !Array.isArray(assets) ||
+            assets.length >= 100 ||
+            (github &&
+              (typeof facts.id !== "number" || !Number.isSafeInteger(facts.id) || facts.id <= 0))
+          ) {
+            fail("invalid-metadata");
+            continue;
+          }
+          result.observed_release_id = github ? priorNumber(facts.id) : null;
+          result.observed_asset_digests = assets
+            .map((asset: unknown) => (isRecord(asset) ? asset.digest : undefined))
+            .filter(
+              (digest): digest is string =>
+                typeof digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(digest),
+            );
+          result.accepted_digest_match = result.observed_asset_digests.length
+            ? "provider-reported"
+            : "unknown; provider supplied no digest";
+          if (
+            !assets.length ||
+            (result.observed_asset_digests.length &&
+              requiredValue(record.historical_artifact_identities).some(
+                (identity) =>
+                  !requiredValue(result.observed_asset_digests).includes(
+                    `sha256:${identity.artifact_sha256}`,
+                  ),
+              ))
+          ) {
+            fail("release-identity-unavailable");
+            continue;
+          }
+          result.status = "reachable";
+          continue;
+        }
+        if (
+          !isRecord(facts) ||
+          typeof facts.id !== "number" ||
+          !Number.isSafeInteger(facts.id) ||
+          facts.id <= 0 ||
+          (typeof facts.archived !== "boolean" && (github || Object.hasOwn(facts, "archived"))) ||
+          typeof (github ? facts.full_name : facts.path_with_namespace) !== "string"
+        ) {
+          fail("invalid-metadata");
+          continue;
+        }
+        const observedName = github ? facts.full_name : facts.path_with_namespace;
+        if (typeof observedName !== "string") throw new HealthFailure("invalid-metadata");
+        const observed = github ? observedName.toLowerCase() : observedName;
+        if (observed !== (github ? record.repository.toLowerCase() : record.repository)) {
+          fail("identity-mismatch");
+          continue;
+        }
+        const reviewedIds = new Set([
+          ...reviewedAccounting.pins
+            .filter(
+              (pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase(),
+            )
+            .map((pin) => pin.repository_id),
+          ...(reviewedAccounting.source_archives ?? [])
+            .filter(
+              (pin) => github && pin.repository.toLowerCase() === record.repository.toLowerCase(),
+            )
+            .map((pin) => pin.repository_id),
+          ...(record.original_upstream_port_ids ?? []).flatMap((id) => {
+            const identity = lineage.get(id)?.current.repository;
+            return identity?.host === (github ? "github.com" : "gitlab.com")
+              ? [Number(identity.id)]
+              : [];
+          }),
+        ]);
+        if (reviewedIds.size > 1 || [...reviewedIds].some((id) => id !== facts.id)) {
+          result.observed_repository_id = facts.id;
+          fail("identity-mismatch");
+          continue;
+        }
+        result.baseline_repository_id ??= [...reviewedIds][0] ?? facts.id;
+        if (result.baseline_repository_id !== facts.id) {
+          result.observed_repository_id = facts.id;
+          fail("identity-mismatch");
+          continue;
+        }
+        result.status = "reachable";
+        result.archived = typeof facts.archived === "boolean" ? facts.archived : null;
+        result.observed_repository_id = facts.id;
+      } catch (error) {
+        fail(
+          error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
+        );
+      } finally {
+        await cancelBody(response);
+      }
+    } finally {
+      const completed = observations[observationStart];
+      if (completed) classify(completed);
+      if (completed && !completed.metadata_reused && (completed.attempted || collected(completed)))
+        await onObservation?.(structuredClone(completed), Object.fromEntries(deferred));
+    }
   }
-  const incompleteReasons = new Set([
-    "authentication",
-    "forbidden",
-    "rate-limit",
-    "provider-error",
-    "transport",
-    "timeout",
-    "invalid-metadata",
-    "budget",
-    "provider-status",
-    "invalid-or-changed-pin-metadata",
-    "invalid-or-changed-commit-metadata",
-  ]);
-  const collected = (record: HealthObservation) =>
-    !incompleteReasons.has(record.reason ?? "") &&
-    !incompleteReasons.has(record.pin_assessment?.reason ?? "") &&
-    !incompleteReasons.has(record.source_archive_assessment?.reason ?? "");
+  const reachable = observations.filter((record) => record.status === "reachable").length;
+
   const portHealth = selectedPorts.map((port) => {
     const locations = observations.filter((record) => record.port_ids.includes(port.id));
     const original = locations.filter((record) =>
@@ -2001,9 +2184,13 @@ export async function collectRepositoryHealth(
             material_sha256: material,
             observation_contract_sha256: record.observation_contract_sha256,
             notify: !priorValid || prior.material_sha256 !== material,
-            first_seen: priorValid ? priorFirstSeen : new Date(started).toISOString(),
+            first_seen: priorValid ? priorFirstSeen : record.observed_at,
             occurrences: priorValid
-              ? Math.min(requiredValue(priorOccurrences ?? undefined) + 1, Number.MAX_SAFE_INTEGER)
+              ? Math.min(
+                  requiredValue(priorOccurrences ?? undefined) +
+                    (reusedHistory.has(locationKey(record)) ? 0 : 1),
+                  Number.MAX_SAFE_INTEGER,
+                )
               : 1,
             accounted_for: record.accounted_for,
             classification: record.classification,
@@ -2016,7 +2203,9 @@ export async function collectRepositoryHealth(
             comparison_http_status: record.comparison_http_status,
             comparison_observed_at: record.comparison_observed_at,
             http_status: record.http_status,
-            observed_at: new Date(now()).toISOString(),
+            observed_at: reusedHistory.has(locationKey(record))
+              ? (priorText(prior?.observed_at) ?? record.observed_at)
+              : new Date(now()).toISOString(),
             retry_at: record.retry_at,
             resume_condition: record.resume_condition,
           };
@@ -2059,7 +2248,9 @@ export async function collectRepositoryHealth(
   return {
     format_version: 3,
     collection_status:
-      !overflow && observations.every(collected) ? ("complete" as const) : ("partial" as const),
+      (incremental || !overflow) && observations.every(collected)
+        ? ("complete" as const)
+        : ("partial" as const),
     authority:
       "read-only-location-observation; no lineage, artifact, hold or qualification authority",
     catalog_sha256: catalogHash,
@@ -2116,9 +2307,26 @@ export async function collectRepositoryHealth(
       "distribution-authority",
       "operation-holds",
     ],
+    ...(incremental
+      ? {
+          continuation: {
+            authority: "bounded-location-observation-window",
+            reused_location_keys: [...reusedHistory],
+            pending_location_keys: observations
+              .filter((record) => !collected(record))
+              .map(locationKey),
+            oldest_observation_at: observations.length
+              ? observations.map((record) => record.observed_at).toSorted()[0]
+              : null,
+            interval_semantics:
+              "Complete compatible locations reused within their original freshness window; no atomic global provider snapshot or refreshed observation clock",
+          },
+        }
+      : {}),
     request_plan: requestPlan,
     limits,
     consumed,
+    provider_backoff: Object.fromEntries(deferred),
     observations,
   };
 }

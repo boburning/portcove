@@ -2118,7 +2118,10 @@ never ownership or continuity evidence. The standalone `--previous-report=PATH`
 accepts bounded comparison evidence and writes no state or issue comments.
 
 The workflow coordinator persists validated main-only observation history and
-rotates batches within fixed ceilings of 320 requests and 512 observation records.
+automatically drains checkpointed operations of at most 320 requests and 512 new
+location assessments. Individually oversized collections continue by endpoint
+without starving smaller scopes; compatible completed facts retain their original
+24-hour clocks and do not consume another request or new-location slot.
 Its report distinguishes this run's assessed ports from retained observations,
 stale/unmonitored entries
 and recent partial attempts, with a 24-hour freshness window and the complete

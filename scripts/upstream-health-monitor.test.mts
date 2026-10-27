@@ -10,6 +10,7 @@ import { estimateHealthRequests, type HealthFetch } from "./check-catalog-reposi
 import { isRecord } from "./runtime-values.mts";
 import {
   advanceHealthMonitor,
+  drainHealthMonitor,
   healthFreshnessMs,
   observedHealthRepositoryIdentity,
   isTrustedHealthExecution,
@@ -892,4 +893,365 @@ void test("release observation reuses only equivalent fresh primary repository i
     () => observedHealthRepositoryIdentity(untrusted, "owner/port-1", epoch),
     /invalid identity/,
   );
+});
+
+function oversizedCatalog(count = 641) {
+  return {
+    ...catalog(2),
+    source_catalog: {
+      qualification: Array.from({ length: count }, (_, index) => ({
+        scope: {
+          port_id: "port-1",
+          upstream_ref: `release-${index}`,
+          artifact_sha256: "a".repeat(64),
+        },
+      })),
+    },
+  };
+}
+
+void test("an oversized single collection progresses beyond 320 requests and 512 records beside a smaller port", async () => {
+  const input = oversizedCatalog();
+  let calls = 0;
+  const settings = options({
+    fetch: async (...args) => {
+      calls += 1;
+      return response(404)(...args);
+    },
+  });
+  let result = await advanceHealthMonitor(input, null, settings);
+  assert.deepEqual(result.report.batch.selected_port_ids, ["port-1", "port-2"]);
+  assert.equal(result.report.collection.consumed.requests, 320);
+  assert.equal(result.report.collection.observations.length, 643);
+  assert.deepEqual(result.report.inventory.fresh_complete_port_ids, ["port-2"]);
+  assert.deepEqual(result.report.inventory.fresh_partial_port_ids, ["port-1"]);
+  const firstClock = result.checkpoint!.observations.find(
+    (record) => record.attempted,
+  )!.observed_at;
+  result = await advanceHealthMonitor(input, result.checkpoint, {
+    ...settings,
+    continueDueOnly: true,
+    now: () => epoch + 1000,
+  });
+  assert.equal(result.report.collection.consumed.requests, 320);
+  result = await advanceHealthMonitor(input, result.checkpoint, {
+    ...settings,
+    continueDueOnly: true,
+    now: () => epoch + 2000,
+  });
+  assert.equal(result.report.collection.consumed.requests, 3);
+  assert.deepEqual(result.report.inventory.fresh_complete_port_ids, ["port-1", "port-2"]);
+  assert.equal(calls, 643);
+  assert.equal(
+    result.checkpoint!.attempts.find((attempt) => attempt.port_id === "port-1")!
+      .freshness_observed_at,
+    firstClock,
+  );
+  assert.ok(
+    result.report.collection.observations.some(
+      (record) => record.metadata_reused && record.observed_at === firstClock,
+    ),
+  );
+  assert.ok(
+    result.report.collection.port_health[0]!.canonical_incidents.every(
+      (incident) => incident.occurrences === 1,
+    ),
+  );
+  assert.equal(result.report.collection.scope.global_health, "not assessed");
+});
+
+void test("per-location progress survives interruption, preserves source bindings, and never grants PR checkpoint authority", async () => {
+  const input = oversizedCatalog(12);
+  let saved: unknown = null;
+  let writes = 0;
+  let calls = 0;
+  await assert.rejects(
+    advanceHealthMonitor(
+      input,
+      null,
+      options({
+        fetch: async (...args) => {
+          calls += 1;
+          return response(404)(...args);
+        },
+        persistProgress: async (value) => {
+          saved = structuredClone(value);
+          if (++writes === 5) throw new Error("fixture interrupted after durable record");
+        },
+      }),
+    ),
+    /fixture interrupted/,
+  );
+  assert.equal(calls, 5);
+  let resumedCalls = 0;
+  const resumed = await advanceHealthMonitor(
+    input,
+    saved,
+    options({
+      now: () => epoch + 1000,
+      fetch: async (...args) => {
+        resumedCalls += 1;
+        return response(404)(...args);
+      },
+    }),
+  );
+  assert.equal(resumedCalls, 9);
+  assert.equal(resumed.report.collection.collection_status, "complete");
+  const changed = structuredClone(input);
+  changed.ports[0]!.project_url = "https://github.com/owner/replaced";
+  let changedCalls = 0;
+  await advanceHealthMonitor(
+    changed,
+    saved,
+    options({
+      now: () => epoch + 1000,
+      fetch: async (...args) => {
+        changedCalls += 1;
+        return response(404)(...args);
+      },
+    }),
+  );
+  assert.equal(changedCalls, 13);
+  const corrupt = structuredClone(saved) as {
+    continuation: { observations: { observed_at: string }[] };
+  };
+  corrupt.continuation.observations[0]!.observed_at = new Date(epoch + 100000).toISOString();
+  await assert.rejects(advanceHealthMonitor(input, corrupt, options()), /continuation/);
+  let prWrites = 0;
+  const pr = await advanceHealthMonitor(
+    input,
+    null,
+    options({
+      execution: { ...mainExecution, event: "pull_request", ref: "refs/pull/1/merge" },
+      persistProgress: async () => {
+        prWrites += 1;
+      },
+    }),
+  );
+  assert.equal(prWrites, 0);
+  assert.equal(pr.checkpoint, null);
+});
+
+void test("automatic draining finishes logical oversized work without specification splitting or failed-read retry loops", async () => {
+  let calls = 0;
+  const input = oversizedCatalog();
+  const result = await drainHealthMonitor(input, null, {
+    ...options({
+      fetch: async (...args) => {
+        calls += 1;
+        return response(404)(...args);
+      },
+    }),
+    sessionDeadline: epoch + 120000,
+  });
+  assert.equal(calls, 643);
+  assert.equal(result.report.session!.batches.length, 3);
+  assert.deepEqual(
+    result.report.session!.batches.map((batch) => batch.requests),
+    [320, 320, 3],
+  );
+  assert.equal(result.report.inventory.fresh_complete_port_ids.length, 2);
+  assert.equal(result.exitCode, 0);
+  let failures = 0;
+  const failed = await drainHealthMonitor(input, null, {
+    ...options({
+      fetch: async (...args) => {
+        failures += 1;
+        return response(503)(...args);
+      },
+    }),
+    sessionDeadline: epoch + 120000,
+  });
+  assert.equal(failures, 643);
+  assert.equal(failed.exitCode, 1);
+  assert.equal(failed.report.session!.batches.length, 3);
+  assert.ok(failed.report.known_conditions.some((record) => record.rule === "provider-error"));
+});
+
+void test("zero-request oversized history continues automatically with original failure clocks", async () => {
+  const input = oversizedCatalog(1100);
+  delete input.ports[0]!.project_url;
+  let calls = 0;
+  const result = await drainHealthMonitor(input, null, {
+    ...options({
+      fetch: async (...args) => {
+        calls += 1;
+        return response()(...args);
+      },
+    }),
+    sessionDeadline: epoch + 120000,
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.report.session!.batches.length, 3);
+  assert.equal(result.report.inventory.fresh_complete_port_ids.length, 2);
+  assert.equal(result.checkpoint!.observations.length, 1101);
+  assert.equal(result.report.collection.outcome, "incomplete");
+});
+
+void test("quota reset, cancellation and policy identity remain binding during endpoint continuation", async () => {
+  let calls = 0;
+  const limited = await advanceHealthMonitor(
+    catalog(2),
+    null,
+    options({
+      fetch: async () => {
+        calls += 1;
+        return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+      },
+    }),
+  );
+  assert.equal(calls, 1);
+  const waiting = await advanceHealthMonitor(
+    catalog(2),
+    limited.checkpoint,
+    options({
+      now: () => epoch + 1000,
+      fetch: async () => {
+        throw new Error("must wait for provider reset");
+      },
+    }),
+  );
+  assert.equal(waiting.report.collection.consumed.requests, 0);
+  const reset = await advanceHealthMonitor(
+    catalog(2),
+    waiting.checkpoint,
+    options({ now: () => epoch + 121000 }),
+  );
+  assert.equal(reset.report.collection.consumed.requests, 2);
+  const controller = new AbortController();
+  let saved: unknown;
+  await assert.rejects(
+    advanceHealthMonitor(
+      oversizedCatalog(12),
+      null,
+      options({
+        abortSignal: controller.signal,
+        persistProgress: async (value) => {
+          saved = structuredClone(value);
+          controller.abort(new Error("fixture cancellation"));
+        },
+        fetch: response(404),
+      }),
+    ),
+    /fixture cancellation/,
+  );
+  const resumed = await advanceHealthMonitor(
+    oversizedCatalog(12),
+    saved,
+    options({ now: () => epoch + 1000, fetch: response(404) }),
+  );
+  assert.equal(resumed.report.collection.consumed.requests, 13);
+  const changed = await advanceHealthMonitor(
+    oversizedCatalog(12),
+    saved,
+    options({ now: () => epoch + 1000, policySha256: "c".repeat(64), fetch: response(404) }),
+  );
+  assert.equal(changed.report.collection.consumed.requests, 14);
+});
+
+void test("actual provider headers preserve a rate-limit reserve without rejecting the accepted response", async () => {
+  let calls = 0;
+  const result = await advanceHealthMonitor(
+    catalog(3),
+    null,
+    options({
+      fetch: async (url) => {
+        calls += 1;
+        return new Response(
+          JSON.stringify({
+            id: 1,
+            full_name: url.replace("https://api.github.com/repos/", ""),
+            archived: false,
+          }),
+          {
+            headers: {
+              "content-type": "application/json",
+              "x-ratelimit-limit": "5000",
+              "x-ratelimit-remaining": "250",
+              "x-ratelimit-reset": String((epoch + 3600000) / 1000),
+            },
+          },
+        );
+      },
+    }),
+  );
+  assert.equal(calls, 1);
+  assert.equal(
+    result.report.collection.observations.filter((record) => record.status === "reachable").length,
+    1,
+  );
+  assert.equal(
+    result.report.collection.observations.filter((record) => record.reason === "rate-limit").length,
+    2,
+  );
+  assert.ok(
+    result.report.collection.observations
+      .filter((record) => record.reason === "rate-limit")
+      .every((record) => record.retry_at === new Date(epoch + 3600000).toISOString()),
+  );
+});
+
+void test("provider-wide reserve survives batch boundaries and restart without blocking unrelated providers", async () => {
+  const input = catalog(322);
+  for (const [index, port] of input.ports.entries())
+    port.id = index === 321 ? "z-small" : `g-${String(index).padStart(4, "0")}`;
+  input.ports[321]!.project_url = "https://gitlab.com/other/small";
+  let githubCalls = 0;
+  let gitlabCalls = 0;
+  const resetAt = epoch + 3600000;
+  const fetch: HealthFetch = async (url) => {
+    if (url.startsWith("https://gitlab.com")) {
+      gitlabCalls += 1;
+      return new Response(
+        JSON.stringify({ id: 2, path_with_namespace: "other/small", archived: false }),
+        { headers: { "content-type": "application/json" } },
+      );
+    }
+    githubCalls += 1;
+    return new Response(
+      JSON.stringify({
+        id: 1,
+        full_name: url.replace("https://api.github.com/repos/", ""),
+        archived: false,
+      }),
+      {
+        headers:
+          githubCalls === 320
+            ? {
+                "content-type": "application/json",
+                "x-ratelimit-limit": "5000",
+                "x-ratelimit-remaining": "250",
+                "x-ratelimit-reset": String(resetAt / 1000),
+              }
+            : { "content-type": "application/json" },
+      },
+    );
+  };
+  const result = await drainHealthMonitor(input, null, {
+    ...options({ fetch }),
+    sessionDeadline: epoch + 120000,
+  });
+  assert.equal(githubCalls, 320);
+  assert.equal(gitlabCalls, 1);
+  assert.equal(result.report.inventory.fresh_complete_port_ids.length, 321);
+  assert.equal(result.checkpoint!.provider_backoff!.github, new Date(resetAt).toISOString());
+  const beforeReset = await advanceHealthMonitor(
+    input,
+    result.checkpoint,
+    options({ fetch, now: () => epoch + 1000, continueDueOnly: true }),
+  );
+  assert.equal(githubCalls, 320);
+  assert.equal(beforeReset.report.collection.consumed.requests, 0);
+  const reset = await advanceHealthMonitor(
+    input,
+    beforeReset.checkpoint,
+    options({ fetch, now: () => resetAt + 1, continueDueOnly: true }),
+  );
+  assert.equal(githubCalls, 321);
+  assert.equal(reset.report.inventory.fresh_complete_port_ids.length, 322);
+  const invalid = {
+    ...result.checkpoint,
+    provider_backoff: { "https://bad.example/path": "invalid" },
+  };
+  await assert.rejects(advanceHealthMonitor(input, invalid, options()), /provider backoff/);
 });
