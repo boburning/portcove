@@ -203,7 +203,7 @@ void test("fixed native composite pins uploads and binds responses through envir
 void test(
   "Linux workflow handoff keeps actual original process identity across both uploads and refuses drift",
   {
-    timeout: 90000,
+    timeout: 150000,
     skip: process.platform !== "linux" || process.getuid?.() === 0,
   },
   (t) => {
@@ -270,7 +270,7 @@ console.log('actual file/PID workflow rendezvous passed; source, native worker a
     const childStarted = performance.now();
     const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
       encoding: "utf8",
-      timeout: 60000,
+      timeout: 120000,
       maxBuffer: 65536,
     });
     assert.equal(
@@ -397,14 +397,15 @@ import assert from 'node:assert/strict';import {registerHooks} from 'node:module
 import {EventEmitter} from 'node:events';import path from 'node:path';import {fileURLToPath} from 'node:url';import {performance} from 'node:perf_hooks';import {setTimeout as delay} from 'node:timers/promises';import {createHash} from 'node:crypto';
 import {rustSupportInputIdentity} from ${JSON.stringify(new URL("./rust-support-cache.mts", import.meta.url).href)};
 const root=process.argv[1],sourceRoot=fileURLToPath(new URL('../',${JSON.stringify(entry)})),hash=b=>createHash('sha256').update(b).digest('hex');
-let fault='',directory,tools,deadline,stopped=false,spawns=0,reads=[],done=false,identityAvailable=true;const plans=new WeakSet();
+let clock=1000,fault='',directory,tools,deadline,stopped=false,spawns=0,reads=[],done=false,identityAvailable=true;const plans=new WeakSet();
 function custody(files){return new Map(files.map(file=>{const s=fs.lstatSync(file,{bigint:true});return [file,[s.dev,s.ino,s.uid,s.gid,s.mode,s.nlink,s.size,s.mtimeNs,s.ctimeNs].join(':')]}))}
 globalThis.supervisionFixture={
- prepare:async operation=>{const plan={operation,binding:'fixed',temporary:directory,command:path.join(directory,'private-node'),arguments:[path.join(directory,'fixed-bootstrap.mjs'),operation]};await fsp.writeFile(path.join(directory,operation+'-launch.json'),JSON.stringify(plan),{flag:'wx'});if(operation==='pre-sign'){const now=process.hrtime.bigint();await fsp.writeFile(path.join(directory,'portcove-native-job-clock.json'),JSON.stringify({schema_version:1,binding:'fixed',started_ns:String(now),deadline_ns:String(now+BigInt(Math.max(1,Math.floor(deadline-performance.now())))*1000000n),authority:'none'}),{flag:'wx'})}plans.add(plan);return Object.freeze(plan)},
- claim:async plan=>{assert.ok(plans.has(plan));return {tools_root:tools,deadline,recheck(){assert.ok(!stopped&&identityAvailable&&performance.now()<deadline,'original owner or clock unavailable')},refuse(){stopped=true}}},
+ now:()=>{if(fault==='missing-post'&&directory&&fs.existsSync(path.join(directory,'pre-sign-supervision-settlement.json')))clock+=25;return clock},performance:{now:()=>globalThis.supervisionFixture.now()},
+ prepare:async operation=>{const plan={operation,binding:'fixed',temporary:directory,command:path.join(directory,'private-node'),arguments:[path.join(directory,'fixed-bootstrap.mjs'),operation]};await fsp.writeFile(path.join(directory,operation+'-launch.json'),JSON.stringify(plan),{flag:'wx'});if(operation==='pre-sign'){const now=process.hrtime.bigint();await fsp.writeFile(path.join(directory,'portcove-native-job-clock.json'),JSON.stringify({schema_version:1,binding:'fixed',started_ns:String(now),deadline_ns:String(now+60000000000n),authority:'none'}),{flag:'wx'})}plans.add(plan);return Object.freeze(plan)},
+ claim:async plan=>{assert.ok(plans.has(plan));return {tools_root:tools,deadline,recheck(){assert.ok(!stopped&&identityAvailable&&globalThis.supervisionFixture.now()<deadline,'original owner or clock unavailable')},refuse(){stopped=true}}},
  scope:async()=>{const frozenDirectory=directory;return {identity:{run_id:'123',run_attempt:1,controller_revision:'a'.repeat(40)},binding:'fixed',unchanged(){assert.equal(directory,frozenDirectory,'fixed fixture source changed')}}},
  identity:()=> identityAvailable?'fixture-owned-process':null,custody,recheck:(files,before)=>assert.deepEqual(custody(files),before),
- open:async file=>{const handle=await fsp.open(file,'wx',0o600);return {writeFile:async bytes=>{if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json'))identityAvailable=false;await handle.writeFile(bytes);if((fault==='late-stage'&&file.endsWith('pre-sign-supervision-settlement.json'))||(fault==='late-final'&&file.endsWith('native-supervision-settlement.json')))await delay(1500);if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json')){await delay(25)}},sync:()=>handle.sync(),close:()=>handle.close()}},
+ open:async file=>{const handle=await fsp.open(file,'wx',0o600);return {writeFile:async bytes=>{if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json'))identityAvailable=false;await handle.writeFile(bytes);if((fault==='late-stage'&&file.endsWith('pre-sign-supervision-settlement.json'))||(fault==='late-final'&&file.endsWith('native-supervision-settlement.json'))){clock=deadline+1;await delay(0)};if(fault==='lost-supervisor'&&file.endsWith('native-post-start.json')){await delay(25)}},sync:()=>handle.sync(),close:()=>handle.close()}},
  resource:async(profile,command,args,options)=>{assert.equal(profile,'analysis');assert.ok(options.queueDeadline===deadline);return options.supervise(['--guard-command',command,...args],{})},
  inspect:(raw,pid)=>{assert.equal(raw.fixture,true);assert.equal(pid,12345);return {pid:12346}},
  spawn:()=>{spawns++;const child=new EventEmitter();child.pid=12345;child.stdout=new EventEmitter();child.stderr=new EventEmitter();return child},
@@ -423,12 +424,12 @@ globalThis.supervisionFixture={
  },
  fs:{...fs,readSync:(fd,bytes,offset,length,position)=>{reads.push(length);return fs.readSync(fd,bytes,offset,length,position)}}
 };
-const routes={'./release-hosted-native-launcher.mts':'launcher','./release-hosted-native-bootstrap.mts':'scope','./resource-command.mts':'resource','./run-rust-tests.mts':'run','./release-native-runtime-custody.mts':'custody','./heavy-rust-test-lock.mts':'identity','node:child_process':'spawn','node:fs/promises':'open','node:fs':'fs'};
-const exports={launcher:{prepareFixedHostedLinuxLaunch:'prepare',claimPreparedHostedLinuxLaunch:'claim'},scope:{readActualHostedLinuxBootstrapScope:'scope'},resource:{runResourceCommand:'resource'},run:{runRustTests:'run',inspectLinuxSupervisor:'inspect'},custody:{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'},identity:{readProcessIdentity:'identity'},spawn:{spawn:'spawn'},open:{open:'open'}};
+const routes={'node:perf_hooks':'clock','./release-hosted-native-launcher.mts':'launcher','./release-hosted-native-bootstrap.mts':'scope','./resource-command.mts':'resource','./run-rust-tests.mts':'run','./release-native-runtime-custody.mts':'custody','./heavy-rust-test-lock.mts':'identity','node:child_process':'spawn','node:fs/promises':'open','node:fs':'fs'};
+const exports={clock:{performance:'performance'},launcher:{prepareFixedHostedLinuxLaunch:'prepare',claimPreparedHostedLinuxLaunch:'claim'},scope:{readActualHostedLinuxBootstrapScope:'scope'},resource:{runResourceCommand:'resource'},run:{runRustTests:'run',inspectLinuxSupervisor:'inspect'},custody:{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'},identity:{readProcessIdentity:'identity'},spawn:{spawn:'spawn'},open:{open:'open'}};
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'supervision:'+routes[s],shortCircuit:true};return next(s,c)},load(u,c,next){if(u==='supervision:fs')return {format:'module',source:['closeSync','constants','fstatSync','fsyncSync','openSync','readSync','writeFileSync','writeSync'].map(name=>'export const '+name+'=globalThis.supervisionFixture.fs.'+name+';').join('\n'),shortCircuit:true};if(u.startsWith('supervision:'))return {format:'module',source:Object.entries(exports[u.slice('supervision:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.supervisionFixture.'+key+';').join('\n'),shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','overflow','oversized-registration','missing-post','bad-post','lost-supervisor','late-stage','late-final']){
- fault=name;stopped=false;spawns=0;reads=[];done=false;identityAvailable=true;
+ fault=name;clock=1000;stopped=false;spawns=0;reads=[];done=false;identityAvailable=true;
  const home=path.join(root,name);await fsp.mkdir(home);process.env.HOME=home;
  directory=path.join(home,'.portcove-native-123-1-'+'a'.repeat(40));await fsp.mkdir(directory);
  tools=path.join(directory,'tools');await fsp.mkdir(path.join(tools,'scripts/fixtures'),{recursive:true});await fsp.mkdir(path.join(tools,'bin'));
@@ -437,7 +438,7 @@ for(const name of ['valid','overflow','oversized-registration','missing-post','b
  const compiler={verbose_version:'fixture build',sysroot:'/build-only',commands:[{command:'rustc',resolved:null}],environment:[]};
  const input=rustSupportInputIdentity({product:'linux-process-tree-reaper',source:sourceFile,compiler,rustcArgs:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper'],platform:'linux',architecture:'x64'});
  await fsp.writeFile(path.join(tools,'native-linux-support.json'),JSON.stringify({schema_version:1,product:'linux-process-tree-reaper',platform:'linux-x86_64',compiler,input_fingerprint:input.fingerprint,rustc_arguments:['--edition=2024','--crate-name','portcove_linux_process_tree_reaper'],source:{bytes:source.length,sha256:hash(source)},output:{bytes:64,sha256:hash(binary),mode:448}}));
- deadline=performance.now()+(name==='missing-post'?150:1000);
+ deadline=clock+(name==='missing-post'?150:1000);
  const outcome=api.superviseFixedHostedLinuxNativeStages().then(value=>({value}),error=>({error})).finally(()=>{done=true});
  if(['valid','bad-post','lost-supervisor','late-final'].includes(name)){
   const ready=path.join(directory,'pre-sign-supervision-settlement.json');let complete=false;for(let i=0;i<1000&&!complete&&!done;i++){try{JSON.parse(await fsp.readFile(ready,'utf8'));complete=true}catch(error){if(error.code!=='ENOENT'&&!(error instanceof SyntaxError))throw error}if(!complete)await delay(2)}

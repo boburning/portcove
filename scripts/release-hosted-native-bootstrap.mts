@@ -310,8 +310,8 @@ async function materializeBootstrapRunner(
   return { receipt, tools, entry, custodyFiles, custody };
 }
 
-/** Original hosted Windows source/runtime preparation only. No account,
- * candidate, capture, signature, upload or successful native settlement. */
+/** Original hosted Windows preparation only. No account, candidate execution,
+ * capture, signature, upload or successful native settlement. */
 export async function prepareFixedHostedWindowsNativeRuntime() {
   return prepareFixedHostedWindows("prepareConfiguredHostedWindowsRuntime");
 }
@@ -322,8 +322,20 @@ export async function prepareFixedHostedWindowsNativeSource() {
   return prepared;
 }
 
+export async function prepareFixedHostedWindowsNativeInstallation() {
+  const prepared = await prepareFixedHostedWindows("prepareConfiguredHostedWindowsInstallation");
+  assert.ok(
+    prepared.source && prepared.dependencies && prepared.installation,
+    "original Windows installation receipts absent",
+  );
+  return prepared;
+}
+
 async function prepareFixedHostedWindows(
-  operation: "prepareConfiguredHostedWindowsRuntime" | "prepareConfiguredHostedWindowsSource",
+  operation:
+    | "prepareConfiguredHostedWindowsRuntime"
+    | "prepareConfiguredHostedWindowsSource"
+    | "prepareConfiguredHostedWindowsInstallation",
 ) {
   const scope = await readActualHostedWindowsBootstrapScope("pre-sign");
   const providerDeadline = currentNativeJobDeadline(
@@ -386,6 +398,8 @@ async function prepareFixedHostedWindows(
       parent: object;
       runtime: object;
       source?: object;
+      dependencies?: object;
+      installation?: object;
     }>
   >;
   active();
@@ -409,7 +423,7 @@ async function prepareFixedHostedWindows(
       performance.now() < prepared.deadline,
     "original Windows issuer/runtime preparation expired",
   );
-  if (operation === "prepareConfiguredHostedWindowsSource")
+  if (operation !== "prepareConfiguredHostedWindowsRuntime")
     assert.ok(
       performance.now() < prepared.deadline - 210000,
       "Windows source must preserve capture/recovery reserve",
