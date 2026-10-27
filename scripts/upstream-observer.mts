@@ -104,6 +104,10 @@ export interface ObserveOptions {
   onCheckpoint?: (continuation: ObservationContinuation) => void | Promise<void>;
   signal?: AbortSignal;
   selectAssetReleases?: (headers: ProviderObservation) => Promise<readonly number[]>;
+  /** Additional invocation-wide admission; cannot relax configured operation bounds. */
+  admitRequest?: () => void;
+  observeResponse?: (response: Response) => void;
+  consumeResponseBytes?: (bytes: number | null) => void;
   fetch?: ObserverFetch;
   now?: () => number;
   sleep?: (milliseconds: number) => Promise<unknown>;
@@ -844,6 +848,7 @@ export async function observeUpstream(
       };
       if (options.token) headers.Authorization = `Bearer ${options.token}`;
       if (previous?.etag) headers["If-None-Match"] = previous.etag;
+      options.admitRequest?.();
       consumed.requests++;
       let response;
       try {
@@ -868,6 +873,7 @@ export async function observeUpstream(
         await sleep(250 * 2 ** attempt);
         continue;
       }
+      options.observeResponse?.(response);
       if (
         response.status === 429 ||
         (response.status === 403 &&
@@ -932,6 +938,7 @@ export async function observeUpstream(
         );
         bytes += bytesChunk.length;
         consumed.response_bytes += bytesChunk.length;
+        options.consumeResponseBytes?.(bytesChunk.length);
         requireFact(
           bytes <= config.budget.response_bytes &&
             consumed.response_bytes <= config.budget.total_bytes,

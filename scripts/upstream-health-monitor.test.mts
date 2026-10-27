@@ -11,6 +11,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   advanceHealthMonitor,
   healthFreshnessMs,
+  observedHealthRepositoryIdentity,
   isTrustedHealthExecution,
   type HealthExecution,
 } from "./upstream-health-monitor.mts";
@@ -857,5 +858,38 @@ void test("physical byte envelopes replace catalog and historical cardinality ce
   await assert.rejects(
     advanceHealthMonitor(catalog(), { ...history, extra: "x".repeat(16 * 1024 * 1024) }, options()),
     /resource bounds/,
+  );
+});
+
+void test("release observation reuses only equivalent fresh primary repository identity", async () => {
+  const result = await advanceHealthMonitor(catalog(), null, options());
+  assert.equal(observedHealthRepositoryIdentity(result.checkpoint, "owner/port-1", epoch), 1);
+  assert.equal(observedHealthRepositoryIdentity(result.checkpoint, "owner/other", epoch), null);
+  assert.equal(
+    observedHealthRepositoryIdentity(
+      result.checkpoint,
+      "owner/port-1",
+      epoch + healthFreshnessMs + 1,
+    ),
+    null,
+  );
+  const refreshedEnvelope = structuredClone(result.checkpoint!);
+  refreshedEnvelope.updated_at = new Date(epoch + healthFreshnessMs + 1).toISOString();
+  assert.equal(
+    observedHealthRepositoryIdentity(
+      refreshedEnvelope,
+      "owner/port-1",
+      epoch + healthFreshnessMs + 1,
+    ),
+    null,
+  );
+  const unknown = structuredClone(result.checkpoint!);
+  unknown.observations[0]!.status = "unknown";
+  assert.equal(observedHealthRepositoryIdentity(unknown, "owner/port-1", epoch), null);
+  const untrusted = structuredClone(result.checkpoint!);
+  untrusted.execution.ref = "refs/heads/foreign";
+  assert.throws(
+    () => observedHealthRepositoryIdentity(untrusted, "owner/port-1", epoch),
+    /invalid identity/,
   );
 });
