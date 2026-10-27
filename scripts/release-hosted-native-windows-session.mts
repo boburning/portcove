@@ -1568,6 +1568,7 @@ export async function finishActualHostedWindowsSession(receipt: object) {
     state.stopped = true;
     return Object.freeze({
       directory: state.root,
+      deadline: state.deadline,
       scope: "original credential disposal and account settlement; no new native acceptance",
       authority: "none",
     });

@@ -157,10 +157,11 @@ void test("actual final settlement refuses late role or custody changes after in
         recovered++;
         state.stopped = true;
       },
-    }) as (receipt: object) => Promise<{ authority: string }>;
+    }) as (receipt: object) => Promise<{ authority: string; deadline: number }>;
     if (scenario === "success") {
       const value = await finish(receipt);
       assert.equal(value.authority, "none");
+      assert.equal(value.deadline, state.deadline);
       assert.equal(readbacks, 1);
       assert.equal(recovered, 0);
     } else {

@@ -618,7 +618,10 @@ export async function runConfiguredHostedWindowsNativeJob(
     const post = await prepareActualHostedWindowsPostSignStage(session);
     const postRoot = (await requireActualHostedWindowsStage(post)).directory;
     await runActualHostedWindowsStageUpload(postRoot, prepared.deadline, post);
-    return await finishActualHostedWindowsSession(session);
+    const settlement = await finishActualHostedWindowsSession(session);
+    const terminalDeadline = Math.min(prepared.deadline, settlement.deadline);
+    assert.ok(performance.now() < terminalDeadline);
+    return Object.freeze({ ...settlement, deadline: terminalDeadline });
   } catch (error) {
     await refuseActualHostedWindowsSession(session, error);
     throw error;
