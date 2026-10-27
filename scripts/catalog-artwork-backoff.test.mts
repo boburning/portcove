@@ -345,3 +345,93 @@ for (const retryAfter of [
     assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
   });
 }
+
+void test("bounded provider operations resume after the actual quota reset without reauthentication", async (context) => {
+  const fixture = await capturedMetadataBackoff(context, { retryAfter: "3600" });
+  assert.equal(
+    fixture.inspector.batchStatus().metadata_retry_at,
+    new Date(providerClockStart + 3600000).toISOString(),
+  );
+  fixture.inspector.beginBatch();
+  await assert.rejects(fixture.request(102), /batch deadline/);
+  assert.equal(fixture.calls.length, 1);
+  context.mock.timers.tick(3600000);
+  fixture.inspector.beginBatch();
+  await fixture.request(102);
+  assert.equal(fixture.calls.length, 2);
+  assert.equal(fixture.inspector.providerMetrics.authentication_requests, 1);
+});
+
+void test("explicit cancellation refuses provider operations before transport admission", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const control = new AbortController();
+  control.abort();
+  const inspector = createIgdbInspector(
+    null,
+    () => assert.fail("cancelled operation cannot decode"),
+    async () => assert.fail("cancelled operation cannot send"),
+    { signal: control.signal },
+  );
+  await assert.rejects(inspector.inspectImage("cancelled"), { name: "AbortError" });
+  assert.equal(inspector.providerMetrics.image_requests, 0);
+});
+
+void test("valid metadata crossing residual operation bytes automatically completes in a fresh batch", async (context) => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-metadata-byte-continuation-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(privateFile, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+  context.mock.timers.enable({ apis: ["Date"], now: providerClockStart });
+  const queries = new Map<number, number>();
+  const inspector = createIgdbInspector(
+    privateFile,
+    () => ({ width: 264, height: 374, format: "jpeg", validator: "portcove-core" }),
+    async (url, options) => {
+      if (url === "https://id.twitch.tv/oauth2/token")
+        return Response.json({ access_token: "fixture" });
+      if (url.startsWith("https://images.igdb.com/"))
+        return new Response("fixture image", { headers: { "content-type": "image/jpeg" } });
+      assert.equal(url, "https://api.igdb.com/v4/games");
+      const index = Number(text(options.body).match(/Scale ([0-9]+)/u)![1]);
+      queries.set(index, (queries.get(index) ?? 0) + 1);
+      context.mock.timers.tick(300);
+      const body = JSON.stringify([
+        {
+          id: index + 1,
+          name: `Scale ${index}`,
+          slug: `scale-${index}`,
+          websites: [{ url: `https://example.org/scale-${index}` }],
+          cover: { id: index + 1, image_id: `scale${index}` },
+        },
+      ]).padEnd(index === 31 ? 512 * 1024 : 1024 * 1024, " ");
+      return new Response(body, { headers: { "content-length": String(body.length) } });
+    },
+  );
+  try {
+    const catalog = {
+      ports: Array.from({ length: 34 }, (_, index) => ({
+        id: `scale-${index}`,
+        name: `Scale ${index}`,
+        project_url: `https://example.org/scale-${index}`,
+      })),
+    };
+    const result = await prepareArtworkWorkset(catalog, {
+      root: scratch,
+      inspector,
+      identities: {},
+      validatorIdentity: null,
+      selectedPortIds: catalog.ports.map((port) => port.id),
+    });
+    assert.equal(result.continuation.complete, true);
+    assert.equal(result.continuation.batches, 2);
+    assert.ok([...queries].filter(([index]) => index < 32).every(([, calls]) => calls === 1));
+    assert.equal(queries.get(32), 2);
+    assert.equal(queries.get(33), 2);
+    assert.equal(inspector.providerMetrics.authentication_requests, 1);
+    assert.ok(inspector.providerMetrics.metadata_bytes > 32 * 1024 * 1024);
+  } finally {
+    const { rmSync } = await import("node:fs");
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
