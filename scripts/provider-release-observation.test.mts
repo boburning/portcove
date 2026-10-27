@@ -46,7 +46,14 @@ function fixture(pages = 9) {
       let body: unknown;
       const page = Number(url.searchParams.get("page") ?? 1);
       if (url.pathname.endsWith("releases"))
-        body = [{ tag_name: `v${changed ? 999 : page}`, assets: { links: [] } }];
+        body = [
+          {
+            tag_name: `v${changed ? 999 + page : page}`,
+            upcoming_release: false,
+            released_at: "2026-10-26T00:00:00Z",
+            assets: { links: [] },
+          },
+        ];
       else if (url.pathname.endsWith("packages"))
         body = [{ id: 101, version: "v1", name: "example" }];
       else if (url.pathname.endsWith("package_files"))
@@ -256,3 +263,42 @@ void test("numeric GitLab project identity binds before release collection and r
   );
   assert.equal(h.calls.length, before);
 });
+
+for (const malformed of ["project", "list", "file"] as const) {
+  void test(`a malformed ${malformed} response is never accepted and a corrected provider resumes automatically`, async () => {
+    const h = fixture(1);
+    let broken = true;
+    const fetcher = h.options.fetch;
+    const options = {
+      ...h.options,
+      maximumRequests: 20,
+      fetch: (async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        const matching =
+          malformed === "project"
+            ? !url.search && !url.pathname.endsWith("package_files")
+            : malformed === "list"
+              ? url.pathname.endsWith("releases")
+              : url.pathname.endsWith("package_files");
+        if (broken && matching)
+          return new Response(
+            JSON.stringify(
+              malformed === "project"
+                ? { id: 7, path_with_namespace: "foreign/project", archived: false }
+                : malformed === "list"
+                  ? {}
+                  : [{ id: 301, file_name: "bad.zip", size: 100, file_sha256: "invalid" }],
+            ),
+          );
+        return fetcher(input, init);
+      }) as typeof fetch,
+    };
+    await assert.rejects(observeProviderSource(h.source, undefined, options));
+    const accepted = h.prior()?.reads.length ?? 0;
+    assert.equal(accepted, malformed === "project" ? 0 : malformed === "list" ? 1 : 3);
+    broken = false;
+    const result = await observeProviderSource(h.source, h.prior(), options);
+    assert.equal(result.observations.length, 1);
+    assert.equal(result.state.reads.length, 4);
+  });
+}

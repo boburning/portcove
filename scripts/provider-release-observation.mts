@@ -249,7 +249,11 @@ export async function observeProviderSource(
       sha256: readHash(value),
     };
   };
-  const read = async (url: string, method: "GET" | "HEAD" = "GET") => {
+  const read = async (
+    url: string,
+    method: "GET" | "HEAD" = "GET",
+    validate: (read: Read) => void | Promise<void> = () => {},
+  ) => {
     let saved = state.reads[cursor++];
     if (saved && (saved.url !== url || saved.method !== method))
       throw new ObservationFailure(
@@ -258,27 +262,82 @@ export async function observeProviderSource(
       );
     if (!saved) {
       saved = await request(url, method);
+      await validate(saved);
       state.reads.push(saved);
       await persist();
-    }
+    } else await validate(saved);
     return saved;
   };
-  const list = async (base: string) => {
+  const list = async (base: string, kind: "release" | "package" | "file") => {
     const rows: unknown[] = [];
     for (let page = 1; ; page++) {
       const url = new URL(base);
       url.searchParams.set("per_page", "100");
       url.searchParams.set("page", String(page));
-      const result = await read(url.href);
-      if (
-        !Array.isArray(result.body) ||
-        result.body.length > 100 ||
-        (result.next && result.next !== String(page + 1))
-      )
-        throw new ObservationFailure(
-          "provider-pagination",
-          "GitLab page coverage or cursor is invalid",
+      const result = await read(url.href, "GET", (result) => {
+        if (
+          !Array.isArray(result.body) ||
+          result.body.length > 100 ||
+          (result.next && result.next !== String(page + 1))
+        )
+          throw new ObservationFailure(
+            "provider-pagination",
+            "GitLab page coverage or cursor is invalid",
+          );
+        const identities = new Set(
+          rows.map((row) =>
+            isRecord(row) ? String(kind === "release" ? row.tag_name : row.id) : "",
+          ),
         );
+        for (const raw of result.body as unknown[]) {
+          if (!isRecord(raw))
+            throw new ObservationFailure("provider-metadata", "GitLab row is not an object");
+          const identity = kind === "release" ? raw.tag_name : raw.id;
+          if (
+            kind === "release"
+              ? typeof identity !== "string" ||
+                !identity.length ||
+                identity.length > 255 ||
+                Array.from(identity).some(
+                  (character) =>
+                    character.charCodeAt(0) < 32 ||
+                    (character.charCodeAt(0) >= 127 && character.charCodeAt(0) <= 159),
+                ) ||
+                typeof raw.upcoming_release !== "boolean" ||
+                typeof raw.released_at !== "string" ||
+                !Number.isFinite(Date.parse(raw.released_at)) ||
+                !isRecord(raw.assets) ||
+                !Array.isArray(raw.assets.links)
+              : !Number.isSafeInteger(identity) || Number(identity) < 1
+          )
+            throw new ObservationFailure(
+              "provider-metadata",
+              "GitLab row identity or required metadata is invalid",
+            );
+          const key = typeof identity === "string" ? identity : String(Number(identity));
+          if (identities.has(key))
+            throw new ObservationFailure("provider-identity", "GitLab pages repeat an identity");
+          identities.add(key);
+          if (
+            kind === "package" &&
+            (typeof raw.version !== "string" || typeof raw.name !== "string")
+          )
+            throw new ObservationFailure("provider-metadata", "GitLab package metadata is invalid");
+          if (
+            kind === "file" &&
+            (typeof raw.file_name !== "string" ||
+              !raw.file_name.length ||
+              !Number.isSafeInteger(raw.size) ||
+              Number(raw.size) < 1 ||
+              typeof raw.file_sha256 !== "string" ||
+              !/^[a-f0-9]{64}$/iu.test(raw.file_sha256))
+          )
+            throw new ObservationFailure(
+              "provider-metadata",
+              "GitLab registry file integrity metadata is invalid",
+            );
+        }
+      });
       rows.push(...(result.body as unknown[]));
       if (!result.next) return rows;
     }
@@ -286,22 +345,26 @@ export async function observeProviderSource(
   let facts: Record<string, unknown>;
   if (source.provider === "gitlab") {
     const base = `https://gitlab.com/api/v4/projects/${encodeURIComponent(source.repository)}`;
-    const project = (await read(base)).body;
-    if (
-      !isRecord(project) ||
-      project.path_with_namespace !== source.repository ||
-      !Number.isSafeInteger(project.id) ||
-      Number(project.id) < 1 ||
-      typeof project.archived !== "boolean"
-    )
-      throw new ObservationFailure(
-        "repository-identity",
-        "GitLab project identity differs from the reviewed source",
-      );
-    await options.bindIdentity?.(Number(project.id));
-    const releases = await list(`${base}/releases?order_by=released_at&sort=desc`);
+    const projectRead = await read(base, "GET", async (result) => {
+      const project = result.body;
+      if (
+        !isRecord(project) ||
+        project.path_with_namespace !== source.repository ||
+        !Number.isSafeInteger(project.id) ||
+        Number(project.id) < 1 ||
+        typeof project.archived !== "boolean"
+      )
+        throw new ObservationFailure(
+          "repository-identity",
+          "GitLab project identity differs from the reviewed source",
+        );
+      await options.bindIdentity?.(Number(project.id));
+    });
+    const project = projectRead.body as Record<string, unknown>;
+    const releases = await list(`${base}/releases?order_by=released_at&sort=desc`, "release");
     const packages = await list(
       `${base}/packages?package_type=generic&order_by=created_at&sort=desc`,
+      "package",
     );
     const tags = new Set(
       releases.flatMap((release) =>
@@ -322,6 +385,7 @@ export async function observeProviderSource(
       if (tags.has(item.version))
         files[String(item.id)] = await list(
           `https://gitlab.com/api/v4/projects/${Number(project.id)}/packages/${Number(item.id)}/package_files`,
+          "file",
         );
     }
     facts = {
