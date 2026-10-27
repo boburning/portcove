@@ -1106,7 +1106,7 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
           "cases": [
-            "existing eligible hosted runtime returns success despite a stale native exit code"
+            "hosted runtime timings retain eligible and refused observations without installer effects"
           ]
         }
       ]
