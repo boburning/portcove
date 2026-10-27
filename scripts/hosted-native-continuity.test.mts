@@ -89,35 +89,38 @@ void test("owner-host invocation refuses before any runtime installation", () =>
   assert.match(result.stderr, /Only the reviewed standard hosted diagnostic/);
 });
 void test(
-  "existing eligible hosted runtime returns success despite a stale native exit code",
+  "hosted runtime timings retain eligible and refused observations without installer effects",
   { skip: process.platform !== "win32" },
   async (t) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-runtime-test-"));
-    t.after(() => rm(root, { recursive: true, force: true }));
-    await mkdir(path.join(root, "scripts"));
-    await mkdir(path.join(root, "apps/desktop/src-tauri/src"), { recursive: true });
-    const copiedHelper = path.join(root, "scripts/prepare-hosted-windows-runtime.ps1");
-    await copyFile(helper, copiedHelper);
-    await copyFile(
-      new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
-      path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
-    );
-    const wrapper = path.join(root, "run.ps1");
-    await writeFile(
-      wrapper,
-      `param([string]$FixtureHelper)
+    for (const conflicting of [false, true]) {
+      const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-runtime-test-"));
+      t.after(() => rm(root, { recursive: true, force: true }));
+      await mkdir(path.join(root, "scripts"));
+      await mkdir(path.join(root, "apps/desktop/src-tauri/src"), { recursive: true });
+      const copiedHelper = path.join(root, "scripts/prepare-hosted-windows-runtime.ps1");
+      await copyFile(helper, copiedHelper);
+      await copyFile(
+        new URL("../apps/desktop/src-tauri/src/runtime_support.rs", import.meta.url),
+        path.join(root, "apps/desktop/src-tauri/src/runtime_support.rs"),
+      );
+      const wrapper = path.join(root, "run.ps1");
+      await writeFile(
+        wrapper,
+        `param([string]$FixtureHelper)
 $ErrorActionPreference = 'Stop'
-function Get-ItemProperty { [pscustomobject]@{name='Microsoft Edge WebView2 Runtime';pv='155.0.4283.62'} }
+function Get-ItemProperty {
+    [pscustomobject]@{name='Microsoft Edge WebView2 Runtime';pv='155.0.4283.62'}
+    ${conflicting ? "[pscustomobject]@{name='Microsoft Edge WebView2 Runtime';pv='156.0.0.0'}" : ""}
+}
+function Start-Process { throw 'Fixture must never execute an installer' }
 $LASTEXITCODE = 73
 & $FixtureHelper
 if ($LASTEXITCODE -ne 0) { throw 'Actual successful helper left a stale native exit code' }
 `,
-    );
-    const result = spawnSync(
-      "pwsh",
-      ["-NoProfile", "-NonInteractive", "-File", wrapper, copiedHelper],
-      {
-        encoding: "utf8",
+      );
+      const invocationArgs = ["-NoProfile", "-NonInteractive", "-File", wrapper, copiedHelper];
+      const invocationOptions = {
+        encoding: "utf8" as const,
         timeout: 30000,
         env: {
           ...process.env,
@@ -131,18 +134,54 @@ if ($LASTEXITCODE -ne 0) { throw 'Actual successful helper left a stale native e
           GITHUB_WORKFLOW_REF:
             "boburning/portcove/.github/workflows/hosted-runtime-readiness.yml@refs/heads/feature/534-runtime-fixture",
         },
-      },
-    );
-    assert.equal(result.status, 0, result.stderr);
-    const receipt: unknown = JSON.parse(
-      await readFile(
-        path.join(root, "work/hosted-continuity-evidence/windows-runtime.json"),
-        "utf8",
-      ),
-    );
-    assert.ok(isRecord(receipt));
-    assert.equal(receipt.stage, "ready-existing");
-    assert.equal(receipt.installed, false);
-    assert.deepEqual(receipt.after, ["155.0.4283.62"]);
+      };
+      const result = spawnSync("pwsh", invocationArgs, invocationOptions);
+      if (conflicting) {
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, /Conflicting registered runtime versions/);
+      } else assert.equal(result.status, 0, result.stderr);
+      const receipt: unknown = JSON.parse(
+        await readFile(
+          path.join(root, "work/hosted-continuity-evidence/windows-runtime.json"),
+          "utf8",
+        ),
+      );
+      assert.ok(isRecord(receipt));
+      assert.equal(receipt.stage, conflicting ? "observed" : "ready-existing");
+      assert.equal(receipt.installed, false);
+      assert.deepEqual(
+        receipt.after,
+        conflicting ? ["155.0.4283.62", "156.0.0.0"] : ["155.0.4283.62"],
+      );
+      assert.equal(receipt.automatic_retry, false);
+      assert.equal(receipt.installer_sha256, undefined);
+      if (conflicting)
+        assert.match(String(receipt.failure), /Conflicting registered runtime versions/);
+      const observation = receipt.runtime_preparation_observation;
+      assert.ok(isRecord(observation) && Array.isArray(observation.phases));
+      assert.match(String(observation.scope), /cold setup and final receipt write excluded/);
+      let previous = 0;
+      const phaseNames: unknown[] = [];
+      for (const phase of observation.phases) {
+        assert.ok(isRecord(phase));
+        assert.ok(Number.isSafeInteger(phase.elapsed_milliseconds));
+        assert.ok(Number(phase.elapsed_milliseconds) >= previous);
+        previous = Number(phase.elapsed_milliseconds);
+        phaseNames.push(phase.phase);
+      }
+      assert.equal(observation.elapsed_milliseconds, previous);
+      assert.deepEqual(phaseNames, [
+        "entry",
+        "initial-runtime-readback",
+        conflicting ? "failure" : "existing-runtime-eligible",
+        "terminal-receipt-ready",
+      ]);
+      const receiptPath = path.join(root, "work/hosted-continuity-evidence/windows-runtime.json");
+      const original = await readFile(receiptPath, "utf8");
+      const replay = spawnSync("pwsh", invocationArgs, invocationOptions);
+      assert.notEqual(replay.status, 0);
+      assert.match(replay.stderr, /Retain original runtime attempt/);
+      assert.equal(await readFile(receiptPath, "utf8"), original);
+    }
   },
 );

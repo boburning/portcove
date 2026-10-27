@@ -17,6 +17,15 @@ if (-not $IsWindows -or $env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITO
     $env:GITHUB_WORKFLOW_REF -cnotmatch '^boburning/portcove/\.github/workflows/hosted-(native-continuity|runtime-readiness)\.yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$') {
     throw 'Only the reviewed standard hosted diagnostic may prepare this runtime'
 }
+$taskRuntimeClock = [Diagnostics.Stopwatch]::StartNew()
+$taskRuntimeObservation = [ordered]@{ scope='reviewed diagnostic after workflow gate through terminal readback/disposal; cold setup and final receipt write excluded';
+    elapsed_milliseconds=0; phases=[Collections.Generic.List[object]]::new() }
+function Add-RuntimePhase([string]$Phase) {
+    $taskElapsed = [math]::Floor($taskRuntimeClock.Elapsed.TotalMilliseconds)
+    $taskRuntimeObservation.elapsed_milliseconds=$taskElapsed
+    $taskRuntimeObservation.phases.Add([ordered]@{ phase=$Phase; elapsed_milliseconds=$taskElapsed })
+}
+Add-RuntimePhase 'entry'
 function Read-EngineVersions {
     @('HKCU:\Software\Microsoft\EdgeUpdate\Clients\*', 'HKLM:\Software\Microsoft\EdgeUpdate\Clients\*', 'HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients\*') |
         ForEach-Object { Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue } |
@@ -29,15 +38,19 @@ $taskReceiptPath = Join-Path $taskEvidence 'windows-runtime.json'
 if (Test-Path -LiteralPath $taskReceiptPath) { throw 'Retain original runtime attempt; no automatic retry' }
 $taskReceipt = [ordered]@{ source=$env:GITHUB_SHA; run_id=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT;
     workflow=$env:GITHUB_WORKFLOW_REF; scope='hosted runtime prerequisite only; not native acceptance';
-    minimum=$taskFloor; before=@(Read-EngineVersions); after=@(); stage='observed'; installed=$false; automatic_retry=$false }
+    minimum=$taskFloor; before=@(Read-EngineVersions); after=@(); stage='observed'; installed=$false; automatic_retry=$false;
+    runtime_preparation_observation=$taskRuntimeObservation }
+Add-RuntimePhase 'initial-runtime-readback'
 try {
     if ($taskReceipt.before.Count -gt 1) { throw 'Conflicting registered runtime versions; no mutation' }
     if ($taskReceipt.before.Count -eq 1 -and (Test-EngineVersion $taskReceipt.before[0])) {
         $taskReceipt.after=$taskReceipt.before
         $taskReceipt.stage='ready-existing'
+        Add-RuntimePhase 'existing-runtime-eligible'
     } else {
         $taskInstaller = Join-Path $taskEvidence 'MicrosoftEdgeWebview2Setup.exe'
         if (Test-Path -LiteralPath $taskInstaller) { throw 'Retained installer already exists; reconcile before use' }
+        Add-RuntimePhase 'download-starting'
         $taskHandler = [Net.Http.HttpClientHandler]::new()
         $taskClient = [Net.Http.HttpClient]::new($taskHandler)
         $taskClient.MaxResponseContentBufferSize = 8MB
@@ -51,13 +64,15 @@ try {
                 if ($taskBytes.Length -lt 1024 -or $taskBytes.Length -gt 8MB) { throw 'Runtime bootstrapper byte bound exceeded' }
                 [IO.File]::WriteAllBytes($taskInstaller, $taskBytes)
             } finally { $taskResponse.Dispose() }
-        } finally { $taskDeadline.Dispose(); $taskClient.Dispose(); $taskHandler.Dispose() }
+        } finally { $taskDeadline.Dispose(); $taskClient.Dispose(); $taskHandler.Dispose(); Add-RuntimePhase 'download-disposed' }
         $taskSignature = Get-AuthenticodeSignature -LiteralPath $taskInstaller
         if ($taskSignature.Status -ne 'Valid' -or $taskSignature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation(?:,|$)') { throw 'Runtime bootstrapper lacks valid Microsoft signature' }
         $taskReceipt.installer_sha256=(Get-FileHash -LiteralPath $taskInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
         $taskReceipt.signer_thumbprint=$taskSignature.SignerCertificate.Thumbprint
         $taskReceipt.stage='installer-admitted'
+        Add-RuntimePhase 'signature-hash-verified'
         $taskReceipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $taskReceiptPath
+        Add-RuntimePhase 'installer-starting'
         $taskProcess = Start-Process -FilePath $taskInstaller -ArgumentList @('/silent','/install') -WindowStyle Hidden -PassThru
         try {
             if (-not $taskProcess.WaitForExit(300000)) {
@@ -65,8 +80,9 @@ try {
                 throw 'Runtime installer exceeded five minutes; retain ambiguous partial effect, no retry'
             }
             $taskReceipt.exit_code=$taskProcess.ExitCode
-        } finally { $taskProcess.Dispose() }
+        } finally { $taskProcess.Dispose(); Add-RuntimePhase 'installer-process-disposed' }
         $taskReceipt.after=@(Read-EngineVersions)
+        Add-RuntimePhase 'post-install-runtime-readback'
         if ($taskReceipt.exit_code -ne 0 -or $taskReceipt.after.Count -ne 1 -or -not (Test-EngineVersion $taskReceipt.after[0])) {
             throw 'Runtime installation did not establish the maintained shipping floor; retain actual readback'
         }
@@ -74,10 +90,12 @@ try {
         $taskReceipt.stage='ready-installed'
     }
 } catch {
+    Add-RuntimePhase 'failure'
     $taskReceipt.failure=$_.Exception.Message
     $taskReceipt.after=@(Read-EngineVersions)
     throw
 } finally {
+    Add-RuntimePhase 'terminal-receipt-ready'
     $taskReceipt.observed_at=[DateTime]::UtcNow.ToString('o')
     $taskReceipt | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $taskReceiptPath
 }
