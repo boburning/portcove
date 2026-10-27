@@ -20,8 +20,9 @@ import { isRecord } from "./runtime-values.mts";
 export function roadmapCheckScope(
   changes: readonly { target: string; fieldName: string; itemId?: string }[],
 ) {
-  return new Set(changes.map((change) => change.itemId ?? change.target)).size > 10 ||
-    changes.some((change) => ["Target release", "Release commitment"].includes(change.fieldName))
+  return changes.some((change) =>
+    ["Target release", "Release commitment"].includes(change.fieldName),
+  )
     ? "global"
     : "issues";
 }
@@ -192,10 +193,12 @@ export async function runScopedDoctor(
   const requested = [...new Set(issues)];
   if (
     !requested.length ||
-    requested.length > 100 ||
+    Buffer.byteLength(JSON.stringify(requested)) > 8 * 1024 * 1024 ||
     requested.some((number) => !Number.isSafeInteger(number) || number < 1)
   )
-    throw new Error("Scoped doctor requires 1 to 100 positive issue numbers");
+    throw new Error(
+      "Scoped doctor requires positive issue numbers within its bounded input envelope",
+    );
   const catalog =
     suppliedCatalog ??
     (JSON.parse(
@@ -206,6 +209,19 @@ export async function runScopedDoctor(
     ) as QualificationCatalogObservation);
   const items: RoadmapIssueItem[] = [];
   const revisions = new Map<number, string>();
+  let retainedBytes = 0;
+  const retainedNumbers = new Set<number>();
+  const retain = (number: number, value: unknown) => {
+    if (retainedNumbers.has(number)) return;
+    const bytes = Buffer.byteLength(JSON.stringify(value));
+    if (retainedBytes + bytes > 32 * 1024 * 1024)
+      throw new InventoryError(
+        "inventory_incomplete",
+        "Scoped observation exceeds its bounded physical envelope; completed smaller scopes remain independently usable",
+      );
+    retainedBytes += bytes;
+    retainedNumbers.add(number);
+  };
   const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
   const revisionOf = (observed: ReturnType<RoadmapClient["executionIssue"]>) =>
     hash([
@@ -236,6 +252,7 @@ export async function runScopedDoctor(
           `Scoped issue #${number} requires one verified active Project item`,
         );
       const selected = matches[0]!;
+      retain(number, selected);
       const blockers = selected.content?.blockedBy ?? selected.blockedBy;
       const nodes = isIssueList(blockers) ? blockers : (blockers?.nodes ?? []);
       if (
@@ -263,18 +280,15 @@ export async function runScopedDoctor(
     const observations = new Map<number, ReturnType<RoadmapClient["executionIssue"]>>();
     for (const number of requested) {
       const observed = client.executionIssue(number);
+      retain(number, observed);
       observations.set(number, observed);
       for (const node of [observed.relationships.parent, ...observed.relationships.blocking])
         if (node && node.url === `https://github.com/${config.repository}/issues/${node.number}`)
           selected.add(node.number);
     }
-    if (selected.size > 100)
-      throw new InventoryError(
-        "inventory_incomplete",
-        "Scoped related records exceed 100 issues; request an explicit full doctor",
-      );
     for (const number of selected) {
       const observed = observations.get(number) ?? client.executionIssue(number);
+      retain(number, observed);
       revisions.set(number, revisionOf(observed));
       items.push(scopedIssueWithBlockers(observed.item, observed.relationships.blockedBy));
     }

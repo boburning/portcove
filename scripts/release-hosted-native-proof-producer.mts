@@ -1,4 +1,4 @@
-/** Original hosted Linux capture -> bounded keyless proof. No CLI, imported
+/** Original hosted capture -> bounded keyless proof. No CLI, imported
  * report, new issuer, upload, native acceptance or production activation. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -15,6 +15,8 @@ import {
   requestAssemblerToken,
   verifyHostedNativeAttestationIdentity,
 } from "./assembler-job-identity.mts";
+import { requireActualHostedWindowsNativeStageReport } from "./release-native-pre-sign-report.mts";
+import { inspectHostedNativeWindowsHost } from "./release-hosted-native-windows-host.mts";
 import { requireActualHostedLinuxNativeStageReport } from "./release-native-linux-report.mts";
 import { requireActualHostedNativeParentSource } from "./release-hosted-native-parent.mts";
 import {
@@ -27,14 +29,18 @@ import { inspectHostedNativeLinuxHost } from "./release-native-wsl-host.mts";
 import { hostedNativeArtifactName } from "./release-hosted-native-artifact.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { createHostedNativeProofStore } from "./release-owned-capture-store.mts";
+import { createHostedWindowsNativeProofStore } from "./release-owned-windows-proof-store.mts";
 import { createCheckpointSigningTransport } from "./release-checkpoint-signing-transport.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const attempted = new WeakSet<object>();
+type Platform = "linux-x86_64" | "windows-x86_64";
+export const hostedWindowsProofExecutionAuthorized = false;
 type Prepared = ReturnType<typeof prepareHostedNativeProofSubject>;
 type Retained = {
+  platform: Platform;
   report: object;
   parent: object;
   directory: string;
@@ -45,19 +51,28 @@ type Retained = {
 };
 const proofs = new WeakMap<object, Retained>();
 
-async function original(reportReceipt: object) {
-  const actual = await requireActualHostedLinuxNativeStageReport(reportReceipt);
-  const parentReceipt = actual.actual.parent_source;
-  const parent = await requireActualHostedNativeParentSource(parentReceipt);
-  assert.equal(parent.platform_label, "linux-x86_64");
-  assert.ok(parent.stage === "payload-signing" || parent.stage === "release-publication");
+async function original(reportReceipt: object, platform: Platform) {
+  if (platform === "linux-x86_64") {
+    const actual = await requireActualHostedLinuxNativeStageReport(reportReceipt),
+      parentReceipt = actual.actual.parent_source,
+      parent = await requireActualHostedNativeParentSource(parentReceipt);
+    assert.equal(parent.platform_label, platform);
+    assert.equal(actual.report.stage, parent.stage);
+    assert.equal(actual.report.platform_label, platform);
+    return { platform, actual, parent, parentReceipt } as const;
+  }
+  const actual = await requireActualHostedWindowsNativeStageReport(reportReceipt),
+    parentReceipt = actual.actual.parent,
+    parent = await requireActualHostedNativeParentSource(parentReceipt);
+  assert.equal(parent.platform_label, platform);
   assert.equal(actual.report.stage, parent.stage);
-  assert.equal(actual.report.platform_label, parent.platform_label);
-  return { actual, parent, parentReceipt };
+  assert.equal(actual.report.platform_label, platform);
+  return { platform, actual, parent, parentReceipt } as const;
 }
 
-async function readInput(reportReceipt: object) {
-  const { actual, parent, parentReceipt } = await original(reportReceipt);
+async function readInput(reportReceipt: object, platform: Platform) {
+  const origin = await original(reportReceipt, platform);
+  const { actual, parent, parentReceipt } = origin;
   const report = await readBoundedPublicBuildInputFile(
     actual.directory,
     "native-report.json",
@@ -87,33 +102,54 @@ async function readInput(reportReceipt: object) {
     ).toString("utf8"),
   );
   assert.ok(isRecord(observed));
-  inspectHostedNativeLinuxHost(
-    observed,
-    {
-      account: actual.actual.host.projection.account,
-      qualification_gid: String(actual.actual.host.observed.qualification_gid),
-    },
-    actual.prepared.request.invocation_id,
-    {
-      machine_id_sha256: actual.report.host.machine_id_sha256,
-      minimum_os_version: actual.report.compatibility.minimum_os_version,
-    },
-  );
-  // The existing host inspector proves these exact distribution values from
-  // retained os-release bytes, including duplicate-field refusal.
+  let host: unknown;
+  if (origin.platform === "linux-x86_64") {
+    inspectHostedNativeLinuxHost(
+      observed,
+      {
+        account: origin.actual.actual.host.projection.account,
+        qualification_gid: String(origin.actual.actual.host.observed.qualification_gid),
+      },
+      origin.actual.prepared.request.invocation_id,
+      {
+        machine_id_sha256: actual.report.host.machine_id_sha256,
+        minimum_os_version: actual.report.compatibility.minimum_os_version,
+      },
+    );
+    host = {
+      architecture: observed.architecture,
+      platform_label: platform,
+      machine_id_sha256: observed.machine_id_sha256,
+      os: { id: "ubuntu", version_id: "24.04", kernel_release: observed.kernel_release },
+    };
+  } else {
+    assert.equal(parent.configuration.purpose, "application");
+    const selected = parent.configuration.hosted_native["windows-x86_64"];
+    assert.ok(
+      selected.minimum_platform === "windows-11-26h2-x64" ||
+        selected.minimum_platform === "windows-server-2022-x64-continuity",
+    );
+    const inspected = inspectHostedNativeWindowsHost(
+      observed,
+      origin.actual.actual.hostNonce,
+      selected.minimum_platform,
+      actual.report.compatibility.minimum_os_version,
+    );
+    host = {
+      architecture: inspected.architecture,
+      platform_label: platform,
+      machine_id_sha256: inspected.machine_id_sha256,
+      os: inspected.os,
+    };
+  }
   const prepared = prepareHostedNativeProofSubject(
     parent.configuration,
     parent.producer,
     report,
     capture,
-    {
-      architecture: observed.architecture,
-      platform_label: "linux-x86_64",
-      machine_id_sha256: observed.machine_id_sha256,
-      os: { id: "ubuntu", version_id: "24.04", kernel_release: observed.kernel_release },
-    },
+    host,
   );
-  const final = await original(reportReceipt);
+  const final = await original(reportReceipt, platform);
   assert.equal(final.actual.directory, actual.directory);
   assert.equal(final.parentReceipt, parentReceipt);
   return { prepared, report, capture, parent, parentReceipt, directory: actual.directory };
@@ -123,11 +159,21 @@ async function readInput(reportReceipt: object) {
  * the original remote reservation are checked before each provider POST. A
  * refused/ambiguous response retains partial effects and never remints. */
 export async function signActualHostedLinuxNativeProof(reportReceipt: object) {
+  return signHostedNativeProof(reportReceipt, "linux-x86_64");
+}
+export async function signActualHostedWindowsNativeProof(reportReceipt: object) {
+  assert.ok(
+    hostedWindowsProofExecutionAuthorized,
+    "Hosted Windows proof signing awaits separate owner authority",
+  );
+  return signHostedNativeProof(reportReceipt, "windows-x86_64");
+}
+async function signHostedNativeProof(reportReceipt: object, platform: Platform) {
   const phaseDeadline = performance.now() + 120000;
   if (attempted.has(reportReceipt))
     throw new Error("hosted native proof requires original attempt recovery");
   attempted.add(reportReceipt);
-  const input = await readInput(reportReceipt);
+  const input = await readInput(reportReceipt, platform);
   const deadline = Math.min(input.parent.deadline, phaseDeadline);
   assert.ok(
     performance.now() < deadline,
@@ -141,7 +187,9 @@ export async function signActualHostedLinuxNativeProof(reportReceipt: object) {
     "hosted native proof retention cannot fit the fixed store",
   );
   const directory = path.join(input.directory, "hosted-proof");
-  const store = await createHostedNativeProofStore(directory);
+  const store = await (platform === "windows-x86_64"
+    ? createHostedWindowsNativeProofStore(directory)
+    : createHostedNativeProofStore(directory));
   let stage = "intent";
   try {
     await store.write(
@@ -162,7 +210,7 @@ export async function signActualHostedLinuxNativeProof(reportReceipt: object) {
     await store.write("report.json", input.report);
     await store.write("capture.json", input.capture);
     return await withReadOnlyReleaseChildren(directory, async () => {
-      const profile = hostedNativeJobProfile("linux-x86_64");
+      const profile = hostedNativeJobProfile(platform);
       const producer = input.prepared.producer;
       const environment = {
         ACTIONS_ID_TOKEN_REQUEST_URL: process.env.ACTIONS_ID_TOKEN_REQUEST_URL,
@@ -170,7 +218,7 @@ export async function signActualHostedLinuxNativeProof(reportReceipt: object) {
       };
       const recheck = async () => {
         assert.ok(performance.now() < deadline, "hosted native proof deadline exhausted");
-        const current = await readInput(reportReceipt);
+        const current = await readInput(reportReceipt, platform);
         assert.equal(current.parentReceipt, input.parentReceipt);
         assert.ok(current.prepared.subject.equals(input.prepared.subject));
         assert.ok(current.report.equals(input.report) && current.capture.equals(input.capture));
@@ -180,7 +228,7 @@ export async function signActualHostedLinuxNativeProof(reportReceipt: object) {
       stage = "identity";
       const token = await requestAssemblerToken("sigstore", environment, fetch, deadline);
       const identity = await verifyHostedNativeAttestationIdentity(
-        "linux-x86_64",
+        platform,
         token,
         {
           audience: "sigstore",
@@ -278,10 +326,14 @@ export async function signActualHostedLinuxNativeProof(reportReceipt: object) {
       );
       await active();
       const receipt = Object.freeze({
-        kind: "original-hosted-linux-native-proof",
+        kind:
+          platform === "linux-x86_64"
+            ? "original-hosted-linux-native-proof"
+            : "original-hosted-windows-native-proof",
         authority: "none",
       });
       proofs.set(receipt, {
+        platform,
         report: reportReceipt,
         parent: input.parentReceipt,
         directory,
@@ -318,12 +370,18 @@ export async function signActualHostedLinuxNativeProof(reportReceipt: object) {
 /** Original proof custody only. The existing receiver still independently
  * verifies signature, historical job, configuration and admission. */
 export async function requireActualHostedLinuxNativeProof(receipt: object) {
+  return requireHostedNativeProof(receipt, "linux-x86_64");
+}
+export async function requireActualHostedWindowsNativeProof(receipt: object) {
+  return requireHostedNativeProof(receipt, "windows-x86_64");
+}
+async function requireHostedNativeProof(receipt: object, platform: Platform) {
   const retained = proofs.get(receipt);
-  if (!retained || retained.stopped)
+  if (!retained || retained.platform !== platform || retained.stopped)
     throw new Error("original active hosted native proof required");
   try {
     assert.ok(performance.now() < retained.deadline);
-    const input = await readInput(retained.report);
+    const input = await readInput(retained.report, platform);
     assert.equal(input.parentReceipt, retained.parent);
     assert.ok(input.prepared.subject.equals(retained.prepared.subject));
     for (const key of ["subject", "report", "capture", "bundle"] as const) {
@@ -334,7 +392,7 @@ export async function requireActualHostedLinuxNativeProof(receipt: object) {
       );
       assert.ok(bytes.equals(retained.files[key]), "original hosted native proof bytes changed");
     }
-    await original(retained.report);
+    await original(retained.report, platform);
     assert.ok(performance.now() < retained.deadline);
     const producer = retained.prepared.producer;
     return {
@@ -346,7 +404,7 @@ export async function requireActualHostedLinuxNativeProof(receipt: object) {
         controller_revision: producer.controller_revision,
         run_id: producer.run_id,
         run_attempt: producer.run_attempt,
-        platform_label: "linux-x86_64",
+        platform_label: platform,
         stage: input.parent.stage,
       }),
       files: Object.fromEntries(

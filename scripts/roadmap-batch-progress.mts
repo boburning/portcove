@@ -93,6 +93,16 @@ interface Journal {
 }
 const key = (change: Pick<Transition, "itemId" | "fieldName">) =>
   JSON.stringify([change.itemId, change.fieldName]);
+/** Shared bounded atomic publication for local Roadmap operation journals. */
+export function writeRoadmapJournal(file: string, value: unknown) {
+  const bytes = JSON.stringify(value);
+  if (Buffer.byteLength(bytes) > maximumJournalBytes)
+    throw new Error("Roadmap journal storage envelope exhausted; retain prior receipt");
+  mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.${randomUUID()}.next`;
+  writeFileSync(temporary, bytes, { flag: "wx" });
+  renameSync(temporary, file);
+}
 export class SetManyJournal {
   private readonly openedAt = new Date().toISOString();
   readonly inputHash: string;
@@ -199,13 +209,7 @@ export class SetManyJournal {
   private save(next: Journal) {
     if (digest(readSetManyInput(this.inputFile)) !== this.inputHash)
       throw new Error("set-many specification changed during continuation; no further mutation");
-    const bytes = JSON.stringify(next);
-    if (Buffer.byteLength(bytes) > maximumJournalBytes)
-      throw new Error("set-many journal storage envelope exhausted; retain prior receipt");
-    mkdirSync(path.dirname(this.file), { recursive: true });
-    const temporary = `${this.file}.${randomUUID()}.next`;
-    writeFileSync(temporary, bytes, { flag: "wx" });
-    renameSync(temporary, this.file);
+    writeRoadmapJournal(this.file, next);
     this.journal = next;
   }
   beginPreview() {

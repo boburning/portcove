@@ -1531,3 +1531,91 @@ The fixed Windows tool builder now acquires an exact observed WebView2-version/x
 An isolated local source probe observed WebView2/driver155.0.4283.62, archive11715108bytes/SHA25600dd7fbc6fc4bd68e6e86badbe76e6570513414085f476e73d3787ba3410d562 and binary23858088bytes/SHA25601ce0daa683e5ea874e2e2439e4a162db11b0d40228d37cce1efc990294464f6, with a valid Microsoft signature. Earlier strict-directory and isolated-child PATHEXT failures remain retained. Pinning PATHEXT to `.EXE` affects only the source observation child; no global environment, execution policy or cache was changed. These are source observations, not actual candidate-runtime, native, protected-parent or whole-job qualification. Imported metadata remains data and cannot mint original runtime/tool/proof authority.
 
 Original session/per-stage group ownership, selected maintained B-worker execution, actual candidate WebView runtime joins, private capture/report/proof/upload and whole-job fit remain continuation work. Existing authority and Project holds above are unchanged; this component enables no production job or candidate execution.
+
+### October27 — held original Windows session and connected proof preparation
+
+The source proposal connects the original Windows installation receipt to one
+credential owner and two fixed maintained B-worker invocations. A keeps its
+original authenticated tools, source/runtime receipts, account preimages,
+monotonic deadline and recovery responsibility. B receives the complete prepared
+source/dependency graph and a closed request, with no repository token, OIDC
+credential or callback selector. Its actual PID, parent, creation time and original
+JobObject membership must agree before A acknowledges startup. B cannot begin the
+installer before that acknowledgement. This is held implementation: the session,
+worker, account/station recovery, connected runner and Windows proof-signing gates
+remain false. No workflow job or protected scope is activated.
+
+One prepared Windows supervisor owns the credential process and its broker child;
+there is no nested resource lease. An independent pipe/exit monitor retains
+bounded raw failure streams before owner teardown, including failure before B's
+readiness record or after acknowledgement. Cleanup joins that monitor before
+disposing its process handle; an unobserved join remains incomplete. Per-stage
+settlement requires the original B generation gone, drained streams, account
+disabling, group settlement and exact station restoration. Final credential
+settlement rechecks the original parent/runtime/source, environment, deadline and
+owner absence around independent account readback. Refusal never converts partial
+recovery into success or retries an irreversible operation.
+
+Capture, report, proof preparation and upload use existing authorities. Original
+session receipts choose the stage and directory; imported JSON and cloned receipts
+cannot appoint an owner. Captured bytes and empty streams retain their identities;
+restoring changed bytes does not revive a stopped receipt. A shared read-only
+runtime observer preserves the existing loaded-engine hash/version checks. The
+Windows proof route selects the existing exclusive Windows store; Linux retains
+its store and interfaces. The fixed upload has four files, seven-day retention,
+no overwrite, no compression, one acknowledgement and original-process provider
+readback. Only a complete, exact-source successful prerequisite-job inventory can
+advance the original session to post-sign preparation. All waits shorten the
+original clock. Downstream refusal stops that same owner and attempts its exact
+recovery once.
+
+Controlled tests exercise both platform proof/upload paths, refused storage before
+issuer requests, late/failed prerequisites and acknowledgements, ambiguous upload,
+source/custody drift, original terminal settlement and exactly-one recovery. Nine
+actual Windows helper controls passed in14.6seconds using inert workers and no
+account creation, credential logon, installer or GUI. These are component/control
+observations, not an executed hosted candidate, signing/publication, protected
+acceptance or end-to-end release duration.
+
+The hosted tool fixture's observed WebView2/driver131 does not satisfy the maintained
+native engine155 floor. Preparing and binding a supported runtime to its matching
+driver remains unfinished; the existing diagnostic installer route does not grant
+this protected execution scope. Complete hosted execution, runtime compatibility,
+whole-job fit, the exact workflow/resource digests and owner ratification remain
+pending. The [resource observations](slice4-release-resource-observations-2026-10-27.md)
+retain active89/40/hard100 policy and the unratified budgeting recommendations.
+No paid service, spending permission, paid fallback or security relaxation is added.
+Existing D1/D2/D3, auditfalse/0slots, single-owner recovery, account-wide$0stop,
+Unknown capacity/no reservation, production and protected acceptance holds remain.
+#534 stays open/Blocked; #254Done; #315/#246pending; Chameleon protected_acceptance
+unset; Slice5 excluded.
+
+The first session source24ed595e passed local full static validation and strict
+component controls (103passes,12declared skips, complete inventory). Hosted
+CI40498908624/1 refused its undeclared fixed worker-contract import in the native
+helper dependency check before the Windows helper controls. The repair declares
+that exact shared import in the existing registry, which also includes its bytes
+in retained reproduction inputs. Dynamic/escaping imports remain refused; the
+13 declaration regressions and complete18-file check pass. The earlier hosted
+failure remains retained and does not qualify the repaired source.
+
+Repaired sourcead07643e passed the Windows declaration, helper and inert account
+contracts in CI40499905959/1, then failed PowerShell analysis for the owner
+`$profile` automatic-variable assignment and an empty expected-absent-process
+catch. Linux catalog also identified the two new disposable-fixture consumers
+missing from the maintained routing expectation and dependency map. The repair
+uses `$accountProfile`, explicitly keeps only ArgumentException as absent, and
+registers both cleanup consumers. All127 lifecycle/routing controls pass; no
+parser suppression, timeout extension or execution-policy change is introduced.
+
+Sourcecc7ffd2e passed both ordinary tool fixtures40501061041/1 and the hosted
+Linux catalog, but CI40501061108/1 retained a60second inert observer refusal:
+581polls, only `inert-observer:entered`, no Forms-loaded marker, complete root/job
+settlement and observer drain. It localizes the stall to the PowerShell Add-Type
+assembly command; the deeper cause is not established. The fixed current-token
+fixture now loads the exact framework assembly identity directly, removing
+PowerShell cmdlet/module discovery from that startup path. Local actual Windows
+observation passed in2.8seconds. The same60second deadline, visibility/response,
+generation, raw streams and cleanup assertions remain; no account acceptance or
+station/privilege/production change follows. Fresh exact-head hosted evidence is
+required; the failed attempt is not retried or treated as native success.

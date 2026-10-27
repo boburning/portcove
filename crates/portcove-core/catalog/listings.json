@@ -26056,12 +26056,14 @@
     {
       "id": "opengtps1-gran-turismo-2",
       "name": "OpenGTPS1 (Gran Turismo 2)",
-      "summary": "Explore OpenGTPS1 (Gran Turismo 2) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Windows Gran Turismo 2 project awaiting an upstream grant for its original code. Read the current licensing status; your existing files stay untouched.",
       "project_url": "https://github.com/GTTeancum/OpenGTPS1",
       "issue_number": 743,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/GTTeancum/OpenGTPS1",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "source-only",
+      "setup_url": "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md",
       "artwork": {
         "game_id": 1597,
         "cover_id": 93687,
@@ -26069,6 +26071,17 @@
         "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
         "game_slug": "gran-turismo-2",
         "match_kind": "underlying-game"
+      },
+      "download_block_reason": "The upstream README states that no license has been granted for original OpenGTPS1 code. The existing canonical permission hold remains: an attributable grant for that code and a reviewed usable player/setup route are required before Portcove can offer acquisition. Licenses of vendored components do not grant rights to the whole project.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Read the upstream licensing status",
+            "instruction": "The existing original-code permission hold is unresolved, and the current public GitHub release list is empty. Upstream’s older download references do not establish a current permitted player. Follow the linked licensing statement for changes; a future attributable grant and usable reviewed runtime/setup route can reopen acquisition review. This listing does not ask you to download or run a tool, or to remove an existing copy. Your existing files stay untouched."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/GTTeancum/OpenGTPS1/blob/d9e6af5dccf704383f28faf8d1b50633e2539046/README.md"
       }
     },
     {
@@ -34395,12 +34408,17 @@
     {
       "id": "syphon-filter-2-syphon-filter-2-recompiled",
       "name": "Syphon Filter 2 / Syphon Filter 2 Recompiled",
-      "summary": "Explore Syphon Filter 2 / Syphon Filter 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepare the current upstream Syphon Filter 2 player from your own USA two-disc set and SCPH-1001 BIOS, then keep its launcher, saves and updates under your control.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp",
       "issue_number": 345,
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0",
       "artwork": {
         "game_id": 4116,
         "cover_id": 114617,
@@ -34408,6 +34426,48 @@
         "image_sha256": "c27eb518708cddafc38b0493633ad10df446f1afc5710cbadc74183af4bec3b8",
         "game_slug": "syphon-filter-2",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "syphon-filter-2-recomp-",
+          "-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "syphon-filter-2-recomp-",
+          "-linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "syphon-filter-2-recomp-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "syphon-filter-2-recomp-",
+          "-macos-arm64.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Download your system’s setup kit",
+            "instruction": "Extract the complete official kit into a separate writable folder and keep your working copy. Use the wizard’s build-tool check. Windows can use upstream’s portable pack, including Python 3, or suitable installed tools. Linux and Mac require Python 3 and system C/C++ compilers; on Mac, install Apple’s Command Line Tools. The current 0.2.0 kit uses the native Syphon_Filter_2_Recompiled setup program, replacing older SETUP.bat instructions; paths with spaces are supported. If CMake or Ninja is missing, setup can obtain a portable pack for your system; Linux and Mac still need their native compilers. Downloading, extracting and discovery do not run a helper, compiler or game. Windows, Linux and each Mac architecture have separate downloads; Mac executables are ad-hoc signed, not Apple notarized. Follow the selected release’s platform instructions."
+          },
+          {
+            "title": "Prepare both discs and your BIOS",
+            "instruction": "When ready, deliberately open the upstream setup program. Supply your own Syphon Filter 2 USA Disc 1 (SCUS-94451) and Disc 2 (SCUS-94492) as the supported Redump CUE/BIN set or CHD, plus your own 512 KiB SCPH-1001 BIOS with SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3. OpenBIOS is not supported by this kit. Reuse valid prepared choices; follow Generate & rebuild to finish the native player. Portcove does not run this upstream preparation for you."
+          },
+          {
+            "title": "Add the finished player, then choose Play",
+            "instruction": "After setup succeeds, select Syphon_Filter_2_Recompiled.exe in build-release on Windows, or the native Syphon_Filter_2_Recompiled in build-release on Linux or Mac. Keep the complete prepared kit and use the player’s folder as its working directory. Choose a different actual output location if you deliberately configured one. Saving launch details never starts the game; Play is a separate action. Keep the rich launcher. In the current version, Disc 2 can be changed through the F1 menu even when a CHD verification warning remains in the launcher. The game reads progress from memory-card slot 1."
+          },
+          {
+            "title": "Keep your working copy and data before updating",
+            "instruction": "You or upstream manage rebuilding and runtime updates. Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions. Current default cards, save states and game options live under build-release/saves; customized card or profile paths may be elsewhere. Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime. Let the first session finish preparing optimized code. If the release’s known intro freeze occurs after early closure, follow its cache-only recovery for build-release/cache with the player closed; preserve saves and the working copy. Portcove does not back up, roll back, replace or delete these external files."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0"
       }
     },
     {

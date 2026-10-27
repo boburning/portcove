@@ -55,11 +55,12 @@ console.log('original request stopped latch preserved');
     assert.match(result.stdout, /original request stopped latch preserved/u);
   });
 
-for (const jobStage of ["payload-signing", "release-publication"] as const)
-  void test(`fixed hosted ${jobStage} pipeline preserves original upload custody and refuses failed/ambiguous handoffs`, (t) => {
-    const root = disposableDirectory(t, path.join(os.tmpdir(), "hosted-native-job-"));
-    const entry = new URL("./release-hosted-native-job.mts", import.meta.url).href;
-    const code = String.raw`
+for (const platform of ["linux-x86_64", "windows-x86_64"] as const)
+  for (const jobStage of ["payload-signing", "release-publication"] as const)
+    void test(`fixed hosted ${platform} ${jobStage} pipeline preserves original upload custody and refuses failed/ambiguous handoffs`, (t) => {
+      const root = disposableDirectory(t, path.join(os.tmpdir(), "hosted-native-job-"));
+      const entry = new URL("./release-hosted-native-job.mts", import.meta.url).href;
+      const code = String.raw`
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
 import {mkdirSync,readFileSync,writeFileSync,existsSync} from 'node:fs';
@@ -67,23 +68,27 @@ import path from 'node:path';
 import {performance} from 'node:perf_hooks';
 const root=process.argv[1];
 process.env.GH_TOKEN='inert-reader';
-const stageUnderTest=${JSON.stringify(jobStage)};const post=stageUnderTest==='release-publication';
-const order=[], tokens=Array.from({length:11},()=>({})),toolReceipt={},runtimeReceipt={};const final=post?10:5;
+const platform=${JSON.stringify(platform)},windows=platform==='windows-x86_64';const stageUnderTest=${JSON.stringify(jobStage)};const post=stageUnderTest==='release-publication';
+const order=[], tokens=Array.from({length:11},()=>({})),toolReceipt={},runtimeReceipt={};const final=windows?3:post?10:5;
 const files=Object.fromEntries(['subject','report','capture','bundle'].map(key=>[key,Buffer.from(key)]));
 const producer={controller_revision:'a'.repeat(40),run_id:'99',run_attempt:1,job_id:88,check_run_id:'77'};
 let fault='',directory,readbacks=0,stale=false,submittedAck;
 const step=(name,index)=>async value=>{order.push(name);assert.equal(value,tokens[index-1]);if(fault===name)throw Error('original '+name+' refusal');return tokens[index]};
 globalThis.fixture={
+ stage:async token=>{assert.equal(token,tokens[0]);return {kind:stageUnderTest}},
  parent:async(dir,platform,stage,deadline)=>{order.push('parent');assert.equal(dir,directory);assert.equal(platform,'linux-x86_64');assert.equal(stage,stageUnderTest);assert.ok(deadline>performance.now());if(fault==='parent')throw Error('original parent refusal');return tokens[0]},
- candidate:step('candidate',1),runtime:async(tools,parent)=>{order.push('runtime');assert.equal(tools,toolReceipt);assert.equal(parent,tokens[0]);if(fault==='runtime')throw Error('original runtime refusal');return runtimeReceipt},controller:async value=>{order.push('controller');assert.equal(value,tokens[0]);if(fault==='controller')throw Error('original controller refusal');return tokens[2]},inputs:step('inputs',3),journey:step('journey',4),package:step('package',5),payload:step('payload',6),request:step('request',post?7:2),capture:step('capture',post?8:3),report:step('report',post?9:4),sign:step('sign',post?10:5),
- original:async value=>{assert.equal(value,tokens[final]);if(stale)throw Error('custody expired');if(fault==='mutate-ack'&&submittedAck){await Promise.resolve();submittedAck.artifact_id=2;submittedAck.sha256='c'.repeat(64)}return {stage:stageUnderTest,directory,producer,files:Object.fromEntries(Object.entries(files).map(([key,bytes])=>[key,Buffer.from(bytes)])),artifact_name:'hosted-native-'+stageUnderTest+'-linux-x86_64-99-1',deadline:fault==='expired'?performance.now()-1:performance.now()+100000}},
+ candidate:step('candidate',1),runtime:async(tools,parent)=>{order.push('runtime');assert.equal(tools,toolReceipt);assert.equal(parent,tokens[0]);if(fault==='runtime')throw Error('original runtime refusal');return runtimeReceipt},controller:async value=>{order.push('controller');assert.equal(value,tokens[0]);if(fault==='controller')throw Error('original controller refusal');return tokens[2]},inputs:step('inputs',3),journey:step('journey',4),package:step('package',5),payload:step('payload',6),request:step('request',post?7:2),capture:step('capture',windows?1:post?8:3),report:step('report',windows?2:post?9:4),sign:step('sign',windows?3:post?10:5),
+ original:async value=>{assert.equal(value,tokens[final]);if(stale)throw Error('custody expired');if(fault==='mutate-ack'&&submittedAck){await Promise.resolve();submittedAck.artifact_id=2;submittedAck.sha256='c'.repeat(64)}return {stage:stageUnderTest,directory,producer,files:Object.fromEntries(Object.entries(files).map(([key,bytes])=>[key,Buffer.from(bytes)])),artifact_name:'hosted-native-'+stageUnderTest+'-'+platform+'-99-1',deadline:fault==='expired'?performance.now()-1:performance.now()+100000}},
 };
 globalThis.fixture.readback=(api,slot,dir,deadline)=>{
- readbacks++;assert.deepEqual(slot,{controller_revision:producer.controller_revision,run_id:'99',run_attempt:1,platform_label:'linux-x86_64',stage:stageUnderTest});assert.equal(dir,directory);assert.ok(deadline>performance.now());
+ readbacks++;assert.deepEqual(slot,{controller_revision:producer.controller_revision,run_id:'99',run_attempt:1,platform_label:platform,stage:stageUnderTest});assert.equal(dir,directory);assert.ok(deadline>performance.now());
  if(fault==='ambiguous')throw Error('provider unavailable');if(fault==='stale')stale=true;
- return {artifact:{id:fault==='mutate-ack'?2:1,sha256:fault==='mutate-ack'?'c'.repeat(64):'b'.repeat(64),bytes:100,name:'hosted-native-payload-signing-linux-x86_64-99-1'},locator:{run_id:'99',run_attempt:1,platform_label:'linux-x86_64',job_id:fault==='job'?9:88,check_run_id:fault==='check'?'9':'77'},files:{...files,...(fault==='bytes'?{bundle:Buffer.from('changed')}: {})}};
+ return {artifact:{id:fault==='mutate-ack'?2:1,sha256:fault==='mutate-ack'?'c'.repeat(64):'b'.repeat(64),bytes:100,name:'hosted-native-payload-signing-linux-x86_64-99-1'},locator:{run_id:'99',run_attempt:1,platform_label:platform,job_id:fault==='job'?9:88,check_run_id:fault==='check'?'9':'77'},files:{...files,...(fault==='bytes'?{bundle:Buffer.from('changed')}: {})}};
 };
 const routes={
+ './release-hosted-native-windows-session.mts':{requireActualHostedWindowsStage:'stage'},
+ './release-hosted-native-windows-capture.mts':{captureActualHostedNativeWindowsInvocation:'capture'},
+ './release-native-pre-sign-report.mts':{prepareActualHostedWindowsNativeStageReport:'report'},
  './release-hosted-native-parent.mts':{createActualHostedNativeParentSource:'parent'},
  './release-hosted-native-candidate.mts':{acquireActualHostedNativeCandidate:'candidate',readActualHostedNativePostSignController:'controller',readActualHostedNativePostSignJourney:'journey',acquireActualHostedNativePostSignPackage:'package'},
  './release-hosted-native-postsign-inputs.mts':{acquireActualHostedNativePostSignInputs:'inputs',verifyActualHostedNativePostSignPayload:'payload'},
@@ -91,18 +96,18 @@ const routes={
  './release-hosted-native-linux-request.mts':{prepareActualHostedNativeLinuxRequest:'request',prepareActualHostedNativeLinuxPostSignRequest:'request'},
  './release-hosted-native-linux-capture.mts':{captureActualHostedNativeLinuxInvocation:'capture'},
  './release-native-linux-report.mts':{prepareActualHostedLinuxNativeStageReport:'report'},
- './release-hosted-native-proof-producer.mts':{signActualHostedLinuxNativeProof:'sign',requireActualHostedLinuxNativeProof:'original'},
+ './release-hosted-native-proof-producer.mts':{signActualHostedLinuxNativeProof:'sign',requireActualHostedLinuxNativeProof:'original',signActualHostedWindowsNativeProof:'sign',requireActualHostedWindowsNativeProof:'original'},
  './release-hosted-native-artifact.mts':{readHostedNativeProofArtifact:'readback'},
 };
 registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}&&routes[specifier])return {url:'inert-job:'+specifier,shortCircuit:true};return next(specifier,context)},load(url,context,next){if(url.startsWith('inert-job:'))return {format:'module',source:Object.entries(routes[url.slice('inert-job:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.fixture.'+key+';').join('\n'),shortCircuit:true};return next(url,context)}});
 const api=await import(${JSON.stringify(entry)});
 const reset=name=>{fault=name;readbacks=0;stale=false;submittedAck=undefined;order.length=0;directory=path.join(root,name||'valid');mkdirSync(directory);for(const [key,bytes]of Object.entries(files))writeFileSync(path.join(directory,key+'.json'),bytes)};
-const prepare=()=>post?api.prepareActualHostedLinuxPostSignJob(directory,performance.now()+100000,{tools:toolReceipt,executing_entry:'/fixed.bundle.mjs'}):api.prepareActualHostedLinuxPreSignJob(directory,performance.now()+100000);
-const readBack=post?api.readBackActualHostedLinuxPostSignUpload:api.readBackActualHostedLinuxPreSignUpload;
+const prepare=()=>windows?api.prepareActualHostedWindowsStageJob(tokens[0]):post?api.prepareActualHostedLinuxPostSignJob(directory,performance.now()+100000,{tools:toolReceipt,executing_entry:'/fixed.bundle.mjs'}):api.prepareActualHostedLinuxPreSignJob(directory,performance.now()+100000);
+const readBack=windows?(post?api.readBackActualHostedWindowsPostSignUpload:api.readBackActualHostedWindowsPreSignUpload):post?api.readBackActualHostedLinuxPostSignUpload:api.readBackActualHostedLinuxPreSignUpload;
 const ack={artifact_id:1,sha256:'b'.repeat(64)};
 reset('');
 const upload=await prepare();
-const phases=post?['parent','runtime','controller','inputs','journey','package','payload','request','capture','report','sign']:['parent','candidate','request','capture','report','sign'];assert.deepEqual(order,phases);
+const phases=windows?['capture','report','sign']:post?['parent','runtime','controller','inputs','journey','package','payload','request','capture','report','sign']:['parent','candidate','request','capture','report','sign'];assert.deepEqual(order,phases);
 const ready=JSON.parse(readFileSync(upload.ready_file));
 assert.equal(ready.retention_days,7);assert.equal(ready.overwrite,false);assert.equal(ready.compression_level,0);
 assert.deepEqual(ready.files.map(file=>path.basename(file.path)),['subject.json','report.json','capture.json','bundle.json']);
@@ -130,14 +135,14 @@ for(const name of ['ack-id','ack-hash','ack-schema','mutate-ack','ready','expire
 }
 console.log('controlled original pipeline and upload refusals passed');
 `;
-    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
-      encoding: "utf8",
-      timeout: 45000,
-      maxBuffer: 1024 * 1024,
+      const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+        encoding: "utf8",
+        timeout: 45000,
+        maxBuffer: 1024 * 1024,
+      });
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      assert.match(result.stdout, /controlled original pipeline and upload refusals passed/u);
     });
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.match(result.stdout, /controlled original pipeline and upload refusals passed/u);
-  });
 
 void test("hosted post-sign source binds the original timestamp executor and permanently refuses drift or unresolved effects", (t) => {
   const root = disposableDirectory(t, path.join(os.tmpdir(), "hosted-native-postsign-"));
@@ -297,8 +302,8 @@ const sourceDeadline=()=>fault==='retained-lifetime'?1001000:101000;
 const phaseDeadline=()=>Math.min(301000,sourceDeadline());
 const alive=()=>{if(stale||clock>=sourceDeadline())throw Error('original source stopped or expired')};
 function source(){alive();return {parent_source:parentReceipt,directory:sourceRoot,deadline:sourceDeadline(),checkpoint:'e'.repeat(40),candidate:structuredClone(candidate),producer:{...producer},controller:{...producer},configuration:{purpose:'application',journal:{namespace:'fixture'},publication:{public_source:{root:pin,offline_targets:pin,payload_key_registry:pin}}}}}
-function tools(){alive();return {identity:{...producer,source_tree:'f'.repeat(40),...(fault==='wrong-tool-run'?{run_id:'22222'}:{})},root:toolRoot,node:path.join(toolRoot,'node'),rust:path.join(toolRoot,'portcove-release-tools'),entries:{'release-native-keyless-assembly':path.join(toolRoot,'child.bundle.mjs')}}}
-const reset=name=>{fault=name;stale=false;clock=1000;childDone=false;childStarted=false;payloadDone=false;selectedPackage=undefined;contextCalls=0;roleCalls=0;reads=0;roleReceipts.clear();sourceRoot=path.join(root,name||'valid');mkdirSync(sourceRoot,{recursive:true});toolRoot=connected?connected.tools:path.join(sourceRoot,'tools');if(!connected){mkdirSync(path.join(toolRoot,'bin'),{recursive:true});writeFileSync(path.join(toolRoot,'bin/portcove-release-tools'),'fixed rust');for(const name of ['node','portcove-release-tools','child.bundle.mjs'])writeFileSync(path.join(toolRoot,name),name);}manifest={controller:{...producer,source_tree:'f'.repeat(40)},binding:{records_sha256:hash(Buffer.from('[]'))},facts_sha256:'1'.repeat(64),facts:{opportunity:structuredClone(candidate.frozen_opportunity),assembly:{fixed:true}}};if(name==='opportunity')manifest.facts.opportunity={foreign:true};inventory={context:{id:1,bytes:100,sha256:'2'.repeat(64)},context_bundle:{id:2,bytes:100,sha256:'3'.repeat(64)},roles:['releases','preview','stable','snapshot','timestamp'].map((role,i)=>({role,artifact:{id:3+i*2,bytes:100,sha256:'4'.repeat(64)},bundle:{id:4+i*2,bytes:100,sha256:'5'.repeat(64)}}))}}
+function tools(){alive();return {identity:{...producer,source_tree:'f'.repeat(40),...(fault==='wrong-tool-run'?{run_id:'22222'}:{})},root:toolRoot,platform:'linux-x86_64',node:path.join(toolRoot,'bin/node'),rust:path.join(toolRoot,'bin/portcove-release-tools'),entries:{'release-native-keyless-assembly':path.join(toolRoot,'child.bundle.mjs')}}}
+const reset=name=>{fault=name;stale=false;clock=1000;childDone=false;childStarted=false;payloadDone=false;selectedPackage=undefined;contextCalls=0;roleCalls=0;reads=0;roleReceipts.clear();sourceRoot=path.join(root,name||'valid');mkdirSync(sourceRoot,{recursive:true});toolRoot=connected?connected.tools:path.join(sourceRoot,'tools');if(!connected){mkdirSync(path.join(toolRoot,'bin'),{recursive:true});writeFileSync(path.join(toolRoot,'bin/portcove-release-tools'),'fixed rust');writeFileSync(path.join(toolRoot,'bin/node'),'fixed node');for(const name of ['node','portcove-release-tools','child.bundle.mjs'])writeFileSync(path.join(toolRoot,name),name);}manifest={controller:{...producer,source_tree:'f'.repeat(40)},binding:{records_sha256:hash(Buffer.from('[]'))},facts_sha256:'1'.repeat(64),facts:{opportunity:structuredClone(candidate.frozen_opportunity),assembly:{fixed:true}}};if(name==='opportunity')manifest.facts.opportunity={foreign:true};inventory={context:{id:1,bytes:100,sha256:'2'.repeat(64)},context_bundle:{id:2,bytes:100,sha256:'3'.repeat(64)},roles:['releases','preview','stable','snapshot','timestamp'].map((role,i)=>({role,artifact:{id:3+i*2,bytes:100,sha256:'4'.repeat(64)},bundle:{id:4+i*2,bytes:100,sha256:'5'.repeat(64)}}))}}
 const fileInventory=dir=>{const out=[];const walk=(prefix='')=>{for(const ent of readdirSync(path.join(dir,prefix),{withFileTypes:true})){const name=prefix?prefix+'/'+ent.name:ent.name;if(ent.isDirectory())walk(name);else{const b=readFileSync(path.join(dir,name));out.push({path:name,bytes:b.length,sha256:hash(b)})}}};walk();return out.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0)};
 async function materialize(){
  if(path.basename(childPlan)==='native-payload-plan.json'){if(connected){const plan=readFileSync(childPlan);await qualifyNativeChildren(toolRoot,path.dirname(childPlan),{args:[connected.entry,childPlan,hash(plan)],timeout:100000});payloadDone=true;return}const plan=readFileSync(childPlan),p=JSON.parse(plan),dir=path.dirname(childPlan);assert.equal(path.basename(p.artifact),'Portcove_0.1.0-beta.1_amd64.AppImage');const stdout=Buffer.from('actual verifier model'),stderr=Buffer.alloc(0);writeFileSync(path.join(dir,'native-payload.stdout.bin'),stdout);writeFileSync(path.join(dir,'native-payload.stderr.bin'),stderr);writeFileSync(path.join(dir,'native-payload-result.json'),JSON.stringify({schema_version:1,plan_sha256:hash(plan),report:{schema_version:1,signature_verified:true,sha256:p.sha256,bytes:p.bytes,public_key_sha256:fault==='payload-result'?'9'.repeat(64):p.public_key_sha256},stdout_sha256:hash(stdout),stderr_sha256:hash(stderr),authority:'none'}));payloadDone=true;return}

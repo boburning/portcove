@@ -68,6 +68,7 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
   ),
   [helper("desktop-native-account-session.mts")]: Object.freeze([
     "../../../scripts/native-qualification-account-client.mts",
+    "../../../scripts/release-hosted-native-windows-worker-contract.mts",
   ]),
   [helper("desktop-linux-native-session.mts")]: Object.freeze([
     "../../../scripts/runtime-values.mts",

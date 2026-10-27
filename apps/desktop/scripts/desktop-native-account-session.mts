@@ -6,6 +6,7 @@ import { lstatSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PassThrough } from "node:stream";
+import { inspectHostedWindowsHarnessBinding } from "../../../scripts/release-hosted-native-windows-worker-contract.mts";
 import {
   NativeAccountClient,
   type NativeAccountBinding,
@@ -19,6 +20,7 @@ import {
 } from "./desktop-owned-native-session.mts";
 
 interface DesktopAccountBinding extends NativeAccountBinding {
+  hosted?: unknown;
   account_sid: string;
   profile_root: string;
   work_root: string;
@@ -108,9 +110,26 @@ export class DesktopNativeAccountSession {
     this.#binding = structuredClone(binding);
     this.#client = client;
     assert.equal(process.platform, "win32");
+    const hosted =
+      binding.hosted === undefined
+        ? undefined
+        : inspectHostedWindowsHarnessBinding(
+            binding.hosted,
+            binding.controller_root,
+            binding.work_root,
+          );
+    if (hosted)
+      assert.equal(
+        sha(bytes(hosted.registry.path, 131072)),
+        hosted.registry.sha256,
+        "Hosted staged registry reader changed",
+      );
     assert.equal(
       path
-        .resolve(binding.controller_root, "apps/desktop/scripts/desktop-native-account-session.mts")
+        .resolve(
+          hosted?.harness_root ?? binding.controller_root,
+          "apps/desktop/scripts/desktop-native-account-session.mts",
+        )
         .toLowerCase(),
       fileURLToPath(import.meta.url).toLowerCase(),
       "Account backend must use the protected controller root",
@@ -178,6 +197,7 @@ export class DesktopNativeAccountSession {
         "powershell",
         "desktop_tools",
         "controller_root",
+        ...(raw.hosted === undefined ? [] : ["hosted"]),
       ].sort(),
     );
     return new DesktopNativeAccountSession(raw as unknown as DesktopAccountBinding);
