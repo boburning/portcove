@@ -906,7 +906,8 @@ fn format_one_growth_at_the_exact_envelope_bound_preserves_verification_and_refu
     let bytes = serde_json::to_vec(&envelope).unwrap();
     assert_eq!(bytes.len(), MAX_CATALOG_BYTES);
     let trust =
-        CatalogTrustKey::from_public_key(&hex::encode(key.verifying_key().as_bytes())).unwrap();
+        crate::CatalogTrustKey::from_public_key(&hex::encode(key.verifying_key().as_bytes()))
+            .unwrap();
     let verified = signed_catalog::verify(&bytes, std::slice::from_ref(&trust), now).unwrap();
     assert_eq!(verified.payload.sequence, original.sequence);
     assert_eq!(verified.payload.expires_at, original.expires_at);
