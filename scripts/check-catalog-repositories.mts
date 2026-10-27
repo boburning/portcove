@@ -299,7 +299,11 @@ export interface HealthOptions {
   operationDeadline?: number;
   abortSignal?: AbortSignal;
   sessionStartedAt?: number;
-  onObservation?: (observation: HealthObservation) => Promise<void>;
+  providerBackoff?: Record<string, string>;
+  onObservation?: (
+    observation: HealthObservation,
+    providerBackoff: Record<string, string>,
+  ) => Promise<void>;
 }
 
 /** Read reviewed authoring decisions without deriving lineage from live metadata. */
@@ -1272,6 +1276,7 @@ export async function collectRepositoryHealth(
     onObservation,
     abortSignal,
     sessionStartedAt,
+    providerBackoff = {},
   }: HealthOptions = {},
 ) {
   const {
@@ -1346,6 +1351,35 @@ export async function collectRepositoryHealth(
   // import prior reports or equate old and relocated repository endpoints.
   const repositoryMetadata = new Map<string, unknown>();
   const deferred = new Map<string, string>();
+  if (
+    !isRecord(providerBackoff) ||
+    Buffer.byteLength(JSON.stringify(providerBackoff)) > 1024 * 1024
+  )
+    throw new Error("Invalid provider backoff envelope");
+  for (const [provider, reset] of Object.entries(providerBackoff)) {
+    const origin = ["github", "gitlab"].includes(provider)
+      ? null
+      : (() => {
+          try {
+            return new URL(provider);
+          } catch {
+            return null;
+          }
+        })();
+    if (
+      (!["github", "gitlab"].includes(provider) &&
+        (!origin ||
+          origin.protocol !== "https:" ||
+          origin.origin !== provider ||
+          origin.username ||
+          origin.password)) ||
+      typeof reset !== "string" ||
+      !Number.isFinite(Date.parse(reset)) ||
+      new Date(reset).toISOString() !== reset
+    )
+      throw new Error("Invalid provider backoff identity or reset clock");
+    if (Date.parse(reset) > started) deferred.set(provider, reset);
+  }
   const observations: HealthObservation[] = [];
   const originalRules = (record: LocationRecord) => {
     if (record.release_ref !== undefined) return [];
@@ -2025,7 +2059,7 @@ export async function collectRepositoryHealth(
       const completed = observations[observationStart];
       if (completed) classify(completed);
       if (completed && !completed.metadata_reused && (completed.attempted || collected(completed)))
-        await onObservation?.(structuredClone(completed));
+        await onObservation?.(structuredClone(completed), Object.fromEntries(deferred));
     }
   }
   const reachable = observations.filter((record) => record.status === "reachable").length;
@@ -2292,6 +2326,7 @@ export async function collectRepositoryHealth(
     request_plan: requestPlan,
     limits,
     consumed,
+    provider_backoff: Object.fromEntries(deferred),
     observations,
   };
 }

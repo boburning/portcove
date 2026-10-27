@@ -390,7 +390,8 @@ location up to three additional metadata reads and each reviewed source archive
 up to two. Unproven reuse is never a speculative budget credit. Successful
 same-operation repository metadata can serve identical endpoints. Actual GitHub
 and GitLab quota headers preserve a five-percent provider reserve (at least one
-request); provider reset and Retry-After clocks defer related reads without
+request); provider-wide reset and Retry-After clocks persist across automatic batches and
+resumed invocations and defer related reads without
 blocking unrelated providers. Unknown capacity retains the finite request
 bootstrap. Failed reads are not retried within the same logical job.
 

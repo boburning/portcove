@@ -80,6 +80,7 @@ interface HealthCheckpoint {
   observations: Observation[];
   port_health: PortHealth[];
   incident_history: IncidentHistory[];
+  provider_backoff?: Record<string, string>;
   continuation?: {
     policy_sha256: string;
     port_contracts: { port_id: string; health_contract_sha256: string }[];
@@ -285,6 +286,31 @@ function validateCheckpoint(value: unknown, now: number): HealthCheckpoint | nul
     }
     historyIds.add(port.port_id);
   }
+  if (
+    value.provider_backoff !== undefined &&
+    (!isRecord(value.provider_backoff) ||
+      Object.entries(value.provider_backoff).some(([provider, reset]) => {
+        let validProvider = ["github", "gitlab"].includes(provider);
+        if (!validProvider)
+          try {
+            const parsed = new URL(provider);
+            validProvider =
+              parsed.protocol === "https:" &&
+              parsed.origin === provider &&
+              !parsed.username &&
+              !parsed.password;
+          } catch {
+            validProvider = false;
+          }
+        return (
+          !validProvider ||
+          typeof reset !== "string" ||
+          !Number.isFinite(Date.parse(reset)) ||
+          new Date(reset).toISOString() !== reset
+        );
+      }))
+  )
+    throw new Error("Monitoring checkpoint has invalid provider backoff");
   if (value.continuation !== undefined) {
     const pending = value.continuation;
     if (
@@ -485,7 +511,10 @@ export async function advanceHealthMonitor(
       if (record.port_ids.every((id) => pendingOwners.get(id) === currentHashes.get(id)))
         resumable.set(locationKey(record), record);
   const progress = new Map(resumable);
-  const persistObservation = async (record: Observation) => {
+  const persistObservation = async (
+    record: Observation,
+    providerBackoff: Record<string, string>,
+  ) => {
     progress.set(locationKey(record), record);
     if (!persistProgress || !isTrustedHealthExecution(execution)) return;
     const current = new Date(now()).toISOString();
@@ -501,6 +530,7 @@ export async function advanceHealthMonitor(
       observations: previous?.observations ?? [],
       port_health: previous?.port_health ?? [],
       incident_history: previous?.incident_history ?? [],
+      provider_backoff: providerBackoff,
       continuation: {
         policy_sha256: policySha256,
         port_contracts: [...currentHashes].map(([port_id, health_contract_sha256]) => ({
@@ -522,6 +552,7 @@ export async function advanceHealthMonitor(
     previousReport: comparison,
     incremental: true,
     resumeObservations: [...resumable.values()],
+    providerBackoff: previous?.provider_backoff ?? {},
     onObservation: persistObservation,
   });
   const completed = now();
@@ -650,6 +681,7 @@ export async function advanceHealthMonitor(
     observations: history,
     port_health: portHealth,
     incident_history: [...incidentHistory.values()],
+    provider_backoff: collection.provider_backoff,
     ...(pending && {
       continuation: {
         policy_sha256: policySha256,
