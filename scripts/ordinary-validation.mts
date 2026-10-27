@@ -859,6 +859,18 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/release-hosted-native-windows-host.mts",
+    [
+      "scripts/release-hosted-native-windows-host.test.mts",
+      "scripts/release-native-pre-sign-report.test.mts",
+      "scripts/release-hosted-native-proof.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-owned-windows-proof-store.mts",
+    ["scripts/release-owned-windows-proof-store.test.mts"],
+  ],
+  [
     "scripts/release-owned-capture-store.mts",
     [
       "scripts/release-checkpoint-store.test.mts",
@@ -1153,6 +1165,8 @@ for (const [file, tests] of [
       "scripts/release-hosted-native-windows-bootstrap.test.mts",
       "scripts/release-hosted-native-windows-source.test.mts",
       "scripts/release-hosted-native-windows-dependency-files.test.mts",
+      "scripts/native-qualification-account.test.mts",
+      "scripts/release-owned-windows-proof-store.test.mts",
       "scripts/release-routing-marker.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/required-node-test-reporter.test.mts",
